@@ -1558,7 +1558,7 @@ export interface RecentWorkspacesWorkspace {
 }
 
 /**
- * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model, gathered by the imports through it (SR-158).
+ * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model, which the imports through it gather (ADR-0013 "Import") so an export can write in that model (SR-158).
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
@@ -1645,14 +1645,14 @@ export interface ReqifMappingFile {
 }
 
 /**
- * The mapping without `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.
+ * The keys of a mapping but `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.
  * Schema: `schemas/reqif-mapping.schema.json#/$defs/settings`.
  */
 export interface ReqifMappingSettings {
   /** Version of this file format. */
-  readonly "reqseq-reqif-mapping": 1;
+  readonly "reqseq-reqif-mapping"?: 1;
   /** The ReqIF source this mapping is for. */
-  readonly source: {
+  readonly source?: {
     /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
     readonly name: string;
     /** REQ-IF-TOOL-ID seen in deliveries, for recognising the source. */
@@ -1732,7 +1732,7 @@ export interface ReqifMappingSettings {
 }
 
 /**
- * The source's own model, gathered by the imports through this mapping (SR-158): the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others (ADR-0013 "Import"). Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.
+ * The source's own model, so an export can write in it (SR-158), gathered by the imports through this mapping (ADR-0013 "Import"): the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others. Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.
  * Schema: `schemas/reqif-mapping.schema.json#/$defs/sourceModel`.
  */
 export interface ReqifMappingSourceModel {
@@ -4422,7 +4422,7 @@ export interface ReqifImportOutput {
  * Schema: `schemas/commands/reqif.saveMapping.json input`.
  */
 export interface ReqifSaveMappingInput {
-  /** The whole mapping, without `source-model`, which only reqif.import writes and an existing file keeps. */
+  /** The whole mapping, without `source-model`, which only reqif.import writes: an existing file keeps its own, unless `file` names the file of another source, whose source model is then removed. */
   readonly mapping: {
     /** Version of this file format. */
     readonly "reqseq-reqif-mapping": 1;

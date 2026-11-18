@@ -145,7 +145,12 @@ describe("reqif.import stores the source model in the mapping (SR-158)", () => {
     expect(out.created).toHaveLength(2);
     expect(out.files.every((f) => f.startsWith("Kunde-A/"))).toBe(true);
     expect(out.problems).toEqual([
-      expect.objectContaining({ code: "reqif.source-model-unsaved", severity: "warning" }),
+      expect.objectContaining({
+        code: "reqif.source-model-unsaved",
+        severity: "warning",
+        message:
+          "The source model was not saved: mapping in/kunde-a.yaml is not a .yaml file directly in the mapping folder reqif of repository system",
+      }),
     ]);
     expect(await text(fixture, "in/kunde-a.yaml")).toBe(MAPPING);
   });
@@ -168,6 +173,20 @@ describe("reqif.import stores the source model in the mapping (SR-158)", () => {
     expect(out.created).toHaveLength(2);
     expect((out.problems ?? []).map((p) => p.code)).toEqual(["reqif.source-model-unsaved"]);
     expect(await text(fixture, "in/kunde-a.yaml")).toBe(MAPPING);
+  });
+
+  it("refuses a mapping in a mapping folder that is a link also when the workspace is opened through a link", async () => {
+    const { fixture } = await open({ "real/kunde-a.yaml": MAPPING });
+    await fs.rm(fixture.path("reqif"), { recursive: true });
+    await fs.symlink(fixture.path("real"), fixture.path("reqif"), "junction");
+    const alias = `${fixture.root}-alias`;
+    await fs.symlink(fixture.root, alias, "junction");
+    onTestFinished(() => fs.rm(alias, { force: true }));
+    const workspace = new Workspace(alias);
+    onTestFinished(() => workspace.close());
+    const error = await failure(workspace);
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "link"]);
+    expect(await elementsIn(fixture, "Kunde-A")).toEqual([]);
   });
 
   it("saves into the mapping folder named through a link to it", async () => {

@@ -26,8 +26,9 @@
             "$ref": "../reqif-mapping.schema.json#/$defs/settings"
           }
         ],
+        "required": ["reqseq-reqif-mapping", "source"],
         "unevaluatedProperties": false,
-        "description": "The whole mapping, without `source-model`, which only reqif.import writes and an existing file keeps."
+        "description": "The whole mapping, without `source-model`, which only reqif.import writes: an existing file keeps its own, unless `file` names the file of another source, whose source model is then removed."
       },
       "file": {
         "$ref": "../common.schema.json#/$defs/localPath",

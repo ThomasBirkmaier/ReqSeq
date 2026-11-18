@@ -421,6 +421,11 @@ describe("reqif.saveMapping (SR-054)", () => {
 
     it("takes none in the input, also one equal to the file's", async () => {
       const { fixture, workspace } = await open();
+      const fresh = await failure(workspace, { mapping: { ...MAPPING, "source-model": MODEL } });
+      expect(fresh.code).toBe("input.invalid");
+      await expect(fs.stat(fixture.path("reqif/kunde-a.yaml"))).rejects.toThrow();
+      const missing = await failure(workspace, { mapping: { "reqseq-reqif-mapping": 1 } });
+      expect(missing.message.match(/source/g)).toHaveLength(1);
       await save(workspace, { mapping: MAPPING });
       await fs.appendFile(fixture.path("reqif/kunde-a.yaml"), STORED);
       const before = await read(fixture, "reqif/kunde-a.yaml");

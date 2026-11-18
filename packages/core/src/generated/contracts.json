@@ -3137,7 +3137,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/reqif-mapping.schema.json",
       "title": "ReqIF mapping file",
-      "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source. The own metamodel is never changed by it. Also holds saved export profiles and the source's own model, gathered by the imports through it.",
+      "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source. The own metamodel is never changed by it. Also holds saved export profiles and the source's own model, which the imports through it gather so an export can write in that model.",
       "type": "object",
       "required": [
         "reqseq-reqif-mapping",
@@ -3149,6 +3149,15 @@
         }
       ],
       "properties": {
+        "reqseq-reqif-mapping": true,
+        "source": true,
+        "target": true,
+        "types": true,
+        "attributes": true,
+        "relations": true,
+        "statement": true,
+        "omit-properties": true,
+        "export-profiles": true,
         "source-model": {
           "$ref": "#/$defs/sourceModel"
         }
@@ -3157,11 +3166,7 @@
       "$defs": {
         "settings": {
           "type": "object",
-          "description": "The mapping without `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.",
-          "required": [
-            "reqseq-reqif-mapping",
-            "source"
-          ],
+          "description": "The keys of a mapping but `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.",
           "properties": {
             "reqseq-reqif-mapping": {
               "description": "Version of this file format.",
@@ -3391,7 +3396,7 @@
           }
         },
         "sourceModel": {
-          "description": "The source's own model, gathered by the imports through this mapping: the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others. Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.",
+          "description": "The source's own model, so an export can write in it, gathered by the imports through this mapping: the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others. Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.",
           "type": "object",
           "required": [
             "datatypes",
@@ -12200,8 +12205,12 @@
                   "$ref": "../reqif-mapping.schema.json#/$defs/settings"
                 }
               ],
+              "required": [
+                "reqseq-reqif-mapping",
+                "source"
+              ],
               "unevaluatedProperties": false,
-              "description": "The whole mapping, without `source-model`, which only reqif.import writes and an existing file keeps."
+              "description": "The whole mapping, without `source-model`, which only reqif.import writes: an existing file keeps its own, unless `file` names the file of another source, whose source model is then removed."
             },
             "file": {
               "$ref": "../common.schema.json#/$defs/localPath",

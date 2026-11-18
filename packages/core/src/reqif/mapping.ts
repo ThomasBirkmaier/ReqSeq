@@ -139,7 +139,8 @@ export const mappingTarget = async (
 
 /**
  * Whether the local path `given` (resolved against `root`) names a `.yaml` file directly in the
- * mapping folder, by its text or with links resolved, before any refusal of `mappingTarget`; true
+ * mapping folder, by its text or with the links of both resolved (a workspace opened through a link,
+ * a mapping folder that is one), before any refusal of `mappingTarget`; true
  * while the folder's repository is not on this machine, which `mappingTarget` then refuses.
  */
 export const liesInMappingFolder = async (
@@ -153,7 +154,7 @@ export const liesInMappingFolder = async (
   return (
     folder === undefined ||
     (absolute.endsWith(MAPPING_FILE_EXTENSION) &&
-      (samePath(parent, folder) || samePath(await realOf(parent), folder)))
+      (samePath(parent, folder) || samePath(await realOf(parent), await realOf(folder))))
   );
 };
 

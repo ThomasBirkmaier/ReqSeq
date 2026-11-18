@@ -26,7 +26,8 @@ import type { YamlFile } from "../files/index.js";
 import type { ReqifMappingFile } from "../generated/types.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
-import { liesInMappingFolder, mappingTarget } from "./mapping.js";
+import { MAPPING_FILE_EXTENSION, liesInMappingFolder, mappingTarget } from "./mapping.js";
+import { settingLocation } from "../workspace/index.js";
 import { checkUnchanged, saveMappingKey } from "./mapping-key.js";
 import type { ReqifDatatype, ReqifFile, ReqifIdentifiable, ReqifSpecType } from "./model.js";
 
@@ -172,12 +173,13 @@ export const sourceModelSave = async (
     return { problems: [] };
   }
   if (!(await liesInMappingFolder(layout, root, given))) {
+    const folder = settingLocation(layout, "mappings");
     return {
       problems: [
         {
           code: "reqif.source-model-unsaved",
           severity: "warning",
-          message: `The source model was not saved: mapping ${given} lies outside the mapping folder, where ReqSeq writes no mapping file`,
+          message: `The source model was not saved: mapping ${given} is not a ${MAPPING_FILE_EXTENSION} file directly in the mapping folder ${folder.path} of repository ${folder.repository}`,
         },
       ],
     };
