@@ -180,7 +180,7 @@ export function parseArgs(argv) {
       return { epicNumber, required, error: `unknown argument ${flag}` };
     }
     const value = argv[(i += 1)];
-    if (value === undefined || value === "--epic" || value === "--require") {
+    if (value === undefined || value.trim() === "" || value === "--epic" || value === "--require") {
       return { epicNumber, required, error: `${flag} needs a value` };
     }
     if (flag === "--epic") {

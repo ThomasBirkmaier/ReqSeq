@@ -479,7 +479,7 @@ export function parseArgs(args, errors) {
     const arg = args[i];
     if (!VALUE_FLAGS.has(arg)) {
       errors.push(`unknown argument ${arg} (--require, --stage, --report)`);
-    } else if (args[i + 1] === undefined || VALUE_FLAGS.has(args[i + 1])) {
+    } else if (args[i + 1] === undefined || args[i + 1] === "" || VALUE_FLAGS.has(args[i + 1])) {
       errors.push(`${arg} needs a value`);
     } else {
       values.get(arg).push(args[(i += 1)]);
@@ -491,11 +491,16 @@ export function parseArgs(args, errors) {
     }
   }
   return {
-    required: values
-      .get("--require")
-      .flatMap((list) => list.split(","))
-      .map((id) => id.trim())
-      .filter(Boolean),
+    // An SR named twice is checked once.
+    required: [
+      ...new Set(
+        values
+          .get("--require")
+          .flatMap((list) => list.split(","))
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ],
     stage: values.get("--stage")[0],
     report: values.get("--report")[0],
   };
@@ -523,7 +528,7 @@ export function traceCheck(root, args) {
       // An obsolete package has no members any more; checking it would pass without checking anything.
       errors.push(`package ${stage} has no system requirements`);
     }
-    required = required.concat(members ?? []);
+    required = [...new Set(required.concat(members ?? []))];
   }
   const rows = checkRequired(root, spec, required, testRefs, errors);
 

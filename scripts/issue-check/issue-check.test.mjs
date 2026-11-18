@@ -137,6 +137,7 @@ describe("run and parseArgs", () => {
     expect(parseArgs(["--epic", "5", "--epic", "6"]).error).toBe("--epic given twice");
     expect(parseArgs(["--epic", "5", "--require"]).error).toBe("--require needs a value");
     expect(parseArgs(["--epic", "--require", "SR-901"]).error).toBe("--epic needs a value");
+    expect(parseArgs(["--epic", ""]).error).toBe("--epic needs a value");
   });
 
   it("refuses an unknown argument and a part of --require it cannot read", () => {

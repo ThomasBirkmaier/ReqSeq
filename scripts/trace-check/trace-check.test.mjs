@@ -221,7 +221,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       "--require",
       "SR-001",
       "--require",
-      " SR-404 , SR-405",
+      " SR-404 , SR-405,SR-404",
       "--stage",
       "Querschnitt",
       "--stage",
@@ -242,6 +242,8 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
       ]),
     );
     expect(result.reportFile).toBe("a.md");
+    // An SR named twice is checked once.
+    expect(result.errors.filter((e) => e === "required SR-404 not found in spec/")).toHaveLength(1);
   });
 
   it("reports a spec ID that two system requirements share", () => {
