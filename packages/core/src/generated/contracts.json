@@ -5856,7 +5856,73 @@
           "required": [
             "answer"
           ]
-        }
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "clients",
+            "title": "Clients"
+          },
+          {
+            "path": "clients[].value",
+            "title": "Value"
+          },
+          {
+            "path": "clients[].title",
+            "title": "Client"
+          },
+          {
+            "path": "client",
+            "title": "Client"
+          },
+          {
+            "path": "server",
+            "title": "Server"
+          },
+          {
+            "path": "server.command",
+            "title": "Program"
+          },
+          {
+            "path": "server.args",
+            "title": "Arguments"
+          },
+          {
+            "path": "server.env",
+            "title": "Environment"
+          },
+          {
+            "path": "setup",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.form",
+            "title": "Form"
+          },
+          {
+            "path": "setup.shell",
+            "title": "Shell"
+          },
+          {
+            "path": "setup.text",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.file",
+            "title": "File"
+          },
+          {
+            "path": "valid",
+            "title": "Valid"
+          },
+          {
+            "path": "next",
+            "title": "Next"
+          }
+        ]
       },
       {
         "name": "tool.info",
