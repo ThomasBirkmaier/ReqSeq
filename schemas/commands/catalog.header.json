@@ -9,6 +9,7 @@
     "workspace.agents",
     "workspace.recent",
     "workspace.listFolder",
+    "workspace.connectAgent",
     "tool.info",
     "metamodel.get",
     "metamodel.mermaid",

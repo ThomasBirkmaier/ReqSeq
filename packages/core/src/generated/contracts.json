@@ -964,6 +964,9 @@
                 "file.read-only",
                 "file.not-regular",
                 "file.folder-missing",
+                "agent.app-translocated",
+                "agent.path-unsupported",
+                "agent.cli-missing",
                 "command.not-implemented",
                 "internal"
               ]
@@ -5843,6 +5846,253 @@
           {
             "path": "truncated",
             "title": "Truncated"
+          }
+        ]
+      },
+      {
+        "name": "workspace.connectAgent",
+        "title": "Connect AI agent",
+        "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "effect": "read",
+        "stage": 6,
+        "implements": [
+          "SR-227"
+        ],
+        "arguments": [
+          {
+            "field": "client",
+            "complete": "choice"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The client of the agent. Left out, the output lists the clients."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "title": "Answer",
+              "type": "string",
+              "minLength": 1,
+              "description": "What to do with the setup, in one sentence; without a client, which clients there are."
+            },
+            "clients": {
+              "title": "Clients",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "title": "Value",
+                    "enum": [
+                      "claude-code",
+                      "claude-desktop",
+                      "cursor",
+                      "vscode",
+                      "codex-cli",
+                      "other"
+                    ],
+                    "description": "The value of `client`."
+                  },
+                  "title": {
+                    "title": "Client",
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The name of the client."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "title"
+                ]
+              },
+              "description": "The clients to choose from, in this order. Only without a client."
+            },
+            "client": {
+              "title": "Client",
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The chosen client."
+            },
+            "server": {
+              "title": "Server",
+              "type": "object",
+              "properties": {
+                "command": {
+                  "title": "Program",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+                },
+                "args": {
+                  "title": "Arguments",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace."
+                },
+                "env": {
+                  "title": "Environment",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "command",
+                "args",
+                "env"
+              ],
+              "description": "The program, arguments and environment the setup gives the client. Only with a client."
+            },
+            "setup": {
+              "title": "Setup",
+              "type": "object",
+              "properties": {
+                "form": {
+                  "title": "Form",
+                  "enum": [
+                    "command",
+                    "json"
+                  ],
+                  "description": "`command`: a command for the terminal; `json`: a JSON block for a configuration file."
+                },
+                "shell": {
+                  "title": "Shell",
+                  "enum": [
+                    "sh",
+                    "powershell"
+                  ],
+                  "description": "The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`."
+                },
+                "text": {
+                  "title": "Setup",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The command or the JSON block to paste, with the paths filled in."
+                },
+                "file": {
+                  "title": "File",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "form",
+                "text"
+              ],
+              "description": "What the user pastes. Only with a client."
+            },
+            "valid": {
+              "title": "Valid",
+              "type": "string",
+              "minLength": 1,
+              "description": "That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client."
+            },
+            "next": {
+              "title": "Next",
+              "type": "string",
+              "minLength": 1,
+              "description": "How to go on after pasting the setup. Only with a client."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "clients",
+            "title": "Clients"
+          },
+          {
+            "path": "clients[].value",
+            "title": "Value"
+          },
+          {
+            "path": "clients[].title",
+            "title": "Client"
+          },
+          {
+            "path": "client",
+            "title": "Client"
+          },
+          {
+            "path": "server",
+            "title": "Server"
+          },
+          {
+            "path": "server.command",
+            "title": "Program"
+          },
+          {
+            "path": "server.args",
+            "title": "Arguments"
+          },
+          {
+            "path": "server.env",
+            "title": "Environment"
+          },
+          {
+            "path": "setup",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.form",
+            "title": "Form"
+          },
+          {
+            "path": "setup.shell",
+            "title": "Shell"
+          },
+          {
+            "path": "setup.text",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.file",
+            "title": "File"
+          },
+          {
+            "path": "valid",
+            "title": "Valid"
+          },
+          {
+            "path": "next",
+            "title": "Next"
           }
         ]
       },

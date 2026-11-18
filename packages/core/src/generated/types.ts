@@ -489,6 +489,9 @@ export interface CommandErrorObject {
     | "file.read-only"
     | "file.not-regular"
     | "file.folder-missing"
+    | "agent.app-translocated"
+    | "agent.path-unsupported"
+    | "agent.cli-missing"
     | "command.not-implemented"
     | "internal";
   /** What went wrong, for people. */
@@ -2225,6 +2228,57 @@ export interface WorkspaceListFolderOutput {
   readonly problem?: "missing" | "unreadable" | "invalid";
   /** The folder has more than 50,000 matching entries; folders and links come first. */
   readonly truncated?: true;
+}
+
+/**
+ * Input of `workspace.connectAgent` as `run` gets it: validated, properties with a `default` filled in. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Schema: `schemas/commands/workspace.connectAgent.json input`.
+ */
+export interface WorkspaceConnectAgentInput {
+  /** The client of the agent. Left out, the output lists the clients. */
+  readonly client?: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+}
+
+/**
+ * Output of `workspace.connectAgent`. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Schema: `schemas/commands/workspace.connectAgent.json output`.
+ */
+export interface WorkspaceConnectAgentOutput {
+  /** What to do with the setup, in one sentence; without a client, which clients there are. */
+  readonly answer: string;
+  /** The clients to choose from, in this order. Only without a client. */
+  readonly clients?: readonly {
+    /** The value of `client`. */
+    readonly value: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+    /** The name of the client. */
+    readonly title: string;
+  }[];
+  /** The chosen client. */
+  readonly client?: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+  /** The program, arguments and environment the setup gives the client. Only with a client. */
+  readonly server?: {
+    /** The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node). */
+    readonly command: string;
+    /** Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace. */
+    readonly args: readonly string[];
+    /** Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty. */
+    readonly env: Readonly<Record<string, string>>;
+  };
+  /** What the user pastes. Only with a client. */
+  readonly setup?: {
+    /** `command`: a command for the terminal; `json`: a JSON block for a configuration file. */
+    readonly form: "command" | "json";
+    /** The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`. */
+    readonly shell?: "sh" | "powershell";
+    /** The command or the JSON block to paste, with the paths filled in. */
+    readonly text: string;
+    /** The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it. */
+    readonly file?: string;
+  };
+  /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
+  readonly valid?: string;
+  /** How to go on after pasting the setup. Only with a client. */
+  readonly next?: string;
 }
 
 /**
@@ -4640,6 +4694,7 @@ export interface CommandTypes {
   readonly "workspace.agents": { readonly input: WorkspaceAgentsInput; readonly output: WorkspaceAgentsOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
+  readonly "workspace.connectAgent": { readonly input: WorkspaceConnectAgentInput; readonly output: WorkspaceConnectAgentOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
