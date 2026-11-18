@@ -1,7 +1,7 @@
 // The commander tree, generated from the command catalog (ADR-0002 rule 3, ADR-0009). No command is
 // named here: groups, actions, arguments and flags all come from the catalog entries.
 import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
-import { Command, Option } from "commander";
+import { Command, InvalidArgumentError, Option } from "commander";
 import type { InputField, PartFlag } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
 
@@ -63,10 +63,29 @@ export interface ProgramOptions {
 
 const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
 
-const WORKSPACE_OPTION = [
-  "--workspace <path>",
-  "workspace root (default: nearest folder upwards with reqseq-workspace.yaml)",
-] as const;
+/**
+ * An option that takes one value. Given twice, commander reports an error naming the option instead of
+ * keeping the last value (#1828). None of these options has a commander default, so a previous value
+ * is always one given on the line.
+ */
+const single = (option: Option): Option =>
+  option.argParser((value: string, previous: unknown) => {
+    if (previous !== undefined) {
+      throw new InvalidArgumentError("The option takes one value; give it once.");
+    }
+    return value;
+  });
+
+const workspaceOption = (): Option =>
+  single(
+    new Option(
+      "--workspace <path>",
+      "workspace root (default: nearest folder upwards with reqseq-workspace.yaml)",
+    ),
+  );
+
+const portOption = (): Option =>
+  single(new Option("--port <number>", "TCP port (default: 0, any free port)"));
 
 /**
  * `reqseq serve api`, `reqseq serve docs` and `reqseq mcp` (ADR-0009, ADR-0017). There is no option for the
@@ -85,8 +104,8 @@ const addServers = (program: Command, options: ProgramOptions): void => {
       "Local API on 127.0.0.1 and ::1 only: POST /v1/commands/<name>, GET /v1/commands. " +
         "Port and token are in api.json in the cache folder of the workspace. Runs until Ctrl-C.",
     )
-    .option("--port <number>", "TCP port (default: 0, any free port)")
-    .option(...WORKSPACE_OPTION);
+    .addOption(portOption())
+    .addOption(workspaceOption());
   api.action(async () => {
     const opts = api.opts<Record<string, unknown>>();
     await options.serve({ server: "api", port: text(opts["port"]), workspace: text(opts["workspace"]) });
@@ -97,7 +116,7 @@ const addServers = (program: Command, options: ProgramOptions): void => {
       "The documentation of this ReqSeq version on 127.0.0.1 only, to read and search in a browser without network. " +
         "Prints its address. Needs no workspace. Runs until Ctrl-C.",
     )
-    .option("--port <number>", "TCP port (default: 0, any free port)");
+    .addOption(portOption());
   docs.action(async () => {
     await options.serve({ server: "docs", port: text(docs.opts<Record<string, unknown>>()["port"]) });
   });
@@ -106,7 +125,7 @@ const addServers = (program: Command, options: ProgramOptions): void => {
     .description(
       "MCP server over standard input and output, one tool per command. Runs until the input ends or Ctrl-C.",
     )
-    .option(...WORKSPACE_OPTION);
+    .addOption(workspaceOption());
   mcp.action(async () => {
     await options.serve({ server: "mcp", workspace: text(mcp.opts<Record<string, unknown>>()["workspace"]) });
   });
@@ -180,7 +199,7 @@ const PART_PLACEHOLDER: Readonly<Record<PartFlag["role"], string>> = {
 /** The option of a part flag. */
 const partOption = (field: InputField, part: PartFlag): Option => {
   const option = new Option(`--${part.flag} ${PART_PLACEHOLDER[part.role]}`, describePart(field, part));
-  return part.array ? option.argParser(collect) : option;
+  return part.array ? option.argParser(collect) : single(option);
 };
 
 /** The flag names a command line takes, each with `--no-x`; a name twice throws (#149). */
@@ -220,7 +239,10 @@ const optionsOf = (field: InputField, fields: readonly InputField[]): FieldOptio
         ? "<number>"
         : "<value>";
   const option = new Option(`--${field.flag} ${placeholder}`, description);
-  return { main: field.array || field.entries ? option.argParser(collect) : option, negation: undefined };
+  return {
+    main: field.array || field.entries ? option.argParser(collect) : single(option),
+    negation: undefined,
+  };
 };
 
 const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
@@ -250,7 +272,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       .map((field) => ({
         field,
         part: undefined,
-        main: new Option(`--${field.flag} <value>`, `instead of the argument <${field.flag}>`),
+        main: single(new Option(`--${field.flag} <value>`, `instead of the argument <${field.flag}>`)),
         negation: undefined,
       })),
     ...flags.map((field) => ({ field, part: undefined, ...optionsOf(field, fields) })),
@@ -270,8 +292,15 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
     }
   }
   command
-    .option("--input <json|@file|->", "command input as JSON: inline, from a file, or from standard input")
-    .option(...WORKSPACE_OPTION)
+    .addOption(
+      single(
+        new Option(
+          "--input <json|@file|->",
+          "command input as JSON: inline, from a file, or from standard input",
+        ),
+      ),
+    )
+    .addOption(workspaceOption())
     .option("--json", "print exactly the command output as JSON")
     .addOption(
       new Option("--yaml", "print the whole command output as YAML, problems one per line").conflicts("json"),

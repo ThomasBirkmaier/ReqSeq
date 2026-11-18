@@ -512,6 +512,48 @@ describe("reqseq <group> <action>", () => {
     expect(JSON.parse(first.stdout)).toEqual({ input: { ref, name: "second", level: "low" } });
   });
 
+  it("refuses a single-value option given twice instead of keeping the last value (#1828)", async () => {
+    const twice = (flag: string, value: string): string[] => [flag, value, flag, value];
+    const lines: [string[], string][] = [
+      [["test", "echo", "--name", "n", ...twice("--ref", ref)], "--ref <value>"],
+      [["test", "echo", ref, "n", ...twice("--count", "1")], "--count <number>"],
+      [["test", "echo", ref, "n", ...twice("--where", "{}")], "--where <json|@file|->"],
+      [["test", "echo", ref, "n", ...twice("--input", "{}")], "--input <json|@file|->"],
+      [["test", "echo", ref, "n", ...twice("--workspace", ".")], "--workspace <path>"],
+      [["serve", "api", ...twice("--port", "0")], "--port <number>"],
+      [["serve", "api", ...twice("--workspace", ".")], "--workspace <path>"],
+      [["serve", "docs", ...twice("--port", "0")], "--port <number>"],
+      [["mcp", ...twice("--workspace", ".")], "--workspace <path>"],
+    ];
+    for (const [argv, option] of lines) {
+      const result = await run([...argv, "--json"]);
+      expect(result.code, argv.join(" ")).toBe(EXIT.usage);
+      expect(result.stdout, argv.join(" ")).toBe("");
+      expect(JSON.parse(result.stderr), argv.join(" ")).toEqual({
+        code: "input.invalid",
+        message: `option '${option}' argument '${argv.at(-1) ?? ""}' is invalid. The option takes one value; give it once.`,
+      });
+    }
+    // Repeatable flags and a repeated boolean keep working.
+    const repeated = await run([
+      "test",
+      "echo",
+      ref,
+      "n",
+      "--tags",
+      "a",
+      "--tags",
+      "b",
+      "--ids",
+      ref,
+      "--ids",
+      ref,
+    ]);
+    expect(repeated.code).toBe(EXIT.ok);
+    const flags = await run(["test", "echo", ref, "n", "--verbose", "--verbose", "--json"]);
+    expect(JSON.parse(flags.stdout)).toMatchObject({ input: { verbose: true } });
+  });
+
   it("exits 0 without error findings and 1 with them or with ok: false", async () => {
     const clean = await run(["test", "findings", "--mode", "clean"]);
     expect(clean).toEqual({ code: EXIT.ok, stdout: "ok: true\nNo problems.\n", stderr: "" });
