@@ -32,8 +32,8 @@
 //   marked `x-elements: "answer"` over all pages (`CommandDefinition.outputElements`), run through
 //   `readOutputElements` of the command's context as `invoke` runs a command (runtime/invoke.ts,
 //   `outputElementsReader`). An element is matched by repository and UUID; one the store does not hold
-//   is not selected (a missing entry of baseline.get; assumption: a list holds elements of the
-//   workspace). The inner output's `incomplete` holds too. baseline.create refuses it.
+//   is not selected; the inner output's `incomplete` holds, which baseline.get sets for such an entry
+//   (assumption of #1932). baseline.create refuses it.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,

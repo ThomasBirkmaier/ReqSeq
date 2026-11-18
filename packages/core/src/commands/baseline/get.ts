@@ -231,13 +231,12 @@ export default defineCommand({
   },
   outputElements: async (ctx, input) => {
     const { baseline, selected } = await baselineOf(ctx, input);
-    return {
-      elements: baselineElements({
-        baseline,
-        store: selected?.store ?? (await ctx.workspace.get(elementStoreState)),
-        selected: selected?.elements,
-      }),
-      incomplete: await incompleteOf(ctx.workspace, selected),
-    };
+    const { elements, absent } = baselineElements({
+      baseline,
+      store: selected?.store ?? (await ctx.workspace.get(elementStoreState)),
+      selected: selected?.elements,
+    });
+    // An entry without an element in the workspace is no row of a list: the list says it is incomplete (#1932).
+    return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
   },
 });

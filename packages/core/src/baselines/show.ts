@@ -137,15 +137,16 @@ const entriesOf = (
 
 /**
  * The elements of the rows `showBaseline` gives over all pages, without building a row (`baseline.get`
- * `outputElements`, SR-224 AK5): the copy of each entry, then the added ones; a `missing` or `inaccessible` entry has
- * no element in the store and is left out.
+ * `outputElements`, SR-224 AK5): the copy of each entry, then the added ones. A `missing` or `inaccessible`
+ * entry has no element in the store: it is left out, and `absent` says that one was (assumption of #1932).
  */
 export const baselineElements = (
   request: Pick<ShowRequest, "baseline" | "store" | "selected">,
-): readonly ElementRecord[] => {
+): { readonly elements: readonly ElementRecord[]; readonly absent: boolean } => {
   const { copies, listed } = entriesOf(request.store, request.baseline, []);
   const added = request.selected?.filter((r) => !listed.has(r)) ?? [];
-  return [...copies.filter((c): c is ElementRecord => c !== undefined), ...added];
+  const present = copies.filter((c): c is ElementRecord => c !== undefined);
+  return { elements: [...present, ...added], absent: present.length < copies.length };
 };
 
 /** The baseline with its entries and what became of them (see the file comment). */

@@ -102,7 +102,7 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
         selection: { output: { command, input: { ...input, offset: 1, limit: 1 } } },
         limit: 5000,
       });
-      // A page of baseline.get also holds the entry that is in no file, which no list holds (#1873).
+      // A page of baseline.get also holds the entry that is in no file, which no list holds (assumption of #1932).
       const present = new Set([...ids].filter((id) => inStore.has(id)));
       expect(new Set(listed.elements.map((e) => e.id)), command).toEqual(present);
       expect(listed.total, command).toBe(present.size);
@@ -112,16 +112,19 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
     }
   });
 
-  it("lists the copies of a baseline that are in the workspace, not the entry that is in no file", async () => {
+  it("lists the copies of a baseline that are in the workspace and is incomplete for the entry that is in no file (#1932)", async () => {
     const workspace = await open();
     const listed = await list(workspace, {
       selection: { output: { command: "baseline.get", input: { baseline: "Release 1" } } },
     });
     expect(tails(listed.elements)).toEqual(["a1", "b1", "b3"]);
+    // Assumption of #1932: the other elements, and the list says it is incomplete.
+    expect(listed.incomplete).toBe(true);
     const added = await list(workspace, {
       selection: { output: { command: "baseline.get", input: { baseline: "By package" } } },
     });
     expect(tails(added.elements)).toEqual(["b1", "b2"]);
+    expect(added.incomplete).toBe(false);
   });
 
   it("filters, sorts and pages the elements of the output as any list, and nests outputs", async () => {
