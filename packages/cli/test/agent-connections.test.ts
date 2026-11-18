@@ -145,7 +145,7 @@ const agentFiles = async (folder: string): Promise<string[]> =>
   (await fs.readdir(folder).catch(() => [])).filter((name) => /^agent-.*\.json$/.test(name));
 
 describe("recording a connection (SR-228 AK5, AK6)", () => {
-  it("[SR-228/AK-dymn] an MCP server writes its connection only into the cache folder of the copy, not into the workspace or Git, before the store is loaded", async () => {
+  it("[SR-228/AK-dymn] an MCP server writes its connection only into the cache folder of the copy, not into the workspace or Git", async () => {
     const cache = cacheFolder(fixture.root);
     await fs.rm(cache, { recursive: true, force: true });
     const before = await filesOf(fixture.root);
@@ -154,7 +154,7 @@ describe("recording a connection (SR-228 AK5, AK6)", () => {
       await vi.waitFor(async () => {
         expect(await agentFiles(cache)).toHaveLength(1);
       });
-      // Nothing but the connection is in the cache folder: the server has not loaded the store.
+      // Nothing but the connection is in the cache folder (no model cache either: no tool was called).
       expect(await fs.readdir(cache)).toEqual(await agentFiles(cache));
     } finally {
       await session.close();

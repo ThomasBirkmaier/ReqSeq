@@ -54,26 +54,32 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 const nameOf = (info: unknown): unknown => (isRecord(info) ? info["name"] : undefined);
 
 /**
- * The client's name when `message` is the request that connects a client: `initialize` (its
- * `clientInfo`), or a request of revision 2026-07-28 (its envelope, `_meta`); `none` otherwise.
+ * How `message` connects a client: an `initialize` request (`clientInfo`, connected once its
+ * successful answer is written), a request of revision 2026-07-28 with its envelope (`_meta`, which
+ * holds the client's name; connected when it arrives, as that revision has no `initialize`), or not.
  */
-const connectingClient = (message: JSONRPCMessage): { readonly client: unknown } | "none" => {
+const connectingClient = (
+  message: JSONRPCMessage,
+): { readonly era: "initialize" | "envelope"; readonly client: unknown } | undefined => {
   if (!("method" in message) || !("id" in message)) {
-    return "none";
+    return undefined;
   }
   const params = isRecord(message.params) ? message.params : {};
   if (message.method === "initialize") {
-    return { client: nameOf(params["clientInfo"]) };
+    return { era: "initialize", client: nameOf(params["clientInfo"]) };
   }
   const meta = params._meta;
-  return isRecord(meta) && PROTOCOL_VERSION_KEY in meta ? { client: nameOf(meta[CLIENT_INFO_KEY]) } : "none";
+  return isRecord(meta) && PROTOCOL_VERSION_KEY in meta
+    ? { era: "envelope", client: nameOf(meta[CLIENT_INFO_KEY]) }
+    : undefined;
 };
 
 export interface LineTransportOptions {
   /**
-   * Called once, after the successful answer to the first request that connects a client
-   * (`initialize`, or the first request of revision 2026-07-28) is written, with the name the client
-   * gave (unchecked; SR-228). The MCP server records the connection with it.
+   * Called once when a client is connected, with the name it gave (unchecked; SR-228): after the
+   * successful answer to an `initialize` is written, or when the first request of revision 2026-07-28
+   * arrives (that revision has no `initialize`, and its first request may get no answer with an id,
+   * `subscriptions/listen`, or wait for a long load). The MCP server records the connection with it.
    */
   readonly onConnect?: (client: unknown) => void;
 }
@@ -89,8 +95,8 @@ export class LineTransport implements Transport {
   readonly #buffer = new ReadBuffer({ maxBufferSize: MAX_MESSAGE_BYTES });
   readonly #resolveClosed: () => void;
   #onConnect: ((client: unknown) => void) | undefined;
-  /** The request that connects the client, until its answer is written. */
-  #connecting: { readonly id: unknown; readonly client: unknown } | undefined;
+  /** The `initialize` requests not answered yet, by id, with the client's name. */
+  readonly #initializing = new Map<unknown, unknown>();
   #started = false;
   #closed = false;
   /** The sends so far, each after the one before; never rejects. */
@@ -151,33 +157,39 @@ export class LineTransport implements Transport {
     await this.close();
   }
 
-  /** Keeps the first request that connects a client, while `onConnect` waits for one. */
+  /** Calls `onConnect` once; later calls do nothing. */
+  #connect(client: unknown): void {
+    const onConnect = this.#onConnect;
+    this.#onConnect = undefined;
+    this.#initializing.clear();
+    onConnect?.(client);
+  }
+
+  /** Notes an `initialize` request; connects at once on a request of revision 2026-07-28. */
   #noteConnecting(message: JSONRPCMessage): void {
-    if (this.#onConnect === undefined || this.#connecting !== undefined) {
+    if (this.#onConnect === undefined) {
       return;
     }
     const connecting = connectingClient(message);
-    if (connecting !== "none") {
-      this.#connecting = { id: (message as { id: unknown }).id, client: connecting.client };
+    if (connecting?.era === "envelope") {
+      this.#connect(connecting.client);
+    } else if (connecting !== undefined) {
+      this.#initializing.set((message as { id: unknown }).id, connecting.client);
     }
   }
 
-  /** After `message` is written: calls `onConnect` when it is the successful answer to the connecting request. */
+  /**
+   * After `message` is written: connects when it is the successful answer to a noted `initialize`;
+   * an error answer only drops that request, so a later `initialize` still connects.
+   */
   #connected(message: JSONRPCMessage): void {
-    const connecting = this.#connecting;
-    if (
-      connecting === undefined ||
-      !("id" in message) ||
-      message.id !== connecting.id ||
-      "method" in message
-    ) {
+    if (!("id" in message) || "method" in message || !this.#initializing.has(message.id)) {
       return;
     }
-    this.#connecting = undefined;
+    const client = this.#initializing.get(message.id);
+    this.#initializing.delete(message.id);
     if ("result" in message) {
-      const onConnect = this.#onConnect;
-      this.#onConnect = undefined;
-      onConnect?.(connecting.client);
+      this.#connect(client);
     }
   }
 

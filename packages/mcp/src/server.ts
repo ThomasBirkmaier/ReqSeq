@@ -132,10 +132,10 @@ export interface ServeMcpOptions extends McpServerOptions {
 
 /**
  * Serve MCP over the stdio framing until the input ends or `signal` aborts; resolves when the session is
- * closed. The SDK picks the protocol era from the client's first message. Once the answer to the client's
- * first request is written, the connection is recorded in the cache folder of the copy with the name the
- * client gave, and it ends with the session (SR-228; only the MCP server records one, never the API or
- * the command line).
+ * closed. The SDK picks the protocol era from the client's first message. Once the client is connected
+ * (`LineTransportOptions.onConnect`), the connection is recorded in the cache folder of the copy with the
+ * name the client gave, and it ends with the session (SR-228; only the MCP server records one, never the
+ * API or the command line).
  */
 export async function serveMcp(options: ServeMcpOptions): Promise<void> {
   let connection: AgentRecording | undefined;

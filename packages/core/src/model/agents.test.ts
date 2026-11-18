@@ -116,6 +116,9 @@ const recordWith = (workspace: Workspace, client: unknown, beatMs = 20): AgentRe
 describe("clientName", () => {
   it("keeps a name as text: without control and format characters, trimmed, at most 40 characters", () => {
     expect(clientName(`  Claude\u0000 Code${String.fromCodePoint(0x200b, 0x202e)}\n `)).toBe("Claude Code");
+    // Line breaks and tabs are white space: one space each run.
+    expect(clientName("Claude\nCode")).toBe("Claude Code");
+    expect(clientName("a\t\r\n b\u2028c\u0000 \u0007 d")).toBe("a b c d");
     expect(clientName(42)).toBeNull();
     expect(clientName(undefined)).toBeNull();
     expect(clientName(" \u0007 ")).toBeNull();
@@ -373,6 +376,38 @@ describe("recordAgentConnection", () => {
     await fs.writeFile(cache, "");
     await expect(recording.end()).resolves.toBeUndefined();
     await fs.rm(cache);
+  });
+
+  it("terminates a beat thread that does not stop in time, and writes the end", async () => {
+    const cache = await tempFolder();
+    const workspace = open((await fixture()).root, cache);
+    const deaf = new URL(
+      `data:text/javascript,${encodeURIComponent(
+        'import { parentPort } from "node:worker_threads"; parentPort.on("message", () => undefined); setInterval(() => undefined, 1000);',
+      )}`,
+    );
+    const recording = recordAgentConnection(workspace, "agent", { beatEntry: deaf, stopMs: 50 });
+    await until(async () => (await agentFiles(cache)).length === 1);
+    await recording.end();
+    expect((await readConnectionFile(cache)).ended).toEqual(expect.any(String));
+  });
+
+  it("writes the end and prunes when the beat thread cannot be created", async () => {
+    const cache = await tempFolder();
+    const now = Date.now();
+    await place(cache, { process: "1-0000000a", ended: new Date(now - 60_000).toISOString() }, now - 60_000);
+    await place(cache, { process: "2-0000000b", ended: new Date(now - 1000).toISOString() }, now - 1000);
+    const workspace = open((await fixture()).root, cache);
+    // A URL a worker cannot load: `new Worker` throws.
+    const recording = recordAgentConnection(workspace, "agent", {
+      beatEntry: new URL("https://example.invalid/beat.js"),
+    });
+    await recording.end();
+    const names = await agentFiles(cache);
+    const own = names.find((n) => n.startsWith(`agent-${String(process.pid)}-`)) ?? "";
+    expect(names.filter((n) => n !== own)).toEqual(["agent-2-0000000b.json"]);
+    const file = JSON.parse(await fs.readFile(path.join(cache, own), "utf8")) as AgentConnectionFile;
+    expect(file.ended).toEqual(expect.any(String));
   });
 
   it("does not prune when the folder cannot be read after the write", async () => {

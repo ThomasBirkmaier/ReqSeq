@@ -303,24 +303,42 @@ describe("reqseq mcp records its connection (SR-228)", () => {
   const startOutside = async (): Promise<{
     child: ChildProcessWithoutNullStreams;
     connections: () => Promise<{ client: string; ended: string | null }[]>;
+    agents: () => Promise<unknown>;
   }> => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
     fixtures.push(ws);
     const home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-home-"));
     onTestFinished(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }));
+    const env = {
+      ...process.env,
+      ...HEADLESS,
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CACHE_HOME: home,
+      LOCALAPPDATA: home,
+    };
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, "mcp"], {
       cwd: ws.root,
       stdio: "pipe",
-      env: {
-        ...process.env,
-        ...HEADLESS,
-        HOME: home,
-        USERPROFILE: home,
-        XDG_CACHE_HOME: home,
-        LOCALAPPDATA: home,
-      },
+      env,
     });
     children.push(child);
+    /** `reqseq workspace agents --json` on the same copy and cache folder, as a second process. */
+    const agents = async (): Promise<unknown> => {
+      const asking = spawn(
+        process.execPath,
+        ["--import", blockNetwork, bin, "workspace", "agents", "--json"],
+        {
+          cwd: ws.root,
+          stdio: "pipe",
+          env,
+        },
+      );
+      let stdout = "";
+      asking.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+      expect(await exited(asking)).toBe(0);
+      return JSON.parse(stdout) as unknown;
+    };
     const connections = async (): Promise<{ client: string; ended: string | null }[]> => {
       const folders = await fs.readdir(path.join(home, "reqseq")).catch(() => []);
       const found = [];
@@ -337,14 +355,18 @@ describe("reqseq mcp records its connection (SR-228)", () => {
       }
       return found;
     };
-    return { child, connections };
+    return { child, connections, agents };
   };
 
-  it("writes the connection when the client connects and ends it when the input ends", async () => {
-    const { child, connections } = await startOutside();
+  it("writes the connection when the client connects, keeps it live by its beat, and ends it when the input ends", async () => {
+    const { child, connections, agents } = await startOutside();
     const client = new Client({ name: "e2e agent", version: "1" });
     await client.connect(new LineTransport(child.stdout, { write: (text) => child.stdin.write(text) }));
     await expect.poll(connections).toEqual([expect.objectContaining({ client: "e2e agent", ended: null })]);
+    // Longer than a connection counts without a beat (AGENT_LIVE_MS, 3 s): the beat thread of the
+    // built package keeps it connected.
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    expect(await agents()).toMatchObject({ connected: [{ client: "e2e agent" }] });
     child.stdin.end();
     expect(await exited(child)).toBe(0);
     expect(await connections()).toEqual([

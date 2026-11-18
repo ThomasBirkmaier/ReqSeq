@@ -4,7 +4,7 @@
 // "Agent connections".
 //
 // One file per process, so that several MCP servers of one copy never share a file or a lock. The
-// file is written once when the server answered the client's first request (`recordAgentConnection`)
+// file is written once when the client is connected (`recordAgentConnection`)
 // and once more with `ended` when the connection ends; in between a worker thread renews its
 // modification time every `AGENT_BEAT_MS` (agent-beat.ts), so a blocked main thread does not end the
 // connection. A connection is live while `ended` is null and the modification time is at most
@@ -48,16 +48,20 @@ const CLIENT_MAX_UNITS = 400;
 /** The names of connection files: `agent-<process>.json`, the `process` form of the file. */
 const AGENT_FILE = /^agent-([0-9]+-[0-9a-f]{8})\.json$/;
 
+/** Tabs, line breaks and other white space: each run becomes one space. */
+const SPACES = /[\s\p{Zl}\p{Zp}\u0085]+/gu;
+
 /**
- * Control, format, surrogate and line or paragraph separator characters: no text of a name. The
- * joiners (U+200C, U+200D) are format characters that join an emoji or a word, so they stay.
+ * Control, format and surrogate characters: no text of a name. The joiners (U+200C, U+200D) are
+ * format characters that join an emoji or a word, so they stay.
  */
-const NOT_TEXT = /(?![\u200c\u200d])[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/gu;
+const NOT_TEXT = /(?![\u200c\u200d])[\p{Cc}\p{Cf}\p{Cs}]/gu;
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /**
- * The client name as text (SR-228 AK1): control and format characters removed, trimmed, cut to
+ * The client name as text (SR-228 AK1): white space runs as one space, control and format characters
+ * removed, trimmed, cut to
  * `CLIENT_MAX_CHARACTERS` user-perceived characters (never inside one, and fewer when they hold more
  * than `CLIENT_MAX_UNITS` UTF-16 code units); null when `name` is no string or nothing is left.
  */
@@ -67,7 +71,9 @@ export const clientName = (name: unknown): string | null => {
   }
   let cut = "";
   let characters = 0;
-  for (const { segment } of segmenter.segment(name.replace(NOT_TEXT, "").trim())) {
+  for (const { segment } of segmenter.segment(
+    name.replace(SPACES, " ").replace(NOT_TEXT, "").replace(SPACES, " ").trim(),
+  )) {
     if (characters === CLIENT_MAX_CHARACTERS || cut.length + segment.length > CLIENT_MAX_UNITS) {
       break;
     }
@@ -112,20 +118,17 @@ interface Found {
 
 let validConnection: ReturnType<typeof fileSchemaValidator> | undefined;
 
-/** The connection file `name` in `folder` when it is valid and its `process` matches its name. */
-const readConnection = async (folder: string, name: string): Promise<Found | undefined> => {
+/** The connection file `name` in `folder` (modified at `mtimeMs`) when it is valid and its `process` matches its name. */
+const readConnection = async (folder: string, name: string, mtimeMs: number): Promise<Found | undefined> => {
   try {
-    const [stats, text] = await Promise.all([
-      fs.stat(path.join(folder, name)),
-      readCacheFile(folder, name, AGENT_MAX_BYTES),
-    ]);
+    const text = await readCacheFile(folder, name, AGENT_MAX_BYTES);
     const data: unknown = text === undefined ? undefined : JSON.parse(text);
     validConnection ??= fileSchemaValidator("agent-connection.schema.json");
     if (!validConnection(data)) {
       return undefined;
     }
     const file = data as AgentConnectionFile;
-    return AGENT_FILE.exec(name)?.[1] === file.process ? { name, mtimeMs: stats.mtimeMs, file } : undefined;
+    return AGENT_FILE.exec(name)?.[1] === file.process ? { name, mtimeMs, file } : undefined;
   } catch {
     // Gone meanwhile, a folder in its place, or no JSON: not a connection.
     return undefined;
@@ -164,12 +167,12 @@ const scan = async (folder: string, now: number): Promise<Scan | undefined> => {
   }
   const times = await Promise.all(names.map(async (name) => [name, await mtimeOf(folder, name)] as const));
   const newest = times
+    .filter(([, mtime]) => mtime !== Number.NEGATIVE_INFINITY)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, AGENT_MAX_FILES)
-    .map(([name]) => name);
-  const found = (await Promise.all(newest.map((name) => readConnection(folder, name)))).filter(
-    (f): f is Found => f !== undefined,
-  );
+    .slice(0, AGENT_MAX_FILES);
+  const found = (
+    await Promise.all(newest.map(([name, mtime]) => readConnection(folder, name, mtime)))
+  ).filter((f): f is Found => f !== undefined);
   const live = found
     .filter((f) => liveAt(f, now))
     .sort((a, b) => Date.parse(a.file.since) - Date.parse(b.file.since) || a.name.localeCompare(b.name));
@@ -226,12 +229,26 @@ export interface AgentRecordingOptions {
   readonly beatMs?: number;
   /** The worker script of the beat; default `agent-beat-worker.js` (tests pass a broken one). */
   readonly beatEntry?: URL;
+  /** Default `AGENT_STOP_MS`. */
+  readonly stopMs?: number;
 }
 
 const BEAT_ENTRY = new URL("./agent-beat-worker.js", import.meta.url);
 
-/** Starts the beat thread of `file`; the returned function stops it and resolves once it has ended. */
-const startBeat = (file: string, text: string, everyMs: number, entry: URL): (() => Promise<void>) => {
+/** How long `end()` waits for the beat thread to stop before it terminates it. */
+export const AGENT_STOP_MS = 2000;
+
+/**
+ * Starts the beat thread of `file`; the returned function stops it and resolves once it has ended,
+ * terminating it after `stopMs` (a file call that hangs must not hold the end of the process).
+ */
+const startBeat = (
+  file: string,
+  text: string,
+  everyMs: number,
+  entry: URL,
+  stopMs: number,
+): (() => Promise<void>) => {
   const data: BeatData = { marker: AGENT_BEAT_WORKER, file, text, everyMs };
   const worker = new Worker(entry, { workerData: data });
   // The beat never keeps the process alive: a process that ends without `end()` is a crash.
@@ -247,7 +264,16 @@ const startBeat = (file: string, text: string, everyMs: number, entry: URL): (()
     // Kept alive until it has ended: otherwise a process with nothing else to do would exit first.
     worker.ref();
     worker.postMessage("stop");
-    await exited;
+    let timer: NodeJS.Timeout | undefined;
+    const late = new Promise<"late">((resolve) => {
+      timer = setTimeout(() => {
+        resolve("late");
+      }, stopMs);
+    });
+    if ((await Promise.race([exited, late])) === "late") {
+      await worker.terminate();
+    }
+    clearTimeout(timer);
   };
 };
 
@@ -311,8 +337,21 @@ class Recording implements AgentRecording {
       };
       const text = fileText(file);
       const written = await writeCacheFile(folder, name, text);
-      const stop = startBeat(written, text, options.beatMs ?? AGENT_BEAT_MS, options.beatEntry ?? BEAT_ENTRY);
-      return { folder, name, file, stop, pruned: prune(folder, name, Date.now()) };
+      const pruned = prune(folder, name, Date.now());
+      let stop = (): Promise<void> => Promise.resolve();
+      try {
+        stop = startBeat(
+          written,
+          text,
+          options.beatMs ?? AGENT_BEAT_MS,
+          options.beatEntry ?? BEAT_ENTRY,
+          options.stopMs ?? AGENT_STOP_MS,
+        );
+      } catch {
+        // No thread (a worker script that cannot be started): the file stops counting after
+        // AGENT_LIVE_MS, and `end()` still writes `ended`.
+      }
+      return { folder, name, file, stop, pruned };
     } catch {
       // A closed workspace, a workspace file that cannot be read, a cache folder that cannot be written.
       return undefined;
@@ -355,7 +394,7 @@ const NOT_RECORDED: AgentRecording = { end: () => Promise.resolve() };
 /**
  * Records a connection of the MCP server whose client gave `client` as its name (SR-228), in the
  * background: the file at once, the beat until `end()` or `workspace.close()`. Only the MCP server
- * calls it, once its answer to the client's first request is written. Returns at once and never
+ * calls it, once the client is connected (`LineTransport`). Returns at once and never
  * throws; a closed workspace, or one without a usable cache folder, records nothing (SR-228 AK4).
  */
 export const recordAgentConnection = (

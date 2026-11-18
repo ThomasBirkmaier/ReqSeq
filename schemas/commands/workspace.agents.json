@@ -16,7 +16,7 @@
     "properties": {
       "recorded": {
         "type": "boolean",
-        "description": "Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the cache folder lies inside a repository of the workspace or cannot be read; then both lists are empty."
+        "description": "Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
       },
       "connected": {
         "type": "array",
@@ -27,7 +27,7 @@
             "client": { "$ref": "../agent-connection.schema.json#/$defs/client" },
             "since": {
               "$ref": "../common.schema.json#/$defs/dateTime",
-              "description": "When the MCP server answered the client's first request."
+              "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
             }
           },
           "required": ["client", "since"],

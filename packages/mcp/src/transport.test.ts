@@ -337,26 +337,39 @@ describe("LineTransport onConnect (SR-228)", () => {
     await transport.close();
   });
 
-  it("takes the client of a 2026-07-28 envelope, and nothing from other requests", async () => {
+  it("connects when the first request of a 2026-07-28 envelope arrives, and nothing from other requests", async () => {
     const envelope = {
       _meta: {
         "io.modelcontextprotocol/protocolVersion": "2026-07-28",
         "io.modelcontextprotocol/clientInfo": { name: "modern" },
       },
     };
-    const { transport, clients } = await session([
+    const { transport, clients, deliver } = await session([
       { jsonrpc: "2.0", method: "notifications/initialized" },
       request(1, "tools/list"),
       request(2, "tools/list", { _meta: "no object" }),
-      request(3, "server/discover", envelope),
     ]);
     await transport.send(result(1));
-    await transport.send(result(2));
     await transport.send(request(7, "roots/list"));
     expect(clients).toEqual([]);
-    await transport.send(result(3));
-    expect(clients).toEqual([["modern", 4]]);
-    await transport.send(result(3));
+    // `subscriptions/listen` gets no answer with its id: the arrival connects, before any answer.
+    await deliver(request(3, "subscriptions/listen", envelope));
+    expect(clients).toEqual([["modern", 2]]);
+    await deliver(request(4, "tools/list", envelope));
+    await deliver(request(5, "initialize", { clientInfo: { name: "late" } }));
+    await transport.send(result(5));
+    expect(clients).toHaveLength(1);
+    await transport.close();
+  });
+
+  it("connects through a later initialize when an earlier one gets no answer", async () => {
+    const { transport, clients } = await session([
+      request(1, "initialize", { clientInfo: { name: "unanswered" } }),
+      request(2, "initialize", { clientInfo: { name: "answered" } }),
+    ]);
+    await transport.send(result(2));
+    expect(clients).toEqual([["answered", 1]]);
+    await transport.send(result(1));
     expect(clients).toHaveLength(1);
     await transport.close();
   });

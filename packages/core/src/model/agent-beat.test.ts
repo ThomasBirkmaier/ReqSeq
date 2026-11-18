@@ -1,3 +1,4 @@
+import type * as FsPromises from "node:fs/promises";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -10,6 +11,13 @@ import { AGENT_BEAT_WORKER, beat, serveBeat } from "./agent-beat.js";
 vi.mock("../files/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof Files>();
   return { ...original, writePrivateFile: vi.fn(original.writePrivateFile) };
+});
+
+// The real functions, with `utimes` wrapped so that a test can hold a beat back.
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof FsPromises>();
+  const wrapped = { ...original, utimes: vi.fn(original.utimes) };
+  return { ...wrapped, default: wrapped };
 });
 
 const tempFolder = async (): Promise<string> => {
@@ -64,6 +72,48 @@ describe("serveBeat", () => {
     await fs.utimes(file, OLD, OLD);
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect((await fs.stat(file)).mtimeMs).toBe(OLD.getTime());
+  });
+
+  it("answers a stop only after the beat that runs has ended", async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const utimes = vi.mocked(fs.utimes);
+    let started = (): void => undefined;
+    const running = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    utimes.mockImplementationOnce(async () => {
+      started();
+      await held;
+    });
+    const { port1, port2 } = new MessageChannel();
+    onTestFinished(() => {
+      port1.close();
+    });
+    serveBeat(port2, { marker: AGENT_BEAT_WORKER, file: "held.json", text: "", everyMs: 5 });
+    await running;
+    const answers: unknown[] = [];
+    port1.on("message", (message) => answers.push(message));
+    port1.postMessage("stop");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(answers).toEqual([]);
+    const closed = new Promise((resolve) => port1.once("close", resolve));
+    release();
+    await closed;
+    expect(answers).toEqual(["stopped"]);
+  });
+
+  it("answers a stop at once when no beat runs", async () => {
+    const { port1, port2 } = new MessageChannel();
+    onTestFinished(() => {
+      port1.close();
+    });
+    serveBeat(port2, { marker: AGENT_BEAT_WORKER, file: "never.json", text: "", everyMs: 60_000 });
+    const answer = new Promise((resolve) => port1.once("message", resolve));
+    port1.postMessage("stop");
+    expect(await answer).toBe("stopped");
   });
 
   it("serves nothing without a port or in a thread that is no beat worker", async () => {
