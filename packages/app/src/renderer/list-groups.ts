@@ -2,7 +2,7 @@
 // the prompt "Group by" offers. The core groups (`element.list` with `group`) and says which properties
 // have values to choose (`element.facets`); the app lays out what it gives (ADR-0002).
 import type { ElementFacetsOutput, ElementListOutput } from "@reqseq/core";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import { shownIdTitle } from "./id-title.js";
 import { choosableProperties } from "./list-filters.js";
 

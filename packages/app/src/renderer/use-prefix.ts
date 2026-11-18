@@ -7,7 +7,7 @@
 // selected one (SR-122 AK6).
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { Buffers } from "./buffers.js";
 import type { NextKey } from "./bindings.js";
 import { PREFIX_BINDINGS, PREFIX_DELAY_MS, nextKeys, prefixStep, prefixWaiting } from "./bindings.js";

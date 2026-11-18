@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACTIONS, FOLLOW_SHORTCUT, actionFor, commandPrompt } from "./actions.js";
+import { ACTIONS, actionFor, commandPrompt } from "./actions.js";
+import { FOLLOW_SHORTCUT } from "./app-actions.js";
 import { COMMAND_SHORTCUT } from "./keys.js";
-import type { ActionContext, FollowControls } from "./actions.js";
+import type { ActionContext, FollowControls } from "./action-types.js";
 import type { Buffers } from "./buffers.js";
 import { elementBuffer, graphBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer } from "./buffers.js";
 import { matches, shortcutLabel } from "./keys.js";

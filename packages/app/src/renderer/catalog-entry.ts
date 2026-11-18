@@ -5,7 +5,7 @@
 // walk takes as the argument's value. The grouping (`group-prompt.ts`) is a closed list without marks and
 // uses only the offer shapes (`Offer`, `Value`).
 import type { CommandListing } from "../shared/protocol.js";
-import type { ActionContext, ArgumentExplanation } from "./actions.js";
+import type { ActionContext, ArgumentExplanation } from "./action-types.js";
 import type { ConditionMark } from "./condition-kinds.js";
 import type { RequiredProperty } from "./create-element.js";
 import type { PropertyMark, RelationMark } from "./create-prompt.js";

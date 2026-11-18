@@ -12,7 +12,7 @@ import { createRoot } from "react-dom/client";
 import { redo, undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ElementControls, Prompt } from "./actions.js";
+import type { ElementControls, Prompt } from "./action-types.js";
 import { AUTOSAVE_MS } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { elementBuffer } from "./buffers.js";

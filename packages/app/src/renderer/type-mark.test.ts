@@ -1,6 +1,6 @@
 // The type mark (SR-215 AK5), which the condition prompt and "Filter list" share.
 import { describe, expect, it, vi } from "vitest";
-import type { Prompt } from "./actions.js";
+import type { Prompt } from "./action-types.js";
 import type { Call } from "./call.js";
 import type { TypeAsk } from "./type-mark.js";
 import { askTypes, takeTypesName, typeKeysOf, typeMark, typeMarkAt } from "./type-mark.js";

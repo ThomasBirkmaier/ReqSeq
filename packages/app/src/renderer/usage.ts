@@ -5,7 +5,7 @@
 // command prompt, counts and times are stored; nothing is recorded for "Go to", argument steps or elements.
 import { rank } from "./fuzzy.js";
 import type { Ranked } from "./fuzzy.js";
-import type { Choice, Prompt } from "./actions.js";
+import type { Choice, Prompt } from "./action-types.js";
 
 /** The storage key; the version lets a later format start empty instead of misreading this one. */
 export const USAGE_KEY = "reqseq.usage.v1";

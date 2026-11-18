@@ -3,7 +3,7 @@
 // restart without its grouping (SR-213 AK7), said when the buffer is first shown.
 import { useEffect, useRef } from "react";
 import type { InvokeResult } from "../shared/protocol.js";
-import type { PerspectiveUse } from "./actions.js";
+import type { PerspectiveUse } from "./action-types.js";
 import type { Buffer, BufferAction } from "./buffers.js";
 import type { PerspectiveStorage } from "./perspective-recent.js";
 import {

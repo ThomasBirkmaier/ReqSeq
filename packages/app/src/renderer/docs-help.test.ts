@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Action, Prompt } from "./actions.js";
+import type { Action, Prompt } from "./action-types.js";
 import { docsEcho, docsTopic, withHelp } from "./docs-help.js";
 
 const action = (id: string, title: string, covers?: readonly string[]): Action => ({

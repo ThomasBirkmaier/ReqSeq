@@ -4,7 +4,7 @@
 import "../../../../scripts/test-support/dom-selection.mjs";
 import { act, createElement, useReducer } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { Choice, Prompt, PromptFill } from "./actions.js";
+import type { Choice, Prompt, PromptFill } from "./action-types.js";
 import { elementBuffer } from "./buffers.js";
 import { Minibuffer } from "./Minibuffer.js";
 import type { CatalogContext } from "./catalog-commands.js";
