@@ -2,7 +2,7 @@
 // Cmd+K on macOS, then one letter. V opens a perspective (SR-214 AK1); the other letters are the app's own
 // key map (SR-214, rationale), first listed in ThomasBirkmaier/ReqSeq-archive#472, kept in this one table;
 // the window wires them up in `use-prefix.ts`.
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { matches, press, pressLabel, rowStep, shortcutLabel } from "./keys.js";
 

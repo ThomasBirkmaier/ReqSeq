@@ -2,7 +2,7 @@
 // property is added, a choice taken and a relation target set in it, with the same fuzzy search as the
 // list of commands. The prompts only list what core and the metamodel allow and hand the result back; the box
 // builds `element.update` from it (`property-edit.ts`, ADR-0002).
-import type { Choice, Prompt } from "./actions.js";
+import type { Choice, Prompt } from "./action-types.js";
 import { elementBuffer } from "./buffers.js";
 import type { PropertyInfo } from "./element-view.js";
 import type { RelationTarget } from "./property-edit.js";

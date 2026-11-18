@@ -2,7 +2,7 @@
 // menu gives "Create relation" and "Remove relation", and where they are shown.
 import type { DataExportRelation } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import type { ActionContext } from "./actions.js";
+import type { ActionContext } from "./action-types.js";
 import { elementBuffer, listBuffer } from "./buffers.js";
 import type { MenuHit } from "./context-menu.js";
 import { MENU_PLACES, menuEntries } from "./context-menu.js";

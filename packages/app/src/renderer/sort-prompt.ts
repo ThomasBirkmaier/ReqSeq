@@ -8,7 +8,7 @@
 // finishing hit is "Save", and "Workspace order" is a mark that stays in the step. Core checks the sort (ADR-0002:
 // the app builds the input and decides nothing about what is allowed).
 import type { FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { ActionContext, Choice, PromptFill, PromptMark } from "./actions.js";
+import type { ActionContext, Choice, PromptFill, PromptMark } from "./action-types.js";
 import { ORDERS } from "./list-actions.js";
 import type { BuiltAsk } from "./catalog-entry.js";
 

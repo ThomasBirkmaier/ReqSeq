@@ -5,7 +5,7 @@ import { cliUsage } from "../core/cli-usage.js";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { listedEntry } from "../core/listing.js";
 import type { CommandListing } from "../shared/protocol.js";
-import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
+import type { ActionContext, Choice, ElementControls, Prompt } from "./action-types.js";
 import { ACTIONS, commandPrompt, unusedOrder } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {

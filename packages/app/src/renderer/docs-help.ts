@@ -2,7 +2,7 @@
 // The window sends main only the topic, a catalog command name or an action ID; main builds the page and its URL
 // (`main/docs.ts`): a catalog command opens its reference page, an action that covers a command (`coveringAction`)
 // that command's page, any other action its row of keys.
-import type { Action, ActionContext, Choice, Prompt } from "./actions.js";
+import type { Action, ActionContext, Choice, Prompt } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import type { NamedCommand } from "./command-entry.js";
 

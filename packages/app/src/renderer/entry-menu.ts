@@ -3,7 +3,7 @@
 // Its entries act on the element of the entry, which the right-click selected first (SR-194 AK5): the actions
 // below and the catalog commands, whose element argument offers it first (`catalog-commands.ts`). Display
 // only: the buffers they show ask core, as the actions of the shown element do (ADR-0002).
-import type { Action, ActionContext } from "./actions.js";
+import type { Action, ActionContext } from "./action-types.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
 import { graphBuffer, neighbourhoodBuffer, showBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";

@@ -8,7 +8,7 @@ import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Choice, Prompt, PromptFill } from "./actions.js";
+import type { Choice, Prompt, PromptFill } from "./action-types.js";
 import type { Buffer, BufferAction, ElementBuffer, ListBuffer, SearchBuffer } from "./buffers.js";
 import { nth } from "./lists.js";
 import {
@@ -27,7 +27,7 @@ import type { Call } from "./call.js";
 import { propertyStep, savedStep } from "./list-filters.js";
 import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
-import type { ElementControls } from "./actions.js";
+import type { ElementControls } from "./action-types.js";
 import { focusEffect } from "./editor/preview.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";

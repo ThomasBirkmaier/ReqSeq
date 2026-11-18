@@ -17,7 +17,7 @@ import { flushSync } from "react-dom";
 import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
-import type { ActionContext, BuiltCommand, ElementControls, Prompt } from "./actions.js";
+import type { ActionContext, BuiltCommand, ElementControls, Prompt } from "./action-types.js";
 import {
   ACTIONS,
   actionFor,

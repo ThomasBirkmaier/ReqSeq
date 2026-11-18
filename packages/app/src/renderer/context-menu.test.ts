@@ -1,7 +1,7 @@
 // The context menu's places, entries, press, position and keys (D-075, SR-194).
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import { coveringAction } from "./command-entry.js";
 import type { MenuHit, MenuPlace } from "./context-menu.js";
