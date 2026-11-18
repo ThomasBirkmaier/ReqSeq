@@ -393,4 +393,60 @@ describe("reqif.saveMapping (SR-054)", () => {
     );
     await expect(fs.stat(fixture.path("reqif"))).rejects.toThrow();
   });
+
+  describe("the source model, which only reqif.import writes (SR-158)", () => {
+    const MODEL = {
+      datatypes: [{ identifier: "dt-s", kind: "string" }],
+      types: [{ identifier: "ot", attributes: [{ identifier: "a", datatype: "dt-s" }] }],
+    };
+    const STORED = [
+      "source-model:",
+      "  datatypes: [{ identifier: dt-s, kind: string }]",
+      "  types: [{ identifier: ot, attributes: [{ identifier: a, datatype: dt-s }] }]",
+      "",
+    ].join("\n");
+
+    it("keeps it when the input leaves it out, and accepts it when equal", async () => {
+      const { fixture, workspace } = await open();
+      await save(workspace, { mapping: MAPPING });
+      const file = `${await read(fixture, "reqif/kunde-a.yaml")}${STORED}`;
+      await fs.writeFile(fixture.path("reqif/kunde-a.yaml"), file);
+      expect((await save(workspace, { mapping: MAPPING })).files).toEqual([]);
+      expect((await save(workspace, { mapping: { ...MAPPING, "source-model": MODEL } })).files).toEqual([]);
+      const changed = await save(workspace, { mapping: { ...MAPPING, relations: [] } });
+      expect(changed.files).toEqual(["reqif/kunde-a.yaml"]);
+      expect(
+        (parse(await read(fixture, "reqif/kunde-a.yaml")) as Record<string, unknown>)["source-model"],
+      ).toEqual(MODEL);
+    });
+
+    it("refuses one that differs from the file's, also for a new file", async () => {
+      const { fixture, workspace } = await open();
+      const fresh = await failure(workspace, { mapping: { ...MAPPING, "source-model": MODEL } });
+      expect([fresh.code, fresh.details?.["reason"], fresh.details?.["fields"]]).toEqual([
+        "input.invalid",
+        "source-model",
+        ["mapping.source-model"],
+      ]);
+      await expect(fs.stat(fixture.path("reqif/kunde-a.yaml"))).rejects.toThrow();
+      await save(workspace, { mapping: MAPPING });
+      await fs.appendFile(fixture.path("reqif/kunde-a.yaml"), STORED);
+      const before = await read(fixture, "reqif/kunde-a.yaml");
+      const other = await failure(workspace, {
+        mapping: {
+          ...MAPPING,
+          "source-model": { ...MODEL, datatypes: [{ identifier: "dt-s", kind: "xhtml" }] },
+        },
+      });
+      expect(other.details?.["reason"]).toBe("source-model");
+      await expect(read(fixture, "reqif/kunde-a.yaml")).resolves.toBe(before);
+    });
+
+    it("removes the source model of another source whose file file names to replace", async () => {
+      const other = `reqseq-reqif-mapping: 1\nsource: { name: KUNDE A }\n${STORED}`;
+      const { fixture, workspace } = await open({ "reqif/kunde-a.yaml": other });
+      await save(workspace, { file: "reqif/kunde-a.yaml", mapping: MAPPING });
+      await expect(read(fixture, "reqif/kunde-a.yaml")).resolves.not.toContain("source-model");
+    });
+  });
 });

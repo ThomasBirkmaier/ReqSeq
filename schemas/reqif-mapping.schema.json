@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/reqif-mapping.schema.json",
   "title": "ReqIF mapping file",
-  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
+  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model as its last import read it (SR-158).",
   "type": "object",
   "required": ["reqseq-reqif-mapping", "source"],
   "properties": {
@@ -135,6 +135,90 @@
         },
         "additionalProperties": false
       }
+    },
+    "source-model": {
+      "description": "The source's own model as its last import through this mapping read it: the mapped SPEC-OBJECT-TYPEs with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file (SR-158). Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it as it is (ADR-0013 \"Import\").",
+      "type": "object",
+      "required": ["datatypes", "types"],
+      "properties": {
+        "datatypes": {
+          "description": "The datatypes the attributes of `types` use.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier", "kind"],
+            "properties": {
+              "identifier": { "type": "string", "description": "IDENTIFIER of the DATATYPE-DEFINITION." },
+              "long-name": { "type": "string", "description": "Its LONG-NAME, when the file has one." },
+              "kind": {
+                "enum": ["string", "xhtml", "integer", "real", "date", "boolean", "enumeration"],
+                "description": "Which DATATYPE-DEFINITION it is."
+              },
+              "max-length": { "type": "string", "description": "MAX-LENGTH of a STRING, as written." },
+              "min": { "type": "string", "description": "MIN of an INTEGER or REAL, as written." },
+              "max": { "type": "string", "description": "MAX of an INTEGER or REAL, as written." },
+              "accuracy": { "type": "string", "description": "ACCURACY of a REAL, as written." },
+              "values": {
+                "description": "SPECIFIED-VALUES of an ENUMERATION, in the file's order.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["identifier"],
+                  "properties": {
+                    "identifier": { "type": "string", "description": "IDENTIFIER of the ENUM-VALUE." },
+                    "long-name": { "type": "string", "description": "Its LONG-NAME, when the file has one." },
+                    "key": { "type": "string", "description": "KEY of its EMBEDDED-VALUE, as written." },
+                    "other-content": {
+                      "type": "string",
+                      "description": "OTHER-CONTENT of its EMBEDDED-VALUE, as written."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "types": {
+          "description": "The SPEC-OBJECT-TYPEs a `types` entry of this mapping maps to a type.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier", "attributes"],
+            "properties": {
+              "identifier": { "type": "string", "description": "IDENTIFIER of the SPEC-OBJECT-TYPE." },
+              "long-name": { "type": "string", "description": "Its LONG-NAME, when the file has one." },
+              "attributes": {
+                "description": "Its ATTRIBUTE-DEFINITIONs, in the file's order, mapped or omitted.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["identifier", "datatype"],
+                  "properties": {
+                    "identifier": {
+                      "type": "string",
+                      "description": "IDENTIFIER of the ATTRIBUTE-DEFINITION."
+                    },
+                    "long-name": { "type": "string", "description": "Its LONG-NAME, when the file has one." },
+                    "datatype": {
+                      "type": "string",
+                      "description": "IDENTIFIER of its datatype, an entry of `datatypes`."
+                    },
+                    "multi-valued": {
+                      "const": true,
+                      "description": "MULTI-VALUED of an enumeration attribute; left out when false."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

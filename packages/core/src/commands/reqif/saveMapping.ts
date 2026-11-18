@@ -8,9 +8,13 @@
 // - A new file is written in the schema's key order (`renderYamlDocument`); the folder is created
 //   when missing. The input is the whole mapping: an existing file is changed key by key, so only the
 //   top-level keys whose value changed are rewritten and every other byte stays (ADR-0007); a key the
-//   input leaves out, and a key the schema does not know, is removed. The file must be unchanged
+//   input leaves out (but `source-model`), and a key the schema does not know, is removed. The file must be unchanged
 //   since it was read (`file.changed-on-disk`). Nothing changed: nothing is written and `files` is
 //   empty. Defaults of the schema come with the input (`statement.datatype`) and are written too.
+// - `source-model` is tool data, written only by `reqif.import` (reqif/source-model.ts): kept when the
+//   input leaves it out, accepted when equal to the file's, else `input.invalid` (`reason:
+//   "source-model"`), also for a new file and for a file of another source replaced through `file`,
+//   whose source model is removed.
 // - Names that are equal once portable share the default file: when it holds the mapping of another
 //   `source.name`, it is replaced only when `file` names it (`input.invalid`, `reason:
 //   "other-source"`).
@@ -43,6 +47,17 @@ const sourceNameOf = (data: Readonly<Record<string, unknown>>): unknown => {
     : undefined;
 };
 
+/** Refuses a `source-model` of the input that differs from `held`, the file's (see the file comment). */
+const checkSourceModel = (given: unknown, held: unknown, shown: string, command: string): void => {
+  if (given !== undefined && !isDeepStrictEqual(given, held)) {
+    throw new CommandError(
+      "input.invalid",
+      `mapping.source-model: only reqif.import writes the source model; leave it out to keep the one of ${shown}`,
+      { command, fields: ["mapping.source-model"], reason: "source-model", file: shown },
+    );
+  }
+};
+
 /** Whether `absolute` exists, also as a link or folder, which the read then refuses. */
 const exists = async (absolute: string): Promise<boolean> =>
   fs.lstat(absolute).then(
@@ -62,8 +77,9 @@ export default defineCommand({
     const target = await mappingTarget(layout, workspace.root, mapping.source.name, input.file, command);
     const { repository, file } = target;
     const shown = workspacePath(layout, repository, file);
-    const data: Readonly<Record<string, unknown>> = { ...mapping };
     if (!(await exists(path.join(repository.folder, file)))) {
+      checkSourceModel(mapping["source-model"], undefined, shown, command);
+      const data: Readonly<Record<string, unknown>> = { ...mapping };
       const folder = path.posix.dirname(file);
       if (folder !== ".") {
         await createFolder(repository.folder, folder);
@@ -94,6 +110,10 @@ export default defineCommand({
         { command, fields: ["mapping.source.name"], reason: "other-source", file: shown, source: held },
       );
     }
+    // The source model of another source is not kept when its file is replaced.
+    const kept = held === mapping.source.name ? current["source-model"] : undefined;
+    checkSourceModel(mapping["source-model"], kept, shown, command);
+    const data: Readonly<Record<string, unknown>> = { ...mapping, "source-model": kept };
     const edits = [
       ...MAPPING_KEYS.flatMap((key): YamlKeyEdit[] => {
         if (isDeepStrictEqual(current[key], data[key])) {

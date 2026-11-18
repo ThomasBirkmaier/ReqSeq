@@ -435,7 +435,8 @@ export type ProblemCode =
   | "reqif.replaces-local"
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
-  | "reqif.mapping-differs";
+  | "reqif.mapping-differs"
+  | "reqif.source-model-unsaved";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1557,7 +1558,7 @@ export interface RecentWorkspacesWorkspace {
 }
 
 /**
- * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).
+ * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model as its last import read it (SR-158).
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
@@ -1640,6 +1641,55 @@ export interface ReqifMappingFile {
     /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
   }[];
+  /** The source's own model as its last import through this mapping read it: the mapped SPEC-OBJECT-TYPEs with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file (SR-158). Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it as it is (ADR-0013 "Import"). */
+  readonly "source-model"?: {
+    /** The datatypes the attributes of `types` use. */
+    readonly datatypes: readonly {
+      /** IDENTIFIER of the DATATYPE-DEFINITION. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** Which DATATYPE-DEFINITION it is. */
+      readonly kind: "string" | "xhtml" | "integer" | "real" | "date" | "boolean" | "enumeration";
+      /** MAX-LENGTH of a STRING, as written. */
+      readonly "max-length"?: string;
+      /** MIN of an INTEGER or REAL, as written. */
+      readonly min?: string;
+      /** MAX of an INTEGER or REAL, as written. */
+      readonly max?: string;
+      /** ACCURACY of a REAL, as written. */
+      readonly accuracy?: string;
+      /** SPECIFIED-VALUES of an ENUMERATION, in the file's order. */
+      readonly values?: readonly {
+        /** IDENTIFIER of the ENUM-VALUE. */
+        readonly identifier: string;
+        /** Its LONG-NAME, when the file has one. */
+        readonly "long-name"?: string;
+        /** KEY of its EMBEDDED-VALUE, as written. */
+        readonly key?: string;
+        /** OTHER-CONTENT of its EMBEDDED-VALUE, as written. */
+        readonly "other-content"?: string;
+      }[];
+    }[];
+    /** The SPEC-OBJECT-TYPEs a `types` entry of this mapping maps to a type. */
+    readonly types: readonly {
+      /** IDENTIFIER of the SPEC-OBJECT-TYPE. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** Its ATTRIBUTE-DEFINITIONs, in the file's order, mapped or omitted. */
+      readonly attributes: readonly {
+        /** IDENTIFIER of the ATTRIBUTE-DEFINITION. */
+        readonly identifier: string;
+        /** Its LONG-NAME, when the file has one. */
+        readonly "long-name"?: string;
+        /** IDENTIFIER of its datatype, an entry of `datatypes`. */
+        readonly datatype: string;
+        /** MULTI-VALUED of an enumeration attribute; left out when false. */
+        readonly "multi-valued"?: true;
+      }[];
+    }[];
+  };
 }
 
 /**
@@ -1726,6 +1776,55 @@ export interface ReqifMappingFileWithDefaults {
     /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
   }[];
+  /** The source's own model as its last import through this mapping read it: the mapped SPEC-OBJECT-TYPEs with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file (SR-158). Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it as it is (ADR-0013 "Import"). */
+  readonly "source-model"?: {
+    /** The datatypes the attributes of `types` use. */
+    readonly datatypes: readonly {
+      /** IDENTIFIER of the DATATYPE-DEFINITION. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** Which DATATYPE-DEFINITION it is. */
+      readonly kind: "string" | "xhtml" | "integer" | "real" | "date" | "boolean" | "enumeration";
+      /** MAX-LENGTH of a STRING, as written. */
+      readonly "max-length"?: string;
+      /** MIN of an INTEGER or REAL, as written. */
+      readonly min?: string;
+      /** MAX of an INTEGER or REAL, as written. */
+      readonly max?: string;
+      /** ACCURACY of a REAL, as written. */
+      readonly accuracy?: string;
+      /** SPECIFIED-VALUES of an ENUMERATION, in the file's order. */
+      readonly values?: readonly {
+        /** IDENTIFIER of the ENUM-VALUE. */
+        readonly identifier: string;
+        /** Its LONG-NAME, when the file has one. */
+        readonly "long-name"?: string;
+        /** KEY of its EMBEDDED-VALUE, as written. */
+        readonly key?: string;
+        /** OTHER-CONTENT of its EMBEDDED-VALUE, as written. */
+        readonly "other-content"?: string;
+      }[];
+    }[];
+    /** The SPEC-OBJECT-TYPEs a `types` entry of this mapping maps to a type. */
+    readonly types: readonly {
+      /** IDENTIFIER of the SPEC-OBJECT-TYPE. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** Its ATTRIBUTE-DEFINITIONs, in the file's order, mapped or omitted. */
+      readonly attributes: readonly {
+        /** IDENTIFIER of the ATTRIBUTE-DEFINITION. */
+        readonly identifier: string;
+        /** Its LONG-NAME, when the file has one. */
+        readonly "long-name"?: string;
+        /** IDENTIFIER of its datatype, an entry of `datatypes`. */
+        readonly datatype: string;
+        /** MULTI-VALUED of an enumeration attribute; left out when false. */
+        readonly "multi-valued"?: true;
+      }[];
+    }[];
+  };
 }
 
 /**
@@ -4333,7 +4432,7 @@ export interface ReqifImportInput {
   readonly file: LocalPath;
   /** Name of the delivery, written to the origin of each element it imports or updates. */
   readonly delivery: string;
-  /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. */
+  /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. For a file of another tool, the import stores the source model in it. */
   readonly mapping?: LocalPath;
   /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
   readonly source?: string;
