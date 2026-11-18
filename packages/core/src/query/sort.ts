@@ -15,9 +15,15 @@
 // - `id`: the short ID (SR-084). `type`: the order of the types in the metamodel, a type it does not
 //   know after them by its key. `status`: the order of the statuses in the metamodel. `title`: the
 //   property with the meaning `title` (`metamodel.meaning-unassigned` without one, SR-013 AK3).
-//   Any other key (AK1 "nach einer Property", known to the metamodel or not, SR-016): its first value
-//   (`valuesOf`: a list by its first item). A key that holds relations (a relation kind, `validity`,
-//   `packages`) has element references, not values to order: `input.invalid`.
+//   Any other key (AK1 "nach einer Property") that the metamodel knows or that an element of the
+//   store holds (an unknown property is kept, SR-016): its first value (`valuesOf`: a list by its
+//   first item). A key that holds relations (a relation kind, `validity`, `packages`) has element
+//   references, not values to order: `input.invalid`. So is a key that is neither (#1829: a typo or
+//   `title-desc` would sort nothing without a word; held: an own key with a value, not `null` or
+//   `[]`), given by the call or saved by `filter.save` or `perspective.save`; a stored sort
+//   (`storedSort`) keeps such a key, which then sorts as no value, so a saved list still opens as a
+//   stored grouping does (SR-213 AK7). The store is scanned for it only in that case, once per key
+//   and call.
 // - Values: the choices of a property of kind `choice` (and the types and statuses above) in the
 //   order the metamodel defines them, then numbers, then texts, then booleans (false before true).
 //   Texts compare ignoring case (NFC, lower case, by code units; equal ones by the text as written).
@@ -58,6 +64,12 @@ export interface SortContext {
   readonly metamodel: Metamodel;
   readonly store: ElementStore;
   readonly shortIds: ShortIds;
+  /**
+   * The keys come from a stored sort (a saved filter or a perspective): a key that is no longer
+   * held sorts as no value, as before #1829, so the list still opens (as a stored grouping does,
+   * SR-213 AK7). Without it such a key is `input.invalid`.
+   */
+  readonly storedSort?: boolean;
 }
 
 /** The place of an element in the derivation tree (`hierarchy`). */
@@ -144,6 +156,44 @@ export const NO_RANKS: ReadonlyMap<string, number> = new Map();
 export const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
   new Map(keys.map((entry, rank) => [entry.key, rank]));
 
+/** A key that ends in the order (`title-desc`, `title-asc`): the key and the order it seems to mean. */
+const ORDER_SUFFIX = /^(?<key>.+)-(?<order>asc|desc)$/u;
+
+const BUILT_IN: ReadonlySet<string> = new Set(["id", "identifier", "type", "status", "title"]);
+
+/** Whether an element of the store holds a value under `by` (an own key, not `null` or `[]`). */
+const heldInStore = (store: ElementStore, by: string): boolean =>
+  store.elements.some((element) => Object.hasOwn(element.data, by) && valuesOf(element.data[by]).length > 0);
+
+/** Whether `by` with `order` would sort (the hint of `unknownKey` names only such a form). */
+const accepted = (context: SortContext, by: string, order: string): boolean => {
+  if (BUILT_IN.has(by)) {
+    return true;
+  }
+  if (by === "hierarchy") {
+    return order === "asc";
+  }
+  return (
+    relationKey(context.metamodel, by) === undefined &&
+    (keyDefinition(context.metamodel, by) !== undefined || heldInStore(context.store, by))
+  );
+};
+
+/** Why `by` is no sort key (#1829), with the form it seems to mean when it ends in the order. */
+const unknownKey = (context: SortContext, by: string): string => {
+  const meant = ORDER_SUFFIX.exec(by)?.groups;
+  const key = String(meant?.["key"]);
+  const order = String(meant?.["order"]);
+  const hint =
+    meant !== undefined && accepted(context, key, order)
+      ? `; for ${by}, give by ${key} and order ${order}`
+      : "";
+  return (
+    `${by} is no sort key and no property of the metamodel or of an element: sort by id, identifier, ` +
+    `type, status, title, hierarchy or a property key; the order is given separately (asc or desc)${hint}`
+  );
+};
+
 /** How one key reads the sort value of an element (see the file comment). */
 const columnOf = (context: SortContext, by: string, at: string): Column => {
   const { metamodel, shortIds } = context;
@@ -182,6 +232,9 @@ const columnOf = (context: SortContext, by: string, at: string): Column => {
     );
   }
   const found = keyDefinition(metamodel, by);
+  if (found === undefined && context.storedSort !== true && !heldInStore(context.store, by)) {
+    throw invalidAt(context, at, unknownKey(context, by));
+  }
   const choices = found?.kind === "property" ? found.definition.choices : undefined;
   const ranks = choices === undefined ? NO_RANKS : ranksOf(choices);
   return (element, sign, next) => cellOf(valuesOf(element.data[by])[0], ranks, sign, next);
