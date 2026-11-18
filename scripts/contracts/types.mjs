@@ -85,6 +85,10 @@ const IGNORED_KEYWORDS = new Set([
   "description",
   "default",
   "examples",
+  // The marks of output fields (output-fields.mjs).
+  "x-technical",
+  "x-normal",
+  "x-elements",
   "deprecated",
   "readOnly",
   "writeOnly",

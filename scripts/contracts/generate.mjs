@@ -8,8 +8,13 @@ import path from "node:path";
 import { loadContracts, root } from "./load.mjs";
 import { generateTypes } from "./types.mjs";
 import { userTexts } from "./user-text.mjs";
+import YAML from "yaml";
+import { checkCatalog } from "./catalog-checks.mjs";
+import { checkOutputs } from "./output-checks.mjs";
+import { resolvedOutputFields } from "./output-fields.mjs";
+import { PROBLEM_CODES_FILE } from "./problem-codes.mjs";
 
-const { catalog, schemas, meta } = loadContracts();
+const { catalog, schemas, meta, ajv } = loadContracts();
 // The product version (root package.json), embedded so every access reports the same one (`reqseq --version`).
 const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 // The licence notice of ReqSeq (LICENSE), one item per line, for `tool info` (SR-161).
@@ -204,7 +209,23 @@ const bundle = {
     .sort()
     .map((f) => schemas[f]),
   catalogMeta: meta,
-  catalog,
+  // Each entry with its output fields resolved (SR-224 AK3): the catalog that the API and the app list.
+  catalog: {
+    ...catalog,
+    commands: catalog.commands.map((cmd) => ({
+      ...cmd,
+      outputFields: resolvedOutputFields(cmd.output, schemas),
+    })),
+  },
+  // The title of every problem kind (SR-224 AK6), from schemas/problem-codes.yaml, for the app.
+  problemTitles: Object.fromEntries(
+    Object.entries(
+      YAML.parse(fs.readFileSync(path.join(root, "schemas", PROBLEM_CODES_FILE), "utf8"), {
+        version: "1.2",
+        schema: "core",
+      }).problems,
+    ).map(([code, entry]) => [code, entry.title]),
+  ),
 };
 
 // The standard model (D-037, D-059, D-060), shipped in core and written by workspace.init (SR-014). The
@@ -233,7 +254,18 @@ const files = {
   "packages/core/src/generated/types.ts": generateTypes({ schemas, meta, catalog }),
 };
 if (process.argv.includes("--check")) {
-  let stale = false;
+  // The checks of the catalog, so `pnpm contracts:check` fails on an output field without a title (SR-224 AK3).
+  // Only on entries that match the meta-schema, as in validate-schemas.mjs; its errors name the others.
+  const validEntry = ajv.compile({
+    $ref: "https://reqseq.dev/schemas/commands/catalog.meta.schema.json#/properties/commands/items",
+  });
+  const invalid = catalog.commands.every((cmd) => validEntry(cmd))
+    ? [...checkCatalog(catalog, schemas), ...checkOutputs(catalog, schemas)]
+    : ["the command catalog does not match its meta-schema; run pnpm schemas:check"];
+  for (const e of invalid) {
+    console.error(`error: ${e}`);
+  }
+  let stale = invalid.length > 0;
   for (const [f, content] of Object.entries(files)) {
     const p = path.join(root, f);
     if (!fs.existsSync(p) || fs.readFileSync(p, "utf8") !== content) {

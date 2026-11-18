@@ -38,24 +38,28 @@
     "type": "object",
     "properties": {
       "files": {
+        "title": "Files",
         "type": "array",
         "items": {
-          "type": "string",
+          "$ref": "../common.schema.json#/$defs/outputPath",
           "description": "Written file, relative to the workspace root; a renamed file under its new path."
         }
       },
       "renamed": {
+        "title": "Renamed files",
         "type": "array",
         "description": "The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays.",
         "items": {
           "type": "object",
           "properties": {
             "from": {
-              "type": "string",
+              "title": "From",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The file before, relative to the workspace root."
             },
             "to": {
-              "type": "string",
+              "title": "To",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The file afterwards, relative to the workspace root."
             }
           },
@@ -64,10 +68,12 @@
         }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

@@ -62,42 +62,52 @@
     "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet (SR-174).",
     "properties": {
       "hits": {
+        "title": "Hits",
         "type": "array",
         "description": "One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of the element."
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier",
               "type": "string",
               "description": "The value of the property with the meaning identifier, when the element has one."
             },
             "type": {
+              "title": "Type",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "status": {
+              "title": "Status",
               "type": "string",
               "description": "The status key as written in the file."
             },
             "title": {
+              "title": "Title",
               "type": "string",
               "description": "Empty without a title."
             },
             "score": {
+              "title": "Score",
               "type": "number",
               "minimum": 0,
               "description": "Relevance of the matched words, rounded to 6 significant digits; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
             },
             "fields": {
+              "title": "Fields",
               "type": "array",
               "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`.",
               "items": {
@@ -106,6 +116,7 @@
               }
             },
             "terms": {
+              "title": "Matched words",
               "type": "array",
               "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a phrase or another designation of two or more words.",
               "items": {
@@ -113,18 +124,20 @@
               }
             },
             "titleMarks": {
+              "title": "Matches in the title",
               "$ref": "../common.schema.json#/$defs/textMarks",
               "description": "The matched words in `title` (SR-174 AK4), of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole (SR-174 AK6, SR-220 AK3); only when a word, phrase or designation was found in the title."
             },
             "snippet": {
+              "title": "Snippet",
               "description": "Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole and none of its words elsewhere (SR-174 AK6, SR-220 AK3). A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
               "oneOf": [
                 {
                   "type": "object",
                   "properties": {
-                    "field": { "const": "text" },
-                    "text": { "type": "string", "minLength": 1 },
-                    "marks": { "$ref": "../common.schema.json#/$defs/textMarks" }
+                    "field": { "title": "Field", "const": "text" },
+                    "text": { "title": "Text", "type": "string", "minLength": 1 },
+                    "marks": { "title": "Marks", "$ref": "../common.schema.json#/$defs/textMarks" }
                   },
                   "additionalProperties": false,
                   "required": ["field", "text", "marks"]
@@ -132,14 +145,19 @@
                 {
                   "type": "object",
                   "properties": {
-                    "field": { "const": "properties" },
-                    "property": { "type": "string", "description": "The frontmatter key." },
+                    "field": { "title": "Field", "const": "properties" },
+                    "property": {
+                      "title": "Property",
+                      "type": "string",
+                      "description": "The frontmatter key."
+                    },
                     "propertyName": {
+                      "title": "Property name",
                       "type": "string",
                       "description": "Its name in the metamodel; the key for a property the metamodel does not define."
                     },
-                    "text": { "type": "string", "minLength": 1 },
-                    "marks": { "$ref": "../common.schema.json#/$defs/textMarks" }
+                    "text": { "title": "Text", "type": "string", "minLength": 1 },
+                    "marks": { "title": "Marks", "$ref": "../common.schema.json#/$defs/textMarks" }
                   },
                   "additionalProperties": false,
                   "required": ["field", "property", "propertyName", "text", "marks"]
@@ -149,29 +167,35 @@
           },
           "additionalProperties": false,
           "required": ["id", "repository", "shortId", "type", "title", "score", "fields", "terms"]
-        }
+        },
+        "x-elements": "answer"
       },
       "groups": {
+        "title": "Groups",
         "type": "array",
         "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
         "items": { "$ref": "../common.schema.json#/$defs/listGroup" }
       },
       "offset": {
+        "title": "Offset",
         "type": "integer",
         "minimum": 0,
         "description": "Only with `group`: the row the page starts at (the `offset` of the input)."
       },
       "rows": {
+        "title": "Rows",
         "type": "integer",
         "minimum": 0,
         "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
       },
       "rowVerification": {
+        "title": "Verification per row",
         "type": "array",
         "description": "Only with `withVerification`: for each row of `hits`, in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3).",
         "items": { "$ref": "../data-export.schema.json#/$defs/rowVerification" }
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "Hits, each once."

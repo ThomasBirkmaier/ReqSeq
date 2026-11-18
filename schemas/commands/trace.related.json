@@ -57,12 +57,15 @@
     "type": "object",
     "properties": {
       "elements": {
+        "title": "Related elements",
         "type": "array",
         "items": {
           "$ref": "../data-export.schema.json#/$defs/element"
-        }
+        },
+        "x-elements": "answer"
       },
       "total": {
+        "title": "Total",
         "description": "The number of all related elements; `elements` holds the page.",
         "type": "integer",
         "minimum": 0

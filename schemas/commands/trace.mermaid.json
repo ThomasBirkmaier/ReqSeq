@@ -98,10 +98,12 @@
     "type": "object",
     "properties": {
       "mermaid": {
+        "title": "Mermaid",
         "type": "string",
         "description": "The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `\"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `\"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space."
       },
       "truncated": {
+        "title": "Truncated",
         "type": "boolean",
         "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
       },
@@ -109,11 +111,13 @@
         "$ref": "../common.schema.json#/$defs/incomplete"
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3).",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,
