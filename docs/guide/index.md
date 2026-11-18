@@ -3,11 +3,11 @@ title: ReqSeq
 description: User documentation of ReqSeq, a local, Git-based requirements tool.
 ---
 
-You tell your agent what you need, and it writes requirements with acceptance criteria into Markdown files in your repository through ReqSeq's CLI or MCP server, then the code and the tests that name them.
+You tell your agent in plain words what you need, and through ReqSeq's CLI or MCP server it does formal requirements engineering underneath: it records the need, breaks it down into system requirements with acceptance criteria, and writes the tests that name them.
 
-Every element carries a version, and every relation and every evidence record keeps the version it was made against, so a change shows at once which requirement must be reviewed and which evidence no longer counts.
+ReqSeq checks every step against your metamodel and keeps each element, relation and piece of evidence with its version, so a change shows at once which requirement to review and which evidence no longer counts.
 
-Only people approve; ReqSeq never changes a status, never writes to Git and opens no network connection.
+Only people approve; ReqSeq never changes a status, never writes to Git and stays offline.
 
 ![ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.](./images/context.svg)
 

@@ -1,10 +1,10 @@
 # ReqSeq
 
-You tell your agent what you need, and it writes requirements with acceptance criteria into Markdown files in your repository through ReqSeq's CLI or MCP server, then the code and the tests that name them.
+You tell your agent in plain words what you need, and through ReqSeq's CLI or MCP server it does formal requirements engineering underneath: it records the need, breaks it down into system requirements with acceptance criteria, and writes the tests that name them.
 
-Every element carries a version, and every relation and every evidence record keeps the version it was made against, so a change shows at once which requirement must be reviewed and which evidence no longer counts.
+ReqSeq checks every step against your metamodel and keeps each element, relation and piece of evidence with its version, so a change shows at once which requirement to review and which evidence no longer counts.
 
-Only people approve; ReqSeq never changes a status, never writes to Git and opens no network connection.
+Only people approve; ReqSeq never changes a status, never writes to Git and stays offline.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)
