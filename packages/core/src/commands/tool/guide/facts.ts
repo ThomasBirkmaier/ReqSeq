@@ -120,43 +120,35 @@ export const workspaceFacts = (layout: WorkspaceLayout, metamodel: Metamodel): G
 
 /**
  * Why there are no facts, from an error of reading the workspace, so the guide is there whatever happened.
- * Without a workspace, `noWorkspace` asks for the call that creates one, unless one lies a level below
- * (`details.below`), which the message names to open instead.
+ * Without a workspace (`workspace.not-found`), `noWorkspace` asks for the call that creates one; a workspace
+ * one level below is named by the message (`details.below`), which the guide shows as well.
  */
-const reasonOf = (error: unknown): GuideFacts => {
-  if (!(error instanceof CommandError)) {
-    return { reason: `The workspace cannot be read: ${String(error)}`, noWorkspace: false };
-  }
-  const below = error.details?.["below"];
-  return {
-    reason: error.message,
-    noWorkspace: error.code === "workspace.not-found" && !(Array.isArray(below) && below.length > 0),
-  };
+const reasonOf = (error: unknown): GuideFacts =>
+  error instanceof CommandError
+    ? { reason: error.message, noWorkspace: error.code === "workspace.not-found" }
+    : { reason: `The workspace cannot be read: ${String(error)}`, noWorkspace: false };
+
+/** The reason of a metamodel that is not valid: its first error (SR-011 AK3). */
+const metamodelReason = async (workspace: Workspace): Promise<GuideFacts> => {
+  const errors = (await metamodelProblems(workspace)).filter((problem) => problem.severity === "error");
+  const first = errors.slice(0, 1).map((problem) => problem.message.replace(/\.$/, ""));
+  return { reason: `The metamodel of this workspace cannot be read: ${first.join("")}`, noWorkspace: false };
 };
 
 /**
  * The facts of `workspace`, from its layout and metamodel only, never from its elements, so the guide is
- * ready at once (the MCP server waits for it before it serves). A `CommandError` of reading them (no workspace
- * file, `workspace.not-found`; one that cannot be read, `file.faulty`) gives its message as the reason, any
- * other error its text; a metamodel that is not valid gives its first error.
+ * ready at once (the MCP server waits for it before it serves). It never rejects: a `CommandError` of
+ * reading them (no workspace file, `workspace.not-found`; one that cannot be read, `file.faulty`) gives its
+ * message as the reason, any other error its text, and a metamodel that is not valid its first error.
  */
 export const readGuideFacts = async (workspace: Workspace): Promise<GuideFacts> => {
-  let layout: WorkspaceLayout;
-  let metamodel: Metamodel;
   try {
-    layout = await workspace.get(workspaceLayoutState);
-    metamodel = await workspace.get(metamodelState);
+    const layout = await workspace.get(workspaceLayoutState);
+    const metamodel = await workspace.get(metamodelState);
+    return metamodel.valid
+      ? { workspace: workspaceFacts(layout, metamodel) }
+      : await metamodelReason(workspace);
   } catch (error) {
     return reasonOf(error);
   }
-  if (!metamodel.valid) {
-    // A metamodel that is not valid has at least one error (SR-011 AK3); the first one is the reason.
-    const errors = (await metamodelProblems(workspace)).filter((problem) => problem.severity === "error");
-    const first = errors.slice(0, 1).map((problem) => problem.message.replace(/\.$/, ""));
-    return {
-      reason: `The metamodel of this workspace cannot be read: ${first.join("")}`,
-      noWorkspace: false,
-    };
-  }
-  return { workspace: workspaceFacts(layout, metamodel) };
 };

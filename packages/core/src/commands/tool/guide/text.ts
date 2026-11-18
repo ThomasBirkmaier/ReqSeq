@@ -32,11 +32,15 @@ const VALUE_MAX = 80;
 const REASON_MAX = 300;
 
 /**
- * A value from the workspace as the guide shows it: on one line, white space and control characters as one
- * space, the characters Markdown reads escaped with a backslash, cut to `max` code points with `…`.
+ * A value from the workspace as the guide shows it: on one line, without format characters, white space and
+ * control characters as one space, the characters Markdown reads escaped with a backslash, cut to `max` code points with `…`.
  */
 export const guideValue = (value: string, max: number = VALUE_MAX): string => {
-  const line = value.replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, " ").trim();
+  // Format characters (bidi controls, zero-width characters) would hide or reorder what the reader sees.
+  const line = value
+    .replace(/\p{Cf}/gu, "")
+    .replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, " ")
+    .trim();
   const points = Array.from(line);
   const cut = points.length > max ? `${points.slice(0, max - 1).join("")}…` : line;
   return cut.replace(/[\\`*_[\]<>#|~&]/g, (c) => `\\${c}`);
@@ -95,7 +99,7 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
     return facts.noWorkspace
       ? [
           reason,
-          `Create a workspace in the workspace folder: ${context.call({ command: "workspace.init", input: { path: ".", name: "<name>" } })}.`,
+          `If the reason names a workspace one level below, open that folder as the workspace; else create one in the workspace folder: ${context.call({ command: "workspace.init", input: { path: ".", name: "<name>" } })}.`,
           again,
         ]
       : [reason, again];
