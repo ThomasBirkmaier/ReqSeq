@@ -243,7 +243,7 @@ export interface Prompt {
    * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them. In a
    * prompt whose hits only preview, `text` and `more` belong to the given parts, not to `fill`: Enter and
    * Ctrl/Cmd+Enter without a chosen hit take the typed text at once with the given ones, also while the parts
-   * load (`Minibuffer.tsx`, SR-183 AK5).
+   * load (`PromptLine.tsx`, SR-183 AK5).
    */
   readonly fill?: Promise<PromptFill>;
 }

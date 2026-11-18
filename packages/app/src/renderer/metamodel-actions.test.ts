@@ -17,7 +17,7 @@ import {
   reduceBuffers,
   withMatrix,
 } from "./buffers.js";
-import type { CatalogContext } from "./catalog-commands.js";
+import type { CatalogContext } from "./catalog-arguments.js";
 import { catalogItems } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { bufferView } from "./modeline.js";
