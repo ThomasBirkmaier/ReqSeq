@@ -610,3 +610,38 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     expect(JSON.parse(json.stderr)).toMatchObject({ code: "git.commit-not-found" });
   });
 });
+
+describe("the gaps of verification in workspace check (SR-230)", () => {
+  it("[SR-230/AK-k09q] names the call that lists exactly the open requirements, and the call runs as given", async () => {
+    // fixtures/SR-126/matrix has an evidence location; b04 (skipped test) and b06 (no evidence) are open.
+    const ws = await createFixtureWorkspace({ fixture: "SR-126/matrix" });
+    fixtures.push(ws);
+    const check = await reqseq(["workspace", "check"], ws.root);
+    expect(check.code).toBe(0);
+    const line =
+      /^info {2}evidence\.open-requirements {2}(\d+) .*; reqseq (element list) --where '(.*)' lists them {2}reqseq-workspace\.yaml$/m.exec(
+        check.stdout,
+      );
+    expect(line?.[1]).toBe("2");
+    const listed = await reqseq([...(line?.[2] ?? "").split(" "), "--where", line?.[3] ?? ""], ws.root);
+    expect(listed).toEqual({
+      code: 0,
+      stdout:
+        "elements:\n  SR-126b04  draft  Show gusts\n  SR-126b06  draft  Warn of strong wind\ntotal: 2\n",
+      stderr: "",
+    });
+    expect((await reqseq(["workspace", "check", "--fail-on", "info"], ws.root)).code).toBe(1);
+  });
+
+  it("[SR-230/AK-qymg] warns at the workspace file without an evidence location, and only in a full check", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-001/two-elements", git: true });
+    fixtures.push(ws);
+    const full = await reqseq(["workspace", "check", "--fail-on", "warning"], ws.root);
+    expect(full.code).toBe(1);
+    expect(full.stdout).toContain(
+      "warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: system, path: evidence }]  reqseq-workspace.yaml\n",
+    );
+    const restricted = await reqseq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
+    expect(restricted.stdout).not.toContain("evidence.no-location");
+  });
+});

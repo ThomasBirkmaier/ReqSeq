@@ -16,7 +16,9 @@
 //    filter condition `verification` and `evidence.degree` agree (SR-080 AK2).
 // 3. The call is `element.list` with a `where` of the filter (`filter.schema.json`): not invalid,
 //    verification `open` (only requirements have one; the core, as a selection without view takes it)
-//    and, with the property, its value `test` or none. It lists the same elements in every access.
+//    and, with the property, its value `test` or none. It lists the same elements in every access. Above
+//    the default page of `element.list` (200) the call names `--limit` with the number, so one page holds
+//    them all, up to the largest page (5,000); `total` gives the number beyond that.
 //
 // While the metamodel is not valid neither is reported: requirements are not known then, and every state
 // that checks against the metamodel is empty (`workspace.check`). Cost (SR-020 AK1, N-036): one pass over
@@ -33,6 +35,10 @@ import { countedIn } from "./degree.js";
 import { verificationState } from "./verification.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
+
+/** The default and the largest page of `element.list` (`limit`, schemas/commands/element.list.json). */
+const DEFAULT_PAGE = 200;
+const LARGEST_PAGE = 5000;
 
 /** The choice key of the verification method test (SR-230 AK2). */
 export const TEST_METHOD = "test";
@@ -108,12 +114,13 @@ const openProblems = async (
   }
   const method = methodKey === undefined ? "" : " with the verification method test";
   const where = JSON.stringify(openRequirementsWhere(methodKey));
+  const limit = open > DEFAULT_PAGE ? ` --limit ${String(Math.min(open, LARGEST_PAGE))}` : "";
   return [
     {
       code: "evidence.open-requirements",
       severity: "info",
       file: WORKSPACE_FILE,
-      message: `${String(open)} requirement(s)${method} have the verification status open in the core; reqseq element list --where '${where}' lists them`,
+      message: `${String(open)} requirement(s)${method} have the verification status open in the core; reqseq element list --where '${where}'${limit} lists them`,
     },
   ];
 };

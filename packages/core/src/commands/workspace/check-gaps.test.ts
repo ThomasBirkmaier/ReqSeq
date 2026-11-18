@@ -32,12 +32,16 @@ const check = async (workspace: Workspace, input: Readonly<Record<string, unknow
 /** The gaps of verification among the problems of a check. */
 const gaps = (out: Output): Problem[] => out.problems.filter((p) => GAPS.has(p.code));
 
-/** The short IDs `element.list` gives for the `where` of an info of AK2, read from its message. */
+/** The short IDs `element.list` gives for the `where` and `limit` of an info of AK2, read from its message. */
 const listed = async (workspace: Workspace, problem: Problem | undefined): Promise<string[]> => {
-  const where = /--where '(.*)' lists them$/.exec(problem?.message ?? "")?.[1] ?? "{}";
+  const [, where = "{}", limit] =
+    /--where '(.*)'(?: --limit (\d+))? lists them$/.exec(problem?.message ?? "") ?? [];
   const out = (await invoke(
     "element.list",
-    { selection: { where: JSON.parse(where) as unknown } },
+    {
+      selection: { where: JSON.parse(where) as unknown },
+      ...(limit === undefined ? {} : { limit: Number(limit) }),
+    },
     { workspace },
   )) as CommandOutput<"element.list">;
   return (out.elements ?? []).map((e) => e.shortId);
@@ -198,6 +202,22 @@ describe("workspace.check with requirements whose verification status is open (S
     const workspace = await open({ fixture: MATRIX, git: true });
     expect(gaps(await check(workspace, { changedFiles: ["requirements/SR-000000126b04.md"] }))).toEqual([]);
     expect(gaps(await check(workspace, { changedSince: "HEAD" }))).toEqual([]);
+  });
+
+  it("[SR-230/AK-k09q] names a page that holds them all when they are more than the default page of element.list", async () => {
+    // 201 requirements without evidence besides b04 and b06: 203.
+    const added = Array.from({ length: 201 }, (_, n): [string, string] => {
+      const tail = (0xd00 + n).toString(16);
+      return [
+        `requirements/SR-000000126${tail}.md`,
+        `---\nid: 5c0e1d2a-0126-4126-8126-000000126${tail}\ntype: system-requirement\nstatus: draft\ntitle: Added ${tail}\n---\n`,
+      ];
+    });
+    const workspace = await open({ fixture: MATRIX, files: Object.fromEntries(added) });
+    const [info] = gaps(await check(workspace));
+    expect(info?.message.startsWith("203 requirement(s)")).toBe(true);
+    expect(info?.message.endsWith("' --limit 203 lists them")).toBe(true);
+    expect(await listed(workspace, info)).toHaveLength(203);
   });
 
   it("gives no info when no requirement with method test is open", async () => {

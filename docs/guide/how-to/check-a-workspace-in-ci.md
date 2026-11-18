@@ -100,7 +100,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ### Gaps of verification
 
-A full check reports two gaps of verification at the workspace file; a check of only the changed elements reports neither. While the workspace file names no evidence location and the workspace has a requirement, no test result counts, and a warning names the entry to add; with `--fail-on warning` it fails the step:
+A full check reports one of two gaps of verification at the workspace file; a check of only the changed elements reports neither. While the workspace file names no evidence location and the workspace has a requirement, no test result counts, and a warning names the entry to add; with `--fail-on warning` it fails the step:
 
 ```sh
 reqseq workspace check
