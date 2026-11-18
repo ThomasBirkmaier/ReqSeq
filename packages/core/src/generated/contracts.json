@@ -5530,19 +5530,23 @@
           "type": "object",
           "properties": {
             "recorded": {
+              "title": "Recorded",
               "type": "boolean",
               "description": "Whether the copy has a usable cache folder whose connections could be read. false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
             },
             "connected": {
+              "title": "Connected agents",
               "type": "array",
               "description": "Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count.",
               "items": {
                 "type": "object",
                 "properties": {
                   "client": {
+                    "title": "Client",
                     "$ref": "../agent-connection.schema.json#/$defs/client"
                   },
                   "since": {
+                    "title": "Connected since",
                     "$ref": "../common.schema.json#/$defs/dateTime",
                     "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
                   }
@@ -5555,15 +5559,18 @@
               }
             },
             "last": {
+              "title": "Last connected",
               "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
               "anyOf": [
                 {
                   "type": "object",
                   "properties": {
                     "client": {
+                      "title": "Client",
                       "$ref": "../agent-connection.schema.json#/$defs/client"
                     },
                     "at": {
+                      "title": "Last connected at",
                       "$ref": "../common.schema.json#/$defs/dateTime",
                       "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
                     }
@@ -5589,25 +5596,32 @@
         },
         "outputFields": [
           {
-            "path": "recorded"
+            "path": "recorded",
+            "title": "Recorded"
           },
           {
-            "path": "connected"
+            "path": "connected",
+            "title": "Connected agents"
           },
           {
-            "path": "connected[].client"
+            "path": "connected[].client",
+            "title": "Client"
           },
           {
-            "path": "connected[].since"
+            "path": "connected[].since",
+            "title": "Connected since"
           },
           {
-            "path": "last"
+            "path": "last",
+            "title": "Last connected"
           },
           {
-            "path": "last.client"
+            "path": "last.client",
+            "title": "Client"
           },
           {
-            "path": "last.at"
+            "path": "last.at",
+            "title": "Last connected at"
           }
         ]
       },
