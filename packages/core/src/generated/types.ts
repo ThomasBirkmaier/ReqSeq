@@ -436,7 +436,8 @@ export type ProblemCode =
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
-  | "reqif.source-model-unsaved";
+  | "reqif.source-model-unsaved"
+  | "reqif.source-value-chosen";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -4534,6 +4535,8 @@ export interface ReqifExportInput {
   readonly omitProperties?: readonly Key[];
   /** Export the elements of the mapping's source with their statements, back to that source; needs `mapping`. */
   readonly statements?: boolean;
+  /** Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous. */
+  readonly sourceModel?: boolean;
 }
 
 /**

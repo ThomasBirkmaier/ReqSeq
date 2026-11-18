@@ -806,7 +806,8 @@
             "reqif.choice-unused",
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
-            "reqif.source-model-unsaved"
+            "reqif.source-model-unsaved",
+            "reqif.source-value-chosen"
           ]
         },
         "error": {
@@ -12259,7 +12260,8 @@
           "SR-054",
           "SR-058",
           "SR-059",
-          "SR-101"
+          "SR-101",
+          "SR-158"
         ],
         "arguments": [
           {
@@ -12285,6 +12287,10 @@
           },
           {
             "field": "statements",
+            "complete": "boolean"
+          },
+          {
+            "field": "sourceModel",
             "complete": "boolean"
           }
         ],
@@ -12316,6 +12322,10 @@
             },
             "statements": {
               "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
+              "type": "boolean"
+            },
+            "sourceModel": {
+              "description": "Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous.",
               "type": "boolean"
             }
           },

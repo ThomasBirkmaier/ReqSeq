@@ -6,14 +6,15 @@
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
   "stage": 6,
-  "implements": ["SR-052", "SR-054", "SR-058", "SR-059", "SR-101"],
+  "implements": ["SR-052", "SR-054", "SR-058", "SR-059", "SR-101", "SR-158"],
   "arguments": [
     { "field": "output", "complete": "file" },
     { "field": "selection", "complete": "selection" },
     { "field": "profile", "complete": "text", "class": "name" },
     { "field": "mapping", "complete": "file" },
     { "field": "omitProperties", "complete": "property" },
-    { "field": "statements", "complete": "boolean" }
+    { "field": "statements", "complete": "boolean" },
+    { "field": "sourceModel", "complete": "boolean" }
   ],
   "input": {
     "type": "object",
@@ -43,6 +44,10 @@
       },
       "statements": {
         "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
+        "type": "boolean"
+      },
+      "sourceModel": {
+        "description": "Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous.",
         "type": "boolean"
       }
     },

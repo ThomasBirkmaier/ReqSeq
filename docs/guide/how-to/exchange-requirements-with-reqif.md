@@ -12,7 +12,7 @@ ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq
 3. The import creates one element per object, all or nothing, turns XHTML text into Markdown, and lists as losses what it leaves out. Each element keeps its origin: source, source identifier, import date and delivery.
 4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
 
-The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping and statements, it writes the statement on each imported requirement back under the identifiers of the source. A file that ReqSeq exported imports without a mapping.
+The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes the statement on each imported requirement back under the source's identifiers, or each requirement in the source's model. A file that ReqSeq exported imports without a mapping.
 
 ## App
 
@@ -22,7 +22,7 @@ In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
 2. Run **Save ReqIF mapping** and type the mapping as JSON, the `mapping` of the API section below.
 3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first; when you import, give each conflict with Ctrl+Enter under `take` or `keep`.
 4. To export a package, create it with **Create element** (Ctrl+K E, ⌘K E), type Package. In the element buffer of each requirement, add the property Package with “Add property” (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S). Open the package with **Go to element or buffer** (Ctrl+P, ⌘P) and run **Export ReqIF** with the name of the new file. On a list, it exports what the list shows.
-5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` yes with Ctrl+Enter.
+5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` or `sourceModel` yes with Ctrl+Enter.
 
 ## CLI
 
@@ -238,6 +238,20 @@ files: none
 No problems.
 ```
 
+In the source's model:
+
+```sh
+reqseq reqif export customer.reqif --mapping reqif/customer.yaml --source-model
+```
+
+```text title="Output"
+file: customer.reqif
+elements: 3
+relations: 0
+files: none
+No problems.
+```
+
 A package, or any selection with `--ids`, `--filter` or `--where-type`, exports the same way; `--omit-properties` leaves properties out:
 
 ```sh
@@ -263,7 +277,7 @@ files: none
 No problems.
 ```
 
-The one relation is to the package, which is not exported and so goes out with its ID only.
+The one relation goes to the package, outside the export.
 
 ## API
 
@@ -297,6 +311,12 @@ POST /v1/commands/reqif.export
 POST /v1/commands/reqif.export
 
 { "output": "statements.reqif", "mapping": "reqif/customer.yaml", "statements": true }
+```
+
+```http
+POST /v1/commands/reqif.export
+
+{ "output": "customer.reqif", "mapping": "reqif/customer.yaml", "sourceModel": true }
 ```
 
 ## MCP
@@ -336,6 +356,10 @@ An agent connected to `reqseq mcp` calls the same commands as tools:
 
 ```json
 { "name": "reqif_export", "arguments": { "output": "statements.reqif", "mapping": "reqif/customer.yaml", "statements": true } }
+```
+
+```json
+{ "name": "reqif_export", "arguments": { "output": "customer.reqif", "mapping": "reqif/customer.yaml", "sourceModel": true } }
 ```
 
 The reference has every option of [reqif.analyze](/reference/commands/reqif-analyze/), [reqif.saveMapping](/reference/commands/reqif-save-mapping/), [reqif.import](/reference/commands/reqif-import/) and [reqif.export](/reference/commands/reqif-export/), and the [mapping file](/reference/formats/reqif-mapping/) has every entry.
