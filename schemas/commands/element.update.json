@@ -122,34 +122,39 @@
     "type": "object",
     "properties": {
       "element": {
+        "title": "Element",
         "$ref": "../data-export.schema.json#/$defs/element"
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
         "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none."
       },
       "fileSha256": {
+        "title": "File SHA-256",
         "$ref": "../common.schema.json#/$defs/fileSha256",
         "description": "Of the file as written, or as read when nothing changed (SR-106)."
       },
       "files": {
+        "title": "Files",
         "description": "Written files, relative to the workspace root.",
         "type": "array",
-        "items": {
-          "type": "string"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },
       "affected": {
+        "title": "Affected elements",
         "type": "integer",
         "minimum": 0,
         "description": "The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276)."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

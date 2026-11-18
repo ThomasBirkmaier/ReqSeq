@@ -23,7 +23,7 @@ The details are in the parts under [`docs/`](docs/), one file per topic. Read on
 - [Keys](docs/keys.md): every key of the main window
 - [Editor (SR-065)](docs/editor.md): the Markdown editor, saving, undo, drafts, changes from outside, slash menu, `[[` search, formulas
 - [`window.reqseq` (preload, `src/preload/bridge.ts`)](docs/bridge.md): the bridge between renderer and core
-- [Tests](docs/tests.md): the unit tests and the Electron specs
+- [Tests](docs/tests.md): the unit tests, how the Electron specs run, and the parts per area under [`docs/tests/`](docs/tests/) that list the specs
 
 ## Main view (SR-100)
 

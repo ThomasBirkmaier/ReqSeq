@@ -1,6 +1,6 @@
 // The prompt of "Fold status in lists" (SR-201 AK2): every status of the metamodel (`metamodel.get`), the
 // folded ones marked; choosing one folds it in every list, or puts its elements back in place.
-import type { ActionContext, Choice, FoldControls, Prompt, PromptFill } from "./actions.js";
+import type { ActionContext, Choice, FoldControls, Prompt, PromptFill } from "./action-types.js";
 import type { FoldStatus } from "./fold-statuses.js";
 import { foldedKeys, toggledChoice } from "./fold-statuses.js";
 

@@ -8,7 +8,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ActionContext, Prompt } from "./actions.js";
+import type { ActionContext, Prompt } from "./action-types.js";
 import { ACTIONS, CARD_LINES, fittingRows, nameMarks } from "./actions.js";
 import type { BufferAction } from "./buffers.js";
 import { elementBufferOf, searchBuffer } from "./buffers.js";

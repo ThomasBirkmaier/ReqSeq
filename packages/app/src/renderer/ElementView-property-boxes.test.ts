@@ -5,7 +5,7 @@ import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@reqseq/core";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { Prompt, ElementControls } from "./actions.js";
+import type { Prompt, ElementControls } from "./action-types.js";
 import { filteredList } from "./buffers.js";
 import { propertyStep } from "./list-filters.js";
 import { undo } from "@codemirror/commands";

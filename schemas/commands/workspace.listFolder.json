@@ -37,27 +37,30 @@
     "type": "object",
     "properties": {
       "folder": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 4096,
+        "title": "Folder",
+        "$ref": "../common.schema.json#/$defs/outputPath",
         "description": "The folder listed, absolute and normalised, without a separator at its end except at the root. Missing when the path is `invalid`."
       },
       "name": {
+        "title": "Typed name",
         "type": "string",
         "description": "The typed name: the text after the last separator. Names that start with \".\" are listed only when it starts with \".\"."
       },
       "entries": {
+        "title": "Entries",
         "type": "array",
         "maxItems": 50000,
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Name",
               "type": "string",
               "minLength": 1,
               "description": "The name as the file system spells it."
             },
             "kind": {
+              "title": "Entry kind",
               "enum": ["folder", "file", "link"],
               "description": "folder, file, or link: a symbolic link, and on Windows any reparse point (junctions, OneDrive and Cloud Files placeholders, deduplicated files, app execution aliases); its target is not looked at."
             }
@@ -68,10 +71,12 @@
         "description": "The entries, folders and links first, then files, each by the code units of the NFC form of the name. Other entries (sockets, devices) are left out. Empty with a `problem`."
       },
       "problem": {
+        "title": "Problem",
         "enum": ["missing", "unreadable", "invalid"],
         "description": "Why there are no entries: the folder does not exist (`missing`), cannot be read or gave no answer within 1 s (`unreadable`, also when the path names a file), or the path is refused by its text (`invalid`)."
       },
       "truncated": {
+        "title": "Truncated",
         "const": true,
         "description": "The folder has more than 50,000 matching entries; folders and links come first."
       }

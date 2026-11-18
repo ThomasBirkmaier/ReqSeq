@@ -82,10 +82,12 @@
     "type": "object",
     "properties": {
       "file": {
-        "type": "string",
+        "title": "Image file",
+        "$ref": "../common.schema.json#/$defs/outputPath",
         "description": "The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused."
       },
       "markdown": {
+        "title": "Markdown",
         "type": "string",
         "description": "The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update."
       }

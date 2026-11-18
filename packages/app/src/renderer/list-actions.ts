@@ -4,7 +4,7 @@
 // the target's view does not show is not offered (a search is not sorted). Only the input of
 // `element.list` and `element.search` is built (ADR-0002).
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
-import type { Action, ActionContext, Choice, CommandIn, Prompt, PromptMark } from "./actions.js";
+import type { Action, ActionContext, Choice, CommandIn, Prompt, PromptMark } from "./action-types.js";
 import type { ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,

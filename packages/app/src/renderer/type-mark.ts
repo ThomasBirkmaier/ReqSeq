@@ -5,7 +5,7 @@
 // Backspace on an empty input go back with the mark; an × is the asking prompt's (`TypeAsk.marks`). A condition
 // has at most one type mark: choosing "Type" again continues it (`typeMarkAt`). The types come from
 // `metamodel.get`; the app builds the condition `{ type: [<keys>] }` and core selects (ADR-0002).
-import type { ArgumentExplanation, Choice, PromptFill, PromptMark, Prompt } from "./actions.js";
+import type { ArgumentExplanation, Choice, PromptFill, PromptMark, Prompt } from "./action-types.js";
 import type { Call } from "./call.js";
 import type { ConditionMark } from "./condition-kinds.js";
 import { stepMark } from "./condition-kinds.js";

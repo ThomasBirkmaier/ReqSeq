@@ -4,7 +4,7 @@
 // they dispatch, ask and echo.
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS } from "./actions.js";
-import type { ActionContext, Choice, Prompt } from "./actions.js";
+import type { ActionContext, Choice, Prompt } from "./action-types.js";
 import type { Buffers, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
