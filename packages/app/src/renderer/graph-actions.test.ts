@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACTIONS, GRAPH_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions.js";
-import type { ActionContext } from "./actions.js";
+import { ACTIONS, actionFor, commandPrompt, runAction } from "./actions.js";
+import { GRAPH_SHORTCUT } from "./graph-actions.js";
+import type { ActionContext } from "./action-types.js";
 import type { BufferAction, Buffers, GraphBuffer } from "./buffers.js";
 import {
   bufferName,

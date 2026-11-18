@@ -3,7 +3,7 @@
 // separator, opens the command prompt. The menu takes no focus (`use-context-menu.ts`), so it is announced
 // as a live region and its marked entry is its active descendant.
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { MenuHit } from "./context-menu.js";
 import type { MenuState } from "./use-context-menu.js";
 import { ALL_COMMANDS, menuPosition } from "./context-menu.js";

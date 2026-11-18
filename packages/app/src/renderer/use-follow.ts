@@ -5,7 +5,7 @@
 // of the modeline changes.
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { AgentActivity, ReqSeqBridge } from "../shared/protocol.js";
-import type { FollowControls } from "./actions.js";
+import type { FollowControls } from "./action-types.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";

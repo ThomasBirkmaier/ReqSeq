@@ -11,6 +11,9 @@ const SNIPPETS: FixtureOptions = { fixture: "SR-174/snippets" };
 /** A text property, acceptance criteria and a relation kind (SR-216). */
 const FIELDS: FixtureOptions = { fixture: "SR-216/fields" };
 
+/** Word parts in title, text, a property and the type and status names (SR-221). */
+const WORD_PARTS: FixtureOptions = { fixture: "SR-221/word-parts" };
+
 /** The hits of the first access as `short ID score`; every access gave the same (compared before). */
 const ranked = (results: Readonly<Record<string, Result>>): string[] => {
   const [first] = Object.values(results);
@@ -490,6 +493,94 @@ scenariosOf("element.search", [
     expect: "output",
     check: (results) => {
       expect(ranked(results)).toEqual(["SR-0000c3 9.14371", "GT-0000d1 3.25324"]);
+    },
+  },
+  {
+    tag: "[SR-221/AK-jq93]",
+    name: "a word of 4 letters or more found inside longer words of the title, the text, a property and the type and status names",
+    fixture: WORD_PARTS,
+    input: { query: "seite" },
+    expect: "output",
+    check: (results) => {
+      expect(
+        ranked(results)
+          .map((hit) => hit.split(" ")[0])
+          .sort(),
+      ).toEqual([
+        "HS-0000e6",
+        "SR-0000e1",
+        "SR-0000e2",
+        "SR-0000e3",
+        "SR-0000e4",
+        "SR-0000e5",
+        "SR-0000e7",
+        "SR-0000e8",
+        "SR-0000ea",
+        "SR-0000eb",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-221/AK-z5cp]",
+    name: "a whole word before a word start before a word part; a part only in the type or status name last",
+    fixture: WORD_PARTS,
+    input: { query: "seite", fields: ["title", "properties"] },
+    expect: "output",
+    check: (results) => {
+      const order = ranked(results).map((hit) => hit.split(" ")[0]);
+      expect(order.indexOf("SR-0000e4")).toBeLessThan(order.indexOf("SR-0000e3"));
+      expect(order.indexOf("SR-0000e3")).toBeLessThan(order.indexOf("SR-0000e1"));
+      expect(order.slice(-2).sort()).toEqual(["HS-0000e6", "SR-0000e7"]);
+    },
+  },
+  {
+    tag: "[SR-221/AK-z2nk]",
+    name: "only the part found is marked, also of a word start, a typo whole, the snippet at the first part",
+    fixture: WORD_PARTS,
+    input: { query: "seite", fields: ["title", "text"] },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toMatchObject({
+        "SR-0000e1": [undefined, [{ start: 5, end: 10 }]],
+        "SR-0000e2": [
+          {
+            field: "text",
+            text: "Die Referenzseiten nennen jedes Element.",
+            marks: [{ start: 12, end: 17 }],
+          },
+          undefined,
+        ],
+        "SR-0000e3": [undefined, [{ start: 0, end: 5 }]],
+        "SR-0000e8": [
+          { field: "text", text: "Er zeigt seine Werte.", marks: [{ start: 9, end: 14 }] },
+          undefined,
+        ],
+        "SR-0000eb": [
+          {
+            field: "text",
+            text: "Die Hauptseite kommt vor der Seite.",
+            marks: [
+              { start: 9, end: 14 },
+              { start: 29, end: 34 },
+            ],
+          },
+          [{ start: 5, end: 10 }],
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-221/AK-cbz2]",
+    name: "the search of title and IDs that Go to, the link search and element arguments send finds parts only in the title",
+    fixture: WORD_PARTS,
+    input: { query: "seite", fields: ["id", "title"], limit: 20 },
+    expect: "output",
+    check: (results) => {
+      expect(
+        ranked(results)
+          .map((hit) => hit.split(" ")[0])
+          .sort(),
+      ).toEqual(["SR-0000e1", "SR-0000e3", "SR-0000e4", "SR-0000ea", "SR-0000eb"]);
     },
   },
 ]);

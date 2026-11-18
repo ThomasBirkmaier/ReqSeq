@@ -4,7 +4,7 @@
 // why. The editing logic stays in its module (`editor/tasks.ts`, `editor/tables.ts`, ...); this list only names it. Editor-only, no
 // catalog command, like the slash menu (ADR-0010).
 import type { Command } from "@codemirror/view";
-import type { Action, ActionContext } from "./actions.js";
+import type { Action, ActionContext } from "./action-types.js";
 import type { Shortcut } from "./keys.js";
 import { alignTable, deleteColumn, deleteRow, insertColumn, insertRow } from "./editor/tables.js";
 import { toggleTask } from "./editor/tasks.js";

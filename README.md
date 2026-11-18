@@ -16,7 +16,7 @@ You keep your requirements as plain files in your own folders and repositories. 
 
 That makes it a tool for spec-driven development with coding agents: the specification lives in the repository next to the code, agents read and change it through the command line or the MCP server, and the pipeline checks it and records which requirement each test run verified. ReqSeq itself is built that way.
 
-![The steps of Get started in the app: initialise a workspace, create a need and a system requirement with their texts, let the requirement derive from the need, and show the graph of the need.](docs/guide/images/app-get-started.gif)
+![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](docs/guide/images/app-tour.gif)
 
 ## What it does
 

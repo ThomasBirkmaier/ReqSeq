@@ -12,7 +12,7 @@
 // within the bound. A folder that is missing, not readable or refused by its text gives no choices and a
 // note for the label (AK4). UI only: the app decides nothing about the paths (ADR-0002).
 import type { FolderListing, FolderProblem } from "../shared/protocol.js";
-import type { Choice, Found } from "./actions.js";
+import type { Choice, Found } from "./action-types.js";
 import { rank } from "./fuzzy.js";
 
 /** At most this many entries are shown; one row more says how many are left out (SR-143 AK5). */
