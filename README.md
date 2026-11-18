@@ -21,11 +21,9 @@ Each command names what the metamodel still misses, such as `trace.no-parent` or
 ## How you connect
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/context-dark.svg">
-  <img src="docs/guide/images/context-light.svg" alt="ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/ways-dark.svg">
+  <img src="docs/guide/images/ways-light.svg" alt="ReqSeq has four ways in that run the same commands with the same result: the desktop app for you, the reqseq command line for your agent, your CI and you, the MCP server for your AI agent, and a local HTTP API on loopback for scripts and tools. ReqSeq reads and writes the spec as Markdown files in spec/ of your Git repository, reads Git and never commits, and opens no network connections.">
 </picture>
-
-All four ways in run the same commands with the same result.
 
 ## Get started
 
