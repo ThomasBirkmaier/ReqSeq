@@ -59,6 +59,7 @@ import traceRelated from "./trace/related.js";
 import variantDiff from "./variant/diff.js";
 import variantExclude from "./variant/exclude.js";
 import workspaceActivity from "./workspace/activity.js";
+import workspaceAgents from "./workspace/agents.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceConnectAgent from "./workspace/connectAgent.js";
 import workspaceInit from "./workspace/init.js";
@@ -123,6 +124,7 @@ export const commands: readonly AnyCommand[] = [
   variantDiff,
   variantExclude,
   workspaceActivity,
+  workspaceAgents,
   workspaceCheck,
   workspaceConnectAgent,
   workspaceInit,

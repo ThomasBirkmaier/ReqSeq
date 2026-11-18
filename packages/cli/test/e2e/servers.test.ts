@@ -10,11 +10,12 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { osCacheFolder } from "@reqseq/core";
 import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -294,6 +295,98 @@ describe("reqseq mcp", () => {
     await client.listTools();
     child.kill("SIGTERM");
     expect(await exited(child)).toBe(0);
+    await client.close();
+  });
+});
+
+describe("reqseq mcp records its connection (SR-228)", () => {
+  /** `reqseq mcp` on a fixture whose OS cache folder lies outside it, with the connection files of the copy. */
+  const startOutside = async (): Promise<{
+    child: ChildProcessWithoutNullStreams;
+    connections: () => Promise<{ client: string; ended: string | null }[]>;
+    agents: () => Promise<unknown>;
+  }> => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
+    fixtures.push(ws);
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-home-"));
+    onTestFinished(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }));
+    const env = {
+      ...process.env,
+      ...HEADLESS,
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CACHE_HOME: home,
+      LOCALAPPDATA: home,
+    };
+    const child = spawn(process.execPath, ["--import", blockNetwork, bin, "mcp"], {
+      cwd: ws.root,
+      stdio: "pipe",
+      env,
+    });
+    children.push(child);
+    /** `reqseq workspace agents --json` on the same copy and cache folder, as a second process. */
+    const agents = async (): Promise<unknown> => {
+      const asking = spawn(
+        process.execPath,
+        ["--import", blockNetwork, bin, "workspace", "agents", "--json"],
+        {
+          cwd: ws.root,
+          stdio: "pipe",
+          env,
+        },
+      );
+      let stdout = "";
+      asking.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+      expect(await exited(asking)).toBe(0);
+      return JSON.parse(stdout) as unknown;
+    };
+    // The OS cache folder of the child: `~/Library/Caches` on macOS, the variables elsewhere.
+    const cacheRoot = path.join(osCacheFolder({ platform: process.platform, env, home }), "reqseq");
+    const connections = async (): Promise<{ client: string; ended: string | null }[]> => {
+      const folders = await fs.readdir(cacheRoot).catch(() => []);
+      const found = [];
+      for (const folder of folders) {
+        const names = await fs.readdir(path.join(cacheRoot, folder)).catch(() => []);
+        for (const name of names.filter((n) => n.startsWith("agent-"))) {
+          found.push(
+            JSON.parse(await fs.readFile(path.join(cacheRoot, folder, name), "utf8")) as {
+              client: string;
+              ended: string | null;
+            },
+          );
+        }
+      }
+      return found;
+    };
+    return { child, connections, agents };
+  };
+
+  it("writes the connection when the client connects, keeps it live by its beat, and ends it when the input ends", async () => {
+    const { child, connections, agents } = await startOutside();
+    const client = new Client({ name: "e2e agent", version: "1" });
+    await client.connect(new LineTransport(child.stdout, { write: (text) => child.stdin.write(text) }));
+    await expect.poll(connections).toEqual([expect.objectContaining({ client: "e2e agent", ended: null })]);
+    // Longer than a connection counts without a beat (AGENT_LIVE_MS, 3 s): the beat thread of the
+    // built package keeps it connected.
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    expect(await agents()).toMatchObject({ connected: [{ client: "e2e agent" }] });
+    child.stdin.end();
+    expect(await exited(child)).toBe(0);
+    expect(await connections()).toEqual([
+      expect.objectContaining({ client: "e2e agent", ended: expect.any(String) as unknown }),
+    ]);
+    await client.close();
+  });
+
+  it.skipIf(process.platform === "win32")("ends the connection at SIGTERM", async () => {
+    // Windows has no SIGTERM handler: kill() ends the process at once, a crash for the connection.
+    const { child, connections } = await startOutside();
+    const client = new Client({ name: "e2e agent", version: "1" });
+    await client.connect(new LineTransport(child.stdout, { write: (text) => child.stdin.write(text) }));
+    await expect.poll(connections).toHaveLength(1);
+    child.kill("SIGTERM");
+    expect(await exited(child)).toBe(0);
+    expect((await connections())[0]?.ended).toEqual(expect.any(String));
     await client.close();
   });
 });
