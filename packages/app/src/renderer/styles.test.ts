@@ -8,7 +8,14 @@ import { CARD_LINES } from "./actions.js";
 import type { Scheme } from "../shared/theme.js";
 
 const read = (relative: string): string => fs.readFileSync(new URL(relative, import.meta.url), "utf8");
-const CSS = read("./styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
+/** The files styles.css imports, in its order: the cascade the build bundles (#1857). */
+const IMPORTS = [...read("./styles.css").matchAll(/^@import "(\.\/styles\/[\w-]+\.css)";$/gm)].map(
+  (match) => match[1] ?? "",
+);
+/** The whole style sheet: the imported files joined in their order, without comments. */
+const CSS = IMPORTS.map(read)
+  .join("\n")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
 const EDITOR = read("./editor/Editor.tsx");
 
 const TOKENS = [
@@ -71,6 +78,21 @@ const ratio = (a: string, b: string): number => {
 // A hex colour, a colour function, or a colour name (`white-space` is not one).
 const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|(?<![-\w])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|(?<![-\w])(?:white|black)(?![-\w])/i;
+
+describe("the style sheet", () => {
+  it("imports every file under styles/ once, and holds no rule of its own", () => {
+    const files = fs
+      .readdirSync(new URL("./styles/", import.meta.url))
+      .filter((name) => name.endsWith(".css"))
+      .map((name) => `./styles/${name}`);
+    expect([...IMPORTS].sort()).toEqual(files.sort());
+    expect(new Set(IMPORTS).size).toBe(IMPORTS.length);
+    const rest = read("./styles.css")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^@import "[^"]+";$/gm, "");
+    expect(rest.trim()).toBe("");
+  });
+});
 
 describe("the colours of the sheet", () => {
   it("has the thirteen tokens, each with a light and a dark value", () => {
