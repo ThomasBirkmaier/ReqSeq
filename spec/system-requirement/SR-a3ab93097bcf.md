@@ -27,9 +27,9 @@ derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n2:2a7f8dc7cc5cd0bf, title: Nur Aussagekräftiges sehen }
   - { id: 6adc5c63-608a-4196-b8c0-3037e8876029, version: n2:341a607c926aaf31, title: Alles ohne Oberfläche bedienbar }
 based-on:
-  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:726b411ae394127b, title: Ausgaben gestuft zeigen }
+  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:116c000ecfa592b6, title: Ausgaben gestuft zeigen }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 ---
 
-Das Tool muss in der [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:f75f336199aced66) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:a8f6683763f8c15a) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel und den Kennzeichen versehen, die ein Zugang braucht, um sie gestuft zu zeigen.
+Das Tool muss in der [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:164509d02ae16783) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel und den Kennzeichen versehen, die ein Zugang braucht, um sie gestuft zu zeigen.
