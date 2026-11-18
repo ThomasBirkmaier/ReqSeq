@@ -435,7 +435,8 @@ export type ProblemCode =
   | "reqif.replaces-local"
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
-  | "reqif.mapping-differs";
+  | "reqif.mapping-differs"
+  | "reqif.source-model-unsaved";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1569,7 +1570,7 @@ export interface RecentWorkspacesWorkspace {
 }
 
 /**
- * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).
+ * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model, which the imports through it gather (ADR-0013 "Import") so an export can write in that model (SR-158).
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
@@ -1652,17 +1653,18 @@ export interface ReqifMappingFile {
     /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
   }[];
+  readonly "source-model"?: ReqifMappingSourceModel;
 }
 
 /**
- * `ReqifMappingFile` in command input: properties with a `default` filled in (Ajv useDefaults).
- * Schema: `schemas/reqif-mapping.schema.json#`.
+ * The keys of a mapping but `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.
+ * Schema: `schemas/reqif-mapping.schema.json#/$defs/settings`.
  */
-export interface ReqifMappingFileWithDefaults {
+export interface ReqifMappingSettings {
   /** Version of this file format. */
-  readonly "reqseq-reqif-mapping": 1;
+  readonly "reqseq-reqif-mapping"?: 1;
   /** The ReqIF source this mapping is for. */
-  readonly source: {
+  readonly source?: {
     /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
     readonly name: string;
     /** REQ-IF-TOOL-ID seen in deliveries, for recognising the source. */
@@ -1726,7 +1728,7 @@ export interface ReqifMappingFileWithDefaults {
     /** ATTRIBUTE-DEFINITION in the source's model. */
     readonly attribute: string;
     /** How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1). */
-    readonly datatype: "string" | "xhtml";
+    readonly datatype?: "string" | "xhtml";
   };
   /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
   readonly "omit-properties"?: readonly Key[];
@@ -1737,6 +1739,60 @@ export interface ReqifMappingFileWithDefaults {
     readonly selection: ElementSelection;
     /** Properties left out of every export with this profile (SR-059 AK1). */
     readonly "omit-properties"?: readonly Key[];
+  }[];
+  readonly [key: string]: unknown;
+}
+
+/**
+ * The source's own model, so an export can write in it (SR-158), gathered by the imports through this mapping (ADR-0013 "Import"): the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others. Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.
+ * Schema: `schemas/reqif-mapping.schema.json#/$defs/sourceModel`.
+ */
+export interface ReqifMappingSourceModel {
+  /** The datatypes the attributes of `types` use. */
+  readonly datatypes: readonly {
+    /** IDENTIFIER of the DATATYPE-DEFINITION. */
+    readonly identifier: string;
+    /** Its LONG-NAME, when the file has one. */
+    readonly "long-name"?: string;
+    /** Which DATATYPE-DEFINITION it is. */
+    readonly kind: "string" | "xhtml" | "integer" | "real" | "date" | "boolean" | "enumeration";
+    /** MAX-LENGTH of a STRING, as written. */
+    readonly "max-length"?: string;
+    /** MIN of an INTEGER or REAL, as written. */
+    readonly min?: string;
+    /** MAX of an INTEGER or REAL, as written. */
+    readonly max?: string;
+    /** ACCURACY of a REAL, as written. */
+    readonly accuracy?: string;
+    /** SPECIFIED-VALUES of an ENUMERATION, in the file's order. */
+    readonly values?: readonly {
+      /** IDENTIFIER of the ENUM-VALUE. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** KEY of its EMBEDDED-VALUE, as written. */
+      readonly key?: string;
+      /** OTHER-CONTENT of its EMBEDDED-VALUE, as written. */
+      readonly "other-content"?: string;
+    }[];
+  }[];
+  /** The SPEC-OBJECT-TYPEs an import through this mapping mapped to a type, also those no `types` entry maps any more. */
+  readonly types: readonly {
+    /** IDENTIFIER of the SPEC-OBJECT-TYPE. */
+    readonly identifier: string;
+    /** Its LONG-NAME, when the file has one. */
+    readonly "long-name"?: string;
+    /** Its ATTRIBUTE-DEFINITIONs, in the file's order, mapped or omitted. */
+    readonly attributes: readonly {
+      /** IDENTIFIER of the ATTRIBUTE-DEFINITION. */
+      readonly identifier: string;
+      /** Its LONG-NAME, when the file has one. */
+      readonly "long-name"?: string;
+      /** IDENTIFIER of its datatype, an entry of `datatypes`. */
+      readonly datatype: string;
+      /** MULTI-VALUED of an enumeration attribute; left out when false. */
+      readonly "multi-valued"?: true;
+    }[];
   }[];
 }
 
@@ -4360,7 +4416,7 @@ export interface ReqifImportInput {
   readonly file: LocalPath;
   /** Name of the delivery, written to the origin of each element it imports or updates. */
   readonly delivery: string;
-  /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. */
+  /** Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. For a file of another tool, the import stores the source model in it. */
   readonly mapping?: LocalPath;
   /** Source name for a file of ReqSeq without mapping; default the header TITLE. */
   readonly source?: string;
@@ -4393,7 +4449,88 @@ export interface ReqifImportOutput {
  * Schema: `schemas/commands/reqif.saveMapping.json input`.
  */
 export interface ReqifSaveMappingInput {
-  readonly mapping: ReqifMappingFileWithDefaults;
+  /** The whole mapping, without `source-model`, which only reqif.import writes: an existing file keeps its own, unless `file` names the file of another source, whose source model is then removed. */
+  readonly mapping: {
+    /** Version of this file format. */
+    readonly "reqseq-reqif-mapping": 1;
+    /** The ReqIF source this mapping is for. */
+    readonly source: {
+      /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
+      readonly name: string;
+      /** REQ-IF-TOOL-ID seen in deliveries, for recognising the source. */
+      readonly "tool-id"?: string;
+    };
+    /** Folder where imported elements are written. */
+    readonly target?: WorkspaceLocation;
+    /** Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted. */
+    readonly types?: readonly ({
+      /** LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE. */
+      readonly source: string;
+      readonly type?: Key;
+      /** Objects of this type are not imported; each is listed as a loss. */
+      readonly omit?: true;
+    } & (
+      | {
+        readonly type: unknown;
+      }
+      | {
+        readonly omit: unknown;
+      }))[];
+    /** Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted. */
+    readonly attributes?: readonly ({
+      /** Restricts the entry to one SPEC-OBJECT-TYPE. */
+      readonly "source-type"?: string;
+      /** LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION. */
+      readonly source: string;
+      /** Where the value goes: `title`, `text` or the key of a property. */
+      readonly property?: Key;
+      /** Enumeration value -> choice key. */
+      readonly values?: Readonly<Record<string, Key>>;
+      /** Enumeration values left out on import, each listed as a loss (SR-055 AK2). */
+      readonly "omit-values"?: readonly string[];
+      /** The attribute is not imported, which is listed as a loss. */
+      readonly omit?: true;
+    } & (
+      | {
+        readonly property: unknown;
+      }
+      | {
+        readonly omit: unknown;
+      }))[];
+    /** Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted. */
+    readonly relations?: readonly ({
+      /** LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE. */
+      readonly source: string;
+      readonly kind?: Key;
+      /** Relations of this type are not imported. */
+      readonly omit?: true;
+    } & (
+      | {
+        readonly kind: unknown;
+      }
+      | {
+        readonly omit: unknown;
+      }))[];
+    /** Where the statement goes when exporting back to the source (SR-058). */
+    readonly statement?: {
+      /** Own property that holds the statement. */
+      readonly property: Key;
+      /** ATTRIBUTE-DEFINITION in the source's model. */
+      readonly attribute: string;
+      /** How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1). */
+      readonly datatype: "string" | "xhtml";
+    };
+    /** Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3). */
+    readonly "omit-properties"?: readonly Key[];
+    /** Saved exports to this source, each a selection under a name. */
+    readonly "export-profiles"?: readonly {
+      /** Name of the profile. */
+      readonly name: string;
+      readonly selection: ElementSelection;
+      /** Properties left out of every export with this profile (SR-059 AK1). */
+      readonly "omit-properties"?: readonly Key[];
+    }[];
+  };
   /** Inside the mapping folder of the workspace, for every access; default the portable source name. */
   readonly file?: LocalPath;
 }

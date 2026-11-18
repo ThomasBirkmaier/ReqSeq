@@ -181,6 +181,7 @@ describe("reqif.import of XHTML as Markdown (SR-095)", () => {
       out.files[1],
       `Kunde-A/${folder}/wind-rose.png`,
       `Kunde-A/${folder}/wind-rose-2.png`,
+      "reqif/kunde-a.yaml",
     ]);
     expect(await fs.readFile(fixture.path(`Kunde-A/${folder}/wind-rose.png`))).toEqual(ROSE);
     expect(await fs.readFile(fixture.path(`Kunde-A/${folder}/wind-rose-2.png`))).toEqual(GUST);

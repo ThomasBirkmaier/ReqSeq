@@ -2,140 +2,348 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/reqif-mapping.schema.json",
   "title": "ReqIF mapping file",
-  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
+  "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the mapping folder of the workspace (`mappings`, default `reqif` in the main repository) and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3) and the source's own model, which the imports through it gather (ADR-0013 \"Import\") so an export can write in that model (SR-158).",
   "type": "object",
   "required": ["reqseq-reqif-mapping", "source"],
+  "allOf": [
+    {
+      "$ref": "#/$defs/settings"
+    }
+  ],
   "properties": {
-    "reqseq-reqif-mapping": { "description": "Version of this file format.", "const": 1 },
-    "source": {
-      "description": "The ReqIF source this mapping is for.",
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the source as written to the property with meaning `source` (SR-057, D-059)."
-        },
-        "tool-id": {
-          "type": "string",
-          "description": "REQ-IF-TOOL-ID seen in deliveries, for recognising the source."
-        }
-      },
-      "additionalProperties": false
-    },
-    "target": {
-      "$ref": "workspace.schema.json#/$defs/location",
-      "description": "Folder where imported elements are written."
-    },
-    "types": {
-      "description": "Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["source"],
-        "properties": {
-          "source": { "type": "string", "description": "LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE." },
-          "type": { "$ref": "common.schema.json#/$defs/key" },
-          "omit": {
-            "description": "Objects of this type are not imported; each is listed as a loss.",
-            "const": true
-          }
-        },
-        "oneOf": [{ "required": ["type"] }, { "required": ["omit"] }],
-        "additionalProperties": false
-      }
-    },
-    "attributes": {
-      "description": "Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["source"],
-        "properties": {
-          "source-type": { "type": "string", "description": "Restricts the entry to one SPEC-OBJECT-TYPE." },
-          "source": {
-            "type": "string",
-            "description": "LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION."
-          },
-          "property": {
-            "description": "Where the value goes: `title`, `text` or the key of a property.",
-            "anyOf": [{ "enum": ["title", "text"] }, { "$ref": "common.schema.json#/$defs/key" }]
-          },
-          "values": {
-            "type": "object",
-            "additionalProperties": { "$ref": "common.schema.json#/$defs/key" },
-            "description": "Enumeration value -> choice key."
-          },
-          "omit-values": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
-          },
-          "omit": {
-            "description": "The attribute is not imported, which is listed as a loss.",
-            "const": true
-          }
-        },
-        "oneOf": [{ "required": ["property"] }, { "required": ["omit"] }],
-        "additionalProperties": false
-      }
-    },
-    "relations": {
-      "description": "Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["source"],
-        "properties": {
-          "source": { "type": "string", "description": "LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE." },
-          "kind": { "$ref": "common.schema.json#/$defs/key" },
-          "omit": { "description": "Relations of this type are not imported.", "const": true }
-        },
-        "oneOf": [{ "required": ["kind"] }, { "required": ["omit"] }],
-        "additionalProperties": false
-      }
-    },
-    "statement": {
-      "description": "Where the statement goes when exporting back to the source (SR-058).",
-      "type": "object",
-      "required": ["property", "attribute"],
-      "properties": {
-        "property": {
-          "$ref": "common.schema.json#/$defs/key",
-          "description": "Own property that holds the statement."
-        },
-        "attribute": { "type": "string", "description": "ATTRIBUTE-DEFINITION in the source's model." },
-        "datatype": {
-          "enum": ["string", "xhtml"],
-          "default": "string",
-          "description": "How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1)."
-        }
-      },
-      "additionalProperties": false
-    },
-    "omit-properties": {
-      "type": "array",
-      "items": { "$ref": "common.schema.json#/$defs/key" },
-      "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3)."
-    },
-    "export-profiles": {
-      "description": "Saved exports to this source, each a selection under a name.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "selection"],
-        "properties": {
-          "name": { "description": "Name of the profile.", "type": "string" },
-          "selection": { "$ref": "common.schema.json#/$defs/selection" },
-          "omit-properties": {
-            "type": "array",
-            "items": { "$ref": "common.schema.json#/$defs/key" },
-            "description": "Properties left out of every export with this profile (SR-059 AK1)."
-          }
-        },
-        "additionalProperties": false
-      }
+    "reqseq-reqif-mapping": true,
+    "source": true,
+    "target": true,
+    "types": true,
+    "attributes": true,
+    "relations": true,
+    "statement": true,
+    "omit-properties": true,
+    "export-profiles": true,
+    "source-model": {
+      "$ref": "#/$defs/sourceModel"
     }
   },
-  "additionalProperties": false
+  "unevaluatedProperties": false,
+  "$defs": {
+    "settings": {
+      "type": "object",
+      "description": "The keys of a mapping but `source-model`: what `reqif.saveMapping` takes, since only `reqif.import` writes the source model.",
+      "properties": {
+        "reqseq-reqif-mapping": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "source": {
+          "description": "The ReqIF source this mapping is for.",
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the source as written to the property with meaning `source` (SR-057, D-059)."
+            },
+            "tool-id": {
+              "type": "string",
+              "description": "REQ-IF-TOOL-ID seen in deliveries, for recognising the source."
+            }
+          },
+          "additionalProperties": false
+        },
+        "target": {
+          "$ref": "workspace.schema.json#/$defs/location",
+          "description": "Folder where imported elements are written."
+        },
+        "types": {
+          "description": "Each SPEC-OBJECT-TYPE of the source, mapped to a type or omitted.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "LONG-NAME or IDENTIFIER of the SPEC-OBJECT-TYPE."
+              },
+              "type": {
+                "$ref": "common.schema.json#/$defs/key"
+              },
+              "omit": {
+                "description": "Objects of this type are not imported; each is listed as a loss.",
+                "const": true
+              }
+            },
+            "oneOf": [
+              {
+                "required": ["type"]
+              },
+              {
+                "required": ["omit"]
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
+        "attributes": {
+          "description": "Each ATTRIBUTE-DEFINITION of the source, mapped to the title, the text or a property, or omitted.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source-type": {
+                "type": "string",
+                "description": "Restricts the entry to one SPEC-OBJECT-TYPE."
+              },
+              "source": {
+                "type": "string",
+                "description": "LONG-NAME or IDENTIFIER of the ATTRIBUTE-DEFINITION."
+              },
+              "property": {
+                "description": "Where the value goes: `title`, `text` or the key of a property.",
+                "anyOf": [
+                  {
+                    "enum": ["title", "text"]
+                  },
+                  {
+                    "$ref": "common.schema.json#/$defs/key"
+                  }
+                ]
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "common.schema.json#/$defs/key"
+                },
+                "description": "Enumeration value -> choice key."
+              },
+              "omit-values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Enumeration values left out on import, each listed as a loss (SR-055 AK2)."
+              },
+              "omit": {
+                "description": "The attribute is not imported, which is listed as a loss.",
+                "const": true
+              }
+            },
+            "oneOf": [
+              {
+                "required": ["property"]
+              },
+              {
+                "required": ["omit"]
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
+        "relations": {
+          "description": "Each SPEC-RELATION-TYPE of the source, mapped to a relation kind or omitted.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "LONG-NAME or IDENTIFIER of the SPEC-RELATION-TYPE."
+              },
+              "kind": {
+                "$ref": "common.schema.json#/$defs/key"
+              },
+              "omit": {
+                "description": "Relations of this type are not imported.",
+                "const": true
+              }
+            },
+            "oneOf": [
+              {
+                "required": ["kind"]
+              },
+              {
+                "required": ["omit"]
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
+        "statement": {
+          "description": "Where the statement goes when exporting back to the source (SR-058).",
+          "type": "object",
+          "required": ["property", "attribute"],
+          "properties": {
+            "property": {
+              "$ref": "common.schema.json#/$defs/key",
+              "description": "Own property that holds the statement."
+            },
+            "attribute": {
+              "type": "string",
+              "description": "ATTRIBUTE-DEFINITION in the source's model."
+            },
+            "datatype": {
+              "enum": ["string", "xhtml"],
+              "default": "string",
+              "description": "How the statement is written: as STRING, or as XHTML converted from its Markdown (SR-058 AK1)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "omit-properties": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/key"
+          },
+          "description": "Properties left out of every export to this source; written by `reqif.export` with `mapping` and `omitProperties` (SR-059 AK1, AK3)."
+        },
+        "export-profiles": {
+          "description": "Saved exports to this source, each a selection under a name.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "selection"],
+            "properties": {
+              "name": {
+                "description": "Name of the profile.",
+                "type": "string"
+              },
+              "selection": {
+                "$ref": "common.schema.json#/$defs/selection"
+              },
+              "omit-properties": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/key"
+                },
+                "description": "Properties left out of every export with this profile (SR-059 AK1)."
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "sourceModel": {
+      "description": "The source's own model, so an export can write in it (SR-158), gathered by the imports through this mapping (ADR-0013 \"Import\"): the SPEC-OBJECT-TYPEs they mapped to a type, with their ATTRIBUTE-DEFINITIONs and the datatypes these use, each with IDENTIFIER and LONG-NAME and every facet as written in the file. Each import replaces the types of the `types` entries it delivers and keeps the others. Written only by `reqif.import` with `mapping`, never for a file of ReqSeq; `reqif.saveMapping` keeps it, unless `file` replaces the mapping of another source.",
+      "type": "object",
+      "required": ["datatypes", "types"],
+      "properties": {
+        "datatypes": {
+          "description": "The datatypes the attributes of `types` use.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier", "kind"],
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "IDENTIFIER of the DATATYPE-DEFINITION."
+              },
+              "long-name": {
+                "type": "string",
+                "description": "Its LONG-NAME, when the file has one."
+              },
+              "kind": {
+                "enum": ["string", "xhtml", "integer", "real", "date", "boolean", "enumeration"],
+                "description": "Which DATATYPE-DEFINITION it is."
+              },
+              "max-length": {
+                "type": "string",
+                "description": "MAX-LENGTH of a STRING, as written."
+              },
+              "min": {
+                "type": "string",
+                "description": "MIN of an INTEGER or REAL, as written."
+              },
+              "max": {
+                "type": "string",
+                "description": "MAX of an INTEGER or REAL, as written."
+              },
+              "accuracy": {
+                "type": "string",
+                "description": "ACCURACY of a REAL, as written."
+              },
+              "values": {
+                "description": "SPECIFIED-VALUES of an ENUMERATION, in the file's order.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["identifier"],
+                  "properties": {
+                    "identifier": {
+                      "type": "string",
+                      "description": "IDENTIFIER of the ENUM-VALUE."
+                    },
+                    "long-name": {
+                      "type": "string",
+                      "description": "Its LONG-NAME, when the file has one."
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "KEY of its EMBEDDED-VALUE, as written."
+                    },
+                    "other-content": {
+                      "type": "string",
+                      "description": "OTHER-CONTENT of its EMBEDDED-VALUE, as written."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "types": {
+          "description": "The SPEC-OBJECT-TYPEs an import through this mapping mapped to a type, also those no `types` entry maps any more.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier", "attributes"],
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "IDENTIFIER of the SPEC-OBJECT-TYPE."
+              },
+              "long-name": {
+                "type": "string",
+                "description": "Its LONG-NAME, when the file has one."
+              },
+              "attributes": {
+                "description": "Its ATTRIBUTE-DEFINITIONs, in the file's order, mapped or omitted.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["identifier", "datatype"],
+                  "properties": {
+                    "identifier": {
+                      "type": "string",
+                      "description": "IDENTIFIER of the ATTRIBUTE-DEFINITION."
+                    },
+                    "long-name": {
+                      "type": "string",
+                      "description": "Its LONG-NAME, when the file has one."
+                    },
+                    "datatype": {
+                      "type": "string",
+                      "description": "IDENTIFIER of its datatype, an entry of `datatypes`."
+                    },
+                    "multi-valued": {
+                      "const": true,
+                      "description": "MULTI-VALUED of an enumeration attribute; left out when false."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

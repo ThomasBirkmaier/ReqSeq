@@ -315,6 +315,10 @@ problems:
     title: Different saved mapping
     cause: A file of ReqSeq is imported without a mapping, and the saved mapping for its source names another source or tool. `reqif.import` uses that mapping as it is.
     remedy: If the mapping belongs to another source, rename or move it, or give the source in `source`.
+  reqif.source-model-unsaved:
+    title: Source model not saved
+    cause: "`reqif.import` read the mapping from outside the mapping folder, where ReqSeq writes no mapping file, so the source's types, attributes and datatypes of this delivery were not saved in it (`source-model`). The elements were imported."
+    remedy: Move the mapping file into the mapping folder of the workspace (`mappings`, default `reqif`) and import through it there.
 
 errors:
   input.invalid:
