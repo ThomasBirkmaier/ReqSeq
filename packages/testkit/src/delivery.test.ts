@@ -102,6 +102,7 @@ const writeDelivery = async (root: string, system: DeliverySystem): Promise<void
   await write(path.join(cli, "node_modules", "@t", "mcp", "package.json"), "{}");
   await write(path.join(cli, "node_modules", "@t", "core", "dist", "code-fingerprint.json"), "{}");
   await write(path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js"), "");
+  await write(path.join(cli, "node_modules", "@t", "core", "dist", "model", "agent-beat-worker.js"), "");
   await write(path.join(layout.resources, "docs", "junit", "README.md"), "");
   await write(path.join(layout.docs, "index.html"), "");
   await write(path.join(layout.docs, "search-index.json"), "{}");
@@ -230,6 +231,7 @@ describe("inspectDelivery", () => {
       `missing: ${path.join(cli, "node_modules", "@t", "mcp", "package.json")}`,
       `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "code-fingerprint.json")}`,
       `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js")}`,
+      `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "model", "agent-beat-worker.js")}`,
       `missing: ${path.join("resources", "docs", "junit", "README.md")}`,
       `missing: ${path.join(cli, "docs", "index.html")}`,
       `missing: ${path.join(cli, "docs", "search-index.json")}`,
