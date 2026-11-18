@@ -346,6 +346,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: ["SR-ffffff"], direction: "children" },
   ],
   "workspace.activity": [{}, { extra: true }],
+  "workspace.agents": [{}, { extra: true }],
   "variant.exclude": [
     { variant: VARIANT, refs: [WIND] },
     { variant: VARIANT, refs: [WIND, OBSOLETE], undo: true },
