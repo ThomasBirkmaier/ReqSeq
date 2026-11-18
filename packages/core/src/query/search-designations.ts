@@ -11,10 +11,10 @@
 //   translation adds designations, its title among them. Each designation is its words
 //   (`wordsOf`, as the index splits and compares them); a value without a letter or digit is none. A
 //   translation may hold several values, and a Markdown one counts by its visible words
-//   (`visibleText`): assumption of open question #1811. The designations of a key (its words joined
+//   (`visibleText`), as SR-220 and D-059 allow (#1811). The designations of a key (its words joined
 //   by a space) are those of every element that has it (AK1: a designation of several elements
 //   counts for all of them), without the key itself; also of elements the workspace keeps apart
-//   (a relation such as `distinct-from` is not read): assumption of open question #1814, option 1.
+//   (a relation such as `distinct-from` is not read), as SR-220 AK1 says (#1814).
 //   Built from the records of a store, so every save and watcher batch, which give a new store,
 //   gives a new table (AK4).
 // - The runs (`designationRuns`): in each stretch of the query between phrases, left to right, the
