@@ -4695,9 +4695,10 @@
                 "emergent",
                 "properties",
                 "relations"
-              ]
+              ],
+              "description": "Property values come with `properties`."
             },
-            "description": "Give only these fields of each element, in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`."
+            "description": "Give only these fields of each element, in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text, also with `withText` false. Without `fields`, every field in `elements`."
           },
           "withText": {
             "type": "boolean",

@@ -16,6 +16,7 @@
 //    reference is also an identifier: those elements join the candidates, so it is `ref.ambiguous`.
 //    Without an identifier match it stays `ref.unknown`, and element.resolve names the candidate.
 import { CommandError } from "../catalog.js";
+import { oneValueNote } from "../runtime/input-errors.js";
 import { resolveId } from "./duplicates.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { isUuid } from "./elements.js";
@@ -97,16 +98,6 @@ const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
   shortIds.metamodelValid || isUuid(canonical)
     ? ""
     : "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
-
-/**
- * The note for an item of a list input that holds a comma and names nothing (#1790): a list takes one
- * value per item, and a comma separates nothing. "" for a value without a comma. Only for list items:
- * a single reference gets no advice to repeat an option.
- */
-export const oneValueNote = (value: string): string =>
-  value.includes(",")
-    ? "; a comma does not separate values: give each value on its own (on the command line, the option once per value)"
-    : "";
 
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>
