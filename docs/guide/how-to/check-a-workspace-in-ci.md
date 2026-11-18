@@ -79,7 +79,7 @@ jobs:
 
 ### Gate on verification
 
-The info of `workspace check` about open requirements ([below](#gaps-of-verification)) counts only the verification status `open`. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
+The [info on open requirements](#gaps-of-verification) counts only `open`. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
 
 ```sh
 reqseq element create system-requirement "Show the wind speed" --text "The station shows the wind speed."
@@ -100,7 +100,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ### Gaps of verification
 
-A full check reports one of two gaps of verification at the workspace file; a check of only the changed elements reports neither. While the workspace file names no evidence location and the workspace has a requirement, no test result counts, and a warning names the entry to add; with `--fail-on warning` it fails the step:
+Only a full check reports a gap, at the workspace file. Without an evidence location no test result counts, so once there is a requirement a warning names the entry to add:
 
 ```sh
 reqseq workspace check
@@ -112,7 +112,7 @@ ok: true
 warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: ..., path: evidence }]  reqseq-workspace.yaml
 ```
 
-With an evidence location, one info gives the number of requirements whose verification status is `open` in the core, leaving out those in a status the metamodel marks invalid and those whose verification method is other than test; a requirement without a verification method counts. Without a property with the meaning `verification-method` in the metamodel, every requirement counts. The info names the call that lists exactly them; with `--fail-on info` the step fails while any is left:
+With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. It names the call that lists them; `--fail-on info` fails the step while any is left:
 
 ```yaml title="reqseq-workspace.yaml"
 reqseq-workspace: 1
