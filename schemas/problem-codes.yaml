@@ -233,8 +233,8 @@ problems:
     remedy: Name the criterion by its criterion key from the element file, `[SR-036/AK-k7f3]` or `sr_348143_ak_k7f3` with a name pattern; the message gives the key where the number names a criterion that has one. Then run the test and enrich its file again.
   evidence.outside-location:
     title: Enriched file in no evidence location
-    cause: "`evidence.enrichJunit` enriched a JUnit file that lies in no evidence location of the workspace file, or that the evidence walk does not read there (an extension not in lower case, an ignore glob, a nested repository). Its results do not count until it lies in one. The file is enriched all the same, and the exit code stays as it is."
-    remedy: Move the file into a folder under `evidence` of the workspace file, or enrich it again with an `output` there.
+    cause: "`evidence.enrichJunit` enriched a JUnit file that lies in no evidence location of the workspace file, or that the evidence walk does not read there (a name not ending in `.xml` in lower case, an ignore glob, a link, a nested repository). Its results do not count until the walk reads it. The file is enriched all the same, and the exit code stays as it is."
+    remedy: Move the file, with a name ending in `.xml`, into a folder under `evidence` of the workspace file that the walk reads, or enrich it again with such an `output`.
   baseline.invalid:
     title: Invalid baseline
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.

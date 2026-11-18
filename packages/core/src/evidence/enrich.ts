@@ -540,8 +540,8 @@ export const enrichJunitFile = async (
   const sourceFolder = await realFolder(source);
   const targetFolder = await realFolder(target);
   refuseGit(targetFolder, target);
-  const inPlace =
-    path.join(targetFolder, path.basename(target)) === path.join(sourceFolder, path.basename(source));
+  const realTarget = path.join(targetFolder, path.basename(target));
+  const inPlace = realTarget === path.join(sourceFolder, path.basename(source));
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const metamodel = await workspace.get(metamodelState);
@@ -595,10 +595,7 @@ export const enrichJunitFile = async (
     withoutReference: result.withoutReference,
     notInView: result.notInView,
     unknown: [...result.unknown],
-    problems: [
-      ...result.problems,
-      ...(await outsideLocationProblems(layout, path.join(targetFolder, path.basename(target)), shownTarget)),
-    ],
+    problems: [...result.problems, ...(await outsideLocationProblems(layout, realTarget, shownTarget))],
     files,
   });
   // Nothing to change: the input is not rewritten, but a given output is still written (it is the file
