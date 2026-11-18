@@ -12,7 +12,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { evidenceReadState, evidenceRecordsState, readJunitRecords } from "../../evidence/index.js";
-import { outOfVariantOf, resolverOf, variantResolverOf } from "../../evidence/enrich.js";
+import { outOfVariantOf, resolverOf, variantResolverOf } from "../../evidence/enrich-lookups.js";
 import { junitTestCases } from "../../evidence/junit-model.js";
 import type { ElementRecord } from "../../model/index.js";
 import { metamodelState } from "../../metamodel/index.js";
