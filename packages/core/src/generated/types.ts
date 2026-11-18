@@ -1289,7 +1289,7 @@ export interface FilterRelationCondition {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKey {
-  /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
+  /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key that the metamodel knows or an element of the workspace holds (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. Any other key is input.invalid; the order is given in `order`. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order?: "asc" | "desc";
@@ -1300,7 +1300,7 @@ export interface FilterSortKey {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKeyWithDefaults {
-  /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
+  /** `id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key that the metamodel knows or an element of the workspace holds (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. Any other key is input.invalid; the order is given in `order`. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order: "asc" | "desc";

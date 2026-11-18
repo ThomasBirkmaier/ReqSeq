@@ -581,6 +581,57 @@ describe("element.list refuses sort keys it cannot apply", () => {
     expect(((await refused(workspace, [{ by: "packages" }])) as unknown[])[2]).toEqual(["sort[0].by"]);
   });
 
+  it("refuses a key that is no sort key, no property of the metamodel and held by no element (#1829)", async () => {
+    const { workspace } = await open();
+    const keys = "sort by id, identifier, type, status, title, hierarchy or a property key";
+    const separately = "the order is given separately (asc or desc)";
+    expect(await refused(workspace, [{ by: "title" }, { by: "foo" }])).toEqual([
+      "input.invalid",
+      `sort[1].by: foo is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}`,
+      ["sort[1].by"],
+    ]);
+    // A key that ends in the order names the form it seems to mean.
+    for (const [by, key, order] of [
+      ["title-desc", "title", "desc"],
+      ["priority-asc", "priority", "asc"],
+    ] as const) {
+      expect(await refused(workspace, [{ by }])).toEqual([
+        "input.invalid",
+        `sort[0].by: ${by} is no sort key and no property of the metamodel or of an element: ${keys}; ${separately}; for ${by}, give by ${key} and order ${order}`,
+        ["sort[0].by"],
+      ]);
+    }
+    // Saving a filter or a perspective with such a key fails the same way, and writes nothing.
+    for (const command of ["filter.save", "perspective.save"] as const) {
+      const error = await invoke(
+        command,
+        { name: "Typo", where: { all: [] }, sort: [{ by: "foo" }] },
+        { workspace },
+      ).then(
+        () => undefined,
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(CommandError);
+      expect([(error as CommandError).code, (error as CommandError).details?.["fields"]]).toEqual([
+        "input.invalid",
+        ["sort[0].by"],
+      ]);
+    }
+  });
+
+  it("[SR-075/AK-dmt0] sorts by a property the metamodel does not know when an element outside the selection holds it (SR-016)", async () => {
+    const files = {
+      "needs/N-x.md": `---\nid: ${P}e0\ntype: need\nstatus: draft\ntitle: X\nowner: zed\n---\n`,
+    };
+    const { workspace } = await open({ ...SORT, files });
+    // No element of the selection holds `owner`: all have no value, in workspace order.
+    expect(
+      await sorted(workspace, [{ by: "owner", order: "desc" }], {
+        where: { type: ["software-requirement"] },
+      }),
+    ).toEqual([F1, F2, F3]);
+  });
+
   it("refuses title and hierarchy when no key of the metamodel has their meaning (SR-013 AK3)", async () => {
     const bare =
       "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
