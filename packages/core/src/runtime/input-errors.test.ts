@@ -82,6 +82,9 @@ const keywordCatalog = {
           some: { type: "array", contains: { const: 1 }, minContains: 2, maxContains: 3 },
           rows: { type: "array", contains: { type: "object", required: ["k"] } },
           cond: { type: "object", if: { required: ["a"] }, then: { required: ["b"] } },
+          // Items of choices without a description (#1831), and a type without examples.
+          levels: { type: "array", items: { enum: ["low", 1] } },
+          sample: { type: "object", examples: [] },
         },
         additionalProperties: false,
       },
@@ -390,6 +393,29 @@ describe("readable messages of an input that fails its schema (ThomasBirkmaier/R
         params: { unevaluatedProperty: "extra" },
       }),
     ).toBe("extra is not a field of the file");
+  });
+
+  it("shows the first example of a schema after a wrong type (#1831)", () => {
+    expect(messages(product, "element.update", { ref: "SR-036", removeRelations: ["x"] })).toEqual([
+      'removeRelations must be an object, not a list (for example {"derives-from":["N-073","N-030"],"based-on":"D-062"})',
+    ]);
+  });
+
+  it("says after a wrong item of a list of choices what it may have meant (#1831)", () => {
+    const choices = "identifier, type, status, title, text, version, file, emergent, properties, relations";
+    expect(messages(product, "element.list", { fields: ["spec-id"] })).toEqual([
+      `fields[0] "spec-id" is not one of: ${choices} (A property key is no field here: \`properties\` gives every property of the element)`,
+    ]);
+    expect(messages(product, "element.list", { fields: ["identifier,title"] })).toEqual([
+      `fields[0] "identifier,title" is not one of: ${choices}; a comma does not separate values: give each value on its own (on the command line, the option once per value)`,
+    ]);
+    // A choice that is no list item keeps the plain message, so do items without a description.
+    expect(field({ mode: "a,b" })).toEqual(['mode "a,b" is not one of: fast, slow']);
+    expect(field({ levels: [2, "high"] })).toEqual([
+      "levels[0] 2 is not one of: low, 1",
+      'levels[1] "high" is not one of: low, 1',
+    ]);
+    expect(field({ sample: 1 })).toEqual(["sample must be an object, not 1"]);
   });
 
   it("gives no violation for no errors", () => {

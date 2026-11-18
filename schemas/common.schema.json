@@ -133,6 +133,7 @@
     "relationRefs": {
       "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). ReqSeq checks them as relation.add does and stores each target with its current version (#175).",
       "type": "object",
+      "examples": [{ "derives-from": ["N-073", "N-030"], "based-on": "D-062" }],
       "propertyNames": {
         "$ref": "#/$defs/key"
       },

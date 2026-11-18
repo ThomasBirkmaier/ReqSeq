@@ -206,7 +206,12 @@ export const spelledMessage = (error: CommandError, entry: CatalogEntry): string
       const part = field.parts.find(
         (p) => p.role !== "key" && name.startsWith(atOf(p)) && /^($|[.[])/.test(name.slice(atOf(p).length)),
       );
-      return part === undefined ? said : `--${part.flag}${said.slice(atOf(part).length)}`;
+      if (part === undefined) {
+        return said;
+      }
+      // A sort key is typed as `<by>[:asc|desc]` here, not as the object of the input (#1831).
+      const form = part.role === "sort" ? ` (on the command line --${part.flag} <by>[:asc|desc])` : "";
+      return `--${part.flag}${said.slice(atOf(part).length)}${form}`;
     }
     return `${field.use === "positional" ? `<${field.flag}>` : `--${field.flag}`}${said.slice(top.length)}`;
   });

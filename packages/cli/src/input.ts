@@ -60,6 +60,24 @@ const decode = (bytes: Buffer, source: string): string => {
 const INLINE_HINT =
   " (if the shell removed the quotes, as PowerShell and cmd.exe do, use --input @file or --input -)";
 
+/** A file `value` names, relative to `cwd`; a text that cannot be a path (too long, a null byte) names none. */
+const namesFile = async (value: string, cwd: string): Promise<boolean> => {
+  try {
+    return (await fs.stat(path.resolve(cwd, value))).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The hint after inline `--input` text that is not JSON: `--input @<value>` when the text names a file
+ * or ends as a JSON or YAML file does (#1831), else what a shell that drops quotes needs.
+ */
+const inlineHint = async (value: string, cwd: string): Promise<string> =>
+  /\.(json|ya?ml)$/i.test(value) || (await namesFile(value, cwd))
+    ? ` (to read a file, give --input @${value})`
+    : INLINE_HINT;
+
 /** `--input <json|@file|->`: inline JSON, a JSON file (relative to the current folder) or standard input. */
 export async function readInputOption(
   value: string,
@@ -76,7 +94,7 @@ export async function readInputOption(
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    const hint = source === "--input" ? INLINE_HINT : "";
+    const hint = source === "--input" ? await inlineHint(value, cwd) : "";
     throw new CommandError("input.invalid", `Input from ${source} is not valid JSON${hint}`, undefined, {
       cause: error,
     });

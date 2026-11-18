@@ -299,7 +299,8 @@ export const readMappingFile = async (
   const absolute = path.resolve(root, given);
   const read = await readYamlFile(path.dirname(absolute), path.basename(absolute));
   if (read.kind === "problem") {
-    throw new CommandError("file.faulty", `mapping: ${read.problem.message}`, {
+    // The path looked for: a relative one is read against a folder the caller may not expect (#1831).
+    throw new CommandError("file.faulty", `mapping: ${absolute}: ${read.problem.message}`, {
       command,
       fields: ["mapping"],
     });

@@ -223,6 +223,40 @@ const optionsOf = (field: InputField, fields: readonly InputField[]): FieldOptio
   return { main: field.array || field.entries ? option.argParser(collect) : option, negation: undefined };
 };
 
+/** Flags other tools take for the output form; the CLI has `--json`, `--yaml` and `--jsonl` for it (ADR-0009). */
+const OUTPUT_FORM_FLAGS: readonly string[] = ["format", "output"];
+
+/**
+ * The hint after commander's `unknown option '--x'` on `command` (#1831), in place of its own
+ * suggestion: `--where-x` when the command has that flag, the output flags it has for `--format` or
+ * `--output`; `undefined` otherwise, and commander's suggestion stays.
+ */
+export const unknownOptionHint = (flag: string, command: Command): string | undefined => {
+  const name = flag.replace(/^--/, "").replace(/=.*$/s, "");
+  const longs = new Set(command.options.map((option) => option.long));
+  if (longs.has(`--where-${name}`)) {
+    return `(Did you mean --where-${name}?)`;
+  }
+  if (OUTPUT_FORM_FLAGS.includes(name)) {
+    const forms = ["--json", "--jsonl", "--yaml"].filter((form) => longs.has(form));
+    return `(Did you mean one of ${forms.join(", ")}? Without them, the output is the readable form.)`;
+  }
+  return undefined;
+};
+
+/** `command` with `unknownOptionHint` added to commander's error for an unknown option. */
+const withOptionHints = (command: Command): void => {
+  const error = command.error.bind(command);
+  command.error = (message, errorOptions) => {
+    const flag = /^error: unknown option '([^']*)'/.exec(message)?.[1];
+    const hint = flag === undefined ? undefined : unknownOptionHint(flag, command);
+    return error(
+      hint === undefined ? message : `${message.replace(/\n\(Did you mean [^)]*\)$/, "")}\n${hint}`,
+      errorOptions,
+    );
+  };
+};
+
 const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
   const action = entry.name.slice(entry.name.indexOf(".") + 1);
   const implemented = options.runtime.commands.has(entry.name);
@@ -288,6 +322,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   if (inputOnly.length > 0) {
     command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
   }
+  withOptionHints(command);
   command.action(async (...args: unknown[]) => {
     const opts = command.opts<Record<string, unknown>>();
     await options.run({

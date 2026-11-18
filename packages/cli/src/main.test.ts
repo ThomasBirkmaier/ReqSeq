@@ -738,6 +738,49 @@ describe("reqseq <group> <action>", () => {
     expect(JSON.parse(option.stderr)).toEqual({ code: "input.invalid", message: "unknown option '--nope'" });
   });
 
+  it("names the flag a common wrong option means (#1831)", async () => {
+    const where = await run(["test", "echo", "--type", "SR"]);
+    expect(where).toMatchObject({
+      code: EXIT.usage,
+      stderr: "error: unknown option '--type'\n(Did you mean --where-type?)\n",
+    });
+    const status = await run(["test", "echo", "--status=draft", "--json"]);
+    expect(JSON.parse(status.stderr)).toEqual({
+      code: "input.invalid",
+      message: "unknown option '--status=draft'\n(Did you mean --where-status?)",
+    });
+    // Commander's own suggestion (--sort) gives way to the output flags the command has.
+    const format = await run(["test", "echo", "--format", "json"]);
+    expect(format.stderr).toBe(
+      "error: unknown option '--format'\n(Did you mean one of --json, --yaml? Without them, the output is the readable form.)\n",
+    );
+    const output = await run(["test", "rows", "--output", "json"]);
+    expect(output.stderr).toBe(
+      "error: unknown option '--output'\n(Did you mean one of --json, --jsonl, --yaml? Without them, the output is the readable form.)\n",
+    );
+    // No --where-type on test.root: commander's message as it is.
+    expect((await run(["test", "root", "--type", "SR"])).stderr).toBe("error: unknown option '--type'\n");
+  });
+
+  it("names the command line form of a sort key that --input gave wrong (#1831)", async () => {
+    const result = await run(["test", "echo", ref, "n", "--input", '{"sort":[{"by":"title","order":"up"}]}']);
+    expect(result.stderr).toBe(
+      'error input.invalid: Invalid input for test.echo: --sort[0].order "up" is not one of: asc, desc (on the command line --sort <by>[:asc|desc])\n',
+    );
+  });
+
+  it("points to --input @<file> when the inline text names a file (#1831)", async () => {
+    const ws = await fixture({ "input.txt": "{}" });
+    const named = await run(["test", "echo", "--input", "input.txt"], { cwd: ws.root });
+    expect(named.stderr).toBe(
+      "error input.invalid: Input from --input is not valid JSON (to read a file, give --input @input.txt)\n",
+    );
+    const missing = await run(["test", "echo", "--input", "/nowhere/in.yaml"], { cwd: ws.root });
+    expect(missing.stderr).toBe(
+      "error input.invalid: Input from --input is not valid JSON (to read a file, give --input @/nowhere/in.yaml)\n",
+    );
+  });
+
   it("makes local path fields absolute against the current folder", async () => {
     const ws = await fixture({ "sub/.keep": "" });
     const result = await run(["test", "echo", ref, "n", "--file", "../results.xml", "--json"], {

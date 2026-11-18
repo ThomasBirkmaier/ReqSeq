@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkIssues, criterionCounts, parseArgs, parseSrLine, run } from "./issue-check.mjs";
@@ -126,5 +127,13 @@ describe("run and parseArgs", () => {
     expect(parseArgs(["--epic", "5", "--require", "SR-901 (AK x)"]).error).toBe(
       "cannot read SR-901 (AK x) in --require",
     );
+  });
+});
+
+describe("the command line", () => {
+  it("prints the usage for --help and exits with 0", () => {
+    const script = path.join(import.meta.dirname, "issue-check.mjs");
+    const output = execFileSync(process.execPath, [script, "--help"], { encoding: "utf8" });
+    expect(output).toMatch(/^usage: node scripts\/issue-check\/issue-check\.mjs --epic <n>/);
   });
 });

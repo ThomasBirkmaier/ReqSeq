@@ -153,11 +153,42 @@ const notTheForm: KeywordText = (value, p, error) => {
   return `${subject(value)} does not have the expected form${typeof description === "string" ? `: ${description}` : ""}${keys === undefined ? "" : ` (one of: ${keys.join(", ")})`}`;
 };
 
+/**
+ * The note for an item of a list input that holds a comma and names nothing (#1790): a list takes one
+ * value per item, and a comma separates nothing. "" for a value without a comma. Only for list items:
+ * a single reference gets no advice to repeat an option.
+ */
+export const oneValueNote = (value: string): string =>
+  value.includes(",")
+    ? "; a comma does not separate values: give each value on its own (on the command line, the option once per value)"
+    : "";
+
+/** ` (for example <JSON>)` of the first of the schema's `examples` (#1831), else "". */
+const exampleOf = (error: ErrorObject): string => {
+  const examples = (error.parentSchema as JsonSchema | undefined)?.["examples"];
+  return Array.isArray(examples) && examples.length > 0
+    ? ` (for example ${JSON.stringify(examples[0])})`
+    : "";
+};
+
+/**
+ * After the choices of an enum of list items (#1831): `oneValueNote` for a text with a comma, else the
+ * description of the item schema, which says what else a value may have meant.
+ */
+const itemNotes = (value: unknown, error: ErrorObject): string => {
+  if (!error.schemaPath.endsWith("/items/enum")) {
+    return "";
+  }
+  const comma = typeof value === "string" ? oneValueNote(value) : "";
+  const description = (error.parentSchema as JsonSchema | undefined)?.["description"];
+  return comma !== "" || typeof description !== "string" ? comma : ` (${description.replace(/\.$/, "")})`;
+};
+
 /** What a field must be, by keyword, when no def message applies; after the field name. */
 const KEYWORD_TEXTS: Readonly<Record<string, KeywordText>> = {
-  type: (value, p) => `must be ${typeName(p["type"])}, not ${quote(value)}`,
+  type: (value, p, error) => `must be ${typeName(p["type"])}, not ${quote(value)}${exampleOf(error)}`,
   enum: (value, _p, error) =>
-    `${subject(value)} is not one of: ${(error.schema as readonly unknown[]).map(String).join(", ")}`,
+    `${subject(value)} is not one of: ${(error.schema as readonly unknown[]).map(String).join(", ")}${itemNotes(value, error)}`,
   const: (value, p) => `${subject(value)} is not ${String(p["allowedValue"])}`,
   minLength: (_v, p) =>
     p["limit"] === 1 ? "must not be empty" : `must have at least ${items(p["limit"], "character")}`,
