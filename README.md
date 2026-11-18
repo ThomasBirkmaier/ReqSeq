@@ -1,8 +1,8 @@
 # ReqSeq
 
-You tell your coding agent what you need, and it writes it down as requirements, acceptance criteria and tests, as Markdown files in your repository, through ReqSeq's CLI or MCP server.
-Every element and every link between them carries a version, from the need down to the test run that proves it, so a change shows at once which requirement must be reviewed and which test must run again.
-Only people approve; ReqSeq never sets a status, never writes to Git and opens no network connection.
+You tell your coding agent what you need, and it writes it down as requirements with acceptance criteria, as Markdown files in your repository, through ReqSeq's CLI or MCP server; then it writes the code and the tests that name them.
+Every element carries a version, and every relation and every evidence record keeps the version it points to, so a change shows at once which relation is outdated and which requirement's verification is outdated.
+Only people approve; ReqSeq never changes a status, never writes to Git and opens no network connection.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)
@@ -11,7 +11,7 @@ Only people approve; ReqSeq never sets a status, never writes to Git and opens n
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/chain-dark.svg">
-  <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. CI hands the test results to ReqSeq as JUnit XML, which records them as evidence against the version of the requirement. Each element and each relation carries a version, so a changed need shows the relation and then the evidence as outdated.">
+  <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. The test results come to ReqSeq as JUnit XML, and ReqSeq records them as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 </picture>
 
 ## How you connect

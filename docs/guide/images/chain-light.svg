@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-label="ReqSeq keeps the chain from a need to the test that proves it. Your agent writes need, system requirement, code and tests through the CLI or MCP; each element and relation carries a version; CI records evidence against the version of the requirement. When the need changes, the relation and then the evidence show as outdated. Only people approve.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-label="ReqSeq keeps the chain from a need to the evidence of its tests. Your agent writes the need and the system requirement into ReqSeq through the CLI or MCP, and your code and tests into your repository; the test results come to ReqSeq as JUnit XML and are recorded as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 <style>
 text{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#111827}
 .k{font-size:15px;font-weight:700;letter-spacing:.01em} .t{font-size:13.5px;font-weight:500} .q{font-size:13px;fill:#4b5563;font-style:italic}
@@ -9,7 +9,7 @@ text{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#11182
 <rect width="1200" height="440" rx="16" fill="#fbfcfd"/><rect width="1200" height="440" rx="16" fill="url(#g)"/>
 <defs><linearGradient id="rq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb" stop-opacity="0.07"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0.07"/></linearGradient></defs>
 <rect x="262" y="24" width="914" height="206" rx="22" fill="url(#rq)" stroke="#7c3aed" stroke-opacity="0.35" stroke-width="1.2"/>
-<text x="288" y="60" style="font-size:19px;font-weight:800">ReqSeq</text><text x="372" y="60" class="s">keeps every element and link with its version, in spec/ of your repository</text>
+<text x="288" y="60" style="font-size:19px;font-weight:800">ReqSeq</text><text x="372" y="60" class="s">keeps every element with its version and every relation with its target's version, in spec/ of your repository</text>
 <rect x="288" y="88" width="226" height="96" rx="12" fill="#2563eb" fill-opacity="0.05" stroke="#2563eb" stroke-opacity="0.75" stroke-width="1.3"/>
 <g transform="translate(302,101)" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h12v8H8l-3 3v-3H3z"/></g>
 <text x="328" y="115" class="k" style="fill:#2563eb">Need</text>
@@ -40,9 +40,10 @@ text{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#11182
 <text x="880" y="364" class="m">[SR-c67baa/AK-k7f3]</text>
 <path d="M518,136.0 L602,136.0" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M595,131.0 L602,136.0 L595,141.0" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="560.0" y="128.0" text-anchor="middle" class="e">derives</text>
+<text x="560.0" y="128.0" text-anchor="middle" class="e">derived by</text>
 <path d="M836,136.0 L920,136.0" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="878.0" y="128.0" text-anchor="middle" class="e">verifies</text>
+<path d="M913,131.0 L920,136.0 L913,141.0" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="878.0" y="128.0" text-anchor="middle" class="e">verified by</text>
 <path d="M130.0,188 L130.0,335.5 Q130.0,347.5 142.0,347.5 L404,347.5" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M397,342.5 L404,347.5 L397,352.5" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M638,347.5 L860,347.5" stroke="#a3abb7" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
