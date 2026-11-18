@@ -21,7 +21,7 @@ import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
 import { linksStayInside, readYamlFile } from "../files/index.js";
-import type { ReqifMappingFile, ReqifMappingFileWithDefaults } from "../generated/types.js";
+import type { ReqifMappingFile, ReqifSaveMappingInput } from "../generated/types.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition } from "../metamodel/index.js";
 import { portableName, refuseUnlisted } from "../model/index.js";
@@ -31,7 +31,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate, settingLocation } from "../workspace/index.js";
 
 /** A mapping as read from a file, or as a command input with the schema defaults filled in. */
-export type AnyMapping = ReqifMappingFile | ReqifMappingFileWithDefaults;
+export type AnyMapping = ReqifMappingFile | ReqifSaveMappingInput["mapping"];
 
 /** Mapping files end in `.yaml` (D-056). */
 export const MAPPING_FILE_EXTENSION = ".yaml";
@@ -135,6 +135,26 @@ export const mappingTarget = async (
   const relative = path.relative(repository.folder, folder).split(path.sep).join("/");
   const file = relative === "" ? name : `${relative}/${name}`;
   return { repository, file: await refuseUnlisted(layout, repository, file, { ignored: false }) };
+};
+
+/**
+ * Whether the local path `given` (resolved against `root`) names a `.yaml` file directly in the
+ * mapping folder, by its text or with links resolved, before any refusal of `mappingTarget`; true
+ * while the folder's repository is not on this machine, which `mappingTarget` then refuses.
+ */
+export const liesInMappingFolder = async (
+  layout: WorkspaceLayout,
+  root: string,
+  given: string,
+): Promise<boolean> => {
+  const { folder } = locate(layout, settingLocation(layout, "mappings"));
+  const absolute = path.resolve(root, given);
+  const parent = path.dirname(absolute);
+  return (
+    folder === undefined ||
+    (absolute.endsWith(MAPPING_FILE_EXTENSION) &&
+      (samePath(parent, folder) || samePath(await realOf(parent), folder)))
+  );
 };
 
 /** A violation of the metamodel at `field`. */

@@ -11,10 +11,9 @@
 //   input leaves out (but `source-model`), and a key the schema does not know, is removed. The file must be unchanged
 //   since it was read (`file.changed-on-disk`). Nothing changed: nothing is written and `files` is
 //   empty. Defaults of the schema come with the input (`statement.datatype`) and are written too.
-// - `source-model` is tool data, written only by `reqif.import` (reqif/source-model.ts): kept when the
-//   input leaves it out, accepted when equal to the file's, else `input.invalid` (`reason:
-//   "source-model"`), also for a new file and for a file of another source replaced through `file`,
-//   whose source model is removed.
+// - `source-model` is tool data, written only by `reqif.import` (reqif/source-model.ts), so the input
+//   cannot carry it (`#/$defs/settings` of the schema): the file's is kept, but when `file` replaces
+//   the mapping of another source, whose source model is removed.
 // - Names that are equal once portable share the default file: when it holds the mapping of another
 //   `source.name`, it is replaced only when `file` names it (`input.invalid`, `reason:
 //   "other-source"`).
@@ -47,17 +46,6 @@ const sourceNameOf = (data: Readonly<Record<string, unknown>>): unknown => {
     : undefined;
 };
 
-/** Refuses a `source-model` of the input that differs from `held`, the file's (see the file comment). */
-const checkSourceModel = (given: unknown, held: unknown, shown: string, command: string): void => {
-  if (given !== undefined && !isDeepStrictEqual(given, held)) {
-    throw new CommandError(
-      "input.invalid",
-      `mapping.source-model: only reqif.import writes the source model; leave it out to keep the one of ${shown}`,
-      { command, fields: ["mapping.source-model"], reason: "source-model", file: shown },
-    );
-  }
-};
-
 /** Whether `absolute` exists, also as a link or folder, which the read then refuses. */
 const exists = async (absolute: string): Promise<boolean> =>
   fs.lstat(absolute).then(
@@ -78,7 +66,6 @@ export default defineCommand({
     const { repository, file } = target;
     const shown = workspacePath(layout, repository, file);
     if (!(await exists(path.join(repository.folder, file)))) {
-      checkSourceModel(mapping["source-model"], undefined, shown, command);
       const data: Readonly<Record<string, unknown>> = { ...mapping };
       const folder = path.posix.dirname(file);
       if (folder !== ".") {
@@ -112,7 +99,6 @@ export default defineCommand({
     }
     // The source model of another source is not kept when its file is replaced.
     const kept = held === mapping.source.name ? current["source-model"] : undefined;
-    checkSourceModel(mapping["source-model"], kept, shown, command);
     const data: Readonly<Record<string, unknown>> = { ...mapping, "source-model": kept };
     const edits = [
       ...MAPPING_KEYS.flatMap((key): YamlKeyEdit[] => {

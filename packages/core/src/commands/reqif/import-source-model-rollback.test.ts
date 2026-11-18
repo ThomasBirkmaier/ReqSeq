@@ -108,8 +108,6 @@ describe("a ReqIF import whose source model cannot be saved (SR-158)", () => {
     expect(await importOf(workspace, "in/1.reqif", "D1")).not.toBeInstanceOf(Error);
     await fs.writeFile(fixture.path("reqif/kunde-a.yaml"), MAPPING);
     const before = await filesOf(fixture.root);
-    fail.mapping = true;
-    fail.mapping = false;
     const preview = (await invoke(
       "reqif.analyze",
       { file: "in/1b.reqif", mapping: "reqif/kunde-a.yaml" },

@@ -8,14 +8,26 @@
   "stage": 6,
   "implements": ["SR-054", "SR-055", "SR-059"],
   "arguments": [
-    { "field": "mapping", "complete": "json" },
-    { "field": "file", "complete": "file" }
+    {
+      "field": "mapping",
+      "complete": "json"
+    },
+    {
+      "field": "file",
+      "complete": "file"
+    }
   ],
   "input": {
     "type": "object",
     "properties": {
       "mapping": {
-        "$ref": "../reqif-mapping.schema.json"
+        "allOf": [
+          {
+            "$ref": "../reqif-mapping.schema.json#/$defs/settings"
+          }
+        ],
+        "unevaluatedProperties": false,
+        "description": "The whole mapping, without `source-model`, which only reqif.import writes and an existing file keeps."
       },
       "file": {
         "$ref": "../common.schema.json#/$defs/localPath",

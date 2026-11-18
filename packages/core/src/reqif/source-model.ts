@@ -11,25 +11,23 @@
 //   with the same IDENTIFIER, is replaced by the delivery's, in place; the others are kept, the new
 //   ones appended. Datatypes are those the result's attributes use, in the order of first use, the
 //   delivery's definition first; so a datatype no stored attribute uses is removed.
-// - Save (`sourceModelSave`, `checkSourceModel`, `saveSourceModel`), the steps of omit.ts: only when
-//   the merged model differs from the stored one (none counts as an empty one). The file must lie directly in the mapping folder
-//   (`mappingTarget`); one outside it is not written (warning `reqif.source-model-unsaved`), every
-//   other refusal of `mappingTarget` refuses the import. The file must be unchanged since it was read
-//   (`file.changed-on-disk`); both are checked before the import writes anything, the file is
-//   saved after the elements, only the key `source-model` rewritten (`editYamlDocument`, ADR-0007).
+// - Save (`sourceModelSave`, `checkSourceModel`, `saveSourceModel`; mapping-key.ts, as omit.ts):
+//   only when the merged model differs from the stored one (none counts as an empty one). First
+//   whether the file lies directly in the mapping folder (`liesInMappingFolder`): one outside it is
+//   not written (warning `reqif.source-model-unsaved`) and the import goes on; for one inside, every
+//   refusal of `mappingTarget` (a link, the metamodel folder, …) refuses the import. The file must
+//   be unchanged since it was read (`file.changed-on-disk`); both are checked before the import
+//   writes anything. It is saved after the elements, only the key `source-model` rewritten.
 // - Read: an attribute naming a datatype the model lacks makes the mapping `file.faulty`
 //   (`readMappingFile`).
-import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { Problem } from "../catalog.js";
-import { CommandError } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
-import { editYamlDocument, readFileSnapshot, writeFileAtomic } from "../files/index.js";
 import type { ReqifMappingFile } from "../generated/types.js";
-import { workspacePath } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { AnyMapping, MappingFile, MappingTarget } from "./mapping.js";
-import { mappingTarget } from "./mapping.js";
+import { liesInMappingFolder, mappingTarget } from "./mapping.js";
+import { checkUnchanged, saveMappingKey } from "./mapping-key.js";
 import type { ReqifDatatype, ReqifFile, ReqifIdentifiable, ReqifSpecType } from "./model.js";
 
 /** The `source-model` of a mapping file. */
@@ -173,52 +171,28 @@ export const sourceModelSave = async (
   if (isDeepStrictEqual(model, stored ?? { datatypes: [], types: [] })) {
     return { problems: [] };
   }
-  try {
-    const target = await mappingTarget(layout, root, mapping.source.name, given, command, "mapping");
-    return { save: { target, yaml: read.yaml, model }, problems: [] };
-  } catch (error) {
-    if (!(error instanceof CommandError) || error.details?.["reason"] !== "outside-mapping-folder") {
-      throw error;
-    }
+  if (!(await liesInMappingFolder(layout, root, given))) {
     return {
       problems: [
         {
           code: "reqif.source-model-unsaved",
           severity: "warning",
-          message: `The source model was not saved: ${error.message}`,
+          message: `The source model was not saved: mapping ${given} lies outside the mapping folder, where ReqSeq writes no mapping file`,
         },
       ],
     };
   }
+  const target = await mappingTarget(layout, root, mapping.source.name, given, command, "mapping");
+  return { save: { target, yaml: read.yaml, model }, problems: [] };
 };
-
-/** The folder and name of the mapping file to save. */
-const fileOf = (target: MappingTarget): { readonly folder: string; readonly name: string } => ({
-  folder: path.join(target.repository.folder, path.posix.dirname(target.file)),
-  name: path.posix.basename(target.file),
-});
 
 /** Refuses with `file.changed-on-disk` when the mapping of `save` changed since it was read (see the file comment). */
 export const checkSourceModel = async (save: SourceModelSave | undefined, command: string): Promise<void> => {
-  if (save === undefined) {
-    return;
-  }
-  const { folder, name } = fileOf(save.target);
-  const now = await readFileSnapshot(folder, name);
-  if (now.kind !== "read" || now.snapshot.sha256 !== save.yaml.snapshot.sha256) {
-    throw new CommandError(
-      "file.changed-on-disk",
-      `Not imported: the mapping ${save.target.file} changed since it was read; run the import again`,
-      { command, file: save.target.file, fields: ["mapping"] },
-    );
+  if (save !== undefined) {
+    await checkUnchanged(save.target, save.yaml, "import", command);
   }
 };
 
 /** Saves the source model of `save`; gives the file saved, relative to the workspace root. */
-export const saveSourceModel = async (layout: WorkspaceLayout, save: SourceModelSave): Promise<string> => {
-  const { target, yaml, model } = save;
-  const edited = editYamlDocument(yaml, [{ key: "source-model", value: model }]);
-  const { folder, name } = fileOf(target);
-  await writeFileAtomic(folder, name, edited.bytes, yaml.snapshot, { kind: "yaml" });
-  return workspacePath(layout, target.repository, target.file);
-};
+export const saveSourceModel = (layout: WorkspaceLayout, save: SourceModelSave): Promise<string> =>
+  saveMappingKey(layout, save.target, save.yaml, "source-model", save.model);

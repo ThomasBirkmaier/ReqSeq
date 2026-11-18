@@ -160,6 +160,24 @@ describe("reqif.import stores the source model in the mapping (SR-158)", () => {
     expect(await text(fixture, "real/kunde-a.yaml")).toBe(MAPPING);
   });
 
+  it("warns for a mapping outside a mapping folder that is a link, instead of refusing the import", async () => {
+    const { fixture, workspace } = await open({ "real/kunde-a.yaml": MAPPING, "in/kunde-a.yaml": MAPPING });
+    await fs.rm(fixture.path("reqif"), { recursive: true });
+    await fs.symlink(fixture.path("real"), fixture.path("reqif"), "junction");
+    const out = await run(workspace, { ...INPUT, mapping: "in/kunde-a.yaml" });
+    expect(out.created).toHaveLength(2);
+    expect((out.problems ?? []).map((p) => p.code)).toEqual(["reqif.source-model-unsaved"]);
+    expect(await text(fixture, "in/kunde-a.yaml")).toBe(MAPPING);
+  });
+
+  it("saves into the mapping folder named through a link to it", async () => {
+    const { fixture, workspace } = await open();
+    await fs.symlink(fixture.path("reqif"), fixture.path("alias"), "junction");
+    const out = await run(workspace, { ...INPUT, mapping: "alias/kunde-a.yaml" });
+    expect(out.files.at(-1)).toBe("reqif/kunde-a.yaml");
+    expect(await text(fixture, "reqif/kunde-a.yaml")).toContain("source-model:");
+  });
+
   it("refuses a mapping whose source model names a datatype it does not define (file.faulty)", async () => {
     const dangling = [
       "source-model:",
