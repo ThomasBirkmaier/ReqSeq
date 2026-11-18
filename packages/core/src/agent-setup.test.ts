@@ -247,6 +247,30 @@ describe("the launch form", () => {
   });
 });
 
+describe("folders and environment", () => {
+  it("finds a delivery whose runtime folder differs only in case on Windows and macOS, not on Linux", () => {
+    const upper = { ...windows.installation, runtime: "C:\\TOOLS\\ReqSeq\\ReqSeq.exe" };
+    expect(setup("other", { ...windows, installation: upper }).valid).toBe(
+      "The setup holds as long as ReqSeq stays in C:\\Tools\\ReqSeq.",
+    );
+    const macUpper = { ...mac.installation, runtime: "/applications/ReqSeq.app/Contents/MacOS/ReqSeq" };
+    expect(serverOf({ ...mac, installation: macUpper }).command).toBe(
+      `${MAC_APP}/Contents/Resources/bin/reqseq`,
+    );
+    const linuxUpper = { ...linux.installation, runtime: "/home/ann/REQSEQ/ReqSeq" };
+    expect(serverOf({ ...linux, installation: linuxUpper }).command).toBe("/home/ann/REQSEQ/ReqSeq");
+  });
+
+  it("takes a configuration folder from the environment only when it is absolute", () => {
+    expect(setup("claude-desktop", { ...windows, env: { APPDATA: "" } }).setup.file).toBe(
+      "C:\\Users\\ann\\AppData\\Roaming\\Claude\\claude_desktop_config.json",
+    );
+    expect(setup("claude-desktop", { ...linux, env: { XDG_CONFIG_HOME: "cfg" } }).setup.file).toBe(
+      "/home/ann/.config/Claude/claude_desktop_config.json",
+    );
+  });
+});
+
 describe("quoting", () => {
   it("quotes a POSIX token only when it is not plain", () => {
     expect(quoteSh("/a/b-c_d.e:f=g@h%i+j")).toBe("/a/b-c_d.e:f=g@h%i+j");
@@ -255,6 +279,11 @@ describe("quoting", () => {
 
   it("quotes for PowerShell in single quotes", () => {
     expect(quotePowerShell("C:\\a b\\it's")).toBe("'C:\\a b\\it''s'");
+    // PowerShell ends a single-quoted string at the typographic quotes too.
+    expect(quotePowerShell("C:\\w\\x\u2019; calc; \u2018")).toBe(
+      "'C:\\w\\x\u2019\u2019; calc; \u2018\u2018'",
+    );
+    expect(quotePowerShell("\u201A\u201B")).toBe("'\u201A\u201A\u201B\u201B'");
   });
 
   it("quotes a Windows argument by the rules of the command line split", () => {

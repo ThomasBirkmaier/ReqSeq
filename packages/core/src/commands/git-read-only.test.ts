@@ -225,25 +225,11 @@ describe("Git only read (SR-083, D-036)", () => {
   });
 
   it("[SR-083/AK-zp6z] offers no command that writes Git data", () => {
-    // By the words of the name (`workspace.connectAgent` holds "tAg" but no word "tag").
-    const writes = new Set([
-      "commit",
-      "push",
-      "pull",
-      "fetch",
-      "merge",
-      "checkout",
-      "branch",
-      "rebase",
-      "reset",
-      "stash",
-      "tag",
-      "clone",
-    ]);
-    const words = (name: string): string[] => name.split(/\.|(?=[A-Z])/).map((word) => word.toLowerCase());
+    const writes = /commit|push|pull|fetch|merge|checkout|branch|rebase|reset|stash|tag|clone/i;
+    // Names that hold a Git word only inside another word: `connectAgent` ("tAg"), which writes nothing (SR-227 AK6).
+    const NOT_GIT: ReadonlySet<string> = new Set(["workspace.connectAgent"]);
     expect(
-      contracts.commands.map((c) => c.name).filter((name) => words(name).some((word) => writes.has(word))),
+      contracts.commands.map((c) => c.name).filter((name) => writes.test(name) && !NOT_GIT.has(name)),
     ).toEqual([]);
-    expect(words("baseline.commitAll")).toContain("commit");
   });
 });

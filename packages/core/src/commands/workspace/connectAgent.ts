@@ -44,7 +44,8 @@ export default defineCommand({
     if (given === undefined || entry === undefined) {
       throw new CommandError("agent.cli-missing", CLI_MISSING);
     }
-    const installation = { ...given, entry };
+    // Real paths, so that a delivery reached through a link or another spelling of its folder is found.
+    const installation = { ...given, entry, runtime: (await realFile(given.runtime)) ?? given.runtime };
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const result = setupOf(client, {
       installation,

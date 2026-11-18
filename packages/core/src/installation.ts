@@ -33,15 +33,20 @@ export const installationOfProcess = (facts: InstallationProcess): Installation 
       };
 };
 
-let given: Installation | undefined;
+let given: Installation | null | undefined;
 
-/** Sets the installation a process that does not run `bin.js` itself stands for (the app's core process). */
-export const setInstallation = (installation: Installation | undefined): void => {
+/**
+ * Sets the installation a process that does not run `bin.js` itself stands for (the app's core process); `null`
+ * when it was handed none, so that the process stands for no installation rather than for its own script.
+ * `undefined` goes back to the facts of the process.
+ */
+export const setInstallation = (installation: Installation | null | undefined): void => {
   given = installation;
 };
 
 /** The installation this process stands for. */
-export const currentInstallation = (): Installation | undefined => given ?? installationOfProcess(process);
+export const currentInstallation = (): Installation | undefined =>
+  given === null ? undefined : (given ?? installationOfProcess(process));
 
 const ARGUMENT = "--reqseq-installation=";
 

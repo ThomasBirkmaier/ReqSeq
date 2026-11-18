@@ -1,5 +1,5 @@
 // End-to-end test of `reqseq workspace connect-agent` (SR-227 AK5, AK6): the built command line gives the setup
-// of each client for a workspace whose path holds a space, `'`, `(` and `ü`; the setup is run as the user would
+// of each client for a workspace whose path holds a space, `'`, `’`, `(` and `ü`; the setup is run as the user would
 // paste it, in sh on Linux and macOS and in Windows PowerShell 5.1 and PowerShell 7 on Windows, with stub
 // programs `claude`, `code` and `codex` that only write down their arguments (shaped like npm installs on
 // Windows: a `.ps1` and a `.cmd`, and `code.cmd`). What the client would start from those arguments, or from
@@ -196,7 +196,8 @@ beforeAll(async () => {
     throw new Error(`${bin} is missing: run pnpm build before pnpm test:e2e`);
   }
   top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-")));
-  const parent = path.join(top, "Ann's work (ü)");
+  // A typographic quote ends a single-quoted PowerShell string too.
+  const parent = path.join(top, "Ann's work (ü) \u2019");
   await fs.mkdir(parent);
   ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true, tempDir: parent });
   home = path.join(top, "home");

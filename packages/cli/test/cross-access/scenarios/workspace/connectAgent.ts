@@ -4,7 +4,12 @@
 import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("workspace.connectAgent", [
-  { name: "without a client: the clients to choose from", input: {}, expect: "output" },
+  {
+    name: "without a client: the clients to choose from",
+    tag: "[SR-227/AK-gvt5]",
+    input: {},
+    expect: "output",
+  },
   ...["claude-code", "claude-desktop", "cursor", "vscode", "codex-cli", "other"].map((client) => ({
     name: `the setup for ${client}`,
     input: { client },

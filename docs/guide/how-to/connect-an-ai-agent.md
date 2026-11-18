@@ -18,13 +18,15 @@ An agent works with ReqSeq through its client, which starts the MCP server (`req
 
 On Windows the command is for PowerShell. Run Claude Code's command in the folder where you start Claude Code. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
 
-The setup holds as long as ReqSeq stays where it is: after a move, print it again. On macOS, move `ReqSeq.app` to `/Applications` first; an app started from the folder it was downloaded to gets no setup. The server is named `reqseq`, so a second workspace in the same client needs another name.
+The setup holds as long as ReqSeq stays where it is: after a move, print it again. On macOS, an app that was not moved after the download runs from a place the system gives it for this start only, and gets no setup: move `ReqSeq.app` to `/Applications` first. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
-On macOS and Linux the setup starts the launcher `bin/reqseq`. On Windows, where a client cannot start `reqseq.cmd` without a shell, it starts the app's runtime:
+From a downloaded release, the setup starts the launcher `bin/reqseq` on macOS and Linux. On Windows, where a client cannot start `reqseq.cmd` without a shell, it starts the app's runtime:
 
 ```json
 { "command": "C:\\Tools\\ReqSeq\\ReqSeq.exe", "args": ["C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js", "mcp", "--workspace", "C:\\path\\to\\workspace"], "env": { "ELECTRON_RUN_AS_NODE": "1" } }
 ```
+
+From the CLI tarball (`npm install -g`), it starts Node with the command line's `bin.js` on every system.
 
 A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on Windows; choose `other` and add its block to VS Code by hand.
 

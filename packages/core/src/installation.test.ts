@@ -36,6 +36,9 @@ describe("installation", () => {
     const given = { runtime: "/a/ReqSeq", entry: "/a/resources/cli/dist/bin.js", electron: true };
     setInstallation(given);
     expect(currentInstallation()).toBe(given);
+    // Handed none: no installation, not the script of this process.
+    setInstallation(null);
+    expect(currentInstallation()).toBeUndefined();
   });
 
   it("hands an installation over as one argument", () => {

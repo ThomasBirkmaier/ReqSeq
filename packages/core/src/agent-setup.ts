@@ -65,6 +65,10 @@ export interface SetupRefusal {
 
 const pathsOf = (platform: string): path.PlatformPath => (platform === "win32" ? path.win32 : path.posix);
 
+/** Whether two folders are the same; Windows and macOS compare names without case. */
+const sameFolder = (platform: string, a: string, b: string): boolean =>
+  platform === "win32" || platform === "darwin" ? a.toLowerCase() === b.toLowerCase() : a === b;
+
 /** The delivery an installation belongs to: its resources folder and the folder a user moves (`ReqSeq.app`, or the unpacked folder). */
 const deliveryOf = (
   installation: Installation,
@@ -79,12 +83,12 @@ const deliveryOf = (
   const runtimeFolder = p.dirname(installation.runtime);
   if (platform === "darwin") {
     const contents = p.dirname(resources);
-    return runtimeFolder === p.join(contents, "MacOS")
+    return sameFolder(platform, runtimeFolder, p.join(contents, "MacOS"))
       ? { resources, folder: p.dirname(contents) }
       : undefined;
   }
   const folder = p.dirname(resources);
-  return runtimeFolder === folder ? { resources, folder } : undefined;
+  return sameFolder(platform, runtimeFolder, folder) ? { resources, folder } : undefined;
 };
 
 /** Where the launcher of the delivery would be; undefined on Windows (its `.cmd` starts only through a shell) and outside a delivery. */
@@ -119,7 +123,8 @@ export const quoteSh = (token: string): string =>
   /^[A-Za-z0-9_./:=@%+-]+$/.test(token) ? token : `'${token.replaceAll("'", `'\\''`)}'`;
 
 /** A token for PowerShell in single quotes, which take everything literally but `'`. */
-export const quotePowerShell = (token: string): string => `'${token.replaceAll("'", "''")}'`;
+export const quotePowerShell = (token: string): string =>
+  `'${token.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
 
 /**
  * An argument for a Windows program in double quotes, by the rules programs split their command line with:
@@ -149,6 +154,10 @@ const TITLES: Readonly<Record<Client, string>> = Object.fromEntries(
   CLIENTS.map((entry) => [entry.value, entry.title]),
 ) as Record<Client, string>;
 
+/** A folder from the environment when it is absolute, else the folder the client takes without it. */
+const absoluteOr = (p: path.PlatformPath, value: string | undefined, fallback: string): string =>
+  value !== undefined && p.isAbsolute(value) ? value : fallback;
+
 /** The configuration file of the client on this system, for the clients configured by a file. */
 const configFile = (client: "claude-desktop" | "cursor", facts: SetupFacts): string => {
   const p = pathsOf(facts.platform);
@@ -160,10 +169,9 @@ const configFile = (client: "claude-desktop" | "cursor", facts: SetupFacts): str
     return p.join(facts.home, "Library", "Application Support", ...file);
   }
   if (facts.platform === "win32") {
-    return p.join(facts.env.APPDATA ?? p.join(facts.home, "AppData", "Roaming"), ...file);
+    return p.join(absoluteOr(p, facts.env.APPDATA, p.join(facts.home, "AppData", "Roaming")), ...file);
   }
-  const config = facts.env.XDG_CONFIG_HOME;
-  return p.join(config === undefined || config === "" ? p.join(facts.home, ".config") : config, ...file);
+  return p.join(absoluteOr(p, facts.env.XDG_CONFIG_HOME, p.join(facts.home, ".config")), ...file);
 };
 
 const entryJson = (server: Server): Record<string, unknown> => ({
@@ -295,5 +303,5 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
 };
 
 /** The answer without a client (AK1). */
-export const CHOOSE_CLIENT =
-  "Choose the client to connect: Claude Code, Claude Desktop, Cursor, VS Code, Codex CLI or Other.";
+const TITLE_LIST = CLIENTS.map((entry) => entry.title);
+export const CHOOSE_CLIENT = `Choose the client to connect: ${TITLE_LIST.slice(0, -1).join(", ")} or ${TITLE_LIST.slice(-1).join("")}.`;
