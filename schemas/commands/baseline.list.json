@@ -15,31 +15,38 @@
     "type": "object",
     "properties": {
       "baselines": {
+        "title": "Baselines",
         "type": "array",
         "description": "The valid baselines, in file order (code units of the file name).",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Baseline",
               "description": "Name of the baseline.",
               "type": "string"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "Relative to the workspace root, / as separator."
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "The repository that holds the file."
             },
             "date": {
+              "title": "Date",
               "$ref": "../common.schema.json#/$defs/dateTime"
             },
             "view": {
+              "title": "View",
               "$ref": "../common.schema.json#/$defs/viewId",
               "description": "The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise."
             },
             "elements": {
+              "title": "Elements",
               "type": "integer",
               "minimum": 0,
               "description": "Number of elements in the file."
@@ -50,15 +57,18 @@
         }
       },
       "location": {
+        "title": "Location",
         "$ref": "../workspace.schema.json#/$defs/location",
         "description": "The baselines folder: the workspace file's `baselines`, or `baselines` in the main repository."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "baseline.invalid of the files that are no valid baseline.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",

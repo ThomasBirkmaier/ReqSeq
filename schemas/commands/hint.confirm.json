@@ -59,24 +59,24 @@
     "type": "object",
     "properties": {
       "confirmed": {
+        "title": "Confirmed hints",
         "description": "The IDs of the confirmed hints, each once.",
         "type": "array",
-        "items": {
-          "type": "string"
-        }
+        "items": { "type": "string" }
       },
       "files": {
+        "title": "Files",
         "description": "Written files, relative to the workspace root.",
         "type": "array",
-        "items": {
-          "type": "string"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

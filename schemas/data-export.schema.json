@@ -7,30 +7,38 @@
   "required": ["reqseq-data", "dirty", "workspace", "generated", "repositories", "incomplete", "elements"],
   "properties": {
     "reqseq-data": {
+      "title": "Format version",
       "const": 5,
       "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text (SR-205 AK2)."
     },
     "commit": {
+      "title": "Commit",
       "$ref": "common.schema.json#/$defs/commit",
       "description": "The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell."
     },
     "dirty": {
+      "title": "Uncommitted changes",
       "type": "boolean",
-      "description": "`false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file."
+      "description": "`false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file.",
+      "x-normal": false
     },
     "workspace": {
+      "title": "Workspace name",
       "description": "Name of the workspace.",
       "type": "string"
     },
     "generated": {
+      "title": "Exported at",
       "$ref": "common.schema.json#/$defs/dateTime",
       "description": "Time of the export, UTC, in seconds."
     },
     "selection": {
+      "title": "Selection",
       "$ref": "common.schema.json#/$defs/selection",
       "description": "The selection as given; left out when none was given (every element)."
     },
     "repositories": {
+      "title": "Repositories",
       "description": "The repositories of the workspace file, in its order.",
       "type": "array",
       "items": { "$ref": "#/$defs/repository" }
@@ -40,6 +48,7 @@
       "description": "The data may lack elements or records (SR-006 AK2): a repository of the workspace is not on this machine (its entry in `repositories` has `available: false`), so its elements and the records of its evidence locations are missing, or a condition of the selection met a target in a repository the workspace file does not list. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`."
     },
     "elements": {
+      "title": "Elements",
       "type": "array",
       "description": "Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`.",
       "items": {
@@ -55,20 +64,25 @@
       "required": ["name", "available"],
       "properties": {
         "name": {
+          "title": "Repository",
           "description": "Workspace name of the repository.",
           "type": "string"
         },
         "available": {
+          "title": "Available",
           "description": "The repository is on this machine.",
           "type": "boolean"
         },
         "commit": {
+          "title": "Commit",
           "$ref": "common.schema.json#/$defs/commit",
           "description": "HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell."
         },
         "dirty": {
+          "title": "Uncommitted changes",
           "type": "boolean",
-          "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell."
+          "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell.",
+          "x-normal": false
         }
       },
       "additionalProperties": false
@@ -129,52 +143,65 @@
       "description": "The fields of an element, shared by `$defs/element`, `$defs/line` and `$defs/elementPart`, which say which are required; open, so never used alone.",
       "properties": {
         "id": {
+          "title": "Element",
           "$ref": "common.schema.json#/$defs/uuid"
         },
         "shortId": {
+          "title": "Short ID",
           "$ref": "common.schema.json#/$defs/shortId"
         },
         "identifier": {
+          "title": "Identifier",
           "type": "string",
           "description": "The value of its property with the meaning `identifier` (an ID from another source such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`."
         },
         "type": {
+          "title": "Type",
           "$ref": "common.schema.json#/$defs/key"
         },
         "status": {
+          "title": "Status",
           "$ref": "common.schema.json#/$defs/key",
           "description": "The status key as written; left out when the element has none (a type without status, ThomasBirkmaier/ReqSeq-archive#306)."
         },
         "title": {
+          "title": "Title",
           "description": "Title of the element; empty without one.",
           "type": "string"
         },
         "text": {
+          "title": "Text",
           "type": "string",
           "description": "Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for."
         },
         "version": {
+          "title": "Version",
           "$ref": "common.schema.json#/$defs/version",
           "description": "The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty)."
         },
         "versionDate": {
+          "title": "Version date",
           "type": ["string", "null"],
           "format": "date-time",
           "description": "Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out."
         },
         "repository": {
+          "title": "Repository",
           "description": "Workspace name of the repository of its file.",
           "type": "string"
         },
         "file": {
-          "type": "string",
+          "title": "File",
+          "$ref": "common.schema.json#/$defs/outputPath",
           "description": "Path relative to the repository."
         },
         "readOnly": {
+          "title": "Read-only",
           "type": "boolean",
           "description": "Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3)."
         },
         "validity": {
+          "title": "Validity",
           "type": "array",
           "items": {
             "$ref": "common.schema.json#/$defs/uuid"
@@ -182,6 +209,7 @@
           "description": "Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property."
         },
         "packages": {
+          "title": "Packages",
           "type": "array",
           "items": {
             "$ref": "common.schema.json#/$defs/uuid"
@@ -189,6 +217,7 @@
           "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
         },
         "replacedBy": {
+          "title": "Replaced by",
           "type": "array",
           "description": "Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty.",
           "items": {
@@ -196,26 +225,30 @@
             "required": ["variant", "replacement"],
             "additionalProperties": false,
             "properties": {
-              "variant": { "$ref": "common.schema.json#/$defs/uuid" },
-              "replacement": { "$ref": "common.schema.json#/$defs/uuid" }
+              "variant": { "title": "Variant", "$ref": "common.schema.json#/$defs/uuid" },
+              "replacement": { "title": "Replacement", "$ref": "common.schema.json#/$defs/uuid" }
             }
           }
         },
         "excludedBy": {
+          "title": "Excluded by",
           "type": "array",
           "items": { "$ref": "common.schema.json#/$defs/uuid" },
           "description": "The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty."
         },
         "emergent": {
+          "title": "Emergent",
           "type": "boolean",
           "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
         },
         "properties": {
+          "title": "Properties",
           "type": "object",
           "additionalProperties": true,
           "description": "All other properties by key, unknown ones included."
         },
         "relations": {
+          "title": "Relations",
           "type": "array",
           "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
           "items": {
@@ -223,6 +256,7 @@
           }
         },
         "verification": {
+          "title": "Verification status",
           "type": "array",
           "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6).",
           "items": {
@@ -230,14 +264,17 @@
           }
         },
         "validation": {
+          "title": "Validation status",
           "$ref": "common.schema.json#/$defs/validationStatus",
           "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every element whose type has the meaning `requirement` with a validation record; left out otherwise, also for a validation record of any other element, which counts for no status (SR-038 AK5). Never inherited from children; never the element's `status` (D-030). `inconclusive` when that record is inconclusive (SR-172 AK2); on a tie at the newest date `failed` before `inconclusive` before `validated` (assumption, spec question #807)."
         },
         "validationReason": {
+          "title": "Reason of the validation status",
           "type": "string",
           "description": "SR-172 AK2: the `reason` of the inconclusive record that decides `validation`; given exactly when `validation` is `inconclusive`."
         },
         "problems": {
+          "title": "Problems",
           "type": "array",
           "items": {
             "$ref": "common.schema.json#/$defs/problem"
@@ -250,57 +287,73 @@
       "required": ["kind", "direction", "id", "accessible", "targetState"],
       "properties": {
         "kind": {
+          "title": "Relation kind",
           "$ref": "common.schema.json#/$defs/key",
           "description": "Key of the relation kind, or of the property of kind `relation` (e.g. `validity`, `packages`) that stores the target; such a property's targets also stay under `properties` as stored, and their entries have `property: true` and no `meaning`."
         },
         "property": {
+          "title": "Property",
           "const": true,
           "description": "`kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds."
         },
         "meaning": {
+          "title": "Meaning",
           "enum": ["derivation", "replacement", "succession", "exclusion", "reference", null],
           "description": "`reference` = inline reference in the text (SR-066)."
         },
         "direction": {
+          "title": "Direction",
           "description": "`out`: the element stores the relation. `in`: another element stores it and points at this one.",
           "enum": ["out", "in"]
         },
         "id": {
+          "title": "Other end",
           "$ref": "common.schema.json#/$defs/uuid"
         },
         "repository": {
+          "title": "Repository of the other end",
           "type": "string",
           "description": "Workspace name of the repository of the other end (ThomasBirkmaier/ReqSeq-archive#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace)."
         },
         "shortId": {
+          "title": "Short ID of the other end",
           "$ref": "common.schema.json#/$defs/shortId",
           "description": "Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question ThomasBirkmaier/ReqSeq-archive#154)."
         },
         "identifier": {
+          "title": "Identifier of the other end",
           "type": "string",
           "description": "Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), only when it is available locally and has one."
         },
         "title": {
+          "title": "Title of the other end",
           "type": "string",
           "description": "Only when the other end is available locally, also across repositories, where the file stores no title (SR-005 AK2, SR-006 AK1)."
         },
         "accessible": {
+          "title": "Available",
           "type": "boolean",
-          "description": "`targetState` is `available`."
+          "description": "`targetState` is `available`.",
+          "x-normal": true
         },
         "targetState": {
+          "title": "Target state",
           "enum": ["available", "inaccessible", "missing", "ambiguous", "unknown-repository"],
           "description": "Where the other end is (D-058): `available` = exactly one element with the UUID in the repository the relation names (the source's own when it names none); `inaccessible` = that repository is in the workspace file but not on this machine (N-041, SR-006); `missing` = the repository is here, the UUID is not in it (N-065, SR-089); `ambiguous` = several files there share the UUID (SR-088); `unknown-repository` = the workspace file lists no repository of that name, or `repository` is not text."
         },
         "storedVersion": {
+          "title": "Stored version",
           "$ref": "common.schema.json#/$defs/version"
         },
         "currentVersion": {
+          "title": "Current version",
           "$ref": "common.schema.json#/$defs/version"
         },
         "outdated": {
+          "title": "Outdated",
           "description": "The stored version of the other end differs from its current version.",
-          "type": "boolean"
+          "type": "boolean",
+          "x-normal": false
         }
       },
       "additionalProperties": false
@@ -311,70 +364,86 @@
       "required": ["element", "version", "kind", "result", "date"],
       "properties": {
         "element": {
+          "title": "Element",
           "$ref": "common.schema.json#/$defs/uuid",
           "description": "Verification: a requirement. Validation: a need or a requirement (D-012)."
         },
-        "version": { "$ref": "common.schema.json#/$defs/version" },
+        "version": { "title": "Version", "$ref": "common.schema.json#/$defs/version" },
         "kind": {
+          "title": "Record kind",
           "description": "Verification or validation.",
           "enum": ["verification", "validation"]
         },
         "method": {
+          "title": "Method",
           "enum": ["test", "analysis", "inspection", "demonstration"],
           "description": "Required for verification (D-026)."
         },
         "variant": {
+          "title": "Variant",
           "$ref": "common.schema.json#/$defs/uuid",
           "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2), and also every variant the element applies in when the element's repository is marked `variant-independent` (SR-173)."
         },
         "item": {
+          "title": "Item under test",
           "type": "string",
           "description": "The item under test. Required for verification, optional for validation (D-007)."
         },
         "result": {
+          "title": "Result",
           "enum": ["passed", "failed", "inconclusive"],
           "description": "`inconclusive`: validation only, with `reason` (SR-172)."
         },
         "reason": {
+          "title": "Reason",
           "type": "string",
           "pattern": "\\S",
           "description": "The reason for an `inconclusive` validation record (SR-172); given exactly with that result."
         },
-        "date": { "$ref": "common.schema.json#/$defs/dateTime" },
+        "date": { "title": "Date", "$ref": "common.schema.json#/$defs/dateTime" },
         "evidence": {
+          "title": "Evidence document",
           "type": "string",
           "description": "Where the evidence document is: relative path, file URL or any URI."
         },
         "testCase": {
+          "title": "Test case",
           "type": "string",
           "description": "Optional test case name or ID (D-026, SR-033): the `test-case` of a Markdown record, the `name` of a JUnit test case."
         },
         "source": {
+          "title": "Record format",
           "enum": ["markdown", "junit"],
           "description": "The format of the record file: a Markdown record (`evidence-record.schema.json`) or a test case of a JUnit XML file (ADR-0012)."
         },
         "repository": {
+          "title": "Repository",
           "type": "string",
           "description": "Workspace name of the repository of the record file (an evidence location of the workspace file)."
         },
         "file": {
-          "type": "string",
+          "title": "Record file",
+          "$ref": "common.schema.json#/$defs/outputPath",
           "description": "The record file, relative to its repository, `/` as separator."
         },
         "line": {
+          "title": "Line",
           "type": "integer",
           "minimum": 1,
           "description": "The line of the `<testcase>` in a JUnit file; 1 for a Markdown record."
         },
         "evidenceSource": {
+          "title": "Evidence document",
           "type": "string",
           "description": "Where the evidence document of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened."
         },
         "className": {
+          "title": "Class name",
           "type": "string",
           "description": "The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record."
         },
         "criteria": {
+          "title": "Acceptance criteria",
           "type": "array",
           "items": { "$ref": "common.schema.json#/$defs/criterionRef" },
           "minItems": 1,
@@ -382,11 +451,13 @@
           "description": "The acceptance criteria the record holds for, by criterion key or by number (the position in the record's `version`, counted from 1), each once: numbers ascending, then keys in code-unit order (D-072, SR-028 AK4, SR-093 AK4): `criteria` of a Markdown record, the `reqseq:criterion` properties of a JUnit test case for this element. Left out: every criterion. Never on a validation record."
         },
         "criterionNames": {
+          "title": "Acceptance criteria",
           "type": "array",
           "items": { "$ref": "#/$defs/criterionName" },
           "description": "Each item of `criteria`, in its order, named with number, key and text (SR-205 AK2): the number is the position in the current version, whose criteria are counted; a key the current version lacks has no number and the text of the record's version; a number of a record's version in which that criterion has no key keeps that number and, where Git has that version, that version's text, without key. Filled by the commands that list records: `evidence.list` (also in its test cases), `trace.chain`, `trace.matrix`, `trace.affected` and `evidence.record`, each counting the current version, and `baseline.get` in `later`, counting the baseline's version; not in the data export, which has no records."
         },
         "baselines": {
+          "title": "Baselines",
           "type": "array",
           "items": { "type": "string" },
           "description": "The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it."
@@ -397,7 +468,7 @@
           "if": { "properties": { "kind": { "const": "verification" } } },
           "then": {
             "required": ["method", "item"],
-            "properties": { "result": { "not": { "const": "inconclusive" } } }
+            "properties": { "result": { "title": "Result", "not": { "const": "inconclusive" } } }
           }
         },
         {
@@ -418,36 +489,48 @@
       "required": ["name", "elements", "executed", "executions"],
       "properties": {
         "name": {
+          "title": "Test case",
           "type": "string",
           "description": "The JUnit `name`, or the `test-case` of the Markdown records."
         },
         "className": {
+          "title": "Class name",
           "type": "string",
           "description": "The JUnit `classname`; left out for a test case of Markdown records."
         },
         "elements": {
+          "title": "Named elements",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "common.schema.json#/$defs/uuid" },
           "description": "Every element the test case names, in any of its executions and skipped appearances, each once (SR-033 AK2)."
         },
         "executed": {
+          "title": "Executed",
           "type": "boolean",
           "description": "The test case has at least one record of this element (SR-033 AK3)."
         },
         "executions": {
+          "title": "Executions",
           "type": "array",
           "items": { "$ref": "#/$defs/evidenceRecord" },
           "description": "The records of this element from this test case, newest first (by `date`, then repository, file and line); empty when `executed` is false."
         },
         "last": {
+          "title": "Last execution",
           "$ref": "#/$defs/evidenceRecord",
           "description": "The newest execution, `executions[0]`, the first in index order of several equally new ones; left out when `executed` is false."
         }
       },
       "if": { "properties": { "executed": { "const": false } } },
-      "then": { "properties": { "executions": { "maxItems": 0 } }, "not": { "required": ["last"] } },
-      "else": { "properties": { "executions": { "minItems": 1 } }, "required": ["last"] },
+      "then": {
+        "properties": { "executions": { "title": "Executions", "maxItems": 0 } },
+        "not": { "required": ["last"] }
+      },
+      "else": {
+        "properties": { "executions": { "title": "Executions", "minItems": 1 } },
+        "required": ["last"]
+      },
       "additionalProperties": false
     },
     "rowVerification": {
@@ -455,6 +538,7 @@
       "type": "object",
       "properties": {
         "verification": {
+          "title": "Verification status",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -462,10 +546,12 @@
           "description": "SR-137 AK1: the verification status of a requirement in that view, one entry; left out for any other element and for a requirement without a status there."
         },
         "criteria": {
+          "title": "Criteria",
           "$ref": "#/$defs/criteriaCount",
           "description": "SR-137 AK3: the count of a requirement's progress ring, as trace.graph gives it (`criteria` of a node)."
         },
         "degree": {
+          "title": "Verification degree",
           "$ref": "#/$defs/verificationDegree",
           "description": "SR-137 AK3: for a need, the verification degree of the requirements derived directly from it, as trace.graph gives it (`degree` of a node)."
         }
@@ -478,12 +564,15 @@
       "required": ["view", "status"],
       "properties": {
         "view": {
+          "title": "View",
           "$ref": "common.schema.json#/$defs/viewId"
         },
         "status": {
+          "title": "Verification status",
           "$ref": "common.schema.json#/$defs/verificationStatus"
         },
         "missingChildren": {
+          "title": "Children without verification",
           "type": "array",
           "items": {
             "$ref": "common.schema.json#/$defs/uuid"
@@ -491,6 +580,7 @@
           "description": "SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none."
         },
         "criteria": {
+          "title": "Criteria",
           "$ref": "#/$defs/criteriaCount",
           "description": "How many of the requirement's acceptance criteria its own records in the view verify, for example 2 of 3 (SR-031 AK5, D-072). Only for a requirement whose status comes from its own records and whose current version has acceptance criteria (the property with the meaning `acceptance-criteria`); left out for a status from the children (SR-034) and without criteria (SR-031 AK7)."
         }
@@ -502,12 +592,13 @@
       "description": "An acceptance criterion as an output names it (SR-205 AK2): number, criterion key and text, each left out where it does not apply.",
       "properties": {
         "criterion": {
+          "title": "Number",
           "type": "integer",
           "minimum": 1,
           "description": "The number: the position in the version whose criteria are counted, counted from 1."
         },
-        "key": { "$ref": "common.schema.json#/$defs/criterionKey" },
-        "text": { "type": "string", "description": "The text of the acceptance criterion." }
+        "key": { "title": "Criterion key", "$ref": "common.schema.json#/$defs/criterionKey" },
+        "text": { "title": "Text", "type": "string", "description": "The text of the acceptance criterion." }
       },
       "additionalProperties": false
     },
@@ -517,16 +608,19 @@
       "required": ["criterion", "text"],
       "properties": {
         "criterion": {
+          "title": "Number",
           "type": "integer",
           "minimum": 1,
           "description": "The number: the position in the current version, counted from 1, so the numbers have no gaps (SR-205 AK3)."
         },
         "key": {
+          "title": "Criterion key",
           "$ref": "common.schema.json#/$defs/criterionKey",
           "description": "The criterion key (D-072, SR-204); left out when the criterion has none."
         },
-        "text": { "type": "string", "description": "The text of the acceptance criterion." },
+        "text": { "title": "Text", "type": "string", "description": "The text of the acceptance criterion." },
         "reference": {
+          "title": "Test name reference",
           "type": "string",
           "description": "The reference for a test name, `[<name>/AK-<key>]` (SR-205 AK1, SR-029 AK10): the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key (SR-204 AK10; spec question #1525, assumption)."
         }
@@ -539,10 +633,12 @@
       "required": ["property", "criteria"],
       "properties": {
         "property": {
+          "title": "Property",
           "$ref": "common.schema.json#/$defs/key",
           "description": "The key of the property with the meaning `acceptance-criteria` that holds them."
         },
         "criteria": {
+          "title": "Acceptance criteria",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/criterionEntry" }
@@ -556,12 +652,19 @@
       "required": ["verified", "total"],
       "properties": {
         "verified": {
+          "title": "Verified criteria",
           "description": "The number of verified acceptance criteria.",
           "type": "integer",
           "minimum": 0
         },
-        "total": { "type": "integer", "minimum": 1, "description": "The number of acceptance criteria." },
+        "total": {
+          "title": "Acceptance criteria",
+          "type": "integer",
+          "minimum": 1,
+          "description": "The number of acceptance criteria."
+        },
         "notVerified": {
+          "title": "Criteria not verified",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/criterionName" },
@@ -576,38 +679,50 @@
       "required": ["total", "counts"],
       "properties": {
         "share": {
+          "title": "Share",
           "type": "number",
           "minimum": 0,
           "maximum": 1,
           "description": "(verified + indirect) / total (AK1, AK2), unrounded; left out when total is 0. Shown as a percentage rounded down to one decimal (ADR-0012)."
         },
-        "total": { "type": "integer", "minimum": 0, "description": "The counted requirements." },
+        "total": {
+          "title": "Requirements",
+          "type": "integer",
+          "minimum": 0,
+          "description": "The counted requirements."
+        },
         "counts": {
+          "title": "Counts",
           "type": "object",
           "description": "How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total.",
           "required": ["open", "verified", "indirect", "failed", "outdated"],
           "properties": {
             "open": {
+              "title": "Open",
               "description": "Requirements with the verification status open.",
               "type": "integer",
               "minimum": 0
             },
             "verified": {
+              "title": "Verified",
               "description": "Requirements with the verification status verified.",
               "type": "integer",
               "minimum": 0
             },
             "indirect": {
+              "title": "Indirect",
               "description": "Requirements verified indirectly, through their children.",
               "type": "integer",
               "minimum": 0
             },
             "failed": {
+              "title": "Failed",
               "description": "Requirements with the verification status failed.",
               "type": "integer",
               "minimum": 0
             },
             "outdated": {
+              "title": "Outdated",
               "description": "Requirements with the verification status outdated.",
               "type": "integer",
               "minimum": 0

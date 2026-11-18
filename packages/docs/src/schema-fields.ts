@@ -11,6 +11,8 @@ export interface FieldRow {
   readonly type: string;
   readonly required: boolean;
   readonly description: string;
+  /** The title of an output field, its own or its definition's (SR-224 AK3), if it has one. */
+  readonly title?: string;
   /** Whether the field has a text of its own, of its definition or of its items; a default alone is none. */
   readonly described: boolean;
 }
@@ -27,6 +29,8 @@ export interface SchemaContext {
   readonly base?: string;
   /** Where the reference documents the type at `url` (a schema file, or a definition in it), if anywhere. */
   readonly link?: (url: URL) => string | undefined;
+  /** A command's output: the rows show each field's title and what its marks say (SR-224 AK3, AK4). */
+  readonly output?: boolean;
 }
 
 /** Nested objects are listed to this depth; deeper ones are named by their type only. */
@@ -121,18 +125,63 @@ const ownText = (schema: Schema, context: SchemaContext, seen: ReadonlySet<strin
     : ownText(target, { ...context, base: url }, new Set([...seen, url]));
 };
 
+/** The value of `keyword` at a schema, else at the definition its `$ref` names, followed over further `$ref`s. */
+const inherited = (
+  schema: Schema,
+  context: SchemaContext,
+  keyword: string,
+  seen: ReadonlySet<string> = new Set(),
+): unknown => {
+  if (keyword in schema) {
+    return schema[keyword];
+  }
+  const ref = schema["$ref"];
+  const url = typeof ref === "string" ? new URL(ref, context.base ?? CATALOG_BASE).href : undefined;
+  const target = url === undefined || seen.has(url) ? undefined : resolveRef(String(ref), context);
+  return target === undefined || url === undefined
+    ? undefined
+    : inherited(target, { ...context, base: url }, keyword, new Set([...seen, url]));
+};
+
+/**
+ * What the marks of an output field say (SR-224 AK3, AK4; D-078): a technical value, the normal value, the elements a
+ * field lists or counts.
+ */
+const marksText = (schema: Schema, context: SchemaContext): string => {
+  const technical = inherited(schema, context, "x-technical");
+  const normal = inherited(schema, context, "x-normal");
+  const elements = schema["x-elements"];
+  return [
+    technical === true ? "Technical." : "",
+    technical === "with-element" ? "Technical when the problem names an element." : "",
+    normal === undefined ? "" : `Normally ${code(JSON.stringify(normal))}.`,
+    elements === "answer" ? "The elements of the answer." : "",
+    elements === true ? "Lists elements." : "",
+    (typeof elements === "string" && elements !== "answer") || Array.isArray(elements)
+      ? `Counts the elements of ${[elements]
+          .flat()
+          .map((path) => code(String(path)))
+          .join(" and ")}.`
+      : "",
+  ]
+    .filter((part) => part !== "")
+    .join(" ");
+};
+
 /** The text of a field: its own or its definition's, else that of its items, so a list reads like its entries. */
 const fieldText = (schema: Schema, context: SchemaContext): string => {
   const text = ownText(schema, context);
   return text === "" && isSchema(schema["items"]) ? ownText(schema["items"], context) : text;
 };
 
-const describe = (schema: Schema, context: SchemaContext): string => {
-  const text = fieldText(schema, context);
-  return "default" in schema
-    ? `${text}${text === "" ? "" : " "}Default: ${code(JSON.stringify(schema["default"]))}.`
-    : text;
-};
+const describe = (schema: Schema, context: SchemaContext): string =>
+  [
+    fieldText(schema, context),
+    "default" in schema ? `Default: ${code(JSON.stringify(schema["default"]))}.` : "",
+    context.output === true ? marksText(schema, context) : "",
+  ]
+    .filter((part) => part !== "")
+    .join(" ");
 
 const propertiesOf = (schema: Schema | undefined): Schema =>
   schema !== undefined && isSchema(schema["properties"]) ? schema["properties"] : {};
@@ -192,6 +241,12 @@ export function forms(schema: Schema): Form[] {
     });
 }
 
+/** The title of a field as a row has it: its own or its definition's, when it has one. */
+const titleOf = (schema: Schema, context: SchemaContext): { title?: string } => {
+  const title = inherited(schema, context, "title");
+  return typeof title === "string" ? { title } : {};
+};
+
 /** The rows of every field of an object schema, nested objects and arrays of objects below their field. */
 export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", depth = 0): FieldRow[] {
   const { properties, required } = objectParts(schema, context);
@@ -203,6 +258,7 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
       type: typeText(field, context),
       required: required.has(name),
       description: describe(field, context),
+      ...(context.output === true ? titleOf(field, context) : {}),
       described: fieldText(field, context).trim() !== "",
     };
     const items = isSchema(field["items"]) ? field["items"] : undefined;
@@ -230,12 +286,15 @@ export const undescribedFields = (schema: Schema, context: SchemaContext, table:
 /** The field table of an object schema, or `none` when it has no fields. */
 export function fieldTable(schema: Schema, context: SchemaContext, none: string): string {
   const rows = fieldRows(schema, context);
+  // Output fields have titles (SR-224 AK3); a table of fields without any, such as an input, has no title column.
+  const titled = rows.some((row) => row.title !== undefined);
   return rows.length === 0
     ? none
     : table(
-        ["Field", "Type", "Required", "Description"],
+        ["Field", ...(titled ? ["Title"] : []), "Type", "Required", "Description"],
         rows.map((row) => [
           `\`${row.field}\``,
+          ...(titled ? [cell(row.title ?? "")] : []),
           markdownCell(row.type),
           row.required ? "yes" : "no",
           cell(row.description),

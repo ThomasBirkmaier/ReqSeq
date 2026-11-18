@@ -56,52 +56,64 @@
     "type": "object",
     "properties": {
       "affected": {
+        "title": "Affected elements",
         "type": "array",
         "description": "The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference (in the text or in a property marked `markdown`, SR-127) to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier",
               "type": "string",
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "title": "Type",
               "description": "Key of its type.",
               "type": "string"
             },
             "title": {
+              "title": "Title",
               "description": "Its title; empty without one.",
               "type": "string"
             },
             "repository": {
+              "title": "Repository",
               "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "Path relative to the repository."
             },
             "distance": {
+              "title": "Distance",
               "type": "integer",
               "minimum": 1,
               "description": "Steps from the element: 1 when this element's file points at it directly."
             },
             "path": {
+              "title": "Path",
               "type": "array",
               "description": "The way: the element asked for first, this element last, each element in between that points at the one before it; each named by UUID and repository (D-058).",
               "items": {
                 "type": "object",
                 "properties": {
                   "id": {
+                    "title": "Element",
                     "$ref": "../common.schema.json#/$defs/uuid"
                   },
                   "repository": {
+                    "title": "Repository",
                     "description": "Workspace name of the repository of this element of the path.",
                     "type": "string"
                   }
@@ -112,14 +124,17 @@
               "minItems": 2
             },
             "via": {
+              "title": "Via",
               "type": "object",
               "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`.",
               "properties": {
                 "kind": {
+                  "title": "Link kind",
                   "description": "`relation`: a relation or relation property stored under `key`. `reference`: an inline reference.",
                   "enum": ["relation", "reference"]
                 },
                 "key": {
+                  "title": "Key",
                   "$ref": "../common.schema.json#/$defs/key"
                 }
               },
@@ -129,14 +144,17 @@
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "type", "title", "repository", "file", "distance", "path", "via"]
-        }
+        },
+        "x-elements": "answer"
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "The number of all affected elements; `affected` holds the page of `limit` from `offset`."
       },
       "records": {
+        "title": "Records of older versions",
         "type": "array",
         "description": "The evidence records of an older version of the element (SR-024 AK4): its records in the evidence folders (SR-028, SR-093) whose `version` is not its current one, newest first. Empty when its current version cannot be computed (its file no longer holds it, an embedded image cannot be read).",
         "items": {

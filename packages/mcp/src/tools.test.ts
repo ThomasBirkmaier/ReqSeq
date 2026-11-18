@@ -4,7 +4,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { createCommandRuntime, defineTestCommand, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { catalogTools, serverTools, toolName } from "./tools.js";
+import { catalogTools, serverTools, toolName, withoutDisplayMarks } from "./tools.js";
 
 const generated = path.join(import.meta.dirname, "..", "..", "..", "schemas", "generated", "mcp-tools.json");
 
@@ -245,7 +245,8 @@ describe("serverTools on the whole catalog", () => {
       const full = file.tools[index]?.inputSchema;
       expect([tool.name, dereference(tool.inputSchema, tool.inputSchema)]).toEqual([
         tool.name,
-        dereference(full, file),
+        // The server sends no titles or marks of fields (`withoutDisplayMarks`); the file keeps them.
+        withoutDisplayMarks(dereference(full, file)),
       ]);
     }
     // The recursive filter condition is among them and ends in a cycle marker on both sides.
@@ -253,5 +254,24 @@ describe("serverTools on the whole catalog", () => {
     expect(JSON.stringify(dereference(list?.inputSchema, list?.inputSchema))).toContain(
       '{"$cycle":"filter.condition"}',
     );
+  });
+});
+
+describe("withoutDisplayMarks", () => {
+  it("drops the titles and marks of fields and keeps a property named title", () => {
+    expect(
+      withoutDisplayMarks({
+        title: "Element",
+        "x-technical": true,
+        properties: {
+          title: { title: "Title", type: "string", "x-normal": "" },
+          items: { type: "array", "x-elements": true, items: { "x-normal": [] } },
+        },
+        anyOf: [{ title: "A", type: "string" }],
+      }),
+    ).toEqual({
+      properties: { title: { type: "string" }, items: { type: "array", items: {} } },
+      anyOf: [{ type: "string" }],
+    });
   });
 });

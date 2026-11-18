@@ -15,42 +15,52 @@
     "type": "object",
     "properties": {
       "name": {
+        "title": "Workspace name",
         "description": "Name of the workspace, from reqseq-workspace.yaml.",
         "type": "string"
       },
       "repositories": {
+        "title": "Repositories",
         "description": "The repositories of the workspace file, in its order.",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Repository",
               "description": "Workspace name of the repository.",
               "type": "string"
             },
             "available": {
+              "title": "Available",
               "description": "The repository is on this machine.",
-              "type": "boolean"
+              "type": "boolean",
+              "x-normal": true
             },
             "path": {
-              "description": "Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file.",
-              "type": "string"
+              "title": "Path",
+              "$ref": "../common.schema.json#/$defs/outputPath",
+              "description": "Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file."
             },
             "absolutePath": {
-              "type": "string",
-              "minLength": 1,
+              "title": "Absolute path",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories."
             },
             "commit": {
+              "title": "Commit",
               "$ref": "../common.schema.json#/$defs/commit"
             },
             "variantIndependent": {
+              "title": "Variant-independent",
               "const": true,
               "description": "The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark."
             },
             "readOnly": {
+              "title": "Read-only",
               "type": "boolean",
-              "description": "ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only. Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
+              "description": "ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only. Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows).",
+              "x-normal": false
             }
           },
           "additionalProperties": false,
@@ -58,44 +68,54 @@
         }
       },
       "metamodel": {
+        "title": "Metamodel",
         "description": "Where the metamodel comes from.",
         "type": "object",
         "properties": {
           "repository": {
+            "title": "Repository",
             "description": "Workspace name of the repository of the metamodel.",
             "type": "string"
           },
           "path": {
-            "description": "Folder of the metamodel, relative to that repository.",
-            "type": "string"
+            "title": "Folder",
+            "$ref": "../common.schema.json#/$defs/outputPath",
+            "description": "Folder of the metamodel, relative to that repository."
           },
           "valid": {
+            "title": "Valid",
             "description": "The metamodel was read without errors.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-normal": true
           }
         },
         "additionalProperties": false,
         "required": ["repository", "path", "valid"]
       },
       "evidence": {
+        "title": "Evidence locations",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "repository": {
+              "title": "Repository",
               "description": "Workspace name of the repository of the evidence location.",
               "type": "string"
             },
             "path": {
+              "title": "Path",
               "$ref": "../common.schema.json#/$defs/relativePath"
             },
             "available": {
+              "title": "Available",
               "type": "boolean",
-              "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not."
+              "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not.",
+              "x-normal": true
             },
             "folder": {
-              "type": "string",
-              "minLength": 1,
+              "title": "Folder",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location."
             }
           },
@@ -105,14 +125,18 @@
         "description": "The `evidence` locations of the workspace file, in its order, as written (#625). Empty without the key."
       },
       "readOnly": {
+        "title": "Read-only",
         "description": "The workspace opens read-only because its metamodel is missing or faulty: nothing can be written.",
-        "type": "boolean"
+        "type": "boolean",
+        "x-normal": false
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

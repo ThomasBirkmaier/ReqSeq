@@ -68,85 +68,104 @@
     "type": "object",
     "properties": {
       "applied": {
+        "title": "Written",
         "type": "boolean",
         "description": "True when the files were written (confirm)."
       },
       "count": {
+        "title": "Affected elements",
         "type": "integer",
         "minimum": 0,
-        "description": "Number of affected elements (SR-071 AK2)."
+        "description": "Number of affected elements (SR-071 AK2).",
+        "x-elements": "affected"
       },
       "affected": {
+        "title": "Affected elements",
         "type": "array",
         "description": "The elements whose file the change rewrites, in store order.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             }
           },
           "additionalProperties": false,
           "required": ["id", "shortId"]
-        }
+        },
+        "x-elements": true
       },
       "unchanged": {
+        "title": "Unchanged elements",
         "type": "integer",
         "minimum": 0,
         "description": "Elements of the selection that have the result already."
       },
       "skipped": {
+        "title": "Skipped elements",
         "type": "array",
         "description": "Elements left out because the metamodel does not allow the property for them (SR-071 AK3).",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "reason": {
+              "title": "Reason",
               "description": "`not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read.",
               "enum": ["not-a-property", "unknown-type"]
             },
             "message": {
+              "title": "Message",
               "description": "Why the element was left out, for people.",
               "type": "string"
             }
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "reason", "message"]
-        }
+        },
+        "x-elements": true,
+        "x-normal": []
       },
       "files": {
+        "title": "Files",
         "type": "array",
-        "items": {
-          "type": "string"
-        },
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" },
         "description": "Written files relative to the workspace root; empty in a preview."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         },
-        "description": "Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only)."
+        "description": "Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only).",
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"
       },
       "plan": {
+        "title": "Plan",
         "type": "string",
         "pattern": "^p1:[0-9a-f]{64}$",
-        "description": "Fingerprint of the files the change writes and their new bytes; pass it with confirm."
+        "description": "Fingerprint of the files the change writes and their new bytes; pass it with confirm.",
+        "x-technical": true
       }
     },
     "additionalProperties": false,
     "required": ["applied", "count", "affected", "unchanged", "skipped", "files", "problems", "plan"]
-  }
+  },
+  "showsOutput": true
 }
