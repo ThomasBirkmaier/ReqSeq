@@ -19,7 +19,7 @@ acceptance-criteria:
   - key: rxbd
     text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den Referenz und App zeigen.
   - key: zk0v
-    text: Gegeben ein Schreibbefehl, dessen Ausgabe mehr als Dateien, Befunde und den Antwortsatz trägt, zum Beispiel ein Plan (SR-071) oder ein Import, wenn der Katalog gelesen wird, dann ist er als „zeigt seine Ausgabe“ gekennzeichnet.
+    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau die Schreibbefehle als „zeigt seine Ausgabe“ gekennzeichnet, deren Ausgabe die Vorschau oder das Ergebnis einer Mehrfachänderung (SR-071 AK2), eines Imports, eines Exports oder einer Anreicherung ist: `element.bulkUpdate`, `reqif.import`, `reqif.export` und `evidence.enrichJunit`; jeder andere Schreibbefehl ist es nicht."
 packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
