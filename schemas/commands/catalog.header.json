@@ -10,6 +10,7 @@
     "workspace.recent",
     "workspace.listFolder",
     "tool.info",
+    "tool.guide",
     "metamodel.get",
     "metamodel.mermaid",
     "element.create",
