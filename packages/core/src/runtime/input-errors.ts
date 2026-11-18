@@ -47,7 +47,16 @@ const DEF_MESSAGES: Readonly<Record<string, string>> = {
 };
 
 /**
- * Def name (`file#/$defs/name`) by the def object, for every def of `DEF_MESSAGES`. Ajv keeps the
+ * An example of a value of a shared definition, after its message for a wrong type (#1831): the form is
+ * hard to guess from the type alone. Kept here, not as `examples` in the schema, because every MCP tool
+ * that uses the definition would carry it (ThomasBirkmaier/ReqSeq-archive#496).
+ */
+const TYPE_EXAMPLES: Readonly<Record<string, string>> = {
+  "common.schema.json#/$defs/relationRefs": '{"derives-from": ["N-073", "N-030"], "based-on": "D-062"}',
+};
+
+/**
+ * Def name (`file#/$defs/name`) by the def object, for every def of `DEF_MESSAGES` and `TYPE_EXAMPLES`. Ajv keeps the
  * objects of the schemas it was given, so the `parentSchema` of an error is the def itself.
  */
 const defsOf = (schemas: readonly JsonSchema[]): WeakMap<object, string> => {
@@ -57,7 +66,7 @@ const defsOf = (schemas: readonly JsonSchema[]): WeakMap<object, string> => {
     const defs = (schema["$defs"] ?? {}) as Readonly<Record<string, JsonSchema>>;
     for (const [name, def] of Object.entries(defs)) {
       const key = `${file}#/$defs/${name}`;
-      if (key in DEF_MESSAGES) {
+      if (key in DEF_MESSAGES || key in TYPE_EXAMPLES) {
         byObject.set(def, key);
       }
     }
@@ -163,14 +172,6 @@ export const oneValueNote = (value: string): string =>
     ? "; a comma does not separate values: give each value on its own (on the command line, the option once per value)"
     : "";
 
-/** ` (for example <JSON>)` of the first of the schema's `examples` (#1831), else "". */
-const exampleOf = (error: ErrorObject): string => {
-  const examples = (error.parentSchema as JsonSchema | undefined)?.["examples"];
-  return Array.isArray(examples) && examples.length > 0
-    ? ` (for example ${JSON.stringify(examples[0])})`
-    : "";
-};
-
 /**
  * After the choices of an enum of list items (#1831): `oneValueNote` for a text with a comma, else the
  * description of the item schema, which says what else a value may have meant.
@@ -186,7 +187,7 @@ const itemNotes = (value: unknown, error: ErrorObject): string => {
 
 /** What a field must be, by keyword, when no def message applies; after the field name. */
 const KEYWORD_TEXTS: Readonly<Record<string, KeywordText>> = {
-  type: (value, p, error) => `must be ${typeName(p["type"])}, not ${quote(value)}${exampleOf(error)}`,
+  type: (value, p) => `must be ${typeName(p["type"])}, not ${quote(value)}`,
   enum: (value, _p, error) =>
     `${subject(value)} is not one of: ${(error.schema as readonly unknown[]).map(String).join(", ")}${itemNotes(value, error)}`,
   const: (value, p) => `${subject(value)} is not ${String(p["allowedValue"])}`,
@@ -417,6 +418,18 @@ const swallowedOf = (all: readonly ErrorObject[]): ((error: ErrorObject, index: 
 };
 
 /**
+ * What is wrong with a value, after its field name: the message of its shared definition `def` when
+ * there is one (not for a wrong type), else that of the keyword; a wrong type with the example of `def`.
+ */
+const valueText = (error: ErrorObject, value: unknown, def: string | undefined): string => {
+  const type = error.keyword === "type";
+  const defText = def === undefined || type ? undefined : DEF_MESSAGES[def];
+  const text = defText === undefined ? keywordText(error, value) : `${subject(value)} ${defText}`;
+  const example = def === undefined || !type ? undefined : TYPE_EXAMPLES[def];
+  return example === undefined ? text : `${text} (for example ${example})`;
+};
+
+/**
  * The readable violations of an input that failed its schema, in Ajv's order, each once. Errors
  * inside a branch of an `anyOf` (or `oneOf`) at the same place are left out: the `anyOf` gives one
  * message for them. Requires errors of an Ajv instance with `verbose: true`.
@@ -457,10 +470,7 @@ export function inputViolations(
     } else if (error.keyword === "propertyNames") {
       message = `${field} cannot hold ${String(p["propertyName"])}`;
     } else {
-      const value = valueAt(context.input, segments);
-      const def = defs.get(error.parentSchema as object);
-      const defText = def === undefined || error.keyword === "type" ? undefined : DEF_MESSAGES[def];
-      const text = defText === undefined ? keywordText(error, value) : `${subject(value)} ${defText}`;
+      const text = valueText(error, valueAt(context.input, segments), defs.get(error.parentSchema as object));
       message = field === "" ? `The input ${text}` : `${field} ${text}`;
     }
     // The regular expression of a pattern stays out of the error object too: the message says the form.

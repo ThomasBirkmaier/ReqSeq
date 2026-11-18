@@ -474,15 +474,6 @@
         "relationRefs": {
           "description": "Relations a caller gives to element.create or element.update by relation kind key, each with the element reference of its target or a list of them (UUID, short ID or identifier, as relation.add takes them). ReqSeq checks them as relation.add does and stores each target with its current version.",
           "type": "object",
-          "examples": [
-            {
-              "derives-from": [
-                "N-073",
-                "N-030"
-              ],
-              "based-on": "D-062"
-            }
-          ],
           "propertyNames": {
             "$ref": "#/$defs/key"
           },
@@ -5268,9 +5259,9 @@
                   "properties",
                   "relations"
                 ],
-                "description": "A property key is no field here: `properties` gives every property of the element."
+                "description": "Property values come with `properties`."
               },
-              "description": "Give only these fields of each element, in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text as `withText` does, also with `withText` false. Without `fields`, every field in `elements`."
+              "description": "Give only these fields of each element, in `partial` instead of `elements`; unlike the `fields` of element.search, which says where to search. `id`, `shortId`, `repository` and the `problems` of an element are always given; a field the element has no value for stays left out, as without `fields`. `text` gives the text, also with `withText` false. Without `fields`, every field in `elements`."
             },
             "withText": {
               "type": "boolean",

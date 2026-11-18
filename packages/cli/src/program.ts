@@ -229,7 +229,8 @@ const OUTPUT_FORM_FLAGS: readonly string[] = ["format", "output"];
 /**
  * The hint after commander's `unknown option '--x'` on `command` (#1831), in place of its own
  * suggestion: `--where-x` when the command has that flag, the output flags it has for `--format` or
- * `--output`; `undefined` otherwise, and commander's suggestion stays.
+ * `--output`; `undefined` otherwise (also for those when the command has no output flag), and
+ * commander's suggestion stays.
  */
 export const unknownOptionHint = (flag: string, command: Command): string | undefined => {
   const name = flag.replace(/^--/, "").replace(/=.*$/s, "");
@@ -237,11 +238,16 @@ export const unknownOptionHint = (flag: string, command: Command): string | unde
   if (longs.has(`--where-${name}`)) {
     return `(Did you mean --where-${name}?)`;
   }
-  if (OUTPUT_FORM_FLAGS.includes(name)) {
-    const forms = ["--json", "--jsonl", "--yaml"].filter((form) => longs.has(form));
-    return `(Did you mean one of ${forms.join(", ")}? Without them, the output is the readable form.)`;
+  const forms = OUTPUT_FORM_FLAGS.includes(name)
+    ? ["--json", "--jsonl", "--yaml"].filter((form) => longs.has(form))
+    : [];
+  if (forms.length === 0) {
+    return undefined;
   }
-  return undefined;
+  const without = "Without them, the output is the readable form.";
+  return forms.length === 1
+    ? `(Did you mean ${forms.join("")}? ${without.replace("them", "it")})`
+    : `(Did you mean one of ${forms.join(", ")}? ${without})`;
 };
 
 /** `command` with `unknownOptionHint` added to commander's error for an unknown option. */

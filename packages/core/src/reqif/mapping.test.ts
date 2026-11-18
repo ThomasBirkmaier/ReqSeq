@@ -80,11 +80,13 @@ describe("mapping files (SR-054)", () => {
     );
     const wrong = await failure(() => readFrom(workspace, "reqif/wrong.yaml"));
     expect(wrong.code).toBe("file.faulty");
-    expect(wrong.message).toMatch(/^mapping: wrong\.yaml is no mapping file: /);
+    expect(wrong.message).toContain(
+      `mapping: ${path.resolve(workspace.root, "reqif/wrong.yaml")} is no mapping file: `,
+    );
     // A key the file does not take is named as a field of the file, not an input (#835).
     const extra = await failure(() => readFrom(workspace, "reqif/extra.yaml"));
-    expect(extra.message).toMatch(
-      /^mapping: extra\.yaml is no mapping file: bogus is not a field of the file \(known: /,
+    expect(extra.message).toContain(
+      `mapping: ${path.resolve(workspace.root, "reqif/extra.yaml")} is no mapping file: bogus is not a field of the file (known: `,
     );
     const unknown = await failure(() => readFrom(workspace, "reqif/unknown.yaml"));
     expect([unknown.code, unknown.details?.["fields"]]).toEqual(["input.invalid", ["mapping.types[0].type"]]);

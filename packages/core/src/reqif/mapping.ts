@@ -313,7 +313,7 @@ export const readMappingFile = async (
     });
     throw new CommandError(
       "file.faulty",
-      `mapping: ${path.basename(absolute)} is no mapping file: ${violations.map(fileMessage).join("; ")}`,
+      `mapping: ${absolute} is no mapping file: ${violations.map(fileMessage).join("; ")}`,
       { command, fields: ["mapping"] },
     );
   }

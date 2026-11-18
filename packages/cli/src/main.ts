@@ -225,8 +225,14 @@ async function execute(
     output = await call(invocation, options, runtime);
   } catch (caught) {
     const error = asCommandError(caught);
+    // The part flags given on the line: a violation below one came from it, not from --input.
+    const given = new Set(
+      invocation.flags.flatMap(({ part, value }) =>
+        part === undefined || value === undefined ? [] : [part.flag],
+      ),
+    );
     options.stderr.write(
-      renderError(error, invocation.json || invocation.jsonl, spelledMessage(error, invocation.entry)),
+      renderError(error, invocation.json || invocation.jsonl, spelledMessage(error, invocation.entry, given)),
     );
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }

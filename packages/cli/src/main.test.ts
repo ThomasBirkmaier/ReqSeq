@@ -18,7 +18,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
 import { EXIT, exitCodeFor, runCli, writePieces } from "./main.js";
-import { buildProgram } from "./program.js";
+import { buildProgram, unknownOptionHint } from "./program.js";
+import { Command } from "commander";
 import { YAML_OPTIONS } from "./render.js";
 import { stringify } from "yaml";
 
@@ -762,23 +763,48 @@ describe("reqseq <group> <action>", () => {
     expect((await run(["test", "root", "--type", "SR"])).stderr).toBe("error: unknown option '--type'\n");
   });
 
+  it("names output flags only as far as the command has them (#1831)", () => {
+    expect(unknownOptionHint("--format", new Command("x"))).toBeUndefined();
+    expect(unknownOptionHint("--format", new Command("x").option("--json"))).toBe(
+      "(Did you mean --json? Without it, the output is the readable form.)",
+    );
+  });
+
   it("names the command line form of a sort key that --input gave wrong (#1831)", async () => {
     const result = await run(["test", "echo", ref, "n", "--input", '{"sort":[{"by":"title","order":"up"}]}']);
     expect(result.stderr).toBe(
       'error input.invalid: Invalid input for test.echo: --sort[0].order "up" is not one of: asc, desc (on the command line --sort <by>[:asc|desc])\n',
     );
+    // A wrong key of the --sort flag itself gets no form it was already typed in.
+    const flag = await run(["test", "echo", ref, "n", "--sort", ":up"]);
+    expect(flag.stderr).toMatch(/^error input\.invalid: Invalid input for test\.echo: --sort\[0\]/);
+    expect(flag.stderr).not.toContain("on the command line");
   });
 
-  it("points to --input @<file> when the inline text names a file (#1831)", async () => {
-    const ws = await fixture({ "input.txt": "{}" });
-    const named = await run(["test", "echo", "--input", "input.txt"], { cwd: ws.root });
-    expect(named.stderr).toBe(
-      "error input.invalid: Input from --input is not valid JSON (to read a file, give --input @input.txt)\n",
+  it("keeps the input name of a key=value flag whose whole value --input gave wrong (#1831)", async () => {
+    // The flag (--set) always gives an object: the core message, with an example, fits --input only.
+    const result = await run(["test", "echo", ref, "n", "--input", '{"props":["x"]}']);
+    expect(result.stderr).toBe(
+      "error input.invalid: Invalid input for test.echo: props must be an object, not a list\n",
     );
-    const missing = await run(["test", "echo", "--input", "/nowhere/in.yaml"], { cwd: ws.root });
-    expect(missing.stderr).toBe(
-      "error input.invalid: Input from --input is not valid JSON (to read a file, give --input @/nowhere/in.yaml)\n",
-    );
+  });
+
+  it("points to --input @<file> when the inline text looks like a file path (#1831)", async () => {
+    const said = async (value: string): Promise<string> =>
+      (await run(["test", "echo", "--input", value])).stderr;
+    const hint = (word: string): string =>
+      `error input.invalid: Input from --input is not valid JSON (to read a JSON file, give --input @${word})\n`;
+    expect(await said("input.json")).toBe(hint("input.json"));
+    expect(await said("/tmp/x.json")).toBe(hint("/tmp/x.json"));
+    expect(await said("./in")).toBe(hint("./in"));
+    expect(await said("C:\\in.txt")).toBe(hint("C:\\in.txt"));
+    expect(await said("~/my input's.json")).toBe(hint("'~/my input'\\''s.json'"));
+    // Nothing that only might be a file: a YAML file is no input, a bare word gets the shell hint.
+    for (const value of ["in.yaml", "input.txt", "{a:1}"]) {
+      expect(await said(value)).toBe(
+        "error input.invalid: Input from --input is not valid JSON (if the shell removed the quotes, as PowerShell and cmd.exe do, use --input @file or --input -)\n",
+      );
+    }
   });
 
   it("makes local path fields absolute against the current folder", async () => {

@@ -61,22 +61,24 @@ const INLINE_HINT =
   " (if the shell removed the quotes, as PowerShell and cmd.exe do, use --input @file or --input -)";
 
 /** A file `value` names, relative to `cwd`; a text that cannot be a path (too long, a null byte) names none. */
-const namesFile = async (value: string, cwd: string): Promise<boolean> => {
-  try {
-    return (await fs.stat(path.resolve(cwd, value))).isFile();
-  } catch {
-    return false;
-  }
-};
+/**
+ * Whether inline text looks like the path of a file, by its form alone: ends in `.json`, or starts as a
+ * path does (`/`, `./`, `../`, `~`, `\`, a drive letter). Nothing is looked up: a lookup of a text such as
+ * `\\host\share\x` would open a network connection on Windows (SR-078).
+ */
+const looksLikePath = (value: string): boolean =>
+  /\.json$/i.test(value) || /^(\/|\.\.?[/\\]|~|\\|[A-Za-z]:[/\\])/.test(value);
+
+/** `value` as a shell takes it as one word: as it is when it holds only path characters, else in quotes. */
+const shellWord = (value: string): string =>
+  /^[\w./\\:~+-]+$/.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
 
 /**
- * The hint after inline `--input` text that is not JSON: `--input @<value>` when the text names a file
- * or ends as a JSON or YAML file does (#1831), else what a shell that drops quotes needs.
+ * The hint after inline `--input` text that is not JSON: `--input @<value>` when the text looks like
+ * the path of a file (#1831), else what a shell that drops quotes needs.
  */
-const inlineHint = async (value: string, cwd: string): Promise<string> =>
-  /\.(json|ya?ml)$/i.test(value) || (await namesFile(value, cwd))
-    ? ` (to read a file, give --input @${value})`
-    : INLINE_HINT;
+const inlineHint = (value: string): string =>
+  looksLikePath(value) ? ` (to read a JSON file, give --input @${shellWord(value)})` : INLINE_HINT;
 
 /** `--input <json|@file|->`: inline JSON, a JSON file (relative to the current folder) or standard input. */
 export async function readInputOption(
@@ -94,7 +96,7 @@ export async function readInputOption(
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    const hint = source === "--input" ? await inlineHint(value, cwd) : "";
+    const hint = source === "--input" ? inlineHint(value) : "";
     throw new CommandError("input.invalid", `Input from ${source} is not valid JSON${hint}`, undefined, {
       cause: error,
     });
