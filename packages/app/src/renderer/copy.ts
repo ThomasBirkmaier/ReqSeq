@@ -97,7 +97,7 @@ export const idField = (element: DataExportElement): Field => ({
   text: () => element.shortId,
 });
 
-/** The id of the input of the command prompt (Minibuffer.tsx). */
+/** The id of the input of the command prompt (PromptLine.tsx). */
 export const PROMPT_INPUT = "prompt-input";
 
 /**

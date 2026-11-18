@@ -6,7 +6,7 @@
 // - Enter or a click on "Yes, <verb>" confirms; Ctrl/Cmd+Enter confirms too, whichever hit is marked, and offers no
 //   optional arguments (`Prompt.confirm`, an exception to SR-108 AK6). Enter on "No", a click on it, Escape and
 //   Backspace in an empty input go one step back (`back`).
-// - The guard is in `Minibuffer.tsx`: a key press that began before the step was shown, a key that only repeats
+// - The guard is in `PromptLine.tsx`: a key press that began before the step was shown, a key that only repeats
 //   because it is held (`event.repeat`), and the second click of a double click (`event.detail`) do nothing on it,
 //   and a key typed ahead for the prompt before (#1763) does not act on it.
 import type { Prompt } from "./action-types.js";
