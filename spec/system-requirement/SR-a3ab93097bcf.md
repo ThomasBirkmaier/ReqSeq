@@ -9,7 +9,7 @@ acceptance-criteria:
   - key: cw40
     text: Gegeben ein Befehl des Befehlskatalogs, wenn er über Kommandozeile, API oder MCP-Server ausgeführt wird, dann enthält seine Ausgabe unter `answer` einen nicht leeren englischen Satz, zeichengleich in allen Zugängen, der nennt, was der Befehl feststellt, zählt oder getan hat, ohne Angaben relativ zum Zeitpunkt des Lesens.
   - key: tjmm
-    text: Gegeben die Textausgabe der Kommandozeile, wenn ein Befehl ausgeführt wird, dann ist ihre erste Zeile der Antwortsatz.
+    text: Gegeben die Textausgabe der Kommandozeile, wenn ein Befehl ausgeführt wird, dann ist ihre erste Zeile der Antwortsatz, außer bei Befehlen, deren Textausgabe ein Format ist, etwa Mermaid (SR-151 AK4).
   - key: yxs1
     text: Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann hat jede Angabe einer Ausgabe einen Titel; jede Angabe, deren Schema auf UUID, Pfad, Prüfwert, Commit, Art eines Befunds oder Dauer verweist, ist als technisch gekennzeichnet; jede Angabe mit einem Normalwert nennt ihn.
   - key: h9kx
