@@ -187,7 +187,12 @@ const workspaceOf = async (server: Server): Promise<string> => {
   expect(client.getServerVersion()?.name).toBeDefined();
   const result = await client.callTool({ name: "tool_info", arguments: {} });
   await client.close();
+  // The server writes its record of the connection (SR-228) until it ends; the next test counts files.
+  const ended = new Promise((resolve) => child.once("exit", resolve));
   child.stdin.end();
+  if (child.exitCode === null) {
+    await ended;
+  }
   return (result.structuredContent as { workspace: { path: string } }).workspace.path;
 };
 
