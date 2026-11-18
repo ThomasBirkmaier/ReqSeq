@@ -402,6 +402,32 @@ const withoutGenerated = (access: string, outcome: Outcome, start: number, end: 
 };
 
 /**
+ * Commands whose output says whether the copy has a usable cache folder (`recorded`, SR-228 AK4). Here only
+ * the CLI opens the copy with its cache folder (as `reqseq` does), the other accesses without one, so
+ * `recorded` is checked per access and then replaced, with the answer that says it, and the rest is compared. The same command with the
+ * cache folder on every access, where an MCP session is itself a connection: agent-connections.test.ts.
+ */
+const CACHE_FOLDER_STATE: ReadonlySet<string> = new Set(["workspace.agents"]);
+
+/** `outcome` with its `recorded` replaced, after checking it is true for the CLI alone. */
+const withoutRecorded = (access: string, outcome: Outcome): Outcome => {
+  if (!("output" in outcome)) {
+    return outcome;
+  }
+  const { recorded, ...rest } = outcome.output as { recorded?: unknown };
+  expect([access, recorded]).toEqual([access, access === "cli"]);
+  return { output: { ...rest, answer: "<answer>", recorded: "<recorded>" } };
+};
+
+/** `called` of command `name` with what differs by call or access replaced (`GENERATED_AT_TOP`, `CACHE_FOLDER_STATE`). */
+const comparable = (access: string, name: string, called: Outcome, start: number, end: number): Outcome =>
+  GENERATED_AT_TOP.has(name)
+    ? withoutGenerated(access, called, start, end)
+    : CACHE_FOLDER_STATE.has(name)
+      ? withoutRecorded(access, called)
+      : called;
+
+/**
  * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
  * checking it lies between `start` and `end` (ms); an error is left as it is.
  */
@@ -454,7 +480,7 @@ const runAll = async (
               ? await viaMcp(root, entry, input)
               : await viaApp(root, entry, input);
     const end = Date.now();
-    const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
+    const outcome = comparable(access, entry.name, called, start, end);
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
     const changed = changedBetween(before, files);
@@ -748,7 +774,8 @@ describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => 
 });
 
 describe("cross-access: the answer (SR-224 AK1)", { timeout: TEST_TIMEOUT }, () => {
-  for (const entry of runtime.contracts.commands) {
+  // The answer of `CACHE_FOLDER_STATE` says `recorded`, which differs here by access: agent-connections.test.ts.
+  for (const entry of runtime.contracts.commands.filter(({ name }) => !CACHE_FOLDER_STATE.has(name))) {
     it(`[SR-224/AK-cw40] ${entry.name} gives the same answer through core, the CLI, the API and MCP`, async () => {
       const results = await runAll(entry, answerScenario(entry.name), ["core", "cli", "api", "mcp"]);
       const core = results["core"]?.outcome;

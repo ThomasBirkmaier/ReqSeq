@@ -23,6 +23,7 @@ import elementList from "./element/list.js";
 import { commands } from "./index.js";
 import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
 import workspaceActivity from "./workspace/activity.js";
+import workspaceAgents from "./workspace/agents.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceListFolder from "./workspace/listFolder.js";
@@ -176,5 +177,18 @@ describe("answers of single commands", () => {
     expect(answerOf(workspaceListFolder, { name: "", entries: [{}], truncated: true })).toBe(
       "Found 1 entry, more not listed.",
     );
+  });
+
+  it("workspace.agents names the client whose connection ended last, also one without a name", () => {
+    const at = "2026-11-18T09:00:00.000Z";
+    expect(
+      [
+        { client: "agent", at },
+        { client: null, at },
+      ].map((last) => answerOf(workspaceAgents, { recorded: true, connected: [{}], last })),
+    ).toEqual([
+      "1 agent connected to this copy; the connection that ended last was agent.",
+      "1 agent connected to this copy; the connection that ended last was a client without a name.",
+    ]);
   });
 });

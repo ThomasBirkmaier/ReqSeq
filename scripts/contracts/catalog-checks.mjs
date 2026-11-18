@@ -8,7 +8,7 @@ const ELEMENTS = ["element", "relationTarget"];
 /**
  * Sources that read an earlier field, and the sources that field may have. Without `of`, a source reads
  * the nearest earlier field of such a source that has no `meaning` (`contextOf`, the same rule as
- * `contextField` in the app's `catalog-commands.ts`).
+ * `contextField` in the app's `catalog-arguments.ts`).
  */
 export const CONTEXT = {
   status: ELEMENTS,
