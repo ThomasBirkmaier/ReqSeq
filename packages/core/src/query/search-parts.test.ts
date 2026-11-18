@@ -84,10 +84,14 @@ describe("word parts (SR-221)", () => {
   });
 
   it("[SR-221/AK-jq93] finds no part for 3 letters, a word with a digit, a typo, a phrase, an ID or another designation, and still needs every other word", async () => {
-    const { workspace } = await open();
+    const { workspace } = await open({
+      "requirements/SR-0000000000fb.md": requirement("fb", "Ziffer", "Die Wetterseite2 gilt."),
+    });
     // "Umbau" holds "bau", "1036" holds "036".
     expect(tails(await search(workspace, "bau"))).toEqual([]);
     expect(tails(await search(workspace, "036"))).toEqual([]);
+    // "Wetterseite2" holds "seite2", 5 letters and a digit.
+    expect(tails(await search(workspace, "seite2"))).toEqual([]);
     // "saite" is one edit from "Seite" (a typo of a whole word), never a typo of a part.
     expect(tails(await search(workspace, "saite")).sort()).toEqual(["e4", "ea", "eb"]);
     // A phrase, also of one word, takes whole words; an open phrase also word starts.
@@ -227,7 +231,10 @@ describe("word parts (SR-221)", () => {
   it("[SR-221/AK-z2nk] lays the snippet of a long text around the word of a part, and cuts a long word at its part", async () => {
     const long = `${"Vorher kommt ein langer Satz über das Wetter. ".repeat(3)}Hier die Wetterseite des Tages. ${"Danach folgt noch mehr Text zum Wind. ".repeat(3)}`;
     const word = `${"a".repeat(150)}seite${"b".repeat(20)}`;
+    // The first finding in reading order is a part, the whole word comes far after it.
+    const first = `Hier die Wetterseite. ${"Danach folgt noch mehr Text zum Wind. ".repeat(5)}Dann die Seite.`;
     const { workspace } = await open({
+      "requirements/SR-0000000000f8.md": requirement("f8", "Zuerst", first),
       "requirements/SR-0000000000f9.md": requirement("f9", "Lang", long),
       "requirements/SR-0000000000fa.md": requirement("fa", "Wort", `Vor ${word}`),
     });
@@ -235,6 +242,10 @@ describe("word parts (SR-221)", () => {
     const lang = hitOf(out, "f9").snippet;
     expect(lang?.text).toContain("Hier die Wetterseite des Tages.");
     expect(marked(String(lang?.text), lang?.marks)).toEqual(["seite"]);
+    const early = hitOf(out, "f8").snippet;
+    expect(early?.text.startsWith("Hier die Wetterseite.")).toBe(true);
+    expect(early?.text).not.toContain("Dann die Seite.");
+    expect(marked(String(early?.text), early?.marks)).toEqual(["seite"]);
     const cut = hitOf(out, "fa").snippet;
     expect(cut?.text.startsWith("…seite")).toBe(true);
     expect(marked(String(cut?.text), cut?.marks)).toEqual(["seite"]);

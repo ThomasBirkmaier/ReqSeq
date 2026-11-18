@@ -4,7 +4,7 @@
 // tree once, each between two `\0`; a query term is found with `indexOf` from match to match, and
 // the word around a match is read back between the `\0`s (`partWords`). At N-036 the generated
 // workspace has about 93,000 words (0.63 MB) and one scan takes less than a millisecond; walking the
-// tree for it would take about 90 ms, so it is built once per MiniSearch object and change
+// tree for it takes 90 to 210 ms, so it is built once per MiniSearch object and change
 // (`SearchEngine.generation`) and carried over a change:
 // - a build walks the tree at its end, in slices with a turn of the event loop between them
 //   (`buildVocabulary`), as the build itself pauses;
@@ -15,7 +15,8 @@
 //   in the string; the tree has no data for it, so it finds nothing (`derivedTerms` of
 //   `search-scoring.ts`), and when it comes back it is appended again, so a scan may give a word
 //   twice (the caller takes each once). When the appended words outgrow the words of the walk, the
-//   next walk replaces them (`carryVocabulary` returns false, and the carry walks the tree again).
+//   next walk replaces them (`carryVocabulary` returns false, and `prepareSearchIndex` of
+//   `search-index.ts` or the next search walks the tree at once, `vocabularyOf`).
 import type MiniSearch from "minisearch";
 
 /** The words as one string, and how much of it the last walk of the tree gave. */
@@ -127,8 +128,7 @@ export const newWords = (mini: MiniSearch, documents: readonly unknown[]): strin
 /**
  * The vocabulary of `mini` after its change `generation`, derived from the one of `generation - 1`
  * with `words` appended (`newWords`). False when there was none to derive it from, or when the
- * appended words outgrow the walked ones: then the caller walks the tree again (`buildVocabulary`)
- * or the next search does (`vocabularyOf`).
+ * appended words outgrow the walked ones: then the next `vocabularyOf` walks the tree again.
  */
 export const carryVocabulary = (mini: MiniSearch, generation: number, words: readonly string[]): boolean => {
   const known = cache.get(mini);

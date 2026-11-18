@@ -208,8 +208,7 @@ const derivedTerms = (tree: WordTree, term: string, how: Derivation): Derived[] 
       });
     }
   }
-  out.push(...parts);
-  return out;
+  return out.concat(parts);
 };
 
 /** BM25's inverse document frequency of a word in `matching` of `total` documents (MiniSearch's). */

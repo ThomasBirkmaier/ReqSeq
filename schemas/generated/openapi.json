@@ -8587,10 +8587,10 @@
                           },
                           "titleMarks": {
                             "$ref": "#/components/schemas/common/$defs/textMarks",
-                            "description": "The matched words in `title`, of a word found by a word of the query outside quotes only at its start or inside it only that part, a phrase or another designation of several words as a whole; only when a word, phrase or designation was found in the title."
+                            "description": "The matched words in `title`, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole; only when a word, phrase or designation was found in the title."
                           },
                           "snippet": {
-                            "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+                            "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
                             "oneOf": [
                               {
                                 "type": "object",
@@ -17252,7 +17252,7 @@
                 "properties": {
                   "text": {
                     "type": "string",
-                    "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start or (4+ letters, no digit) inside a longer word, words in quotes as a phrase, and words that are a designation of an element also through its other designations. A query without a word matches none."
+                    "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs, quoted words as a phrase, and a designation also through the other designations of its element. A query without a word matches none."
                   }
                 },
                 "additionalProperties": false

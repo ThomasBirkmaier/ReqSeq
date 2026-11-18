@@ -36,7 +36,7 @@
 // with a word.
 //
 // Word parts (SR-221): every text ends with a sentence of 6 compounds (compounds.test-helper.ts), so the index
-// holds about 100,000 distinct words of letters; the rows of word parts search the 4-letter part
+// holds about 83,000 distinct compounds; the rows of word parts search the 4-letter part
 // that stands inside the most of them and the most frequent tail, neither a word nor a word start.
 //
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
@@ -62,6 +62,7 @@ import { designationTable } from "../../src/query/search-designations.js";
 import { WORD_FIELDS, scoringOf } from "../../src/query/search-index.js";
 import { documentKeys, scoreWords, searchOptionsOf } from "../../src/query/search-scoring.js";
 import { searchIndex } from "../../src/query/search-state.js";
+import { vocabularyOf } from "../../src/query/search-vocabulary.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { readFirst } from "../../src/runtime/read-first.test-helper.js";
@@ -517,7 +518,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
   });
 
   it("[SR-098/AK-pqx4] shows the first hits of a word found only inside longer words within 300 ms (SR-221, median of 7 runs)", async () => {
-    // Every text holds 6 compounds of a vocabulary of about 100,000 (compounds.test-helper.ts): the costliest
+    // Every text holds 6 compounds of a vocabulary of about 83,000 (compounds.test-helper.ts): the costliest
     // 4-letter part (inside the most distinct words) and the most frequent tail, neither of them a
     // word or a word start; in every field with pages of 50 and 500 hits with snippets, grouped, in
     // the text only, typed letter by letter, and a part of the status name of most elements.
@@ -564,6 +565,19 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       expect(result.total, query).toBeGreaterThan(0);
       measurements.push(measurement);
     }
+    // A one-shot process that loaded the index from the cache walks the tree once, at its first
+    // search that looks for word parts (search-vocabulary.ts `vocabularyOf`): recorded. A generation
+    // the cache does not hold forces the walk; the next call puts the right one back.
+    const { mini, generation } = (await searchIndex(open)).engine;
+    const walked = performance.now();
+    const vocabulary = vocabularyOf(mini, generation - 1);
+    await recordValue(
+      "word parts: the walk of the index's words on the first part search of an index from the cache (SR-221)",
+      performance.now() - walked,
+      { basis: "SR-098 AK1 (recorded: once per one-shot process that finds word parts)" },
+    );
+    vocabularyOf(mini, generation);
+    expect(vocabulary.length).toBeGreaterThan(compoundWords.size);
     // Only word parts find them: each hit marks only the part, inside a compound.
     const found = (await invoke(
       "element.search",

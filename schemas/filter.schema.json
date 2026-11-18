@@ -172,7 +172,7 @@
           "properties": {
             "text": {
               "type": "string",
-              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start or (4+ letters, no digit) inside a longer word (SR-221), words in quotes as a phrase (SR-068 AK4), and words that are a designation of an element also through its other designations (SR-220). A query without a word matches none."
+              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs (SR-221), quoted words as a phrase (SR-068 AK4), and a designation also through the other designations of its element (SR-220). A query without a word matches none."
             }
           },
           "additionalProperties": false
