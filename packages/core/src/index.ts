@@ -53,6 +53,14 @@ export { criterionKey, criterionLabel, criterionText, isCriterionKey } from "./m
 export { watchWorkspace } from "./model/watch.js";
 export { ACTIVITY_FILE, FOLLOWED_ACCESSES, watchActivity } from "./model/activity.js";
 export type { AccessName, ActivityWatch, ActivityWatchOptions } from "./model/activity.js";
+export {
+  AGENT_BEAT_MS,
+  AGENT_LIVE_MS,
+  agentConnections,
+  clientName,
+  recordAgentConnection,
+} from "./model/agents.js";
+export type { AgentConnections, AgentRecording, EndedAgent, LiveAgent } from "./model/agents.js";
 export { MODEL_CACHE_FILE } from "./model/model-cache.js";
 export { warmWorkspace } from "./runtime/warm.js";
 export { SEARCH_CACHE_FILE } from "./query/search-cache.js";

@@ -71,25 +71,28 @@
     "type": "object",
     "properties": {
       "element": {
+        "title": "Element",
         "$ref": "../data-export.schema.json#/$defs/element"
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
         "description": "The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none."
       },
       "files": {
+        "title": "Files",
         "description": "Written files, relative to the workspace root.",
         "type": "array",
-        "items": {
-          "type": "string"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

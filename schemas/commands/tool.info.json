@@ -16,38 +16,55 @@
     "type": "object",
     "properties": {
       "versions": {
+        "title": "Versions",
         "type": "object",
         "properties": {
-          "app": { "description": "Version of the app.", "type": "string", "minLength": 1 },
-          "cli": { "description": "Version of the command line.", "type": "string", "minLength": 1 },
-          "mcp": { "description": "Version of the MCP server.", "type": "string", "minLength": 1 }
+          "app": { "title": "App", "description": "Version of the app.", "type": "string", "minLength": 1 },
+          "cli": {
+            "title": "Command line",
+            "description": "Version of the command line.",
+            "type": "string",
+            "minLength": 1
+          },
+          "mcp": {
+            "title": "MCP server",
+            "description": "Version of the MCP server.",
+            "type": "string",
+            "minLength": 1
+          }
         },
         "additionalProperties": false,
         "required": ["app", "cli", "mcp"],
         "description": "The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version."
       },
       "build": {
+        "title": "Build",
         "description": "The build of ReqSeq that runs.",
         "type": "object",
         "properties": {
           "commit": {
+            "title": "Commit",
             "$ref": "../common.schema.json#/$defs/commit",
             "description": "The commit the release was built from. Left out in a build from a checkout."
           },
           "date": {
+            "title": "Date",
             "$ref": "../common.schema.json#/$defs/dateTime",
             "description": "The build date: the date of that commit. Left out in a build from a checkout."
           },
           "development": {
+            "title": "Development build",
             "const": true,
             "description": "Built from a checkout, not a release: commit and date are unknown. Left out in a release."
           },
           "platform": {
+            "title": "Platform",
             "type": "string",
             "minLength": 1,
             "description": "The operating system as Node names it (`darwin`, `linux`, `win32`)."
           },
           "arch": {
+            "title": "Architecture",
             "type": "string",
             "minLength": 1,
             "description": "The processor architecture as Node names it (`arm64`, `x64`)."
@@ -57,15 +74,18 @@
         "required": ["platform", "arch"]
       },
       "runtime": {
+        "title": "Runtime",
         "type": "object",
         "properties": {
           "electron": {
+            "title": "Electron",
             "type": "string",
             "minLength": 1,
             "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
           },
-          "node": { "description": "Version of Node.", "type": "string", "minLength": 1 },
+          "node": { "title": "Node", "description": "Version of Node.", "type": "string", "minLength": 1 },
           "chromium": {
+            "title": "Chromium",
             "type": "string",
             "minLength": 1,
             "description": "The Chromium of the Electron ReqSeq runs on. Left out without Electron."
@@ -76,21 +96,28 @@
         "description": "The runtime of the process. The command line, API and MCP server of a release run on the Electron of the app, so a release gives the same values in every access."
       },
       "workspace": {
+        "title": "Workspace",
         "description": "The open workspace.",
         "type": "object",
         "properties": {
           "path": {
-            "type": "string",
-            "minLength": 1,
+            "title": "Workspace root",
+            "$ref": "../common.schema.json#/$defs/outputPath",
             "description": "The absolute path of the workspace root, the folder with reqseq-workspace.yaml."
           },
-          "name": { "description": "Name of the workspace, from reqseq-workspace.yaml.", "type": "string" },
+          "name": {
+            "title": "Workspace name",
+            "description": "Name of the workspace, from reqseq-workspace.yaml.",
+            "type": "string"
+          },
           "repositories": {
+            "title": "Repositories",
             "type": "array",
             "items": { "type": "string" },
             "description": "The workspace names of its repositories, in the order of the workspace file."
           },
           "elements": {
+            "title": "Elements",
             "type": "integer",
             "minimum": 0,
             "description": "The number of elements in the available repositories, in no view."
@@ -100,17 +127,19 @@
         "required": ["path", "name", "repositories", "elements"]
       },
       "license": {
+        "title": "Licence",
         "description": "The licence notice of ReqSeq and where its third-party licences are.",
         "type": "object",
         "properties": {
           "notice": {
+            "title": "Notice",
             "type": "array",
             "items": { "type": "string" },
             "description": "The licence notice of ReqSeq, one item per line."
           },
           "thirdParty": {
-            "type": "string",
-            "minLength": 1,
+            "title": "Third-party licences",
+            "$ref": "../common.schema.json#/$defs/outputPath",
             "description": "The file of the release that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout."
           }
         },
@@ -118,20 +147,23 @@
         "required": ["notice"]
       },
       "documentation": {
+        "title": "Documentation",
         "description": "Where the documentation and the releases are.",
         "type": "object",
         "properties": {
           "bundled": {
-            "type": "string",
-            "minLength": 1,
+            "title": "Bundled documentation",
+            "$ref": "../common.schema.json#/$defs/outputPath",
             "description": "The folder of the release with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
           },
           "online": {
+            "title": "Online documentation",
             "type": "string",
             "minLength": 1,
             "description": "The address of the online documentation, as text only: ReqSeq never opens it."
           },
           "releases": {
+            "title": "Releases",
             "type": "string",
             "minLength": 1,
             "description": "The address of the releases, as text only: ReqSeq never opens it."

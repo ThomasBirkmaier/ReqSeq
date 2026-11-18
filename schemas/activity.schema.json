@@ -32,26 +32,31 @@
       "required": ["access", "command", "effect", "at", "element"],
       "properties": {
         "access": {
+          "title": "Access",
           "enum": ["cli", "api", "mcp", "app"],
           "description": "The access the call came through (ADR-0002 rule 4). Only calls through the API and the MCP server are recorded."
         },
         "command": {
+          "title": "Command",
           "type": "string",
           "pattern": "^[a-z]+\\.[a-z][A-Za-z]*$",
           "description": "The catalog command of the call."
         },
         "effect": {
+          "title": "Effect",
           "enum": ["read", "write-files"],
           "description": "The effect of the command in the catalog."
         },
-        "at": { "$ref": "common.schema.json#/$defs/dateTime" },
+        "at": { "title": "Time", "$ref": "common.schema.json#/$defs/dateTime" },
         "element": {
+          "title": "Element",
           "description": "The element the call read or changed: its UUID and the repository of its file.",
           "type": "object",
           "required": ["id", "repository"],
           "properties": {
-            "id": { "$ref": "common.schema.json#/$defs/uuid" },
+            "id": { "title": "Element", "$ref": "common.schema.json#/$defs/uuid" },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "minLength": 1,
               "description": "Workspace name of the repository of the element's file."

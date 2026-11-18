@@ -46,17 +46,20 @@
     "type": "object",
     "properties": {
       "files": {
+        "title": "Files",
         "type": "array",
         "items": {
-          "type": "string",
+          "$ref": "../common.schema.json#/$defs/outputPath",
           "description": "Written file, relative to the workspace root."
         }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

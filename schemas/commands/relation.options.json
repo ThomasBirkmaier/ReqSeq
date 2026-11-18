@@ -28,19 +28,23 @@
     "type": "object",
     "properties": {
       "kinds": {
+        "title": "Relation kinds",
         "type": "array",
         "description": "In metamodel order: every relation kind whose source-types allow the type of the element (subtypes count) and whose target-types allow some type; none for an element of a type the metamodel does not know (SR-016 AK3). These are the kinds relation.add accepts.",
         "items": {
           "type": "object",
           "properties": {
             "kind": {
+              "title": "Relation kind",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "name": {
+              "title": "Name",
               "type": "string",
               "description": "Display name of the relation kind."
             },
             "targetTypes": {
+              "title": "Target types",
               "type": "array",
               "description": "Every type of the metamodel a target may have, subtypes included, in metamodel order; relation.add refuses a target of another known type.",
               "items": {

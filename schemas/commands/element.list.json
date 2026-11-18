@@ -98,13 +98,16 @@
     "type": "object",
     "properties": {
       "elements": {
+        "title": "Elements",
         "type": "array",
         "description": "Without `fields`: one page of the list. With `group`, or a perspective that stores one, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element.",
         "items": {
           "$ref": "../data-export.schema.json#/$defs/element"
-        }
+        },
+        "x-elements": "answer"
       },
       "partial": {
+        "title": "Elements",
         "type": "array",
         "description": "Only with `fields`, instead of `elements`: the same page, each element with the fields asked for.",
         "items": {
@@ -112,36 +115,44 @@
         }
       },
       "rowVerification": {
+        "title": "Verification per row",
         "type": "array",
         "description": "Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3).",
         "items": { "$ref": "../data-export.schema.json#/$defs/rowVerification" }
       },
       "tree": {
+        "title": "Tree",
         "type": "array",
         "description": "Only when `sort`, or the sort that applies without it (of the saved filter or the perspective), starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements` (or `partial`), in the same order. With `group`, or a perspective that stores one, each group is its own tree over its elements: a parent outside the group does not count. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec question ThomasBirkmaier/ReqSeq-archive#354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of the element."
             },
             "depth": {
+              "title": "Depth",
               "type": "integer",
               "minimum": 0,
               "description": "0 for a root, 1 for an element below it, and so on."
             },
             "parent": {
+              "title": "Parent",
               "type": "object",
               "description": "The element it is shown below, a parent of it by a derivation; left out for a root. It may lie on an earlier page.",
               "properties": {
                 "id": {
+                  "title": "Element",
                   "$ref": "../common.schema.json#/$defs/uuid"
                 },
                 "repository": {
+                  "title": "Repository",
                   "description": "Workspace name of the repository of the parent.",
                   "type": "string"
                 }
@@ -155,21 +166,25 @@
         }
       },
       "groups": {
+        "title": "Groups",
         "type": "array",
         "description": "Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
         "items": { "$ref": "../common.schema.json#/$defs/listGroup" }
       },
       "offset": {
+        "title": "Offset",
         "type": "integer",
         "minimum": 0,
         "description": "Only with `group`, or a perspective that stores one: the row the page starts at (the `offset` of the input), so that a page can be headed by its groups without the input."
       },
       "rows": {
+        "title": "Rows",
         "type": "integer",
         "minimum": 0,
         "description": "Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "Elements in the selection, each once."
@@ -178,9 +193,11 @@
         "$ref": "../common.schema.json#/$defs/incomplete"
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/problem" },
-        "description": "Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7); else empty."
+        "description": "Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7); else empty.",
+        "x-normal": []
       }
     },
     "additionalProperties": false,

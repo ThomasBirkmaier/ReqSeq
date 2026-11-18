@@ -106,53 +106,66 @@
     "type": "object",
     "properties": {
       "root": {
+        "title": "Root element",
         "$ref": "../common.schema.json#/$defs/uuid"
       },
       "nodes": {
+        "title": "Nodes",
         "type": "array",
         "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier",
               "type": "string",
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "title": "Type",
               "description": "Key of its type.",
               "type": "string"
             },
             "title": {
+              "title": "Title",
               "description": "Its title; empty without one.",
               "type": "string"
             },
             "status": {
+              "title": "Status",
               "description": "Its status key as written; left out when it has none.",
               "type": "string"
             },
             "repository": {
+              "title": "Repository",
               "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "Path relative to the repository."
             },
             "expanded": {
+              "title": "Expanded",
               "type": "boolean",
               "description": "Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
             },
             "level": {
+              "title": "Level",
               "type": "integer",
               "description": "0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004)."
             },
             "marks": {
+              "title": "Marks",
               "type": "array",
               "uniqueItems": true,
               "items": {
@@ -161,6 +174,7 @@
               "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044). Empty when none holds. The verification status is `verification` (SR-136)."
             },
             "verification": {
+              "title": "Verification status",
               "type": "array",
               "minItems": 1,
               "maxItems": 1,
@@ -170,57 +184,70 @@
               "description": "SR-136 AK1: the verification status of a requirement (type with the meaning `requirement`) in the graph's view (`view`, the core without one; SR-031, SR-034), as element.get gives it for that view: one entry. Left out for any other node, and for a requirement that has no status in that view (it applies only in a variant; assumption, spec question #1111)."
             },
             "criteria": {
+              "title": "Criteria",
               "$ref": "../data-export.schema.json#/$defs/criteriaCount",
               "description": "SR-136 AK2, AK4, AK5: how many of the requirement's acceptance criteria are verified, for its progress ring: the entry's `criteria` when its own records in the view decide; without such a record and with acceptance criteria, none verified (0 of n); left out when the status is `indirect`, the requirement has no acceptance criteria, or it has no `verification`."
             },
             "degree": {
+              "title": "Verification degree",
               "$ref": "../data-export.schema.json#/$defs/verificationDegree",
               "description": "SR-136 AK3, AK6: for a need (type with the meaning `need`), the verification degree (SR-037) of the requirements derived directly from it, in the graph's view: its derivation children in the whole workspace whatever depth, kinds and meanings the graph shows, each once, counted as evidence.degree counts them. `share` is left out when none counts (no valid derived requirement). Without a relation kind with the meaning `derivation`, or while the metamodel is not valid, none counts."
             }
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "type", "title", "repository", "file", "expanded", "level", "marks"]
-        }
+        },
+        "x-elements": true
       },
       "edges": {
+        "title": "Edges",
         "type": "array",
         "description": "Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
         "items": {
           "type": "object",
           "properties": {
             "source": {
+              "title": "Source element",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The element whose file stores the link."
             },
             "sourceRepository": {
+              "title": "Repository of the source",
               "type": "string",
               "description": "Workspace name of the repository of `source`."
             },
             "target": {
+              "title": "Target element",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The element the link points at (ADR-0004)."
             },
             "targetRepository": {
+              "title": "Repository of the target",
               "type": "string",
               "description": "Workspace name of the repository of `target`."
             },
             "link": {
+              "title": "Link",
               "enum": ["relation", "reference"],
               "description": "A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`."
             },
             "kind": {
+              "title": "Relation kind",
               "$ref": "../common.schema.json#/$defs/key",
               "description": "The frontmatter key, only for `link: relation`."
             },
             "property": {
+              "title": "Property",
               "const": true,
               "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
             },
             "meaning": {
+              "title": "Meaning",
               "enum": ["derivation", "replacement", "succession", "exclusion", "reference"],
               "description": "The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property."
             },
             "outdated": {
+              "title": "Outdated",
               "type": "boolean",
               "description": "The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005)."
             }
@@ -230,54 +257,65 @@
         }
       },
       "evidence": {
+        "title": "Evidence per node",
         "type": "array",
         "description": "Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Node",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The node the evidence belongs to."
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of that node."
             },
             "level": {
+              "title": "Level",
               "type": "integer",
               "minimum": 1,
               "description": "The node's level plus one: the evidence is one level below it."
             },
             "testCases": {
+              "title": "Test cases",
               "type": "integer",
               "minimum": 0,
               "description": "The test cases that name the node and hold in the view, a test case that was only skipped included (SR-033 AK3)."
             },
             "records": {
+              "title": "Records without test case",
               "type": "integer",
               "minimum": 0,
               "description": "The node's verification records without a test case that hold in the view (inspection, analysis, demonstration, manual records without `test-case`)."
             },
             "results": {
+              "title": "Results",
               "type": "object",
               "description": "The newest result of each test case (`skipped` for one that was only skipped) and of each record, counted; a result none has is left out.",
               "properties": {
                 "passed": {
+                  "title": "Passed",
                   "description": "Test cases and records whose newest result passed.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "failed": {
+                  "title": "Failed",
                   "description": "Test cases and records whose newest result failed.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "inconclusive": {
+                  "title": "Inconclusive",
                   "description": "Test cases and records whose newest result is inconclusive.",
                   "type": "integer",
                   "minimum": 1
                 },
                 "skipped": {
+                  "title": "Skipped",
                   "description": "Test cases that were only skipped.",
                   "type": "integer",
                   "minimum": 1
@@ -291,18 +329,22 @@
         }
       },
       "truncated": {
+        "title": "Truncated",
         "type": "boolean",
-        "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
+        "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones.",
+        "x-normal": false
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so the verification status and degree of the nodes cannot be given in full (SR-013 AK3).",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

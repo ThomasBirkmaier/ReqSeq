@@ -15,32 +15,40 @@
     "type": "object",
     "properties": {
       "perspectives": {
+        "title": "Perspectives",
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "name": {
+              "title": "Perspective",
               "$ref": "../perspective.schema.json#/$defs/name"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "The perspective file, relative to the workspace root."
             },
             "description": {
+              "title": "Description",
               "description": "What the perspective is for, as saved.",
               "type": "string"
             },
             "filter": {
+              "title": "Saved filter",
               "description": "Name of the saved filter the selection uses, as saved.",
               "type": "string"
             },
             "where": {
+              "title": "Conditions",
               "$ref": "../filter.schema.json#/$defs/condition"
             },
             "group": {
+              "title": "Grouping",
               "$ref": "../common.schema.json#/$defs/groupKey"
             },
             "sort": {
+              "title": "Sorting",
               "type": "array",
               "items": {
                 "$ref": "../filter.schema.json#/$defs/sortKey"
@@ -53,11 +61,13 @@
         "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         },
-        "description": "Perspective files that cannot be read (`file.unreadable`, also for the folder, or a YAML problem), do not match perspective.schema.json (`perspective.invalid`), or repeat the name of an earlier file (`perspective.duplicate-name`, warning), each with its file and reason (SR-213 AK8); a `.yml` file is a `perspective.invalid` warning and not read."
+        "description": "Perspective files that cannot be read (`file.unreadable`, also for the folder, or a YAML problem), do not match perspective.schema.json (`perspective.invalid`), or repeat the name of an earlier file (`perspective.duplicate-name`, warning), each with its file and reason (SR-213 AK8); a `.yml` file is a `perspective.invalid` warning and not read.",
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete"
