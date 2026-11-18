@@ -1,14 +1,13 @@
 // The animation at the top of the README (SR-203): the app in use on a copy of the repository's own specification
 // (`spec/`), ending in the graph of a need with its system requirements. The scenes: the overview, a system
 // requirement opened through the search (Ctrl+P), the list of system requirements, the command prompt with
-// "Filter list" marked and its command help (Ctrl+H, offered in a list), the list filtered, sorted and grouped, an
-// element opened from the list, and the graph of a need. The elements are chosen by rule from the workspace, so
-// that the animation follows the specification as it changes: the need is an approved one whose graph at depth 1
-// holds only its packages and 3 to 6 approved system requirements that derive from it, the fewest first (a graph
-// of three fits the window), then the lowest spec-id; the requirement opened through the search is its first by
-// spec-id.
+// "Filter list" marked and its command help (Ctrl+H, offered in a list), the list filtered, sorted and grouped, and
+// the graph of a need. The elements are chosen by rule from the workspace, so that the animation follows the
+// specification as it changes: the need is an approved one whose graph at depth 1 holds only its packages and 3 to 6
+// approved system requirements that derive from it, the fewest first (a graph of three fits the window), then the
+// lowest spec-id; the requirement opened through the search is its first by spec-id.
 //
-// Each step is a frame with the time it stays, and typing is a frame every few letters; while the command help
+// Each step is a frame with the time it stays, and typing is a frame every two letters; while the command help
 // slides in, its transition is paused and stepped, a frame per step. The frames go to
 // `test-results/electron/guide-animation/` (the CI artifact); with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
 // ffmpeg also makes `docs/guide/images/app-tour.gif` of them, committed after a run (ADR-0017). The times of the
@@ -54,8 +53,13 @@ const ROUNDED_FRAME = (() => {
     `a='if(gt(${D},${R}),0,255)'`,
   ].join(":");
 })();
-/** How long a frame of typing stays, and how many letters it adds. */
-const TYPING = { ms: 60, letters: 4 };
+/** How long a frame of typing stays, and how many letters it adds: slow enough to read what is typed. */
+const TYPING = { ms: 100, letters: 2 };
+/**
+ * How long a frame stays: a typed input with its marked command or search hit before Enter, a marked choice of
+ * an argument, and a view once it is loaded (the overview 200 ms less). The final graph stays longest.
+ */
+const HOLD = { input: 900, choice: 600, loaded: 1400 };
 /** The frames of the command help sliding in, and how long each stays. */
 const SLIDE = { frames: 6, ms: 40 };
 
@@ -204,7 +208,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await type(name);
     await expect(marked(window)).toHaveText(name);
-    await frame(500);
+    await frame(HOLD.input);
   };
   /** Runs the command `name`, then answers its prompt `prompt` with the choice `choice`, typed as `typed`. */
   const run = async (name: string, prompt: string, typed: string, choice: string): Promise<void> => {
@@ -213,7 +217,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await expect(label(window)).toHaveText(prompt);
     await type(typed);
     await expect(marked(window)).toHaveText(choice);
-    await frame(400);
+    await frame(HOLD.choice);
     await window.keyboard.press("Enter");
   };
   /** Opens `element` through the search (Ctrl+P) by its spec-id. */
@@ -221,7 +225,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await window.keyboard.press("ControlOrMeta+P");
     await type(element.identifier);
     await expect(firstHit(window)).toContainText(element.title);
-    await frame(500);
+    await frame(HOLD.input);
     await window.keyboard.press("Enter");
     await expect(heading(window)).toHaveText(element.title);
     await expect(modeline(window)).toContainText(element.identifier);
@@ -248,11 +252,11 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
 
     // The overview of the workspace.
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-    await frame(1500);
+    await frame(HOLD.loaded - 200);
 
     // A system requirement through the search.
     await search(searched);
-    await frame(1800);
+    await frame(HOLD.loaded);
 
     // The list of the system requirements, from the line of their type in the overview.
     const { total: count } = await cliJson<{ total: number }>(running, [
@@ -269,11 +273,11 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await expect(window.getByRole("option", { selected: true })).toHaveText(
       `System Requirement ${String(count)}`,
     );
-    await frame(500);
+    await frame(HOLD.choice);
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "type: system-requirement");
     await expect(modeline(window)).toContainText(`${String(count)} elements`);
-    await frame(1500);
+    await frame(HOLD.loaded);
 
     // "Filter list" marked, and its command help sliding in (Ctrl+H, SR-133 AK1): the transitions it starts are
     // paused and stepped, a frame per step. They are paused in the task that opens the panel (its `data-open`
@@ -315,7 +319,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
       }
     });
     await expect(help(window).locator("h2")).toHaveText("Filter list");
-    await frame(2500);
+    await frame(2000);
     await window.keyboard.press("Control+H");
     await expect(window.locator('#command-help[data-open="true"]')).toHaveCount(0);
     await frame(300);
@@ -325,12 +329,12 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await expect(label(window)).toHaveText("Filter by");
     await type("Status");
     await expect(marked(window)).toHaveText("Status");
-    await frame(400);
+    await frame(HOLD.choice);
     await window.keyboard.press("Enter");
     await expect(label(window)).toHaveText("Status");
     await type("appr");
     await expect(marked(window)).toHaveText("Approved");
-    await frame(400);
+    await frame(HOLD.choice);
     await window.keyboard.press("Enter");
     const selection = {
       where: { all: [{ type: ["system-requirement"], subtypes: false }, { status: ["approved"] }] },
@@ -343,13 +347,13 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     ]);
     await expect(modeline(window)).toContainText("status: approved");
     await expect(modeline(window)).toContainText(`${String(approved)} elements`);
-    await frame(1500);
+    await frame(HOLD.loaded);
 
     await run("Sort list", "Sort by", "Title", "Title");
     await expect(label(window)).toHaveText("Order");
     await type("asc");
     await expect(marked(window)).toHaveText("ascending");
-    await frame(400);
+    await frame(HOLD.choice);
     await window.keyboard.press("Enter");
     await expect(modeline(window)).toContainText("sorted by title");
     const { elements: byTitle } = await cliJson<{ elements: readonly { title: string }[] }>(running, [
@@ -360,24 +364,16 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     ]);
     await expect(rows(window).first()).toHaveText(byTitle[0]?.title ?? "");
     expect((await rows(window).allTextContents()).slice(0, 10)).toEqual(byTitle.map((one) => one.title));
-    await frame(1500);
+    await frame(HOLD.loaded);
 
     await run("Group list", "Group by", "Pack", "Package");
     await expect(modeline(window)).toContainText("grouped by package");
     await expect(shownLayer(window).locator(".group h2").first()).toBeVisible();
-    await frame(2000);
-
-    // The first element of the list.
-    const title = (await rows(window).first().textContent()) ?? "";
-    await window.keyboard.press("ArrowDown");
-    await frame(400);
-    await window.keyboard.press("Enter");
-    await expect(heading(window)).toHaveText(title);
-    await frame(1500);
+    await frame(HOLD.loaded);
 
     // The end: the need and its system requirements, as a graph.
     await search(need);
-    await frame(900);
+    await frame(800);
     await window.keyboard.press("ControlOrMeta+Shift+G");
     const { nodes } = await cliJson<{ nodes: readonly unknown[] }>(running, [
       "trace",
@@ -389,7 +385,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     for (const requirement of requirements) {
       await expect(shownLayer(window).locator(".graph").getByText(requirement.title)).toBeInViewport();
     }
-    await frame(4000);
+    await frame(3000);
   } finally {
     await running.close();
   }
