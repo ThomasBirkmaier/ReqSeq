@@ -239,6 +239,16 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     const title = String(record.data["title"]);
     const shortId = `${String(findType(metamodel, record.type)?.prefix)}-${record.id.slice(-6)}`;
     const identifier = String(record.data["spec-id"]);
+    // A requirement from the middle on, for its criteria (SR-222): its first criterion key is k001.
+    const requirement = store.elements
+      .slice(Math.floor(ELEMENTS / 2))
+      .find(
+        (one) => Array.isArray(one.data["acceptance-criteria"]) && typeof one.data["spec-id"] === "string",
+      );
+    if (requirement === undefined) {
+      throw new Error("no requirement");
+    }
+    const requirementShortId = `${String(findType(metamodel, requirement.type)?.prefix)}-${requirement.id.slice(-6)}`;
     const terms: readonly (readonly [string, string])[] = [
       ...["s", "st", "sta", "stat", "stati", "statio", "station"].map(
         (term) => ["typing a word of every text", term] as const,
@@ -265,6 +275,12 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ["an identifier", identifier],
       ["a short ID", shortId],
       ["the tail of a UUID", record.id.slice(-8)],
+      ["the criterion key of the first criterion of every requirement (SR-222 AK1)", "k001"],
+      [
+        "a criterion reference by identifier (SR-222 AK2)",
+        `[${String(requirement.data["spec-id"])}/AK-k001]`,
+      ],
+      ["a criterion reference by short ID (SR-222 AK2)", `${requirementShortId}/AK-k001`],
     ];
     return { terms, record };
   };
