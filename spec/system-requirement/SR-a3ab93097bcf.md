@@ -15,7 +15,7 @@ acceptance-criteria:
   - key: h9kx
     text: Gegeben eine Zahl in der Ausgabe eines Befehls, die Elemente zählt, wenn der Befehlskatalog gelesen wird, wie ihn die API liefert, dann kennzeichnet er sie als Zahl von Elementen. Bei einem lesenden Befehl liefert `element.list` mit der Auswahl „Ausgabe dieses Befehls mit dieser Eingabe, Elemente dieser Zahl“ genau die Elemente, die der Befehl mit dieser Eingabe für diese Zahl zählt, unabhängig von Seiten der Ausgabe; die Auswahl nennt die Zahl mit dem Namen ihrer Angabe und, wo die Angabe je Eintrag einer Liste steht, mit dem Schlüssel des Eintrags. Zählt die Zahl Elemente, die der Arbeitsbereich nicht enthält, liefert `element.list` die übrigen und kennzeichnet das Ergebnis als unvollständig. Die Ausgabe eines Schreibbefehls nennt die Elemente ihrer Zahlen selbst.
   - key: v2bx
-    text: Gegeben ein Befehl, dessen Antwort Elemente sind, wenn `element.list` mit der Auswahl „Ausgabe dieses Befehls mit dieser Eingabe“ aufgerufen wird, dann liefert es genau diese Elemente, unabhängig von Seiten der Ausgabe.
+    text: Gegeben ein Befehl, dessen Antwort Elemente sind, wenn `element.list` mit der Auswahl „Ausgabe dieses Befehls mit dieser Eingabe“ aufgerufen wird, dann liefert es genau diese Elemente, unabhängig von Seiten der Ausgabe. Enthält die Antwort Elemente, die der Arbeitsbereich nicht enthält, liefert `element.list` die übrigen und kennzeichnet das Ergebnis als unvollständig.
   - key: rxbd
     text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den Referenz und App zeigen.
   - key: zk0v
