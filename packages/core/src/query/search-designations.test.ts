@@ -139,6 +139,26 @@ describe("other designations (SR-220)", () => {
     );
   });
 
+  it("[SR-220/AK-bfrh] splits the query into words as the search does, also at a hyphen, so a designation may start or end inside a query word", async () => {
+    const { workspace } = await open({
+      "terms/GT-0000000000e1.md": term("e1", ["title: Req", "english-term: Kennung"]),
+      "requirements/SR-0000000000e2.md": requirement("e2", ["title: Liste"], "Die Kennung 3 steht hier.\n"),
+    });
+    const index = await searchIndex(workspace);
+    // `Paket-Export` and `Paket/Export` are the words `Paket` and `Export`, as without a hyphen.
+    expect(found(index, "Paket Export")).toEqual(["c3"]);
+    expect(found(index, "Paket-Export")).toEqual(["c3"]);
+    expect(found(index, "Paket/Export")).toEqual(["c3"]);
+    expect(found(index, "Export-Paket")).toEqual(["c3"]);
+    expect(ranked(index, "Paket-Export")).toEqual(["c3 other"]);
+    // With any word enough, a hyphenated query word still needs all its words, as without designations.
+    expect(found(index, "Paket-Export", { combineWith: "or" })).toEqual(["c3"]);
+    expect(found(index, "Paket-Zeit", { combineWith: "or" })).toEqual([]);
+    expect(found(index, "Paket-Export zeit", { combineWith: "or" })).toEqual(["c3", "c6", "d4"]);
+    // An identifier keeps its ID match and comes first; its words count for designations like any others.
+    expect(ranked(index, "REQ-3")).toEqual(["c3", "c8", "e2 other"]);
+  });
+
   it("[SR-220/AK-bfrh] matches the other designations as whole words without a typo, the last one as a word start, in any case", async () => {
     const { workspace } = await open({
       "requirements/SR-0000000000e1.md": requirement("e1", ["title: Ein Pakat"]),
@@ -466,14 +486,34 @@ describe("designationTable and designationRuns", () => {
       ]),
       longest: 3,
     };
+    const text = (word: string | readonly string[]): string =>
+      typeof word === "string" ? word : word.join(" ");
     const runs = (query: string) => {
-      const { runs: found, rest } = designationRuns(table, parseQuery(query).segments);
-      return { runs: found.map((run) => run.words.join(" ")), rest };
+      const { parts } = designationRuns(table, parseQuery(query).segments);
+      return {
+        runs: parts.flatMap((part) => part.runs).map((run) => run.words.map(text).join(" ")),
+        rest: parts.flatMap((part) => part.rest).map(text),
+      };
     };
-    // Overlapping designations: left to right, the longest at each place (assumption of #1817).
+    // The parts of a query: runs in brackets, then the other words of the query words they split.
+    const parts = (query: string): string[] =>
+      designationRuns(table, parseQuery(query).segments).parts.map((part) =>
+        [...part.runs.map((run) => `[${run.words.map(text).join(" ")}]`), ...part.rest.map(text)].join(" "),
+      );
+    // Overlapping designations: left to right, the longest at each place (SR-220 AK1, #1817).
     expect(runs("a b c d")).toEqual({ runs: ["a b"], rest: ["c", "d"] });
-    expect(runs("A b-c d a")).toEqual({ runs: ["A", "b-c d", "a"], rest: [] });
+    // The query is read on its words, also at a hyphen: `b-c` is `b` and `c` (SR-220 AK1, #1822).
+    expect(runs("A b-c d a")).toEqual({ runs: ["A b", "a"], rest: ["c", "d"] });
+    expect(parts("A b-c d a")).toEqual(["[A b] c", "d", "[a]"]);
+    // A query word a run covers whole stays as written (an ID keeps its ID match); a split one is its words.
+    expect(designationRuns(table, [["A", "b-c"]]).parts[0]?.runs[0]?.words).toEqual(["A", ["b"]]);
+    expect(designationRuns(table, [["x/b-c-d"]]).parts).toEqual([
+      { runs: [{ words: [["b", "c", "d"]], others: [phrase("y")] }], rest: [["x"]] },
+    ]);
+    // Two runs in one query word, and its other words, are one part: all of them are needed.
+    expect(parts("x-a-y-a b")).toEqual(["[a] [a b] x y"]);
     expect(runs('a "b" c d')).toEqual({ runs: ["a"], rest: ["c", "d"] });
     expect(runs("a ! b e")).toEqual({ runs: ["a b"], rest: ["!", "e"] });
+    expect(parts("a ! b e")).toEqual(["[a b]", "!", "e"]);
   });
 });
