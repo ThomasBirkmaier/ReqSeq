@@ -16,7 +16,7 @@ acceptance-criteria:
   - key: rgnq
     text: Gegeben der Buffer einer Perspektive ist offen und weicht von ihr ab, wenn die Perspektive erneut geöffnet wird, dann zeigt die App diesen Buffer wieder so, wie die Perspektive gespeichert ist.
   - key: bzs1
-    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite und einer Liste im Modus der Matrix, wenn „Save list as perspective“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen, schlägt den Namen der Perspektive vor, aus der die Liste kommt, zeigt beim Tippen die vorhandenen Perspektiven und speichert Filterschritte, Gruppierung und die gezeigte Sortierung der Liste.
+    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite, einer Liste aus der Ausgabe eines Befehls und einer Liste im Modus der Matrix, wenn „Save list as perspective“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen, schlägt den Namen der Perspektive vor, aus der die Liste kommt, zeigt beim Tippen die vorhandenen Perspektiven und speichert Filterschritte, Gruppierung und die gezeigte Sortierung der Liste.
   - key: fgs9
     text: Gegeben der Buffer einer Perspektive, wenn ein Filterschritt hinzukommt oder entfällt oder Gruppierung oder Sortierung umgestellt werden, dann zeigt die Statuszeile nach dem Namen „modified“; nach dem Speichern unter diesem Namen oder dem erneuten Öffnen der Perspektive steht es nicht mehr da. „Clear all list filters“ nimmt nur die Schritte nach der Auswahl der Perspektive zurück.
   - key: sf7b
@@ -28,7 +28,7 @@ derives-from:
   - { id: cbfe7443-9220-429d-a879-93d5c730a7fe, version: n2:43968194ec3757d7, title: Einfacher Einstieg in die Daten }
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:723848211e07119a, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:3eed09fb96e61f0a, title: In Buffern arbeiten }
   - { id: 784dfd2a-c6c6-4e7a-8e3a-b46a977e700e, version: n2:35bd2dc7e36cec6b, title: Statuszeile zeigen }

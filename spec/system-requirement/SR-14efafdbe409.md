@@ -22,7 +22,7 @@ acceptance-criteria:
   - key: k5p2
     text: Gegeben „Save“ wurde gewählt, wenn der Befehl gelingt, dann öffnet „New perspective“ die Perspektive als eigenen Buffer, wie sie gespeichert ist (SR-214 AK2), sie steht in „Open perspective“ zuerst (SR-214 AK1), und die Befehlszeile meldet „Saved perspective <Name>“; „New saved filter“ meldet „Saved filter <Name>“, und die gezeigte Ansicht bleibt, wie sie ist. Lehnt der Befehl ab, zeigt die Befehlszeile den Schritt des abgelehnten Arguments mit der Meldung, sonst den letzten, und die Antworten aller Schritte stehen wieder da.
   - key: zznw
-    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite, einer Liste im Modus der Matrix und einer Liste, deren Auswahl einen gespeicherten Filter nennt, wenn „Save list as saved filter“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen wie AK4 und speichert die Bedingungen der Filterschritte in ihrer Reihenfolge, die Sortierung, wenn sie mit „Sort list“ gewählt oder mit der Perspektive der Liste gespeichert ist, und keine Sicht; bei einer gruppierten Liste sagt die Zeile aus SR-210, dass die Gruppierung nicht zu einem gespeicherten Filter gehört. Danach meldet sie „Saved filter <Name>“, und die Liste bleibt, wie sie ist.
+    text: Gegeben eine Liste von Elementen, außer der Liste der Suchtreffer, den Elementen einer Paketseite, einer Liste aus der Ausgabe eines Befehls, einer Liste im Modus der Matrix und einer Liste, deren Auswahl einen gespeicherten Filter nennt, wenn „Save list as saved filter“ gewählt wird, dann fragt die Befehlszeile nur nach dem Namen wie AK4 und speichert die Bedingungen der Filterschritte in ihrer Reihenfolge, die Sortierung, wenn sie mit „Sort list“ gewählt oder mit der Perspektive der Liste gespeichert ist, und keine Sicht; bei einer gruppierten Liste sagt die Zeile aus SR-210, dass die Gruppierung nicht zu einem gespeicherten Filter gehört. Danach meldet sie „Saved filter <Name>“, und die Liste bleibt, wie sie ist.
   - key: kj5g
     text: Gegeben „Save list as saved filter“ hat gespeichert, wenn `filter.save` über Kommandozeile, API oder MCP-Server mit dem Namen, den Bedingungen der Filterschritte in ihrer Reihenfolge unter `all` und der Sortierung nach AK8 aufgerufen wird, dann schreibt es dieselbe Datei.
 packages:
@@ -33,10 +33,10 @@ derives-from:
   - { id: cbfe7443-9220-429d-a879-93d5c730a7fe, version: n2:43968194ec3757d7, title: Einfacher Einstieg in die Daten }
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 refines:
-  - { id: 39cd1be4-4927-4c92-ace2-2ea5eb9fde56, version: n2:c2fca22dee480588, title: In der App zwischen Perspektiven wechseln }
+  - { id: 39cd1be4-4927-4c92-ace2-2ea5eb9fde56, version: n2:05176b3d9f1a47cc, title: In der App zwischen Perspektiven wechseln }
   - { id: 30bb227d-2fc6-40d0-8450-2318af473702, version: n2:331154a0f00ccd27, title: Argumente mit festen Werten in der Befehlszeile aus den Treffern wählen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:723848211e07119a, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
 ---
 

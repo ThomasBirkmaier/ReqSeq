@@ -8,7 +8,7 @@ sidebar:
 ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq reads a `.reqif` file, not a packed `.reqifz`, in this order:
 
 1. The analysis lists the types, attributes, relation types and enumeration values of the file that no mapping covers yet. It writes nothing.
-2. The mapping says what in your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source, for every later delivery; your metamodel stays unchanged.
+2. The mapping says what in your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source, for every later delivery; your metamodel stays unchanged. Imports of other tools' files also store the source's types there (`source-model`).
 3. The import creates one element per object, all or nothing, turns XHTML text into Markdown, and lists as losses what it leaves out. Each element keeps its origin: source, source identifier, import date and delivery.
 4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
 
@@ -18,9 +18,9 @@ The export writes a package or any selection and can leave out properties; a rel
 
 In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
 
-1. Run **Analyse ReqIF file** and choose the file. Its result lists what has no mapping yet.
+1. Run **Analyse ReqIF file** and choose the file.
 2. Run **Save ReqIF mapping** and type the mapping as JSON, the `mapping` of the API section below.
-3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first, the same way; when you import, give each conflict with Ctrl+Enter under `take` or `keep`.
+3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first; when you import, give each conflict with Ctrl+Enter under `take` or `keep`.
 4. To export a package, create it with **Create element** (Ctrl+K E, ⌘K E), type Package. In the element buffer of each requirement, add the property Package with “Add property” (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S). Open the package with **Go to element or buffer** (Ctrl+P, ⌘P) and run **Export ReqIF** with the name of the new file. On a list, it exports what the list shows.
 5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` yes with Ctrl+Enter.
 
@@ -138,6 +138,7 @@ losses:
 files:
   Customer/...
   Customer/...
+  reqif/customer.yaml
 No problems.
 ```
 

@@ -2,12 +2,12 @@
   "name": "reqif.import",
   "title": "Import ReqIF file",
   "summary": "Import a ReqIF 1.2 file through a saved mapping, all or nothing: one element per object, with the losses reported. A repeated delivery of the same source updates the elements of the earlier one.",
-  "details": "Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict).",
+  "details": "Each element keeps its origin (source, source IDENTIFIER, import date, delivery, import version), which no other command writes. A repeated delivery updates the elements of the earlier one in place (matched by source and source IDENTIFIER) and only lists the dropped ones; an element changed locally and in the delivery is a conflict that needs take or keep, else the import is refused (reqif.conflict). Through `mapping`, a file of another tool also stores the source's types, attributes and datatypes in that mapping (`source-model`), unless the mapping lies outside the mapping folder (warning reqif.source-model-unsaved).",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Creates and changes elements, and no change can be checked against a missing or faulty metamodel.",
   "stage": 6,
-  "implements": ["SR-052", "SR-053", "SR-054", "SR-055", "SR-056", "SR-057", "SR-087", "SR-095"],
+  "implements": ["SR-052", "SR-053", "SR-054", "SR-055", "SR-056", "SR-057", "SR-087", "SR-095", "SR-158"],
   "arguments": [
     { "field": "file", "complete": "file" },
     { "field": "delivery", "complete": "text", "class": "name" },
@@ -30,7 +30,7 @@
       },
       "mapping": {
         "$ref": "../common.schema.json#/$defs/localPath",
-        "description": "Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one."
+        "description": "Needed unless the file comes from ReqSeq (REQ-IF-TOOL-ID reqseq), which is mapped one to one. For a file of another tool, the import stores the source model in it."
       },
       "source": {
         "type": "string",
@@ -96,7 +96,7 @@
         "type": "array",
         "items": {
           "type": "string",
-          "description": "Written file, relative to the workspace root."
+          "description": "Written file, relative to the workspace root; a mapping file the import saved comes last."
         }
       },
       "problems": {
