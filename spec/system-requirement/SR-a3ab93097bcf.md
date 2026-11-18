@@ -2,7 +2,7 @@
 id: 7ab81a51-99ac-4993-b73c-a3ab93097bcf
 type: system-requirement
 status: approved
-title: Antwortsatz und Angaben der Ausgabe im Befehlskatalog
+title: Antwortsatz und Feldangaben im Befehlskatalog
 spec-id: SR-224
 requirement-type: functional
 acceptance-criteria:
@@ -11,7 +11,7 @@ acceptance-criteria:
   - key: tjmm
     text: Gegeben die Textausgabe der Kommandozeile, wenn ein Befehl ausgeführt wird, dann ist ihre erste Zeile der Antwortsatz.
   - key: yxs1
-    text: Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann hat jede Angabe einer Ausgabe einen Titel; jede Angabe, deren Schema auf UUID, Pfad, Prüfwert, Commit, Art eines Befunds oder Dauer verweist, ist als technisch gekennzeichnet, und jede Angabe mit einem Normalwert nennt ihn.
+    text: Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann hat jede Angabe einer Ausgabe einen Titel; jede Angabe, deren Schema auf UUID, Pfad, Prüfwert, Commit, Art eines Befunds oder Dauer verweist, ist als technisch gekennzeichnet; jede Angabe mit einem Normalwert nennt ihn.
   - key: h9kx
     text: Gegeben eine Zahl in der Ausgabe eines Befehls, die Elemente zählt, wenn der Befehl ausgeführt wird, dann kennzeichnet der Befehlskatalog sie so, und die Ausgabe nennt die gezählten Elemente.
   - key: v2bx
@@ -19,7 +19,7 @@ acceptance-criteria:
   - key: rxbd
     text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den Referenz und App zeigen.
   - key: zk0v
-    text: Gegeben ein Schreibbefehl, dessen Ausgabe mehr als Dateien, Befunde und den Antwortsatz trägt, zum Beispiel einen Plan (SR-071) oder einen Import, wenn der Befehlskatalog gelesen wird, dann ist er als „zeigt seine Ausgabe“ gekennzeichnet.
+    text: Gegeben ein Schreibbefehl, dessen Ausgabe mehr als Dateien, Befunde und den Antwortsatz trägt, zum Beispiel ein Plan (SR-071) oder ein Import, wenn der Katalog gelesen wird, dann ist er als „zeigt seine Ausgabe“ gekennzeichnet.
 packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
@@ -32,4 +32,4 @@ based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 ---
 
-Das Tool muss in der [Ausgabe eines Befehls](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:f75f336199aced66) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:a8f6683763f8c15a) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel und den Kennzeichen versehen, die ein Zugang braucht, um sie gestuft zu zeigen.
+Das Tool muss in der [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:f75f336199aced66) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:a8f6683763f8c15a) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel und den Kennzeichen versehen, die ein Zugang braucht, um sie gestuft zu zeigen.
