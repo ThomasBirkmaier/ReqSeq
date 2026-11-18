@@ -1,6 +1,6 @@
 # ReqSeq
 
-ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout, and `docs/process.md` shows the way of working from need to release.
+ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `CONTRIBUTING.md` has the layout, and `docs/process.md` shows the way of working from need to release.
 
 This file is the starting point. It holds the rules that apply to every change, and says where the rest is.
 
