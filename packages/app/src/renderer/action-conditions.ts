@@ -1,4 +1,4 @@
-// Where the app's actions are available: the kind of the shown buffer and what it holds (`actions.ts`).
+// Where the app's actions are available: the kind of the shown buffer and what it holds (`actions.ts` and its group modules).
 import type { MetamodelBuffer, ResultBuffer } from "./buffers.js";
 import { onlyOverview } from "./buffers.js";
 import type { ActionContext } from "./action-types.js";

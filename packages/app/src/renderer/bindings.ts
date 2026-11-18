@@ -53,7 +53,7 @@ export const PREFIX_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Enter") }], does: "Run the selected next key" },
 ];
 
-/** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts`). */
+/** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts` and its group modules). */
 export const SINGLE_KEY_IDS: readonly string[] = [
   "go-to",
   "search",

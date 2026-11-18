@@ -8,8 +8,8 @@
 // action that does what a command does covers it, so the prompt lists it once.
 //
 // `ACTIONS` gathers the groups of actions, each in its module (`buffer-actions.ts`, `graph-actions.ts`,
-// `app-actions.ts`, `list-actions.ts` and the others below); their types are in `action-types.ts`, where
-// they are available in `action-conditions.ts`.
+// `app-actions.ts`, `list-actions.ts` and the others below); their types are in `action-types.ts`, and
+// where they are available is in `action-conditions.ts`.
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type { SearchField } from "./buffers.js";
 import { bufferName, elementBufferOf, overviewBuffer, fieldsInput, searchBuffer } from "./buffers.js";
