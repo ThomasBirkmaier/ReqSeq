@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ActionContext, ElementControls } from "./actions.js";
+import type { ActionContext, ElementControls } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import {
   CLIPBOARD_ACTIONS,

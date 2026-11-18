@@ -11,7 +11,7 @@
 // Only the input of the core is built (ADR-0002).
 import type { CommandTypes, ElementListOutput, ElementSelection, PerspectiveListOutput } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
-import type { Action, ActionContext, BuiltCommand, Choice } from "./actions.js";
+import type { Action, ActionContext, BuiltCommand, Choice } from "./action-types.js";
 import type { FilterStep, ListBuffer, ListedPerspective } from "./buffers.js";
 import { inMatrix, listSort, listing, perspectiveBuffer, savedOf, selectionOf } from "./buffers.js";
 import type { Answer, Call } from "./call.js";

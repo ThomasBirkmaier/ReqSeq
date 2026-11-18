@@ -38,7 +38,7 @@ import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
-import type { ElementControls, Prompt, TextOptions } from "./actions.js";
+import type { ElementControls, Prompt, TextOptions } from "./action-types.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
 import { filteredList, renameAction } from "./buffers.js";

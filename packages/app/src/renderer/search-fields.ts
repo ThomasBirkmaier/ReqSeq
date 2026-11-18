@@ -2,7 +2,7 @@
 // fields to search in, as hits from `element.searchFields` with the key beside each name; each one chosen is a mark,
 // and the first hit goes back to the search words with the marks and the text. Which fields there are and what a
 // search in them finds is core's (ADR-0002); the app only leaves out what a mark already covers.
-import type { ActionContext, ArgumentExplanation, Choice, Prompt } from "./actions.js";
+import type { ActionContext, ArgumentExplanation, Choice, Prompt } from "./action-types.js";
 import type { SearchField } from "./buffers.js";
 import type { CommandListing } from "../shared/protocol.js";
 

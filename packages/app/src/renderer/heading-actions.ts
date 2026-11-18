@@ -3,7 +3,7 @@
 // an element that cannot be changed too. The logic is in `editor/folding.ts`. Editor-only, no catalog command,
 // like the slash menu (ADR-0010).
 import type { Command } from "@codemirror/view";
-import type { Action, ActionContext } from "./actions.js";
+import type { Action, ActionContext } from "./action-types.js";
 import type { Heading } from "./editor/folding.js";
 import { foldSection, unfoldSection } from "./editor/folding.js";
 

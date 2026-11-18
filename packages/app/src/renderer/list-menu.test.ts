@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // The context menu of a list outside its rows (SR-198): its entries, and "Ungroup list" on a grouped list.
 import { describe, expect, it } from "vitest";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { MenuHit } from "./context-menu.js";
 import { MENU_PLACES, menuEntries } from "./context-menu.js";
 import { GROUPED, LIST_MENU } from "./list-menu.js";

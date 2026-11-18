@@ -74,7 +74,7 @@ import type {
   CommandHelp,
   Prompt,
   PromptFill,
-} from "./actions.js";
+} from "./action-types.js";
 import { ACTIONS, findElements } from "./actions.js";
 import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { packagePage } from "./list-actions.js";

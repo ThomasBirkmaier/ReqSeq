@@ -1,6 +1,6 @@
 // The context menu of an element as an entry (SR-197): its entries, the element they act on, and the actions.
 import { describe, expect, it } from "vitest";
-import type { Action, ActionContext } from "./actions.js";
+import type { Action, ActionContext } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import type { Buffer, BufferAction, ElementBuffer } from "./buffers.js";
 import {

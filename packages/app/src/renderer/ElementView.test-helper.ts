@@ -1,7 +1,7 @@
 // What the tests of ElementView share: an element as core reads it, and a mounted ElementView. Test code only.
 import type { DataExportElement } from "@reqseq/core";
 import { act, createElement } from "react";
-import type { Prompt, ElementControls } from "./actions.js";
+import type { Prompt, ElementControls } from "./action-types.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";

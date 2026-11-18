@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ActionContext, Prompt } from "./actions.js";
+import type { ActionContext, Prompt } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import { foldSection, unfoldSection } from "./editor/folding.js";
 import type { Heading } from "./editor/folding.js";

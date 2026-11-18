@@ -11,7 +11,7 @@
 // `shownMarks` gives the conditions of a list's steps as marks: the parts "Save list as perspective" writes
 // under `all` (`perspectiveWhere`), which keeps only an unchanged perspective selection as stored (SR-213 AK3).
 import type { ElementSelection } from "@reqseq/core";
-import type { ArgumentExplanation, Choice, Prompt, PromptFill, PromptMark } from "./actions.js";
+import type { ArgumentExplanation, Choice, Prompt, PromptFill, PromptMark } from "./action-types.js";
 import type { FilterStep } from "./buffers.js";
 import type { BuiltAsk } from "./catalog-entry.js";
 import type { ConditionKind, ConditionMark, KindHits, KindSource } from "./condition-kinds.js";
