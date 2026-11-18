@@ -1,10 +1,10 @@
 # ReqSeq
 
-You tell your agent in plain words what you need, and through ReqSeq's CLI or MCP server it does formal requirements engineering underneath: it records the need, breaks it down into system requirements with acceptance criteria, and writes the tests that name them.
+Requirements engineering for agents and people: describe a need in plain words, and your agent breaks it down into system requirements, acceptance criteria and tests, which ReqSeq traces through to the evidence record of each test run.
 
-ReqSeq checks every step against your metamodel and keeps each element, relation and piece of evidence with its version, so a change shows at once which requirement to review and which evidence no longer counts.
+For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your metamodel still misses, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
 
-Only people approve; ReqSeq never changes a status, never writes to Git and stays offline.
+The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)
@@ -16,17 +16,27 @@ Only people approve; ReqSeq never changes a status, never writes to Git and stay
   <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. The test results come to ReqSeq as JUnit XML, and ReqSeq records them as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 </picture>
 
-## What ReqSeq holds your agent to
+## What it looks like
 
-Every command answers with what your metamodel finds wrong, so the agent sees a gap the moment it makes one:
+A need, a system requirement derived from it, and the test that verifies its acceptance criterion, as the CLI prints it (shortened). The requirement starts with gaps that ReqSeq names:
 
-- a system requirement without the need it derives from (`trace.no-parent`),
-- a property the metamodel requires, such as acceptance criteria, left empty (`element.missing-required`),
-- a relation the metamodel does not allow between two types (`relation.not-allowed`),
-- a relation whose target changed since it was made, until someone confirms it (`relation.outdated`),
-- a test that names an acceptance criterion by its number instead of its key, which is refused when its results are recorded.
+```text title="Output"
+$ reqseq element create system-requirement "Show the wind speed" --text "…"
+SR-7205cc  draft  Show the wind speed  [verification: core open]
+warning  element.missing-required  SR-7205cc  Required property Acceptance Criteria (acceptance-criteria) … has no value
+warning  trace.no-parent  SR-7205cc  System Requirement SR-7205cc has no parent
+$ reqseq relation add SR-7205cc derives-from N-db340b
+$ reqseq element update SR-7205cc --set requirement-type=functional --set 'acceptance-criteria=[{"text":"Given …"}]'
+$ reqseq evidence enrich-junit evidence/results.xml build-1     # test named [SR-7205cc/AK-h1rf]
+$ reqseq trace chain N-db340b
+N-db340b  draft  See the wind speed
+children:
+  1  SR-7205cc  draft  Show the wind speed
+  2    test case  station › [SR-7205cc/AK-h1rf] shows the wind speed in knots
+         2026-11-18T21:26:18Z  passed  build-1  evidence/results.xml:2  [criteria AK1 (h1rf)]
+```
 
-`reqseq workspace check --fail-on warning` turns each of these into a failed pipeline. Elements are never deleted, only superseded, so the history of every requirement stays.
+The reports come from the metamodel of the workspace: a new workspace starts with the standard model of needs, use cases, system requirements, decisions, variants and packages, and you can extend it with your own types, properties and relations. `reqseq workspace check --fail-on warning` turns each report into a failed pipeline, and a changed need shows every relation to it as outdated until someone confirms it. ReqSeq keeps its own specification this way: the more than 200 system requirements in [`spec/`](spec/README.md), each acceptance criterion traced to the test that verifies it.
 
 ## How you connect
 
@@ -62,7 +72,7 @@ You can also do all of your requirements engineering by hand, without an agent: 
 
 ## More
 
-[Documentation](https://thomasbirkmaier.github.io/ReqSeq/) · [Report a bug](https://github.com/ThomasBirkmaier/ReqSeq/issues) · [How ReqSeq is built](CONTRIBUTING.md). ReqSeq keeps its own specification this way in [`spec/`](spec/README.md), and so does the pilot [reqseq-weight-and-balance](https://github.com/ThomasBirkmaier/reqseq-weight-and-balance).
+[Documentation](https://thomasbirkmaier.github.io/ReqSeq/) · [Report a bug](https://github.com/ThomasBirkmaier/ReqSeq/issues) · [How ReqSeq is built](CONTRIBUTING.md). A pilot built this way: [reqseq-weight-and-balance](https://github.com/ThomasBirkmaier/reqseq-weight-and-balance).
 
 ## License
 

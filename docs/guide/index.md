@@ -3,11 +3,11 @@ title: ReqSeq
 description: User documentation of ReqSeq, a local, Git-based requirements tool.
 ---
 
-You tell your agent in plain words what you need, and through ReqSeq's CLI or MCP server it does formal requirements engineering underneath: it records the need, breaks it down into system requirements with acceptance criteria, and writes the tests that name them.
+Requirements engineering for agents and people: describe a need in plain words, and your agent breaks it down into system requirements, acceptance criteria and tests, which ReqSeq traces through to the evidence record of each test run.
 
-ReqSeq checks every step against your metamodel and keeps each element, relation and piece of evidence with its version, so a change shows at once which requirement to review and which evidence no longer counts.
+For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your metamodel still misses, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
 
-Only people approve; ReqSeq never changes a status, never writes to Git and stays offline.
+The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
 ![ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.](./images/context.svg)
 
@@ -24,7 +24,6 @@ You can use it in four ways, and each gives the same result ([CLI, API and MCP](
 - **Your metamodel.** Types, properties, relation kinds and statuses belong to the workspace; a new workspace starts with the standard model. Statuses are set by people; ReqSeq never computes them.
 - **Traceability.** A relation keeps the version of its target, so a changed target shows the relation as outdated. Trace chains, related and affected elements, a traceability matrix and a graph.
 - **Evidence and coverage.** Verification and validation records, and JUnit XML results of tests that name the requirement they test; coverage, verification degree and the requirements without a passed test.
-- **Checks in pipelines.** `reqseq workspace check` checks the whole workspace, or only the changed files, and exits with 1 on errors.
 - **Variants, baselines and exchange.** Variants that exclude or replace requirements of the core, baselines to compare against, ReqIF import and export, and data export.
 
 ## Where to read on
