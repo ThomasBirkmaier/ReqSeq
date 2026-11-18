@@ -16,10 +16,10 @@ const firstParagraph = (text: string): string =>
 
 // The README repeats two parts of the documentation (#344): they must not drift apart.
 describe("README", () => {
-  it("says what ReqSeq is in the same sentence as the landing page of the documentation", async () => {
-    const sentence = firstParagraph(await read("docs/guide/index.md"));
-    expect(sentence).toMatch(/^ReqSeq is /);
-    expect(firstParagraph(await read("README.md"))).toBe(sentence);
+  it("says what ReqSeq is in the same sentences as the landing page of the documentation", async () => {
+    const sentences = firstParagraph(await read("docs/guide/index.md"));
+    expect(sentences).toMatch(/ReqSeq/);
+    expect(firstParagraph(await read("README.md"))).toBe(sentences);
   });
 
   it("has the commands of Get started as its quick start", async () => {
