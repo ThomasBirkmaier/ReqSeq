@@ -437,6 +437,7 @@ export type ProblemCode =
   | "evidence.unknown-criterion"
   | "evidence.invalid-criterion-name"
   | "evidence.counts-in-no-view"
+  | "evidence.outside-location"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
