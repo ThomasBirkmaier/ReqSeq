@@ -9,7 +9,8 @@
 //   (`reason: "link"`), and so is one in the metamodel folder, so a mapping never becomes a
 //   metamodel file (SR-054 AK3).
 // - Read from any path the access allows (`readMappingFile`), for `reqif.import` and `reqif.export`
-//   with `mapping` (SR-054 AK2): the file must match the schema (`file.faulty` otherwise).
+//   with `mapping` (SR-054 AK2): the file must match the schema, and its `source-model` define every
+//   datatype its attributes name (source-model.ts), `file.faulty` otherwise.
 // - Both sides check the mapping against the own metamodel (`checkMapping`), which they only read:
 //   known types, properties (of the mapped type when `source-type` names one), choice keys,
 //   relation kinds or relation-valued properties as the kind of a relation type, a known target
@@ -20,7 +21,7 @@ import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
 import { linksStayInside, readYamlFile } from "../files/index.js";
-import type { ReqifMappingFile, ReqifMappingFileWithDefaults } from "../generated/types.js";
+import type { ReqifMappingFile, ReqifSaveMappingInput } from "../generated/types.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition } from "../metamodel/index.js";
 import { portableName, refuseUnlisted } from "../model/index.js";
@@ -30,7 +31,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { locate, settingLocation } from "../workspace/index.js";
 
 /** A mapping as read from a file, or as a command input with the schema defaults filled in. */
-export type AnyMapping = ReqifMappingFile | ReqifMappingFileWithDefaults;
+export type AnyMapping = ReqifMappingFile | ReqifSaveMappingInput["mapping"];
 
 /** Mapping files end in `.yaml` (D-056). */
 export const MAPPING_FILE_EXTENSION = ".yaml";
@@ -46,6 +47,7 @@ export const MAPPING_KEYS = [
   "statement",
   "omit-properties",
   "export-profiles",
+  "source-model",
 ] as const;
 
 /** Where a mapping file is written. */
@@ -133,6 +135,27 @@ export const mappingTarget = async (
   const relative = path.relative(repository.folder, folder).split(path.sep).join("/");
   const file = relative === "" ? name : `${relative}/${name}`;
   return { repository, file: await refuseUnlisted(layout, repository, file, { ignored: false }) };
+};
+
+/**
+ * Whether the local path `given` (resolved against `root`) names a `.yaml` file directly in the
+ * mapping folder, by its text or with the links of both resolved (a workspace opened through a link,
+ * a mapping folder that is one), before any refusal of `mappingTarget`; true
+ * while the folder's repository is not on this machine, which `mappingTarget` then refuses.
+ */
+export const liesInMappingFolder = async (
+  layout: WorkspaceLayout,
+  root: string,
+  given: string,
+): Promise<boolean> => {
+  const { folder } = locate(layout, settingLocation(layout, "mappings"));
+  const absolute = path.resolve(root, given);
+  const parent = path.dirname(absolute);
+  return (
+    folder === undefined ||
+    (absolute.endsWith(MAPPING_FILE_EXTENSION) &&
+      (samePath(parent, folder) || samePath(await realOf(parent), await realOf(folder))))
+  );
 };
 
 /** A violation of the metamodel at `field`. */
@@ -278,6 +301,20 @@ export const checkMapping = (
   }
 };
 
+/** Every reference of `model` it does not define, as a message (see the file comment). */
+const sourceModelViolations = (model: ReqifMappingFile["source-model"]): string[] => {
+  const defined = new Set((model?.datatypes ?? []).map((d) => d.identifier));
+  return (model?.types ?? []).flatMap((t, i) =>
+    t.attributes.flatMap((a, j) =>
+      defined.has(a.datatype)
+        ? []
+        : [
+            `source-model.types[${String(i)}].attributes[${String(j)}].datatype: ${a.datatype} is no datatype of source-model`,
+          ],
+    ),
+  );
+};
+
 /** A mapping file as read. */
 export interface MappingFile {
   readonly mapping: ReqifMappingFile;
@@ -318,6 +355,13 @@ export const readMappingFile = async (
     );
   }
   const mapping = read.file.data as ReqifMappingFile;
+  const dangling = sourceModelViolations(mapping["source-model"]);
+  if (dangling.length > 0) {
+    throw new CommandError("file.faulty", `mapping: ${path.basename(absolute)}: ${dangling.join("; ")}`, {
+      command,
+      fields: ["mapping"],
+    });
+  }
   checkMapping(layout, metamodel, mapping, "mapping", command);
   return { mapping, yaml: read.file };
 };
