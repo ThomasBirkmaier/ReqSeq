@@ -64,11 +64,11 @@ const describerOf = (
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
   const titleKey = titleKeyOf(selected.metamodel);
   return (hit) => {
-    const { element, score, fields, terms, phrases } = hit;
+    const { element, score, fields, terms, parts, phrases } = hit;
     const title = titleKey === undefined ? undefined : element.data[titleKey];
     const status = element.data["status"];
     const shown = typeof title === "string" ? title : "";
-    const marks = fields.includes("title") ? titleMarks(shown, terms, phrases) : [];
+    const marks = fields.includes("title") ? titleMarks(shown, terms, phrases, parts) : [];
     const snippet = searchSnippet(index, hit, propertyKeys);
     return {
       id: element.id,
