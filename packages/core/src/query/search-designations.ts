@@ -11,16 +11,16 @@
 //   translation adds designations, its title among them. Each designation is its words
 //   (`wordsOf`, as the index splits and compares them); a value without a letter or digit is none. A
 //   translation may hold several values, and a Markdown one counts by its visible words
-//   (`visibleText`): assumption of open question #1811. The designations of a key (its words joined
+//   (`visibleText`), as SR-220 and D-059 allow (#1811). The designations of a key (its words joined
 //   by a space) are those of every element that has it (AK1: a designation of several elements
 //   counts for all of them), without the key itself; also of elements the workspace keeps apart
-//   (a relation such as `distinct-from` is not read): assumption of open question #1814, option 1.
+//   (a relation such as `distinct-from` is not read), as SR-220 AK1 says (#1814).
 //   Built from the records of a store, so every save and watcher batch, which give a new store,
 //   gives a new table (AK4).
 // - The runs (`designationRuns`): in each stretch of the query between phrases, left to right, the
 //   longest run of whole words that is a key of the table at that place (AK1); an overlapping
 //   shorter or later one does not count (`a b c d` with the keys `a b` and `b c d` takes `a b`:
-//   assumption of open question #1817). A word without a letter or digit is skipped, as the search
+//   SR-220 AK1, #1817). A word without a letter or digit is skipped, as the search
 //   leaves it out.
 // - The other designations of a run are matched as an open phrase (`SearchPhrase`, `prefix`): whole
 //   words in this order, without a typo, in any case, the last word also as a word start (AK1).
