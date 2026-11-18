@@ -29029,6 +29029,7 @@
     "reqif.choice-unused": "Unused conflict choice",
     "reqif.edited-elsewhere": "Edited in another tool",
     "reqif.mapping-differs": "Different saved mapping",
-    "reqif.source-model-unsaved": "Source model not saved"
+    "reqif.source-model-unsaved": "Source model not saved",
+    "reqif.source-value-chosen": "First source value written"
   }
 }

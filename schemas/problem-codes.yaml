@@ -320,6 +320,7 @@ problems:
     cause: "`reqif.import` read the mapping from outside the mapping folder, where ReqSeq writes no mapping file, so the source's types, attributes and datatypes of this delivery were not saved in it (`source-model`). The elements were imported."
     remedy: Move the mapping file into the mapping folder of the workspace (`mappings`, default `reqif`) and import through it there.
   reqif.source-value-chosen:
+    title: First source value written
     cause: "`reqif.export` with `sourceModel` writes a choice into an enumeration of the source whose mapping (`values`) gives several values of the source for it; it wrote the first in the mapping's order. The message names the requirement and the attribute."
     remedy: If another value is meant, map only that one to the choice in the mapping's `values`.
 
