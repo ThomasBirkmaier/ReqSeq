@@ -44,7 +44,7 @@ The editor's paste (SR-190) uses the same conversion: `pasted-markdown.ts` (`@re
 
 ## Import (`import.ts`, `import-*.ts`, `repeat.ts`, `xhtml-text.ts`, `delivery.ts`; `commands/reqif/import.ts`, `commands/reqif/analyze.ts`)
 
-The plan lives in `import.ts` (`planImport` and the draft of each object) and its modules: `import-context.ts` (the types the steps share), `import-coverage.ts` (the mapping check), `import-values.ts` (values through the mapping), `import-own.ts` (the channels of a file of ReqSeq), `import-relations.ts` (SPEC-RELATIONs, and the losses of specifications, relation groups and unread parts) and `import-updates.ts` (a repeated delivery).
+The plan lives in `import.ts` (`planImport` and the draft of each object) and its modules: `import-context.ts` (the types and helpers the steps share), `import-coverage.ts` (the mapping check), `import-values.ts` (values through the mapping), `import-own.ts` (the channels of a file of ReqSeq), `import-relations.ts` (SPEC-RELATIONs, and the losses of specifications, relation groups and unread parts) and `import-updates.ts` (a repeated delivery).
 
 `reqif.import` (SR-053) reads the file (`readDelivery`: a regular file only, at most `REQIF_LIMITS.bytes` counted while reading, so a file growing meanwhile is refused too: `reqif.invalid`; unreadable or no file: `file.faulty`), parses it (`reqif.invalid`), reads the saved mapping `mapping` (`readMappingFile`, SR-054 AK2; without `mapping` only a file of ReqSeq is imported, see below, else `input.invalid`), plans everything in memory and only then writes. The own metamodel is only read (SR-054 AK3).
 
