@@ -18807,6 +18807,10 @@
               }
             ]
           },
+          "conditionStub": {
+            "type": "object",
+            "description": "A filter condition (`condition`) as the MCP tools other than element_search show it; its grammar is in the input schema of element_search, under `selection.where`."
+          },
           "keys": {
             "type": "array",
             "minItems": 1,

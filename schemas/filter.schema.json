@@ -205,6 +205,10 @@
         { "$ref": "#/$defs/relationCondition" }
       ]
     },
+    "conditionStub": {
+      "type": "object",
+      "description": "A filter condition (`condition`) as the MCP tools other than element_search show it; its grammar is in the input schema of element_search, under `selection.where`."
+    },
     "keys": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/key" } },
     "propertyCondition": {
       "description": "Condition on the values of any property: none when it is absent, `null` or `[]`, else the items of a list or the one value. `exists`: some value, `missing`: none (both without `value`). `eq`: some value equals `value` (1 is not \"1\"), `ne`: not `eq`, `in`: some value equals an item of the list `value`. `contains`: some text contains `value`, ignoring case. `lt`, `le`, `gt`, `ge`: numbers with numbers, texts with texts by code units (ISO dates compare as dates). `matches`: some text matches the JavaScript regular expression `value` (flag u). A choice may be given by its display name. A key that holds relations takes element references, with `eq`, `ne`, `in`, `exists` and `missing` only.",

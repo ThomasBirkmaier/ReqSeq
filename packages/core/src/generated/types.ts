@@ -1276,6 +1276,12 @@ export type FilterCondition =
   | FilterPropertyCondition
   | FilterRelationCondition;
 
+/**
+ * A filter condition (`condition`) as the MCP tools other than element_search show it; its grammar is in the input schema of element_search, under `selection.where`.
+ * Schema: `schemas/filter.schema.json#/$defs/conditionStub`.
+ */
+export type FilterConditionStub = Readonly<Record<string, unknown>>;
+
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];
 
