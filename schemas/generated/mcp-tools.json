@@ -104,6 +104,62 @@
         }
       }
     },
+    "agent-connection": {
+      "title": "Agent connection file",
+      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
+      "type": "object",
+      "required": [
+        "version",
+        "process",
+        "client",
+        "since",
+        "ended"
+      ],
+      "properties": {
+        "version": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "process": {
+          "type": "string",
+          "pattern": "^[0-9]+-[0-9a-f]{8}$",
+          "description": "The MCP server process: its process ID and 8 random hex digits, new for every connection. The file name is `agent-<process>.json`; a file whose name does not match is ignored."
+        },
+        "client": {
+          "$ref": "#/$defs/agent-connection/$defs/client"
+        },
+        "since": {
+          "$ref": "#/$defs/common/$defs/dateTime",
+          "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+        },
+        "ended": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common/$defs/dateTime"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the connection ended cleanly (the client closed standard input, the server was stopped); null while it runs, and after a crash."
+        }
+      },
+      "additionalProperties": false,
+      "$defs": {
+        "client": {
+          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
     "api-endpoint": {
       "title": "API endpoint file",
       "description": "`api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`): where the running local API of `reqseq serve api` listens, and its token. Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only. A file left behind by a stopped API names a port nobody listens on.",
@@ -4355,6 +4411,89 @@
         "required": [
           "activity"
         ]
+      }
+    },
+    {
+      "name": "workspace_agents",
+      "title": "Show connected agents",
+      "description": "The clients connected to this working copy through the MCP server, each with when it connected, and the client connected last; whether the cache folder of the copy records connections at all.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "title": "Recorded",
+            "type": "boolean",
+            "description": "Whether the copy has a usable cache folder whose connections could be read. false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
+          },
+          "connected": {
+            "title": "Connected agents",
+            "type": "array",
+            "description": "Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "client": {
+                  "title": "Client",
+                  "$ref": "#/$defs/agent-connection/$defs/client"
+                },
+                "since": {
+                  "title": "Connected since",
+                  "$ref": "#/$defs/common/$defs/dateTime",
+                  "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+                }
+              },
+              "required": [
+                "client",
+                "since"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "last": {
+            "title": "Last connected",
+            "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "client": {
+                    "title": "Client",
+                    "$ref": "#/$defs/agent-connection/$defs/client"
+                  },
+                  "at": {
+                    "title": "Last connected at",
+                    "$ref": "#/$defs/common/$defs/dateTime",
+                    "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
+                  }
+                },
+                "required": [
+                  "client",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recorded",
+          "connected",
+          "last"
+        ],
+        "additionalProperties": false
       }
     },
     {

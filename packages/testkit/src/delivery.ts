@@ -254,6 +254,7 @@ async function fileFindings(
     scoped("mcp", "package.json"),
     scoped("core", "dist", "code-fingerprint.json"),
     scoped("core", "dist", "model", "read-worker.js"),
+    scoped("core", "dist", "model", "agent-beat-worker.js"),
     path.join(layout.resources, "docs", "junit", "README.md"),
     path.join(layout.docs, "index.html"),
     path.join(layout.docs, "search-index.json"),

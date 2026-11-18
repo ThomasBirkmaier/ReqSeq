@@ -43,6 +43,47 @@ export const MAX_MESSAGE_BYTES = 32 * 1024 * 1024;
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
 
+/** The `_meta` keys of a request of protocol revision 2026-07-28, which has no `initialize`. */
+const PROTOCOL_VERSION_KEY = "io.modelcontextprotocol/protocolVersion";
+const CLIENT_INFO_KEY = "io.modelcontextprotocol/clientInfo";
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The `name` of an `Implementation` object, as the client sent it (unchecked). */
+const nameOf = (info: unknown): unknown => (isRecord(info) ? info["name"] : undefined);
+
+/**
+ * How `message` connects a client: an `initialize` request (`clientInfo`, connected once its
+ * successful answer is written), a request of revision 2026-07-28 with its envelope (`_meta`, which
+ * holds the client's name; connected when it arrives, as that revision has no `initialize`), or not.
+ */
+const connectingClient = (
+  message: JSONRPCMessage,
+): { readonly era: "initialize" | "envelope"; readonly client: unknown } | undefined => {
+  if (!("method" in message) || !("id" in message)) {
+    return undefined;
+  }
+  const params = isRecord(message.params) ? message.params : {};
+  if (message.method === "initialize") {
+    return { era: "initialize", client: nameOf(params["clientInfo"]) };
+  }
+  const meta = params._meta;
+  return isRecord(meta) && PROTOCOL_VERSION_KEY in meta
+    ? { era: "envelope", client: nameOf(meta[CLIENT_INFO_KEY]) }
+    : undefined;
+};
+
+export interface LineTransportOptions {
+  /**
+   * Called once when a client is connected, with the name it gave (unchecked; SR-228): after the
+   * successful answer to an `initialize` is written, or when the first request of revision 2026-07-28
+   * arrives (that revision has no `initialize`, and its first request may get no answer with an id,
+   * `subscriptions/listen`, or wait for a long load). The MCP server records the connection with it.
+   */
+  readonly onConnect?: (client: unknown) => void;
+}
+
 /** A transport over a line-based stream. Closes when the input ends, fails, or `close()` is called. */
 export class LineTransport implements Transport {
   onclose?: (() => void) | undefined;
@@ -53,6 +94,9 @@ export class LineTransport implements Transport {
   readonly #output: TextSink;
   readonly #buffer = new ReadBuffer({ maxBufferSize: MAX_MESSAGE_BYTES });
   readonly #resolveClosed: () => void;
+  #onConnect: ((client: unknown) => void) | undefined;
+  /** The `initialize` requests not answered yet, by id, with the client's name. */
+  readonly #initializing = new Map<unknown, unknown>();
   #started = false;
   #closed = false;
   /** The sends so far, each after the one before; never rejects. */
@@ -60,9 +104,10 @@ export class LineTransport implements Transport {
   /** Fulfilled once the transport is closed, for whatever reason. */
   readonly closed: Promise<void>;
 
-  constructor(input: InputStream, output: TextSink) {
+  constructor(input: InputStream, output: TextSink, options: LineTransportOptions = {}) {
     this.#input = input;
     this.#output = output;
+    this.#onConnect = options.onConnect;
     let resolveClosed!: () => void;
     this.closed = new Promise((resolve) => {
       resolveClosed = resolve;
@@ -92,6 +137,7 @@ export class LineTransport implements Transport {
       if (message === null) {
         return;
       }
+      this.#noteConnecting(message);
       this.onmessage?.(message);
     }
   }
@@ -109,6 +155,42 @@ export class LineTransport implements Transport {
       this.onerror?.(asError(error));
     }
     await this.close();
+  }
+
+  /** Calls `onConnect` once; later calls do nothing. */
+  #connect(client: unknown): void {
+    const onConnect = this.#onConnect;
+    this.#onConnect = undefined;
+    this.#initializing.clear();
+    onConnect?.(client);
+  }
+
+  /** Notes an `initialize` request; connects at once on a request of revision 2026-07-28. */
+  #noteConnecting(message: JSONRPCMessage): void {
+    if (this.#onConnect === undefined) {
+      return;
+    }
+    const connecting = connectingClient(message);
+    if (connecting?.era === "envelope") {
+      this.#connect(connecting.client);
+    } else if (connecting !== undefined) {
+      this.#initializing.set((message as { id: unknown }).id, connecting.client);
+    }
+  }
+
+  /**
+   * After `message` is written: connects when it is the successful answer to a noted `initialize`;
+   * an error answer only drops that request, so a later `initialize` still connects.
+   */
+  #connected(message: JSONRPCMessage): void {
+    if (!("id" in message) || "method" in message || !this.#initializing.has(message.id)) {
+      return;
+    }
+    const client = this.#initializing.get(message.id);
+    this.#initializing.delete(message.id);
+    if ("result" in message) {
+      this.#connect(client);
+    }
   }
 
   /** Queues `message`; resolves when its line is written (or dropped, once closed). */
@@ -136,6 +218,7 @@ export class LineTransport implements Transport {
           }
         }
       }
+      this.#connected(message);
     } catch (error) {
       if (written) {
         // Half a line is out: the next message would be glued onto it, so the stream is unusable.

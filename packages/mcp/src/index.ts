@@ -4,4 +4,4 @@ export type { McpServerOptions, ServeMcpOptions } from "./server.js";
 export { catalogTools, serverTools, toolName } from "./tools.js";
 export type { McpTool, McpToolAnnotations, McpToolList, ServerTool } from "./tools.js";
 export { LineTransport, MAX_MESSAGE_BYTES } from "./transport.js";
-export type { InputStream, TextSink } from "./transport.js";
+export type { InputStream, LineTransportOptions, TextSink } from "./transport.js";
