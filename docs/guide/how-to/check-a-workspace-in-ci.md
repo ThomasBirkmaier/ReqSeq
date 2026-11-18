@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-`workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations and evidence files. In a pipeline it decides by its exit code whether the step passes.
+`workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence files and gaps of verification. In a pipeline it decides by its exit code whether the step passes.
 
 ## App
 
@@ -79,7 +79,7 @@ jobs:
 
 ### Gate on verification
 
-`workspace check` does not fail on missing verification. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
+The info of `workspace check` about open requirements ([below](#gaps-of-verification)) counts only the verification status `open`. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
 
 ```sh
 reqseq element create system-requirement "Show the wind speed" --text "The station shows the wind speed."
@@ -96,6 +96,59 @@ The status counts the newest record of the current version, so a passed test of 
 
 ```yaml
 - run: test "$(reqseq element list --json --input '{"selection":{"where":{"all":[{"not":{"status":["obsolete"]}},{"verification":["open","failed","outdated"]}]}}}' | jq .total)" = 0
+```
+
+### Gaps of verification
+
+A full check reports two gaps of verification at the workspace file; a check of only the changed elements reports neither. While the workspace file names no evidence location and the workspace has a requirement, no test result counts, and a warning names the entry to add; with `--fail-on warning` it fails the step:
+
+```sh
+reqseq workspace check
+```
+
+```text title="Output"
+ok: true
+...
+warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: ..., path: evidence }]  reqseq-workspace.yaml
+```
+
+With an evidence location, one info gives the number of requirements whose verification status is `open` in the core, leaving out those in a status the metamodel marks invalid and those whose verification method is other than test; a requirement without a verification method counts. Without a property with the meaning `verification-method` in the metamodel, every requirement counts. The info names the call that lists exactly them; with `--fail-on info` the step fails while any is left:
+
+```yaml title="reqseq-workspace.yaml"
+reqseq-workspace: 1
+name: Weather station
+repositories:
+  - name: system
+    url: ""
+    main: true
+metamodel:
+  repository: system
+  path: metamodel
+evidence:
+  - { repository: system, path: evidence }
+```
+
+```text title="evidence/.gitkeep"
+```
+
+```sh
+reqseq workspace check
+```
+
+```text title="Output"
+ok: true
+...
+info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core; reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}' lists them  reqseq-workspace.yaml
+```
+
+```sh
+reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}'
+```
+
+```text title="Output"
+elements:
+  SR-9d35ce  draft  Show the wind speed
+total: 1
 ```
 
 ## API

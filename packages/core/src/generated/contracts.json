@@ -906,6 +906,8 @@
             "evidence.unknown-criterion",
             "evidence.invalid-criterion-name",
             "evidence.counts-in-no-view",
+            "evidence.no-location",
+            "evidence.open-requirements",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
@@ -5583,7 +5585,30 @@
             "last"
           ],
           "additionalProperties": false
-        }
+        },
+        "outputFields": [
+          {
+            "path": "recorded"
+          },
+          {
+            "path": "connected"
+          },
+          {
+            "path": "connected[].client"
+          },
+          {
+            "path": "connected[].since"
+          },
+          {
+            "path": "last"
+          },
+          {
+            "path": "last.client"
+          },
+          {
+            "path": "last.at"
+          }
+        ]
       },
       {
         "name": "workspace.recent",
@@ -29133,6 +29158,8 @@
     "evidence.counts-in-no-view": "Record in no view",
     "evidence.unknown-criterion": "Unknown acceptance criterion",
     "evidence.invalid-criterion-name": "Criterion named by number",
+    "evidence.no-location": "No evidence location",
+    "evidence.open-requirements": "Open verification status",
     "baseline.invalid": "Invalid baseline",
     "baseline.repository-commit-differs": "Repository at another commit",
     "filter.invalid": "Invalid saved filter",
