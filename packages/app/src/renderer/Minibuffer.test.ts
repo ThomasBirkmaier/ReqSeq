@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Choice, Prompt, PromptFill } from "./action-types.js";
 import { elementBuffer } from "./buffers.js";
 import { Minibuffer } from "./Minibuffer.js";
-import type { CatalogContext } from "./catalog-commands.js";
+import type { CatalogContext } from "./catalog-arguments.js";
 import type { CommandListing } from "../shared/protocol.js";
 import { catalogItems } from "./catalog-commands.js";
 import { confirmationPrompt } from "./confirmation.js";

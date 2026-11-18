@@ -50,14 +50,17 @@
       "required": ["key", "name"],
       "properties": {
         "key": {
+          "title": "Key",
           "$ref": "#/$defs/key"
         },
         "name": {
+          "title": "Name",
           "type": "string",
           "minLength": 1,
           "description": "Display name. English in the standard model (D-019)."
         },
         "description": {
+          "title": "Description",
           "description": "What it means, for people.",
           "type": "string"
         }
@@ -125,28 +128,35 @@
       "required": ["key", "name", "prefix", "abstract", "ancestors", "properties", "required", "statuses"],
       "properties": {
         "key": {
+          "title": "Key",
           "$ref": "#/$defs/key"
         },
         "name": {
+          "title": "Name",
           "description": "Display name of the type.",
           "type": "string",
           "minLength": 1
         },
         "description": {
+          "title": "Description",
           "description": "What the type means, for people.",
           "type": "string"
         },
         "prefix": {
+          "title": "Prefix",
           "$ref": "#/$defs/prefix"
         },
         "extends": {
+          "title": "Extends",
           "$ref": "#/$defs/key"
         },
         "abstract": {
+          "title": "Abstract",
           "type": "boolean",
           "description": "Not inherited: a type is abstract only when its own definition says so."
         },
         "ancestors": {
+          "title": "Ancestor types",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -154,6 +164,7 @@
           "description": "The parent, its parent and so on, up to the root type."
         },
         "properties": {
+          "title": "Properties",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -161,6 +172,7 @@
           "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "required": {
+          "title": "Required properties",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -168,6 +180,7 @@
           "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "statuses": {
+          "title": "Statuses",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -175,6 +188,7 @@
           "description": "The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (ThomasBirkmaier/ReqSeq-archive#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out."
         },
         "meaning": {
+          "title": "Meaning",
           "$ref": "#/$defs/typeMeaning",
           "description": "Own meaning, else the meaning of the closest ancestor that has one."
         }
@@ -194,15 +208,18 @@
         "name": true,
         "description": true,
         "kind": {
+          "title": "Value kind",
           "enum": ["text", "number", "date", "choice", "relation"],
           "description": "Value kind."
         },
         "many": {
+          "title": "List of values",
           "type": "boolean",
           "default": false,
           "description": "List of values."
         },
         "choices": {
+          "title": "Choices",
           "type": "array",
           "items": {
             "$ref": "#/$defs/named"
@@ -210,6 +227,7 @@
           "description": "Allowed choice keys, for kind `choice`."
         },
         "target-types": {
+          "title": "Target types",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -217,21 +235,25 @@
           "description": "Allowed target types, for kind `relation`: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2)."
         },
         "content": {
+          "title": "Part of the version",
           "type": "boolean",
           "default": false,
           "description": "Part of the content and therefore of the version (D-013). Title and status are never content."
         },
         "markdown": {
+          "title": "Markdown",
           "type": "boolean",
           "default": false,
           "description": "Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images."
         },
         "max-items": {
+          "title": "Maximum entries",
           "type": "integer",
           "minimum": 0,
           "description": "At most this many entries in the list (SR-171): an element with more is the hint `element.too-many-items` when the workspace is checked, never a refusal. Only with `many: true` and not for kind `relation`. Absent: any number."
         },
         "meaning": {
+          "title": "Meaning",
           "$ref": "#/$defs/propertyMeaning"
         }
       },
@@ -269,10 +291,12 @@
         "name": true,
         "description": true,
         "inverse-name": {
+          "title": "Inverse name",
           "type": "string",
           "description": "Name shown at the target, e.g. Derived by."
         },
         "source-types": {
+          "title": "Source types",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -280,6 +304,7 @@
           "description": "Allowed source types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2)."
         },
         "target-types": {
+          "title": "Target types",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -287,6 +312,7 @@
           "description": "Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-012 AK2)."
         },
         "limits": {
+          "title": "Limits",
           "type": "array",
           "items": {
             "$ref": "#/$defs/relationLimit"
@@ -294,6 +320,7 @@
           "description": "How many relations of this kind an element may or must have, per target type (SR-152): a count outside a limit is a hint (`relation.too-many`, `relation.too-few`) when the workspace is checked, never a refusal. Absent: any number, also none. One limit per pair of source type and target type."
         },
         "meaning": {
+          "title": "Meaning",
           "$ref": "#/$defs/relationMeaning"
         }
       },
@@ -305,19 +332,23 @@
       "required": ["target-type"],
       "properties": {
         "source-type": {
+          "title": "Source type",
           "$ref": "#/$defs/key",
           "description": "The source elements the limit applies to. Absent: the kind's `source-types`, or every type when the kind has none."
         },
         "target-type": {
+          "title": "Target type",
           "$ref": "#/$defs/key",
           "description": "The type of the targets that are counted."
         },
         "min": {
+          "title": "Minimum",
           "type": "integer",
           "minimum": 0,
           "description": "At least this many relations; fewer is the hint `relation.too-few`."
         },
         "max": {
+          "title": "Maximum",
           "type": "integer",
           "minimum": 0,
           "description": "At most this many relations; more is the hint `relation.too-many`."
@@ -349,11 +380,13 @@
         "name": true,
         "description": true,
         "invalid": {
+          "title": "Invalid",
           "type": "boolean",
           "default": false,
           "description": "Elements with this status do not count for coverage and indirect verification, but stay visible in chains (D-044)."
         },
         "initial": {
+          "title": "Initial",
           "type": "boolean",
           "default": false,
           "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, ThomasBirkmaier/ReqSeq-archive#350); a type without status or with only invalid statuses gives them none (ThomasBirkmaier/ReqSeq-archive#306, ThomasBirkmaier/ReqSeq-archive#344)."

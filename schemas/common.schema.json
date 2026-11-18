@@ -19,8 +19,8 @@
       "items": {
         "type": "object",
         "properties": {
-          "start": { "type": "integer", "minimum": 0 },
-          "end": { "type": "integer", "minimum": 1 }
+          "start": { "title": "Start", "type": "integer", "minimum": 0 },
+          "end": { "title": "End", "type": "integer", "minimum": 1 }
         },
         "additionalProperties": false,
         "required": ["start", "end"]
@@ -29,7 +29,8 @@
     "uuid": {
       "description": "Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).",
       "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "x-technical": true
     },
     "shortId": {
       "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-084 AK1, AK2). The file name uses 12 (D-056).",
@@ -45,7 +46,8 @@
     "uuidRef": {
       "description": "A UUID version 4 as a caller gives it, in any case; ReqSeq stores it in lower case (spec question ThomasBirkmaier/ReqSeq-archive#316).",
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "x-technical": true
     },
     "elementId": {
       "description": "A reference to an element as ReqSeq writes it in outputs: UUID or short ID in their canonical form.",
@@ -64,20 +66,25 @@
       "required": ["id", "repository", "shortId", "title"],
       "properties": {
         "id": {
+          "title": "Element",
           "$ref": "#/$defs/uuid"
         },
         "repository": {
+          "title": "Repository",
           "type": "string",
           "description": "Workspace name of the repository of its file."
         },
         "shortId": {
+          "title": "Short ID",
           "$ref": "#/$defs/shortId"
         },
         "identifier": {
+          "title": "Identifier",
           "description": "Its identifier, when it has one.",
           "type": "string"
         },
         "title": {
+          "title": "Title",
           "description": "Its title; empty without one.",
           "type": "string"
         }
@@ -87,12 +94,14 @@
     "version": {
       "description": "The version: its normal form (`n1`, `n2`, …), a colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.",
       "type": "string",
-      "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$"
+      "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$",
+      "x-technical": true
     },
     "fileSha256": {
       "description": "SHA-256 of the bytes of an element file, lower-case hex: a write precondition, never stored and not a version (ADR-0005).",
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "pattern": "^[0-9a-f]{64}$",
+      "x-technical": true
     },
     "key": {
       "description": "Fixed metamodel key of a type, property, relation kind or status value. Readable English, lower case, dashes (D-043, SR-010 AK2).",
@@ -190,17 +199,20 @@
     "commit": {
       "type": "string",
       "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
-      "description": "Full Git object ID (SHA-1 or SHA-256)."
+      "description": "Full Git object ID (SHA-1 or SHA-256).",
+      "x-technical": true
     },
     "relativePath": {
       "description": "Path relative to the repository or file it appears in, forward slashes, no `..` segments.",
       "type": "string",
-      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$",
+      "x-technical": true
     },
     "localPath": {
       "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root, and only inside the repositories of the workspace, also after symbolic links are followed; `~` is not expanded (SR-142, ADR-0009). App: like API and MCP relative to the workspace root, any path, and `~` at the start stands for the home folder (SR-143).",
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "x-technical": true
     },
     "problem": {
       "description": "A problem, also a hint (a problem of severity warning about one element). Commands return problems as data so every access shows the same result (SR-080).",
@@ -208,119 +220,148 @@
       "required": ["code", "severity", "message"],
       "properties": {
         "code": {
+          "title": "Problem kind",
           "$ref": "#/$defs/problemCode"
         },
         "severity": {
+          "title": "Severity",
           "description": "`error`, `warning` or `info`.",
           "enum": ["error", "warning", "info"]
         },
         "message": {
+          "title": "Message",
           "description": "What is wrong, for people.",
           "type": "string"
         },
         "file": {
+          "title": "File",
+          "$ref": "#/$defs/outputPath",
           "description": "The file the problem is about; relative to `repository` when that is given.",
-          "type": "string"
+          "x-technical": "with-element"
         },
         "repository": {
+          "title": "Repository",
           "type": "string",
           "description": "Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository."
         },
         "line": {
+          "title": "Line",
           "description": "The line in `file`, counted from 1.",
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "x-technical": "with-element"
         },
         "elementId": {
+          "title": "Element",
           "$ref": "#/$defs/uuid"
         },
         "elementRepository": {
+          "title": "Repository of the element",
           "type": "string",
           "description": "Workspace name of the repository of the element the problem is about, when `repository` and `file` name another file (the evidence record of `evidence.outdated`, SR-025 AK4). With `elementFile` it names one copy of a UUID several files share (SR-088)."
         },
         "elementFile": {
-          "type": "string",
+          "title": "File of the element",
+          "$ref": "#/$defs/outputPath",
           "description": "The file of the element the problem is about, relative to `elementRepository`; given with it."
         },
         "elementShortId": {
+          "title": "Short ID of the element",
           "$ref": "#/$defs/shortId",
           "description": "Short ID of the element `elementId` names, for display (SR-084); given on every problem that names an element of the workspace, by every command that has read the elements."
         },
         "elementIdentifier": {
+          "title": "Identifier of the element",
           "type": "string",
           "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one."
         },
         "elementTitle": {
+          "title": "Title of the element",
           "type": "string",
           "description": "Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
         },
         "targetId": {
+          "title": "Target",
           "$ref": "#/$defs/uuid"
         },
         "targetRepository": {
+          "title": "Repository of the target",
           "type": "string",
           "description": "Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there."
         },
         "targetShortId": {
+          "title": "Short ID of the target",
           "$ref": "#/$defs/shortId",
           "description": "Short ID of the element `targetId` names, for display (#172); given with `targetRepository` when that UUID names one element there, by every command that has read the elements. A missing, ambiguous or unresolved target gets none."
         },
         "targetIdentifier": {
+          "title": "Identifier of the target",
           "type": "string",
           "description": "Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one."
         },
         "targetTitle": {
+          "title": "Title of the target",
           "type": "string",
           "description": "Title of the element `targetId` names, for display next to `targetShortId` (SR-026 AK6); given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
         },
         "storedVersion": {
+          "title": "Stored version",
           "$ref": "#/$defs/version"
         },
         "currentVersion": {
+          "title": "Current version",
           "$ref": "#/$defs/version"
         },
         "storedDate": {
+          "title": "Date of the stored version",
           "description": "Date of the stored version; null when unknown.",
           "type": ["string", "null"],
           "format": "date-time"
         },
         "currentDate": {
+          "title": "Date of the current version",
           "description": "Date of the current version; null when unknown.",
           "type": ["string", "null"],
           "format": "date-time"
         },
         "storedCommit": {
-          "type": ["string", "null"],
-          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
-          "description": "Object name of the commit that started the stored version (ADR-0005 \"Version date\", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013)."
+          "title": "Commit of the stored version",
+          "description": "Object name of the commit that started the stored version (ADR-0005 \"Version date\", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013).",
+          "anyOf": [{ "$ref": "#/$defs/commit" }, { "type": "null" }]
         },
         "currentCommit": {
-          "type": ["string", "null"],
-          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
-          "description": "Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`)."
+          "title": "Commit of the current version",
+          "description": "Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`).",
+          "anyOf": [{ "$ref": "#/$defs/commit" }, { "type": "null" }]
         },
         "hintId": {
+          "title": "Hint ID",
           "type": "string",
           "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
         },
         "key": {
+          "title": "Key",
           "$ref": "#/$defs/key",
           "description": "The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a reference of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A reference in the text has none."
         },
         "place": {
+          "title": "Place",
           "type": "object",
           "description": "Where a confirmable hint (`relation.outdated`, `variant.core-changed`) is, as data next to its `hintId` (#222): with `key`, `targetId` and `storedVersion` it names what the ID names.",
           "required": ["in"],
           "properties": {
             "in": {
+              "title": "In",
               "enum": ["relation", "text"],
               "description": "`relation`: an item of the relation kind or relation-valued property `key`. `text`: an inline reference in the text, or with `key` in a value of that property marked `markdown` (SR-127)."
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "The repository the item or reference names (D-058), as it writes it; absent when it names none."
             },
             "occurrence": {
+              "title": "Occurrence",
               "type": "integer",
               "minimum": 1,
               "description": "`text` only: the reference is the n-th (from 1) of that text with the same target, repository and stored version (`&n=` of the hint ID)."
@@ -329,26 +370,31 @@
           "additionalProperties": false
         },
         "targetType": {
+          "title": "Target type",
           "$ref": "#/$defs/key",
           "description": "The target type of the limit a count hint is about (SR-152)."
         },
         "count": {
+          "title": "Count",
           "type": "integer",
           "minimum": 0,
           "description": "How many relations the element has that the limit counts (SR-152), how many entries its list property has (SR-171), or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`, SR-204)."
         },
         "criteria": {
+          "title": "Acceptance criteria",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "data-export.schema.json#/$defs/criterionName" },
           "description": "The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204 AK10), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text)."
         },
         "limit": {
+          "title": "Limit",
           "type": "integer",
           "minimum": 0,
           "description": "The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171)."
         },
         "view": {
+          "title": "View",
           "$ref": "#/$defs/viewId",
           "description": "The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026 AK6): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173)."
         }
@@ -437,7 +483,8 @@
         "reqif.edited-elsewhere",
         "reqif.mapping-differs",
         "reqif.source-model-unsaved"
-      ]
+      ],
+      "x-technical": true
     },
     "error": {
       "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).",
@@ -489,33 +536,41 @@
     },
     "incomplete": {
       "description": "True when a result is incomplete because targets are in repositories that are not available locally (SR-006 AK2, SR-036 AK3).",
-      "type": "boolean"
+      "type": "boolean",
+      "x-normal": false,
+      "title": "Incomplete"
     },
     "selection": {
       "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.",
       "type": "object",
       "properties": {
         "ids": {
+          "title": "Elements",
           "type": "array",
           "items": {
             "$ref": "#/$defs/elementRef"
           }
         },
         "filter": {
+          "title": "Saved filter",
           "type": "string",
           "description": "Name of a saved filter (SR-070)."
         },
         "where": {
+          "title": "Conditions",
           "$ref": "filter.schema.json#/$defs/condition"
         },
         "package": {
+          "title": "Package",
           "$ref": "#/$defs/elementRef"
         },
         "baseline": {
+          "title": "Baseline",
           "type": "string",
           "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml)."
         },
         "view": {
+          "title": "View",
           "$ref": "#/$defs/view"
         }
       },
@@ -535,29 +590,39 @@
       "type": "object",
       "properties": {
         "value": {
+          "title": "Value",
           "type": ["string", "number", "boolean"],
           "description": "Left out for the last group, the elements without a value. The type key, the status, the short ID of the package or target, the choice key, else the value as written. With a filter on it (`type` with subtypes false, `status`, `package`, a property condition with op eq) it selects the group's elements, except those that write a choice by its display name."
         },
         "name": {
+          "title": "Name",
           "type": "string",
           "description": "Display name of a type, status or choice of the metamodel."
         },
-        "title": { "type": "string", "description": "Title of a package or target, when it has one." },
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "description": "Title of a package or target, when it has one."
+        },
         "identifier": {
+          "title": "Identifier",
           "type": "string",
           "description": "Identifier of a package or target, when it has one."
         },
         "unavailable": {
+          "title": "Unavailable targets",
           "type": "integer",
           "minimum": 1,
           "description": "Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace)."
         },
         "count": {
+          "title": "Rows",
           "type": "integer",
           "minimum": 1,
           "description": "Rows in the group: its elements or hits."
         },
         "offset": {
+          "title": "Offset",
           "type": "integer",
           "minimum": 0,
           "description": "Row of its first element in the grouped list: the group holds the rows offset to offset + count - 1."
@@ -600,8 +665,12 @@
       "description": "An object of a ReqIF file by its IDENTIFIER in the source, with the UUID of its element when there is one (ADR-0013).",
       "type": "object",
       "properties": {
-        "identifier": { "description": "The IDENTIFIER of the object in the ReqIF file.", "type": "string" },
-        "id": { "$ref": "#/$defs/uuid" }
+        "identifier": {
+          "title": "Identifier",
+          "description": "The IDENTIFIER of the object in the ReqIF file.",
+          "type": "string"
+        },
+        "id": { "title": "Element", "$ref": "#/$defs/uuid" }
       },
       "additionalProperties": false,
       "required": ["identifier"]
@@ -611,15 +680,18 @@
       "type": "object",
       "properties": {
         "identifier": {
+          "title": "Identifier",
           "type": "string",
           "description": "IDENTIFIER of the SPEC-OBJECT, SPEC-RELATION or SPECIFICATION."
         },
         "kind": {
+          "title": "Object kind",
           "description": "Which kind of object is affected.",
           "enum": ["spec-object", "spec-relation", "specification"]
         },
-        "id": { "$ref": "#/$defs/uuid" },
+        "id": { "title": "Element", "$ref": "#/$defs/uuid" },
         "code": {
+          "title": "Code",
           "description": "Stable code of the loss.",
           "enum": [
             "omitted-type",
@@ -641,7 +713,7 @@
             "image-outside"
           ]
         },
-        "reason": { "description": "What is lost, for people.", "type": "string" }
+        "reason": { "title": "Reason", "description": "What is lost, for people.", "type": "string" }
       },
       "additionalProperties": false,
       "required": ["identifier", "kind", "code", "reason"]
@@ -651,15 +723,37 @@
       "type": "object",
       "properties": {
         "kind": {
+          "title": "What is not mapped",
           "description": "What is not mapped: a type, an attribute, a relation type or an enumeration value.",
           "enum": ["type", "attribute", "relation", "value"]
         },
-        "source": { "description": "Its LONG-NAME or IDENTIFIER in the source.", "type": "string" },
-        "sourceType": { "description": "The SPEC-OBJECT-TYPE of an attribute or value.", "type": "string" },
-        "attribute": { "description": "The attribute of a value.", "type": "string" }
+        "source": {
+          "title": "Name in the source",
+          "description": "Its LONG-NAME or IDENTIFIER in the source.",
+          "type": "string"
+        },
+        "sourceType": {
+          "title": "Source type",
+          "description": "The SPEC-OBJECT-TYPE of an attribute or value.",
+          "type": "string"
+        },
+        "attribute": { "title": "Attribute", "description": "The attribute of a value.", "type": "string" }
       },
       "additionalProperties": false,
       "required": ["kind", "source"]
+    },
+    "duration": {
+      "title": "Duration",
+      "x-technical": true,
+      "description": "A duration in milliseconds.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "outputPath": {
+      "title": "Path",
+      "x-technical": true,
+      "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
+      "type": "string"
     }
   }
 }

@@ -4,240 +4,319 @@
 
 problems:
   file.invalid-yaml:
+    title: YAML that cannot be parsed
     cause: The YAML of a file (an element's frontmatter, the workspace file, the metamodel) cannot be parsed, for example a wrong indentation, an unclosed frontmatter or an unresolved alias.
     remedy: Fix the YAML at the line and column the message gives. ReqSeq does not show or change the file until it parses.
   file.conflict-markers:
+    title: Unresolved merge conflict
     cause: The file contains an unresolved Git merge conflict (lines starting with <<<<<<<, ======= or >>>>>>>).
     remedy: Resolve the conflict in Git and commit the result. ReqSeq never writes a file with conflict markers.
   file.unreadable:
+    title: File that cannot be read
     cause: A file or folder cannot be read, for example because of missing permissions.
     remedy: Check the permissions of the file or folder the message names.
   file.faulty:
+    title: Element without a version
     cause: An element has no version, because its file cannot be read the way its version is computed (for example a value without a normal form), or a JUnit test case is not enriched because its element has no current version.
     remedy: Fix the element's file as the message says; then its version is computed and the test case can be enriched.
   file.yaml-warning:
+    title: YAML with a parser warning
     cause: The YAML parses, but the parser warns about it, for example about a tag or directive it does not know.
     remedy: Change the YAML at the line the message gives, so that it is plain YAML 1.2.
   file.skipped:
+    title: File not read
     cause: A file or folder is not read, because it is a symbolic link, not a regular file, has its extension in upper case (`.MD`), or is excluded by the workspace file.
     remedy: Replace a symbolic link by the real file, rename the extension to lower case (`.md`), or change the ignore globs of the workspace file if the file should be read.
   file.stale-temp:
+    title: Leftover temporary file
     cause: A temporary file of ReqSeq (`.<name>.<8 hex>.reqseq-tmp`) is older than a minute, left by a write that was interrupted, for example by a crash.
     remedy: Remove the file by hand after checking that its element file is as expected; ReqSeq never deletes it.
   file.read-only:
+    title: Folder not writable
     cause: A folder that a change would write into is not writable, so the change cannot be confirmed (the preview of `element.bulkUpdate` names it).
     remedy: Check the permissions of the folder the message names, then preview the change again.
   element.invalid:
+    title: Invalid element file
     cause: An element file lacks what every element needs, for example an `id` that is a UUID version 4 in lower case or a `type` key.
     remedy: Correct the field the message names in the element's frontmatter.
   element.duplicate-id:
+    title: Duplicate element ID
     cause: Several element files have the same `id`, usually because a file was copied. A relation to that ID is ambiguous.
     remedy: Give the copy a new UUID. ReqSeq decides nothing and changes neither file.
   element.duplicate-identifier:
+    title: Duplicate identifier
     cause: Two elements of the same type have the same identifier, so a reference by that identifier is ambiguous.
     remedy: Give one of them another identifier.
   element.file-name-clash:
+    title: Clashing file names
     cause: Two element files in one folder have the same short file name, derived from the end of their UUIDs. This ReqSeq version does not raise it yet.
     remedy: Rename one of the files by hand. ReqSeq never renames files.
   element.unknown-type:
+    title: Unknown type
     cause: The element's `type` is not in the metamodel. ReqSeq shows the element but only reads it.
     remedy: Use a type of the metamodel, or add the type to the metamodel.
   element.unknown-property:
+    title: Unknown property
     cause: The element has a property that its type in the metamodel does not define. `key` names it when it has the form of a metamodel key.
     remedy: Remove or rename the property, or add it to the type in the metamodel.
   element.missing-required:
+    title: Required property without value
     cause: A property that the element's type requires has no value.
     remedy: Give the property a value. ReqSeq changes no file by itself.
   element.wrong-value-kind:
+    title: Value of the wrong kind
     cause: A property value does not have the kind the metamodel defines for it, for example text where a list or a relation target belongs.
     remedy: Correct the value so that it has the kind of the property.
   element.status-not-allowed:
+    title: Status not allowed for the type
     cause: The element's status is not one of the statuses of its type.
     remedy: Set one of the statuses the message lists.
   element.missing-status:
+    title: Missing status
     cause: The element's type has statuses, but the element has none.
     remedy: Set one of the type's statuses.
   element.statement-without-text:
+    title: Statement without text
     cause: A requirement has no text, but a value in the property with the meaning `statement`, which holds the supplier's statement on an imported requirement and does not count to the version. So a change of the requirement written there gives no new version and outdates no evidence or relation.
     remedy: Put the requirement into the element text with element.update, and keep the statement property for the supplier's statement.
   element.too-many-items:
+    title: Too many list entries
     cause: An element has more entries in a list property than the `max-items` of the property in the metamodel allows. The entries are kept; the hint only shows it.
     remedy: Remove the entries that are too many, or raise or remove `max-items` in the metamodel.
   element.criterion-key-missing:
+    title: Acceptance criterion without key
     cause: A requirement has acceptance criteria without criterion key, which a test or verification record would name it by; the warning gives their count.
     remedy: Change the acceptance criteria, with element.update or in the app; then every acceptance criterion of the requirement gets a criterion key. Saving them unchanged changes nothing.
   element.criterion-key-duplicate:
+    title: Duplicate criterion key
     cause: Two acceptance criteria of one requirement have the same criterion key, usually because a line was copied by hand.
     remedy: Give the later one another criterion key in the file; or change the acceptance criteria with element.update, which leaves the key with the earlier one and gives the later one a new key.
   element.criterion-key-invalid:
+    title: Invalid criterion key
     cause: An acceptance criterion has a criterion key written by hand in another form than a lower-case letter a to z followed by 3 to 15 lower-case letters a to z or digits.
     remedy: Correct the key in the file; or change the acceptance criteria with element.update, which gives this one a new criterion key.
   element.text-emptied:
+    title: Text removed
     cause: An element.update gave an empty text to an element whose text was not empty, so the whole text was removed, or an element.update or element.bulkUpdate left a Markdown property or a list property (such as the acceptance criteria) without a value that had one; `key` names that property. The save is done (a preview of element.bulkUpdate writes nothing and says the change would empty it); the warning only shows it, since an empty value is mostly a broken shell substitution. A required property emptied this way also gets `element.missing-required`. Multi-choice and relation lists (such as `packages`) count as lists.
     remedy: If the text or the property was emptied by mistake, restore it from Git or give it again with element.update.
   relation.missing-target:
+    title: Missing target
     cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
     remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.
   relation.cross-repository-title:
+    title: Stored title across repositories
     cause: A relation into another repository carries a `title` in the file of its source, for example one written into the file by hand. Across repositories a relation stores only the target's ID, version and the name of its repository, so the title of the target would be kept in the source's repository. ReqSeq never writes or updates such a title.
     remedy: Remove the `title` from the relation entry the message names; keep `id`, `version` and `repository`.
   relation.unresolved-link:
+    title: Unresolved reference
     cause: A `reqseq:` reference in the text or in a Markdown property names its target by a short ID or an identifier instead of a UUID, for example one written into the file by hand. Such a reference counts for nothing, neither for outdated relations nor for the trace.
     remedy: Give the text or the property again with element.update, which resolves the short ID or identifier to the target's UUID and version, or write `reqseq:<uuid>` yourself.
   relation.not-a-link:
+    title: Element named outside a link
     cause: The text of an element names an element with the scheme `reqseq:` outside a Markdown link and outside code, for example `reqseq:N-6010df` instead of `[Title](reqseq:N-6010df)`. Only a Markdown link is a reference, so this one counts for nothing, neither for outdated relations nor for the trace.
     remedy: Write it as a Markdown link, `[Title](reqseq:N-6010df)`, and give the text again with element.update, which resolves the target to its UUID and version. If it is no reference, put it in code (`` `reqseq:…` ``).
   relation.reference-style:
+    title: Reference-style link
     cause: "A link reference definition in the text or in a Markdown property has a `reqseq:` destination, for example `[ref]: reqseq:SR-001` for the reference-style link `[Title][ref]`. Only an inline Markdown link is a reference, so such a Markdown link counts for nothing, neither for outdated relations nor for the trace."
     remedy: Write the Markdown link inline, `[Title](reqseq:SR-001)`, and give the text again with element.update, which resolves the target to its UUID and version. Then remove the definition.
   relation.inaccessible-target:
+    title: Target not on this machine
     cause: The target of a relation is in a repository of the workspace that is not on this machine. This ReqSeq version does not raise it yet; it shows such targets as not accessible.
     remedy: Clone the repository where the workspace file expects it.
   relation.not-allowed:
+    title: Relation not allowed
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
     remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
   relation.too-many:
+    title: Too many relations
     cause: An element has more relations of a kind to elements of a type than the `max` of a limit in the metamodel allows. The relations are kept; the hint only shows it.
     remedy: Remove the relations that are too many, or raise or remove the limit in the metamodel.
   relation.too-few:
+    title: Too few relations
     cause: An element has fewer relations of a kind to elements of a type than the `min` of a limit in the metamodel asks for. Only relations whose target is found count; while a target lies in a repository that is not on this machine, none is reported.
     remedy: Add the missing relations, or lower or remove the limit in the metamodel.
   relation.outdated:
+    title: Outdated relation
     cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. `key` and `place` say where the item or reference is, as data next to `hintId`. A `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement or from a requirement without validity it stays `relation.outdated`.
     remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.
   relation.target-superseded:
+    title: Superseded target
     cause: A relation points to an element whose status marks it as superseded.
     remedy: Point the relation to the successor the message names, or confirm that the old target is still meant.
   relation.not-found:
+    title: Relation not found
     cause: The relation to remove does not exist, so nothing was removed.
     remedy: None needed; check the source and target if you expected the relation.
   relation.version-added:
+    title: Stored version added
     cause: The relation existed without a valid stored version; the target's current version was stored now.
     remedy: None needed.
   hint.not-confirmable:
+    title: Hint that cannot be confirmed
     cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place. The hints on a core requirement changed or new since a variant's baseline (`variant.core-changed-since-baseline`, `variant.core-new-since-baseline`) are refused when `kind` names them or `ref` names a variant that has them, since a new baseline of the variant settles them.
     remedy: Other hints go away when what they report is fixed. For a file the message names, correct it by hand.
   hint.not-found:
+    title: Hint not found
     cause: No open hint has the given ID. It was confirmed already, or the relation, its target or the file changed since.
     remedy: List the open hints with `hint.list` and use one of their IDs.
   trace.cycle:
+    title: Cycle of derivations
     cause: Relations of a deriving kind form a cycle, so the chain of the elements in it never ends.
     remedy: Remove or change one of the relations of the cycle the message lists.
   trace.no-parent:
+    title: Requirement without parent
     cause: An element of a type with the meaning `requirement` names no parent through a relation kind with the meaning `derivation`, so its chain ends without a parent. In the standard model `based-on` has no meaning, so a decision is no parent.
     remedy: Give the element a parent with a relation of a deriving kind such as `derives-from`. To let a relation kind of your own count as derivation, give it the meaning `derivation` in your metamodel.
   variant.core-changed:
+    title: Replaced core requirement changed
     cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version. It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. A superseded core requirement keeps the usual hints of a relation instead, `relation.target-superseded` and, when its content changed too, `relation.outdated`; a replacing requirement whose own status is marked invalid gets no `relation.target-superseded`.
     remedy: Check the replacing requirement against the change, then confirm the hint (`hint.confirm`). It stores the core requirement's current version, and its title when both are in one repository; a variant in its own repository gets the version only.
   variant.superseded-in-validity:
+    title: Superseded variant in validity
     cause: The validity of an element lists a variant element that is superseded.
     remedy: List the successor instead, or remove the entry.
   variant.nested:
+    title: Nested variant
     cause: A variant has validity entries, but a variant builds only on the core.
     remedy: Remove the validity entries of the variant; a relation between variants is allowed.
   variant.target-not-core:
+    title: Target is no core requirement
     cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view.
     remedy: Point the entry at a core requirement, or remove it; to retire an element for everyone, supersede it.
   variant.core-changed-since-baseline:
+    title: Core changed since the baseline
     cause: A core requirement that the variant adopts has changed since the variant's newest baseline. The hint is at the variant and gives the version in the baseline and the current one.
     remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed.
   variant.core-new-since-baseline:
+    title: Core requirement new since the baseline
     cause: A core requirement has come into the view of the variant since its newest baseline, because it is new, its exclusion was undone or its replacement removed. The hint gives its current version.
     remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed.
   evidence.unknown-element:
+    title: Evidence for an unknown element
     cause: An evidence record or a test case names an element that the workspace does not have.
     remedy: Correct the element named in the record or test, or check that its repository is on this machine.
   evidence.invalid-record:
+    title: Invalid evidence record
     cause: An evidence record or a JUnit file does not match its format.
     remedy: Fix the record at the place the message gives.
   evidence.outdated:
+    title: Outdated verification
     cause: The verification or validation status of the element is outdated, because its records are only for older versions of it, or because at least one acceptance criterion has records of older versions only, while none failed and the rest are verified.
     remedy: Verify the current version again, for example by running the test, so that a new record is written.
   evidence.not-enriched:
+    title: Test cases not enriched
     cause: Test cases of a JUnit file name a requirement but carry no element version, so they give no evidence record.
     remedy: Enrich the file with `evidence.enrichJunit` right after the test run.
   evidence.folder-missing:
+    title: Missing evidence folder
     cause: The evidence folder the workspace file names does not exist yet.
     remedy: None needed; ReqSeq creates it with the first record.
   evidence.ambiguous-element:
+    title: Evidence for an ambiguous element
     cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
     remedy: Give the copied element file a new UUID (see `element.duplicate-id`).
   evidence.kind-mismatch:
+    title: Verification of no requirement
     cause: A verification record names an element whose type is no requirement, for example a test case of a JUnit file that names a need. A verification names a requirement; the record counts for no status.
     remedy: Name a requirement in the test case, or record the validation of the need with `evidence record` and kind validation.
   evidence.counts-in-no-view:
+    title: Record in no view
     cause: A verification record counts in no view. Its view, the variant it names or the core without one, does not hold its requirement (the requirement does not apply there, or the variant excludes or replaces it); for a record without variant, no variant holds it through a repository marked `variant-independent` either. No other record of the same test case counts for the requirement.
     remedy: Record the test for a view that holds the requirement, for example with `--variant` of `evidence enrich-junit` or `evidence record`.
   evidence.unknown-criterion:
+    title: Unknown acceptance criterion
     cause: An evidence record names an acceptance criterion by a number that the version of the requirement it names does not have. That number counts for no criterion, and for a requirement without acceptance criteria the record counts for the whole requirement; the record stays readable.
     remedy: Correct the number in the record or the test name, or name the version the criterion belongs to.
   evidence.invalid-criterion-name:
+    title: Criterion named by number
     cause: The name of a JUnit test case names an acceptance criterion by its number (a number after `/AK` in brackets, or a name pattern whose `{ak}` reads a number), by a criterion key that no acceptance criterion or more than one carries in the current version of the requirement, or with an `AK` that is neither. `evidence.enrichJunit` leaves the test case unchanged, since a number points to another criterion once one is inserted.
     remedy: Name the criterion by its criterion key from the element file, `[SR-036/AK-k7f3]` or `sr_348143_ak_k7f3` with a name pattern; the message gives the key where the number names a criterion that has one. Then run the test and enrich its file again.
   baseline.invalid:
+    title: Invalid baseline
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
   baseline.repository-commit-differs:
+    title: Repository at another commit
     cause: A repository the baseline names is checked out at another commit than the one the baseline stores for it. `baseline.get` reads the files on disk, not the baseline's commits, so the warning names what was read. Without `withEvidence` that is the usual case, since the `state` values compare the baseline with today's files. With `withEvidence` the status is read from the evidence records on disk, for example a record committed after the baseline is missing when the repository is at an older commit.
     remedy: For the verification and validation status as they stood at the baseline, check out the commit the baseline names in that repository (the full commit is under `repositories` of the output) and run the command again. Otherwise none is needed.
   filter.invalid:
+    title: Invalid saved filter
     cause: A saved filter cannot be read or does not match its format.
     remedy: Fix or save the filter again.
   filter.duplicate-name:
+    title: Duplicate saved filter name
     cause: Two saved filters have the same name.
     remedy: Rename one of them.
   perspective.invalid:
+    title: Invalid perspective
     cause: A perspective file cannot be read or does not match its format. The file is not listed and ReqSeq does not overwrite it.
     remedy: Fix the file at the line the message gives, or save the perspective again under another name.
   perspective.duplicate-name:
+    title: Duplicate perspective name
     cause: Two perspective files have the same name, ignoring case and Unicode normal form. The first file in file order is the perspective.
     remedy: Rename one of them.
   perspective.group-unavailable:
+    title: Grouping no longer available
     cause: The perspective groups by a text, number or date property whose values can no longer be chosen, because the elements now have too many different values or none that two share. The list is shown without groups.
     remedy: Group by another key in the call, or save the perspective again with another grouping.
   metamodel.invalid:
+    title: Invalid metamodel
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
     remedy: Fix the metamodel files at the places the messages give and open the workspace again.
   metamodel.optional-status:
+    title: Optional status
     cause: Every status of the type is marked invalid, so the status of its elements is optional. An element without status is current. This is a note, not an error.
     remedy: Nothing, if this is intended. Otherwise mark one status of the type as not invalid.
   metamodel.meaning-unassigned:
+    title: Meaning not assigned
     cause: No relation kind of the metamodel has the meaning a command needs (for example derivation for the chain), so that part of the result is empty.
     remedy: Assign the meaning to a relation kind in the metamodel.
   metamodel.meaning-type-mismatch:
+    title: Meaning does not fit the type
     cause: A relation kind with the meaning `exclusion` or `replacement` allows a type that its meaning does not fit, for example `exclusion` from a type that is no variant, or to a type without the property of the meaning `validity`, such as a need or a package. This is a warning; the workspace stays writable.
     remedy: Restrict `source-types` and `target-types` of the relation kind to types that fit the rule the message names, give the types the property it expects, or remove the meaning from the kind.
   workspace.repository-missing:
+    title: Repository not on this machine
     cause: A repository of the workspace file is not on this machine. Its elements are missing from the results.
     remedy: Clone the repository where the workspace file expects it, if you need its elements.
   workspace.metamodel-mismatch:
+    title: Different metamodel in a repository
     cause: A repository of the workspace is also a workspace of its own, and its metamodel differs from this workspace's in the properties that count to the version (`content`). All repositories of a workspace are read with the workspace's metamodel, so its elements get other versions here than in their own workspace, and relations and evidence read as outdated in one of the two. As info, its workspace file or metamodel cannot be read, so they are not compared.
     remedy: Give both workspaces the same metamodel, for example from a metamodel repository both include, or make the properties the message names count the same in both.
   workspace.invalid:
+    title: Invalid workspace file
     cause: The workspace file does not match its format, for example a repository listed twice.
     remedy: Fix the workspace file at the place the message gives.
   workspace.not-watched:
+    title: Folder not watched
     cause: ReqSeq cannot watch a folder for changes, for example because the system's limit of watched folders is reached.
     remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
   git.unavailable:
+    title: Git cannot read the repository
     cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.
     remedy: Install Git and put it on the PATH, check the repository, or add it to `safe.directory` in the Git configuration. ReqSeq only reads Git.
   git.revision-missing:
+    title: Missing commit
     cause: The commit to compare with is not in a repository, so its changes were not looked at.
     remedy: Fetch the commit, or deepen a shallow clone.
   reqif.replaces-local:
+    title: Import replaces local content
     cause: A repeated ReqIF import writes the delivery's title, a property that does not count to the version, or the targets of a relation of a mapped kind into an element whose file holds other values there; the import version cannot show a local edit of them. The message names the keys.
     remedy: If the local value should stay, change it in the source as well, or edit the element again after the import; Git shows the earlier value.
   reqif.choice-unused:
+    title: Unused conflict choice
     cause: An entry of `take` or `keep` of `reqif.import` names no conflict of this delivery, so it changes nothing.
     remedy: Name a conflict by its source IDENTIFIER or its element, as `reqif.analyze` lists them under `conflicts`.
   reqif.edited-elsewhere:
+    title: Edited in another tool
     cause: An object of a ReqIF file of ReqSeq has attribute values that differ from what its `reqseq-markdown` and `reqseq-values` give, so another tool changed it after the export. `reqif.import` takes its readable attributes instead, through the mapping.
     remedy: Check the imported element; nothing else is needed. Edit elements in ReqSeq to keep the full round trip.
   reqif.mapping-differs:
+    title: Different saved mapping
     cause: A file of ReqSeq is imported without a mapping, and the saved mapping for its source names another source or tool. `reqif.import` uses that mapping as it is.
     remedy: If the mapping belongs to another source, rename or move it, or give the source in `source`.
   reqif.source-model-unsaved:
+    title: Source model not saved
     cause: "`reqif.import` read the mapping from outside the mapping folder, where ReqSeq writes no mapping file, so the source's types, attributes and datatypes of this delivery were not saved in it (`source-model`). The elements were imported."
     remedy: Move the mapping file into the mapping folder of the workspace (`mappings`, default `reqif`) and import through it there.
 
