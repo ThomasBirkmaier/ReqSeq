@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; quoted words match only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words and word parts (SR-221) in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; quoted words match only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
@@ -59,7 +59,7 @@ SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
 
-The search finds the word despite a typo, with its line:
+The search finds the word despite a typo:
 
 ```sh
 reqseq element search temprature
@@ -174,7 +174,7 @@ hits:
 total: 2
 ```
 
-`--group` heads each group of a list or of hits with its value and count:
+`--group` heads each group of a list or hits with its value and count:
 
 ```sh
 reqseq element list --group topic --sort title

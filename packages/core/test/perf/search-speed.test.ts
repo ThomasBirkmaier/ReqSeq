@@ -35,6 +35,10 @@
 // words, and a row of their own expands a German word of three words and searches a designation
 // with a word.
 //
+// Word parts (SR-221): every text ends with a sentence of 6 compounds (compounds.test-helper.ts), so the index
+// holds about 100,000 distinct words of letters; the rows of word parts search the 4-letter part
+// that stands inside the most of them and the most frequent tail, neither a word nor a word start.
+//
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
 // scores of `scoreWords` with those of MiniSearch's `search` for every term, on this workspace
 // (search-scoring.ts).
@@ -62,6 +66,7 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { readFirst } from "../../src/runtime/read-first.test-helper.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import { costliestParts, withCompounds } from "./compounds.test-helper.js";
 import { standardModel, versionOf } from "./core-version.js";
 
 const ELEMENTS = 50_000;
@@ -124,6 +129,9 @@ const withLongTexts = (tree: GeneratedWorkspace): GeneratedWorkspace => {
   return { ...tree, files };
 };
 
+/** Compounds appended to every text (SR-221, `compounds.test-helper.ts`). */
+const COMPOUNDS_PER_TEXT = 6;
+
 /** Every this many elements has designations (SR-220, see the file comment). */
 const DESIGNATED_EVERY = 50;
 
@@ -176,17 +184,24 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
   let workspace: Workspace | undefined;
   let store: ElementStore;
   let metamodel: Metamodel;
+  /** The compounds of the texts (SR-221, `withCompounds`). */
+  let compoundWords: ReadonlySet<string>;
 
   beforeAll(async () => {
-    tree = withDesignations(
-      withLongTexts(
-        generateLargeWorkspace({
-          version: versionOf(await standardModel()),
-          elements: ELEMENTS,
-          relations: RELATIONS,
-        }),
+    const compounded = withCompounds(
+      withDesignations(
+        withLongTexts(
+          generateLargeWorkspace({
+            version: versionOf(await standardModel()),
+            elements: ELEMENTS,
+            relations: RELATIONS,
+          }),
+        ),
       ),
+      { perText: COMPOUNDS_PER_TEXT, titleEvery: 0 },
     );
+    tree = compounded.tree;
+    compoundWords = compounded.words;
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
     // As a server starts (SR-082): the command runtime, the model, then the search index in the
@@ -501,6 +516,73 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
+  it("[SR-098/AK-pqx4] shows the first hits of a word found only inside longer words within 300 ms (SR-221, median of 7 runs)", async () => {
+    // Every text holds 6 compounds of a vocabulary of about 100,000 (compounds.test-helper.ts): the costliest
+    // 4-letter part (inside the most distinct words) and the most frequent tail, neither of them a
+    // word or a word start; in every field with pages of 50 and 500 hits with snippets, grouped, in
+    // the text only, typed letter by letter, and a part of the status name of most elements.
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const open = workspace;
+    const { four, tail } = costliestParts(compoundWords);
+    const distinct = (part: string): number =>
+      [...compoundWords].filter((word) => word.indexOf(part, 1) > 0).length;
+    await recordValue(
+      `word parts: distinct compounds of the texts (SR-221), "${four}" inside ${String(distinct(four))}, "${tail}" inside ${String(distinct(tail))}`,
+      compoundWords.size,
+      {
+        basis: "SR-221 (recorded: the vocabulary of compounds.test-helper.ts)",
+      },
+    );
+    const measurements = [];
+    const rows: readonly (readonly [string, string, Readonly<Record<string, unknown>>])[] = [
+      ["the costliest 4-letter part, page of 50", four, {}],
+      ["the costliest 4-letter part, page of 500 with snippets", four, { limit: 500 }],
+      ["the most frequent tail, page of 50", tail, {}],
+      ["the most frequent tail, page of 500 with snippets", tail, { limit: 500 }],
+      ["the costliest 4-letter part, grouped by status", four, { group: "status" }],
+      ["the costliest 4-letter part, in the text", four, { fields: ["text"] }],
+      ["the costliest 4-letter part and a word of every text", `${four} the`, {}],
+      ["a part of the status name of most elements", "raft", {}],
+      ...Array.from({ length: tail.length }, (_, at) => tail.slice(0, at + 1))
+        .filter((typed) => typed.length >= 4)
+        .map(
+          (typed) => [`typing the most frequent tail, after ${JSON.stringify(typed)}`, typed, {}] as const,
+        ),
+    ];
+    for (const [name, query, more] of rows) {
+      const { result, measurement } = await measureMedian(
+        `element.search: a word found only inside longer words, ${name} (${JSON.stringify(query)})`,
+        async () => (await invoke("element.search", { query, ...more }, { workspace: open })) as Search,
+        {
+          basis: `SR-098 AK1, SR-221 (element.search, warm server; median of 7 runs)`,
+          thresholdMs: SEARCH_MS,
+          runs: RUNS,
+        },
+      );
+      expect(result.total, query).toBeGreaterThan(0);
+      measurements.push(measurement);
+    }
+    // Only word parts find them: each hit marks only the part, inside a compound.
+    const found = (await invoke(
+      "element.search",
+      { query: tail, limit: 500 },
+      { workspace: open },
+    )) as Search;
+    expect(found.total).toBeGreaterThan(1000);
+    expect(
+      found.hits.every((hit) =>
+        (hit.snippet?.marks ?? []).every(
+          (mark) => hit.snippet?.text.slice(mark.start, mark.end).toLowerCase() === tail,
+        ),
+      ),
+    ).toBe(true);
+    for (const measurement of measurements) {
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    }
+  });
+
   it("scores every term of the suite to the bit as MiniSearch's search does (search-scoring.ts)", async () => {
     if (workspace === undefined) {
       throw new Error("no workspace");
@@ -539,6 +621,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
     const saves = 5;
     const times: number[] = [];
+    const partTimes: number[] = [];
     for (let n = 0; n < saves; n++) {
       const record = store.elements[100 + n * 1000];
       if (record === undefined) {
@@ -551,6 +634,12 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       const result = await search("th");
       times.push(performance.now() - started);
       expect(result.hits).toHaveLength(50);
+      // The vocabulary of word parts was carried too (SR-221): the first search of a part after the save.
+      const { tail } = costliestParts(compoundWords);
+      const partStarted = performance.now();
+      const parts = await search(tail);
+      partTimes.push(performance.now() - partStarted);
+      expect(parts.hits).toHaveLength(50);
     }
     const median = [...times].sort((a, b) => a - b)[Math.floor(saves / 2)];
     const measurement = await recordValue(
@@ -558,6 +647,16 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       Number(median),
       { basis: "SR-098 AK1 (first search after a save, median of 5 saves)", thresholdMs: SEARCH_MS },
     );
+    const partMedian = [...partTimes].sort((a, b) => a - b)[Math.floor(saves / 2)];
+    const partMeasurement = await recordValue(
+      "element.search: the first search of a word part after a save (the most frequent tail), the first 50 hits",
+      Number(partMedian),
+      {
+        basis: "SR-098 AK1, SR-221 (first search after a save and a search, median of 5 saves)",
+        thresholdMs: SEARCH_MS,
+      },
+    );
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+    expect(partMeasurement.ms, thresholdMessage(partMeasurement)).toBeLessThanOrEqual(SEARCH_MS);
   });
 });
