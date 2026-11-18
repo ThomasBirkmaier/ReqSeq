@@ -92,7 +92,7 @@ export function commandPage(
     "",
     "## Output",
     "",
-    fieldTable(entry.output, context, "No output fields."),
+    fieldTable(entry.output, { ...context, output: true }, "No output fields."),
     "",
     "## Example",
     "",

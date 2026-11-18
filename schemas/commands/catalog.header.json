@@ -6,6 +6,7 @@
     "workspace.status",
     "workspace.check",
     "workspace.activity",
+    "workspace.agents",
     "workspace.recent",
     "workspace.listFolder",
     "tool.info",

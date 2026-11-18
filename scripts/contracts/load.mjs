@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { MARKS } from "./output-fields.mjs";
 
 export const root = path.resolve(import.meta.dirname, "../..");
 export const schemasDir = path.join(root, "schemas");
@@ -107,6 +108,8 @@ export function loadContracts() {
     allowUnionTypes: true,
   });
   addFormats(ajv);
+  // The marks of the output fields (SR-224, output-fields.mjs): annotations that validate nothing.
+  ajv.addVocabulary(MARKS);
   const schemas = {};
   for (const f of fs.readdirSync(schemasDir).filter((f) => f.endsWith(".schema.json"))) {
     const s = readJson(path.join(schemasDir, f));
