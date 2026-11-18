@@ -26,7 +26,7 @@ export type { Baseline, BaselineFiles, Baselines, CopiesById, FoundBaseline, Sto
 export { baselineHeader, scanBaseline } from "./scan.js";
 export { HEADER_BYTES, baselineHeadersState, newestBaselines } from "./newest.js";
 export type { BaselineCandidate } from "./newest.js";
-export { showBaseline } from "./show.js";
+export { baselineElements, showBaseline } from "./show.js";
 export type { ShowRequest } from "./show.js";
 export { compareBaseline } from "./compare.js";
 export { countsFor } from "./counting.js";

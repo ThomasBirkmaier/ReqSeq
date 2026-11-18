@@ -19,7 +19,7 @@
 // longer be chosen (`groupUnavailable`) gives the list without groups and the warning
 // `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped
 // is the error of `groupingOf`, naming the perspective and its file.
-import type { CommandName, CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandName, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { yamlPointerLine } from "../../files/index.js";
 import type {
@@ -212,13 +212,20 @@ const groupOf = (
   return { grouping: inPerspective(perspective, () => groupingOf(selected, command, by)), problems: [] };
 };
 
+/** The elements of the list of `input` in store order: its selection and its perspective (see the file comment). */
+const selectedOf = async (ctx: CommandContext, input: ElementListInput): Promise<Selected> => {
+  const command = "element.list";
+  const stored =
+    input.perspective === undefined ? undefined : await storedOf(ctx.workspace, input.perspective, command);
+  return resolveSelection(ctx, input.selection ?? {}, command, stored);
+};
+
 export default defineCommand({
   name: "element.list",
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
-    const stored =
-      input.perspective === undefined ? undefined : await storedOf(ctx.workspace, input.perspective, command);
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command, stored);
+    const selected = await selectedOf(ctx, input);
+    const { stored } = selected;
     const { grouping, problems } = groupOf(selected, command, input);
     const withProblems = stored === undefined ? {} : { problems };
     if (grouping !== undefined) {
@@ -236,5 +243,10 @@ export default defineCommand({
       incomplete: selected.incomplete,
       ...withProblems,
     };
+  },
+  // The rows of every page, each element once: grouping and sorting change neither.
+  outputElements: async (ctx, input) => {
+    const selected = await selectedOf(ctx, input);
+    return { elements: selected.elements, incomplete: selected.incomplete };
   },
 });

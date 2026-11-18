@@ -520,6 +520,20 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   // Before the tests after a save: it saves the text of one element twice.
+  it("records the list of the elements the first need affects, from the output of trace.affected (SR-224 AK5, #1873)", async () => {
+    const current = opened();
+    const need = tree.elements.find((e) => e.type === "need")?.id ?? "";
+    const input = { selection: { output: { command: "trace.affected", input: { ref: need } } } };
+    // Recorded, with SR-082 AK4's 500 ms for comparison: the walk of trace.affected, then the list's first page.
+    const { result: listed } = await measure(
+      "element.list from the output of trace.affected of the first need (first page of 200)",
+      async () =>
+        (await invoke("element.list", input, { workspace: current })) as CommandOutput<"element.list">,
+      { basis: "SR-224 AK5 (N-036; recorded, compare SR-082 AK4, 500 ms)", thresholdMs: RESULT_MS },
+    );
+    expect(listed.total).toBeGreaterThan(ELEMENTS / 2);
+  });
+
   it("records two content saves in a row that count the affected elements (SR-024 AK2, ThomasBirkmaier/ReqSeq-archive#273)", async () => {
     const current = opened();
     const { target } = relationToTarget();

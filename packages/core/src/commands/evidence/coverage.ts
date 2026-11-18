@@ -21,7 +21,7 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"evidence.coverage">> => {
     const command = "evidence.coverage";
     const graph = derivationGraph(await traceContext(ctx.workspace), command);
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const index = await ctx.workspace.get(evidenceIndexState);
     const read = await ctx.workspace.get(evidenceReadState);
     const [first = CORE, ...more] = selected.views;

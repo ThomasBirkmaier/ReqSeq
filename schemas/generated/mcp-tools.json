@@ -976,7 +976,7 @@
           "title": "Incomplete"
         },
         "selection": {
-          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.",
+          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.",
           "type": "object",
           "properties": {
             "ids": {
@@ -1007,6 +1007,32 @@
             "view": {
               "title": "View",
               "$ref": "#/$defs/common/$defs/view"
+            },
+            "output": {
+              "title": "Command output",
+              "$ref": "#/$defs/common/$defs/outputSelection"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSelection": {
+          "description": "The elements a read command gives as its result, its output field marked `x-elements: \"answer\"`, over all pages.",
+          "type": "object",
+          "required": [
+            "command",
+            "input"
+          ],
+          "properties": {
+            "command": {
+              "title": "Command",
+              "type": "string",
+              "minLength": 1,
+              "description": "A read command, `group.action`."
+            },
+            "input": {
+              "title": "Input",
+              "type": "object",
+              "description": "Its input."
             }
           },
           "additionalProperties": false

@@ -504,7 +504,7 @@ export interface CommandErrorObject {
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
@@ -516,6 +516,18 @@ export interface ElementSelection {
   /** Name of a baseline, or its file name in the baselines folder (with or without .yaml). */
   readonly baseline?: string;
   readonly view?: View;
+  readonly output?: OutputSelection;
+}
+
+/**
+ * The elements a read command gives as its result, its output field marked `x-elements: "answer"`, over all pages (SR-224 AK5).
+ * Schema: `schemas/common.schema.json#/$defs/outputSelection`.
+ */
+export interface OutputSelection {
+  /** A read command, `group.action`. */
+  readonly command: string;
+  /** Its input. */
+  readonly input: Readonly<Record<string, unknown>>;
 }
 
 /**

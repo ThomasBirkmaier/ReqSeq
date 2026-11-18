@@ -39,7 +39,27 @@ export interface CommandDefinition<In, Out> {
   readonly name: string;
   /** Gets input that already passed the catalog input schema, with defaults applied. */
   readonly run: (ctx: CommandContext, input: In) => Promise<Out>;
+  /**
+   * The elements of the output field the catalog marks `x-elements: "answer"`, over all pages, without
+   * building a page (`selection.output`, SR-224 AK5). Every command with such a field has it; `run` and
+   * `outputElements` share the step that finds the elements, so a page never holds an element it lacks.
+   */
+  readonly outputElements?: (ctx: CommandContext, input: In) => Promise<OutputElements>;
 }
+
+/** What `outputElements` gives: the elements, each once, in any order, and whether the output is `incomplete` (SR-006 AK2). */
+export interface OutputElements {
+  /** By repository and UUID, as `selection.output` matches them with the elements of the store. */
+  readonly elements: readonly { readonly id: string; readonly repository: string }[];
+  readonly incomplete: boolean;
+}
+
+/**
+ * Runs the read command `command` with `input` for `selection.output` and gives its `outputElements`, as `invoke`
+ * would run it: the same input check and defaults, the same local path rule, the caller's signal, and no
+ * recorded access (SR-117). Errors keep their code and name their fields under `selection.output.input`.
+ */
+export type OutputElementsReader = (command: string, input: unknown) => Promise<OutputElements>;
 
 /** Implementation of the catalog command `N`, typed from its catalog schemas. */
 export interface CatalogCommand<N extends CommandName> extends CommandDefinition<
@@ -64,6 +84,8 @@ export interface CommandContext {
    * file names, the target of a mapping) through `check` before it reads or writes there.
    */
   readonly localPaths: LocalPaths;
+  /** The output elements of another read command, for `selection.output` (`OutputElementsReader`); `invoke` builds it per call. */
+  readonly readOutputElements: OutputElementsReader;
 }
 
 /** A local path and the input field (or file content) it comes from, as `LocalPaths.check` names it. */
@@ -209,7 +231,18 @@ export const lazyCommand = <N extends CommandName>(
     );
     return loading;
   };
-  return { name, load, run: async (ctx, input) => (await load()).run(ctx, input) };
+  return {
+    name,
+    load,
+    run: async (ctx, input) => (await load()).run(ctx, input),
+    outputElements: async (ctx, input) => {
+      const { outputElements } = await load();
+      if (outputElements === undefined) {
+        throw new Error(`command ${name} gives no output elements`);
+      }
+      return outputElements(ctx, input);
+    },
+  };
 };
 
 /**

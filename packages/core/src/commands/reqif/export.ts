@@ -42,11 +42,11 @@ import {
   writeFileAtomic,
 } from "../../files/index.js";
 import type { MetamodelProperty } from "../../generated/types.js";
-import type { Workspace } from "../../runtime/workspace.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, TargetItem } from "../../model/index.js";
 import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
+import type { SelectionContext } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
@@ -210,13 +210,14 @@ const originKey = (
  * comment), planned.
  */
 const statementsOf = async (
-  workspace: Workspace,
+  ctx: SelectionContext,
   layout: WorkspaceLayout,
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<StatementsPlan> => {
   const command = "reqif.export";
-  const selected = await resolveSelection(workspace, input.selection ?? {}, command);
+  const { workspace } = ctx;
+  const selected = await resolveSelection(ctx, input.selection ?? {}, command);
   const { metamodel } = selected;
   const { mapping } = await readMappingFile(layout, metamodel, workspace.root, mappingPath, command);
   const { statement } = mapping;
@@ -367,7 +368,7 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const plan = await statementsOf(workspace, layout, input, input.mapping);
+      const plan = await statementsOf(ctx, layout, input, input.mapping);
       await writeOutput(absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
@@ -378,7 +379,7 @@ export default defineCommand({
         problems: [],
       };
     }
-    const selected = await resolveSelection(workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const { elements } = orderedSelection(selected, command, undefined);
     const omissions = await exportOmissions(
       layout,

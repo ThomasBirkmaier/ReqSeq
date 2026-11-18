@@ -135,6 +135,19 @@ const entriesOf = (
   return { entries, copies, listed };
 };
 
+/**
+ * The elements of the rows `showBaseline` gives over all pages, without building a row (`baseline.get`
+ * `outputElements`, SR-224 AK5): the copy of each entry, then the added ones; a `missing` or `inaccessible` entry has
+ * no element in the store and is left out.
+ */
+export const baselineElements = (
+  request: Pick<ShowRequest, "baseline" | "store" | "selected">,
+): readonly ElementRecord[] => {
+  const { copies, listed } = entriesOf(request.store, request.baseline, []);
+  const added = request.selected?.filter((r) => !listed.has(r)) ?? [];
+  return [...copies.filter((c): c is ElementRecord => c !== undefined), ...added];
+};
+
 /** The baseline with its entries and what became of them (see the file comment). */
 export const showBaseline = async (workspace: Workspace, request: ShowRequest): Promise<Output> => {
   const { baseline, metamodel, store } = request;

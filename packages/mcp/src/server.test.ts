@@ -57,8 +57,8 @@ const catalog = {
  * self-contained. So it has its own bound (6.6 KB with ThomasBirkmaier/ReqSeq-archive#336, 7 KB until ThomasBirkmaier/ReqSeq-archive#595, now 7.5 KB: SR-035's `emergent`
  * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of ThomasBirkmaier/ReqSeq-archive#303.
  */
-// 8 KB: raised for the field descriptions of the reference (#1249).
-const SELECTION_MAX_BYTES = 8 * 1024;
+// 8.5 KB: raised for the selection kind `output` (#1873), 8 KB for the field descriptions of the reference (#1249).
+const SELECTION_MAX_BYTES = 8.5 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */

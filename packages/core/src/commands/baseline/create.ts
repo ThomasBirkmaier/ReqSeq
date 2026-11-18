@@ -11,7 +11,8 @@
 //   filter name different views, the elements apply in both (SR-101 AK2), which one stored view
 //   cannot say: refused with `input.invalid` (assumption of spec question #440 on SR-050 AK3); the
 //   same view is stored once.
-// - `selection.baseline` is refused: a baseline is not made of another one.
+// - `selection.baseline` is refused: a baseline is not made of another one. So is `selection.output`
+//   (#1873), which is no form the file stores (ADR-0018 "selection").
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createBaseline } from "../../baselines/index.js";
@@ -81,7 +82,14 @@ export default defineCommand({
         "a baseline is not made of another baseline; leave it out",
       );
     }
-    const selected = await resolveSelection(workspace, input.selection, command);
+    if (input.selection.output !== undefined) {
+      throw invalidAt(
+        { command },
+        "selection.output",
+        "a baseline stores its selection, and a command output is no stored selection; leave it out",
+      );
+    }
+    const selected = await resolveSelection(ctx, input.selection, command);
     const layout = await workspace.get(workspaceLayoutState);
     const context: QueryContext = { ...selected, workspace, command, view: undefined };
     return createBaseline(workspace, {

@@ -9,7 +9,7 @@
 // „alle Requirements“), so the command prompt runs it without asking (AK1). `incomplete` (SR-006 AK2): a
 // repository of the workspace, or of an evidence location, is not on this machine. Only the page is
 // prepared and built (N-036); nothing is written (D-030).
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   evidenceReadState,
@@ -34,15 +34,21 @@ const BY_TYPE_AND_IDENTIFIER: readonly FilterSortKeyWithDefaults[] = Object.free
   Object.freeze({ by: "identifier", order: "asc" }),
 ] as const);
 
+/** The requirements of the list in store order, the view and the selection they come from (see the file comment). */
+const listedOf = async (ctx: CommandContext, input: CommandInput<"evidence.withoutPassedTest">) => {
+  const command = "evidence.withoutPassedTest";
+  const selected = await resolveSelection(ctx, {}, command);
+  const view = input.view === undefined ? CORE : resolveView(selected, input.view, command);
+  const status = await ctx.workspace.get(verificationState);
+  const inView = viewRuleOf({ workspace: ctx.workspace, ...selected }, view).includes;
+  return { selected, view, listed: withoutPassedTest(status.source, selected.elements, view, inView) };
+};
+
 export default defineCommand({
   name: "evidence.withoutPassedTest",
   run: async (ctx, input): Promise<CommandOutput<"evidence.withoutPassedTest">> => {
     const command = "evidence.withoutPassedTest";
-    const selected = await resolveSelection(ctx.workspace, {}, command);
-    const view = input.view === undefined ? CORE : resolveView(selected, input.view, command);
-    const status = await ctx.workspace.get(verificationState);
-    const inView = viewRuleOf({ workspace: ctx.workspace, ...selected }, view).includes;
-    const listed = withoutPassedTest(status.source, selected.elements, view, inView);
+    const { selected, view, listed } = await listedOf(ctx, input);
     const sorted = sortElements({ ...selected, command }, listed, BY_TYPE_AND_IDENTIFIER).elements;
     const page = sorted.slice(input.offset, input.offset + input.limit);
     const shown = await workspaceStatus(ctx.workspace, page);
@@ -63,5 +69,10 @@ export default defineCommand({
         ),
       ),
     };
+  },
+  outputElements: async (ctx, input) => {
+    const { selected, listed } = await listedOf(ctx, input);
+    const read = await ctx.workspace.get(evidenceReadState);
+    return { elements: listed, incomplete: selected.incomplete || read.incomplete };
   },
 });

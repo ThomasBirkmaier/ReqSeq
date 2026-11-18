@@ -7,6 +7,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
+import type { SelectionContext } from "./selection.js";
 import { resolveSelection } from "./selection.js";
 
 const fixture = async (files: Readonly<Record<string, string>> = {}): Promise<FixtureWorkspace> => {
@@ -21,6 +22,12 @@ const open = (ws: FixtureWorkspace): Workspace => {
   return workspace;
 };
 
+/** The context of a command that names no `selection.output` (its tests: output-selection.test.ts). */
+const callerOf = (workspace: Workspace): SelectionContext => ({
+  workspace,
+  readOutputElements: () => Promise.reject(new Error("no selection.output here")),
+});
+
 const shortIds = (ids: readonly { readonly id: string }[]): string[] => ids.map((e) => e.id.slice(-2));
 
 describe("selection by baseline", () => {
@@ -32,7 +39,7 @@ describe("selection by baseline", () => {
       "element.bulkUpdate",
       "data.export",
     ] as const) {
-      const selected = await resolveSelection(workspace, { baseline: "Release 1" }, command);
+      const selected = await resolveSelection(callerOf(workspace), { baseline: "Release 1" }, command);
       expect(shortIds(selected.elements)).toEqual(["a1", "b1", "b3"]);
     }
   });
@@ -40,7 +47,7 @@ describe("selection by baseline", () => {
   it("selects the elements the baseline lists that meet every other part too", async () => {
     const workspace = open(await fixture());
     const selected = await resolveSelection(
-      workspace,
+      callerOf(workspace),
       { baseline: "release-1", package: "PKG-0000d1" },
       "data.export",
     );
@@ -57,7 +64,7 @@ describe("selection by baseline", () => {
         "metamodel: { repository: system, path: metamodel }\nbaselines: { repository: sensor, path: baselines }\n",
     });
     await rm(ws.path("sensor"), { recursive: true });
-    const error = await resolveSelection(open(ws), { baseline: "Release 1" }, "data.export").catch(
+    const error = await resolveSelection(callerOf(open(ws)), { baseline: "Release 1" }, "data.export").catch(
       (e: unknown) => e,
     );
     expect((error as CommandError).toJSON()).toEqual({

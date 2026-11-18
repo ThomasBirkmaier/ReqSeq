@@ -10,7 +10,7 @@ import { resolveSelection } from "../../query/index.js";
 export default defineCommand({
   name: "data.store",
   run: async (ctx, input): Promise<CommandOutput<"data.store">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "data.store");
+    const selected = await resolveSelection(ctx, input.selection ?? {}, "data.store");
     return storeData(ctx.workspace, selected, input);
   },
 });

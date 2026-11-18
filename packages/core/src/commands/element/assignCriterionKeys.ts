@@ -10,7 +10,7 @@ import { nestedVariantCheck } from "../../variants/index.js";
 export default defineCommand({
   name: "element.assignCriterionKeys",
   run: async (ctx, input): Promise<CommandOutput<"element.assignCriterionKeys">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection, "element.assignCriterionKeys");
+    const selected = await resolveSelection(ctx, input.selection, "element.assignCriterionKeys");
     const result = await assignCriterionKeys(
       ctx.workspace,
       selected,
