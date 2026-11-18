@@ -24,23 +24,29 @@
     "type": "object",
     "properties": {
       "count": {
+        "title": "Changed elements",
         "type": "integer",
         "minimum": 0,
-        "description": "Number of changed elements (SR-204 AK3)."
+        "description": "Number of changed elements (SR-204 AK3).",
+        "x-elements": "changed"
       },
       "changed": {
+        "title": "Changed elements",
         "type": "array",
         "description": "The changed elements, in store order, each with the number of its acceptance criteria that got a key.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "assigned": {
+              "title": "Criteria with a new key",
               "type": "integer",
               "minimum": 1,
               "description": "Acceptance criteria of the element that got a criterion key."
@@ -48,38 +54,45 @@
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "assigned"]
-        }
+        },
+        "x-elements": true
       },
       "skipped": {
+        "title": "Skipped elements",
         "type": "array",
         "description": "Elements of the selection with acceptance criteria without key that were left out.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "reason": {
+              "title": "Reason",
               "description": "`unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3).",
               "enum": ["unknown-type"]
             },
             "message": {
+              "title": "Message",
               "description": "Why the element was left out, for people.",
               "type": "string"
             }
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "reason", "message"]
-        }
+        },
+        "x-elements": true,
+        "x-normal": []
       },
       "files": {
+        "title": "Files",
         "type": "array",
-        "items": {
-          "type": "string"
-        },
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" },
         "description": "Written files relative to the workspace root."
       },
       "incomplete": {

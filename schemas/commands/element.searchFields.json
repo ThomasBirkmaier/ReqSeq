@@ -16,16 +16,19 @@
     "type": "object",
     "properties": {
       "fields": {
+        "title": "Fields",
         "type": "array",
         "description": "The fields in the order above.",
         "items": {
           "type": "object",
           "properties": {
             "key": {
+              "title": "Key",
               "$ref": "../common.schema.json#/$defs/searchFieldKey",
               "description": "What element.search `fields` takes: `title`, `text`, `id`, `properties` or the key of a property."
             },
             "name": {
+              "title": "Name",
               "type": "string",
               "description": "The name: of the title property for `title` (\"Title\" without one), \"Text\", \"IDs\", \"All properties\", else the property's name in the metamodel."
             }

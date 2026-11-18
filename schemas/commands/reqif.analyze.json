@@ -34,12 +34,15 @@
     "type": "object",
     "properties": {
       "unmapped": {
+        "title": "Unmapped",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/reqifUnmapped"
-        }
+        },
+        "x-normal": []
       },
       "new": {
+        "title": "New",
         "type": "array",
         "description": "Objects the import would create as new elements, without UUID.",
         "items": {
@@ -47,6 +50,7 @@
         }
       },
       "changed": {
+        "title": "Changed",
         "type": "array",
         "description": "Elements of an earlier delivery of the source (same source IDENTIFIER) whose version with the delivery differs from their import version, conflicts included (SR-056 AK1).",
         "items": {
@@ -54,31 +58,39 @@
         }
       },
       "dropped": {
+        "title": "Dropped",
         "type": "array",
         "description": "Elements of the source whose object the file no longer has; the import only lists them (SR-056 AK3).",
         "items": {
           "$ref": "../common.schema.json#/$defs/reqifObject"
-        }
+        },
+        "x-normal": []
       },
       "conflicts": {
+        "title": "Conflicts",
         "type": "array",
         "description": "Changed elements that were also changed locally since their import; reqif.import needs take or keep for each (SR-056 AK4).",
         "items": {
           "$ref": "../common.schema.json#/$defs/reqifObject"
-        }
+        },
+        "x-normal": []
       },
       "losses": {
+        "title": "Losses",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/reqifLoss"
-        }
+        },
+        "x-normal": []
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "Warnings: a title, property or relation the import writes over another value (reqif.replaces-local), a repository not on this machine, an element file that cannot be read.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

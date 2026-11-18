@@ -293,7 +293,7 @@ export interface Problem {
   /** What is wrong, for people. */
   readonly message: string;
   /** The file the problem is about; relative to `repository` when that is given. */
-  readonly file?: string;
+  readonly file?: OutputPath;
   /** Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository. */
   readonly repository?: string;
   /** The line in `file`, counted from 1. */
@@ -302,7 +302,7 @@ export interface Problem {
   /** Workspace name of the repository of the element the problem is about, when `repository` and `file` name another file (the evidence record of `evidence.outdated`, SR-025 AK4). With `elementFile` it names one copy of a UUID several files share (SR-088). */
   readonly elementRepository?: string;
   /** The file of the element the problem is about, relative to `elementRepository`; given with it. */
-  readonly elementFile?: string;
+  readonly elementFile?: OutputPath;
   /** Short ID of the element `elementId` names, for display (SR-084); given on every problem that names an element of the workspace, by every command that has read the elements. */
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
@@ -325,9 +325,9 @@ export interface Problem {
   /** Date of the current version; null when unknown. */
   readonly currentDate?: string | null;
   /** Object name of the commit that started the stored version (ADR-0005 "Version date", #252), given with `storedDate` and null exactly when it is: with `currentCommit`, `git diff <storedCommit> <currentCommit> -- <file>` shows what changed. A pointer valid at the current HEAD, never stored (D-013). */
-  readonly storedCommit?: string | null;
+  readonly storedCommit?: Commit | null;
   /** Object name of the commit that started the current version, given with `currentDate` and null exactly when it is (as `storedCommit`). */
-  readonly currentCommit?: string | null;
+  readonly currentCommit?: Commit | null;
   /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
   /** The key (property or relation kind) a problem about one key is about, so that an access can tell it without reading the message (#222): the relation kind or property of a count hint (`relation.too-many`, `relation.too-few`, SR-152; `element.too-many-items`, SR-171), the acceptance criteria of `element.criterion-key-missing`, `element.criterion-key-duplicate` and `element.criterion-key-invalid` (SR-204), the property of `element.text-emptied` (#841), `element.wrong-value-kind`, `element.missing-required`, `element.duplicate-identifier` and `element.statement-without-text`, the property of `element.unknown-property` when its key has the form of a metamodel key (a frontmatter key can be any text), the key of the relation item of `relation.outdated`, `variant.core-changed`, `relation.missing-target`, `relation.cross-repository-title`, `relation.not-allowed`, `relation.target-superseded`, `variant.superseded-in-validity` and `variant.nested`, and the property marked `markdown` that holds a reference of `relation.outdated`, `relation.missing-target`, `relation.unresolved-link` or `relation.reference-style` (SR-127). A reference in the text has none. */
@@ -612,6 +612,18 @@ export interface ReqifUnmapped {
 }
 
 /**
+ * A duration in milliseconds.
+ * Schema: `schemas/common.schema.json#/$defs/duration`.
+ */
+export type Duration = number;
+
+/**
+ * A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.
+ * Schema: `schemas/common.schema.json#/$defs/outputPath`.
+ */
+export type OutputPath = string;
+
+/**
  * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
@@ -674,7 +686,7 @@ export interface DataExportElement {
   /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
@@ -726,7 +738,7 @@ export interface DataExportElementPart {
   /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
-  readonly file?: string;
+  readonly file?: OutputPath;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
@@ -778,7 +790,7 @@ export interface DataExportLine {
   /** Workspace name of the repository of its file. */
   readonly repository: string;
   /** Path relative to the repository. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
@@ -840,7 +852,7 @@ export interface DataExportElementFields {
   /** Workspace name of the repository of its file. */
   readonly repository?: string;
   /** Path relative to the repository. */
-  readonly file?: string;
+  readonly file?: OutputPath;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3). */
   readonly readOnly?: boolean;
   /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
@@ -929,7 +941,7 @@ export interface DataExportEvidenceRecord {
   /** Workspace name of the repository of the record file (an evidence location of the workspace file). */
   readonly repository?: string;
   /** The record file, relative to its repository, `/` as separator. */
-  readonly file?: string;
+  readonly file?: OutputPath;
   /** The line of the `<testcase>` in a JUnit file; 1 for a Markdown record. */
   readonly line?: number;
   /** Where the evidence document of the record is, as a person reads it (SR-032 AK1): `evidence` when given and not empty; else the record file, `<repository>/<file>` (`<file>` alone without `repository`) and `:<line>` when `line` is given; left out when the record has neither. Not an evidence location of the workspace file. Text only, never opened. */
@@ -1949,6 +1961,21 @@ export interface CommandCatalog {
       /** Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`). */
       readonly fields: readonly string[];
     };
+    /** A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880). */
+    readonly showsOutput?: true;
+    /** Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again. */
+    readonly outputFields?: readonly {
+      /** The field, from the root of the output: `levels[].elements.withChildren`, `[]` for the items of an array, `*` for the keys of a map. */
+      readonly path: string;
+      /** The title of the field for people. */
+      readonly title?: string;
+      /** The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request (SR-223 AK2); `with-element`: only when the same problem names an element. */
+      readonly technical?: true | "with-element";
+      /** The normal value: a shown value equal to it appears only with Show details (SR-223 AK7). */
+      readonly normal?: unknown;
+      /** `answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). */
+      readonly elements?: true | "answer" | readonly string[];
+    }[];
     /** A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API, MCP and the app keep the JSON object (ADR-0002 rule 3, SR-151 AK4). */
     readonly textOutput?: string;
     /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
@@ -1982,7 +2009,7 @@ export interface WorkspaceInitInput {
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2006,9 +2033,9 @@ export interface WorkspaceStatusOutput {
     /** The repository is on this machine. */
     readonly available: boolean;
     /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
-    readonly path?: string;
+    readonly path?: OutputPath;
     /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
-    readonly absolutePath?: string;
+    readonly absolutePath?: OutputPath;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
     readonly variantIndependent?: true;
@@ -2020,7 +2047,7 @@ export interface WorkspaceStatusOutput {
     /** Workspace name of the repository of the metamodel. */
     readonly repository: string;
     /** Folder of the metamodel, relative to that repository. */
-    readonly path: string;
+    readonly path: OutputPath;
     /** The metamodel was read without errors. */
     readonly valid: boolean;
   };
@@ -2032,7 +2059,7 @@ export interface WorkspaceStatusOutput {
     /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
     /** The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location. */
-    readonly folder?: string;
+    readonly folder?: OutputPath;
   }[];
   /** The workspace opens read-only because its metamodel is missing or faulty: nothing can be written. */
   readonly readOnly: boolean;
@@ -2074,7 +2101,7 @@ export interface WorkspaceCheckOutput {
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
-  readonly durationMs?: number;
+  readonly durationMs?: Duration;
 }
 
 /**
@@ -2106,7 +2133,7 @@ export interface WorkspaceRecentOutput {
   /** The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
   readonly workspaces: readonly {
     /** The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml). */
-    readonly root: string;
+    readonly root: OutputPath;
     /** When the app opened it last. */
     readonly opened: IsoDateTime;
     /** Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
@@ -2133,7 +2160,7 @@ export interface WorkspaceListFolderInput {
  */
 export interface WorkspaceListFolderOutput {
   /** The folder listed, absolute and normalised, without a separator at its end except at the root. Missing when the path is `invalid`. */
-  readonly folder?: string;
+  readonly folder?: OutputPath;
   /** The typed name: the text after the last separator. Names that start with "." are listed only when it starts with ".". */
   readonly name: string;
   /** The entries, folders and links first, then files, each by the code units of the NFC form of the name. Other entries (sockets, devices) are left out. Empty with a `problem`. */
@@ -2194,7 +2221,7 @@ export interface ToolInfoOutput {
   /** The open workspace. */
   readonly workspace: {
     /** The absolute path of the workspace root, the folder with reqseq-workspace.yaml. */
-    readonly path: string;
+    readonly path: OutputPath;
     /** Name of the workspace, from reqseq-workspace.yaml. */
     readonly name: string;
     /** The workspace names of its repositories, in the order of the workspace file. */
@@ -2207,12 +2234,12 @@ export interface ToolInfoOutput {
     /** The licence notice of ReqSeq, one item per line. */
     readonly notice: readonly string[];
     /** The file of the release that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout. */
-    readonly thirdParty?: string;
+    readonly thirdParty?: OutputPath;
   };
   /** Where the documentation and the releases are. */
   readonly documentation: {
     /** The folder of the release with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout. */
-    readonly bundled?: string;
+    readonly bundled?: OutputPath;
     /** The address of the online documentation, as text only: ReqSeq never opens it. */
     readonly online: string;
     /** The address of the releases, as text only: ReqSeq never opens it. */
@@ -2299,7 +2326,7 @@ export interface ElementCreateOutput {
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** Written files, relative to the workspace root. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2565,7 +2592,7 @@ export interface ElementUpdateOutput {
   /** Of the file as written, or as read when nothing changed (SR-106). */
   readonly fileSha256: FileSha256;
   /** Written files, relative to the workspace root. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276). */
   readonly affected: number;
   readonly problems?: readonly Problem[];
@@ -2587,7 +2614,7 @@ export interface ElementSetStatusInput {
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2611,7 +2638,7 @@ export interface ElementSupersedeInput {
  * Schema: `schemas/commands/element.supersede.json output`.
  */
 export interface ElementSupersedeOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2662,7 +2689,7 @@ export interface ElementBulkUpdateOutput {
     readonly message: string;
   }[];
   /** Written files relative to the workspace root; empty in a preview. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** Hints at the property in the affected elements after the change: missing required value, value kind (SR-085), more entries than `max-items` (SR-171), target types (SR-086). A preview also names what a confirmation refuses: a not writable folder (file.read-only). */
   readonly problems: readonly Problem[];
   readonly incomplete?: Incomplete;
@@ -2703,7 +2730,7 @@ export interface ElementAssignCriterionKeysOutput {
     readonly message: string;
   }[];
   /** Written files relative to the workspace root. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly incomplete?: Incomplete;
 }
 
@@ -2732,7 +2759,7 @@ export interface ElementAddAttachmentInput {
  */
 export interface ElementAddAttachmentOutput {
   /** The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update. */
   readonly markdown: string;
 }
@@ -2782,7 +2809,7 @@ export interface RelationAddInput {
  */
 export interface RelationAddOutput {
   /** Written files, relative to the workspace root. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2806,7 +2833,7 @@ export interface RelationRemoveInput {
  * Schema: `schemas/commands/relation.remove.json output`.
  */
 export interface RelationRemoveOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2854,7 +2881,7 @@ export interface TraceChainOutput {
     /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** Steps from the root: 0 for the root, 1 for its parents or children, and so on. */
     readonly depth: number;
     /** `up` for a parent (and its parents), `down` for a child (and its children); left out for the root. */
@@ -2996,7 +3023,7 @@ export interface TraceAffectedOutput {
     /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** Steps from the element: 1 when this element's file points at it directly. */
     readonly distance: number;
     /** The way: the element asked for first, this element last, each element in between that points at the one before it; each named by UUID and repository (D-058). */
@@ -3068,7 +3095,7 @@ export interface TraceNeighbourhoodOutput {
     /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** Steps from the root in its walk: 0 for the root. */
     readonly depth: number;
     /** `up` for an element reached along the relations and references its file stores, `down` for one reached along those that point at it; left out for the root. */
@@ -3168,7 +3195,7 @@ export interface TraceMatrixOutput {
     /** Its title; empty without one. */
     readonly title: string;
     /** Path relative to the repository. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`. */
     readonly depth?: number;
     /** SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question ThomasBirkmaier/ReqSeq-archive#528 Q3). The chain and `evidence.list` give every execution. */
@@ -3263,7 +3290,7 @@ export interface TraceGraphOutput {
     /** Workspace name of the repository of its file. */
     readonly repository: string;
     /** Path relative to the repository. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to. */
     readonly expanded: boolean;
     /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
@@ -3433,7 +3460,7 @@ export interface HintConfirmOutput {
   /** The IDs of the confirmed hints, each once. */
   readonly confirmed: readonly string[];
   /** Written files, relative to the workspace root. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3549,7 +3576,7 @@ export interface FilterListOutput {
   readonly filters: readonly {
     readonly name: FilterName;
     /** The filter file, relative to the workspace root. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** What the filter is for, as saved. */
     readonly description?: string;
     readonly view?: View;
@@ -3582,7 +3609,7 @@ export interface FilterSaveInput {
  * Schema: `schemas/commands/filter.save.json output`.
  */
 export interface FilterSaveOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3602,20 +3629,20 @@ export interface FilterRenameInput {
  * Schema: `schemas/commands/filter.rename.json output`.
  */
 export interface FilterRenameOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
   readonly renamed: readonly {
     /** The file before, relative to the workspace root. */
-    readonly from: string;
+    readonly from: OutputPath;
     /** The file afterwards, relative to the workspace root. */
-    readonly to: string;
+    readonly to: OutputPath;
   }[];
   /** The perspectives changed to name the new name, in file order. */
   readonly perspectives: readonly {
     /** The name of the perspective. */
     readonly name: string;
     /** Relative to the workspace root. */
-    readonly file: string;
+    readonly file: OutputPath;
   }[];
   readonly problems?: readonly Problem[];
 }
@@ -3643,13 +3670,13 @@ export interface FilterDeleteOutput {
   /** The name stored in the file of the saved filter. */
   readonly name: string;
   /** Its file, relative to the workspace root. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** The SHA-256 of the file as read, for `expectedFileSha256`. */
   readonly fileSha256: FileSha256;
   /** Whether the file was deleted: true only with `confirm`. */
   readonly deleted: boolean;
   /** The deleted file, relative to the workspace root; empty when nothing was deleted. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3668,7 +3695,7 @@ export interface PerspectiveListOutput {
   readonly perspectives: readonly {
     readonly name: PerspectiveName;
     /** The perspective file, relative to the workspace root. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** What the perspective is for, as saved. */
     readonly description?: string;
     /** Name of the saved filter the selection uses, as saved. */
@@ -3705,7 +3732,7 @@ export interface PerspectiveSaveInput {
  * Schema: `schemas/commands/perspective.save.json output`.
  */
 export interface PerspectiveSaveOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3725,13 +3752,13 @@ export interface PerspectiveRenameInput {
  * Schema: `schemas/commands/perspective.rename.json output`.
  */
 export interface PerspectiveRenameOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
   readonly renamed: readonly {
     /** The file before, relative to the workspace root. */
-    readonly from: string;
+    readonly from: OutputPath;
     /** The file afterwards, relative to the workspace root. */
-    readonly to: string;
+    readonly to: OutputPath;
   }[];
   readonly problems?: readonly Problem[];
 }
@@ -3759,13 +3786,13 @@ export interface PerspectiveDeleteOutput {
   /** The name stored in the file of the perspective. */
   readonly name: string;
   /** Its file, relative to the workspace root. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** The SHA-256 of the file as read, for `expectedFileSha256`. */
   readonly fileSha256: FileSha256;
   /** Whether the file was deleted: true only with `confirm`. */
   readonly deleted: boolean;
   /** The deleted file, relative to the workspace root; empty when nothing was deleted. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3888,7 +3915,7 @@ export interface EvidenceRecordInput {
  * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** With `criteria`: each criterion the record holds for, in the order of the criteria, with its number, its criterion key and the first 60 characters of its text (SR-030 AK4). */
   readonly criteria?: readonly {
     /** Its position in the current version, from 1. */
@@ -3946,7 +3973,7 @@ export interface EvidenceEnrichJunitOutput {
     readonly ref: string;
   }[];
   /** The written file, relative to the workspace root (the folder of the main repository) with `/` when it lies below it or in another repository of the workspace, else its absolute path. None when nothing is written: nothing to change in place, or `output` holds these bytes already; a given `output` is otherwise written even when nothing changes. */
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems: readonly Problem[];
 }
 
@@ -4097,7 +4124,7 @@ export interface DataStoreInput {
  * Schema: `schemas/commands/data.store.json output`.
  */
 export interface DataStoreOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4150,7 +4177,7 @@ export interface VariantExcludeInput {
  * Schema: `schemas/commands/variant.exclude.json output`.
  */
 export interface VariantExcludeOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4169,13 +4196,13 @@ export interface BaselineCreateInput {
  * Schema: `schemas/commands/baseline.create.json output`.
  */
 export interface BaselineCreateOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   /** The written baseline. */
   readonly baseline: {
     /** Name of the baseline. */
     readonly name: string;
     /** The file, relative to the workspace root, / as separator. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** The repository that holds the file; `repository` in the file is relative to it. */
     readonly repository: string;
     readonly date: IsoDateTime;
@@ -4203,7 +4230,7 @@ export interface BaselineListOutput {
     /** Name of the baseline. */
     readonly name: string;
     /** Relative to the workspace root, / as separator. */
-    readonly file: string;
+    readonly file: OutputPath;
     /** The repository that holds the file. */
     readonly repository: string;
     readonly date: IsoDateTime;
@@ -4243,7 +4270,7 @@ export interface BaselineGetOutput {
   /** Name of the baseline. */
   readonly name: string;
   /** Relative to the workspace root, / as separator. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** The repository that holds the file. */
   readonly repository: string;
   readonly date: IsoDateTime;
@@ -4339,11 +4366,11 @@ export interface BaselineCompareOutput {
   readonly repository: string;
   readonly from: Commit;
   /** The commit to compare with; null for the working copy. */
-  readonly to: string | null;
+  readonly to: Commit | null;
   /** The element file now, relative to its repository. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** Its path at the baseline commit, when the file moved. */
-  readonly oldFile?: string;
+  readonly oldFile?: OutputPath;
   /** git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access. */
   readonly command: readonly string[];
 }
@@ -4413,7 +4440,7 @@ export interface ReqifImportOutput {
   /** Elements of the source whose object the file no longer has; not changed. */
   readonly dropped: readonly ReqifObject[];
   readonly losses: readonly ReqifLoss[];
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4513,7 +4540,7 @@ export interface ReqifSaveMappingInput {
  * Schema: `schemas/commands/reqif.saveMapping.json output`.
  */
 export interface ReqifSaveMappingOutput {
-  readonly files: readonly string[];
+  readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
@@ -4542,14 +4569,14 @@ export interface ReqifExportInput {
  */
 export interface ReqifExportOutput {
   /** The written ReqIF file, relative to the workspace root when it lies inside, else absolute. */
-  readonly file: string;
+  readonly file: OutputPath;
   /** Exported elements. */
   readonly elements: number;
   /** Exported relations. */
   readonly relations: number;
   /** With statements: exported elements without a statement. */
   readonly withoutStatement?: number;
-  readonly files?: readonly string[];
+  readonly files?: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 

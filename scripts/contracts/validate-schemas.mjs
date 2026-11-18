@@ -9,6 +9,8 @@ import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE, CATALOG_HEADER } from "./load.mjs";
 import { checkCatalog } from "./catalog-checks.mjs";
 import { checkCommandExamples } from "./command-examples.mjs";
+import { checkOutputs } from "./output-checks.mjs";
+import { outputFieldsOf } from "./output-fields.mjs";
 import { PROBLEM_CODES_FILE, checkProblemCodes } from "./problem-codes.mjs";
 
 const errors = [];
@@ -62,6 +64,37 @@ for (const cmd of catalog.commands) {
 // Titles, argument sources of the command prompt (SR-108) and jsonLines; needs entries that match the meta-schema.
 if (entriesValid) {
   errors.push(...checkCatalog(catalog, schemas));
+  // Titles and marks of the output fields (SR-224 AK3, AK4, AK7).
+  errors.push(...checkOutputs(catalog, schemas));
+  // Each normal value (`x-normal`, SR-223 AK7) is a value of its field, also one a definition gives its fields.
+  for (const [file, schema] of Object.entries(schemas)) {
+    for (const [name, def] of Object.entries(schema.$defs ?? {})) {
+      const valid =
+        def["x-normal"] === undefined ? undefined : ajv.compile({ $ref: `${BASE}${file}#/$defs/${name}` });
+      if (valid !== undefined && !valid(def["x-normal"])) {
+        errors.push(
+          `${file}#/$defs/${name}: x-normal is no value of the definition: ${ajv.errorsText(valid.errors)}`,
+        );
+      }
+    }
+  }
+  const normalsChecked = new Set();
+  for (const cmd of catalog.commands) {
+    for (const field of outputFieldsOf(cmd.output, schemas)) {
+      const id =
+        field.file === "commands/"
+          ? `${BASE}commands/${cmd.name}.output.json#${field.pointer.slice("/output".length)}`
+          : `${BASE}${field.file}#${field.pointer}`;
+      if (field.schema["x-normal"] === undefined || normalsChecked.has(id)) {
+        continue;
+      }
+      normalsChecked.add(id);
+      const valid = ajv.compile({ $ref: id });
+      if (!valid(field.schema["x-normal"])) {
+        errors.push(`${id}: x-normal is no value of the field: ${ajv.errorsText(valid.errors)}`);
+      }
+    }
+  }
 }
 
 // Each example with a general parser of its format and no extensions (SR-009 AK3): JSON.parse for .json,

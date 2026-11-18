@@ -7,7 +7,7 @@ import { checkProblemCodes } from "./problem-codes.mjs";
 const common = {
   $defs: { problemCode: { enum: ["a.one", "a.two"] }, error: { properties: { code: { enum: ["e.one"] } } } },
 };
-const entry = "{ cause: Why., remedy: What. }";
+const entry = "{ title: A kind, cause: Why., remedy: What. }";
 
 describe("checkProblemCodes", () => {
   it("accepts the repository's file", () => {
@@ -23,6 +23,26 @@ describe("checkProblemCodes", () => {
       "problem-codes.yaml: problems: a.three is no code of common.schema.json",
       "problem-codes.yaml: errors: e.one needs a cause",
       "problem-codes.yaml: errors: e.one needs a remedy",
+    ]);
+  });
+
+  it("asks every problem kind for a title of its own, and none of an error code (SR-224 AK6)", () => {
+    const text = [
+      "problems:",
+      "  a.one: { cause: Why., remedy: What. }",
+      "  a.two: { title: lower case., cause: Why., remedy: What. }",
+      "errors:",
+      "  e.one: { title: An error, cause: Why., remedy: What. }",
+      "",
+    ].join("\n");
+    expect(checkProblemCodes(text, common)).toEqual([
+      "problem-codes.yaml: problems: a.one needs a title",
+      'problem-codes.yaml: problems: a.two: title "lower case.": sentence case, at most 40 characters, no final punctuation',
+      "problem-codes.yaml: errors: e.one: an error code has no title, it is no problem kind",
+    ]);
+    const twice = `problems:\n  a.one: ${entry}\n  a.two: ${entry}\nerrors:\n  e.one: { cause: Why., remedy: What. }\n`;
+    expect(checkProblemCodes(twice, common)).toEqual([
+      'problem-codes.yaml: problems: a.two: title "A kind" is also the title of a.one',
     ]);
   });
 

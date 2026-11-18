@@ -21,18 +21,11 @@ import {
 } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
-import type { CatalogContext } from "./catalog-commands.js";
+import type { CatalogContext } from "./catalog-arguments.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
 import { isWindows } from "./keys.js";
-import {
-  askable,
-  catalogItems,
-  contextField,
-  fits,
-  refusedOf,
-  startBuilder,
-  withExplanations,
-} from "./catalog-commands.js";
+import { askable, contextField, fits } from "./catalog-arguments.js";
+import { catalogItems, refusedOf, startBuilder, withExplanations } from "./catalog-commands.js";
 import { coveredCommand, SHOWN_IN, shownIn } from "./command-entry.js";
 import { shortcutReference } from "./shortcut-reference.js";
 import { rank } from "./fuzzy.js";

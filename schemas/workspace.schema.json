@@ -94,8 +94,12 @@
       "type": "object",
       "required": ["repository", "path"],
       "properties": {
-        "repository": { "description": "Workspace name of the repository.", "type": "string" },
-        "path": { "$ref": "common.schema.json#/$defs/relativePath" }
+        "repository": {
+          "title": "Repository",
+          "description": "Workspace name of the repository.",
+          "type": "string"
+        },
+        "path": { "title": "Path", "$ref": "common.schema.json#/$defs/relativePath" }
       },
       "additionalProperties": false
     }

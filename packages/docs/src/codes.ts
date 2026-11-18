@@ -1,4 +1,4 @@
-// The page of problem and error codes (SR-139 AK2): cause and remedy of every code, from schemas/problem-codes.yaml,
+// The page of problem and error codes (SR-139 AK2): the title of every problem kind (SR-224 AK6), cause and remedy of every code, from schemas/problem-codes.yaml,
 // whose keys `pnpm schemas:check` holds equal to the codes of common.schema.json.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -6,6 +6,8 @@ import YAML from "yaml";
 import { inline } from "./markdown.js";
 
 export interface CodeText {
+  /** The title of a problem kind, which the reference and the app show (SR-224 AK6); error codes have none. */
+  readonly title?: string;
   readonly cause: string;
   readonly remedy: string;
 }
@@ -35,8 +37,9 @@ const section = (codes: Readonly<Record<string, CodeText>>, kind: CodeKind): str
   Object.entries(codes).flatMap(([code, text]) => [
     `<a id="${codeAnchor(code, kind)}"></a>`,
     "",
-    `### \`${code}\``,
-    "",
+    ...(text.title === undefined
+      ? [`### \`${code}\``, ""]
+      : [`### ${inline(text.title)}`, "", `Code: \`${code}\``, ""]),
     `**Cause:** ${inline(text.cause)}`,
     "",
     `**Remedy:** ${inline(text.remedy)}`,
