@@ -2,7 +2,7 @@
 // Cmd+K on macOS, then one letter. V opens a perspective (SR-214 AK1); the other letters are the app's own
 // key map (SR-214, rationale), first listed in ThomasBirkmaier/ReqSeq-archive#472, kept in this one table;
 // the window wires them up in `use-prefix.ts`.
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { KeyPress, KeyRow, Shortcut } from "./keys.js";
 import { matches, press, pressLabel, rowStep, shortcutLabel } from "./keys.js";
 
@@ -53,7 +53,7 @@ export const PREFIX_KEYS: readonly KeyRow[] = [
   { keys: [{ press: press("Enter") }], does: "Run the selected next key" },
 ];
 
-/** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts`). */
+/** The actions of ThomasBirkmaier/ReqSeq-archive#472 that keep a single shortcut of their own (`actions.ts` and its group modules). */
 export const SINGLE_KEY_IDS: readonly string[] = [
   "go-to",
   "search",

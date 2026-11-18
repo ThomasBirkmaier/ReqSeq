@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import { elementBuffer } from "./buffers.js";
 import type { PropertyInfo } from "./element-view.js";
 import { addPropertyPrompt, choicePrompt, relationPrompt } from "./property-prompts.js";

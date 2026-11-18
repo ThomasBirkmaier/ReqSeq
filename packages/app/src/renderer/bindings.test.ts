@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { PrefixPress } from "./bindings.js";
 import {
   MOST_FREQUENT,

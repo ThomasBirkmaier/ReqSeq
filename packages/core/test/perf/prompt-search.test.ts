@@ -10,6 +10,9 @@
 // and its median must stay within 100 ms: every prefix has its own row and threshold, so the slowest
 // decides.
 //
+// Word parts (SR-221 AK4): every 10th title ends with a compound (compounds.test-helper.ts), and the tail in most
+// of them and the 4-letter part inside most of them, found only inside these words, are typed too.
+//
 // Assumption (as in ThomasBirkmaier/ReqSeq-archive#388 for SR-098): what is measured is core, the time from the call to the answer.
 // IPC between the app's windows and rendering the hits are not measured; neither is the fuzzy ranking
 // of the app, which works on at most 20 hits.
@@ -30,6 +33,7 @@ import { elementStoreState } from "../../src/model/index.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import { costliestParts, withCompounds } from "./compounds.test-helper.js";
 import { standardModel, versionOf } from "./core-version.js";
 
 const ELEMENTS = 50_000;
@@ -46,6 +50,9 @@ type Search = CommandOutput<"element.search">;
  * A query word of one letter matches nothing (element.search), so the first key is a cheap search.
  */
 const TYPED = ["temperature", "wind speed", "report humidity in the log"];
+
+/** Every this many titles ends with a compound (SR-221, compounds.test-helper.ts): 5,000 of 50,000. */
+const COMPOUND_TITLE_EVERY = 10;
 
 /** Every prefix of `text` from one character, as the prompt sees them while it is typed. */
 const prefixes = (text: string): string[] =>
@@ -91,13 +98,21 @@ describe("the command prompt's search with 50,000 elements (SR-108 AK5, N-036)",
   let workspace: Workspace | undefined;
   /** The restriction of the "target" step that is measured: see `largestRestriction`. */
   let types: readonly string[];
+  /** `TYPED` and the tail found in most compounds of the titles, only inside them (SR-221 AK4). */
+  let typed: readonly string[];
 
   beforeAll(async () => {
-    tree = generateLargeWorkspace({
-      version: versionOf(await standardModel()),
-      elements: ELEMENTS,
-      relations: RELATIONS,
-    });
+    const compounded = withCompounds(
+      generateLargeWorkspace({
+        version: versionOf(await standardModel()),
+        elements: ELEMENTS,
+        relations: RELATIONS,
+      }),
+      { perText: 0, titleEvery: COMPOUND_TITLE_EVERY },
+    );
+    tree = compounded.tree;
+    const { four, tail } = costliestParts(compounded.words);
+    typed = [...TYPED, tail, four];
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
     // As a server starts (SR-082): the command runtime, the model, then the search index.
@@ -132,7 +147,7 @@ describe("the command prompt's search with 50,000 elements (SR-108 AK5, N-036)",
   const measureEveryPrefix = async (label: string, types: readonly string[] | undefined): Promise<void> => {
     const measurements = [];
     const singles: number[] = [];
-    for (const word of TYPED) {
+    for (const word of typed) {
       for (const prefix of prefixes(word)) {
         const { result, measurement, times } = await measureMedian(
           `prompt search ${label}: typing ${JSON.stringify(word)}, after ${JSON.stringify(prefix)}, 20 hits`,

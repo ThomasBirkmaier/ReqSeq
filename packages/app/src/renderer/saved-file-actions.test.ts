@@ -3,7 +3,7 @@
 // or a delete. The actions run against a context that records what they dispatch, ask and echo.
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, runAction } from "./actions.js";
-import type { ActionContext, Prompt } from "./actions.js";
+import type { ActionContext, Prompt } from "./action-types.js";
 import type { Buffers, ListBuffer, SearchBuffer } from "./buffers.js";
 import {
   listBuffer,

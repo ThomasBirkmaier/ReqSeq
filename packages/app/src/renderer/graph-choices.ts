@@ -1,6 +1,6 @@
 // The choices of a graph (SR-111 AK2 and AK3): its depth, and the relation kinds it follows. The command
 // prompt offers them on a graph ("Graph depth", "Show only relation kind", "Also show relation kind",
-// `actions.ts`); each entry gives the graph buffer to show, whose input `trace.graph` answers again
+// `graph-actions.ts`); each entry gives the graph buffer to show, whose input `trace.graph` answers again
 // (`graphInput`). The kinds come from the catalog and the metamodel as they are, by their names: the
 // meanings of `trace.graph`'s input and every relation kind and property of kind `relation` (ADR-0002).
 // The app decides nothing about them: core follows a link whose key is in `kinds` or whose meaning is in

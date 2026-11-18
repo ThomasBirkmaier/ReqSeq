@@ -2,7 +2,7 @@
 // short fixed choice of the commands of the command prompt for that place. This module is pure: the places
 // and their entries, where a press lands, which entries are shown, which press opens the menu, where it
 // sits and what a key does while it is open. `use-context-menu.ts` listens, `ContextMenu.tsx` draws.
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { KeyRow } from "./keys.js";
 import { press } from "./keys.js";
 import { ENTRY_MENU } from "./entry-menu.js";

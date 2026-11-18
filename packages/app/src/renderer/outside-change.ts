@@ -11,7 +11,7 @@
 // Assumption until spec question ThomasBirkmaier/ReqSeq-archive#488 (1) is answered: every change of the file while there is input stops
 // saving and asks (the literal reading of AK2), not only a change of a field with input.
 import { shownDoc } from "./criterion-doc.js";
-import type { Prompt } from "./actions.js";
+import type { Prompt } from "./action-types.js";
 import type { BoxDraft, Draft } from "./drafts.js";
 import type { PropertyInfo } from "./element-view.js";
 import { choiceKeys, relationTargets } from "./property-edit.js";

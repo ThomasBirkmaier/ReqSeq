@@ -1,6 +1,6 @@
 // The input of the open buffers is saved before a write command runs (`catalog-commands.ts`, and the app actions
 // that run one, `saved-file-actions.ts`).
-import type { ActionContext } from "./actions.js";
+import type { ActionContext } from "./action-types.js";
 import type { Buffer } from "./buffers.js";
 
 /**

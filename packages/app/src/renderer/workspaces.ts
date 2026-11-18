@@ -12,7 +12,7 @@ import type {
   OpenWorkspaceResult,
   RecentWorkspaceEntry,
 } from "../shared/protocol.js";
-import type { Choice, Prompt } from "./actions.js";
+import type { Choice, Prompt } from "./action-types.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import { notSavedInTime } from "./switch.js";

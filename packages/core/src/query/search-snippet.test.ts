@@ -335,7 +335,10 @@ describe("search hit snippet (SR-174)", () => {
     const text = String(hit.snippet?.text);
     expect(codePoints(text)).toBe(MAX);
     expect(text).toBe(`…${sentence.slice(0, MAX - 2)}…`);
-    expect(hit.snippet?.marks).toEqual([{ start: 1, end: MAX - 1 }]);
+    // "気象" begins the word: only it is marked (SR-221 AK3); the whole word, a phrase of it, is clipped.
+    expect(hit.snippet?.marks).toEqual([{ start: 1, end: 3 }]);
+    const whole = await hitOf(ws, `"${sentence.slice(0, 20)}`, `${P}c4`);
+    expect(whole.snippet?.marks).toEqual([{ start: 1, end: MAX - 1 }]);
     // Never before a combining mark.
     const marks = "e\u0301".repeat(100);
     const ws2 = await open(element("c5", "Marks", `${marks}\n`));
@@ -444,13 +447,20 @@ describe("search hit snippet (SR-174)", () => {
             element: record,
             fields: ["text", "properties"],
             terms: ["hurricane"],
+            parts: new Map(),
             phrases: [],
           }),
     ).toMatchObject({ property: "checks", text: "The dial warns before a hurricane arrives." });
     expect(
       record === undefined
         ? undefined
-        : searchSnippet(index, { element: record, fields: ["text"], terms: ["dial"], phrases: [] }),
+        : searchSnippet(index, {
+            element: record,
+            fields: ["text"],
+            terms: ["dial"],
+            parts: new Map(),
+            phrases: [],
+          }),
     ).toBeUndefined();
   });
 });

@@ -6,7 +6,7 @@ import { codeFolding, foldEffect } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Choice } from "./actions.js";
+import type { Choice } from "./action-types.js";
 import type { MenuHit } from "./context-menu.js";
 import { MENU_PLACES, menuEntries, openEntries } from "./context-menu.js";
 import { copyText, cutText, hasSelection, pasteText } from "./editor/clipboard.js";

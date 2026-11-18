@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, actionFor, commandPrompt, runAction } from "./actions.js";
-import type { ActionContext } from "./actions.js";
+import type { ActionContext } from "./action-types.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {
   bufferName,

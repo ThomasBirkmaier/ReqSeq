@@ -2,7 +2,7 @@
 // groupings "Group list" offers (`list-groups.ts`) of the elements the call's earlier `where`, `filter`,
 // `perspective` and shown selection select, from one `element.facets`; in a builder "No grouping" first.
 import type { CommandTypes } from "@reqseq/core";
-import type { ActionContext } from "./actions.js";
+import type { ActionContext } from "./action-types.js";
 import type { Failed, Offer } from "./catalog-entry.js";
 import { failed, listOf } from "./catalog-entry.js";
 import { groupings } from "./list-groups.js";

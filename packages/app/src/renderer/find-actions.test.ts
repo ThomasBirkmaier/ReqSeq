@@ -7,7 +7,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { Command } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ActionContext, Prompt } from "./actions.js";
+import type { ActionContext, Prompt } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import { FIND_ACTIONS, findAction, replaceAction, replaceAllAction } from "./find-actions.js";
 import { findMarks, searchOf } from "./editor/find.js";

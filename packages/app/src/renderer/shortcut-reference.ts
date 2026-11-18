@@ -1,7 +1,7 @@
 // The keyboard reference of the documentation (SR-139 AK5): every key of the app with what it does, on Windows and
 // Linux and on macOS, built from the app's own tables, so a changed key shows after the next build of the
 // documentation. The documentation generator (ADR-0017) only renders it.
-import type { Action } from "./actions.js";
+import type { Action } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import type { PrefixBinding } from "./bindings.js";
 import { PREFIX, PREFIX_BINDINGS, PREFIX_KEYS, prefixLabel } from "./bindings.js";

@@ -3,7 +3,7 @@
 // command prompt keeps the focus; the text gets it back when the prompt ends. Editor-only, no catalog command, like
 // the slash menu (ADR-0010).
 import type { Command } from "@codemirror/view";
-import type { Action, ActionContext } from "./actions.js";
+import type { Action, ActionContext } from "./action-types.js";
 import { endSearch, replaceAll, replaceHit, searchFor, searchStatus, stepHit } from "./editor/find.js";
 
 /** Whether the shown buffer is an element whose text takes commands (as `hasText` of `text-actions.ts`). */

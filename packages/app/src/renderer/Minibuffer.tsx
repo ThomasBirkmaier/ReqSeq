@@ -11,8 +11,8 @@ import type {
   PromptFill,
   PromptMark,
   StepExplanation,
-} from "./actions.js";
-import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
+} from "./action-types.js";
+import { NEXT_BUFFER_SHORTCUT, OTHER_WINDOW_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./buffer-actions.js";
 import { highlightRanges } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
