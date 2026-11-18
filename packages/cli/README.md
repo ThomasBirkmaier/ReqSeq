@@ -29,7 +29,7 @@ node packages/cli/dist/bin.js element get SR-036 --workspace spec
 - `src/main.ts`: `runCli(options)`: parse, invoke, print, exit code (`EXIT`, `exitCodeFor`); also starts the servers. Exported for in-process callers.
 - `src/program.ts`: the commander tree generated from `runtime.contracts.commands`.
 - `src/fields.ts`, `src/input.ts`: positional, flag or `--input` only, from the JSON Schema of each input field.
-- `src/render.ts`, `src/present.ts`: the output formats, errors and the exit code of the output; `src/style.ts`: the terminal style.
+- `src/render.ts`: the output formats, errors and the exit code of the output; `src/style.ts`: the terminal style.
 - `src/present.ts`: `renderHuman`, the default output for people (its file comment describes the layout), built from `src/present/`: `common.ts` (shared helpers, the elements an output names by UUID), `element.ts` (an element line, its details, a finding line), `list.ts` (a value by its shape; plain, tree and grouped lists), `chain.ts` (a chain), `evidence.ts` (evidence records, test cases, a graph with evidence) and `matrix.ts` (a matrix). Their tests are `src/present.test.ts` and `src/present/*.test.ts`, with shared fixtures in `src/present.test-helper.ts`.
 - `src/argv.ts`: `argvFor(entry, input)`, the arguments for a command input (cross-access test).
 
