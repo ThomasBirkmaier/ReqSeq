@@ -28,7 +28,7 @@ packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
 based-on:
-  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:59a8a36b2d13b854, title: HTML-Export erzeugt das Tool selbst }
+  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:53736526cb94923b, title: HTML-Export erzeugt das Tool selbst }
   - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:c1a69d3f66480db9, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 derives-from:
