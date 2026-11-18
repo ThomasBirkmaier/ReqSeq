@@ -216,6 +216,36 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     ]);
   });
 
+  it("joins every --require, refuses a repeated --stage or --report and a flag without a value", () => {
+    const result = traceCheck(repo(), [
+      "--require",
+      "SR-001",
+      "--require",
+      " SR-404 , SR-405,SR-404",
+      "--stage",
+      "Querschnitt",
+      "--stage",
+      "3",
+      "--report",
+      "a.md",
+      "--report",
+      "b.md",
+      "--require",
+    ]);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "--require needs a value",
+        "--stage given twice",
+        "--report given twice",
+        "required SR-404 not found in spec/",
+        "required SR-405 not found in spec/",
+      ]),
+    );
+    expect(result.reportFile).toBe("a.md");
+    // An SR named twice is checked once.
+    expect(result.errors.filter((e) => e === "required SR-404 not found in spec/")).toHaveLength(1);
+  });
+
   it("reports a spec ID that two system requirements share", () => {
     const root = repo({
       "spec/system-requirement/SR-000000000003.md":
