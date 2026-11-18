@@ -512,34 +512,81 @@ describe("reqseq <group> <action>", () => {
     expect(JSON.parse(first.stdout)).toEqual({ input: { ref, name: "second", level: "low" } });
   });
 
-  it("refuses a single-value option given twice instead of keeping the last value (#1828)", async () => {
-    const twice = (flag: string, value: string): string[] => [flag, value, flag, value];
+  it("refuses a single-value option given twice with different values, and --x with --no-x (#1828)", async () => {
+    const long = "x".repeat(80);
     const lines: [string[], string][] = [
-      [["test", "echo", "--name", "n", ...twice("--ref", ref)], "--ref <value>"],
-      [["test", "echo", ref, "n", ...twice("--count", "1")], "--count <number>"],
-      [["test", "echo", ref, "n", ...twice("--where", "{}")], "--where <json|@file|->"],
-      [["test", "echo", ref, "n", ...twice("--input", "{}")], "--input <json|@file|->"],
-      [["test", "echo", ref, "n", ...twice("--workspace", ".")], "--workspace <path>"],
-      [["serve", "api", ...twice("--port", "0")], "--port <number>"],
-      [["serve", "api", ...twice("--workspace", ".")], "--workspace <path>"],
-      [["serve", "docs", ...twice("--port", "0")], "--port <number>"],
-      [["mcp", ...twice("--workspace", ".")], "--workspace <path>"],
+      [
+        ["test", "echo", "--name", "n", "--ref", "N-001", "--ref", "SR-142"],
+        "--ref takes one value, given twice: N-001 and SR-142; give it once",
+      ],
+      [
+        ["test", "echo", ref, "n", "--count", "1", "--count", "2"],
+        "--count takes one value, given twice: 1 and 2; give it once",
+      ],
+      [
+        ["test", "echo", ref, "n", "--body", "a", "--body", long],
+        `--body takes one value, given twice: a and ${"x".repeat(59)}…; give it once`,
+      ],
+      [
+        ["test", "echo", ref, "n", "--where", "{}", "--where", "[]"],
+        "--where takes one value, given twice: {} and []; give it once",
+      ],
+      [
+        ["test", "echo", ref, "n", "--input", "{}", "--input", "[]"],
+        "--input takes one value, given twice: {} and []; give it once",
+      ],
+      [
+        ["test", "echo", ref, "n", "--workspace", "a", "--workspace", "b"],
+        "--workspace takes one value, given twice: a and b; give it once",
+      ],
+      [
+        ["test", "echo", ref, "n", "--verbose", "--no-verbose"],
+        "--verbose and --no-verbose both given; give one",
+      ],
+      [
+        ["test", "echo", ref, "n", "--no-verbose", "--verbose"],
+        "--verbose and --no-verbose both given; give one",
+      ],
+      [
+        ["serve", "api", "--port", "1", "--port", "2"],
+        "--port takes one value, given twice: 1 and 2; give it once",
+      ],
+      [
+        ["serve", "api", "--workspace", "a", "--workspace", "b"],
+        "--workspace takes one value, given twice: a and b; give it once",
+      ],
+      [
+        ["serve", "docs", "--port", "1", "--port", "2"],
+        "--port takes one value, given twice: 1 and 2; give it once",
+      ],
+      [
+        ["mcp", "--workspace", "a", "--workspace", "b"],
+        "--workspace takes one value, given twice: a and b; give it once",
+      ],
     ];
-    for (const [argv, option] of lines) {
+    for (const [argv, message] of lines) {
       const result = await run([...argv, "--json"]);
       expect(result.code, argv.join(" ")).toBe(EXIT.usage);
       expect(result.stdout, argv.join(" ")).toBe("");
-      expect(JSON.parse(result.stderr), argv.join(" ")).toEqual({
-        code: "input.invalid",
-        message: `option '${option}' argument '${argv.at(-1) ?? ""}' is invalid. The option takes one value; give it once.`,
-      });
+      expect(JSON.parse(result.stderr), argv.join(" ")).toEqual({ code: "input.invalid", message });
     }
-    // Repeatable flags and a repeated boolean keep working.
-    const repeated = await run([
+    const plain = await run(["test", "echo", ref, "n", "--count", "1", "--count", "2"]);
+    expect(plain).toEqual({
+      code: EXIT.usage,
+      stdout: "",
+      stderr: "error: --count takes one value, given twice: 1 and 2; give it once\n",
+    });
+    // The same value twice loses nothing; repeatable flags collect, and a repeated boolean stays true.
+    const ws = await fixture();
+    const kept = await run([
       "test",
       "echo",
       ref,
       "n",
+      "--workspace",
+      ws.root,
+      "--workspace",
+      ws.root,
       "--tags",
       "a",
       "--tags",
@@ -547,11 +594,22 @@ describe("reqseq <group> <action>", () => {
       "--ids",
       ref,
       "--ids",
-      ref,
+      "SR-111111",
+      "--verbose",
+      "--verbose",
+      "--json",
     ]);
-    expect(repeated.code).toBe(EXIT.ok);
-    const flags = await run(["test", "echo", ref, "n", "--verbose", "--verbose", "--json"]);
-    expect(JSON.parse(flags.stdout)).toMatchObject({ input: { verbose: true } });
+    expect(kept.stderr).toBe("");
+    expect(JSON.parse(kept.stdout)).toEqual({
+      input: {
+        ref,
+        name: "n",
+        tags: ["a", "b"],
+        selection: { ids: [ref, "SR-111111"] },
+        verbose: true,
+        level: "low",
+      },
+    });
   });
 
   it("exits 0 without error findings and 1 with them or with ok: false", async () => {
