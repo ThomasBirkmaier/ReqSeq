@@ -89,7 +89,13 @@ import {
   visibleText,
   wordsOf,
 } from "./phrase-text.js";
-import type { DesignationRun, DesignationTable, QueryRuns } from "./search-designations.js";
+import type {
+  DesignationRun,
+  DesignationTable,
+  QueryPart,
+  QueryRuns,
+  QueryWord,
+} from "./search-designations.js";
 import { designationRuns, designationTable } from "./search-designations.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
@@ -1376,11 +1382,12 @@ interface QueryWords {
 
 /**
  * The words `words` of a query outside quotes as `queryWords` takes them, and whether one of them can
- * match nothing in the fields searched (`void`).
+ * match nothing in the fields searched (`void`). A piece of a word that a run of other designations
+ * splits (`QueryWord`, SR-220) is its words, searched as one word whose parts must all match.
  */
 const wordsOfQuery = (
   index: SearchIndex,
-  words: readonly string[],
+  words: readonly QueryWord[],
   fields: ReadonlySet<SearchField>,
   searched: readonly string[],
 ): { readonly plain: string[]; readonly special: SpecialWord[]; readonly void: boolean } => {
@@ -1388,6 +1395,12 @@ const wordsOfQuery = (
   const special: SpecialWord[] = [];
   let found = false;
   for (const word of words) {
+    if (typeof word !== "string") {
+      // Its words have a letter or digit, and runs exist only with fields of words (`foundBy`);
+      // split by a run, it is no ID (see `search-designations.ts`).
+      plain.push(word.join(" "));
+      continue;
+    }
     const hasWord = wordsOf(word).length > 0;
     const text = searched.length > 0 && hasWord;
     const ids = fields.has("id") ? idMatcher(word, index) : undefined;
@@ -1718,29 +1731,33 @@ const othersFound = (search: Search, others: readonly SearchPhrase[]): Map<strin
   return found;
 };
 
-/** A run of other designations of a query (`DesignationRun`) with its words as the query takes them. */
-interface RunWords {
-  readonly run: DesignationRun;
-  readonly words: QueryWords;
-}
-
 /**
- * The documents the query finds when each of its runs (`first`, `more`) is also found through its
- * other designations (SR-220 AK1): per run, its words or one of its other designations, and with
- * them the rest of the query (`rest`), combined with `and` or not.
+ * The documents the query finds when each of its runs (in `joined`) is also found through its other
+ * designations (SR-220 AK1): per run, its words or one of its other designations; per part, its runs
+ * and its other words all (a word split by a run needs all its words, as in the literal search); the
+ * parts with the rest of the query (`rest`), combined with `and` or not; `take` gives the words of
+ * some query words (`wordsOfQuery`).
  */
 const expandedFound = (
   search: Search,
   rest: QueryWords,
-  first: RunWords,
-  more: readonly RunWords[],
-  and: boolean,
+  joined: readonly [QueryPart, ...QueryPart[]],
+  options: { readonly and: boolean; readonly take: (words: readonly QueryWord[]) => QueryWords },
 ): Map<string, Found> => {
-  const part = ({ run, words }: RunWords): Map<string, Found> =>
-    unite(byKey(splitFound(search, words, and)), othersFound(search, run.others));
-  let found = part(first);
-  for (const run of more) {
-    found = combine(found, part(run), and);
+  const { and, take } = options;
+  const runFound = (run: DesignationRun): Map<string, Found> =>
+    unite(byKey(splitFound(search, take(run.words), and)), othersFound(search, run.others));
+  const partFound = (part: QueryPart): Map<string, Found> => {
+    let found = part.runs.map(runFound).reduce((all, one) => combine(all, one, true));
+    if (part.rest.length > 0) {
+      found = combine(found, byKey(splitFound(search, take(part.rest), true)), true);
+    }
+    return found;
+  };
+  const [first, ...more] = joined;
+  let found = partFound(first);
+  for (const part of more) {
+    found = combine(found, partFound(part), and);
   }
   const whole = rest.plain.length === 0 && rest.special.length === 0 && rest.phrases.length === 0;
   return whole ? found : combine(byKey(splitFound(search, rest, and)), found, and);
@@ -1772,7 +1789,7 @@ const withOthers = (literal: Iterable<Found>, expanded: ReadonlyMap<string, Foun
 };
 
 /** A query without runs of other designations. */
-const NO_RUNS: QueryRuns = { runs: [], rest: [] };
+const NO_RUNS: QueryRuns = { parts: [] };
 
 /** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (
@@ -1791,22 +1808,24 @@ const foundBy = (
   const literal = splitFound(search, split, and);
   // Other designations only in fields of words (SR-220); without a table the search is SR-068's (AK5).
   const table = searched.length === 0 ? undefined : designationsIn(index);
-  const { runs, rest } = table === undefined ? NO_RUNS : designationRuns(table, parsed.segments);
-  const [first, ...more] = runs.map((run): RunWords => ({
-    run,
-    words: { ...wordsOfQuery(index, run.words, fields, searched), phrases: [] },
-  }));
+  const { parts } = table === undefined ? NO_RUNS : designationRuns(table, parsed.segments);
+  const [first, ...more] = parts.filter((part) => part.runs.length > 0);
   if (first === undefined) {
     return literal;
   }
   // The rest of the query: its words outside the runs, and its phrases, those that may be IDs too.
+  const rest = parts.filter((part) => part.runs.length === 0).flatMap((part) => part.rest);
   const restOutside = wordsOfQuery(index, rest, fields, searched);
   const restWords = {
     ...restOutside,
     special: [...restOutside.special, ...split.special.filter((one) => one.phrase !== undefined)],
     phrases: split.phrases,
   };
-  return withOthers(literal, expandedFound(search, restWords, first, more, and));
+  const take = (words: readonly QueryWord[]): QueryWords => ({
+    ...wordsOfQuery(index, words, fields, searched),
+    phrases: [],
+  });
+  return withOthers(literal, expandedFound(search, restWords, [first, ...more], { and, take }));
 };
 
 /**

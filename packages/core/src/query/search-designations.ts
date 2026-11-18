@@ -18,10 +18,16 @@
 //   Built from the records of a store, so every save and watcher batch, which give a new store,
 //   gives a new table (AK4).
 // - The runs (`designationRuns`): in each stretch of the query between phrases, left to right, the
-//   longest run of whole words that is a key of the table at that place (AK1); an overlapping
-//   shorter or later one does not count (`a b c d` with the keys `a b` and `b c d` takes `a b`:
-//   SR-220 AK1, #1817). A word without a letter or digit is skipped, as the search
-//   leaves it out.
+//   longest run of words that is a key of the table at that place (AK1), on the words the search
+//   splits the query into (`wordsOf`: also at a hyphen, `Paket-Export` is `paket` and `export`), so a
+//   run may start or end inside a query word; an overlapping shorter or later one does not count
+//   (`a b c d` with the keys `a b` and `b c d` takes `a b`: SR-220 AK1, #1817). A query word without
+//   a letter or digit is skipped, as the search leaves it out. A query word that runs touch only in
+//   part needs all its words, as in the search without runs: it joins its runs and its other words
+//   into one part (`QueryPart`), whose pieces must all be found. Its words that no run covers are
+//   searched as words, as in the literal search of the query word (assumption of #1822), and a query
+//   word that is an ID (`SR-220`) keeps that match only where no run splits it; the literal search
+//   (`search-index.ts`) keeps it in every case.
 // - The other designations of a run are matched as an open phrase (`SearchPhrase`, `prefix`): whole
 //   words in this order, without a typo, in any case, the last word also as a word start (AK1).
 import type { Metamodel, PropertyMeaning } from "../metamodel/index.js";
@@ -147,71 +153,121 @@ export const designationTable = (
   return others.size === 0 ? undefined : { others, longest };
 };
 
-/** A run of words of a query that is a designation: its words as written, and its other designations. */
+/**
+ * A word of a query outside quotes as the runs take it: as written (`SR-220`), or, where a run splits
+ * it, the words (`wordsOf`) of one piece, searched as words only.
+ */
+export type QueryWord = string | readonly string[];
+
+/** A run of words of a query that is a designation: its words, and its other designations. */
 export interface DesignationRun {
-  readonly words: readonly string[];
+  readonly words: readonly QueryWord[];
   readonly others: readonly SearchPhrase[];
 }
 
-/** The runs of a query (`designationRuns`), and its other words outside quotes, in order. */
-export interface QueryRuns {
+/**
+ * Query words found together (see the file comment): one without runs, or the words that runs and
+ * split query words join, with their runs and the words of the split ones that no run covers.
+ */
+export interface QueryPart {
   readonly runs: readonly DesignationRun[];
-  readonly rest: readonly string[];
+  readonly rest: readonly QueryWord[];
 }
 
-/** The runs of one stretch of a query (`designationRuns`), added to `runs`; its other words to `rest`. */
-const runsIn = (
-  table: DesignationTable,
-  segment: readonly string[],
-  runs: DesignationRun[],
-  rest: string[],
-): void => {
-  const items = segment.map((word) => ({ word, words: wordsOf(word) }));
-  const counted = items.filter((item) => item.words.length > 0);
-  rest.push(...items.filter((item) => item.words.length === 0).map((item) => item.word));
-  let at = 0;
-  for (const [start, first] of counted.entries()) {
-    if (start < at) {
-      continue;
-    }
-    // The longest run from `first` on that is a key: its length in query words, 0 for none.
+/** The parts of a query outside quotes (`designationRuns`), in order. */
+export interface QueryRuns {
+  readonly parts: readonly QueryPart[];
+}
+
+/** A run being built: its words grow per query word it touches. */
+interface Building {
+  readonly words: QueryWord[];
+  readonly others: readonly SearchPhrase[];
+}
+
+/**
+ * Per word of `words`, the run that covers it (an index of the returned runs) or -1: left to right,
+ * the longest key of `table` at each place (see the file comment).
+ */
+const runsOver = (table: DesignationTable, words: readonly string[]): [number[], Building[]] => {
+  const covering = new Array<number>(words.length).fill(-1);
+  const runs: Building[] = [];
+  let start = 0;
+  while (start < words.length) {
     let length = 0;
     let others: readonly SearchPhrase[] = [];
-    const words: string[] = [];
-    for (const [offset, item] of counted.slice(start).entries()) {
-      words.push(...item.words);
-      if (words.length > table.longest) {
-        break;
-      }
-      const found = table.others.get(words.join(" "));
+    for (let end = start + 1; end <= Math.min(words.length, start + table.longest); end++) {
+      const found = table.others.get(words.slice(start, end).join(" "));
       if (found !== undefined) {
-        length = offset + 1;
+        length = end - start;
         others = found;
       }
     }
     if (length === 0) {
-      rest.push(first.word);
-      at = start + 1;
+      start++;
     } else {
-      runs.push({ words: counted.slice(start, start + length).map((item) => item.word), others });
-      at = start + length;
+      covering.fill(runs.length, start, start + length);
+      runs.push({ words: [], others });
+      start += length;
     }
+  }
+  return [covering, runs];
+};
+
+/** The parts of one stretch of a query (`designationRuns`), added to `parts`. */
+const partsIn = (table: DesignationTable, segment: readonly string[], parts: QueryPart[]): void => {
+  const items = segment.map((word) => ({ word, words: wordsOf(word) }));
+  const [covering, runs] = runsOver(
+    table,
+    items.flatMap((item) => item.words),
+  );
+  let part: { readonly runs: Building[]; readonly rest: QueryWord[] } | undefined;
+  // The run of the last word counted so far, -1 for none.
+  let last = -1;
+  let at = 0;
+  for (const { word, words } of items) {
+    const by = covering.slice(at, at + words.length);
+    at += words.length;
+    if (by.every((run) => run < 0)) {
+      // No run touches it (also a word without a letter or digit): a part of its own, as written.
+      parts.push({ runs: [], rest: [word] });
+      last = words.length === 0 ? last : -1;
+      continue;
+    }
+    if (part === undefined || by[0] !== last || last < 0) {
+      part = { runs: [], rest: [] };
+      parts.push(part);
+    }
+    const uncovered = words.filter((_, k) => by[k] === -1);
+    for (const run of new Set(by)) {
+      const building = runs[run];
+      if (building !== undefined) {
+        const mine = words.filter((_, k) => by[k] === run);
+        building.words.push(mine.length === words.length ? word : mine);
+        if (!part.runs.includes(building)) {
+          part.runs.push(building);
+        }
+      }
+    }
+    if (uncovered.length > 0) {
+      part.rest.push(uncovered);
+    }
+    last = by.reduce((_, run) => run, last);
   }
 };
 
 /**
- * The runs of the query whose stretches between phrases are `segments` (`ParsedQuery.segments`):
- * left to right the longest run of words at each place that is a key of `table` (see the file
- * comment); the other words are `rest`.
+ * The parts of the query whose stretches between phrases are `segments` (`ParsedQuery.segments`):
+ * left to right the longest run of words at each place that is a key of `table`, and the query words
+ * that runs split joined with them (see the file comment).
  */
 export const designationRuns = (
   table: DesignationTable,
   segments: readonly (readonly string[])[],
 ): QueryRuns => {
-  const runs: DesignationRun[] = [];
-  const rest: string[] = [];
+  const parts: QueryPart[] = [];
   for (const segment of segments) {
-    runsIn(table, segment, runs, rest);
+    partsIn(table, segment, parts);
   }
-  return { runs, rest };
+  return { parts };
 };
