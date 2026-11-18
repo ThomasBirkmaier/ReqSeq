@@ -239,8 +239,8 @@ export const acceptanceCriteriaProblem = (
  * Why a property with the meaning `synonyms` or `translation` gives no designations of its element
  * (D-059, SR-220), and the key whose line names it; undefined when its values are designations. Both
  * hold texts; a property of another kind gives none. A `synonyms` property without `many` still gives
- * its one value (`meaningKindProblems` warns about it). Whether a translation may have several
- * values or be Markdown is not checked, and every value counts (#1811).
+ * its one value (`meaningKindProblems` warns about it). A translation with several values or marked
+ * Markdown is not reported, and every value counts (#1811).
  */
 export const designationKindProblem = (
   property: MetamodelProperty,
