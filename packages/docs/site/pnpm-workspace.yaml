@@ -1,0 +1,6 @@
+# Settings of the documentation site, which is outside the pnpm workspace (ADR-0017).
+auditConfig:
+  ignoreGhsas:
+    # picomatch ReDoS (<=4.0.7) has no patched version yet and reaches only the build of this site
+    # (astro > unstorage > anymatch), not the shipped tool; drop it once a fixed picomatch exists (#1820).
+    - GHSA-fc5q-39xc-vjpf

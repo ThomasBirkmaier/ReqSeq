@@ -232,9 +232,10 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
         run: pnpm docs:install
       # `pnpm audit --prod` above sees only the workspace; the site's dev packages are audited here.
+      # Without `--ignore-workspace`, so that the site's own `pnpm-workspace.yaml` and its audit exceptions apply (#1820).
       - name: Docs - audit the site's dependencies
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
-        run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+        run: pnpm audit --dir packages/docs/site --audit-level high
       # The licences of what the site ships with a delivery (ADR-0015, SR-141), so a pull request sees a change.
       - name: Docs - check the licences the site ships
         if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
