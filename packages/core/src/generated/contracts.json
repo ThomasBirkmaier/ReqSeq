@@ -5583,7 +5583,30 @@
             "last"
           ],
           "additionalProperties": false
-        }
+        },
+        "outputFields": [
+          {
+            "path": "recorded"
+          },
+          {
+            "path": "connected"
+          },
+          {
+            "path": "connected[].client"
+          },
+          {
+            "path": "connected[].since"
+          },
+          {
+            "path": "last"
+          },
+          {
+            "path": "last.client"
+          },
+          {
+            "path": "last.at"
+          }
+        ]
       },
       {
         "name": "workspace.recent",
