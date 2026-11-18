@@ -350,6 +350,16 @@ scenariosOf("element.search", [
     },
   },
   {
+    tag: "[SR-220/AK-bfrh]",
+    name: "a designation counts inside a hyphenated query word, as the search splits it",
+    fixture: DESIGNATIONS,
+    input: { query: "Paket-Export" },
+    expect: "output",
+    check: (results) => {
+      expect(ranked(results).map((hit) => hit.split(" ")[0])).toEqual(["SR-0000c3"]);
+    },
+  },
+  {
     tag: "[SR-220/AK-z3ht]",
     name: "literal hits first, then hits through another designation, then those through a type name",
     fixture: DESIGNATIONS,
