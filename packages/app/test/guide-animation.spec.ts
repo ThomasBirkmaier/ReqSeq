@@ -175,7 +175,11 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
   test.setTimeout(180_000);
   // The README shows the animation, and the committed one runs at most 30 s.
   expect(await fs.readFile(folder("README.md"), "utf8")).toContain("(docs/guide/images/app-tour.gif)");
-  expect(sum(gifDelays(await fs.readFile(GIF)))).toBeLessThanOrEqual(LIMIT_MS);
+  // A run that regenerates it checks the new one instead (at the end), so that a copy over the limit can be replaced.
+  const regenerate = (process.env["REQSEQ_GUIDE_IMAGES"] ?? "") !== "";
+  if (!regenerate) {
+    expect(sum(gifDelays(await fs.readFile(GIF)))).toBeLessThanOrEqual(LIMIT_MS);
+  }
   const running = await launchApp({ folder: SPEC }, { colorScheme: "light" });
   const { app, window } = running;
   const frames: { readonly file: string; readonly ms: number }[] = [];
@@ -224,6 +228,8 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
   };
 
   try {
+    // The command help slides in only without reduced motion (styles.css); the system's setting must not decide.
+    await window.emulateMedia({ reducedMotion: "no-preference" });
     await fs.rm(FRAMES, { recursive: true, force: true });
     await fs.mkdir(FRAMES, { recursive: true });
     const { need, requirements } = await choose(running);
@@ -270,19 +276,28 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     await frame(1500);
 
     // "Filter list" marked, and its command help sliding in (Ctrl+H, SR-133 AK1): the transitions it starts are
-    // paused and stepped, a frame per step.
+    // paused and stepped, a frame per step. They are paused in the task that opens the panel (its `data-open`
+    // changes), not after the help is visible: on a slow runner the slide has ended by then, and an ended
+    // transition is no longer among the animations (#1774).
     await mark("Filter list");
+    await window.locator("#command-help").evaluate((element) => {
+      const paused: CSSTransition[] = [];
+      Object.assign(globalThis, { reqseqPaused: paused });
+      // `getAnimations` brings the style up to date, so it makes the transitions in the task that changed the panel.
+      new MutationObserver(() => {
+        for (const one of document.getAnimations()) {
+          if (one instanceof CSSTransition && !paused.includes(one)) {
+            one.pause();
+            paused.push(one);
+          }
+        }
+      }).observe(element, { attributes: true, attributeFilter: ["data-open"] });
+    });
     await window.keyboard.press("Control+H");
     await expect(window.locator('#command-help[data-open="true"]')).toHaveCount(1);
     await expect
       .poll(() =>
-        window.evaluate(() => {
-          const moving = document.getAnimations().filter((one) => one instanceof CSSTransition);
-          for (const one of moving) {
-            one.pause();
-          }
-          return moving.length;
-        }),
+        window.evaluate(() => (globalThis as unknown as { reqseqPaused: unknown[] }).reqseqPaused.length),
       )
       .toBeGreaterThan(0);
     for (let step = 1; step <= SLIDE.frames; step += 1) {
@@ -387,7 +402,7 @@ test("[SR-203/AK-vj7k] [SR-203/AK-qq6z] the README animation: the app on spec/, 
     `file '${frames.at(-1)?.file ?? ""}'`,
   ];
   await fs.writeFile(path.join(FRAMES, "frames.txt"), `${list.join("\n")}\n`);
-  if ((process.env["REQSEQ_GUIDE_IMAGES"] ?? "") !== "") {
+  if (regenerate) {
     // One palette for all frames from what changes, with a transparent entry for the corners, and no dithering, so
     // that the text stays sharp.
     const raw = path.join(FRAMES, "app-tour.raw.gif");
