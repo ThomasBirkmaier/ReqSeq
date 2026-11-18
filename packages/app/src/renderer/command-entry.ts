@@ -2,7 +2,7 @@
 // command), else by the command's catalog title in the command prompt (catalog-commands.ts), each with the key that
 // runs it; a command whose output the app shows only in another command has no entry of its own (`SHOWN_IN`,
 // SR-133 AK4). The documentation generator reads it (ADR-0017), so the reference names what the app shows.
-import type { Action } from "./actions.js";
+import type { Action } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
 import { COMMAND_SHORTCUT, shortcutLabel } from "./keys.js";

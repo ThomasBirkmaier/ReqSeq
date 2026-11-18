@@ -73,98 +73,123 @@
     "type": "object",
     "properties": {
       "root": {
+        "title": "Root element",
         "$ref": "../common.schema.json#/$defs/uuid"
       },
       "nodes": {
+        "title": "Nodes",
         "type": "array",
         "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "shortId": {
+              "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier",
               "type": "string",
               "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, ThomasBirkmaier/ReqSeq-archive#305), for display next to `shortId`; left out when it has none."
             },
             "type": {
+              "title": "Type",
               "description": "Key of its type.",
               "type": "string"
             },
             "title": {
+              "title": "Title",
               "description": "Its title; empty without one.",
               "type": "string"
             },
             "status": {
+              "title": "Status",
               "description": "Its status key as written; left out when it has none.",
               "type": "string"
             },
             "repository": {
+              "title": "Repository",
               "description": "Workspace name of the repository of its file.",
               "type": "string"
             },
             "file": {
-              "type": "string",
+              "title": "File",
+              "$ref": "../common.schema.json#/$defs/outputPath",
               "description": "Path relative to the repository."
             },
             "depth": {
+              "title": "Depth",
               "type": "integer",
               "minimum": 0,
               "description": "Steps from the root: 0 for the root, 1 for its parents or children, and so on."
             },
             "direction": {
+              "title": "Direction",
               "enum": ["up", "down"],
               "description": "`up` for a parent (and its parents), `down` for a child (and its children); left out for the root."
             },
             "expanded": {
+              "title": "Expanded",
               "type": "boolean",
-              "description": "Its parents or children were looked at; false only at `maxDepth`, where the chain was cut."
+              "description": "Its parents or children were looked at; false only at `maxDepth`, where the chain was cut.",
+              "x-normal": true
             }
           },
           "additionalProperties": false,
           "required": ["id", "shortId", "type", "title", "repository", "file", "depth", "expanded"]
-        }
+        },
+        "x-elements": true
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "The number of all nodes of the chain; `nodes` holds the page of `limit` from `offset`."
       },
       "edges": {
+        "title": "Edges",
         "type": "array",
         "description": "Every derivation relation the chain followed, from the child that stores it (`source`) to its parent (`target`, ADR-0004): the upward ones, then the downward ones, in the order they were followed. Paged with the nodes: an edge is listed on the page of the node it leads to in its walk (upwards the parent, downwards the child), so every edge is on exactly one page.",
         "items": {
           "type": "object",
           "properties": {
             "source": {
+              "title": "Source element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "sourceRepository": {
+              "title": "Repository of the source",
               "type": "string",
               "description": "Workspace name of the repository of `source`."
             },
             "target": {
+              "title": "Target element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "targetRepository": {
+              "title": "Repository of the target",
               "type": "string",
               "description": "Workspace name of the repository of `target`."
             },
             "kind": {
+              "title": "Relation kind",
               "$ref": "../common.schema.json#/$defs/key",
               "description": "Key of the relation kind with the meaning `derivation` (SR-013)."
             },
             "direction": {
+              "title": "Direction",
               "description": "The walk it belongs to: `up` to the parents, `down` to the children.",
               "enum": ["up", "down"]
             },
             "cyclic": {
+              "title": "In a cycle",
               "type": "boolean",
-              "description": "Both ends lie in one cycle of derivations (SR-022 AK4)."
+              "description": "Both ends lie in one cycle of derivations (SR-022 AK4).",
+              "x-normal": false
             }
           },
           "additionalProperties": false,
@@ -180,23 +205,28 @@
         }
       },
       "gaps": {
+        "title": "Gaps",
         "type": "array",
         "description": "The gaps of the chain, in the order of `nodes` (the `no-parent` gaps of the upward chain first, the root's among them, then those of the downward chain), only those of the nodes of the page. Downward (SR-022 AK3), only for elements whose children were looked at (`expanded`): `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Upward (SR-022 AK5), only for elements whose parents were looked at, so not with `direction: down`: `no-parent` for a requirement that names no parent through a relation kind with the meaning `derivation`, whatever the view, the status and the availability of the target (a parent in a repository that is not here is one); the metamodel says which kinds derive, so in the standard model a requirement based only on a decision (`based-on`) has the gap. `workspace.check` reports the same elements (`trace.no-parent`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question ThomasBirkmaier/ReqSeq-archive#527 Q3). A test case that was only skipped does not close the gap. `not-in-view` (#674): a requirement without a child that `view` does not hold, without `view` the core (its validity names only variants), instead of `no-evidence`, whatever its records; `views` names the views that hold it. It is no evidence gap: a client that counts the gaps of a chain leaves it out. With `view` only the root can have it, as the chain reaches only elements the view holds.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of the element with the gap."
             },
             "kind": {
+              "title": "Gap",
               "description": "The kind of the gap, as `gaps` describes it.",
               "enum": ["no-child", "no-evidence", "no-parent", "not-in-view"]
             },
             "views": {
+              "title": "Views",
               "type": "array",
               "items": { "$ref": "../common.schema.json#/$defs/viewId" },
               "description": "Only with `not-in-view`: the views that hold the element, `core` first, then the variants in store order; empty when none does (a validity that names no variant of the workspace). `names` names the variants."
@@ -204,28 +234,34 @@
           },
           "additionalProperties": false,
           "required": ["id", "repository", "kind"]
-        }
+        },
+        "x-normal": []
       },
       "evidence": {
+        "title": "Evidence",
         "type": "array",
         "description": "The evidence of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007); the validation records of the root are in `validationRecords`. With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it and, for an element of a repository marked `variant-independent`, those without a variant, SR-173); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The evidence document of a record is where its `evidence` points; a JUnit execution has none, its evidence document is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). These places are text and never opened.",
         "items": {
           "type": "object",
           "properties": {
             "id": {
+              "title": "Element",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The element of the chain the evidence belongs to."
             },
             "repository": {
+              "title": "Repository",
               "type": "string",
               "description": "Workspace name of the repository of that element."
             },
             "depth": {
+              "title": "Depth",
               "type": "integer",
               "minimum": 1,
               "description": "The element's depth plus one: the evidence is one level below it (SR-022 AK1)."
             },
             "testCases": {
+              "title": "Test cases",
               "type": "array",
               "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own executions newest first (`elements` names every element the test case names, SR-033 AK2); `executed` false for a test case that was only skipped (SR-033 AK3).",
               "items": {
@@ -233,6 +269,7 @@
               }
             },
             "records": {
+              "title": "Records without test case",
               "type": "array",
               "description": "Unlike `evidence.list` `records`: only the element's records without a test case (inspection, analysis, demonstration, manual records without `test-case`), newest first.",
               "items": {
@@ -245,70 +282,85 @@
         }
       },
       "validationRecords": {
+        "title": "Validation records",
         "type": "array",
         "description": "The validation records of the root (SR-038 AK1: the validation shown apart from the verification), newest first, those with a test case too, in either direction; on the page with the root only (`offset` 0), `[]` on the others. `view` does not narrow them: a validation record names no variant (SR-038 AK4) and holds for its element, as its validation status counts it (#646).",
         "items": { "$ref": "../data-export.schema.json#/$defs/evidenceRecord" }
       },
       "unresolved": {
+        "title": "Unresolved relations",
         "type": "array",
         "description": "Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. Only those of the nodes of the page (`from`).",
         "items": {
           "type": "object",
           "properties": {
             "direction": {
+              "title": "Direction",
               "description": "`up` for a parent that could not be followed, `down` for a child.",
               "enum": ["up", "down"]
             },
             "from": {
+              "title": "From",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The element of the chain whose parents or children were looked at."
             },
             "fromRepository": {
+              "title": "Repository of the start",
               "type": "string",
               "description": "Workspace name of the repository of `from`."
             },
             "kind": {
+              "title": "Relation kind",
               "$ref": "../common.schema.json#/$defs/key"
             },
             "id": {
+              "title": "Other end",
               "$ref": "../common.schema.json#/$defs/uuid",
               "description": "The other end: the parent the relation names (up), the child that stores it (down)."
             },
             "shortId": {
+              "title": "Short ID of the other end",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
             "identifier": {
+              "title": "Identifier of the other end",
               "type": "string",
               "description": "Identifier of the other end (ThomasBirkmaier/ReqSeq-archive#305), when it is available and has one."
             },
             "title": {
+              "title": "Title of the other end",
               "description": "Title of the other end, when it is available.",
               "type": "string"
             },
             "targetState": {
+              "title": "Target state",
               "enum": ["inaccessible", "missing", "ambiguous", "unknown-repository"],
               "description": "As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at)."
             }
           },
           "additionalProperties": false,
           "required": ["direction", "from", "fromRepository", "kind", "id", "targetState"]
-        }
+        },
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
         "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen."
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588, #676). Left out when it names none, and for a variant in a repository that is not here.",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "description": "Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

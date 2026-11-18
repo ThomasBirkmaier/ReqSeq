@@ -3,7 +3,7 @@
 // values (SR-064 AK1), or the relation kinds of the type (`relationKinds`), then a target. The value is per mark
 // what the CLI takes, properties as their boxes save them. Core checks the input (ADR-0002).
 import type { ElementInputValue, MetamodelGetOutput } from "@reqseq/core";
-import type { Choice, PromptFill, PromptMark } from "./actions.js";
+import type { Choice, PromptFill, PromptMark } from "./action-types.js";
 import { findElements } from "./actions.js";
 import type { BuiltAsk } from "./catalog-entry.js";
 import type { PropertyAnswer } from "./create-element.js";

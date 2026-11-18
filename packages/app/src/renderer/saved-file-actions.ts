@@ -20,7 +20,7 @@
 //   delete the perspective's buffer closes as "Close buffer" closes it (AK6).
 import type { CommandTypes } from "@reqseq/core";
 import { fold } from "@reqseq/core/fold";
-import type { Action, ActionContext, ArgumentExplanation, Choice } from "./actions.js";
+import type { Action, ActionContext, ArgumentExplanation, Choice } from "./action-types.js";
 import { bufferName, perspectiveKey, perspectiveModified } from "./buffers.js";
 import { unsavedBefore } from "./unsaved-before.js";
 import { NONE, inert, perspectiveChoices } from "./perspective-actions.js";

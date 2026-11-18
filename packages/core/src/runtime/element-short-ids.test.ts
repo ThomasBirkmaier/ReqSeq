@@ -15,7 +15,7 @@ import {
   shortIdState,
   shortIdsBuiltFrom,
 } from "../model/index.js";
-import { SCHEMA_BASE, loadContracts } from "./contracts.js";
+import { OUTPUT_MARKS, SCHEMA_BASE, loadContracts } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
 import type { ProblemNames } from "./element-short-ids.js";
 import { fillElementShortIds, problemLocator, withElementShortIds } from "./element-short-ids.js";
@@ -258,6 +258,8 @@ const KEYWORDS = new Map<string, Keyword>([
     ...["pattern", "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"],
     ...["multipleOf", "required", "minProperties", "maxProperties", "dependentRequired", "minItems"],
     ...["maxItems", "uniqueItems", "minContains", "maxContains", "contentMediaType", "contentEncoding"],
+    // The marks of output fields (SR-224, OUTPUT_MARKS): annotations that hold no schema.
+    ...OUTPUT_MARKS,
   ].map((key) => [key, none] as const),
 ]);
 

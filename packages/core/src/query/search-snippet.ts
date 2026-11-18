@@ -4,7 +4,9 @@
 // its page only, in the turn it searches in, so every access gives the same snippet (AK5).
 //
 // - What counts: the words of `SearchHit.terms`, compared as the index compares them (split at
-//   `WORD_SEPARATOR`, `normalizeWord`). Only the fields the hit was found in are read (`fields`, which
+//   `WORD_SEPARATOR`, `normalizeWord`). A word that query words found only as a word start or a part
+//   (`SearchHit.parts`, SR-221 AK3) is marked only on that part (`partMarks`), the whole word when its
+//   letters do not map one by one onto the indexed word; the window is laid around its whole word. Only the fields the hit was found in are read (`fields`, which
 //   holds only searched ones): the `[[` search (title and IDs) reads no file. A search restricted to
 //   single properties (SR-216 AK5) reads only those, in the order below.
 // - Phrases (`SearchHit.phrases`, SR-174 AK6): only a place where a phrase stands whole counts. It
@@ -257,11 +259,79 @@ const tokensIn = (visible: Visible): Token[] => {
   return tokens;
 };
 
-/** The words of `visible` (within its runs) that match `terms`, in order. */
-const matchesIn = (visible: Visible, terms: ReadonlySet<string>): TextMark[] =>
+/**
+ * The words of a hit to mark (`SearchHit.terms`), and those of them found only as a word start or a
+ * word part, with the query words that found them (`SearchHit.parts`, SR-221 AK3).
+ */
+interface Terms extends ReadonlySet<string> {
+  readonly parts: ReadonlyMap<string, readonly string[]>;
+}
+
+const termsOf = (terms: readonly string[], parts: ReadonlyMap<string, readonly string[]>): Terms =>
+  Object.assign(new Set(terms), { parts });
+
+/** A letter or digit with the marks that follow it: NFC and lower case never join two of them. */
+const CLUSTER = /\P{M}\p{M}*/gu;
+
+/**
+ * The marks of the word `text` (as written, `term` as the index has it: `normalizeWord`) on the parts
+ * the query words `queried` were found as (SR-221 AK3): at its start for a word start, else where
+ * one stands after the start; overlapping and adjacent ones as one, offsets from `at`. The whole
+ * word when its letters do not map one by one onto `term` (NFC or lower case changed a cluster's
+ * length across clusters), so no mark ever splits a letter from its marks.
+ */
+const partMarks = (text: string, term: string, queried: readonly string[], at: number): TextMark[] => {
+  // Per cluster of `text`: where it starts in `text` and in `term`.
+  const written: number[] = [];
+  const indexed: number[] = [];
+  let joined = "";
+  for (const cluster of text.matchAll(CLUSTER)) {
+    written.push(cluster.index);
+    indexed.push(joined.length);
+    joined += cluster[0].normalize("NFC").toLowerCase();
+  }
+  written.push(text.length);
+  indexed.push(joined.length);
+  const whole = [{ start: at, end: at + text.length }];
+  if (joined !== term) {
+    return whole;
+  }
+  const ranges: { start: number; end: number }[] = [];
+  for (const word of queried) {
+    const from = term.startsWith(word) ? 0 : term.indexOf(word, 1);
+    const start = indexed.indexOf(from);
+    const end = indexed.indexOf(from + word.length);
+    // Not found (`from` -1, never for a word the index derived from it) or inside a cluster.
+    if (start < 0 || end < 0) {
+      return whole;
+    }
+    ranges.push({ start: at + Number(written[start]), end: at + Number(written[end]) });
+  }
+  const merged: { start: number; end: number }[] = [];
+  for (const range of ranges.sort((a, b) => a.start - b.start)) {
+    const last = merged.at(-1);
+    if (last !== undefined && range.start <= last.end) {
+      last.end = Math.max(last.end, range.end);
+    } else {
+      merged.push(range);
+    }
+  }
+  return merged;
+};
+
+/**
+ * The words of `visible` (within its runs) that match `terms`, in order: whole, or only on their
+ * part for a word found as a word start or a part (`partMarks`).
+ */
+const matchesIn = (visible: Visible, terms: Terms): TextMark[] =>
   tokensIn(visible)
     .filter((token) => terms.has(token.term))
-    .map((token) => ({ start: token.start, end: token.end }));
+    .flatMap((token) => {
+      const queried = terms.parts.get(token.term);
+      return queried === undefined
+        ? [{ start: token.start, end: token.end }]
+        : partMarks(visible.text.slice(token.start, token.end), token.term, queried, token.start);
+    });
 
 /** The places of `phrases` in `visible`, each from its first word to its last, inside one block, merged where they overlap. */
 const phraseMarksIn = (visible: Visible, phrases: readonly SearchPhrase[]): TextMark[] => {
@@ -296,11 +366,7 @@ const phraseMarksIn = (visible: Visible, phrases: readonly SearchPhrase[]): Text
  * The marks of `visible`: every place of a phrase (SR-174 AK6), and every word that matches `terms`
  * outside them, in order.
  */
-const marksIn = (
-  visible: Visible,
-  terms: ReadonlySet<string>,
-  phrases: readonly SearchPhrase[],
-): TextMark[] => {
+const marksIn = (visible: Visible, terms: Terms, phrases: readonly SearchPhrase[]): TextMark[] => {
   if (phrases.length === 0) {
     return matchesIn(visible, terms);
   }
@@ -358,17 +424,25 @@ const lineIn = (text: string, span: Span, matches: readonly TextMark[]): Line =>
   };
 };
 
-/** A word longer than the window, from its start: cut hard, never before a combining mark, its mark clipped. */
-const hardCut = (text: string, first: TextMark): Line => {
-  const prefix = first.start > 0 ? 1 : 0;
-  let end = first.start;
+/**
+ * A word longer than the window, from its start, or from its first mark when that stands too far
+ * in to be seen from there (a word part, SR-221 AK3): cut hard, never before a combining mark, the
+ * marks in it clipped.
+ */
+const hardCut = (text: string, word: TextMark, first: TextMark, matches: readonly TextMark[]): Line => {
+  const start = codePoints(text.slice(word.start, first.end)) <= MAX - 2 ? word.start : first.start;
+  const prefix = start > 0 ? 1 : 0;
+  let end = start;
   for (let n = 0; n < MAX - prefix - 1; n++) {
     end = after(text, end);
   }
-  while (end > first.start && MARK_CHAR.test(pointAt(text, end))) {
+  while (end > start && MARK_CHAR.test(pointAt(text, end))) {
     end = before(text, end);
   }
-  return lineIn(text, { start: first.start, end }, [{ start: first.start, end }]);
+  const clipped = matches
+    .filter((mark) => mark.start < end && mark.end > start)
+    .map((mark) => ({ start: Math.max(start, mark.start), end: Math.min(end, mark.end) }));
+  return lineIn(text, { start, end }, clipped);
 };
 
 /** The window around `first` (`matched` code points): grown one code point to each side in turn while `…` at a cut end still fits. */
@@ -429,24 +503,34 @@ const toWords = (text: string, span: Span, first: TextMark): Span => ({
   end: endOnWord(text, span.end, first),
 });
 
+/** The word `mark` stands in: a whole word, or a word start or part of one (SR-221 AK3). */
+const wordAround = (text: string, mark: TextMark): TextMark => {
+  let { start, end } = mark;
+  while (start > 0 && isWordAt(text, before(text, start))) {
+    start = before(text, start);
+  }
+  while (end < text.length && isWordAt(text, end)) {
+    end = after(text, end);
+  }
+  return { start, end };
+};
+
 /** The snippet line of `visible` around its first match `first`, with every match in it marked. */
 const windowOf = (visible: Visible, first: TextMark, matches: readonly TextMark[]): Line => {
   const text = visible.text.trimEnd();
   if (codePoints(text) <= MAX) {
     return lineIn(text, { start: 0, end: text.length }, matches);
   }
-  const matched = codePoints(text.slice(first.start, first.end));
+  // The window is laid around the whole word of the first mark, which may cover only a part of it.
+  const word = wordAround(text, first);
+  const matched = codePoints(text.slice(word.start, word.end));
   return matched > MAX - 2
-    ? hardCut(text, first)
-    : lineIn(text, toWords(text, grown(text, first, matched), first), matches);
+    ? hardCut(text, word, first, matches)
+    : lineIn(text, toWords(text, grown(text, word, matched), word), matches);
 };
 
 /** The snippet line of `visible`, undefined when no word of it matches `terms` and no phrase stands in it. */
-const lineOf = (
-  visible: Visible,
-  terms: ReadonlySet<string>,
-  phrases: readonly SearchPhrase[],
-): Line | undefined => {
+const lineOf = (visible: Visible, terms: Terms, phrases: readonly SearchPhrase[]): Line | undefined => {
   const matches = marksIn(visible, terms, phrases);
   const first = matches[0];
   return first === undefined ? undefined : windowOf(visible, first, matches);
@@ -462,7 +546,7 @@ const ASCII_WORD = /[0-9A-Za-z]/u;
  * (as fast as the engine finds text); any other is split into words and each compared as the index
  * compares it.
  */
-const rawMatcher = (value: string, terms: ReadonlySet<string>): ((from: number) => number) => {
+const rawMatcher = (value: string, terms: Terms): ((from: number) => number) => {
   if (!ASCII.test(value)) {
     return (from) => {
       WORD.lastIndex = from;
@@ -649,7 +733,7 @@ const withoutDestinations = (value: string): string => {
  */
 const rawLocator = (
   value: string,
-  terms: ReadonlySet<string>,
+  terms: Terms,
   phrases: readonly SearchPhrase[],
 ): ((from: number) => PhraseSpan | undefined) => {
   const rawMatch = terms.size === 0 ? (): number => -1 : rawMatcher(value, terms);
@@ -668,11 +752,7 @@ const rawLocator = (
 };
 
 /** The snippet line of the Markdown `value` (see the file comment). */
-const markdownLine = (
-  value: string,
-  terms: ReadonlySet<string>,
-  phrases: readonly SearchPhrase[],
-): Line | undefined => {
+const markdownLine = (value: string, terms: Terms, phrases: readonly SearchPhrase[]): Line | undefined => {
   const locate = rawLocator(value, terms, phrases);
   let match = locate(0);
   if (match === undefined) {
@@ -742,7 +822,7 @@ const propertyName = (metamodel: Metamodel, key: string): string => {
 const valueLine = (
   value: Value,
   markdown: boolean,
-  terms: ReadonlySet<string>,
+  terms: Terms,
   phrases: readonly SearchPhrase[],
 ): Line | undefined => {
   if (markdown) {
@@ -765,7 +845,7 @@ const valueLine = (
 const propertySnippet = (
   metamodel: Metamodel,
   element: ElementRecord,
-  terms: ReadonlySet<string>,
+  terms: Terms,
   phrases: readonly SearchPhrase[],
   propertyKeys: readonly string[] | undefined,
 ): SearchSnippet | undefined => {
@@ -789,11 +869,11 @@ const propertySnippet = (
  */
 export const searchSnippet = (
   index: SearchIndex,
-  hit: Pick<SearchHit, "element" | "fields" | "terms" | "phrases">,
+  hit: Pick<SearchHit, "element" | "fields" | "terms" | "parts" | "phrases">,
   propertyKeys?: readonly string[],
 ): SearchSnippet | undefined => {
   const fields = new Set<SearchField>(hit.fields);
-  const terms = new Set(hit.terms);
+  const terms = termsOf(hit.terms, hit.parts);
   const { phrases } = hit;
   if ((terms.size === 0 && phrases.length === 0) || (!fields.has("text") && !fields.has("properties"))) {
     return undefined;
@@ -823,4 +903,6 @@ export const titleMarks = (
   title: string,
   terms: readonly string[],
   phrases: readonly SearchPhrase[] = [],
-): TextMark[] => marksIn({ text: title, runs: [0, title.length], bounds: [] }, new Set(terms), phrases);
+  parts: ReadonlyMap<string, readonly string[]> = new Map(),
+): TextMark[] =>
+  marksIn({ text: title, runs: [0, title.length], bounds: [] }, termsOf(terms, parts), phrases);

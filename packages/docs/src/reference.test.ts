@@ -92,7 +92,7 @@ describe("reference", () => {
     expect(section(pageOf(pages, "element.get"), "Example")).toBe("No example.");
   });
 
-  it("[SR-139/AK-g958] gives every problem code and every error code its cause and remedy", async () => {
+  it("[SR-139/AK-g958] gives every problem code and every error code its cause and remedy, every problem kind its title", async () => {
     const pages = await referencePages(await sources(getCommandRuntime()), "/ReqSeq");
     const page = codesOf(pages);
     const common = contractsBundle.schemas.find((schema) =>
@@ -109,7 +109,12 @@ describe("reference", () => {
     expect(kinds[0][1].length + kinds[1][1].length).toBeGreaterThanOrEqual(67);
     for (const [kind, codes] of kinds) {
       for (const code of codes) {
-        const entry = page.split(`<a id="${codeAnchor(code, kind)}"></a>\n\n### \`${code}\`\n\n`)[1] ?? "";
+        // A problem kind is headed by its title, its code below it (SR-224 AK6); an error by its code.
+        const head =
+          kind === "problem"
+            ? `### ${contractsBundle.problemTitles[code] ?? ""}\n\nCode: \`${code}\`\n\n`
+            : `### \`${code}\`\n\n`;
+        const entry = page.split(`<a id="${codeAnchor(code, kind)}"></a>\n\n${head}`)[1] ?? "";
         expect(entry, code).toMatch(/^\*\*Cause:\*\* \S[^\n]*\n\n\*\*Remedy:\*\* \S/);
       }
     }

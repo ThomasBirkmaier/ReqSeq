@@ -2,7 +2,7 @@
 // The same rewriting as scripts/contracts/generate.mjs, from the runtime catalog, so a test-only catalog gets
 // its tools too; a test checks that the product catalog gives exactly schemas/generated/mcp-tools.json.
 import type { CatalogEntry, CommandRuntime, Contracts, JsonSchema } from "@reqseq/core";
-import { SCHEMA_BASE } from "@reqseq/core";
+import { OUTPUT_MARKS, SCHEMA_BASE } from "@reqseq/core";
 
 export interface McpToolAnnotations {
   readonly readOnlyHint: boolean;
@@ -124,6 +124,39 @@ const flatDefinitions = (contracts: Contracts): Record<string, JsonSchema> => {
   return flatDefs;
 };
 
+/** The keywords that mark output fields for display (SR-224, ADR-0002 rule 1), which an agent does not need. */
+const DISPLAY_KEYWORDS = new Set<string>(["title", ...OUTPUT_MARKS]);
+
+/** Keywords whose value is data, not a schema: a key `title` in them is no title of a field. */
+const VALUE_KEYWORDS = new Set(["default", "const", "enum", "examples"]);
+
+/**
+ * `node` without the titles and marks of fields: the catalog gives them for outputs (SR-224 AK3), and an input
+ * schema reaches them through shared definitions. The tool list stays as small as before (ADR-0009 size bounds).
+ * The names of properties stay, also a property named `title`.
+ */
+export const withoutDisplayMarks = (node: unknown, inProperties = false): unknown => {
+  if (Array.isArray(node)) {
+    return node.map((item) => withoutDisplayMarks(item));
+  }
+  if (!isRecord(node)) {
+    return node;
+  }
+  return Object.fromEntries(
+    Object.entries(node)
+      .filter(
+        ([key, value]) =>
+          inProperties || (key === "title" ? typeof value !== "string" : !DISPLAY_KEYWORDS.has(key)),
+      )
+      .map(([key, value]) => [
+        key,
+        !inProperties && VALUE_KEYWORDS.has(key)
+          ? value
+          : withoutDisplayMarks(value, !inProperties && key === "properties"),
+      ]),
+  );
+};
+
 /** Names of the `$defs` a schema refers to, directly or through other definitions. */
 const usedDefinitions = (schema: unknown, defs: Readonly<Record<string, JsonSchema>>): string[] => {
   const used = new Set<string>();
@@ -163,11 +196,15 @@ const selfContained = (schema: JsonSchema, defs: Readonly<Record<string, JsonSch
  * `invoke` and gives `command.not-implemented`, as on every access (server.ts).
  */
 export function serverTools(runtime: CommandRuntime): ServerTool[] {
-  const defs = flatDefinitions(runtime.contracts);
+  const defs = withoutDisplayMarks(flatDefinitions(runtime.contracts)) as Record<string, JsonSchema>;
   return runtime.contracts.commands
     .filter((entry) => runtime.commands.has(entry.name))
     .map((entry) => {
       const { outputSchema: _output, ...plain } = tool(entry);
-      return { ...plain, command: entry.name, inputSchema: selfContained(flat(plain.inputSchema), defs) };
+      return {
+        ...plain,
+        command: entry.name,
+        inputSchema: selfContained(withoutDisplayMarks(flat(plain.inputSchema)) as JsonSchema, defs),
+      };
     });
 }

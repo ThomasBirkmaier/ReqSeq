@@ -36,6 +36,7 @@
           "required": ["all"],
           "properties": {
             "all": {
+              "title": "All of",
               "type": "array",
               "items": { "$ref": "#/$defs/condition" },
               "description": "Conditions that must all hold; `[]` holds."
@@ -48,6 +49,7 @@
           "required": ["any"],
           "properties": {
             "any": {
+              "title": "Any of",
               "type": "array",
               "items": { "$ref": "#/$defs/condition" },
               "description": "Conditions of which at least one must hold; `[]` does not."
@@ -59,7 +61,11 @@
           "type": "object",
           "required": ["not"],
           "properties": {
-            "not": { "$ref": "#/$defs/condition", "description": "Condition that must not hold." }
+            "not": {
+              "title": "Not",
+              "$ref": "#/$defs/condition",
+              "description": "Condition that must not hold."
+            }
           },
           "additionalProperties": false
         },
@@ -68,10 +74,12 @@
           "required": ["type"],
           "properties": {
             "type": {
+              "title": "Types",
               "$ref": "#/$defs/keys",
               "description": "Type keys; an element of a subtype matches too unless `subtypes` is false."
             },
             "subtypes": {
+              "title": "With subtypes",
               "type": "boolean",
               "description": "Include subtypes of the type. Absent means true."
             }
@@ -82,7 +90,11 @@
           "type": "object",
           "required": ["status"],
           "properties": {
-            "status": { "$ref": "#/$defs/keys", "description": "Status keys as written in the files." }
+            "status": {
+              "title": "Statuses",
+              "$ref": "#/$defs/keys",
+              "description": "Status keys as written in the files."
+            }
           },
           "additionalProperties": false
         },
@@ -90,7 +102,11 @@
           "type": "object",
           "required": ["invalid"],
           "properties": {
-            "invalid": { "type": "boolean", "description": "Status flagged invalid (D-044)." }
+            "invalid": {
+              "title": "Invalid",
+              "type": "boolean",
+              "description": "Status flagged invalid (D-044)."
+            }
           },
           "additionalProperties": false
         },
@@ -99,6 +115,7 @@
           "required": ["package"],
           "properties": {
             "package": {
+              "title": "Package",
               "$ref": "common.schema.json#/$defs/elementRef",
               "description": "Elements assigned to this package."
             }
@@ -110,6 +127,7 @@
           "required": ["validFor"],
           "properties": {
             "validFor": {
+              "title": "Valid for",
               "$ref": "common.schema.json#/$defs/view",
               "description": "Elements that apply in this view by their validity only, not the view: replacements and exclusions do not count."
             }
@@ -121,11 +139,13 @@
           "required": ["verification"],
           "properties": {
             "verification": {
+              "title": "Verification status",
               "type": "array",
               "items": { "$ref": "common.schema.json#/$defs/verificationStatus" },
               "description": "Verification status in `variant`, else in the view of the selection, else in the core."
             },
             "variant": {
+              "title": "Variant",
               "$ref": "common.schema.json#/$defs/view",
               "description": "View the verification status is computed in. Absent: the view of the selection, else the core."
             }
@@ -137,6 +157,7 @@
           "required": ["validation"],
           "properties": {
             "validation": {
+              "title": "Validation status",
               "type": "array",
               "items": { "$ref": "common.schema.json#/$defs/validationStatus" },
               "description": "Needs always (open without record), requirements only with a validation record, no other element (SR-038 AK5)."
@@ -149,6 +170,7 @@
           "required": ["emergent"],
           "properties": {
             "emergent": {
+              "title": "Emergent",
               "type": "boolean",
               "description": "true: the property with the meaning `emergent` is `yes`; false: it is not."
             }
@@ -160,6 +182,7 @@
           "required": ["source"],
           "properties": {
             "source": {
+              "title": "Source",
               "type": "string",
               "description": "Value of the property with meaning `source` of imported elements."
             }
@@ -171,8 +194,9 @@
           "required": ["text"],
           "properties": {
             "text": {
+              "title": "Text search",
               "type": "string",
-              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, words in quotes as a phrase (SR-068 AK4), and words that are a designation of an element also through its other designations (SR-220). A query without a word matches none."
+              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs (SR-221), quoted words as a phrase (SR-068 AK4), and a designation also through the other designations of its element (SR-220). A query without a word matches none."
             }
           },
           "additionalProperties": false
@@ -187,12 +211,14 @@
       "type": "object",
       "required": ["property", "op"],
       "properties": {
-        "property": { "$ref": "common.schema.json#/$defs/key" },
+        "property": { "title": "Property", "$ref": "common.schema.json#/$defs/key" },
         "op": {
+          "title": "Comparison",
           "description": "The comparison, as the condition describes it.",
           "enum": ["eq", "ne", "in", "contains", "lt", "le", "gt", "ge", "exists", "missing", "matches"]
         },
         "value": {
+          "title": "Value",
           "description": "The value to compare with; a list for `in`; none for `exists` and `missing`."
         }
       },
@@ -204,26 +230,35 @@
       "required": ["relation", "exists"],
       "properties": {
         "relation": {
+          "title": "Relation",
           "description": "Which relations count.",
           "type": "object",
           "properties": {
             "kind": {
+              "title": "Relation kind",
               "$ref": "common.schema.json#/$defs/key",
               "description": "A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it."
             },
             "meaning": {
+              "title": "Meaning",
               "enum": ["derivation", "replacement", "succession", "exclusion"],
               "description": "Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind."
             },
             "direction": {
+              "title": "Direction",
               "enum": ["up", "down", "evidence"],
               "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, and for every variant when the element's repository is marked `variant-independent`, SR-173; one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down."
             },
-            "to": { "$ref": "#/$defs/condition", "description": "Condition the other end must meet." }
+            "to": {
+              "title": "To",
+              "$ref": "#/$defs/condition",
+              "description": "Condition the other end must meet."
+            }
           },
           "additionalProperties": false
         },
         "exists": {
+          "title": "Exists",
           "description": "`true`: the element has such a relation. `false`: it has none.",
           "type": "boolean"
         }
@@ -236,13 +271,19 @@
       "required": ["by"],
       "properties": {
         "by": {
+          "title": "Sort by",
           "description": "`id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders.",
           "anyOf": [
             { "enum": ["id", "identifier", "hierarchy", "type", "status", "title"] },
             { "$ref": "common.schema.json#/$defs/key" }
           ]
         },
-        "order": { "description": "Ascending or descending.", "enum": ["asc", "desc"], "default": "asc" }
+        "order": {
+          "title": "Order",
+          "description": "Ascending or descending.",
+          "enum": ["asc", "desc"],
+          "default": "asc"
+        }
       },
       "additionalProperties": false
     }

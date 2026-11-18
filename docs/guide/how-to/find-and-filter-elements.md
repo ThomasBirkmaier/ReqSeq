@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; quoted words match only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
+The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, the best hits first; typed exactly, 4 letters also match inside words (SR-221); quoted words only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, so everyone gets the same elements. Grouping and sorting change no file, unless you save the list as a perspective, or its sort with a saved filter.
 
 ## App
 
@@ -20,7 +20,7 @@ The search finds words in titles, texts, property values, type and status names 
 
 ## CLI
 
-The commands start from a new workspace; in yours, use your short IDs. `--set topic=…` gives each element a topic.
+The commands start in a new workspace; use your own short IDs. `--set topic=…` gives each element a topic.
 
 ```sh
 reqseq workspace init . "Weather station"
@@ -59,7 +59,7 @@ SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
 
-The search finds the word despite a typo, with its line:
+The search finds the word despite a typo:
 
 ```sh
 reqseq element search temprature
@@ -72,7 +72,7 @@ hits:
 total: 1
 ```
 
-`--fields` searches only in fields `element search-fields` lists:
+`--fields` searches only fields `element search-fields` lists:
 
 ```sh
 reqseq element search-fields
@@ -113,7 +113,7 @@ hits:
 total: 1
 ```
 
-`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. Here: system requirements without a parent:
+`--where-type` and `--where-status` filter on type and status; `--where` takes any condition as JSON. System requirements without a parent:
 
 ```sh
 reqseq element list --where-type system-requirement --where '{"relation":{"meaning":"derivation","direction":"up"},"exists":false}'
@@ -174,7 +174,7 @@ hits:
 total: 2
 ```
 
-`--group` heads each group of a list or of hits with its value and count:
+`--group` heads each group of a list or hits with its value and count:
 
 ```sh
 reqseq element list --group topic --sort title
@@ -229,7 +229,7 @@ POST /v1/commands/element.facets
 
 ## MCP
 
-Over `reqseq mcp`, an agent calls the same commands as tools:
+Over `reqseq mcp`, agents call the same commands as tools:
 
 ```json
 {

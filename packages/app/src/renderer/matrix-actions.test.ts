@@ -3,7 +3,7 @@
 // a context that records what they dispatch.
 import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, actionFor, commandPrompt, runAction } from "./actions.js";
-import type { Action, ActionContext, Prompt } from "./actions.js";
+import type { Action, ActionContext, Prompt } from "./action-types.js";
 import type { Buffers, ListBuffer } from "./buffers.js";
 import {
   bufferName,

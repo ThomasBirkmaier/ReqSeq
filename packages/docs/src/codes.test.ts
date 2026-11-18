@@ -15,4 +15,15 @@ describe("codesPage", () => {
     expect(page.indexOf('<a id="a-one"></a>')).toBeLessThan(page.indexOf('<a id="error-a-one"></a>'));
     expect(page).toContain("**Cause:** Lines \\<\\<\\<\\<\\<\\<\\< in it.\n\n**Remedy:** Fix \\*it\\*.\n");
   });
+
+  it("[SR-224/AK-rxbd] heads each problem kind with its title, the code below it", () => {
+    const page = codesPage({
+      problems: { "relation.outdated": { title: "Outdated relation", cause: "Changed.", remedy: "Check." } },
+      errors: { "input.invalid": { cause: "Wrong.", remedy: "Fix." } },
+    });
+    expect(page).toContain(
+      '<a id="relation-outdated"></a>\n\n### Outdated relation\n\nCode: `relation.outdated`\n',
+    );
+    expect(page).toContain('<a id="error-input-invalid"></a>\n\n### `input.invalid`\n');
+  });
 });

@@ -154,9 +154,29 @@ describe("loadContracts", () => {
       readonly commands: readonly { readonly name: string }[];
     };
     expect(commands.map((c) => `${c.name}.json`).sort()).toEqual(commandFiles);
+    // Each entry as its file has it, plus its output fields resolved by the generator (SR-224 AK3).
     for (const command of commands) {
-      expect(command).toEqual(readJson(`commands/${command.name}.json`));
+      const { outputFields, ...entry } = command as {
+        readonly name: string;
+        readonly outputFields?: unknown;
+      };
+      expect(entry).toEqual(readJson(`commands/${command.name}.json`));
+      expect(Array.isArray(outputFields)).toBe(true);
     }
+  });
+});
+
+describe("problem kind titles", () => {
+  it("[SR-224/AK-rxbd] bundles a title for every problem kind, as the reference shows it", () => {
+    const common = contractsBundle.schemas.find((s) => s["$id"] === `${SCHEMA_BASE}common.schema.json`) as {
+      readonly $defs: { readonly problemCode: { readonly enum: readonly string[] } };
+    };
+    const codes = common.$defs.problemCode.enum;
+    expect(Object.keys(contractsBundle.problemTitles).sort()).toEqual([...codes].sort());
+    for (const code of codes) {
+      expect(contractsBundle.problemTitles[code], code).toMatch(/^[A-Z0-9][^.!?]{0,39}$/);
+    }
+    expect(contractsBundle.problemTitles["relation.outdated"]).toBe("Outdated relation");
   });
 });
 

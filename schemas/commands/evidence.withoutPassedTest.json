@@ -37,18 +37,22 @@
     "type": "object",
     "properties": {
       "elements": {
+        "title": "Requirements without a passed test",
         "type": "array",
         "description": "One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question ThomasBirkmaier/ReqSeq-archive#532). Each as evidence.status gives it, with `verification` and `validation`.",
         "items": {
           "$ref": "../data-export.schema.json#/$defs/element"
-        }
+        },
+        "x-elements": "answer"
       },
       "total": {
+        "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "Every listed requirement, not only the page."
       },
       "view": {
+        "title": "View",
         "$ref": "../common.schema.json#/$defs/viewId",
         "description": "core, or the variant of the view."
       },
@@ -57,6 +61,7 @@
         "description": "A repository of the workspace, or of an evidence location, is not on this machine: its requirements, or a passed test there, are not seen (SR-006 AK2)."
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "description": "The elements that `verification` names by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none.",
         "items": {

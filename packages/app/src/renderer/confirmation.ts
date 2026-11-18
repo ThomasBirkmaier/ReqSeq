@@ -9,7 +9,7 @@
 // - The guard is in `Minibuffer.tsx`: a key press that began before the step was shown, a key that only repeats
 //   because it is held (`event.repeat`), and the second click of a double click (`event.detail`) do nothing on it,
 //   and a key typed ahead for the prompt before (#1763) does not act on it.
-import type { Prompt } from "./actions.js";
+import type { Prompt } from "./action-types.js";
 
 /** The hit that goes back a step. */
 export const NO = "No";

@@ -11,6 +11,7 @@
   "files": [
     "dist",
     "!dist/**/*.test.*",
+    "!dist/**/*.test-helper.*",
     "docs",
     "THIRD_PARTY_NOTICES.txt",
     "README.md"

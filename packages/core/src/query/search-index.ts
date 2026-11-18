@@ -42,6 +42,14 @@
 //   does not depend on that, so every shown short ID still finds its element. Matched exactly (in
 //   any case), never fuzzy. The identifier is a property value too, so its words are also found as
 //   words (`036`).
+// Word parts (SR-221): a term of a query word outside quotes with at least `MIN_PART` letters and no
+// digit also matches the words that hold it after their start ("seite" in "Paketseite"), without a
+// typo, in the fields searched (`withParts`, `scoreWords` with the vocabulary of
+// `search-vocabulary.ts`). It counts less than a whole word or a word start (search-scoring.ts),
+// and as found by the word itself for the late and other groups. Phrases, other designations and
+// the ID comparison never match a part. A hit tells the words found only as a word start or a part
+// (`SearchHit.parts`), so the snippet and the title mark only that part (SR-221 AK3).
+//
 // Words are split at every character that is not a letter, a mark or a digit, and compared in
 // Unicode normal form NFC and lower case (SR-068 AK2: "andere Groß- und Kleinschreibung"). A typo
 // is tolerated by fuzzy search (SR-068 AK2: "Tippfehler"): one edit in a word of 4 to 7 letters, two
@@ -97,6 +105,7 @@ import type {
   QueryWord,
 } from "./search-designations.js";
 import { designationRuns, designationTable } from "./search-designations.js";
+import { buildVocabulary, carryVocabulary, newWords, vocabularyOf } from "./search-vocabulary.js";
 import type { Scored, ScoringOptions } from "./search-scoring.js";
 import {
   carryLengths,
@@ -572,6 +581,8 @@ export const buildSearchIndex = async (
     documents.set(document.key, document);
   };
   const exact = await readDocuments(layout, metamodel, store.elements, add, control);
+  // The words for word parts (SR-221), in slices as the documents were read.
+  await buildVocabulary(mini, 0, SLICE_MS, () => turn(control));
   return { index: searchIndexOf(store, layout, metamodel, mini, documents), exact };
 };
 
@@ -637,6 +648,8 @@ export const carrySearchIndex = async (
   const { mini, documents: kept } = engine;
   // MiniSearch's short IDs of the documents removed and added, for the arrays (`carryArrays`).
   const removed: number[] = [];
+  // The words the tree does not hold yet, before the old documents leave it (SR-221, `carryVocabulary`).
+  const words = newWords(mini, documents);
   try {
     for (const key of gone) {
       const old = kept.get(key);
@@ -655,6 +668,7 @@ export const carrySearchIndex = async (
     // be taken for the object as it now is.
     engine.generation += 1;
   }
+  carryVocabulary(mini, engine.generation, words);
   const carried: SearchIndex = { ...index, store: update.to, records };
   const added = documents.map((document) => Number(shortIdOfDocument(mini, document.key)));
   carryArrays(index, carried, removed, added);
@@ -710,6 +724,13 @@ export interface SearchHit {
    * highlighting; none for an ID.
    */
   readonly terms: readonly string[];
+  /**
+   * The words of `terms` that words of the query outside quotes found only as a word start (SR-068
+   * AK2) or a word part (SR-221 AK1), each with those query words (processed as the index processes
+   * them): their marks cover only that part (SR-221 AK3). A word also found as it is, with a typo,
+   * as a phrase or as another designation is not among them, and is marked whole.
+   */
+  readonly parts: ReadonlyMap<string, readonly string[]>;
   /** The phrases of the query found in the element (SR-068 AK4), to mark them whole (SR-174 AK6). */
   readonly phrases: readonly SearchPhrase[];
 }
@@ -724,12 +745,30 @@ export interface SearchResults {
 export const MIN_FUZZY = 4;
 /** Letters a word needs for prefix search. */
 export const MIN_PREFIX = 2;
+/** Letters a word needs to be found inside longer words (SR-221 AK1: "mindestens 4 Buchstaben"). */
+export const MIN_PART = 4;
+const LETTER = /\p{L}/gu;
 /**
  * A query word with a digit is never matched with a typo: it is a number, a version or a part of an
  * ID, and one edit would make it another (`0000b3` would find `0000b1`, `2026` would find `2025`).
  * A word of the index with a digit can still be the typo of a query word without one.
  */
 const DIGIT = /\p{N}/u;
+
+/**
+ * Whether a query term is also found inside longer words (SR-221 AK1): at least `MIN_PART` letters
+ * (marks and other characters do not count) and no digit, as a number would be found in every
+ * longer number.
+ */
+const findsParts = (term: string): boolean =>
+  !DIGIT.test(term) && [...term.matchAll(LETTER)].length >= MIN_PART;
+
+/**
+ * `scoring` for the words of a query outside quotes (SR-221 AK1, `wordsFound`): their terms also
+ * find the words they stand inside (`findsParts`), and their word starts and parts are marked as
+ * such (AK3). Phrases and other designations keep `scoring`: whole words, the last as a word start.
+ */
+export const withParts = (scoring: ScoringOptions): ScoringOptions => ({ ...scoring, parts: findsParts });
 
 /** The weight of a field: a match in the title counts twice. */
 const boostOf = (field: string): number => (field === "title" ? 2 : 1);
@@ -946,6 +985,8 @@ interface Search {
   /** Whether the record of `key` is one of the index's store (and of `within`). */
   readonly admit: (record: ElementRecord | undefined, key: string) => record is ElementRecord;
   readonly scoring: ScoringOptions;
+  /** `scoring` with word parts, for the words outside quotes (`withParts`). */
+  readonly words: ScoringOptions;
   readonly options: SearchOptions;
   /** The place of the repository of a record (`Found.place`). */
   readonly placeOf: (record: ElementRecord) => number;
@@ -973,7 +1014,14 @@ const searchOf = (
   const admit = (record: ElementRecord | undefined, key: string): record is ElementRecord =>
     record !== undefined && (within === undefined || within.has(key));
   const scoring = scoringOf(searched, options.fuzzy ?? 0.2, options.prefix ?? true);
-  return { index, admit, scoring, options: searchOptionsOf(scoring), placeOf: placeIn(index.layout) };
+  return {
+    index,
+    admit,
+    scoring,
+    words: withParts(scoring),
+    options: searchOptionsOf(scoring),
+    placeOf: placeIn(index.layout),
+  };
 };
 
 /** The records, keys and repository places (`placesOf`) of the documents of an index, by MiniSearch's short ID. */
@@ -1067,8 +1115,9 @@ const carryArrays = (
 
 /**
  * Builds what the first search of `index` builds otherwise: the arrays of its documents
- * (`documentsOf`, `lengthsOf`), the records by identifier (`identifiedIn`) and the table of other
- * designations (`designationsIn`), so that it costs no
+ * (`documentsOf`, `lengthsOf`), the records by identifier (`identifiedIn`), the table of other
+ * designations (`designationsIn`) and the words for word parts (`vocabularyOf`, SR-221: built with
+ * the index and carried, so walked here only when a carry outgrew it), so that it costs no
  * more than the next ones (SR-098: 165 to 320 ms instead of 45 ms at N-036). A server does it at the
  * end of its background build (`warmSearchIndex`), a carry at its end; returns `index`.
  */
@@ -1077,6 +1126,7 @@ export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
   designationsIn(index);
   documentsOf(index);
   lengthsOf(index.engine.mini, index.engine.generation);
+  vocabularyOf(index.engine.mini, index.engine.generation);
   return index;
 };
 
@@ -1086,13 +1136,21 @@ export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
  * carried index shares its MiniSearch object with the next store's, `carrySearchIndex`) is no hit
  * of this index. With `and` the words are scored as MiniSearch scores them, but in arrays
  * (`scoreWords`, SR-098); MiniSearch searches itself with `or`. A list, not a map by key: a query
- * whose words cannot be IDs needs no combination.
+ * whose words cannot be IDs needs no combination. `scoring` is that of the words outside quotes
+ * (`Search.words`, word parts included, SR-221) or, by default, that of phrases and other
+ * designations (`Search.scoring`); with `or` no word part is found, since MiniSearch finds none
+ * (no command searches with `or`).
  */
-const wordsFound = (search: Search, queries: readonly string[], and: boolean): Found[] => {
+const wordsFound = (
+  search: Search,
+  queries: readonly string[],
+  and: boolean,
+  scoring: ScoringOptions = search.scoring,
+): Found[] => {
   const { index } = search;
   const found: Found[] = [];
   if (and) {
-    const scored = scoreWords(index.engine.mini, index.engine.generation, queries, search.scoring);
+    const scored = scoreWords(index.engine.mini, index.engine.generation, queries, scoring);
     const documents = documentsOf(index);
     for (let at = 0; at < scored.docs.length; at++) {
       const doc = Number(scored.docs[at]);
@@ -1227,13 +1285,34 @@ const hitField = (field: string): string => (field.startsWith(PROPERTY_FIELD) ? 
 const hitOf = ({ element, score, matches, phrases, ids }: Found): SearchHit => {
   const fields = new Set<string>(ids > 0 ? ["id"] : []);
   const terms = new Set<string>();
+  // Each word with a query word that found it only in part (`word\0query`), and the words found whole.
+  const partial = new Set<string>();
+  const whole = new Set<string>();
   for (const words of matches) {
     const match = "match" in words ? words.match : words.scored.matchOf(words.doc);
+    const parts = "match" in words ? undefined : words.scored.partsOf(words.doc);
     for (const [term, found] of Object.entries(match)) {
       terms.add(term);
       for (const field of found) {
         fields.add(hitField(field));
       }
+      const queried = parts?.get(term);
+      if (queried === undefined) {
+        whole.add(term);
+      } else {
+        for (const one of queried) {
+          partial.add(`${term}\0${one}`);
+        }
+      }
+    }
+  }
+  const parts = new Map<string, readonly string[]>();
+  for (const pair of partial) {
+    const at = pair.indexOf("\0");
+    const term = pair.slice(0, at);
+    const queried = pair.slice(at + 1);
+    if (!whole.has(term)) {
+      parts.set(term, [...(parts.get(term) ?? []), queried]);
     }
   }
   for (const found of phrases) {
@@ -1246,6 +1325,7 @@ const hitOf = ({ element, score, matches, phrases, ids }: Found): SearchHit => {
     score,
     fields: SEARCH_FIELDS.filter((field) => fields.has(field)),
     terms: [...terms],
+    parts,
     phrases: [...new Set(phrases.map((found) => found.phrase))],
   };
 };
@@ -1665,7 +1745,7 @@ const phraseFound = (search: Search, phrase: SearchPhrase): Map<string, Found> =
 /** The documents the words and phrases `split` find, each once; none when it has none. */
 const splitFound = (search: Search, split: QueryWords, and: boolean): Iterable<Found> => {
   const { plain, special, phrases } = split;
-  const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
+  const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and, search.words);
   if (special.length === 0 && phrases.length === 0) {
     return byWords ?? [];
   }
@@ -1675,7 +1755,7 @@ const splitFound = (search: Search, split: QueryWords, and: boolean): Iterable<F
     const matched = !text
       ? new Map<string, Found>()
       : phrase === undefined
-        ? byKey(wordsFound(search, [word], true))
+        ? byKey(wordsFound(search, [word], true, search.words))
         : phraseFound(search, phrase);
     idsFound(search, ids, matched);
     parts.push(matched);

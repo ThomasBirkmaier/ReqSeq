@@ -58,39 +58,48 @@
     "type": "object",
     "properties": {
       "file": {
-        "description": "The written ReqIF file, relative to the workspace root when it lies inside, else absolute.",
-        "type": "string"
+        "title": "ReqIF file",
+        "$ref": "../common.schema.json#/$defs/outputPath",
+        "description": "The written ReqIF file, relative to the workspace root when it lies inside, else absolute."
       },
       "elements": {
+        "title": "Exported elements",
         "description": "Exported elements.",
         "type": "integer",
         "minimum": 0
       },
       "relations": {
+        "title": "Exported relations",
         "description": "Exported relations.",
         "type": "integer",
         "minimum": 0
       },
       "withoutStatement": {
+        "title": "Without statement",
         "type": "integer",
         "minimum": 0,
-        "description": "With statements: exported elements without a statement."
+        "description": "With statements: exported elements without a statement.",
+        "x-normal": 0
       },
       "files": {
+        "title": "Files",
         "type": "array",
         "items": {
-          "type": "string",
+          "$ref": "../common.schema.json#/$defs/outputPath",
           "description": "Copied image or saved mapping file, relative to the workspace root."
         }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,
     "required": ["file", "elements", "relations"]
-  }
+  },
+  "showsOutput": true
 }

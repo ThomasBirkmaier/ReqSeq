@@ -22,6 +22,17 @@
 // - the same matched words and fields (`matchOf`): MiniSearch merges the matches of the query terms
 //   with `Object.assign`, so a word is listed where it first matched, with the fields it is in.
 //
+// Besides MiniSearch, a term may match word parts (SR-221 AK1, `ScoringOptions.parts`): the words of
+// the vocabulary (`search-vocabulary.ts`) that hold it after their start, derived after the fuzzy
+// ones (a word part is no typo: such a word leaves the fuzzy ones). Their weight is
+// `PART_WEIGHT * L / (L + 0.3 d)` (below 0.25; a prefix weight is above 0.375 / 1.3, a fuzzy one
+// above 0.3), and their idf is that of the documents of every word the term derives in the field,
+// added up (`pooledOf`), never above the idf of an exact or prefix word of the term: so of two hits
+// that differ only in a word found whole or as a word start against a part, the first scores more
+// (AK2), also when the part's word is rare. A scoring without `parts` is MiniSearch's to the bit;
+// the test above compares only such ones. `Scored.partsOf` tells the words found only as a word start
+// or a part, for the marks (AK3).
+//
 // Besides, it tells which documents a query word found only through the names of their type or
 // status (`Scored.late`, SR-068 AK5): `properties` holds these names among the other values, and
 // the fields `type` and `status` hold them again (`ScoringOptions.named`), never scored or matched.
@@ -37,6 +48,7 @@
 import type MiniSearch from "minisearch";
 import type { MatchInfo, SearchOptions } from "minisearch";
 import type { SearchPhrase } from "./phrase-text.js";
+import { partWords, vocabularyOf } from "./search-vocabulary.js";
 
 /** Term frequencies of one word: by field ID, by document ID (MiniSearch's `FieldTermData`). */
 type TermData = ReadonlyMap<number, ReadonlyMap<number, number>>;
@@ -75,6 +87,12 @@ const internals = (mini: MiniSearch): Internals => mini as unknown as Internals;
 
 /** MiniSearch's defaults (`defaultSearchOptions`): weights of prefix and fuzzy matches, largest edit distance, BM25. */
 const PREFIX_WEIGHT = 0.375;
+/**
+ * The weight of a word part (SR-221, not MiniSearch's): `PART_WEIGHT * L / (L + 0.3 d)` for a word of
+ * L letters, d of them beyond the term, so below 0.25, while a prefix weight is above
+ * 0.375 / 1.3 (about 0.288) and a fuzzy weight above 0.3 (see the file comment).
+ */
+const PART_WEIGHT = 0.25;
 const FUZZY_WEIGHT = 0.45;
 const MAX_FUZZY = 6;
 const K = 1.2;
@@ -94,6 +112,12 @@ export interface ScoringOptions {
   readonly fuzzy: (term: string, i: number, terms: string[]) => number | false;
   readonly prefix: (term: string, i: number, terms: string[]) => boolean;
   /**
+   * Per term: whether it also matches the words that contain it after their start (SR-221 AK1); none:
+   * no term does. With it, `Scored.partsOf` tells the words found only as a word start or a part
+   * (SR-221 AK3), for the marks; without it every word is marked whole.
+   */
+  readonly parts?: (term: string, i: number, terms: string[]) => boolean;
+  /**
    * The field `in` holds the texts of the fields `fields` among others (`properties` the type and
    * status names): a term found in `in` no more often than in those fields together is found only
    * through them (`Scored.late`). Those fields are never scored or matched; none: nothing is late.
@@ -109,19 +133,36 @@ export const searchOptionsOf = (options: ScoringOptions): SearchOptions => ({
   prefix: options.prefix,
 });
 
+/** How a word of the index matches a query term: as the term, a word it begins, with a typo, or a word it stands inside. */
+type Kind = "exact" | "prefix" | "fuzzy" | "part";
+
 /** One word of the index that a query term matches, with its weight (1 for the term itself). */
 interface Derived {
   readonly term: string;
+  readonly kind: Kind;
   readonly weight: number;
   readonly data: TermData;
 }
 
-/** The words of the index that `term` matches, in MiniSearch's order (`executeQuerySpec`). */
-const derivedTerms = (tree: WordTree, term: string, prefix: boolean, fuzzy: number | false): Derived[] => {
+/** What `derivedTerms` derives for one term: prefix and fuzzy as MiniSearch, and parts (`vocabulary`, SR-221). */
+interface Derivation {
+  readonly prefix: boolean;
+  readonly fuzzy: number | false;
+  /** The vocabulary string of the index (`search-vocabulary.ts`) when the term matches word parts. */
+  readonly vocabulary: string | undefined;
+}
+
+/**
+ * The words of the index that `term` matches, in MiniSearch's order (`executeQuerySpec`), then the
+ * words it stands inside after their start (`partWords`, each once); a word part is no typo, so
+ * those words leave the fuzzy ones (as a prefix match does in MiniSearch).
+ */
+const derivedTerms = (tree: WordTree, term: string, how: Derivation): Derived[] => {
+  const { prefix, fuzzy, vocabulary } = how;
   const out: Derived[] = [];
   const exact = tree.get(term);
   if (exact !== undefined) {
-    out.push({ term, weight: 1, data: exact });
+    out.push({ term, kind: "exact", weight: 1, data: exact });
   }
   // A share of the length below 1, else an edit distance (MiniSearch's `fuzzy`).
   const maxDistance =
@@ -134,18 +175,63 @@ const derivedTerms = (tree: WordTree, term: string, prefix: boolean, fuzzy: numb
         near.delete(word);
         out.push({
           term: word,
+          kind: "prefix",
           weight: (PREFIX_WEIGHT * word.length) / (word.length + 0.3 * distance),
           data,
         });
       }
     }
   }
-  for (const [word, [data, distance]] of near) {
-    if (distance > 0) {
-      out.push({ term: word, weight: (FUZZY_WEIGHT * word.length) / (word.length + distance), data });
+  const parts: Derived[] = [];
+  const seen = new Set<string>();
+  for (const word of vocabulary === undefined ? [] : partWords(vocabulary, term)) {
+    const data = seen.has(word) ? undefined : tree.get(word);
+    seen.add(word);
+    if (data !== undefined) {
+      near.delete(word);
+      const distance = word.length - term.length;
+      parts.push({
+        term: word,
+        kind: "part",
+        weight: (PART_WEIGHT * word.length) / (word.length + 0.3 * distance),
+        data,
+      });
     }
   }
-  return out;
+  for (const [word, [data, distance]] of near) {
+    if (distance > 0) {
+      out.push({
+        term: word,
+        kind: "fuzzy",
+        weight: (FUZZY_WEIGHT * word.length) / (word.length + distance),
+        data,
+      });
+    }
+  }
+  return out.concat(parts);
+};
+
+/** BM25's inverse document frequency of a word in `matching` of `total` documents (MiniSearch's). */
+const idfOf = (total: number, matching: number): number =>
+  Math.log(1 + (total - matching + 0.5) / (matching + 0.5));
+
+/**
+ * The number of documents a word part counts as found in, in the field `fieldId` (SR-221 AK2): the
+ * documents of every word the term derives there added up, at most all of them. Never fewer than
+ * those of an exact or prefix word of the same term, so a part's idf is never above theirs.
+ */
+const pooledOf = (spec: Spec, fieldId: number, total: number): number => {
+  const known = spec.pooled.get(fieldId);
+  if (known !== undefined) {
+    return known;
+  }
+  let sum = 0;
+  for (const derived of spec.derived) {
+    sum += derived.data.get(fieldId)?.size ?? 0;
+  }
+  const pooled = Math.min(total, sum);
+  spec.pooled.set(fieldId, pooled);
+  return pooled;
 };
 
 /** Field lengths by short ID and field: per MiniSearch object and change. */
@@ -227,12 +313,20 @@ export interface Scored {
    * `ScoringOptions.named` (see the file comment): SR-068 AK5.
    */
   readonly late: (doc: number) => boolean;
+  /**
+   * The words of the document `doc` that a term found only as a word start or a part (SR-221 AK3),
+   * each with those terms, for the marks; a word some term found as it is or with a typo is not
+   * among them. Empty without `ScoringOptions.parts`.
+   */
+  readonly partsOf: (doc: number) => ReadonlyMap<string, readonly string[]>;
 }
 
 /** One term of the query: the derived words it matches. */
 interface Spec {
   readonly term: string;
   readonly derived: readonly Derived[];
+  /** `pooledOf` by field ID, computed once per field (a part may derive thousands of words). */
+  readonly pooled: Map<number, number>;
 }
 
 /** The state of one scoring: per short ID the scores so far, and the last term it matched all terms up to. */
@@ -287,17 +381,17 @@ const namedFrequency = (named: readonly ReadonlyMap<number, number>[], doc: numb
  * `run.term`, for the documents that matched every term before; their short IDs, when first met,
  * to `met`.
  */
-const addField = (run: Run, at: number, derived: Derived, field: string, met: number[]): void => {
+const addField = (run: Run, at: number, spec: Spec, derived: Derived, field: string, met: number[]): void => {
   const fieldId = Number(run.inner._fieldIds[field]);
   const frequencies = derived.data.get(fieldId);
   if (frequencies === undefined) {
     return;
   }
   const { lengths, fields } = run.lengths;
-  const matching = frequencies.size;
   const average = Number(run.inner._avgFieldLength[fieldId]);
   const total = run.inner._documentCount;
-  const idf = Math.log(1 + (total - matching + 0.5) / (matching + 0.5));
+  const matching = derived.kind === "part" ? pooledOf(spec, fieldId, total) : frequencies.size;
+  const idf = idfOf(total, matching);
   // Term boost and document boost are 1 (MiniSearch: termWeight * termBoost * fieldBoost * docBoost * raw).
   const weight = derived.weight * Number(run.options.boost[field]);
   const named = fieldId === run.namedIn ? namedOf(run, derived) : undefined;
@@ -325,14 +419,19 @@ const scoreTerm = (run: Run, at: number, spec: Spec): number[] => {
   const met: number[] = [];
   for (const derived of spec.derived) {
     for (const field of run.options.fields) {
-      addField(run, at, derived, field, met);
+      addField(run, at, spec, derived, field, met);
     }
   }
   return met;
 };
 
 /** The terms of the query, per word, as MiniSearch's `executeQuery` derives them. */
-const specsOf = (inner: Internals, words: readonly string[], options: ScoringOptions): Spec[][] =>
+const specsOf = (
+  inner: Internals,
+  words: readonly string[],
+  options: ScoringOptions,
+  vocabulary: () => string,
+): Spec[][] =>
   words.map((word) => {
     const terms = inner._options
       .tokenize(word)
@@ -340,12 +439,12 @@ const specsOf = (inner: Internals, words: readonly string[], options: ScoringOpt
       .filter((term): term is string => typeof term === "string" && term !== "");
     return terms.map((term, i) => ({
       term,
-      derived: derivedTerms(
-        inner._index,
-        term,
-        options.prefix(term, i, terms),
-        options.fuzzy(term, i, terms),
-      ),
+      derived: derivedTerms(inner._index, term, {
+        prefix: options.prefix(term, i, terms),
+        fuzzy: options.fuzzy(term, i, terms),
+        vocabulary: options.parts?.(term, i, terms) === true ? vocabulary() : undefined,
+      }),
+      pooled: new Map<number, number>(),
     }));
   });
 
@@ -361,7 +460,7 @@ export const scoreWords = (
   options: ScoringOptions,
 ): Scored => {
   const inner = internals(mini);
-  const specs = specsOf(inner, words, options);
+  const specs = specsOf(inner, words, options, () => vocabularyOf(mini, generation));
   const size = inner._nextId;
   const fieldIdOf = (field: string): number => inner._fieldIds[field] ?? -1;
   const namedIn = options.named === undefined ? -1 : fieldIdOf(options.named.in);
@@ -413,7 +512,7 @@ export const scoreWords = (
   return {
     docs: found,
     scores,
-    matchOf: (doc) => matchOf(inner, specs.flat(), options, doc),
+    ...describer(inner, specs.flat(), options, found),
     late: (doc) => run.late[doc] === 1,
   };
 };
@@ -442,8 +541,9 @@ const partsOf = (
           if (frequencies === undefined) {
             return [];
           }
-          const matching = frequencies.size;
-          const idf = Math.log(1 + (inner._documentCount - matching + 0.5) / (matching + 0.5));
+          const total = inner._documentCount;
+          const matching = derived.kind === "part" ? pooledOf(spec, fieldId, total) : frequencies.size;
+          const idf = idfOf(total, matching);
           const weight = derived.weight * Number(options.boost[field]);
           return [{ fieldId, frequencies, idf, weight, average: Number(inner._avgFieldLength[fieldId]) }];
         }),
@@ -491,7 +591,7 @@ export const scoreDocuments = (
   docs: readonly number[],
 ): Float64Array => {
   const inner = internals(mini);
-  const specs = specsOf(inner, words, options);
+  const specs = specsOf(inner, words, options, () => vocabularyOf(mini, generation));
   const parts = partsOf(inner, specs, options);
   const flat = parts.flat(2);
   const scores = new Float64Array(docs.length);
@@ -514,25 +614,195 @@ export const scoreDocuments = (
   return scores;
 };
 
-/** MiniSearch's `match` of the document `doc` for the query terms `specs` (see the file comment). */
-const matchOf = (
+/** What a page's hit gets from a scoring: MiniSearch's `match`, and the words found only in part. */
+interface Described {
+  readonly match: MatchInfo;
+  readonly parts: ReadonlyMap<string, readonly string[]>;
+}
+
+/** Notes in `parts` that `spec` found `word` as `kind` (`Scored.partsOf`). */
+const notePart = (parts: Map<string, string[] | null>, word: string, kind: Kind, term: string): void => {
+  if (kind === "exact" || kind === "fuzzy") {
+    parts.set(word, null);
+    return;
+  }
+  const known = parts.get(word);
+  if (known === undefined) {
+    parts.set(word, [term]);
+  } else if (known !== null && !known.includes(term)) {
+    known.push(term);
+  }
+};
+
+/** `parts` without the words found whole. */
+const partsWithout = (
+  parts: ReadonlyMap<string, string[] | null>,
+): ReadonlyMap<string, readonly string[]> => {
+  const out = new Map<string, readonly string[]>();
+  for (const [word, terms] of parts) {
+    if (terms !== null) {
+      out.set(word, terms);
+    }
+  }
+  return out;
+};
+
+const NO_PARTS: ReadonlyMap<string, readonly string[]> = new Map();
+
+/**
+ * MiniSearch's `match` of the document `doc` for the query terms `specs`, and its words found only
+ * in part (see the file comment): each derived word in each field looked up for the document.
+ */
+const describeOne = (
   inner: Internals,
   specs: readonly Spec[],
   options: ScoringOptions,
   doc: number,
-): MatchInfo => {
+): Described => {
   const match: MatchInfo = {};
-  for (const { derived } of specs) {
-    for (const { term, data } of derived) {
+  const parts = new Map<string, string[] | null>();
+  for (const { term: queried, derived } of specs) {
+    for (const { term, kind, data } of derived) {
       const fields = options.fields.filter(
         (field) => data.get(Number(inner._fieldIds[field]))?.has(doc) === true,
       );
-      if (fields.length > 0 && !Object.hasOwn(match, term)) {
-        match[term] = fields;
+      if (fields.length > 0) {
+        if (!Object.hasOwn(match, term)) {
+          match[term] = fields;
+        }
+        if (options.parts !== undefined) {
+          notePart(parts, term, kind, queried);
+        }
       }
     }
   }
-  return match;
+  return { match, parts: options.parts === undefined ? NO_PARTS : partsWithout(parts) };
+};
+
+/**
+ * `describeOne` for every document of `found` at once, in one pass over the documents of the derived
+ * words in the fields searched: the same matches and parts, in the same order.
+ */
+const describeAll = (
+  inner: Internals,
+  specs: readonly Spec[],
+  options: ScoringOptions,
+  found: readonly number[],
+): Map<number, Described> => {
+  const wanted = new Uint8Array(inner._nextId);
+  for (const doc of found) {
+    wanted[doc] = 1;
+  }
+  const matches = new Map<number, MatchInfo>();
+  const parts = new Map<number, Map<string, string[] | null>>();
+  const fieldIds = options.fields.map((field) => Number(inner._fieldIds[field]));
+  for (const { term: queried, derived } of specs) {
+    for (const { term, kind, data } of derived) {
+      for (const doc of documentsIn(data, fieldIds, wanted)) {
+        noteMatch(matches, doc, term, () =>
+          options.fields.filter((_, at) => data.get(Number(fieldIds[at]))?.has(doc) === true),
+        );
+        if (options.parts !== undefined) {
+          notePart(
+            entryOf(parts, doc, () => new Map<string, string[] | null>()),
+            term,
+            kind,
+            queried,
+          );
+        }
+      }
+    }
+  }
+  const out = new Map<number, Described>();
+  for (const [doc, match] of matches) {
+    const known = parts.get(doc);
+    out.set(doc, { match, parts: known === undefined ? NO_PARTS : partsWithout(known) });
+  }
+  return out;
+};
+
+/** The documents of `data` in the fields `fieldIds` that `wanted` marks, once each, in the order of the fields. */
+const documentsIn = (data: TermData, fieldIds: readonly number[], wanted: Uint8Array): Set<number> => {
+  const met = new Set<number>();
+  for (const fieldId of fieldIds) {
+    for (const doc of data.get(fieldId)?.keys() ?? []) {
+      if (wanted[doc] === 1) {
+        met.add(doc);
+      }
+    }
+  }
+  return met;
+};
+
+/** The entry of `key` in `map`, made by `make` when there is none. */
+const entryOf = <K, V>(map: Map<K, V>, key: K, make: () => V): V => {
+  let entry = map.get(key);
+  if (entry === undefined) {
+    entry = make();
+    map.set(key, entry);
+  }
+  return entry;
+};
+
+/** Adds `term` with its fields (`fieldsOf`) to the match of `doc`, unless it is there (MiniSearch's merge). */
+const noteMatch = (
+  matches: Map<number, MatchInfo>,
+  doc: number,
+  term: string,
+  fieldsOf: () => string[],
+): void => {
+  const match = entryOf(matches, doc, (): MatchInfo => ({}));
+  if (!Object.hasOwn(match, term)) {
+    match[term] = fieldsOf();
+  }
+};
+
+/**
+ * `matchOf` and `partsOf` of a scoring that found `found`: each document looked up on its own
+ * (`describeOne`: derived words × fields per document) until that has cost as much as one pass over
+ * the documents of the derived words (`describeAll`), which then describes every document found. A
+ * page of 50 hits of a word with a few derived words stays on the first way; a word part that
+ * derives thousands of words (SR-221, SR-098) takes the second.
+ */
+const describer = (
+  inner: Internals,
+  specs: readonly Spec[],
+  options: ScoringOptions,
+  found: readonly number[],
+): Pick<Scored, "matchOf" | "partsOf"> => {
+  const perDocument = specs.reduce((sum, spec) => sum + spec.derived.length, 0) * options.fields.length;
+  let pass: number | undefined;
+  let spent = 0;
+  let all: Map<number, Described> | undefined;
+  const cache = new Map<number, Described>();
+  const describe = (doc: number): Described => {
+    const known = all?.get(doc) ?? cache.get(doc);
+    if (known !== undefined) {
+      return known;
+    }
+    pass ??= specs.reduce(
+      (sum, spec) =>
+        sum +
+        spec.derived.reduce(
+          (words, { data }) => words + [...data.values()].reduce((n, d) => n + d.size, 0),
+          0,
+        ),
+      0,
+    );
+    if (spent + perDocument > pass) {
+      all = describeAll(inner, specs, options, found);
+      const described = all.get(doc);
+      /* v8 ignore else -- only documents of `found` are described: those are the hits of the scoring. */
+      if (described !== undefined) {
+        return described;
+      }
+    }
+    spent += perDocument;
+    const one = describeOne(inner, specs, options, doc);
+    cache.set(doc, one);
+    return one;
+  };
+  return { matchOf: (doc) => describe(doc).match, partsOf: (doc) => describe(doc).parts };
 };
 
 /** The document IDs of `mini` by short ID (MiniSearch's `_documentIds`). */

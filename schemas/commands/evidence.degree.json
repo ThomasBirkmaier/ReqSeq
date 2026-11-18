@@ -20,9 +20,11 @@
     "type": "object",
     "properties": {
       "degree": {
+        "title": "Verification degree",
         "$ref": "../data-export.schema.json#/$defs/verificationDegree"
       },
       "view": {
+        "title": "View",
         "$ref": "../common.schema.json#/$defs/viewId",
         "description": "core, or the variant of the selection's view (else of its saved filter's)."
       },
@@ -30,6 +32,7 @@
         "$ref": "../common.schema.json#/$defs/incomplete"
       },
       "names": {
+        "title": "Named elements",
         "type": "array",
         "description": "The variant of `view` (ThomasBirkmaier/ReqSeq-archive#588), so a reader names it by short ID and title. Left out in the core.",
         "items": {

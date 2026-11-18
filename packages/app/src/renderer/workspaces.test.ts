@@ -1,7 +1,7 @@
 // The prompt "Open workspace" (SR-131): the workspaces opened last, as main lists them.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protocol.js";
-import type { Choice, PromptFill } from "./actions.js";
+import type { Choice, PromptFill } from "./action-types.js";
 import { rankByUse } from "./usage.js";
 import type { WorkspaceControls } from "./workspaces.js";
 import { startsFolderPath, workspacePrompt } from "./workspaces.js";

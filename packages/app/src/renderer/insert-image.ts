@@ -3,7 +3,7 @@
 // copy relatively, goes into the text (`ImageRequest` of the editor). The text is saved as any input, by
 // `element.update` (ADR-0002: core copies, names and checks the file; the app only passes the path). The
 // path is typed text, relative to the workspace root or absolute (ADR-0009 `localPath`).
-import type { Prompt } from "./actions.js";
+import type { Prompt } from "./action-types.js";
 import type { Call } from "./call.js";
 import type { ImageRequest } from "./editor/reference-pick.js";
 
