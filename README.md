@@ -14,6 +14,15 @@ Only people approve; ReqSeq never sets a status, never writes to Git and opens n
   <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. CI hands the test results to ReqSeq as JUnit XML, which records them as evidence against the version of the requirement. Each element and each relation carries a version, so a changed need shows the relation and then the evidence as outdated.">
 </picture>
 
+## How you connect
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/context-dark.svg">
+  <img src="docs/guide/images/context-light.svg" alt="ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.">
+</picture>
+
+All four ways in run the same commands with the same result.
+
 ## Get started
 
 1. Download the artifact for your system from the [latest release](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest) and unpack it. [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/) says how to check and start it, how to put the `reqseq` launcher on your path, and gives the MCP line for your agent on each system; ReqSeq needs `git` on the PATH.
