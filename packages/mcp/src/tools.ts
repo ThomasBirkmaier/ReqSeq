@@ -2,7 +2,7 @@
 // The same rewriting as scripts/contracts/generate.mjs, from the runtime catalog, so a test-only catalog gets
 // its tools too; a test checks that the product catalog gives exactly schemas/generated/mcp-tools.json.
 import type { CatalogEntry, CommandRuntime, Contracts, JsonSchema } from "@reqseq/core";
-import { SCHEMA_BASE } from "@reqseq/core";
+import { OUTPUT_MARKS, SCHEMA_BASE } from "@reqseq/core";
 
 export interface McpToolAnnotations {
   readonly readOnlyHint: boolean;
@@ -125,7 +125,10 @@ const flatDefinitions = (contracts: Contracts): Record<string, JsonSchema> => {
 };
 
 /** The keywords that mark output fields for display (SR-224, ADR-0002 rule 1), which an agent does not need. */
-const DISPLAY_KEYWORDS = new Set(["title", "x-technical", "x-normal", "x-elements"]);
+const DISPLAY_KEYWORDS = new Set<string>(["title", ...OUTPUT_MARKS]);
+
+/** Keywords whose value is data, not a schema: a key `title` in them is no title of a field. */
+const VALUE_KEYWORDS = new Set(["default", "const", "enum", "examples"]);
 
 /**
  * `node` without the titles and marks of fields: the catalog gives them for outputs (SR-224 AK3), and an input
@@ -145,7 +148,12 @@ export const withoutDisplayMarks = (node: unknown, inProperties = false): unknow
         ([key, value]) =>
           inProperties || (key === "title" ? typeof value !== "string" : !DISPLAY_KEYWORDS.has(key)),
       )
-      .map(([key, value]) => [key, withoutDisplayMarks(value, !inProperties && key === "properties")]),
+      .map(([key, value]) => [
+        key,
+        !inProperties && VALUE_KEYWORDS.has(key)
+          ? value
+          : withoutDisplayMarks(value, !inProperties && key === "properties"),
+      ]),
   );
 };
 

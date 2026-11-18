@@ -14,7 +14,7 @@ import { checkOutputs } from "./output-checks.mjs";
 import { resolvedOutputFields } from "./output-fields.mjs";
 import { PROBLEM_CODES_FILE } from "./problem-codes.mjs";
 
-const { catalog, schemas, meta } = loadContracts();
+const { catalog, schemas, meta, ajv } = loadContracts();
 // The product version (root package.json), embedded so every access reports the same one (`reqseq --version`).
 const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 // The licence notice of ReqSeq (LICENSE), one item per line, for `tool info` (SR-161).
@@ -255,7 +255,13 @@ const files = {
 };
 if (process.argv.includes("--check")) {
   // The checks of the catalog, so `pnpm contracts:check` fails on an output field without a title (SR-224 AK3).
-  const invalid = [...checkCatalog(catalog, schemas), ...checkOutputs(catalog, schemas)];
+  // Only on entries that match the meta-schema, as in validate-schemas.mjs; its errors name the others.
+  const validEntry = ajv.compile({
+    $ref: "https://reqseq.dev/schemas/commands/catalog.meta.schema.json#/properties/commands/items",
+  });
+  const invalid = catalog.commands.every((cmd) => validEntry(cmd))
+    ? [...checkCatalog(catalog, schemas), ...checkOutputs(catalog, schemas)]
+    : ["the command catalog does not match its meta-schema; run pnpm schemas:check"];
   for (const e of invalid) {
     console.error(`error: ${e}`);
   }

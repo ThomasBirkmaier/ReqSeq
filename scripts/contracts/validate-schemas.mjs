@@ -66,7 +66,18 @@ if (entriesValid) {
   errors.push(...checkCatalog(catalog, schemas));
   // Titles and marks of the output fields (SR-224 AK3, AK4, AK7).
   errors.push(...checkOutputs(catalog, schemas));
-  // Each normal value (`x-normal`, SR-223 AK7) is a value of its field.
+  // Each normal value (`x-normal`, SR-223 AK7) is a value of its field, also one a definition gives its fields.
+  for (const [file, schema] of Object.entries(schemas)) {
+    for (const [name, def] of Object.entries(schema.$defs ?? {})) {
+      const valid =
+        def["x-normal"] === undefined ? undefined : ajv.compile({ $ref: `${BASE}${file}#/$defs/${name}` });
+      if (valid !== undefined && !valid(def["x-normal"])) {
+        errors.push(
+          `${file}#/$defs/${name}: x-normal is no value of the definition: ${ajv.errorsText(valid.errors)}`,
+        );
+      }
+    }
+  }
   const normalsChecked = new Set();
   for (const cmd of catalog.commands) {
     for (const field of outputFieldsOf(cmd.output, schemas)) {

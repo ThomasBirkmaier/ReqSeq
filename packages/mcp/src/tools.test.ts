@@ -268,10 +268,12 @@ describe("withoutDisplayMarks", () => {
           items: { type: "array", "x-elements": true, items: { "x-normal": [] } },
         },
         anyOf: [{ title: "A", type: "string" }],
+        default: { title: "kept", "x-normal": 1 },
       }),
     ).toEqual({
       properties: { title: { type: "string" }, items: { type: "array", items: {} } },
       anyOf: [{ type: "string" }],
+      default: { title: "kept", "x-normal": 1 },
     });
   });
 });

@@ -147,8 +147,48 @@ const inherited = (
  * What the marks of an output field say (SR-224 AK3, AK4; D-078): a technical value, the normal value, the elements a
  * field lists or counts.
  */
+/**
+ * Whether a field is technical, by the rule of the catalog's `outputFields` (scripts/contracts/output-fields.mjs): its
+ * own `x-technical`, else that of its `$ref`, an `anyOf` or `oneOf` branch or its `items`.
+ */
+const technicalOf = (
+  schema: Schema,
+  context: SchemaContext,
+  seen: ReadonlySet<string> = new Set(),
+): unknown => {
+  if ("x-technical" in schema) {
+    return schema["x-technical"];
+  }
+  const ref = schema["$ref"];
+  const url = typeof ref === "string" ? new URL(ref, context.base ?? CATALOG_BASE).href : undefined;
+  const target = url === undefined || seen.has(url) ? undefined : resolveRef(String(ref), context);
+  const parts: [Schema, SchemaContext, ReadonlySet<string>][] = [
+    ...(target === undefined || url === undefined
+      ? []
+      : [
+          [target, { ...context, base: url }, new Set([...seen, url])] as [
+            Schema,
+            SchemaContext,
+            ReadonlySet<string>,
+          ],
+        ]),
+    ...["anyOf", "oneOf"].flatMap((keyword) => {
+      const branches = schema[keyword];
+      return Array.isArray(branches)
+        ? branches
+            .filter(isSchema)
+            .map((branch): [Schema, SchemaContext, ReadonlySet<string>] => [branch, context, seen])
+        : [];
+    }),
+    ...(isSchema(schema["items"])
+      ? [[schema["items"], context, seen] as [Schema, SchemaContext, ReadonlySet<string>]]
+      : []),
+  ];
+  return parts.some(([part, partContext, partSeen]) => technicalOf(part, partContext, partSeen) === true);
+};
+
 const marksText = (schema: Schema, context: SchemaContext): string => {
-  const technical = inherited(schema, context, "x-technical");
+  const technical = technicalOf(schema, context);
   const normal = inherited(schema, context, "x-normal");
   const elements = schema["x-elements"];
   return [

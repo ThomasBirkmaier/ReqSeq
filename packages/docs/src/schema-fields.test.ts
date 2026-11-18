@@ -164,6 +164,8 @@ describe("output fields", () => {
       count: { title: "Count", type: "integer", "x-elements": "list" },
       both: { title: "Both", type: "integer", "x-elements": ["list", "more"] },
       plain: { type: "string" },
+      either: { title: "Either", anyOf: [{ $ref: "m.schema.json#/$defs/id" }, { type: "null" }] },
+      ids: { title: "IDs", type: "array", items: { $ref: "m.schema.json#/$defs/id" } },
     },
   };
   const base = "https://reqseq.dev/schemas/m.schema.json";
@@ -174,11 +176,13 @@ describe("output fields", () => {
       ["element", "Element", "An ID. Technical."],
       ["file", "File", "Technical when the problem names an element."],
       ["missing", "Missing", "Normally `false`."],
-      ["list", "List", "An ID. The elements of the answer."],
-      ["more", "More", "An ID. Lists elements."],
+      ["list", "List", "An ID. Technical. The elements of the answer."],
+      ["more", "More", "An ID. Technical. Lists elements."],
       ["count", "Count", "Counts the elements of `list`."],
       ["both", "Both", "Counts the elements of `list` and `more`."],
       ["plain", undefined, ""],
+      ["either", "Either", "Technical."],
+      ["ids", "IDs", "An ID. Technical."],
     ]);
     expect(fieldTable(schema, { schemas, base, output: true }, "")).toContain("| Field | Title | Type |");
   });

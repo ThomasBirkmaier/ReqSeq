@@ -53,14 +53,14 @@ function inherited(schema, file, schemas, keyword, seen = new Set()) {
 
 /**
  * Whether a field is technical: its own `x-technical` (`true`, `false` or `"with-element"`), else that of its
- * `$ref`, an `anyOf`/`oneOf` branch or its `items`. `ignoreOwn` reads only what the field refers to.
+ * `$ref`, an `anyOf`/`oneOf` branch or its `items`.
  */
-export function technicalOf(schema, file, schemas, ignoreOwn = false, seen = new Set()) {
+export function technicalOf(schema, file, schemas, seen = new Set()) {
   if (!isObject(schema) || seen.has(schema)) {
     return false;
   }
   seen.add(schema);
-  if (!ignoreOwn && schema["x-technical"] !== undefined) {
+  if (schema["x-technical"] !== undefined) {
     return schema["x-technical"];
   }
   const parts = [
@@ -68,7 +68,7 @@ export function technicalOf(schema, file, schemas, ignoreOwn = false, seen = new
     ...[...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].map((branch) => ({ schema: branch, file })),
     ...(isObject(schema.items) ? [{ schema: schema.items, file }] : []),
   ].filter((part) => part !== undefined);
-  return parts.some((part) => technicalOf(part.schema, part.file, schemas, false, seen) === true);
+  return parts.some((part) => technicalOf(part.schema, part.file, schemas, seen) === true);
 }
 
 /**

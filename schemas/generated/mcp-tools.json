@@ -1194,8 +1194,7 @@
           "title": "Path",
           "x-technical": true,
           "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         }
       }
     },
