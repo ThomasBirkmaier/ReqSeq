@@ -1,0 +1,164 @@
+// Running a write command from the command prompt (`catalog-commands.ts`): the input of the open buffers is
+// saved first (`notSaved`), the output is shown (`show`), and `element.bulkUpdate` shows its preview and asks
+// the confirmation before it writes (`previewed`, SR-071 AK5).
+
+import type { AboutInfo } from "./about.js";
+import { ABOUT_COMMAND } from "./about.js";
+import type { CommandTypes } from "@reqseq/core";
+import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
+import { CREATE_COMMAND, createdEcho } from "./create-element.js";
+import type { Entry } from "./catalog-entry.js";
+import { lineOf } from "./catalog-entry.js";
+import { unsavedBefore } from "./unsaved-before.js";
+import { confirmationPrompt } from "./confirmation.js";
+import type { CatalogContext, Input, Preview } from "./catalog-arguments.js";
+import { isWrite, PREVIEWED, titleOf } from "./catalog-arguments.js";
+
+/** One argument back from the confirmation: the value given last is asked again. */
+type Back = (context: CatalogContext, entry: Entry) => void;
+
+/** "1 element", "2 elements". */
+const elements = (count: number): string => `${String(count)} ${count === 1 ? "element" : "elements"}`;
+
+/**
+ * Shows the preview of a bulk update in a result buffer and asks the confirmation as the next step (SR-071 AK5):
+ * "No", first and marked, and "Yes, apply"; the explanation line names the elements it writes and those it skips
+ * (AK3). "Yes, apply" and Ctrl/Cmd+Enter write the plan of this preview; "No" and Escape go back to the last
+ * argument, and the preview stays open. A preview that writes no element is not asked: the prompt says so.
+ * `why` says why it is asked again (`plan-changed`). `back` is the step back of the argument entry
+ * (`catalog-commands.ts`).
+ */
+export const previewed = (
+  context: CatalogContext,
+  entry: Entry,
+  input: Input,
+  preview: Preview,
+  revision: number,
+  back: Back,
+  why?: string,
+): void => {
+  context.dispatch({
+    type: "open",
+    buffer: resultBuffer(PREVIEWED, input, lineOf(entry), preview, revision, true),
+  });
+  const skipped = `skips ${elements(preview.skipped.length)}`;
+  const withWhy = (text: string): string => (why === undefined ? text : `${why} · ${text}`);
+  if (preview.count === 0) {
+    context.echo(
+      withWhy(`${entry.command.title} writes no element (${skipped}), so there is nothing to confirm`),
+    );
+    return;
+  }
+  context.ask(
+    confirmationPrompt({
+      label: withWhy(`${lineOf(entry)} · confirm:`),
+      verb: "apply",
+      does: "writes",
+      name: "confirm",
+      text: `Writes ${elements(preview.count)}, ${skipped}`,
+      yes: () => {
+        void apply(context, entry, input, preview.plan, back);
+      },
+      back: () => {
+        back(context, entry);
+      },
+    }),
+  );
+};
+
+/** Whether core refused a confirmation because the change is no longer the one of its plan (#158). */
+const planChanged = (answer: {
+  readonly ok: boolean;
+  readonly code?: string;
+  readonly details?: unknown;
+}): boolean =>
+  !answer.ok &&
+  answer.code === "input.invalid" &&
+  (answer.details as { readonly reason?: unknown } | undefined)?.reason === "plan-changed";
+
+/**
+ * The confirmed bulk update: the preview's input with `confirm` and its `plan` (SR-071 AK2). When core refuses the
+ * plan (`plan-changed`), the new preview is shown and asked again (AK5); another refusal is said.
+ */
+const apply = async (
+  context: CatalogContext,
+  entry: Entry,
+  input: Input,
+  plan: string,
+  back: Back,
+): Promise<void> => {
+  if (drafted(context) && (await notSaved(context, entry))) {
+    return;
+  }
+  const confirmed = { ...input, confirm: true, plan };
+  const revision = context.revision();
+  const call = context.shownCall ?? context.call;
+  const answer = await call(PREVIEWED, confirmed);
+  if (answer.ok) {
+    show(context, entry, confirmed, answer.output, revision);
+    return;
+  }
+  if (!planChanged(answer)) {
+    context.echo(answer.message);
+    return;
+  }
+  const again = context.revision();
+  const preview = await call(PREVIEWED, input);
+  if (preview.ok) {
+    previewed(
+      context,
+      entry,
+      input,
+      preview.output,
+      again,
+      back,
+      "Something changed since the preview, so nothing was written; this is the new preview",
+    );
+  } else {
+    context.echo(preview.message);
+  }
+};
+
+/** Whether an open buffer has input to save before a write command runs. */
+export const drafted = (context: CatalogContext): boolean =>
+  context.buffers.some((buffer) => context.drafted(buffer.key));
+
+/**
+ * Saves the input of every open buffer before a write command; whether one could not be saved, so the command does
+ * not run, which the prompt says. Called only when there is input to save (`drafted`): the command is sent at once
+ * otherwise.
+ */
+export const notSaved = async (context: CatalogContext, entry: Entry): Promise<boolean> => {
+  const buffer = await unsavedBefore(context);
+  if (buffer === undefined) {
+    return false;
+  }
+  context.echo(`${bufferName(buffer)} could not be saved: ${titleOf(entry)} did not run`);
+  return true;
+};
+
+/**
+ * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
+ * window (SR-161, D-062), any other output in a result buffer (of a write command, one that is not asked again).
+ */
+export const show = (
+  context: CatalogContext,
+  entry: Entry,
+  input: Input,
+  output: unknown,
+  revision: number,
+): void => {
+  const name = entry.command.name as keyof CommandTypes;
+  if (name === CREATE_COMMAND) {
+    const created = output as CommandTypes[typeof CREATE_COMMAND]["output"];
+    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
+    context.echo(createdEcho(created));
+  } else if (name === ABOUT_COMMAND && context.about !== undefined) {
+    context.about(output as AboutInfo);
+  } else {
+    context.dispatch({
+      type: "open",
+      buffer: resultBuffer(name, input, lineOf(entry), output, revision, isWrite(entry.command)),
+    });
+  }
+};

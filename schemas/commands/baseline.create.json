@@ -30,32 +30,39 @@
     "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter (spec question #440); file.faulty when the baselines folder cannot be listed (details.repository, details.file); input.invalid with details.reason git-folder (details.repository, details.file, details.rule, details.path) when the baselines folder meets Git: a name taken for .git, a folder with a .git entry or a link into .git, also where the workspace file places it (D-036). The baseline is never replaced afterwards.",
     "properties": {
       "files": {
+        "title": "Files",
         "type": "array",
         "items": {
-          "type": "string",
+          "$ref": "../common.schema.json#/$defs/outputPath",
           "description": "Written file, relative to the workspace root, / as separator."
         }
       },
       "baseline": {
+        "title": "Baseline",
         "description": "The written baseline.",
         "type": "object",
         "properties": {
           "name": {
+            "title": "Baseline",
             "description": "Name of the baseline.",
             "type": "string"
           },
           "file": {
-            "type": "string",
+            "title": "File",
+            "$ref": "../common.schema.json#/$defs/outputPath",
             "description": "The file, relative to the workspace root, / as separator."
           },
           "repository": {
+            "title": "Repository",
             "type": "string",
             "description": "The repository that holds the file; `repository` in the file is relative to it."
           },
           "date": {
+            "title": "Date",
             "$ref": "../common.schema.json#/$defs/dateTime"
           },
           "elements": {
+            "title": "Elements",
             "type": "integer",
             "minimum": 0,
             "description": "Number of elements in the file."
@@ -65,10 +72,12 @@
         "required": ["name", "file", "repository", "date", "elements"]
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",

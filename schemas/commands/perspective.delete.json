@@ -57,33 +57,38 @@
     "type": "object",
     "properties": {
       "name": {
+        "title": "Perspective",
         "type": "string",
         "description": "The name stored in the file of the perspective."
       },
       "file": {
-        "type": "string",
+        "title": "File",
+        "$ref": "../common.schema.json#/$defs/outputPath",
         "description": "Its file, relative to the workspace root."
       },
       "fileSha256": {
+        "title": "File SHA-256",
         "$ref": "../common.schema.json#/$defs/fileSha256",
         "description": "The SHA-256 of the file as read, for `expectedFileSha256`."
       },
       "deleted": {
+        "title": "Deleted",
         "type": "boolean",
         "description": "Whether the file was deleted: true only with `confirm`."
       },
       "files": {
+        "title": "Files",
         "type": "array",
         "description": "The deleted file, relative to the workspace root; empty when nothing was deleted.",
-        "items": {
-          "type": "string"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },
       "problems": {
+        "title": "Problems",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
-        }
+        },
+        "x-normal": []
       }
     },
     "additionalProperties": false,

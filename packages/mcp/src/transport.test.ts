@@ -265,3 +265,126 @@ describe("LineTransport: large messages and the send queue (#277)", () => {
     expect(pieces).toHaveLength(1);
   });
 });
+
+describe("LineTransport onConnect (SR-228)", () => {
+  const request = (id: number, method: string, params: Record<string, unknown> = {}): JSONRPCMessage => ({
+    jsonrpc: "2.0",
+    id,
+    method,
+    params,
+  });
+  const result = (id: number): JSONRPCMessage => ({ jsonrpc: "2.0", id, result: {} });
+  const failure = (id: number): JSONRPCMessage => ({
+    jsonrpc: "2.0",
+    id,
+    error: { code: -32602, message: "no" },
+  });
+
+  /** A transport that gets `incoming`, with the names `onConnect` got and the lines it wrote. */
+  const session = async (
+    incoming: readonly JSONRPCMessage[],
+  ): Promise<{
+    transport: LineTransport;
+    clients: unknown[];
+    deliver: (message: JSONRPCMessage) => Promise<void>;
+  }> => {
+    const clients: unknown[] = [];
+    const written: string[] = [];
+    const input = new PassThrough();
+    const transport = new LineTransport(
+      input,
+      {
+        write: (text) => {
+          written.push(text);
+          return true;
+        },
+      },
+      {
+        onConnect: (client) => {
+          // Called only once the answer is out.
+          clients.push([client, written.length]);
+        },
+      },
+    );
+    connect(transport);
+    await transport.start();
+    const deliver = async (message: JSONRPCMessage): Promise<void> => {
+      input.write(serializeMessage(message));
+      await new Promise((resolve) => setImmediate(resolve));
+    };
+    for (const message of incoming) {
+      await deliver(message);
+    }
+    return { transport, clients, deliver };
+  };
+
+  it("calls onConnect once, after the successful answer to initialize is written", async () => {
+    const { transport, clients, deliver } = await session([
+      request(1, "initialize", { clientInfo: { name: "first" } }),
+    ]);
+    await transport.send(ping(9));
+    expect(clients).toEqual([]);
+    // An error answer does not connect; the next connecting request is waited for.
+    await transport.send(failure(1));
+    await transport.send(result(1));
+    expect(clients).toEqual([]);
+    await deliver(request(2, "initialize", { clientInfo: { name: "second" } }));
+    await deliver(request(3, "initialize", { clientInfo: { name: "third" } }));
+    await transport.send(result(2));
+    expect(clients).toEqual([["second", 4]]);
+    await transport.send(result(3));
+    expect(clients).toHaveLength(1);
+    await transport.close();
+  });
+
+  it("connects when the first request of a 2026-07-28 envelope arrives, and nothing from other requests", async () => {
+    const envelope = {
+      _meta: {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": { name: "modern" },
+      },
+    };
+    const { transport, clients, deliver } = await session([
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      request(1, "tools/list"),
+      request(2, "tools/list", { _meta: "no object" }),
+    ]);
+    await transport.send(result(1));
+    await transport.send(request(7, "roots/list"));
+    expect(clients).toEqual([]);
+    // `subscriptions/listen` gets no answer with its id: the arrival connects, before any answer.
+    await deliver(request(3, "subscriptions/listen", envelope));
+    expect(clients).toEqual([["modern", 2]]);
+    await deliver(request(4, "tools/list", envelope));
+    await deliver(request(5, "initialize", { clientInfo: { name: "late" } }));
+    await transport.send(result(5));
+    expect(clients).toHaveLength(1);
+    await transport.close();
+  });
+
+  it("connects through a later initialize when an earlier one gets no answer", async () => {
+    const { transport, clients } = await session([
+      request(1, "initialize", { clientInfo: { name: "unanswered" } }),
+      request(2, "initialize", { clientInfo: { name: "answered" } }),
+    ]);
+    await transport.send(result(2));
+    expect(clients).toEqual([["answered", 1]]);
+    await transport.send(result(1));
+    expect(clients).toHaveLength(1);
+    await transport.close();
+  });
+
+  it("passes on what the client gave as its name, unchecked", async () => {
+    const first = await session([request(1, "initialize", { clientInfo: "text" })]);
+    await first.transport.send(failure(1));
+    expect(first.clients).toEqual([]);
+    const second = await session([
+      request(1, "initialize", { clientInfo: "text" }),
+      request(2, "initialize", { clientInfo: { name: 42 } }),
+    ]);
+    await second.transport.send(result(1));
+    expect(second.clients).toEqual([[undefined, 1]]);
+    await second.transport.close();
+    await first.transport.close();
+  });
+});

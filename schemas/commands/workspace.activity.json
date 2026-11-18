@@ -15,6 +15,7 @@
     "type": "object",
     "properties": {
       "activity": {
+        "title": "Last agent access",
         "anyOf": [{ "$ref": "../activity.schema.json#/$defs/access" }, { "type": "null" }],
         "description": "The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded."
       }

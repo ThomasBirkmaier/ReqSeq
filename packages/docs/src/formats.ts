@@ -25,6 +25,7 @@ export const FORMATS: readonly string[] = [
   "data-export",
   "api-endpoint",
   "activity",
+  "agent-connection",
   "recent-workspaces",
 ];
 
