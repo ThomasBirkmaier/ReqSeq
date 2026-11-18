@@ -43,6 +43,41 @@ export const MAX_MESSAGE_BYTES = 32 * 1024 * 1024;
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
 
+/** The `_meta` keys of a request of protocol revision 2026-07-28, which has no `initialize`. */
+const PROTOCOL_VERSION_KEY = "io.modelcontextprotocol/protocolVersion";
+const CLIENT_INFO_KEY = "io.modelcontextprotocol/clientInfo";
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The `name` of an `Implementation` object, as the client sent it (unchecked). */
+const nameOf = (info: unknown): unknown => (isRecord(info) ? info["name"] : undefined);
+
+/**
+ * The client's name when `message` is the request that connects a client: `initialize` (its
+ * `clientInfo`), or a request of revision 2026-07-28 (its envelope, `_meta`); `none` otherwise.
+ */
+const connectingClient = (message: JSONRPCMessage): { readonly client: unknown } | "none" => {
+  if (!("method" in message) || !("id" in message)) {
+    return "none";
+  }
+  const params = isRecord(message.params) ? message.params : {};
+  if (message.method === "initialize") {
+    return { client: nameOf(params["clientInfo"]) };
+  }
+  const meta = params._meta;
+  return isRecord(meta) && PROTOCOL_VERSION_KEY in meta ? { client: nameOf(meta[CLIENT_INFO_KEY]) } : "none";
+};
+
+export interface LineTransportOptions {
+  /**
+   * Called once, after the successful answer to the first request that connects a client
+   * (`initialize`, or the first request of revision 2026-07-28) is written, with the name the client
+   * gave (unchecked; SR-228). The MCP server records the connection with it.
+   */
+  readonly onConnect?: (client: unknown) => void;
+}
+
 /** A transport over a line-based stream. Closes when the input ends, fails, or `close()` is called. */
 export class LineTransport implements Transport {
   onclose?: (() => void) | undefined;
@@ -53,6 +88,9 @@ export class LineTransport implements Transport {
   readonly #output: TextSink;
   readonly #buffer = new ReadBuffer({ maxBufferSize: MAX_MESSAGE_BYTES });
   readonly #resolveClosed: () => void;
+  #onConnect: ((client: unknown) => void) | undefined;
+  /** The request that connects the client, until its answer is written. */
+  #connecting: { readonly id: unknown; readonly client: unknown } | undefined;
   #started = false;
   #closed = false;
   /** The sends so far, each after the one before; never rejects. */
@@ -60,9 +98,10 @@ export class LineTransport implements Transport {
   /** Fulfilled once the transport is closed, for whatever reason. */
   readonly closed: Promise<void>;
 
-  constructor(input: InputStream, output: TextSink) {
+  constructor(input: InputStream, output: TextSink, options: LineTransportOptions = {}) {
     this.#input = input;
     this.#output = output;
+    this.#onConnect = options.onConnect;
     let resolveClosed!: () => void;
     this.closed = new Promise((resolve) => {
       resolveClosed = resolve;
@@ -92,6 +131,7 @@ export class LineTransport implements Transport {
       if (message === null) {
         return;
       }
+      this.#noteConnecting(message);
       this.onmessage?.(message);
     }
   }
@@ -109,6 +149,36 @@ export class LineTransport implements Transport {
       this.onerror?.(asError(error));
     }
     await this.close();
+  }
+
+  /** Keeps the first request that connects a client, while `onConnect` waits for one. */
+  #noteConnecting(message: JSONRPCMessage): void {
+    if (this.#onConnect === undefined || this.#connecting !== undefined) {
+      return;
+    }
+    const connecting = connectingClient(message);
+    if (connecting !== "none") {
+      this.#connecting = { id: (message as { id: unknown }).id, client: connecting.client };
+    }
+  }
+
+  /** After `message` is written: calls `onConnect` when it is the successful answer to the connecting request. */
+  #connected(message: JSONRPCMessage): void {
+    const connecting = this.#connecting;
+    if (
+      connecting === undefined ||
+      !("id" in message) ||
+      message.id !== connecting.id ||
+      "method" in message
+    ) {
+      return;
+    }
+    this.#connecting = undefined;
+    if ("result" in message) {
+      const onConnect = this.#onConnect;
+      this.#onConnect = undefined;
+      onConnect?.(connecting.client);
+    }
   }
 
   /** Queues `message`; resolves when its line is written (or dropped, once closed). */
@@ -136,6 +206,7 @@ export class LineTransport implements Transport {
           }
         }
       }
+      this.#connected(message);
     } catch (error) {
       if (written) {
         // Half a line is out: the next message would be glued onto it, so the stream is unusable.

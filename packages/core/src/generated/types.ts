@@ -38,6 +38,28 @@ export interface ActivityAccess {
 }
 
 /**
+ * `agent-<process>.json` in the cache folder of the working copy (ADR-0008): one MCP server process of the copy whose client is connected or was connected last (SR-228). The MCP server writes it when it has answered the client's `initialize` (or the first request of protocol revision 2026-07-28, which has no `initialize`), renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.
+ * Schema: `schemas/agent-connection.schema.json#`.
+ */
+export interface AgentConnectionFile {
+  /** Version of this file format. */
+  readonly version: 1;
+  /** The MCP server process: its process ID and 8 random hex digits, new for every connection. The file name is `agent-<process>.json`; a file whose name does not match is ignored. */
+  readonly process: string;
+  readonly client: AgentConnectionClient;
+  /** When the MCP server answered the client's first request (`initialize`). */
+  readonly since: IsoDateTime;
+  /** When the connection ended cleanly (the client closed standard input, the server was stopped); null while it runs, and after a crash. */
+  readonly ended: IsoDateTime | null;
+}
+
+/**
+ * The name the client gave when it connected (`clientInfo.name`), as text: control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.
+ * Schema: `schemas/agent-connection.schema.json#/$defs/client`.
+ */
+export type AgentConnectionClient = string | null;
+
+/**
  * `api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `reqseq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.
  * Schema: `schemas/api-endpoint.schema.json#`.
  */
@@ -2090,6 +2112,35 @@ export type WorkspaceActivityInput = Readonly<Record<string, never>>;
 export interface WorkspaceActivityOutput {
   /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded. */
   readonly activity: ActivityAccess | null;
+}
+
+/**
+ * Input of `workspace.agents` as `run` gets it: validated, properties with a `default` filled in. The clients connected to this working copy through the MCP server, each with when it connected, and the client connected last; whether the cache folder of the copy records connections at all.
+ * Schema: `schemas/commands/workspace.agents.json input`.
+ */
+export type WorkspaceAgentsInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `workspace.agents`. The clients connected to this working copy through the MCP server, each with when it connected, and the client connected last; whether the cache folder of the copy records connections at all.
+ * Schema: `schemas/commands/workspace.agents.json output`.
+ */
+export interface WorkspaceAgentsOutput {
+  /** Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the cache folder lies inside a repository of the workspace or cannot be read; then both lists are empty. */
+  readonly recorded: boolean;
+  /** Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count. */
+  readonly connected: readonly {
+    readonly client: AgentConnectionClient;
+    /** When the MCP server answered the client's first request. */
+    readonly since: IsoDateTime;
+  }[];
+  /** The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows. */
+  readonly last:
+    | {
+      readonly client: AgentConnectionClient;
+      /** When it was connected last: its end, or after a crash the last time its process showed it was running. */
+      readonly at: IsoDateTime;
+    }
+    | null;
 }
 
 /**
@@ -4559,6 +4610,7 @@ export interface CommandTypes {
   readonly "workspace.status": { readonly input: WorkspaceStatusInput; readonly output: WorkspaceStatusOutput };
   readonly "workspace.check": { readonly input: WorkspaceCheckInput; readonly output: WorkspaceCheckOutput };
   readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
+  readonly "workspace.agents": { readonly input: WorkspaceAgentsInput; readonly output: WorkspaceAgentsOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };

@@ -1,0 +1,59 @@
+{
+  "name": "workspace.agents",
+  "title": "Show connected agents",
+  "summary": "The clients connected to this working copy through the MCP server, each with when it connected, and the client connected last; whether the cache folder of the copy records connections at all.",
+  "effect": "read",
+  "stage": 3,
+  "implements": ["SR-228"],
+  "arguments": [],
+  "input": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "recorded": {
+        "type": "boolean",
+        "description": "Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the cache folder lies inside a repository of the workspace or cannot be read; then both lists are empty."
+      },
+      "connected": {
+        "type": "array",
+        "description": "Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "client": { "$ref": "../agent-connection.schema.json#/$defs/client" },
+            "since": {
+              "$ref": "../common.schema.json#/$defs/dateTime",
+              "description": "When the MCP server answered the client's first request."
+            }
+          },
+          "required": ["client", "since"],
+          "additionalProperties": false
+        }
+      },
+      "last": {
+        "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "client": { "$ref": "../agent-connection.schema.json#/$defs/client" },
+              "at": {
+                "$ref": "../common.schema.json#/$defs/dateTime",
+                "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
+              }
+            },
+            "required": ["client", "at"],
+            "additionalProperties": false
+          },
+          { "type": "null" }
+        ]
+      }
+    },
+    "required": ["recorded", "connected", "last"],
+    "additionalProperties": false
+  }
+}
