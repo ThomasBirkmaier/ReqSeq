@@ -297,6 +297,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "workspace.activity": "none",
       "workspace.recent": "none",
       "workspace.listFolder": "none",
+      "workspace.connectAgent": "none",
       "tool.info": "none",
       "metamodel.get": "none",
       "metamodel.mermaid": "none",

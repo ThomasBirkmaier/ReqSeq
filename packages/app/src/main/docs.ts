@@ -88,6 +88,17 @@ export const docsFolder = (options: {
   return path.join(options.app, "..", "cli", "docs");
 };
 
+/** The command line's entry: in a release `resources/cli/dist/bin.js` (ADR-0014), else `packages/cli/dist/bin.js` of the checkout. */
+export const cliEntry = (options: {
+  readonly packaged: boolean;
+  readonly resources: string;
+  /** The folder of the app package (`packages/app` in a checkout). */
+  readonly app: string;
+}): string =>
+  options.packaged
+    ? path.join(options.resources, "cli", "dist", "bin.js")
+    : path.join(options.app, "..", "cli", "dist", "bin.js");
+
 export interface DocsOptions {
   /** The site folder (`docsFolder`). */
   readonly folder: string;

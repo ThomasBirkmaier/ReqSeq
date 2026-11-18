@@ -225,7 +225,25 @@ describe("Git only read (SR-083, D-036)", () => {
   });
 
   it("[SR-083/AK-zp6z] offers no command that writes Git data", () => {
-    const writes = /commit|push|pull|fetch|merge|checkout|branch|rebase|reset|stash|tag|clone/i;
-    expect(contracts.commands.map((c) => c.name).filter((name) => writes.test(name))).toEqual([]);
+    // By the words of the name (`workspace.connectAgent` holds "tAg" but no word "tag").
+    const writes = new Set([
+      "commit",
+      "push",
+      "pull",
+      "fetch",
+      "merge",
+      "checkout",
+      "branch",
+      "rebase",
+      "reset",
+      "stash",
+      "tag",
+      "clone",
+    ]);
+    const words = (name: string): string[] => name.split(/\.|(?=[A-Z])/).map((word) => word.toLowerCase());
+    expect(
+      contracts.commands.map((c) => c.name).filter((name) => words(name).some((word) => writes.has(word))),
+    ).toEqual([]);
+    expect(words("baseline.commitAll")).toContain("commit");
   });
 });
