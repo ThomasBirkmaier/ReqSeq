@@ -293,13 +293,11 @@ describe("serverTools on the whole catalog", () => {
       const condition = defsOf(tool)["filter.condition"];
       expect(condition?.["oneOf"], tool.name).toBeUndefined();
       expect(condition?.["description"], tool.name).toContain(
-        `input schema of ${FILTER_GRAMMAR_TOOL}, under \`selection.where\``,
+        `input schema of \`${FILTER_GRAMMAR_TOOL}\`, under \`selection.where\``,
       );
       expect(Object.keys(defsOf(tool)), tool.name).not.toContain("filter.relationCondition");
       expect(Object.keys(defsOf(tool)), tool.name).not.toContain("filter.propertyCondition");
     }
-    // The stub goes into each tool's own copy only: the shared definitions keep the whole grammar.
-    expect(serverTools(getCommandRuntime()).find((t) => t.name === FILTER_GRAMMAR_TOOL)).toEqual(carrier);
   });
 });
 

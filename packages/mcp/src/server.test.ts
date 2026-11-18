@@ -563,6 +563,8 @@ describe("callTool", () => {
     // The server instructions name the first commands, so an agent must have their schemas at once.
     expect(marked.map((entry) => entry.name)).toEqual(expect.arrayContaining([...FIRST_COMMANDS]));
     expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
+    // The other tools' stub points at the filter grammar in this tool, so a client must load it upfront (#1927).
+    expect(upfront.map((tool) => tool.name)).toContain(FILTER_GRAMMAR_TOOL);
   });
 
   it("bounds the list by an allowance per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
