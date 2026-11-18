@@ -10,6 +10,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { osCacheFolder } from "@reqseq/core";
 import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -339,14 +340,16 @@ describe("reqseq mcp records its connection (SR-228)", () => {
       expect(await exited(asking)).toBe(0);
       return JSON.parse(stdout) as unknown;
     };
+    // The OS cache folder of the child: `~/Library/Caches` on macOS, the variables elsewhere.
+    const cacheRoot = path.join(osCacheFolder({ platform: process.platform, env, home }), "reqseq");
     const connections = async (): Promise<{ client: string; ended: string | null }[]> => {
-      const folders = await fs.readdir(path.join(home, "reqseq")).catch(() => []);
+      const folders = await fs.readdir(cacheRoot).catch(() => []);
       const found = [];
       for (const folder of folders) {
-        const names = await fs.readdir(path.join(home, "reqseq", folder)).catch(() => []);
+        const names = await fs.readdir(path.join(cacheRoot, folder)).catch(() => []);
         for (const name of names.filter((n) => n.startsWith("agent-"))) {
           found.push(
-            JSON.parse(await fs.readFile(path.join(home, "reqseq", folder, name), "utf8")) as {
+            JSON.parse(await fs.readFile(path.join(cacheRoot, folder, name), "utf8")) as {
               client: string;
               ended: string | null;
             },
