@@ -9,8 +9,8 @@
 // An SR line reads `SR: SR-210 (AK1–AK7), SR-139 (AK6)` (CLAUDE.md, Issues): numbers and ranges with
 // `-` or `–`; an SR without parentheses stands for all of its criteria.
 //
-// Usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]
-// --require names what the spec PR added or changed: an SR alone for all its criteria (a new SR),
+// Usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]...
+// --require may repeat, its lists are joined. It names what the spec PR added or changed: an SR alone for all its criteria (a new SR),
 // an SR with criteria for those only.
 // Reads the issues with `gh api` (REST) and spec/ from the working directory; exits with 1 on a gap.
 import { execFileSync } from "node:child_process";
@@ -166,22 +166,33 @@ export function run({
 
 /**
  * Reads `--epic <n>` and `--require <list>` from the arguments. The list has the format of an SR
- * line, `SR-210, SR-061 (AK2)`: an SR alone requires all its criteria. Returns `error` for an
- * unknown argument or a part it cannot read.
+ * line, `SR-210, SR-061 (AK2)`: an SR alone requires all its criteria. Every --require counts, the
+ * criteria of an SR named twice are joined; --epic is given at most once (#1830). Returns `error` for
+ * an unknown argument, a repeated --epic, a flag without a value, or a part it cannot read.
  */
 export function parseArgs(argv) {
   const required = new Map();
   const unreadable = [];
   let epicNumber;
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === "--epic") {
-      epicNumber = Number(argv[(i += 1)]);
-    } else if (argv[i] === "--require") {
-      for (const [sr, entry] of parseSrLine(String(argv[(i += 1)] ?? ""), unreadable)) {
-        required.set(sr, entry);
+    const flag = argv[i];
+    if (flag !== "--epic" && flag !== "--require") {
+      return { epicNumber, required, error: `unknown argument ${flag}` };
+    }
+    const value = argv[(i += 1)];
+    if (value === undefined || value === "--epic" || value === "--require") {
+      return { epicNumber, required, error: `${flag} needs a value` };
+    }
+    if (flag === "--epic") {
+      if (epicNumber !== undefined) {
+        return { epicNumber, required, error: "--epic given twice" };
       }
-    } else {
-      return { epicNumber, required, error: `unknown argument ${argv[i]}` };
+      epicNumber = Number(value);
+      continue;
+    }
+    for (const [sr, entry] of parseSrLine(value, unreadable)) {
+      const before = required.get(sr);
+      required.set(sr, before === ALL || entry === ALL ? ALL : new Set([...(before ?? []), ...entry]));
     }
   }
   if (unreadable.length > 0) {

@@ -5,7 +5,8 @@
 // given by --require or --stage have a test per acceptance criterion with method Test and a record
 // verification/SR-xxx.md otherwise. It reads no PR text: which SR a PR completes is checked at the end
 // of a milestone and in ReqSeq's own verification status (D-072).
-// Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1] [--report <file>]
+// Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002]... [--stage 1] [--report <file>]
+// (--require may repeat, its lists are joined; --stage and --report at most once)
 //
 // The spec is the ReqSeq workspace in spec/ (D-064, ThomasBirkmaier/ReqSeq-archive#326). A system requirement is an element file of
 // type `system-requirement`, found anywhere below spec/ by its frontmatter (ADR-0004); its spec ID
@@ -468,20 +469,43 @@ function checkRequired(root, spec, required, testRefs, errors) {
 
 const VALUE_FLAGS = new Set(["--require", "--stage", "--report"]);
 
-/** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
-export function traceCheck(root, args) {
-  const opt = (name) => {
-    const i = args.indexOf(name);
-    return i >= 0 ? args[i + 1] : undefined;
-  };
-  const errors = [];
-  const warnings = [];
-  for (const [i, arg] of args.entries()) {
-    const value = i > 0 && VALUE_FLAGS.has(args[i - 1]);
-    if (!value && !VALUE_FLAGS.has(arg)) {
+/**
+ * Reads the command-line `args`: every --require counts (its comma lists joined), --stage and --report at
+ * most once, and each flag needs a value (#1830). Pushes a message per problem to `errors`.
+ */
+export function parseArgs(args, errors) {
+  const values = new Map([...VALUE_FLAGS].map((flag) => [flag, []]));
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (!VALUE_FLAGS.has(arg)) {
       errors.push(`unknown argument ${arg} (--require, --stage, --report)`);
+    } else if (args[i + 1] === undefined || VALUE_FLAGS.has(args[i + 1])) {
+      errors.push(`${arg} needs a value`);
+    } else {
+      values.get(arg).push(args[(i += 1)]);
     }
   }
+  for (const flag of ["--stage", "--report"]) {
+    if (values.get(flag).length > 1) {
+      errors.push(`${flag} given twice`);
+    }
+  }
+  return {
+    required: values
+      .get("--require")
+      .flatMap((list) => list.split(","))
+      .map((id) => id.trim())
+      .filter(Boolean),
+    stage: values.get("--stage")[0],
+    report: values.get("--report")[0],
+  };
+}
+
+/** Runs the check in `root` with the command-line `args`; returns the report and the exit code. */
+export function traceCheck(root, args) {
+  const errors = [];
+  const warnings = [];
+  const parsed = parseArgs(args, errors);
   const spec = readSpec(path.join(root, "spec"));
   for (const id of spec.duplicates) {
     errors.push(`${id} is the spec ID of more than one system requirement`);
@@ -489,8 +513,8 @@ export function traceCheck(root, args) {
   const testRefs = resolveTags(spec, testReferences(root), errors);
   checkTestRefs(spec, testRefs, errors, warnings);
 
-  let required = (opt("--require") ?? "").split(",").filter(Boolean);
-  const stage = opt("--stage");
+  let required = parsed.required;
+  const stage = parsed.stage;
   if (stage !== undefined) {
     const members = stageMembers(spec, stage);
     if (members === undefined) {
@@ -512,15 +536,14 @@ export function traceCheck(root, args) {
     ...(errors.length ? ["## Errors", ...errors.map((e) => `- ${e}`), ""] : []),
     ...(warnings.length ? ["## Warnings", ...warnings.map((w) => `- ${w}`), ""] : []),
   ].join("\n");
-  return { report, errors, warnings, code: errors.length ? 1 : 0 };
+  return { report, reportFile: parsed.report, errors, warnings, code: errors.length ? 1 : 0 };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const args = process.argv.slice(2);
-  const { report, code } = traceCheck(process.cwd(), args);
-  const i = args.indexOf("--report");
-  if (i >= 0 && args[i + 1] !== undefined) {
-    fs.writeFileSync(args[i + 1], report);
+  const { report, reportFile, code } = traceCheck(process.cwd(), args);
+  if (reportFile !== undefined) {
+    fs.writeFileSync(reportFile, report);
   }
   console.log(report);
   process.exit(code);
