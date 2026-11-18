@@ -6,20 +6,22 @@ import { pageSteps } from "./examples.js";
 const repo = new URL("../../../", import.meta.url);
 const read = async (path: string): Promise<string> => readFile(fileURLToPath(new URL(path, repo)), "utf8");
 
-/** The first paragraph after the frontmatter and a level-1 heading. */
-const firstParagraph = (text: string): string =>
+/** The paragraphs after the frontmatter and a level-1 heading, up to the first one that is not text. */
+const lead = (text: string): string =>
   text
     .replace(/^---\r?\n[^]*?\r?\n---\r?\n/, "")
     .replace(/^\s*# .*\r?\n/, "")
     .trim()
-    .split(/\r?\n\r?\n/)[0] ?? "";
+    .split(/\r?\n\r?\n/)
+    .filter((_paragraph, index, all) => !all.slice(0, index + 1).some((one) => /^[!<[]/.test(one)))
+    .join("\n\n");
 
 // The README repeats two parts of the documentation (#344): they must not drift apart.
 describe("README", () => {
   it("says what ReqSeq is in the same sentences as the landing page of the documentation", async () => {
-    const sentences = firstParagraph(await read("docs/guide/index.md"));
+    const sentences = lead(await read("docs/guide/index.md"));
     expect(sentences).toMatch(/ReqSeq/);
-    expect(firstParagraph(await read("README.md"))).toBe(sentences);
+    expect(lead(await read("README.md"))).toBe(sentences);
   });
 
   it("has the commands of Get started as its quick start", async () => {

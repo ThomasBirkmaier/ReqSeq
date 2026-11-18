@@ -1,7 +1,9 @@
 # ReqSeq
 
 You tell your agent what you need, and it writes requirements with acceptance criteria into Markdown files in your repository through ReqSeq's CLI or MCP server, then the code and the tests that name them.
+
 Every element carries a version, and every relation and every evidence record keeps the version it was made against, so a change shows at once which requirement must be reviewed and which evidence no longer counts.
+
 Only people approve; ReqSeq never changes a status, never writes to Git and opens no network connection.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
@@ -44,7 +46,7 @@ reqseq workspace check
 
 ![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](docs/guide/images/app-tour.gif)
 
-The desktop app works on the same files, with one command prompt for every function, and shows the graph, the traceability matrix and the evidence.
+You can also do all of your requirements engineering by hand, without an agent: the desktop app works on the same files and offers every function the CLI and MCP offer, with the same result. One command prompt reaches each of them, and the app shows the graph, the traceability matrix and the evidence.
 
 ## More
 
