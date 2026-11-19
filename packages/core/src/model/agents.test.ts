@@ -11,6 +11,7 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { AgentConnectionFile } from "../generated/types.js";
+import { retry, TRANSIENT_CODES } from "../files/retry.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import * as WorkspaceBlock from "../workspace/index.js";
@@ -105,25 +106,6 @@ const until = async (check: () => Promise<boolean>): Promise<void> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error("condition not met in time");
-};
-
-/**
- * Moves `folder` to `to` in one step, so a writer by path sees it gone at once. Windows refuses to
- * move a folder while a file in it is open (a beat that writes): that is tried again.
- */
-const moveAway = async (folder: string, to: string): Promise<void> => {
-  for (let tries = 1; ; tries += 1) {
-    try {
-      await fs.rename(folder, to);
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code ?? "";
-      if (tries === 50 || !["EPERM", "EACCES", "EBUSY"].includes(code)) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-  }
 };
 
 const recordWith = (workspace: Workspace, client: unknown, beatMs = 20): AgentRecording => {
@@ -343,8 +325,11 @@ describe("recordAgentConnection", () => {
     ]);
     // The cache is safe to remove (ADR-0008): the beat writes the file again. A recursive removal
     // races the beat, which may write between emptying the folder and removing it (ENOTEMPTY,
-    // #2049), so the folder is moved away in one step and removed there, where the beat never writes.
-    await moveAway(cache, path.join(await tempFolder(), "removed"));
+    // #2049). So the folder is moved away in one step, which removes its path just as a removal does
+    // for the beat; the cleanup of `tempFolder` deletes it there. Windows refuses to move a folder
+    // while a file in it is open (a beat that writes), so that is tried again.
+    const moved = path.join(await tempFolder(), "removed");
+    await retry(() => fs.rename(cache, moved), TRANSIENT_CODES, { attempts: 20, delayMs: 10 });
     await until(async () => (await agentFiles(cache).catch(() => [])).length === 1);
     await workspace.close();
     const ended = await agentConnections(cache);
