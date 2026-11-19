@@ -371,8 +371,34 @@ describe("lockPrivateFile", () => {
       await writeLock(text);
       const spy = refuseOpen(code);
       expect(await lockPrivateFile(file)).toBeUndefined();
-      expect(spy).toHaveBeenCalledTimes(10);
+      // Ten retries in each of the three tries.
+      expect(spy).toHaveBeenCalledTimes(30);
       expect(await fs.readFile(file, "utf8")).toBe(text);
+    });
+
+    it("tries again when the lock it just broke is still refused, and takes it once that ends", async () => {
+      await writeLock(lockOf({ pid: DEAD_PID }));
+      const open = fs.open.bind(fs);
+      const rm = fs.rm.bind(fs);
+      let broken = false;
+      let refused = 0;
+      vi.spyOn(fs, "rm").mockImplementation(async (target, options) => {
+        broken ||= target === file;
+        await rm(target, options);
+      });
+      // The removed name stays listed and refused for one whole try.
+      vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+        if (args[0] === file && broken && refused < 10) {
+          refused++;
+          throw failure("EPERM");
+        }
+        return open(...args);
+      });
+      vi.spyOn(fs, "readdir").mockImplementation((() => Promise.resolve([path.basename(file)])) as never);
+      const lock = await lockPrivateFile(file);
+      expect(refused).toBe(10);
+      expect(lock).toBeDefined();
+      expect(pidOf(await fs.readFile(file, "utf8"))).toBe(process.pid);
     });
 
     it.each(["EPERM", "EBUSY"])("counts as held when reading it fails with %s", async (code) => {
@@ -384,6 +410,22 @@ describe("lockPrivateFile", () => {
       // Not read, so not found stale: the lock stays.
       expect(await lockPrivateFile(file)).toBeUndefined();
       expect(await fs.readdir(path.dirname(file))).toEqual(["api.json.lock"]);
+    });
+
+    it("reads a refused lock as old as its modification time, or as new without one", async () => {
+      const readFile = fs.readFile.bind(fs);
+      vi.spyOn(fs, "readFile").mockImplementation(async (...args: Parameters<typeof fs.readFile>) =>
+        args[0] === file ? Promise.reject(failure("EPERM")) : readFile(...args),
+      );
+      // An hour old: stale, so it is broken and taken.
+      await writeLock(lockOf({ pid: process.pid }), HOUR);
+      const lock = await lockPrivateFile(file);
+      expect(lock).toBeDefined();
+      await fs.rm(file);
+      // No modification time either: held.
+      await writeLock(lockOf({ pid: DEAD_PID }), HOUR);
+      vi.spyOn(fs, "stat").mockRejectedValue(failure("EPERM"));
+      expect(await lockPrivateFile(file)).toBeUndefined();
     });
 
     it("counts a stale lock as held while its breaker is refused", async () => {

@@ -111,7 +111,8 @@ const refusedWhileListed = async (error: unknown, file: string): Promise<boolean
 
 /**
  * Text and modification time of `file`, or `undefined` when it is gone. A file that Windows refuses while
- * its folder lists it reads as a young lock without a process ID, which counts as held.
+ * its folder lists it reads as a lock without a process ID, of its modification time where `stat` gives
+ * one and else of now: held while young, stale when old.
  */
 const readLock = async (file: string): Promise<FoundLock | undefined> => {
   try {
@@ -126,7 +127,9 @@ const readLock = async (file: string): Promise<FoundLock | undefined> => {
       return undefined;
     }
     if (await refusedWhileListed(error, file)) {
-      return { text: "", modified: Date.now() };
+      // Its time from the folder entry where Windows gives it, so that a lock refused for good turns stale.
+      const stat = await fs.stat(file).catch(() => undefined);
+      return { text: "", modified: stat?.mtimeMs ?? Date.now() };
     }
     throw error;
   }
@@ -221,8 +224,8 @@ const breakStale = async (file: string, stale: FoundLock): Promise<boolean> => {
 /**
  * Take the lock file `file` (absolute path): create it exclusively with mode 0600 (missing folders with
  * 0700), holding this process ID. Resolves `undefined` while another start holds it: its process runs and
- * it was taken less than LOCK_STALE_MS ago, or Windows refuses to open the lock file that its folder lists
- * (`refusedWhileListed`). A stale lock is broken and taken. Rejects with the Node error when the folder or
+ * it was taken less than LOCK_STALE_MS ago, or opening the lock file that its folder lists still fails with
+ * EPERM or EBUSY after LOCK_ATTEMPTS tries (`refusedWhileListed`). A stale lock is broken and taken. Rejects with the Node error when the folder or
  * the file cannot be created, read or removed.
  */
 export async function lockPrivateFile(file: string): Promise<PrivateLock | undefined> {
@@ -243,7 +246,8 @@ export async function lockPrivateFile(file: string): Promise<PrivateLock | undef
       return { file, release };
     }
     if (created === "refused") {
-      return undefined;
+      // Still being given back, also when this start just broke it: try again.
+      continue;
     }
     const held = await readLock(file);
     if (held === undefined) {
