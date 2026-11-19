@@ -70,3 +70,13 @@ mark {
   margin: 1rem 0.75rem;
   color: var(--muted);
 }
+
+/* With "Show details" (SR-223 AK2): the technical values of a hint in a line of the second grey under its row. */
+.hints .hint-details {
+  grid-column: 1 / -1;
+  margin-top: -1rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

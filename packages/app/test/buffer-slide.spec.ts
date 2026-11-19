@@ -121,6 +121,18 @@ const clear = (window: Page): Promise<void> =>
     own.pictures = 0;
   });
 
+/**
+ * Ends a slide that an input ran into with Escape, waits until it settled, and forgets what was recorded. Whether
+ * the slide an input ended had started by then depends on timing, as AK2 allows both: a buffer drawn in advance
+ * starts in the commit that shows it, often before the next key. Its records would else count for the next switch
+ * to the same buffer, and `slideOf` would pass on them before that switch moved (#1802).
+ */
+const endAndForget = async (window: Page): Promise<void> => {
+  await window.keyboard.press("Escape");
+  await slideSettled(window);
+  await clear(window);
+};
+
 /** The slide of one switch, once both its animations are made. */
 const slideOf = async (window: Page, shown: string): Promise<{ side: Made; main: Made }> => {
   await expect
@@ -323,8 +335,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
     // The slide of Alt+N ended at the first Alt+P, in its end state.
     expect((await held()).slice(0, 2)).toEqual(["idle", "idle"]);
-    await window.keyboard.press("Escape");
-    await slideSettled(window);
+    await endAndForget(window);
     // The mouse button Back during a slide does the same.
     await window.keyboard.press("Alt+KeyN");
     await slideOf(window, "All elements");
@@ -333,8 +344,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
       await session.send("Input.dispatchMouseEvent", { type, button: "back", x: 200, y: 200, clickCount: 1 });
     }
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
-    await window.keyboard.press("Escape");
-    await slideSettled(window);
+    await endAndForget(window);
     // A swipe macOS reports (SR-163 AK4) during a slide does the same; elsewhere there is none.
     await window.keyboard.press("Alt+KeyN");
     await slideOf(window, "All elements");
@@ -343,8 +353,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
       "aria-label",
       process.platform === "darwin" ? "Overview" : "All elements",
     );
-    await window.keyboard.press("Escape");
-    await slideSettled(window);
+    await endAndForget(window);
     // A swipe of the trackpad or the wheel (SR-211) during a slide ends it once it is a swipe, and walks on from
     // the new buffer.
     await window.evaluate(() => {
@@ -361,8 +370,7 @@ test.describe("the switch to the previous or next buffer in motion", () => {
     await window.mouse.wheel(0.6 * (area?.width ?? 0), 0);
     await expect.poll(async () => (await held()).slice(0, 2)).toEqual(["idle", "idle"]);
     await expect(shownBuffer(window)).not.toHaveAttribute("aria-label", landed);
-    await window.keyboard.press("Escape");
-    await slideSettled(window);
+    await endAndForget(window);
     // Nothing was typed into the element: its text in the app and on disk is as before.
     await open(window, ELEMENT);
     await expect(shownLayer(window).locator(".cm-content")).not.toContainText("zz");

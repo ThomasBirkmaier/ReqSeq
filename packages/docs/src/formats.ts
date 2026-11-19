@@ -23,6 +23,7 @@ export const FORMATS: readonly string[] = [
   "perspective",
   "reqif-mapping",
   "data-export",
+  "html-export-marker",
   "api-endpoint",
   "activity",
   "agent-connection",

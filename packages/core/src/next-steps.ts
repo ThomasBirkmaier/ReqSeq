@@ -19,9 +19,13 @@ export const afterInitSteps = (workspace: string): NextStep[] => [
   { command: "element.create", input: {}, open: ["type", "title"], workspace },
 ];
 
-/** How to begin (AK3: the section "Get started" of the command line's help): create, connect, create an element. */
+/**
+ * How to begin (AK3: the section "Get started" of the command line's help): create, connect, create an
+ * element, and last the call that shows the agent guide (SR-229).
+ */
 export const GET_STARTED: readonly NextStep[] = [
   { command: "workspace.init", input: {}, open: ["path", "name"] },
   { command: "workspace.connectAgent", input: {}, open: ["client"] },
   { command: "element.create", input: {}, open: ["type", "title"] },
+  { command: "tool.guide", input: {}, open: [] },
 ];

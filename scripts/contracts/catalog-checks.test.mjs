@@ -303,6 +303,44 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
+  it("binds the values the metamodel commands build in steps to their fields (SR-236 AK11)", () => {
+    const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
+    const list = (properties) => ({ type: "array", items: { type: "object", properties } });
+    const limit = { type: "array", items: { $ref: "../metamodel.schema.json#/$defs/relationLimit" } };
+    const built = {
+      type: "object",
+      properties: {
+        ref: { type: "string" },
+        add: list({ name: { type: "string" }, key: { type: "string" } }),
+        change: nullable(list({ choice: { type: "string" }, name: { type: "string" } })),
+        limits: nullable(limit),
+        most: nullable({ type: "integer" }),
+      },
+      required: ["ref"],
+    };
+    const args = [
+      arg("ref", "element"),
+      arg("add", "choices"),
+      arg("change", "choiceChanges"),
+      arg("limits", "limits"),
+      arg("most", "number"),
+    ];
+    expect(check(command("test.one", "One", args, built))).toEqual([]);
+    const wrong = [
+      arg("ref", "element"),
+      arg("add", "limits"),
+      arg("change", "choices"),
+      arg("limits", "choiceChanges"),
+      arg("most", "choices"),
+    ];
+    expect(check(command("test.one", "One", wrong, built))).toEqual([
+      'schemas/commands/test.one.json: arguments: "add": limits needs a list of relationLimit field',
+      'schemas/commands/test.one.json: arguments: "change": choices needs a list of { name, key } field',
+      'schemas/commands/test.one.json: arguments: "limits": choiceChanges needs a list of { choice, ... } field',
+      'schemas/commands/test.one.json: arguments: "most": choices needs a list of { name, key } field',
+    ]);
+  });
+
   it("every argument has a description, its own or the one of the type its $ref names (SR-210 AK6)", () => {
     const schemas = {
       "common.schema.json": {

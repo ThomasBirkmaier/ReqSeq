@@ -1,5 +1,5 @@
 // The fixed keys of the most frequent commands (SR-121 AK3) and the prefix key (SR-109 AK3): Ctrl+K, or
-// Cmd+K on macOS, then one letter. V opens a perspective (SR-214 AK1); the other letters are the app's own
+// Cmd+K on macOS, then one letter. V opens a perspective (SR-214 AK1), D shows details (SR-223 AK2); the other letters are the app's own
 // key map (SR-214, rationale), first listed in ThomasBirkmaier/ReqSeq-archive#472, kept in this one table;
 // the window wires them up in `use-prefix.ts`.
 import type { Choice } from "./action-types.js";
@@ -21,7 +21,7 @@ export interface PrefixBinding {
 
 /**
  * The letters after the prefix, in the order of the list of next keys: those of ThomasBirkmaier/ReqSeq-archive#472
- * in its order, with V for "Open perspective" (SR-214 AK1) after L. A row is shown only where the command
+ * in its order, with V for "Open perspective" (SR-214 AK1) after L and D for "Show details" (SR-223 AK2) last. A row is shown only where the command
  * prompt offers its entry, so the write commands drop out in a read-only workspace (`whileReadOnly`,
  * `catalogItems`).
  */
@@ -36,6 +36,8 @@ export const PREFIX_BINDINGS: readonly PrefixBinding[] = [
   { key: "f", id: "filter" },
   { key: "s", id: "sort" },
   { key: "b", id: "close" },
+  // SR-223 AK2 names Ctrl+K D and Cmd+K D.
+  { key: "d", id: "show-details" },
 ];
 
 /** The keys while the prefix waits, besides the letters (`prefixStep`), for the keyboard reference (SR-139 AK5). */

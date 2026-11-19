@@ -100,12 +100,17 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
 ];
 
 /**
- * The lines of an output of `trace.chain`, its fields under their titles (`fields`, `result.ts`); an output
+ * The lines of an output of `trace.chain`, its fields under their titles (`fields`, `result.ts`), its details
+ * with `details` ("Show details", SR-223 AK2); an output
  * without a list `evidence` is laid out by shape alone.
  */
-export const chainLines = (output: unknown, fields: readonly OutputField[] = []): ResultLine[] => {
+export const chainLines = (
+  output: unknown,
+  fields: readonly OutputField[] = [],
+  details = false,
+): ResultLine[] => {
   if (!isRecord(output) || !Array.isArray(output["evidence"])) {
-    return resultLines(output, fields);
+    return resultLines(output, fields, details);
   }
   const { evidence, validationRecords, ...rest } = output;
   // The root's validation records (#646), as records under the root row, labelled "validation".
@@ -118,7 +123,7 @@ export const chainLines = (output: unknown, fields: readonly OutputField[] = [])
       byElement.set(keyOf(item.id, item.repository), item);
     }
   }
-  const lines = resultLines(rest, fields);
+  const lines = resultLines(rest, fields, details);
   // The last row of each element among the nodes: the lines under the top-level key "nodes".
   const rowOf = new Map<string, number>();
   let rootRow: number | undefined;

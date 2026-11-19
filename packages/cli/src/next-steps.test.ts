@@ -109,13 +109,14 @@ describe("next steps on the command line (SR-226)", () => {
     });
   });
 
-  it("shows Get started before the command groups of reqseq alone and of reqseq --help only", async () => {
+  it("[SR-226/AK-d8sx] shows Get started before the command groups of reqseq alone and of reqseq --help only, ending with the agent guide", async () => {
     const ws = await folder();
     const section = [
       "Get started:",
       "  reqseq workspace init <path> <name>               Create workspace",
       "  reqseq workspace connect-agent --client <client>  Connect AI agent",
       "  reqseq element create <type> <title>              Create element",
+      "  reqseq tool guide                                 Agent guide",
       "",
       "Commands:",
     ].join("\n");

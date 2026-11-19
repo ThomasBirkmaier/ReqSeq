@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -302,27 +303,33 @@ describe("the graph in the app", () => {
       "Based onbased-on",
       "Packagepackages",
     ]);
-    expect(fake.invoke).toHaveBeenLastCalledWith("trace.graph", {
-      ref: "uuid-1",
-      repository: "spec",
-      maxDepth: 1,
-      meanings: ["derivation"],
-      limit: 500,
-    });
+    expect(withoutAgentPoll(fake.invoke).at(-1)).toEqual([
+      "trace.graph",
+      {
+        ref: "uuid-1",
+        repository: "spec",
+        maxDepth: 1,
+        meanings: ["derivation"],
+        limit: 500,
+      },
+    ]);
     expect(query('[aria-label="Modeline"]').textContent).toContain("only Derivations");
     expect(await command("also show relation kind", "based on")).toEqual([
       "Inline references",
       "Based onbased-on",
       "Packagepackages",
     ]);
-    expect(fake.invoke).toHaveBeenLastCalledWith("trace.graph", {
-      ref: "uuid-1",
-      repository: "spec",
-      maxDepth: 1,
-      kinds: ["based-on"],
-      meanings: ["derivation"],
-      limit: 500,
-    });
+    expect(withoutAgentPoll(fake.invoke).at(-1)).toEqual([
+      "trace.graph",
+      {
+        ref: "uuid-1",
+        repository: "spec",
+        maxDepth: 1,
+        kinds: ["based-on"],
+        meanings: ["derivation"],
+        limit: 500,
+      },
+    ]);
     expect(query('[aria-label="Modeline"]').textContent).toContain("only Derivations, Based on");
   });
 });
