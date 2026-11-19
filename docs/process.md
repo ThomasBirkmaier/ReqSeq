@@ -5,10 +5,10 @@ How work on ReqSeq goes from a need to a release. The rules are in `CLAUDE.md` (
 ```mermaid
 flowchart LR
   need["Need<br/><small>set by the product owner</small>"]
-  concept["Concept<br/><small>dependency check, questions, mockup<br/>concept with issue cut, fable-reviewer<br/>approval of wording and cut<br/>skill spec-change</small>"]
-  specpr["Spec PR<br/><small>SR in its topic package, an idea a draft SR<br/>then issues and their check</small>"]
+  concept["Concept<br/><small>dependency check, questions, mockup<br/>concept with issue cut, fable-reviewer<br/>wording check, approval of wording and cut<br/>skill spec-change</small>"]
+  specpr["Spec PR<br/><small>SR in its topic package, an idea a draft SR<br/>after its merge issues and their check</small>"]
   entry["Bug, question,<br/>task asked for"]
-  issue["Issue = one task<br/><small>too large: epic with sub-issues</small>"]
+  issue["Issue = one task<br/><small>too large: epic with sub-issues<br/>starts right after its check</small>"]
   pr["Pull request<br/><small>verify before each push<br/>merge, /code-review</small>"]
   merged["Merge<br/><small>Closes # closes the issue</small>"]
   evidence["Evidence<br/><small>tests [SR/AK], nightly CI evidence</small>"]
@@ -17,7 +17,17 @@ flowchart LR
   need --> concept --> specpr --> issue
   entry --> issue
   issue --> pr --> merged --> evidence --> release
+  pr -. "question on an AK:<br/>answer, follow-up spec PR" .-> specpr
 ```
+
+## From the spec PR to the code
+
+| Moment | What happens |
+| --- | --- |
+| Spec PR merged | The issues of the approved cut are created, never before the merge (`spec-change` step 8). |
+| Issue check posted | Implementation starts at once, also at night; issues whose order allows it run in parallel, each in a PR of its own. `agent:working` follows the check (step 9). |
+| Question on an AK in implementation or review | A `question` issue; the PR carries the assumption (CLAUDE.md). The answer goes into a follow-up spec PR by the steps of `spec-change`, and the issues it adds or changes get their own check before work on them. |
+| Red CI job the PR did not cause, red nightly run | A `bug` issue first; a flake seen again becomes `P1` and is fixed, and a red nightly run is the first work of the morning (`merge`). |
 
 ## Dependency check
 
@@ -37,7 +47,7 @@ Every spec change and every fix of a bug against an AK starts with a check of wh
 | Scope | One task that one PR finishes. Several PRs: an `epic` with sub-issues. |
 | Title | English, what is different afterwards or what is wrong, keyword first, about 70 characters, no prefix. |
 | Body | Opens with 1–3 sentences without jargon. `SR: SR-112 (AK1, AK2)` when it implements or breaks an AK. |
-| Milestone | Every open issue has one. A step of an open epic: its sub-issue, with the epic's milestone. A bug or flake: the lowest open version x.y; any other issue: the version whose goal it serves, else the lowest open one. The product owner moves issues between milestones and opens the next milestone with its goal and exit criterion when a version x.y is released. |
+| Milestone | Every open issue has one; the workflows that open issues give them the lowest open version x.y. A step of an open epic: its sub-issue, with the epic's milestone. A bug or flake: the lowest open version x.y; any other issue: the version whose goal it serves, else the lowest open one. The product owner moves issues between milestones and opens the next milestone with its goal and exit criterion when a version x.y is released. |
 | Closing | The merged PR, with `Closes #`. Without a PR only with the product owner's approval. |
 
 ## Labels
