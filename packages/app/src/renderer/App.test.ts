@@ -5,6 +5,7 @@ import "../../../../scripts/test-support/dom-selection.mjs";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import {
   SHOWN,
@@ -637,16 +638,16 @@ describe("App", () => {
     const { bridge, invoke, handlers, change } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
-    const before = invoke.mock.calls.length;
+    const before = withoutAgentPoll(invoke).length;
     await change("stopped");
-    expect(invoke).toHaveBeenCalledTimes(before);
+    expect(withoutAgentPoll(invoke)).toHaveLength(before);
     expect(query("article h1").textContent).toBe("Title 1");
     expect(text("Minibuffer")).toBe(
       "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     expect(text("Modeline")).toContain("stopped");
     await runCommand("show element id");
-    expect(invoke).toHaveBeenCalledTimes(before);
+    expect(withoutAgentPoll(invoke)).toHaveLength(before);
     expect(text("Minibuffer")).toBe(
       "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );

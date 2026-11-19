@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -233,10 +234,10 @@ describe("the matrix in the app", () => {
     await keyDown(query("input"), "Enter");
     expect(container.querySelector("table")).not.toBeNull();
     expect(modeline()).toContain("status: draft · matrix");
-    expect(fake.invoke).toHaveBeenLastCalledWith(
+    expect(withoutAgentPoll(fake.invoke).at(-1)).toEqual([
       "trace.matrix",
       expect.objectContaining({ selection: { where: { status: ["draft"] } } }),
-    );
+    ]);
     expect(document.activeElement).toBe(query("table"));
     await runCommand("Clear list filter");
     expect(modeline()).toContain("All elements · matrix");
