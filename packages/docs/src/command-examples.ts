@@ -259,6 +259,13 @@ const PREPARE: Readonly<Record<string, (root: string) => Promise<void>>> = {
       "reqseq-metamodel: 1\ntypes:\n  - key: risk\n    name: Risk\n    prefix: RI\n    properties: [title]\n",
     );
   },
+  // The example removes a relation kind of a second metamodel file that no element file holds.
+  "metamodel.removeRelationKind": async (root) => {
+    await writeFile(
+      join(root, "metamodel", "conflicts.yaml"),
+      "reqseq-metamodel: 1\nrelations:\n  - key: conflicts-with\n    name: Conflicts with\n",
+    );
+  },
 };
 
 /** The variables that name the user's home and cache folders, which `workspace.recent` and the activity read. */

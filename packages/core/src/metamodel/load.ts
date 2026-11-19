@@ -53,6 +53,13 @@ export const METAMODEL_FILE_EXTENSION = ".yaml";
  */
 export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
 
+/**
+ * The keys every element has (D-012): fields of their own, never properties or relations. A
+ * property or relation kind with one of them as key is a metamodel error, as an element file holds
+ * the key as its own field (#1986).
+ */
+export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
+
 /** The metamodel of the checked-out state: the definitions as written, and the types resolved. */
 export interface Metamodel {
   /** Repository and folder from the workspace file. */
@@ -339,6 +346,24 @@ const reservedPrefixProblems = (types: readonly Located<MetamodelType>[]): Probl
       ),
     );
 
+/** Every property and relation kind whose key is one of `STRUCTURAL_KEYS`, on the line of its key. */
+const structuralKeyProblems = (
+  properties: readonly Located<MetamodelProperty>[],
+  relations: readonly Located<MetamodelRelationKind>[],
+): Problem[] =>
+  [
+    ...properties.map((p): readonly [Located<Keyed>, string] => [p, LABELS.properties]),
+    ...relations.map((r): readonly [Located<Keyed>, string] => [r, LABELS.relations]),
+  ]
+    .filter(([located]) => STRUCTURAL_KEYS.includes(located.definition.key))
+    .map(([located, label]) =>
+      locatedProblem(
+        located,
+        ["key"],
+        `${label} key ${located.definition.key} is a field every element has (D-012); choose another key`,
+      ),
+    );
+
 const ONE_INITIAL = "exactly one status must have initial: true";
 
 /**
@@ -531,6 +556,7 @@ const readMetamodel = async (layout: WorkspaceLayout, reader: MetamodelReader): 
   const typeOf = (key: string): EffectiveType | undefined => resolved.types.find((t) => t.key === key);
   problems.push(
     ...reservedPrefixProblems(types),
+    ...structuralKeyProblems(properties, relations),
     ...resolved.problems,
     ...assigned.problems,
     ...meaningKindProblems(properties),

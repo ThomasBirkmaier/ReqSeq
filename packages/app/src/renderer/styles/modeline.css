@@ -106,3 +106,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The answer of a write command opens its output on a click (SR-223 AK8): the message as it is, underlined
+   under the pointer. */
+.minibuffer .echo-open {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.minibuffer .echo-open:hover {
+  text-decoration: underline;
+}
