@@ -109,7 +109,7 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       const page = await read(site, file);
       expect(page).toContain(`<link rel="stylesheet" href="${up}assets/docs.css">`);
       expect(page).toContain(`<script src="${up}assets/theme.js"></script>\n</head>`);
-      expect(page).toMatch(new RegExp(`<script src="${up}assets/reqseq\\.js"></script>\\n</body>`, "u"));
+      expect(page).toMatch(new RegExp(`<script src="${up}assets/reqseq\\.js"></script>\\n`, "u"));
       // Two theme selects (dark, light, auto), as the docs have: in the header and in the menu.
       expect(page.match(/<starlight-theme-select>/gu)).toHaveLength(2);
       expect(page).toContain('<option value="dark"');
@@ -269,7 +269,9 @@ describe("html.export keeps every address in the folder (SR-231 AK2)", () => {
       new Set([
         "index.html",
         `elements/${GUSTS}.html`,
+        `elements/${WIND}.html`,
         `images/${WIND}-0.png`,
+        "assets/copy.js",
         "assets/docs.css",
         "assets/reqseq.css",
         "assets/katex.css",
