@@ -358,6 +358,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "reqif.import": "written element",
       "reqif.saveMapping": "written element",
       "reqif.export": "written element",
+      "html.export": "written element",
     });
   });
 

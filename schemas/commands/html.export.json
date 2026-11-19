@@ -1,0 +1,57 @@
+{
+  "name": "html.export",
+  "title": "Export HTML",
+  "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
+  "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a finding. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a finding. On an error the earlier export stays as it was.",
+  "effect": "write-files",
+  "whileReadOnly": "refuse",
+  "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",
+  "stage": 6,
+  "implements": ["SR-231", "SR-235"],
+  "arguments": [{ "field": "output", "complete": "folder" }],
+  "input": {
+    "type": "object",
+    "properties": {
+      "output": {
+        "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+        "$ref": "../common.schema.json#/$defs/localPath"
+      }
+    },
+    "additionalProperties": false,
+    "required": ["output"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
+      "folder": {
+        "title": "Folder",
+        "$ref": "../common.schema.json#/$defs/outputPath",
+        "description": "The written folder, relative to the workspace root when it lies inside, else absolute."
+      },
+      "pages": {
+        "title": "Element pages",
+        "description": "Pages of elements written.",
+        "type": "integer",
+        "minimum": 0
+      },
+      "removed": {
+        "title": "Removed files",
+        "description": "Files of the earlier export that this export no longer writes and removed.",
+        "type": "integer",
+        "minimum": 0,
+        "x-normal": 0
+      },
+      "problems": {
+        "title": "Problems",
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        },
+        "x-normal": []
+      }
+    },
+    "additionalProperties": false,
+    "required": ["answer", "folder", "pages", "removed", "problems"]
+  }
+}

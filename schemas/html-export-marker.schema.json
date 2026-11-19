@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reqseq.dev/schemas/html-export-marker.schema.json",
+  "title": "HTML export marker file",
+  "description": "The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export (SR-235): it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into (SR-235 AK1). ReqSeq writes it anew on every export; it is not meant to be edited.",
+  "type": "object",
+  "required": ["reqseq-html-export", "files"],
+  "properties": {
+    "reqseq-html-export": { "description": "Version of this file format.", "const": 1 },
+    "files": {
+      "description": "The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed (SR-235 AK2).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "pending": {
+      "description": "Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it.",
+      "const": ".reqseq-export-staging"
+    }
+  },
+  "additionalProperties": false
+}

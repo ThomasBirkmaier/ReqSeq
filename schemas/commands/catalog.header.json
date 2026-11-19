@@ -68,6 +68,7 @@
     "reqif.analyze",
     "reqif.import",
     "reqif.saveMapping",
-    "reqif.export"
+    "reqif.export",
+    "html.export"
   ]
 }

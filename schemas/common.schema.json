@@ -486,7 +486,12 @@
         "reqif.edited-elsewhere",
         "reqif.mapping-differs",
         "reqif.source-model-unsaved",
-        "reqif.source-value-chosen"
+        "reqif.source-value-chosen",
+        "html.unsafe-content",
+        "html.image-not-copied",
+        "html.foreign-file",
+        "html.marker-entry-ignored",
+        "html.cleanup-failed"
       ],
       "x-technical": true
     },

@@ -3,7 +3,10 @@
 // to disk. Core blocks import it relatively; it is not part of the package's public API, except
 // `isTempFile` and the JSON text functions the adapters stream with (`src/index.ts`).
 export { findConflictMarker } from "./conflict-markers.js";
+export { openExportFolder, STAGING_FOLDER } from "./export-folder.js";
+export type { ExportFolder, IgnoredEntry, MarkerSpec } from "./export-folder.js";
 export { createFolder } from "./folder.js";
+export { imageExtension } from "./image-type.js";
 export { linksStayInside } from "./links.js";
 export { errorCode, isTakenForGit, resolveInRoot, systemForm } from "./paths.js";
 export { TRANSIENT_CODES } from "./retry.js";
