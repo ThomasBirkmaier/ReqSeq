@@ -65,7 +65,12 @@ describe("bundledPackages", () => {
     const maps = {
       [`${chunk}.map`]: { sources: ["../../src/x.ts", "webpack://LIB/src/uri.ts", "mystery.js"] },
     };
-    const { packages, problems } = bundledPackages(map, "/out/mermaid.js.map", (file) => maps[file]);
+    // On Windows `path.resolve` puts the drive in front of the store path; the maps here are keyed without it.
+    const { packages, problems } = bundledPackages(
+      map,
+      "/out/mermaid.js.map",
+      (file) => maps[file.replace(/^[A-Za-z]:/u, "")],
+    );
     expect(packages.map((p) => `${p.name}@${p.version}`)).toEqual([
       "mermaid@11.0.0",
       "@mermaid-js/parser@1.0.0",
