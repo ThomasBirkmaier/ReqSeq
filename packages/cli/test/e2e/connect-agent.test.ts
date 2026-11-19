@@ -1,9 +1,10 @@
-// End-to-end test of `reqseq workspace connect-agent` (SR-227 AK5, AK6): the built command line gives the setup
-// of each client for a workspace whose path holds a space, `'`, `’`, `(` and `ü`; the setup is run as the user would
-// paste it, in sh on Linux and macOS and in Windows PowerShell 5.1 and PowerShell 7 on Windows, with stub
-// programs `claude`, `code` and `codex` that only write down their arguments (shaped like npm installs on
+// End-to-end test of `reqseq workspace connect-agent` (SR-227 AK2, AK5, AK6): the built command line gives the
+// setup of each client for a workspace whose path holds a space, `'`, `’`, `(` and `ü`; the setup is run as the
+// user would paste it, in sh on Linux and macOS and in Windows PowerShell 5.1 and PowerShell 7 on Windows, with
+// stub programs `claude`, `code` and `codex` that only write down their arguments (shaped like npm installs on
 // Windows: a `.ps1` and a `.cmd`, and `code.cmd`). What the client would start from those arguments, or from
-// the JSON block, is started, and its MCP server answers `initialize` for this workspace.
+// the JSON block, is started, and its MCP server answers `initialize` for this workspace. The call under Claude
+// Code's setup is run the same way and writes the skill file.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -35,6 +36,7 @@ interface Server {
 interface Output {
   readonly server: Server;
   readonly setup: { readonly form: "command" | "json"; readonly shell?: string; readonly text: string };
+  readonly next: string;
 }
 
 let top = "";
@@ -291,5 +293,25 @@ describe("reqseq workspace connect-agent", () => {
       await connectAgent(client);
     }
     expect([await snapshot(ws.root), await snapshot(home)]).toEqual(before);
+  });
+
+  it("[SR-227/AK-fx6t] the call under Claude Code's setup, run as pasted, writes the skill file into the workspace", async () => {
+    const { next } = await connectAgent("claude-code");
+    const call = /run `([^`]+)`\.$/.exec(next)?.[1] ?? "";
+    expect(call).toContain(" tool guide --skill --write --workspace ");
+    const skill = path.join(ws.root, ".claude", "skills", "managing-requirements", "SKILL.md");
+    try {
+      for (const shell of shells()) {
+        await fs.rm(path.join(ws.root, ".claude"), { recursive: true, force: true });
+        const script = path.join(top, process.platform === "win32" ? "skill.ps1" : "skill.sh");
+        await fs.writeFile(script, `${process.platform === "win32" ? "\uFEFF" : ""}${call}\n`);
+        const [command, args] = shell.run(script);
+        const result = await run(command, args, { NODE_OPTIONS: `--import=${blockNetwork}` });
+        expect(result.code, `${shell.name}: ${result.stderr}`).toBe(0);
+        expect(await fs.readFile(skill, "utf8"), shell.name).toMatch(/^---\nname: managing-requirements\n/);
+      }
+    } finally {
+      await fs.rm(path.join(ws.root, ".claude"), { recursive: true, force: true });
+    }
   });
 });
