@@ -313,12 +313,7 @@ const statementsOf = async (
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<StatementsPlan> => {
-  const { selected, mapping, records, identifierKey } = await sourceRecords(
-    ctx,
-    layout,
-    input,
-    mappingPath,
-  );
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
   const statement = statementOf(mapping, mappingPath, selected.metamodel);
   const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
   return planStatements({
@@ -370,12 +365,7 @@ const sourceModelExport = async (
   absolute: string,
 ): Promise<CommandOutput<"reqif.export">> => {
   const command = "reqif.export";
-  const { selected, mapping, records, identifierKey } = await sourceRecords(
-    ctx,
-    layout,
-    input,
-    mappingPath,
-  );
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
   const model = mapping["source-model"];
   if (model === undefined) {
     throw new CommandError(
