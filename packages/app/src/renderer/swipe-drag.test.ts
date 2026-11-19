@@ -248,13 +248,35 @@ it("hands its part of the width to the switch and leaves nothing moved", () => {
   drag.start("left", "a", "b", "back", true);
   drag.move(300);
   expect(drag.handOff()).toBe(0.5);
+  // The target stays painted through the switch's commit, until `unpeek` (#1787).
   expect([main.style.transform, target.style.transform, target.hasAttribute("data-peek")]).toEqual([
     "",
     "",
-    false,
+    true,
   ]);
   expect(drag.active).toBe(false);
+  drag.unpeek();
+  expect(target.hasAttribute("data-peek")).toBe(false);
   drag.cancel();
+});
+
+it("a hand-off left painted ends with the next drag or cancel, a cancel leaves nothing painted", () => {
+  const drag = new SwipeDrag(host());
+  drag.start("left", "a", "b", "back", true);
+  drag.move(300);
+  drag.handOff();
+  drag.start("left", "a", "b", "back", false);
+  expect(target.hasAttribute("data-peek")).toBe(false);
+  drag.cancel();
+  drag.start("left", "a", "b", "back", true);
+  drag.move(300);
+  drag.handOff();
+  drag.cancel();
+  expect(target.hasAttribute("data-peek")).toBe(false);
+  drag.start("left", "a", "b", "back", true);
+  drag.move(300);
+  drag.cancel();
+  expect(target.hasAttribute("data-peek")).toBe(false);
 });
 
 it("input during the drag is reported, and none after it", () => {

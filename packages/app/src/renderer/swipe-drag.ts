@@ -70,6 +70,8 @@ interface Drag {
 /** The drag of one window, one at a time. */
 export class SwipeDrag {
   private drag: Drag | undefined;
+  /** The target's layer a hand-off left painted, until `unpeek`. */
+  private handed: HTMLElement | undefined;
   private readonly host: DragHost;
   private readonly onInput = (input: Event): void => {
     // A modifier pressed alone is no input that ends the drag (as for the gesture, `use-wheel-swipe.ts`).
@@ -202,16 +204,34 @@ export class SwipeDrag {
 
   /**
    * The swipe switches from where it stands: the layers lose what the drag gave them, in the task of the switch
-   * (no frame is painted between), and the slide goes on from the returned part of the width.
+   * (no frame is painted between), except the target's `data-peek`, which `unpeek` removes after the switch's
+   * commit in the same task; the slide goes on from the returned part of the width.
    */
   handOff(): number {
     const progress = this.progress;
-    this.cancel();
+    this.stop(true);
     return progress;
+  }
+
+  /**
+   * After the commit of the switch `handOff` began: the target's layer, the shown one now when the switch showed
+   * it, loses `data-peek`, which it kept through that commit.
+   */
+  unpeek(): void {
+    this.handed?.removeAttribute("data-peek");
+    this.handed = undefined;
   }
 
   /** Ends the drag at once in place, without motion: nothing moved by it is left moved. */
   cancel(): void {
+    this.stop(false);
+  }
+
+  // On a hand-off the target's layer keeps `data-peek` until `unpeek`: the switch's commit makes it the shown
+  // layer, and hidden in between, all it holds would take its style once more in the task of the switch, as
+  // visibility is inherited (#1787: a matrix at 50,000 elements).
+  private stop(handOff: boolean): void {
+    this.unpeek();
     const drag = this.drag;
     if (drag === undefined) {
       return;
@@ -225,7 +245,11 @@ export class SwipeDrag {
     if (drag.joining !== undefined) {
       drag.joining.style.removeProperty("transform");
       drag.joining.style.removeProperty("will-change");
-      drag.joining.removeAttribute("data-peek");
+      if (handOff) {
+        this.handed = drag.joining;
+      } else {
+        drag.joining.removeAttribute("data-peek");
+      }
     }
     this.listen(false);
   }
