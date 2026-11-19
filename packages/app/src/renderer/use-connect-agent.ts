@@ -32,9 +32,13 @@ export const useConnectAgent = (deps: ConnectDeps, open: boolean): ((from: Actio
   // A workspace chosen in the prompt of "Connect AI agent" is being opened.
   const pending = useRef(false);
   const start = useCallback((from: ActionContext): void => {
-    const command = now.current.catalog().find((listed) => listed.name === CONNECT_AGENT);
+    const catalog = now.current.catalog();
+    const command = catalog.find((listed) => listed.name === CONNECT_AGENT);
     if (command === undefined) {
-      from.echo(`The command catalog has no ${CONNECT_AGENT}`);
+      // An empty catalog is one that could not be read: the minibuffer says why already.
+      if (catalog.length > 0) {
+        from.echo(`The command catalog has no ${CONNECT_AGENT}`);
+      }
       return;
     }
     startCommand(now.current.catalogContext(from), command, false);

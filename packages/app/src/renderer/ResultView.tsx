@@ -122,16 +122,7 @@ export const ResultView = ({
   }
 
   if (setup !== undefined) {
-    return (
-      <ConnectAgentView
-        name={buffer.name}
-        setup={setup}
-        attributes={bufferAttribute}
-        onCopy={(label, text) => {
-          onCopy?.(label, text);
-        }}
-      />
-    );
+    return <ConnectAgentView name={buffer.name} setup={setup} attributes={bufferAttribute} onCopy={onCopy} />;
   }
 
   return (

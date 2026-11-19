@@ -74,15 +74,22 @@ const refusal = (
 const openThrough = (context: WorkspacePromptContext, path: string, typed: boolean): void => {
   const { workspaces, echo, opening } = context;
   opening?.(true);
-  void workspaces.open(path, ...(typed ? [{ typed }] : [])).then((result) => {
-    if (!result.ok) {
+  void workspaces.open(path, ...(typed ? [{ typed }] : [])).then(
+    (result) => {
+      if (!result.ok) {
+        opening?.(false);
+      }
+      const message = result.ok ? undefined : refusal(path, result, workspaces.name);
+      if (message !== undefined) {
+        echo(message);
+      }
+    },
+    () => {
+      // The bridge failed: nothing opens, and nothing follows a later open.
       opening?.(false);
-    }
-    const message = result.ok ? undefined : refusal(path, result, workspaces.name);
-    if (message !== undefined) {
-      echo(message);
-    }
-  });
+      echo(`${path} could not be opened`);
+    },
+  );
 };
 
 const choose = (context: WorkspacePromptContext, { root, state }: RecentWorkspaceEntry): void => {

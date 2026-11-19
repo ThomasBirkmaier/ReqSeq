@@ -84,13 +84,13 @@ const runCommand = async (name: string): Promise<void> => {
 };
 
 /** A bridge whose workspace is `open` (none while undefined), with recent workspaces `recent`. */
-const fake = (open: boolean, recent: readonly string[] = []) => {
+const fake = (open: boolean, recent: readonly string[] = [], output: unknown = CLAUDE_CODE) => {
   let status: unknown = open ? { name: "Weather station", readOnly: false } : NO_WORKSPACE;
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     "workspace.status": () => status,
     "metamodel.get": () => ({ relations: [], types: [], statuses: [], properties: [], meanings: {} }),
     "element.list": () => ({ elements: [], total: 0 }),
-    "workspace.connectAgent": () => CLAUDE_CODE,
+    "workspace.connectAgent": () => output,
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
     const output = (handlers[name] ?? NO_SUMMARY[name])?.(input);
@@ -241,13 +241,49 @@ describe("Connect AI agent in the app", () => {
     expect(document.querySelector("input")).toBeNull();
   });
 
+  it("[SR-225/AK-rqcg] a bridge that fails to open asks no client, also when one opens later", async () => {
+    const { bridge, openWorkspace, opened } = fake(false);
+    openWorkspace.mockRejectedValueOnce(new Error("gone"));
+    await render(bridge);
+    await runCommand("Connect AI agent");
+    await typed("/req/station");
+    await keyDown(query("input"), "Enter");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe("/req/station could not be opened");
+    await opened();
+    expect(document.querySelector("input")).toBeNull();
+  });
+
+  it("[SR-227/AK-cxxc] the answer and the place stand as core gives them, also with a backtick in a name", async () => {
+    const answer = 'Add this entry to connect it to the workspace "Weather `station".';
+    const valid = "The setup holds as long as ReqSeq stays in /opt/re`qseq.";
+    const { bridge } = fake(true, [], { ...CLAUDE_CODE, answer, valid, next: "Restart the `client." });
+    await render(bridge);
+    await runCommand("Connect AI agent");
+    await keyDown(query("input"), "Enter");
+    expect(query(".agent-setup .answer").textContent).toBe(answer);
+    expect(query(".agent-setup .valid").textContent).toBe(valid);
+    // A backtick left over in the next step is no code either.
+    expect(query(".agent-setup .next").textContent).toBe("Restart the `client.");
+    expect(document.querySelector(".agent-setup p code")).toBeNull();
+  });
+
   it("says so when the catalog has no such command", async () => {
     const { bridge } = fake(true);
-    bridge.commands = () => Promise.resolve([]);
+    bridge.commands = () =>
+      Promise.resolve(CATALOG.map((command) => ({ ...command, name: "workspace.status" })));
     await render(bridge);
     await runCommand("Connect AI agent");
     expect(query('[aria-label="Minibuffer"]').textContent).toBe(
       "The command catalog has no workspace.connectAgent",
     );
+  });
+
+  it("adds nothing to the error of a catalog that could not be read", async () => {
+    const failing = fake(true).bridge;
+    failing.commands = () => Promise.reject(new Error("no catalog"));
+    await render(failing);
+    await runCommand("Connect AI agent");
+    // The read said why; the action adds no claim about the catalog.
+    expect(query('[aria-label="Minibuffer"]').textContent).not.toContain("catalog has no");
   });
 });

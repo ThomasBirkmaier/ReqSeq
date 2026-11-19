@@ -65,6 +65,7 @@ describe("Connect AI agent: the client step and the setup buffer", () => {
     ).toBe(undefined);
     expect(agentSetupOf({ command: CONNECT_AGENT, output: undefined })).toBe(undefined);
     expect(agentSetupOf({ command: "workspace.status", output })).toBe(undefined);
+    expect(codeParts("Run `it.")).toEqual([{ text: "Run `it.", code: false }]);
     expect(codeParts(output.next)).toEqual([
       { text: "Add the entry; a client with another form takes the same ", code: false },
       { text: "command", code: true },
