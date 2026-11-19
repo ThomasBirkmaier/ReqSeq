@@ -366,8 +366,18 @@ const blockMapEdit = (parsed: Parsed, map: YAMLMap, key: string, value: unknown)
   const next = map.items[index + 1] as { readonly key: Node } | undefined;
   const lineStart = lineStartOf(text, start);
   if (/-\s*$/.test(text.slice(lineStart, start)) && next !== undefined) {
-    // The first key of a list item, on the line of its dash: the next key moves up to the dash.
-    return spliced(text, start, rangeOf(next.key)[0], "");
+    // The first key of a list item, on the line of its dash: the next key moves up to the dash when
+    // it is on the next line; else the dash keeps its line, and the comment lines between stay.
+    const after = lineEndAfter(text, valueEnd);
+    const nextKey = rangeOf(next.key)[0];
+    return /^[ \t]*$/.test(text.slice(after, nextKey))
+      ? spliced(text, start, nextKey, "")
+      : spliced(
+          text,
+          lineStart + text.slice(lineStart, start).trimEnd().length,
+          lineBreakAt(text, valueEnd),
+          "",
+        );
   }
   return spliced(text, lineStart, lineEndAfter(text, valueEnd), "");
 };
@@ -471,12 +481,12 @@ const withCommentsAbove = (text: string, from: number, col: number): number => {
 const blockItemRemoved = (parsed: Parsed, at: YamlPath, seq: YAMLSeq, index: number): string => {
   const { text } = parsed;
   const item = seq.items[index] as Node;
-  // A block mapping ends with its last value; a flow item (`- { ... }`, over several lines too) at its brace.
-  const last =
+  // A block mapping ends with its last value and the comment lines below it in the column of its
+  // keys or further right (`contentEnd`); a flow item (`- { ... }`, over several lines too) at its brace.
+  const end =
     isMap(item) && item.flow !== true
-      ? (item.items.at(-1) as { readonly key: Node; readonly value: Node | null } | undefined)
-      : undefined;
-  const end = lineEndAfter(text, rangeOf(last === undefined ? item : last.value)[1]);
+      ? contentEnd(text, item, parsed.lines.linePos(rangeOf(item)[0]).col - 1)
+      : lineEndAfter(text, rangeOf(item)[1]);
   const dash = dashLine(text, rangeOf(item)[0]);
   const start = withCommentsAbove(text, dash, text.indexOf("-", dash) - dash);
   if (seq.items.length > 1) {

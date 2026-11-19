@@ -107,6 +107,27 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
     expect((await remove(workspace, "note")).removed).toEqual({ properties: [], statuses: [] });
   });
 
+  it("keeps a status or property that an element of another type still holds, and ignores a relation property of the type to itself", async () => {
+    const model = SMALL_MODEL.replace(
+      "    properties: [title, remark]",
+      "    properties: [title, remark, follows]",
+    ).replace(
+      "  - { key: remark, name: Remark, kind: text }",
+      "  - { key: remark, name: Remark, kind: text }\n  - { key: follows, name: Follows, kind: relation, target-types: [note] }",
+    );
+    const { workspace, read } = await openSmall(
+      elements([1, "hazard", { status: "noted", remark: "stray" }]),
+      model,
+    );
+    expect((await remove(workspace, "note")).removed).toEqual({ properties: ["follows"], statuses: [] });
+    const after = await read(MODEL);
+    expect([
+      after.includes("key: remark"),
+      after.includes("key: noted"),
+      after.includes("key: follows"),
+    ]).toEqual([true, true, false]);
+  });
+
   it("refuses an unknown type", async () => {
     const { workspace } = await openSmall();
     const unknown = await failure(workspace, "metamodel.removeType", { type: "nope" });

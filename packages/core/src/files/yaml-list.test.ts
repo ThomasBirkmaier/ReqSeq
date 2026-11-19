@@ -228,6 +228,10 @@ describe("setMapValue", () => {
       "types:\n  - key: a\n",
     );
     expect(set(TYPES, ["types", 1], "extends", undefined)).toBe(TYPES);
+    // A comment line between the first key and the next one stays; the dash keeps its line.
+    expect(
+      set("types:\n  - abstract: true\n    # the key\n    key: a\n", ["types", 0], "abstract", undefined),
+    ).toBe("types:\n  -\n    # the key\n    key: a\n");
   });
 
   it("changes the last line of a file without a line break, and a key without a value", () => {
@@ -293,7 +297,8 @@ describe("removeListItem", () => {
       "",
     ].join("\n");
     expect(remove(text, ["types"], 1)).toBe(
-      ["types:", "  - key: a", "    name: A", "", "    # below b", "  - key: c", ""].join("\n"),
+      // The comment below b in the column of its keys goes with it.
+      ["types:", "  - key: a", "    name: A", "", "  - key: c", ""].join("\n"),
     );
     // A comment above the item in another column than its dash belongs to the item before: it stays.
     expect(remove(text, ["types"], 2)).toBe(text.replace("  - key: c\n", ""));
@@ -310,6 +315,12 @@ describe("removeListItem", () => {
     expect(remove(text, ["properties"], 0)).toBe("properties: [\n    rationale, # why\n    packages\n  ]\n");
     expect(remove(text, ["properties"], 1)).toBe("properties: [\n    title,\n    packages\n  ]\n");
     expect(remove(text, ["properties"], 2)).toBe("properties: [\n    title,\n    rationale\n  ]\n");
+  });
+
+  it("removes the comment lines below a block item in the column of its keys, not those of the next item", () => {
+    expect(
+      remove("types:\n  - key: a\n    name: A\n    # about a\n  # about b\n  - key: b\n", ["types"], 0),
+    ).toBe("types:\n  # about b\n  - key: b\n");
   });
 
   it("removes comment lines up to the start of the file", () => {

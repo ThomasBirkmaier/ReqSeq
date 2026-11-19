@@ -8,13 +8,17 @@
 // - Dropped with it (SR-238 AK5, SR-240 AK3): its own properties that no other type lists, and the
 //   statuses it has that no other type has, except the initial status. A type without a status list
 //   has every status, so a status is dropped only while every other type has a list without it.
+//   A definition an element of another type still holds stays (no element loses a value or status).
 // - Saved filters, perspectives and mapping files that name a removed key are listed, not changed.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { removeListItem } from "../../files/index.js";
 import type { DefinitionList, DefinitionPlace, LineEdit, Metamodel } from "../../metamodel/index.js";
 import { definitionAt, definitionsOf, editedFiles, findType } from "../../metamodel/index.js";
+import type { ElementStore } from "../../model/index.js";
 import {
+  hasStatus,
+  holdsKey,
   mentioningFiles,
   refuseMissingRepositories,
   refuseUses,
@@ -26,8 +30,11 @@ import { workspaceLayoutState } from "../../workspace/index.js";
 
 const COMMAND = "metamodel.removeType";
 
-/** The definitions that name `type`, in words, in metamodel order (SR-237 AK5). */
-const namedBy = (metamodel: Metamodel, type: string): readonly string[] => [
+/**
+ * The definitions that name `type`, in words, in metamodel order (SR-237 AK5); a property in
+ * `dropped`, which goes with the type, does not count (a relation property of the type to itself).
+ */
+const namedBy = (metamodel: Metamodel, type: string, dropped: readonly string[]): readonly string[] => [
   ...metamodel.types.filter((t) => t.extends === type).map((t) => `type ${t.key} extends it`),
   ...metamodel.relations.flatMap((r) => [
     ...(r["source-types"]?.includes(type) === true ? [`relation kind ${r.key} has it as source type`] : []),
@@ -37,14 +44,19 @@ const namedBy = (metamodel: Metamodel, type: string): readonly string[] => [
       : []),
   ]),
   ...metamodel.properties
-    .filter((p) => p["target-types"]?.includes(type) === true)
+    .filter((p) => p["target-types"]?.includes(type) === true && !dropped.includes(p.key))
     .map((p) => `property ${p.key} has it as target type`),
 ];
 
-/** The properties and statuses that only `type` has, which go with it (see the file comment). */
+/**
+ * The properties and statuses that only `type` has, which go with it (see the file comment). One
+ * that an element of another type still holds (a key the type does not have, a status outside its
+ * list) stays, so no element loses a value or its status (D-045).
+ */
 const droppedWith = (
   metamodel: Metamodel,
   type: string,
+  store: ElementStore,
 ): { readonly properties: readonly string[]; readonly statuses: readonly string[] } => {
   // No type extends it, so what it has and no other type has is its own: inherited ones the parent has.
   const others = metamodel.effectiveTypes.filter((t) => t.key !== type);
@@ -52,7 +64,9 @@ const droppedWith = (
   const only = (of: "properties" | "statuses"): ((key: string) => boolean) => {
     const kept = new Set(others.flatMap((t) => t[of]));
     const had = new Set(own?.[of]);
-    return (key) => had.has(key) && !kept.has(key);
+    const held = (key: string): boolean =>
+      store.elements.some((e) => (of === "properties" ? holdsKey(e, key) : hasStatus(e, key)));
+    return (key) => had.has(key) && !kept.has(key) && !held(key);
   };
   const property = only("properties");
   const status = only("statuses");
@@ -95,12 +109,12 @@ export default defineCommand({
         );
       }
       refuseMissingRepositories(layout, COMMAND);
+      const removed = droppedWith(metamodel, input.type, store);
       refuseUses(
         `Type ${input.type} cannot be removed`,
         [useOf(store, shortIds, "type", input.type, (e) => e.type === input.type)],
-        namedBy(metamodel, input.type),
+        namedBy(metamodel, input.type, removed.properties),
       );
-      const removed = droppedWith(metamodel, input.type);
       const dropped = (list: DefinitionList, keys: readonly string[]): typeof places =>
         definitionsOf(files, list)
           .filter((p) => keys.includes(p.key as string))
