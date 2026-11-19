@@ -3196,6 +3196,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
                     "type": {
                       "title": "Type",
                       "$ref": "#/components/schemas/metamodel/$defs/type",
@@ -3234,6 +3237,7 @@
                   },
                   "additionalProperties": false,
                   "required": [
+                    "answer",
                     "type",
                     "files",
                     "versionsChanged",

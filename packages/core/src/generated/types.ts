@@ -2472,6 +2472,7 @@ export interface MetamodelAddTypeInput {
  * Schema: `schemas/commands/metamodel.addType.json output`.
  */
 export interface MetamodelAddTypeOutput {
+  readonly answer: Answer;
   /** The definition as written to the file. */
   readonly type: MetamodelType;
   /** The metamodel files changed (SR-236 AK3). */

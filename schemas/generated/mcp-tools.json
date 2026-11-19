@@ -5378,6 +5378,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "type": {
             "title": "Type",
             "$ref": "#/$defs/metamodel/$defs/type",
@@ -5416,6 +5419,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "type",
           "files",
           "versionsChanged",
