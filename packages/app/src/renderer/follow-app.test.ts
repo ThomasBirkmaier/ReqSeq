@@ -8,6 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { answerNextOf } from "./agent-poll.test-helper.js";
 import { NO_ACCESS } from "./use-follow.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
@@ -456,16 +457,13 @@ describe("Follow agent in the window (SR-117)", () => {
     const fake = await started(handlers);
     await toggle();
     let answer: () => void = () => undefined;
-    const get = handlers["element.get"];
-    fake.invoke.mockImplementationOnce(
-      (name: string, input: Record<string, unknown> = {}) =>
+    answerNextOf(
+      fake.invoke,
+      "element.get",
+      () =>
         new Promise<InvokeResult>((resolve) => {
           answer = () => {
-            resolve(
-              name === "element.get"
-                ? { ok: false, error: { code: "x", message: "late" } as never }
-                : { ok: true, output: get?.(input) },
-            );
+            resolve({ ok: false, error: { code: "x", message: "late" } as never });
           };
         }),
     );
