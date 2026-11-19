@@ -19,7 +19,7 @@ import path from "node:path";
 import type { LocalPaths } from "../../../catalog.js";
 import { CommandError } from "../../../catalog.js";
 import type { FileSnapshot } from "../../../files/index.js";
-import { createFolder, readFileSnapshot, writeFileAtomic } from "../../../files/index.js";
+import { createFolder, linksStayInside, readFileSnapshot, writeFileAtomic } from "../../../files/index.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { Workspace } from "../../../runtime/workspace.js";
 import {
@@ -89,18 +89,39 @@ const unreadable = (location: SkillLocation, problem: { readonly message: string
     },
   );
 
-/** Looks at the file without following a link (step 1). */
+/** The refusal of a place that cannot be looked at, with the code of the file system. */
+const unlooked = (location: SkillLocation, code: unknown): CommandError =>
+  new CommandError(
+    "file.faulty",
+    `Not written: the skill file ${location.path} cannot be looked at (${String(code)})`,
+    { path: location.path, reason: code },
+  );
+
+/**
+ * Looks at the file without following a link (step 2). First the links on the way to its folder, name by
+ * name (`linksStayInside`): a folder linked out of the root is refused, and so is a loop of links, which
+ * the walk reports as `ELOOP` on every system, while `lstat` of the file itself may only say ENOENT
+ * (Windows) and leave the loop to the write.
+ */
 const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): Promise<Looked> => {
+  const inside = await linksStayInside(location.root, path.dirname(location.absolute)).catch(
+    (error: unknown) => {
+      throw unlooked(location, (error as NodeJS.ErrnoException).code);
+    },
+  );
+  if (!inside) {
+    throw new CommandError(
+      "input.invalid",
+      `Not written: the folder of the skill file ${location.path} is linked outside its repository`,
+      { path: location.path, reason: "linked-outside" },
+    );
+  }
   const stat = await fs.lstat(location.absolute).catch((error: unknown) => {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT" || code === "ENOTDIR") {
       return undefined;
     }
-    throw new CommandError(
-      "file.faulty",
-      `Not written: the skill file ${location.path} cannot be looked at (${String(code)})`,
-      { path: location.path, reason: code },
-    );
+    throw unlooked(location, code);
   });
   if (stat === undefined) {
     return { found: { state: "missing" } };

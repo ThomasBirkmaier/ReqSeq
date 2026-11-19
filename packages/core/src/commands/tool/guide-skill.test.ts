@@ -2,7 +2,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import type { CommandCatalog } from "../../generated/types.js";
@@ -449,7 +449,7 @@ describe("tool.guide with write", () => {
           await fs.writeFile(path.join(outside, "linked/skills/managing-requirements/SKILL.md"), "mine");
           await fs.symlink(path.join(outside, "linked"), path.join(root, ".claude"), "dir");
         },
-        "file.faulty",
+        "input.invalid",
       ],
       [
         ".claude holding a .git entry",
@@ -477,14 +477,53 @@ describe("tool.guide with write", () => {
     expect(await fs.readdir(outside)).toEqual(expect.not.arrayContaining(["skills"]));
   });
 
-  it("[SR-229/AK-v09f] refuses a large file under a folder linked out, which it reads only to replace it", async () => {
-    const outside = await folder({
-      [`linked/skills/${SKILL_NAME}/SKILL.md`]: "y".repeat(SKILL_READ_MAX + 1),
-    });
+  it("[SR-229/AK-v09f] refuses a loop of links also where lstat of the file says only that it is not there, as on Windows", async () => {
     const root = await folder(workspaceFiles());
-    await fs.symlink(path.join(outside, "linked"), path.join(root, ".claude"), "dir");
-    expect((await refusal(root, WRITE)).code).toBe("file.exists");
-    expect((await refusal(root, { ...WRITE, replace: true })).code).toBe("file.faulty");
+    await fs.symlink(path.join(root, ".claude"), path.join(root, ".claude"), "dir");
+    const lstat = fs.lstat.bind(fs);
+    // Windows answers lstat below a link that points to itself with ENOENT, not ELOOP.
+    vi.spyOn(fs, "lstat").mockImplementation(((at: string, ...rest: never[]) =>
+      at === skillAt(root)
+        ? Promise.reject(Object.assign(new Error("no such file"), { code: "ENOENT" }))
+        : lstat(at, ...rest)) as typeof fs.lstat);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const error = await refusal(root, WRITE);
+    expect([error.code, error.details]).toEqual(["file.faulty", { path: SKILL_FILE, reason: "ELOOP" }]);
+  });
+
+  it("[SR-229/AK-v09f] refuses a file it cannot look at or read, also a large one it reads only to replace it", async () => {
+    const root = await folder(workspaceFiles());
+    await fs.mkdir(path.dirname(skillAt(root)), { recursive: true });
+    const denied = (): Error => Object.assign(new Error("permission denied"), { code: "EACCES" });
+    const lstat = fs.lstat.bind(fs);
+    const readFile = fs.readFile.bind(fs);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await fs.writeFile(skillAt(root), "# Mine\n");
+    const lstatSpy = vi
+      .spyOn(fs, "lstat")
+      .mockImplementation(((at: string, ...rest: never[]) =>
+        at === skillAt(root) ? Promise.reject(denied()) : lstat(at, ...rest)) as typeof fs.lstat);
+    expect((await refusal(root, WRITE)).details).toEqual({ path: SKILL_FILE, reason: "EACCES" });
+    lstatSpy.mockRestore();
+    const readSpy = vi
+      .spyOn(fs, "readFile")
+      .mockImplementation(((at: string, ...rest: never[]) =>
+        at === skillAt(root) ? Promise.reject(denied()) : readFile(at, ...rest)) as typeof fs.readFile);
+    for (const [text, input] of [
+      ["# Mine\n", WRITE],
+      ["y".repeat(SKILL_READ_MAX + 1), { ...WRITE, replace: true }],
+    ] as const) {
+      await fs.writeFile(skillAt(root), text);
+      const error = await refusal(root, input);
+      expect(error.code).toBe("file.faulty");
+      expect(error.message).toContain(`Not written: the skill file ${SKILL_FILE} cannot be read`);
+    }
+    readSpy.mockRestore();
+    expect(await read(root)).toBe("y".repeat(SKILL_READ_MAX + 1));
   });
 
   it("[SR-229/AK-v09f] writes nothing into a repository that lies in a .git folder", async () => {
