@@ -5450,8 +5450,8 @@
                   "minimum": 0
                 },
                 "info": {
-                  "title": "Infos",
-                  "description": "Infos left out.",
+                  "title": "Info",
+                  "description": "Info problems left out.",
                   "type": "integer",
                   "minimum": 0
                 }
@@ -5671,7 +5671,7 @@
           },
           {
             "path": "hidden.info",
-            "title": "Infos"
+            "title": "Info"
           },
           {
             "path": "checkedElements",

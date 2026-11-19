@@ -2197,7 +2197,7 @@ export interface WorkspaceCheckOutput {
     readonly below: "error" | "warning";
     /** Warnings left out. */
     readonly warning: number;
-    /** Infos left out. */
+    /** Info problems left out. */
     readonly info: number;
   };
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */

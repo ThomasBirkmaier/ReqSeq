@@ -44,7 +44,7 @@ test.describe("the output page", () => {
     await expect(page.locator("h1")).toHaveText(await cliAnswer(running, ["workspace", "check"]));
     // The headings follow the answer in the order of severity, each over its problems.
     await expect(page.locator(".column > :is(h1, .note, .line)").first()).toHaveText(/^Checked 4 elements/u);
-    await expect(page.locator(".line.heading")).toHaveText(["Errors", "Warnings", "Infos"]);
+    await expect(page.locator(".line.heading")).toHaveText(["Errors", "Warnings", "Info"]);
     const kinds = await page
       .locator(".line")
       .evaluateAll((lines: readonly Element[]) =>

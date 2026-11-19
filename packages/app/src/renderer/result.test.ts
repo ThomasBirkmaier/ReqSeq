@@ -48,7 +48,7 @@ describe("result lines", () => {
     expect(lines.map((line) => [line.kind, line.depth, line.label, line.text, line.status])).toEqual([
       ["heading", 0, "", "Warnings", undefined],
       ["problem", 0, "SR-000002", "The target changed", "relation.outdated"],
-      ["heading", 0, "", "Infos", undefined],
+      ["heading", 0, "", "Info", undefined],
       ["problem", 0, "", "Nothing to say", "workspace.x"],
       ["element", 0, "SR-000001 (SR-1)", "Title 1", undefined],
       ["text", 0, "nodes", "1", undefined],
@@ -311,7 +311,7 @@ describe("result lines", () => {
       ["heading", "", "Warnings"],
       ["problem", "a.md:3", "W1"],
       ["problem", "", "W2"],
-      ["heading", "", "Infos"],
+      ["heading", "", "Info"],
       ["problem", "b.md", "I1"],
       ["text", "checked", "3"],
     ]);

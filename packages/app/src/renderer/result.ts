@@ -100,7 +100,7 @@ const isProblem = (value: unknown): value is Rec =>
 const SEVERITIES: readonly (readonly [string, string, string])[] = [
   ["error", "Error", "Errors"],
   ["warning", "Warning", "Warnings"],
-  ["info", "Info", "Infos"],
+  ["info", "Info", "Info"],
 ];
 
 /** Where a severity stands among `SEVERITIES`; an unknown one after them. */
