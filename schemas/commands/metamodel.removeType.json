@@ -28,6 +28,9 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": {
+        "$ref": "../common.schema.json#/$defs/answer"
+      },
       "type": {
         "title": "Type",
         "$ref": "../common.schema.json#/$defs/key",
@@ -99,6 +102,15 @@
       }
     },
     "additionalProperties": false,
-    "required": ["type", "removed", "mentions", "files", "versionsChanged", "missingRequired", "problems"]
+    "required": [
+      "answer",
+      "type",
+      "removed",
+      "mentions",
+      "files",
+      "versionsChanged",
+      "missingRequired",
+      "problems"
+    ]
   }
 }

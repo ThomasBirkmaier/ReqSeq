@@ -284,6 +284,7 @@ describe("hint.list (SR-026)", () => {
     ] as const) {
       const page = await list(workspace, { offset, limit });
       expect(page).toEqual({
+        answer: `Found ${page.hints.length < ALL.length ? `${String(page.hints.length)} of ` : ""}8 open hints.`,
         kinds: all.kinds,
         hints: all.hints.slice(offset, offset + limit),
         total: ALL.length,
@@ -341,6 +342,7 @@ describe("hint.list (SR-026)", () => {
     );
     // No hint passes: count 0, for each kind the filter names too.
     expect(await list(workspace, { kind: ["variant.nested"], ref: R2 })).toEqual({
+      answer: "Found 0 open hints; incomplete, as a repository is not available.",
       kinds: [{ code: "variant.nested", count: 0 }],
       hints: [],
       total: 0,
@@ -360,7 +362,7 @@ describe("hint.list (SR-026)", () => {
       { code: "trace.cycle", count: 0 },
     ]);
     expect(output.total).toBe(2);
-    expect(Object.keys(output)).toEqual(["kinds", "hints", "total", "incomplete"]);
+    expect(Object.keys(output)).toEqual(["answer", "kinds", "hints", "total", "incomplete"]);
     // Against a metamodel that is not valid as well.
     const broken = await opened({
       ...HINTS,
@@ -459,7 +461,13 @@ describe("hint.list (SR-026)", () => {
       files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },
     });
     expect((await workspace.get(metamodelState)).valid).toBe(false);
-    expect(await list(workspace)).toEqual({ kinds: [], hints: [], total: 0, incomplete: false });
+    expect(await list(workspace)).toEqual({
+      answer: "Found 0 open hints.",
+      kinds: [],
+      hints: [],
+      total: 0,
+      incomplete: false,
+    });
   });
 
   it("matches the element of a hint by its UUID, repository and file, or the only record of its UUID", async () => {

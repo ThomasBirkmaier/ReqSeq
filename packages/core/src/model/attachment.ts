@@ -291,7 +291,7 @@ const encodeSegment = (segment: string): string =>
 export const addAttachment = async (
   workspace: Workspace,
   input: ElementAddAttachmentInput,
-): Promise<ElementAddAttachmentOutput> => {
+): Promise<Omit<ElementAddAttachmentOutput, "answer">> => {
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);

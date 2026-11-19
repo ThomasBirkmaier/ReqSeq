@@ -77,6 +77,7 @@ describe("metamodel.addType adds a type (SR-237 AK1)", () => {
     const { workspace } = await open();
     const added = await add(workspace, RISK);
     expect(added).toEqual({
+      answer: "Added the type Risk with prefix RI; 1 file written.",
       type: { key: "risk", name: "Risk", prefix: "RI", required: ["title"] },
       files: [MODEL],
       versionsChanged: 0,

@@ -6,11 +6,18 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { readSavedFilters } from "../../query/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 type Listed = CommandOutput<"filter.list">["filters"][number];
 
 export default defineCommand({
   name: "filter.list",
+  answer: (output) =>
+    sentence(
+      `Found ${counted(output.filters.length, "saved filter")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx): Promise<CommandOutput<"filter.list">> => {
     const saved = await readSavedFilters(await ctx.workspace.get(workspaceLayoutState));
     return {

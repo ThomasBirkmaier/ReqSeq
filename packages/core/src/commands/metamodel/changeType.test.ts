@@ -1,6 +1,7 @@
 // metamodel.changeType (SR-237 AK2–AK4) on the small model of the test helper, and the use counts
 // of metamodel.get (SR-236 AK8).
 import { describe, expect, it } from "vitest";
+import changeType from "./changeType.js";
 import type { CommandOutput } from "../../catalog.js";
 import {
   MODEL,
@@ -31,6 +32,7 @@ describe("metamodel.changeType changes a type in place (SR-237 AK2)", () => {
       meaning: "need",
     });
     expect(changed).toEqual({
+      answer: "Changed the type Remark note; 1 file written.",
       type: {
         key: "note",
         name: "Remark note",
@@ -191,5 +193,29 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       // Open is not a status of a note: that element does not count for it.
       statuses: { draft: 1, open: 1, noted: 0 },
     });
+  });
+});
+
+describe("the answer of metamodel.changeType", () => {
+  it("names the change, the files, the elements it affects and the problems", () => {
+    const output = {
+      type: { key: "note", name: "Note", prefix: "NO" },
+      files: [],
+      versionsChanged: 0,
+      missingRequired: 0,
+      problems: [],
+    };
+    expect(changeType.answer(output as never, { type: "note" }, { type: (key) => key })).toBe(
+      "The type Note has these values already; no file written.",
+    );
+    expect(
+      changeType.answer(
+        { ...output, files: [MODEL], versionsChanged: 2, missingRequired: 1, problems: [{}] } as never,
+        { type: "note" },
+        { type: () => "Note" },
+      ),
+    ).toBe(
+      "Changed the type Note; 1 file written; 2 elements with another version; 1 element missing a required property; 1 problem.",
+    );
   });
 });

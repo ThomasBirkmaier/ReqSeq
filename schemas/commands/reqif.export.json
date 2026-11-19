@@ -58,6 +58,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "file": {
         "title": "ReqIF file",
         "$ref": "../common.schema.json#/$defs/outputPath",
@@ -100,7 +101,7 @@
       }
     },
     "additionalProperties": false,
-    "required": ["file", "elements", "relations"]
+    "required": ["answer", "file", "elements", "relations"]
   },
   "showsOutput": true
 }

@@ -35,6 +35,7 @@ import { metamodelState } from "../../metamodel/index.js";
 import { workspacePath } from "../../model/index.js";
 import { MAPPING_KEYS, checkMapping, mappingTarget } from "../../reqif/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { listed, problemsNote, sentence } from "../answer.js";
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set(MAPPING_KEYS);
 
@@ -55,6 +56,11 @@ const exists = async (absolute: string): Promise<boolean> =>
 
 export default defineCommand({
   name: "reqif.saveMapping",
+  answer: (output) =>
+    sentence(
+      output.files.length === 0 ? "Saved no mapping" : `Saved the mapping in ${listed(output.files)}`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"reqif.saveMapping">> => {
     const command = "reqif.saveMapping";
     const { workspace } = ctx;

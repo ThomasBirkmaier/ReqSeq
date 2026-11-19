@@ -30,8 +30,9 @@ describe("saved filter files (SR-070)", () => {
       files: { "reqseq-workspace.yaml": WORKSPACE("{ repository: system, path: . }") },
     });
     const saved = await invoke("filter.save", { name: "All", where: { all: [] } }, { workspace });
-    expect(saved).toEqual({ files: ["all.yaml"], problems: [] });
+    expect(saved).toEqual({ answer: "Saved filter All; 1 file written.", files: ["all.yaml"], problems: [] });
     expect(await invoke("filter.list", {}, { workspace })).toEqual({
+      answer: "Found 1 saved filter.",
       filters: [{ name: "All", file: "all.yaml", where: { all: [] } }],
       problems: [],
       incomplete: false,

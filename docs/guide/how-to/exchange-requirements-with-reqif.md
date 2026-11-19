@@ -86,6 +86,7 @@ reqseq reqif analyze delivery-1.reqif
 ```
 
 ```text title="Output"
+The import would give 0 new elements, 0 changed, 0 conflicts, 0 dropped and 4 unmapped.
 unmapped:
   - kind: type
     source: Customer Requirement
@@ -125,6 +126,7 @@ reqseq reqif import delivery-1.reqif "Delivery 1" --mapping reqif/customer.yaml
 ```
 
 ```text title="Output"
+Imported delivery Delivery 1: 2 created, 0 updated, 0 kept and 0 dropped; 1 loss; 3 files written.
 created:
   - identifier: CR-1
 ...
@@ -196,6 +198,7 @@ reqseq reqif analyze delivery-2.reqif --mapping reqif/customer.yaml
 ```
 
 ```text title="Output"
+The import would give 1 new element, 1 changed, 0 conflicts, 1 dropped and 0 unmapped.
 unmapped: none
 new:
   - identifier: CR-3
@@ -215,6 +218,7 @@ reqseq element list --sort title
 ```
 
 ```text title="Output"
+Listed 3 elements.
 elements:
   SR-5e1d0a  draft  Measure gusts
   SR-41c165  draft  Measure the direction
@@ -230,6 +234,7 @@ reqseq reqif export statements.reqif --mapping reqif/customer.yaml --statements
 ```
 
 ```text title="Output"
+Exported 3 elements and 0 relations to statements.reqif; 2 elements without a statement.
 file: statements.reqif
 elements: 3
 relations: 0
@@ -245,6 +250,7 @@ reqseq reqif export customer.reqif --mapping reqif/customer.yaml --source-model
 ```
 
 ```text title="Output"
+Exported 3 elements and 0 relations to customer.reqif.
 file: customer.reqif
 elements: 3
 relations: 0
@@ -259,6 +265,7 @@ reqseq element create package "Sensor"
 ```
 
 ```text title="Output"
+Created Package PKG-65ba20; 1 file written.
 PKG-65ba20  draft  Sensor
 ...
 ```
@@ -270,6 +277,7 @@ reqseq reqif export all.reqif --where-type system-requirement --omit-properties 
 ```
 
 ```text title="Output"
+Exported 3 elements and 1 relation to all.reqif.
 file: all.reqif
 elements: 3
 relations: 1

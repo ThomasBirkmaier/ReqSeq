@@ -24,6 +24,7 @@ import {
   writeMetamodel,
 } from "../../model/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 
 const COMMAND = "metamodel.changeType";
 
@@ -60,6 +61,21 @@ const refuseTaken = (metamodel: Metamodel, input: Input): void => {
 
 export default defineCommand({
   name: COMMAND,
+  // The type by its name as written afterwards: the metamodel is read again after the change.
+  answer: (output) =>
+    sentence(
+      output.files.length === 0
+        ? `The type ${output.type.name} has these values already`
+        : `Changed the type ${output.type.name}`,
+      filesNote(output.files),
+      output.versionsChanged === 0
+        ? ""
+        : `${counted(output.versionsChanged, "element")} with another version`,
+      output.missingRequired === 0
+        ? ""
+        : `${counted(output.missingRequired, "element")} missing a required property`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"metamodel.changeType">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const shortIds = await ctx.workspace.get(shortIdState);

@@ -161,6 +161,7 @@ describe("reqif.export (SR-052)", () => {
     const out = await run<Exported>(workspace, "reqif.export", { output: "s6.reqif", selection: inPackage });
     // The image WIND embeds is copied next to the output and named relative to it.
     expect(out).toEqual({
+      answer: "Exported 2 elements and 8 relations to s6.reqif.",
       file: "s6.reqif",
       elements: 2,
       relations: 8,

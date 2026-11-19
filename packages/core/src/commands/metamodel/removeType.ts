@@ -27,6 +27,7 @@ import {
   writeMetamodel,
 } from "../../model/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, filesNote, listed, problemsNote, sentence } from "../answer.js";
 
 const COMMAND = "metamodel.removeType";
 
@@ -93,6 +94,19 @@ const removals = (
 
 export default defineCommand({
   name: COMMAND,
+  answer: (output) =>
+    sentence(
+      `Removed the type ${output.type}${
+        output.removed.properties.length + output.removed.statuses.length === 0
+          ? ""
+          : ` with ${listed([...output.removed.properties, ...output.removed.statuses])}`
+      }`,
+      filesNote(output.files),
+      output.mentions.length === 0
+        ? ""
+        : `${counted(output.mentions.length, "file")} naming a removed key, not changed`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"metamodel.removeType">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const shortIds = await ctx.workspace.get(shortIdState);

@@ -892,7 +892,7 @@ describe("trace chain output", () => {
       chain: Chain<unknown>,
       context: ChainOutputContext,
       size: number,
-    ): TraceChainOutput[] => {
+    ): Omit<TraceChainOutput, "answer">[] => {
       const pages = [chainOutput(chain, context, { limit: size, offset: 0 })];
       for (let offset = size; offset < (pages[0]?.total ?? 0); offset += size) {
         pages.push(chainOutput(chain, context, { limit: size, offset }));

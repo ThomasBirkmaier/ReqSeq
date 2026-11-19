@@ -49,6 +49,8 @@ const command = (name, title, args = ALL, schema = input) => ({
   input: described(schema),
 });
 const check = (...commands) => checkCatalog({ commands });
+/** The answer every output names (SR-224 AK1). */
+const ANSWER = { $ref: "../common.schema.json#/$defs/answer" };
 
 describe("catalog checks (titles and argument sources, SR-108)", () => {
   it("accepts the product catalog", () => {
@@ -512,6 +514,7 @@ describe("catalog checks (jsonLines, #319)", () => {
     "lines.schema.json": {
       type: "object",
       properties: {
+        answer: ANSWER,
         version: { const: 1 },
         names: { type: "array", items: { type: "string" } },
         rows: { type: "array", items: { $ref: "#/$defs/row" } },
@@ -522,7 +525,10 @@ describe("catalog checks (jsonLines, #319)", () => {
       },
     },
   };
-  const withLines = (jsonLines, output = { type: "object", $ref: "../lines.schema.json" }) => ({
+  const withLines = (
+    jsonLines,
+    output = { type: "object", required: ["answer"], $ref: "../lines.schema.json" },
+  ) => ({
     ...command("test.one", "One", [], { type: "object" }),
     output,
     jsonLines,
@@ -532,7 +538,8 @@ describe("catalog checks (jsonLines, #319)", () => {
   it("accepts items that are a top-level array and fields that are top-level values", () => {
     const inline = {
       type: "object",
-      properties: { mark: { const: 1 }, rows: { type: "array", items: { type: "object" } } },
+      properties: { answer: ANSWER, mark: { const: 1 }, rows: { type: "array", items: { type: "object" } } },
+      required: ["answer"],
     };
     expect(lines({ items: "rows", fields: [] })).toEqual([]);
     expect(lines({ items: "rows", fields: ["mark"] }, inline)).toEqual([]);
@@ -561,8 +568,13 @@ describe("catalog checks (jsonLines, #319)", () => {
 describe("catalog checks (textOutput, SR-151 AK4)", () => {
   const output = {
     type: "object",
-    properties: { text: { type: "string" }, loose: { type: "string" }, count: { type: "integer" } },
-    required: ["text", "count"],
+    properties: {
+      answer: ANSWER,
+      text: { type: "string" },
+      loose: { type: "string" },
+      count: { type: "integer" },
+    },
+    required: ["answer", "text", "count"],
   };
   const text = (textOutput) =>
     checkCatalog({
@@ -577,5 +589,25 @@ describe("catalog checks (textOutput, SR-151 AK4)", () => {
           `schemas/commands/test.one.json: textOutput: "${field}" is not a required top-level string of the output`,
       ),
     );
+  });
+});
+
+describe("catalog checks (answer, SR-224 AK1)", () => {
+  const answer = (output) =>
+    checkCatalog({ commands: [{ ...command("test.one", "One", [], { type: "object" }), output }] });
+  const refused = [
+    'schemas/commands/test.one.json: output: no required top-level "answer" that is a $ref to common.schema.json#/$defs/answer (SR-224 AK1)',
+  ];
+
+  it("accepts a required answer that names the answer definition", () => {
+    expect(answer({ type: "object", properties: { answer: ANSWER }, required: ["answer"] })).toEqual([]);
+  });
+
+  it("refuses an output without the answer, with it optional, or with a schema of its own", () => {
+    expect(answer({ type: "object", properties: {} })).toEqual(refused);
+    expect(answer({ type: "object", properties: { answer: ANSWER } })).toEqual(refused);
+    expect(
+      answer({ type: "object", properties: { answer: { type: "string" } }, required: ["answer"] }),
+    ).toEqual(refused);
   });
 });

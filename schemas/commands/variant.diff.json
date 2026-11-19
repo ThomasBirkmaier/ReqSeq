@@ -20,6 +20,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "added": {
         "title": "Added",
         "type": "array",
@@ -67,6 +68,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["added", "replaced", "excluded"]
+    "required": ["answer", "added", "replaced", "excluded"]
   }
 }

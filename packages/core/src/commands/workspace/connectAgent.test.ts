@@ -7,13 +7,13 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished } from "vitest";
-import type { CommandOutput } from "../../catalog.js";
+import type { InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { setInstallation } from "../../installation.js";
 import { getCommandRuntime, invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
-type Output = CommandOutput<"workspace.connectAgent">;
+type Output = InvokedOutput<"workspace.connectAgent">;
 
 const fixture = async (): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
@@ -103,6 +103,19 @@ describe("workspace.connectAgent", () => {
       'Add this entry to your client\'s MCP configuration to connect it to the workspace "Weather station".',
     );
     expect(Object.keys(output)).toEqual(["answer", "client", "server", "setup", "valid", "next"]);
+  });
+
+  it("keeps its answer on one line for a workspace name with a line break (SR-224 AK1)", async () => {
+    await installation();
+    const ws = await fixture();
+    const file = path.join(ws.root, "reqseq-workspace.yaml");
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("name: Weather station", 'name: "Weather\\nstation"'),
+    );
+    expect((await run(ws.root, { client: "other" })).answer).toBe(
+      'Add this entry to your client\'s MCP configuration to connect it to the workspace "Weather station".',
+    );
   });
 
   it("refuses without the command line's entry", async () => {

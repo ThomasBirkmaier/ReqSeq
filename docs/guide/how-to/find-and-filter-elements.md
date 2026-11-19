@@ -28,6 +28,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -37,6 +38,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -46,6 +48,7 @@ reqseq element create system-requirement "Warn of gusts" --text "The station mus
 ```
 
 ```text title="Output"
+Created System Requirement SR-5e1d0a; 1 file written; 2 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -55,6 +58,7 @@ reqseq element create system-requirement "Show the temperature" --text "The stat
 ```
 
 ```text title="Output"
+Created System Requirement SR-41c165; 1 file written; 3 problems.
 SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```
@@ -66,6 +70,7 @@ reqseq element search temprature
 ```
 
 ```text title="Output"
+Found 1 hit for the query temprature.
 hits:
   SR-41c165  draft  Show the temperature
     text: The station must show the air temperature in degrees Celsius.
@@ -79,6 +84,7 @@ reqseq element search-fields
 ```
 
 ```text title="Output"
+A search can be restricted to 18 fields.
 fields:
   - key: title
     name: Title
@@ -96,6 +102,7 @@ reqseq element search wind --fields title
 ```
 
 ```text title="Output"
+Found 2 hits for the query wind.
 hits:
   N-7fe707  draft  See the wind speed
   SR-c67baa  draft  Show the wind speed
@@ -107,6 +114,7 @@ reqseq element search '"show the wind"'   # a phrase, in single quotes for the s
 ```
 
 ```text title="Output"
+Found 1 hit for the query "show the wind".
 hits:
   SR-c67baa  draft  Show the wind speed
     text: The station must show the wind speed in knots.
@@ -120,6 +128,7 @@ reqseq element list --where-type system-requirement --where '{"relation":{"meani
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-41c165  draft  Show the temperature
 total: 1
@@ -132,6 +141,7 @@ reqseq filter save "Wind requirements" --where-type system-requirement --where '
 ```
 
 ```text title="Output"
+Saved filter Wind requirements; 1 file written.
 files:
   filters/wind-requirements.yaml
 No problems.
@@ -142,6 +152,7 @@ reqseq filter list
 ```
 
 ```text title="Output"
+Found 1 saved filter.
 filters:
   - name: Wind requirements
     file: filters/wind-requirements.yaml
@@ -153,6 +164,7 @@ reqseq element list --filter "Wind requirements"
 ```
 
 ```text title="Output"
+Listed 2 elements.
 elements:
   SR-c67baa  draft  Show the wind speed
   SR-5e1d0a  draft  Warn of gusts
@@ -166,6 +178,7 @@ reqseq element search knots --filter "Wind requirements"
 ```
 
 ```text title="Output"
+Found 2 hits for the query knots.
 hits:
   SR-c67baa  draft  Show the wind speed
     text: The station must show the wind speed in knots.
@@ -181,6 +194,7 @@ reqseq element list --group topic --sort title
 ```
 
 ```text title="Output"
+Listed 4 rows.
 elements:
   temperature · 1
     SR-41c165  draft  Show the temperature

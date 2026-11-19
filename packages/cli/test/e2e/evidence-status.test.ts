@@ -30,6 +30,7 @@ describe("reqseq evidence status (SR-031)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed the verification status of 6 elements.",
         "elements:",
         "  N-a0000000001  approved  See the wind  [validation: open]",
         "  SR-b0000000001  draft  Show wind speed  [verification: core open, VAR-c0000000001 open, VAR-c0000000002 open]",

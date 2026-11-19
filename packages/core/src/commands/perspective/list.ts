@@ -7,11 +7,18 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { readPerspectives } from "../../query/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 type Listed = CommandOutput<"perspective.list">["perspectives"][number];
 
 export default defineCommand({
   name: "perspective.list",
+  answer: (output) =>
+    sentence(
+      `Found ${counted(output.perspectives.length, "perspective")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx): Promise<CommandOutput<"perspective.list">> => {
     const folder = await readPerspectives(await ctx.workspace.get(workspaceLayoutState));
     return {

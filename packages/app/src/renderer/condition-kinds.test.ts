@@ -9,6 +9,7 @@ import { CONDITION_KINDS, conditionSchema, textMark, valueHits } from "./conditi
 type Facet = ElementFacetsOutput["properties"][number];
 
 const FACETS: ElementFacetsOutput = {
+  answer: "The selection has 5 elements.",
   total: 5,
   types: [],
   statuses: [

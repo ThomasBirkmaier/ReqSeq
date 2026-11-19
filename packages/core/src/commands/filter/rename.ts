@@ -4,9 +4,17 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { renameFilter } from "../../query/index.js";
+import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "filter.rename",
+  answer: (output, input) =>
+    sentence(
+      `Renamed saved filter ${input.name} to ${input.newName}`,
+      output.perspectives.length === 0 ? "" : `${counted(output.perspectives.length, "perspective")} changed`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"filter.rename">> =>
     renameFilter(ctx.workspace, input.name, input.newName),
 });

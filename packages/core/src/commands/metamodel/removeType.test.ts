@@ -1,6 +1,7 @@
 // metamodel.removeType (SR-237 AK5) and the use rule of the frame (SR-236 AK7) as this command
 // shows it, on the small model of the test helper.
 import { describe, expect, it } from "vitest";
+import removeType from "./removeType.js";
 import type { CommandOutput } from "../../catalog.js";
 import {
   MODEL,
@@ -31,6 +32,7 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
     const { workspace, read } = await openSmall(elements([1, "hazard"]));
     const removed = await remove(workspace, "note");
     expect(removed).toEqual({
+      answer: "Removed the type note with remark and noted; 1 file written.",
       type: "note",
       removed: { properties: ["remark"], statuses: ["noted"] },
       mentions: [],
@@ -194,5 +196,22 @@ describe("metamodel commands: what counts as a use (SR-236 AK7)", () => {
       await read("perspectives/remarks.yaml"),
       await read("reqif/supplier.yaml"),
     ]).toEqual([filter, perspective, mapping]);
+  });
+});
+
+describe("the answer of metamodel.removeType", () => {
+  it("names the type, what went with it, the files, the files naming a removed key and the problems", () => {
+    const output = {
+      type: "note",
+      removed: { properties: [], statuses: [] },
+      mentions: ["filters/notes.yaml"],
+      files: [MODEL],
+      versionsChanged: 0,
+      missingRequired: 0,
+      problems: [{}],
+    };
+    expect(removeType.answer(output as never, { type: "note" }, { type: (key) => key })).toBe(
+      "Removed the type note; 1 file written; 1 file naming a removed key, not changed; 1 problem.",
+    );
   });
 });

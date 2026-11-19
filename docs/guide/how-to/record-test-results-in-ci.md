@@ -108,6 +108,7 @@ reqseq element create system-requirement "Show the wind speed"
 ```
 
 ```text title="Output"
+Created System Requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -143,6 +144,7 @@ reqseq evidence enrich-junit results.xml build-1 --workspace . --output evidence
 ```
 
 ```text title="Output"
+Enriched 1 test case; 1 file written.
 testCases: 1
 withoutReference: 0
 notInView: 0

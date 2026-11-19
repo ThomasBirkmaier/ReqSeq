@@ -11,9 +11,20 @@ import { defineCommand } from "../../catalog.js";
 import { listElements, resolveListRef, shortIdState } from "../../model/index.js";
 import { derivationGraph, relatedElements, traceContext } from "../../trace/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
+import { incompleteNote, listed, paged, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.related",
+  answer: (output, input) =>
+    sentence(
+      `Found ${paged(
+        output.elements.length,
+        output.total,
+        input.direction === "children" ? "child" : "parent",
+        input.direction,
+      )}${input.refs.length === 0 ? "" : ` of ${listed(input.refs)}`}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.related">> => {
     const graph = derivationGraph(await traceContext(ctx.workspace), "trace.related");
     const { layout, metamodel, store } = graph;

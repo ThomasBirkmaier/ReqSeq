@@ -68,6 +68,7 @@ import { planStatements } from "../../reqif/statements.js";
 import { planSourceExport } from "../../reqif/source-export.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { refuseGitAt, workspaceLayoutState } from "../../workspace/index.js";
+import { counted, problemsNote, sentence } from "../answer.js";
 
 /** An image copy: its source file and SHA-256 when it was read, and its path relative to the output folder. */
 interface ImageCopy {
@@ -497,6 +498,14 @@ const writeOutput = async (
 
 export default defineCommand({
   name: "reqif.export",
+  answer: (output) =>
+    sentence(
+      `Exported ${counted(output.elements, "element")} and ${counted(output.relations, "relation")} to ${output.file}`,
+      output.withoutStatement === undefined || output.withoutStatement === 0
+        ? ""
+        : `${counted(output.withoutStatement, "element")} without a statement`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"reqif.export">> => {
     const command = "reqif.export";
     const given = notYet(input);

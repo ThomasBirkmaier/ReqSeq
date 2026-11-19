@@ -96,7 +96,13 @@ describe("variant.diff (SR-044)", () => {
       await open(requirement("b3", `validity: [${A}]\nreplaces: [{ id: ${P}d1 }]\n`)),
       "VAR-0000c2",
     );
-    expect(out).toEqual({ added: [], replaced: [], excluded: [], incomplete: false });
+    expect(out).toEqual({
+      answer: "Variant VAR-0000c2 adds 0 requirements, replaces 0 and excludes 0.",
+      added: [],
+      replaced: [],
+      excluded: [],
+      incomplete: false,
+    });
   });
 
   it("is incomplete when a repository of the workspace is not on this machine", async () => {

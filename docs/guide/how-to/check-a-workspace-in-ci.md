@@ -23,6 +23,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -34,6 +35,7 @@ reqseq workspace check --fail-on warning
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -58,6 +60,7 @@ reqseq workspace check --changed-files need/N-d0e44b7fe707.md
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -87,6 +90,7 @@ reqseq element list --input '{"selection":{"where":{"all":[{"not":{"status":["ob
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-9d35ce  draft  Show the wind speed
 total: 1
@@ -107,6 +111,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 2 elements and found 4 warnings.
 ok: true
 ...
 warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: ..., path: evidence }]  reqseq-workspace.yaml
@@ -136,6 +141,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 2 elements and found 3 warnings and 1 info.
 ok: true
 ...
 info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core; reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}' lists them  reqseq-workspace.yaml
@@ -146,6 +152,7 @@ reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-9d35ce  draft  Show the wind speed
 total: 1

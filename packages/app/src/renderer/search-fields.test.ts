@@ -48,6 +48,7 @@ const CATALOG = [
 const field = (key: string): SearchField => FIELDS.find((one) => one.key === key) ?? { key, name: key };
 
 const hits = (count: number): ElementSearchOutput => ({
+  answer: "Found hits.",
   hits: Array.from({ length: count }, (_, at) => ({
     id: `u${String(at)}`,
     repository: "spec",

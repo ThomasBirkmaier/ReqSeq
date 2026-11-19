@@ -19,7 +19,7 @@ import { PatchedMap } from "../model/patched-map.js";
 
 /**
  * The records by criterion key (see the file comment), each by its key in the index (`recordKey` of
- * search-index.ts: repository and file), so a carry patches strings and keeps no record of an older
+ * search-build.ts: repository and file), so a carry patches strings and keeps no record of an older
  * store.
  */
 export type KeyedRecords = ReadonlyMap<string, readonly string[]>;
@@ -95,7 +95,7 @@ export const keyedRecords = (store: ElementStore, metamodel: Metamodel, keyOf: K
 /**
  * The records by key of a store carried from the one of `known`: the keys of the records `gone`
  * before and `now` after are looked at again, a patch of `known` whose other entries stay the same
- * arrays. The order within an entry does not count: hits are ordered by `before` of search-index.ts.
+ * arrays. The order within an entry does not count: hits are ordered by `before` of search-results.ts.
  */
 export const carryKeyed = (
   known: KeyedRecords,

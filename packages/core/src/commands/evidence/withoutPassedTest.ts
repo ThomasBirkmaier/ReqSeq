@@ -25,6 +25,7 @@ import { listElements, namesField, namesOf } from "../../model/index.js";
 import { resolveSelection, sortElements } from "../../query/index.js";
 import type { View } from "../../variants/index.js";
 import { resolveView, viewRuleOf } from "../../variants/index.js";
+import { incompleteNote, sentence, viewNamed } from "../answer.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 
@@ -36,6 +37,11 @@ const BY_TYPE_AND_IDENTIFIER: readonly FilterSortKeyWithDefaults[] = Object.free
 
 export default defineCommand({
   name: "evidence.withoutPassedTest",
+  answer: (output) =>
+    sentence(
+      `${output.total === 1 ? "1 requirement has" : `${String(output.total)} requirements have`} no passed test in view ${viewNamed(output.view, output.names)}${output.elements.length < output.total ? `, ${String(output.elements.length)} listed` : ""}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"evidence.withoutPassedTest">> => {
     const command = "evidence.withoutPassedTest";
     const selected = await resolveSelection(ctx.workspace, {}, command);

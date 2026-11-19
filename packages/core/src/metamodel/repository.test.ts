@@ -113,6 +113,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     const ws = await ownRepository();
     const workspace = open(ws.path("system"));
     expect(await status(workspace)).toEqual({
+      answer: "Workspace Weather station has 2 repositories, 2 available.",
       name: "Weather station",
       repositories: [
         {

@@ -7,9 +7,12 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { recentWorkspaceStates } from "../../workspace/recent.js";
+import { counted, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "workspace.recent",
+  answer: (output) =>
+    sentence(`The list of workspaces the app opened holds ${counted(output.workspaces.length, "workspace")}`),
   run: async (): Promise<CommandOutput<"workspace.recent">> => ({
     workspaces: (await recentWorkspaceStates()).map(({ root, opened, exists }) => ({ root, opened, exists })),
   }),
