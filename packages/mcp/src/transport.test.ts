@@ -1,6 +1,7 @@
 import { PassThrough } from "node:stream";
 import type { JSONRPCMessage } from "@modelcontextprotocol/server";
 import { serializeMessage } from "@modelcontextprotocol/server";
+import { clientName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { LineTransport, MAX_MESSAGE_BYTES } from "./transport.js";
 
@@ -359,6 +360,34 @@ describe("LineTransport onConnect (SR-228)", () => {
     await deliver(request(5, "initialize", { clientInfo: { name: "late" } }));
     await transport.send(result(5));
     expect(clients).toHaveLength(1);
+    await transport.close();
+  });
+
+  it("connects on a 2026-07-28 request that names the revision but no client, as an unknown client a later name does not change", async () => {
+    const { transport, clients, deliver } = await session([
+      request(1, "tools/list", { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } }),
+    ]);
+    // Connected on arrival, before any answer, without a name: core records it as null ("unknown client").
+    expect(clients).toEqual([[undefined, 0]]);
+    expect(clientName(undefined)).toBeNull();
+    await deliver(
+      request(2, "tools/list", {
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+          "io.modelcontextprotocol/clientInfo": { name: "named later" },
+        },
+      }),
+    );
+    expect(clients).toEqual([[undefined, 0]]);
+    await transport.close();
+  });
+
+  it("does not connect on a request whose envelope names a client but not the protocol revision", async () => {
+    const { transport, clients } = await session([
+      request(1, "tools/list", { _meta: { "io.modelcontextprotocol/clientInfo": { name: "no revision" } } }),
+    ]);
+    await transport.send(result(1));
+    expect(clients).toEqual([]);
     await transport.close();
   });
 

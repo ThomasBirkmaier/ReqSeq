@@ -106,7 +106,7 @@
     },
     "agent-connection": {
       "title": "Agent connection file",
-      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
+      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has written the answer to the client's `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
       "type": "object",
       "required": [
         "version",
@@ -130,7 +130,7 @@
         },
         "since": {
           "$ref": "#/$defs/common/$defs/dateTime",
-          "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+          "description": "When the client connected: when the MCP server wrote the answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
         },
         "ended": {
           "anyOf": [
@@ -147,7 +147,7 @@
       "additionalProperties": false,
       "$defs": {
         "client": {
-          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
+          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut at a character boundary to at most 40 characters (grapheme clusters, so an accented letter or a composed emoji counts as one and is not split) and at most 400 UTF-16 code units. null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
           "anyOf": [
             {
               "type": "string",
@@ -4451,7 +4451,7 @@
                 "since": {
                   "title": "Connected since",
                   "$ref": "#/$defs/common/$defs/dateTime",
-                  "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+                  "description": "When the client connected: when the MCP server wrote the answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
                 }
               },
               "required": [
