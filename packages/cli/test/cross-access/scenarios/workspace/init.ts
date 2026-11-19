@@ -6,6 +6,8 @@ import { scenariosOf } from "../../scenario.js";
 scenariosOf("workspace.init", [
   {
     name: "new folder",
+    // The next steps name the new workspace, the same in every access (SR-226 AK4).
+    tag: "[SR-226/AK-whxq]",
     fixture: { files: { "new/.keep": "" } },
     input: { path: "new", name: "New" },
     expect: "output",

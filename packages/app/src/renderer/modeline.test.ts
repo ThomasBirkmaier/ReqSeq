@@ -82,20 +82,23 @@ describe("workspaceView", () => {
     ).toEqual({ name: undefined, readOnly: false, marks: [], message: "No workspace file in /x" });
   });
 
-  it("says how to create a workspace in a folder without one", () => {
+  it("[SR-226/AK-mjh8] names Create workspace in a folder without one, as core's next step says", () => {
     const bare = {
       ok: false,
       error: {
         code: "workspace.not-found",
         message: "No reqseq-workspace.yaml in the workspace folder",
-        details: { file: "reqseq-workspace.yaml" },
+        details: {
+          file: "reqseq-workspace.yaml",
+          next: [{ command: "workspace.init", input: { path: "/x" }, open: ["name"] }],
+        },
       },
     } as const;
     expect(workspaceView(bare, false).message).toBe(
-      "No reqseq-workspace.yaml in the workspace folder. To create one here, press Ctrl+Shift+P for Initialise workspace.",
+      "No reqseq-workspace.yaml in the workspace folder. To create one here, press Ctrl+Shift+P for Create workspace.",
     );
     expect(workspaceView(bare, true).message).toBe(
-      "No reqseq-workspace.yaml in the workspace folder. To create one here, press ⌘⇧P for Initialise workspace.",
+      "No reqseq-workspace.yaml in the workspace folder. To create one here, press ⌘⇧P for Create workspace.",
     );
     // A workspace one level below: core says to open that folder, and nothing more is added.
     const below = {

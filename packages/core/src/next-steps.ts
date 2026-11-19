@@ -1,0 +1,29 @@
+// The next steps (SR-226): which command to run next, with the inputs known already and those still to
+// give, as data (`common.schema.json#/$defs/nextStep`). Every access shows them in its own form from the
+// same data (AK4): the command line as calls, the app by the titles of the commands.
+import type { NextStep } from "./generated/types.js";
+
+/** Creating a workspace in `folder`, the name still to give (AK1: the next step of `workspace.not-found`). */
+export const createWorkspaceStep = (folder: string): NextStep => ({
+  command: "workspace.init",
+  input: { path: folder },
+  open: ["name"],
+});
+
+/**
+ * The next steps after a workspace was created (AK2): connect an AI agent, the client still to give, then
+ * create an element. `workspace`: the new workspace, when it is not the workspace of the call.
+ */
+export const afterInitSteps = (workspace?: string): NextStep[] => {
+  const at = workspace === undefined ? {} : { workspace };
+  return [
+    { command: "workspace.connectAgent", input: {}, open: ["client"], ...at },
+    { command: "element.create", input: {}, open: ["type", "title"], ...at },
+  ];
+};
+
+/** How to begin (AK3: the section "Get started" of the command line's help): create, connect, create an element. */
+export const GET_STARTED: readonly NextStep[] = [
+  { command: "workspace.init", input: {}, open: ["path", "name"] },
+  ...afterInitSteps(),
+];

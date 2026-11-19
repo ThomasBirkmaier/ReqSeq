@@ -1,9 +1,11 @@
 // The commander tree, generated from the command catalog (ADR-0002 rule 3, ADR-0009). No command is
 // named here: groups, actions, arguments and flags all come from the catalog entries.
 import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
-import { Command, Option } from "commander";
+import { GET_STARTED } from "@reqseq/core";
+import { Command, Help, Option } from "commander";
 import type { InputField, PartFlag } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
+import { nextLines } from "./present/next.js";
 
 /** What the command line asked for, before it becomes a command input. */
 export interface Invocation {
@@ -393,6 +395,16 @@ const refuseRepeats = (command: Command): void => {
   }
 };
 
+/**
+ * The help of `reqseq` itself with the section "Get started" before its commands (SR-226 AK3): the calls of
+ * core's `GET_STARTED`, which name no path, so the current folder plays no part.
+ */
+const withGetStarted = (help: string, commands: readonly CatalogEntry[]): string => {
+  const section = nextLines(GET_STARTED, { commands, cwd: ".", platform: process.platform }, "Get started:");
+  const at = help.indexOf("\nCommands:\n");
+  return at < 0 ? help : `${help.slice(0, at + 1)}${section.join("\n")}\n${help.slice(at)}`;
+};
+
 /** Build `reqseq` with one subcommand per catalog entry, `reqseq <group> <action>`. */
 export function buildProgram(options: ProgramOptions): Command {
   const program = new Command("reqseq")
@@ -416,7 +428,14 @@ export function buildProgram(options: ProgramOptions): Command {
       },
     })
     // List subcommands with their own usage (`get <ref> [options]`), as their help shows it.
-    .configureHelp({ subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}` })
+    .configureHelp({
+      subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}`,
+      // Only `reqseq` itself, which has no parent, gets "Get started".
+      formatHelp: (cmd, helper): string => {
+        const help = Help.prototype.formatHelp.call(helper, cmd, helper);
+        return cmd.parent === null ? withGetStarted(help, options.runtime.contracts.commands) : help;
+      },
+    })
     .addHelpText("after", "\nOptions of a command follow it: reqseq <group> <action> --help");
   const groups = new Map<string, Command>();
   for (const entry of options.runtime.contracts.commands) {

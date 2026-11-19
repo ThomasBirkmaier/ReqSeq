@@ -1,6 +1,7 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
-// workspace; an own metamodel repository that is not there yet shows up here, SR-018).
+// workspace; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
+// (SR-226 AK2).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
@@ -8,6 +9,7 @@ import { defineCommand } from "../../catalog.js";
 import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT, metamodelState } from "../../metamodel/index.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
+import { afterInitSteps } from "../../next-steps.js";
 
 /** The path with links resolved, so two spellings of one folder compare equal; the path itself when it does not exist. */
 const realPath = async (folder: string): Promise<string> => fs.realpath(folder).catch(() => folder);
@@ -22,7 +24,8 @@ export default defineCommand({
       metamodel: input.metamodel,
       metamodelFile: { name: STANDARD_MODEL_FILE, text: STANDARD_MODEL_TEXT },
     });
-    if ((await realPath(root)) === (await realPath(ctx.workspace.root))) {
+    const own = (await realPath(root)) === (await realPath(ctx.workspace.root));
+    if (own) {
       // Later calls on the same Workspace object (API, MCP, app) see the new workspace file.
       await ctx.workspace.reset(workspaceLayoutState);
     }
@@ -30,7 +33,12 @@ export default defineCommand({
     try {
       const layout = await created.get(workspaceLayoutState);
       const metamodel = await created.get(metamodelState);
-      return { files: [...files], problems: [...layout.problems, ...metamodel.problems] };
+      return {
+        files: [...files],
+        // The next steps run in the new workspace (SR-226 AK2); named when the call's workspace is another one.
+        next: afterInitSteps(own ? undefined : root),
+        problems: [...layout.problems, ...metamodel.problems],
+      };
     } finally {
       await created.close();
     }

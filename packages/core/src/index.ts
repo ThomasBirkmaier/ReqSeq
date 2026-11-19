@@ -71,3 +71,4 @@ export type {
   WorkspaceWatcher,
 } from "./model/watch.js";
 export * from "./runtime/instructions.js";
+export { GET_STARTED } from "./next-steps.js";

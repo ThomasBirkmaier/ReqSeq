@@ -55,6 +55,9 @@
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
 //   chain (#676). A UUID that `names` leaves out stays as it is.
+// - Next steps (a list of steps, `common.schema.json#/$defs/nextStep`, SR-226 AK2) print last, after the line after the problems, as
+//   calls of this command line (`present/next.ts`): `next:`, then one call per step with the title of its
+//   command behind it. Without a `site` (the catalog and the current folder) they stay YAML.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 //
@@ -84,6 +87,8 @@ import { criterionReferencesIn } from "./present/element.js";
 import { graphNodeLines, isGraphWithEvidence } from "./present/evidence.js";
 import { elementsKey, groupedListLines, treeListLines, treeListOf, valueLines } from "./present/list.js";
 import { isMatrix, matrixColumnLines, matrixRowLines } from "./present/matrix.js";
+import type { CallSite } from "./present/next.js";
+import { nextPart } from "./present/next.js";
 
 /**
  * The note on a page shorter than `total`. The page is the list of elements or findings: the nodes of a
@@ -149,9 +154,9 @@ const shownReferences = (rest: Rec, shown: Set<string>): ReturnType<typeof crite
 /**
  * The output for people (see the file comment). `details`: show an element's details below its line
  * (commands that read). `terminal`: the terminal stdout is, when the output is styled for one (#988);
- * plain text without it.
+ * plain text without it. `site`: where calls are typed, for the next steps.
  */
-export function renderHuman(output: unknown, details = true, terminal?: Terminal): string {
+export function renderHuman(output: unknown, details = true, terminal?: Terminal, site?: CallSite): string {
   const style = terminal === undefined ? undefined : styleOf(terminal);
   if (!isRecord(output)) {
     return output === undefined ? "" : yamlOf(output);
@@ -188,6 +193,8 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
     shown.add("names");
   }
   const references = shownReferences(rest, shown);
+  const next = nextPart(rest, site);
+  next.keys.forEach((key) => shown.add(key));
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
       lines.push(
@@ -196,7 +203,7 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
     }
   }
   lines.push(...pageNote(rest));
-  return `${lines.map((line) => `${line}\n`).join("")}${problemsText(problems, lifted, rest, style ?? PLAIN)}`;
+  return `${lines.map((line) => `${line}\n`).join("")}${problemsText(problems, lifted, rest, style ?? PLAIN)}${next.text}`;
 }
 
 /**

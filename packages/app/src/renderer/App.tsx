@@ -1052,7 +1052,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     };
   }, [bridge, call]);
   // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
-  // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
+  // opened, gets the catalog's commands ("Create workspace", the minibuffer's hint) when they are there (#1413).
   const catalogRead = useRef<Promise<void> | undefined>(undefined);
   // What a view that shows several elements reads again on: any change of the workspace, also from outside.
   const seen = revision + outside.seq;
@@ -1089,7 +1089,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     });
   }, [bridge]);
   // The command prompt: the actions that apply now and the catalog's read and write commands (ThomasBirkmaier/ReqSeq-archive#85);
-  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`). `shown`: the
+  // without a workspace, "Create workspace" of the folder core opened (`catalogItems`). `shown`: the
   // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
   // entries run from the prefix key or the context menu have no command prompt to go back to.
   // While the catalog is read, the prompt opens with the actions and takes keys, and its entries are built

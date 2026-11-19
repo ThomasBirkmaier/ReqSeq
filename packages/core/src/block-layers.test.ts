@@ -30,7 +30,15 @@ type Unit =
   | "runtime state";
 
 /** Modules every block may import, and the public entry point, which sits above all blocks. */
-type Shared = "catalog" | "product" | "build-info" | "installation" | "agent-setup" | "generated" | "index";
+type Shared =
+  | "catalog"
+  | "product"
+  | "build-info"
+  | "installation"
+  | "agent-setup"
+  | "next-steps"
+  | "generated"
+  | "index";
 
 /** The layers from the bottom (README section 5). Every import points to a lower layer. */
 const LAYERS: readonly (readonly Unit[])[] = [
@@ -144,6 +152,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   "build-info": { values: [] },
   installation: { values: [] },
   "agent-setup": { values: [], types: ["installation"] },
+  "next-steps": { values: [], types: ["generated"] },
   generated: { values: [] },
 };
 
@@ -153,6 +162,7 @@ const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set([
   "build-info",
   "installation",
   "agent-setup",
+  "next-steps",
   "generated",
 ]);
 const RUNTIME_ENTRY = new Set(["invoke", "warm", "instructions", "element-short-ids", "local-path-fields"]);
@@ -173,7 +183,8 @@ function unitOf(module: string): { readonly unit: Unit | Shared } | { readonly e
       name === "product" ||
       name === "build-info" ||
       name === "installation" ||
-      name === "agent-setup"
+      name === "agent-setup" ||
+      name === "next-steps"
       ? { unit: name }
       : { error: "unknown root module" };
   }
