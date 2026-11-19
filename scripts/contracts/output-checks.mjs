@@ -35,6 +35,7 @@ export const SHOWS_OUTPUT = new Set([
   "evidence.enrichJunit",
   "reqif.import",
   "reqif.export",
+  "tool.guide",
   "workspace.init",
 ]);
 

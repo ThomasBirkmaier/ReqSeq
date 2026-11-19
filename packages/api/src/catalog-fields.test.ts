@@ -156,6 +156,7 @@ describe("the catalog the API gives", () => {
       "evidence.enrichJunit",
       "reqif.export",
       "reqif.import",
+      "tool.guide",
       "workspace.init",
     ]);
     // A command that names only its files, problems and the element it wrote does not show its output.
