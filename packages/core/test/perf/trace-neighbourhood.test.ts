@@ -5,7 +5,14 @@
 // SR-082 AK4's 500 ms (tagged, ADR-0011); the whole chain of the largest need and the unbounded
 // walk over every kind are recorded only.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  measure,
+  perfSize,
+  thresholdLimit,
+  thresholdMessage,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState } from "../../src/model/index.js";
@@ -13,8 +20,9 @@ import { invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set,
+// at least 2,000 elements: the derivations of the first need to depth 3 must fill a page of 200.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize(2000);
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** The versions stored in relations do not matter here. */
@@ -64,7 +72,7 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
     expect(result.nodes.length).toBeGreaterThan(1);
     expect(result.total).toBe(result.nodes.length);
     expect(result.incomplete).toBe(false);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] gives the first page of the derivation chain to depth 3 within 500 ms", async () => {
@@ -77,7 +85,7 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
       },
     );
     expect(result.nodes).toHaveLength(200);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   // The whole chain of the largest need (about 42,000 nodes) is over 500 ms for trace.chain too

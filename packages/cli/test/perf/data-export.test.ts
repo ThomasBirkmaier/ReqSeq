@@ -37,6 +37,7 @@ import {
   defaultStandardModelFile,
   generateLargeWorkspace,
   measure,
+  perfSize,
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -44,8 +45,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/reqseq.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 const MB = 1e6;
 
 type Metamodel = CommandOutput<"metamodel.get">;
@@ -440,7 +441,12 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     }
   }, 1_800_000);
 
-  it("[SR-061/AK-cjrr] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async () => {
+  it("[SR-061/AK-cjrr] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async (ctx) => {
+    // The note replaces only a text larger than MCP's limit (32 MiB): the export is 557 MB at N-036. A smaller run
+    // (#2037) stays below the limit at the sizes the PR check can generate in its time (10 MB at 3,500 elements).
+    if (compactBytes <= MAX_TEXT_BYTES) {
+      ctx.skip(`the export (${String(compactBytes)} bytes) is not larger than MCP's text limit`);
+    }
     const memoryFile = path.join(scratch, "memory-mcp.json");
     const env = {
       REQSEQ_PEAK_MEMORY: memoryFile,

@@ -5,7 +5,7 @@
 // time grows with the files dated, not with their product with the files moved. No SR sets a limit
 // for the date, so the time is recorded only (ADR-0011).
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace, measure } from "@reqseq/testkit";
+import { createFixtureWorkspace, measure, scaledCount } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parseFileBytes } from "../../src/files/index.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
@@ -17,9 +17,9 @@ import { Workspace } from "../../src/runtime/workspace.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
 /** Element files, first in `old/`, then all moved to `requirements/`. */
-const FILES = 20_000;
-/** Files dated in one call. */
-const DATED = 2_000;
+const FILES = scaledCount(20_000);
+/** Files dated in one call. Both scale with the size of the run (#2037). */
+const DATED = scaledCount(2_000);
 
 const hex = (n: number, width: number): string => n.toString(16).padStart(width, "0");
 const idOf = (i: number): string => `${hex(i, 8)}-0000-4000-8000-${hex(i, 12)}`;

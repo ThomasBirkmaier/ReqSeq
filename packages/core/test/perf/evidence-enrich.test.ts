@@ -13,8 +13,10 @@ import {
   generateLargeWorkspace,
   measurePeakMemory,
   memoryIncrease,
+  perfSize,
   pytestJunit,
   recordValue,
+  scaledCount,
   shortIdOf,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -28,11 +30,15 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set;
+// the file and the test cases scale with it.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
+
 /** The size of the JUnit file (stage 4 plan, E4: "enrich of one 50 MB JUnit file"). */
-const BYTES = 50_000_000;
+const BYTES = scaledCount(50_000_000);
 
 /** Test cases of the name pattern run (N-036). */
-const PATTERN_CASES = 50_000;
+const PATTERN_CASES = scaledCount(50_000);
 
 /**
  * A JUnit file of `PATTERN_CASES` test cases, each naming one system requirement with a unique short ID
@@ -73,7 +79,7 @@ describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4
 
   beforeAll(async () => {
     const version = versionOf(await standardModel());
-    const generated = generateLargeWorkspace({ version });
+    const generated = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     // Only the members the test needs: the fixture object holds the generated tree. The workspace
     // folder is `system` in the tree root, the JUnit files go next to it.
     const { cleanup: remove, workspaceRoot } = await writeLargeWorkspace(generated);
