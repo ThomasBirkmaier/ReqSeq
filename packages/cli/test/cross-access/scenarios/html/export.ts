@@ -1,4 +1,5 @@
 // Cross-access scenarios of html.export, in addition to the default one (cross-access.test.ts).
+import path from "node:path";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { IDENTIFIERS, ONE_REPOSITORY } from "../../fixtures.js";
@@ -12,6 +13,13 @@ const withText = (body: string) => ({
     "requirements/SR-6328cee88fb3.md": `---\nid: ${WIND}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n---\n\n${body}\n`,
   },
 });
+
+/** The content of a page: what its content slot holds, without the docs' frame and the page scripts. */
+const contentOf = (page: string): string =>
+  page.slice(page.indexOf('<div class="sl-markdown-content">'), page.indexOf("</div><footer"));
+/** The export date in the footer, which differs between calls only across midnight. */
+const DATE = [/exported \d{4}-\d{2}-\d{2}/gu];
+const GONE = "9d9d9d9d-1111-4222-8333-000000000002";
 
 scenariosOf("html.export", [
   {
@@ -108,7 +116,7 @@ scenariosOf("html.export", [
         const page = String(files[PAGE]);
         expect(page).toContain("&lt;script&gt;alert(1)&lt;/script&gt; [run](javascript:alert(2))");
         expect(page).toContain("![net](https://example.org/x.png)");
-        expect(page).not.toMatch(/<script|<img/u);
+        expect(contentOf(page)).not.toMatch(/<script|<img/u);
       }
     },
   },
@@ -121,6 +129,102 @@ scenariosOf("html.export", [
     check: (results) => {
       for (const { files } of Object.values(results)) {
         expect(files[PAGE]).toContain("<p>![gone](img/gone.png) and spec</p>");
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-q64j]",
+    name: "every page links the docs' stylesheet and has their theme select and menu",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files["site/assets/docs.css"]?.length).toBeGreaterThan(0);
+        for (const [file, up] of [
+          ["site/index.html", ""],
+          [PAGE, "../"],
+        ] as const) {
+          const page = String(files[file]);
+          expect(page).toContain(`<link rel="stylesheet" href="${up}assets/docs.css">`);
+          expect(page).toContain("<starlight-theme-select>");
+          expect(page).toContain('popovertarget="starlight__sidebar"');
+        }
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-ycws]",
+    name: "a formula is set, a diagram is drawn by the bundled Mermaid, and a broken formula shows its error",
+    fixture: withText("Speed $v^2$, broken $\\frac{1$.\n\n```mermaid\nflowchart LR\n  A --> B\n```"),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = String(files[PAGE]);
+        expect(page).toContain('<span class="katex">');
+        expect(page).toContain('<code>\\frac{1</code> <span class="rq-render-error">');
+        expect(page).toContain('<pre class="rq-diagram" data-rq-diagram><code class="language-mermaid">');
+        expect(page).toContain('<script src="../assets/mermaid.js"></script>');
+        expect(files["site/assets/mermaid.js"]?.length).toBeGreaterThan(0);
+        expect(files["site/assets/katex.css"]).toContain("url(data:font/woff2;base64,");
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-wkbf]",
+    name: "a reference links the page of its target, and one to a missing target is its link text",
+    fixture: withText(`[self](reqseq:${WIND}) and [gone](reqseq:${GONE})`),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files[PAGE]).toContain(`<p><a href="../elements/${WIND}.html">self</a> and gone</p>`);
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-hmbc]",
+    name: "the footer names the commit of the main repository and the date, and the page asks for noindex",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = String(files[PAGE]);
+        expect(page).toMatch(/<span class="rq-footer">Commit [0-9a-f]{12} · <masked> with ReqSeq /u);
+        expect(page).toContain('<meta name="robots" content="noindex">');
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-f39g]",
+    name: "every address a page names is a file of the folder, a data: URL or a link the reader follows",
+    fixture: withText(
+      "$x$ ![none](none.png) [web](https://example.org)\n\n```mermaid\nflowchart LR\n  A --> B\n```",
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        for (const [file, text] of Object.entries(files)) {
+          if (!file.startsWith("site/") || !/\.(?:html|css)$/u.test(file)) {
+            continue;
+          }
+          for (const match of text.matchAll(/\s(?:href|src)="([^"]*)"|url\(\s*["']?([^"')]*)/gu)) {
+            const address = String(match[1] ?? match[2]);
+            if (/^(?:data:|#|https?:|mailto:)/u.test(address)) {
+              continue;
+            }
+            const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), address));
+            expect(files[target], `${file}: ${address}`).toBeDefined();
+          }
+        }
       }
     },
   },

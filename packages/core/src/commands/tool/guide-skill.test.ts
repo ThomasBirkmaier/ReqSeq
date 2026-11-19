@@ -592,6 +592,7 @@ describe("the skill file's helpers", () => {
       version: PRODUCT_VERSION,
       intact: true,
       current: true,
+      sameContent: true,
       path: SKILL_FILE,
     });
     await fs.writeFile(skillAt(root), skillFile(ENTRIES, "0.0.1"));
@@ -599,6 +600,7 @@ describe("the skill file's helpers", () => {
       state: "own",
       version: "0.0.1",
       current: false,
+      sameContent: true,
     });
     await fs.writeFile(skillAt(root), "# Mine\n");
     expect(await readSkillFile(workspace, ENTRIES)).toEqual({ state: "foreign", path: SKILL_FILE });

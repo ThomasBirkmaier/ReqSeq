@@ -62,7 +62,6 @@ import type { Problem } from "../catalog.js";
 import type { GitUnknownReason } from "../git/reader.js";
 import type {
   CurrentVersion,
-  CurrentVersions,
   ElementRecord,
   ElementStore,
   RepositoryState,
@@ -71,6 +70,7 @@ import type {
 import {
   currentVersions,
   currentVersionsOf,
+  embedsOf,
   formsOfEntry,
   NO_COMMIT_TEXT,
   isOutdatedVersion,
@@ -269,23 +269,6 @@ const stateProblem = (name: string, state: RepositoryState): Problem | undefined
         repository: name,
         message: `${why}; a stored state is marked dirty`,
       };
-};
-
-/** The files elements of `versions` embed, per repository: relative to it with `/`, in NFC. */
-const embedsOf = (versions: CurrentVersions): ReadonlyMap<string, ReadonlySet<string>> => {
-  const embeds = new Map<string, Set<string>>();
-  for (const [record, entry] of versions.byRecord) {
-    if (entry.kind === "version") {
-      for (const image of entry.images) {
-        if (image.found !== "nested") {
-          const files = embeds.get(record.repository) ?? new Set();
-          files.add(image.names.join("/").normalize("NFC"));
-          embeds.set(record.repository, files);
-        }
-      }
-    }
-  }
-  return embeds;
 };
 
 /** One repository of the header with its state (an available one) and its problem. */

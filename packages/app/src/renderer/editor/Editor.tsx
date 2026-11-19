@@ -8,7 +8,7 @@ import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { Command, ViewUpdate } from "@codemirror/view";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
 import { listDragging } from "./list-drag.js";
@@ -477,7 +477,8 @@ export const Editor = ({
     // The editor is created once for its element; the props reach it through the effects below.
   }, [host]);
 
-  useEffect(() => {
+  // A layout effect like the one below, so a new configuration is in place before the document follows a text.
+  useLayoutEffect(() => {
     if (
       view !== undefined &&
       (applied.current.readOnly !== readOnly || applied.current.plugins !== plugins)
@@ -488,8 +489,11 @@ export const Editor = ({
   }, [view, readOnly, plugins]);
 
   // The text changed from outside (the file changed, or it was saved): the document follows when there
-  // is no unsaved input, that is when it still is the text it was loaded as.
-  useEffect(() => {
+  // is no unsaved input, that is when it still is the text it was loaded as. A layout effect, so it runs in the
+  // task of its render: a save that answers in a task of its own between the render and a passive effect would
+  // `rebase` first, and the effect would then put the older text of its render in without an undo step, and the
+  // text of the next render back, which breaks the undo history (#1940).
+  useLayoutEffect(() => {
     if (view !== undefined) {
       if (coded.encode(view.state) === lastText.current) {
         replaceDocument(view, text, coded);

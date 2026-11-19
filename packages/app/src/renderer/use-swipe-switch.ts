@@ -150,6 +150,7 @@ export const useSwipeSwitch = (parts: SwitchParts): void => {
       });
     } finally {
       releasedAt.current = undefined;
+      drag.unpeek();
     }
     // The hold ends with the slide of the switch (`ended`); a switch that took no slide ends it now.
     if (!slides.busy) {

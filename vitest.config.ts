@@ -32,6 +32,8 @@ export default defineConfig({
       "packages/*/test/perf/**",
       "packages/*/test/delivery/**",
     ],
+    // The vendor files of the HTML export, built when missing (scripts/test-support/html-export-vendor.mjs).
+    globalSetup: ["./scripts/test-support/html-export-vendor.mjs"],
     setupFiles: [
       "./scripts/test-support/block-network.mjs",
       "./scripts/test-support/dom-selection.mjs",

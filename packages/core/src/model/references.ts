@@ -84,6 +84,12 @@ export const queryOf = (destination: string): string[] => {
 const param = (params: readonly string[], name: string): string | undefined =>
   params.find((p) => p.startsWith(`${name}=`))?.slice(name.length + 1);
 
+/** The repository a `reqseq:` destination names (`repository=`, as written); an empty one names none. */
+export const referenceRepository = (destination: string): string | undefined => {
+  const named = param(queryOf(destination), "repository");
+  return named === "" ? undefined : named;
+};
+
 /**
  * A `reqseq:` link of a text whose target is no UUID (#176), such as a short ID or an identifier
  * (`reqseq:D-031`): the writer resolves it (`setInlineReferences`), `workspace.check` reports one
@@ -212,9 +218,7 @@ const reqseqLinks = (
     if (target === "") {
       return [];
     }
-    // An empty `repository=` names no repository.
-    const named = param(queryOf(link.destination), "repository");
-    const repository = named === "" ? undefined : named;
+    const repository = referenceRepository(link.destination);
     const { destination, start, end } = link;
     // Links come in text order, so the lines are counted once over the whole text.
     const line = lineOf(start);

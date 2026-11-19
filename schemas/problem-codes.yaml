@@ -303,6 +303,10 @@ problems:
     title: Folder not watched
     cause: ReqSeq cannot watch a folder for changes, for example because the system's limit of watched folders is reached.
     remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
+  workspace.skill-older-version:
+    title: Skill file of an older ReqSeq version
+    cause: The skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older ReqSeq version, and its content differs from what this ReqSeq version writes. A file that differs only in its ReqSeq version, one written by a newer ReqSeq version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.
+    remedy: Run the call the message gives (`reqseq tool guide --skill --write`). It adds `--replace` when the file was changed since ReqSeq wrote it, which drops those changes.
   git.unavailable:
     title: Git cannot read the repository
     cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.
@@ -344,6 +348,10 @@ problems:
     title: Image not copied
     cause: An image of a text is missing in the element's repository, is a symbolic link, or its file is no image by its content, so `html.export` did not copy it and the page shows the place as text.
     remedy: Add the image file to the repository at the path the text gives, or correct the path.
+  html.formula-error:
+    title: Formula with an error
+    cause: A formula of a text or Markdown property has an error KaTeX names, so the page of `html.export` shows its source as code, followed by the error.
+    remedy: Correct the formula, as the error says.
   html.foreign-file:
     title: File not written by the export
     cause: The folder of the HTML export holds a file, link or folder that the earlier export did not write (its marker file does not name it). `html.export` left it unchanged.

@@ -187,7 +187,33 @@ const NEEDS = {
     is: "an object with repository and path",
   },
   evidenceLocation: { holds: (property) => property.type === "string", is: "a string" },
+  // The values of the metamodel commands built in steps (SR-236 AK11).
+  choices: {
+    holds: (property) => {
+      const fields = Object.keys(listOf(property)?.items?.properties ?? {});
+      return fields.length === 2 && fields.includes("name") && fields.includes("key");
+    },
+    is: "a list of { name, key }",
+  },
+  choiceChanges: {
+    holds: (property) => listOf(property)?.items?.properties?.choice !== undefined,
+    is: "a list of { choice, ... }",
+  },
+  limits: {
+    holds: (property) => names(listOf(property)?.items?.$ref, "metamodel.schema.json", "relationLimit"),
+    is: "a list of relationLimit",
+  },
 };
+
+/** The array schema of a field, also one of an `anyOf` that takes null too (a change that removes the list). */
+const listOf = (property) =>
+  property.type === "array" ? property : property.anyOf?.find((part) => part.type === "array");
+
+/** The schema of a number field, also one of an `anyOf` that takes null too (`maxItems`: null removes it). */
+const numberOf = (property) =>
+  [itemOf(property), ...(property.anyOf ?? [])].find(
+    (part) => part.type === "integer" || part.type === "number",
+  );
 
 /** The composed and located sources: each fits its kind of field (`BOUND`, `NEEDS`). */
 function checkBound(arg, property) {
@@ -219,7 +245,7 @@ function checkKind(arg, property, schemas) {
   if (arg.complete === "boolean" && item.type !== "boolean") {
     return [`"${arg.field}": boolean needs a boolean field`];
   }
-  if (arg.complete === "number" && item.type !== "integer" && item.type !== "number") {
+  if (arg.complete === "number" && numberOf(property) === undefined) {
     return [`"${arg.field}": number needs an integer field`];
   }
   return [];
