@@ -244,14 +244,20 @@ test.describe("cascading list filters on a fixture workspace", () => {
 
   test("[SR-215/AK-rx2z] in Filter list, Backspace at the kinds removes the type mark, and a value of another kind adds only its step", async () => {
     const { window } = running;
+    const label = window.getByLabel("Minibuffer").locator("label");
     await filterList(window, "Type");
     await answer(window, "Type", "Need");
+    // Escape goes back only once the type is in the mark: while the Enter still waits for the types ("searching…"),
+    // Escape goes back without taking it (SR-134 AK1), and the mark would be lost (#1800).
+    await expect(marks(window)).toHaveText(["type: need×"]);
     await window.keyboard.press("Escape");
+    await expect(label).toHaveText("Filter by");
     await expect(marks(window)).toHaveText(["type: need×"]);
     await window.keyboard.press("Backspace");
     await expect(marks(window)).toHaveCount(0);
     await answer(window, "Filter by", "Type");
     await answer(window, "Type", "Need");
+    await expect(marks(window)).toHaveText(["type: need×"]);
     await window.keyboard.press("Escape");
     await answer(window, "Filter by", "Status");
     await answer(window, "Status", "Draft");
