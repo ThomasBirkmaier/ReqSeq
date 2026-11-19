@@ -20,6 +20,7 @@ import {
   propertyDefinition,
   refuseOutsideKind,
   refusePropertyName,
+  refuseSingleLimit,
   unknownDefinition,
 } from "../../metamodel/index.js";
 import { writeMetamodel } from "../../model/index.js";
@@ -58,6 +59,7 @@ const newDefinition = (
     ...(input.maxItems === undefined ? [] : (["max-items"] as const)),
   ];
   refuseOutsideKind(kind, given);
+  refuseSingleLimit(input.many === true, input.maxItems !== undefined);
   refusePropertyName(metamodel, name);
   return {
     key: newPropertyKey(metamodel, name, input.key),

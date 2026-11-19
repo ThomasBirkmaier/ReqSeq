@@ -156,11 +156,25 @@ describe("metamodel.changeProperty changes a property in place (SR-238 AK2)", ()
       [{ property: "remark", addChoices: [{ name: "A" }] }, "choices", "text"],
       [{ property: "remark", targetTypes: ["note"] }, "target-types", "text"],
       [{ property: "severity", markdown: true }, "markdown", "choice"],
-      [{ property: "remark", kind: "relation", maxItems: 2 }, "max-items", "relation"],
+      [{ property: "remark", kind: "relation", many: true, maxItems: 2 }, "max-items", "relation"],
     ] as const) {
       expect(await refusal(input)).toEqual({ reason: "kind-field", field, kind });
     }
+    expect(await refusal({ property: "remark", maxItems: 2 })).toEqual({ reason: "single-value" });
+    expect(await refusal({ property: "remark", many: false, maxItems: 2 })).toEqual({
+      reason: "single-value",
+    });
     expect(await read(MODEL)).toBe(SMALL_MODEL);
+    // Only the type's list changes: an anchor in the property's definition does not refuse it.
+    const anchored = SMALL_MODEL.replace(REMARK, "  - { key: remark, name: &r Remark, kind: text }\n");
+    const { workspace: shared, read: readShared } = await openSmall({}, anchored);
+    await change(shared, { property: "remark", type: "note", required: true });
+    expect(await readShared(MODEL)).toBe(
+      anchored.replace(
+        "    required: [title]\n    statuses: [draft, noted]\n",
+        "    required: [title, remark]\n    statuses: [draft, noted]\n",
+      ),
+    );
   });
 
   it("gives a choice property without fixed values its first one in the line of the definition", async () => {

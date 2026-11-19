@@ -116,6 +116,20 @@ export const refuseOutsideKind = (kind: PropertyKind, given: readonly KindField[
   }
 };
 
+/**
+ * Refuses a maximum of entries (`limit`) for a property that holds a single value: `max-items` needs
+ * `many: true` (SR-171), so it would be refused by the loader, or dropped with `many: false`.
+ */
+export const refuseSingleLimit = (many: boolean, limit: boolean): void => {
+  if (limit && !many) {
+    throw new CommandError(
+      "input.invalid",
+      "A property with a single value has no max-items; give it with many: true",
+      { reason: "single-value" },
+    );
+  }
+};
+
 /** The fields `property` has that do not belong to `kind`, in the order of `KindField`. */
 export const fieldsOutside = (property: MetamodelProperty, kind: PropertyKind): readonly KindField[] =>
   (Object.keys(BELONGS) as KindField[]).filter(

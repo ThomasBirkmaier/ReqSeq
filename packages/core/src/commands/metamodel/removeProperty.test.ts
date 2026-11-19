@@ -112,6 +112,19 @@ describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)",
       property: "nope",
     });
     expect(await read(MODEL)).toBe(SMALL_MODEL);
+    // A type that lists a property its parent has as well keeps it: refused, naming the parent.
+    const { workspace: twice } = await openSmall(
+      {},
+      SMALL_MODEL.replace("    properties: [likelihood]\n", "    properties: [likelihood, severity]\n"),
+    );
+    expect(
+      (await failure(twice, "metamodel.removeProperty", { type: "risk", property: "severity" })).details,
+    ).toEqual({
+      reason: "inherited",
+      type: "risk",
+      property: "severity",
+      from: "hazard",
+    });
     // A type without its own required list; its elements do not hold the key.
     expect((await remove(workspace, { type: "risk", property: "likelihood" })).definitionRemoved).toBe(true);
   });

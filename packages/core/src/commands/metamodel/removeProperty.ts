@@ -2,7 +2,8 @@
 // itself, in the file of the type (SR-236 AK3, AK4). No element and no element file changes (D-045).
 //
 // - The key leaves the type's own `properties` and `required` lists; an inherited property is
-//   removed at the type that has it itself (refused here, naming that type).
+//   removed at the type that has it itself (refused here, naming that type), also when the type
+//   lists it as well, as it would keep it from the parent.
 // - Refused while an element of the type, or of a type that extends it and loses the property,
 //   holds its key, also with an empty value, in any status (SR-236 AK7): `lostUses` on the metamodel
 //   afterwards, as metamodel.changeType checks a new parent, so a subtype that lists the key itself
@@ -68,8 +69,9 @@ export default defineCommand({
         throw unknownDefinition("property", input.property);
       }
       const lists = ownLists(own, input.property);
-      if (lists.properties === -1 && lists.required === -1) {
-        const from = ownerAbove(metamodel, type, input.property, "properties");
+      const from = ownerAbove(metamodel, type, input.property, "properties");
+      // A type that lists a property its parent has keeps it: it is removed at the parent.
+      if ((lists.properties === -1 && lists.required === -1) || from !== undefined) {
         throw from === undefined
           ? new CommandError(
               "input.invalid",

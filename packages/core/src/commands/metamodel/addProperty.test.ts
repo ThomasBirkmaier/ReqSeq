@@ -176,6 +176,17 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
         ).details,
       ).toEqual({ reason: "kind-field", field, kind });
     }
+    expect(
+      (
+        await failure(workspace, "metamodel.addProperty", {
+          type: "note",
+          required: false,
+          name: "X",
+          kind: "text",
+          maxItems: 2,
+        })
+      ).details,
+    ).toEqual({ reason: "single-value" });
     expect(await read(MODEL)).toBe(SMALL_MODEL);
   });
 });

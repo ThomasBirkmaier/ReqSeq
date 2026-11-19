@@ -66,6 +66,7 @@ export {
   propertyDefinition,
   refuseOutsideKind,
   refusePropertyName,
+  refuseSingleLimit,
   unknownDefinition,
 } from "./property-plan.js";
 export type { KindField, PropertyKind } from "./property-plan.js";

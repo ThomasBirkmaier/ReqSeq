@@ -41,6 +41,7 @@ import {
   propertyDefinition,
   refuseOutsideKind,
   refusePropertyName,
+  refuseSingleLimit,
   unknownDefinition,
 } from "../../metamodel/index.js";
 import type { ElementStore, ShortIds } from "../../model/index.js";
@@ -195,8 +196,15 @@ const droppedFields = (input: Input, own: MetamodelProperty, kind: PropertyKind)
   return dropped;
 };
 
-/** Refuses `type` without `required` or the other way round, and a name another property has. */
+/**
+ * Refuses `type` without `required` or the other way round, a limit for a single value, and a name
+ * another property has.
+ */
 const refuseFields = (input: Input, own: MetamodelProperty, metamodel: Metamodel): void => {
+  refuseSingleLimit(
+    (input.many ?? own.many) === true,
+    input.maxItems !== undefined && input.maxItems !== null,
+  );
   if ((input.type === undefined) !== (input.required === undefined)) {
     throw new CommandError("input.invalid", "Give `type` and `required` together", {
       reason: "type-and-required",
@@ -332,10 +340,13 @@ export default defineCommand({
       }
       const own = propertyDefinition(metamodel, input.property);
       const result = checked(input, own, { metamodel, store, shortIds, layout });
-      // The definition changes: an anchor or alias in it is refused (SR-236 AK5).
-      refuseSharedAt(place.file, place.file.path, ["properties", place.index]);
+      const definitionChanges = definitionEdits(input, own, place, result);
+      if (definitionChanges.length > 0) {
+        // The definition changes: an anchor or alias in it is refused (SR-236 AK5).
+        refuseSharedAt(place.file, place.file.path, ["properties", place.index]);
+      }
       const edits = [
-        ...definitionEdits(input, own, place, result),
+        ...definitionChanges,
         ...(input.type === undefined || input.required === undefined
           ? []
           : requiredEdits(metamodel, files, own.key, input.type, input.required)),
