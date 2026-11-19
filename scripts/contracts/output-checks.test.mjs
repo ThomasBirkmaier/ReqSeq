@@ -169,6 +169,7 @@ describe("checkOutputs", () => {
       "evidence.enrichJunit",
       "reqif.export",
       "reqif.import",
+      "tool.guide",
     ]);
     expect(errorsOf(write("reqif.import", { showsOutput: true }), write("element.update"))).toEqual([]);
     expect(

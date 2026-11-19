@@ -34,6 +34,7 @@ export const SHOWS_OUTPUT = new Set([
   "evidence.enrichJunit",
   "reqif.import",
   "reqif.export",
+  "tool.guide",
 ]);
 
 /** The schema a field's `$ref`s end at. */

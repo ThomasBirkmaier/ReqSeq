@@ -60,6 +60,7 @@ export {
 } from "./layout.js";
 export type { LocatedFolder, MetamodelLocation, RepositoryLocation, WorkspaceLayout } from "./layout.js";
 export { isWritableFolder } from "./writable.js";
+export { gitRootOf } from "./git-root.js";
 export type { GitPlace } from "./git-folder.js";
 export { GIT_PLACE, gitPlaceOf, refuseGit, refuseGitAt, refuseGitPlace } from "./git-folder.js";
 export { shownPath } from "./shown-path.js";

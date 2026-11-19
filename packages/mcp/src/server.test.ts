@@ -408,14 +408,16 @@ describe("serveMcp", () => {
 });
 
 /** The `tools/list` result and the instructions of a server on the runtime of the process (the product catalog). */
-const productList = async (): Promise<{
+const productList = async (
+  servedWorkspace: Workspace = workspace,
+): Promise<{
   listed: Awaited<ReturnType<Client["listTools"]>>;
   instructions: string | undefined;
 }> => {
   const toServer = new PassThrough();
   const toClient = new PassThrough();
   const served = serveMcp({
-    workspace,
+    workspace: servedWorkspace,
     input: toServer,
     output: { write: (text) => toClient.write(text) },
   });
@@ -534,6 +536,24 @@ describe("callTool", () => {
     const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
     expect(instructions).toBe((guide as { guide: string }).guide);
     expect(instructions).toContain("`workspace_check`");
+  });
+
+  it("[SR-229/AK-p4y6] sends the agent guide as instructions with a workspace and without one, never an empty text", async () => {
+    const root = path.join(dir, "with-workspace");
+    await fs.mkdir(root);
+    const init = new Workspace(root);
+    await getCommandRuntime().invoke("workspace.init", { path: root, name: "Station" }, { workspace: init });
+    await init.close();
+    const opened = new Workspace(root);
+    onTestFinished(() => opened.close());
+    const withWorkspace = (await productList(opened)).instructions ?? "";
+    const without = (await productList()).instructions ?? "";
+    expect(withWorkspace).toContain("## Values from this workspace");
+    expect(withWorkspace).toContain("`element_create`");
+    expect(without).toContain("Reason: No reqseq-workspace.yaml");
+    for (const text of [withWorkspace, without]) {
+      expect(text.startsWith("# Working with ReqSeq\n")).toBe(true);
+    }
   });
 
   it("marks exactly the catalog entries with loadUpfront to load upfront, the commands of the agent guide among them (#1926)", async () => {
