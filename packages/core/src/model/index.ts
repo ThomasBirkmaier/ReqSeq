@@ -104,6 +104,7 @@ export {
   metamodelUses,
   metamodelUsesState,
   refuseMissingRepositories,
+  refuseUnreadableFiles,
   refuseUses,
   useOf,
   withSubtypes,

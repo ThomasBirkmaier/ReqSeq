@@ -24,6 +24,10 @@ const NOT_AN_ELEMENT_DELETE: Readonly<Record<string, string>> = {
   "relation.remove": "removes a relation entry from the source file; the element and its file stay",
   "metamodel.removeType":
     "removes a type from the metamodel files, refused while any element has it (SR-236 AK7); no element file changes",
+  "metamodel.removeRelationKind":
+    "removes a relation kind from the metamodel files, refused while any element file holds its key (SR-236 AK7); no element file changes",
+  "metamodel.removeStatus":
+    "removes a status from a type in the metamodel files, refused while an element of it has the status (SR-236 AK7); no element file changes",
   "filter.delete": "deletes the file of a saved filter, which is no element (D-056, SR-217 AK5)",
   "perspective.delete": "deletes the file of a perspective, which is no element (D-056, SR-217 AK5)",
 };
@@ -43,6 +47,10 @@ const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   "metamodel.removeType": {
     "metamodel/zz-scratch.yaml":
       "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n",
+  },
+  "metamodel.removeRelationKind": {
+    "metamodel/zz-scratch.yaml":
+      "reqseq-metamodel: 1\nrelations:\n  - { key: scratch-link, name: Scratch link }\n",
   },
   "reqif.import": {
     "in/lieferung.reqif": fs.readFileSync(
@@ -171,6 +179,29 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   // Removing an unused type removes its lines; the second call is refused (a type with elements).
   "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
+  // Adding a relation kind changes one metamodel file in place; the second call is refused (name taken).
+  "metamodel.addRelationKind": [{ name: "Conflicts with" }, { name: "Conflicts with" }],
+  // Changing a relation kind changes its lines in place; the second call is refused (name taken).
+  "metamodel.changeRelationKind": [
+    { kind: "refines", name: "Details" },
+    { kind: "refines", name: "Replaces" },
+  ],
+  // Removing an unused relation kind removes its lines; the second call is refused (a kind in use).
+  "metamodel.removeRelationKind": [{ kind: "scratch-link" }, { kind: "derives-from" }],
+  // Statuses change only metamodel lines; each second call is refused (a status the type has, a name
+  // taken, a status an element has).
+  "metamodel.addStatus": [
+    { type: "need", name: "Under review" },
+    { type: "need", status: "draft" },
+  ],
+  "metamodel.changeStatus": [
+    { status: "approved", description: "Agreed" },
+    { status: "approved", name: "Draft" },
+  ],
+  "metamodel.removeStatus": [
+    { type: "need", status: "obsolete" },
+    { type: "system-requirement", status: "draft" },
+  ],
   // Renaming gives the file the new name (SR-217 AK2): the move check below allows exactly the
   // renamed files the output names; perspectives that name the filter change in place.
   "filter.rename": [

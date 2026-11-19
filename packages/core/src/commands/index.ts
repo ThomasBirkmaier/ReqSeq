@@ -43,10 +43,16 @@ import perspectiveRename from "./perspective/rename.js";
 import perspectiveSave from "./perspective/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
+import metamodelAddRelationKind from "./metamodel/addRelationKind.js";
+import metamodelAddStatus from "./metamodel/addStatus.js";
 import metamodelAddType from "./metamodel/addType.js";
+import metamodelChangeRelationKind from "./metamodel/changeRelationKind.js";
+import metamodelChangeStatus from "./metamodel/changeStatus.js";
 import metamodelChangeType from "./metamodel/changeType.js";
 import metamodelGet from "./metamodel/get.js";
 import metamodelMermaid from "./metamodel/mermaid.js";
+import metamodelRemoveRelationKind from "./metamodel/removeRelationKind.js";
+import metamodelRemoveStatus from "./metamodel/removeStatus.js";
 import metamodelRemoveType from "./metamodel/removeType.js";
 import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
@@ -104,10 +110,16 @@ export const commands: readonly AnyCommand[] = [
   filterSave,
   hintConfirm,
   hintList,
+  metamodelAddRelationKind,
+  metamodelAddStatus,
   metamodelAddType,
+  metamodelChangeRelationKind,
+  metamodelChangeStatus,
   metamodelChangeType,
   metamodelGet,
   metamodelMermaid,
+  metamodelRemoveRelationKind,
+  metamodelRemoveStatus,
   metamodelRemoveType,
   perspectiveDelete,
   perspectiveList,
