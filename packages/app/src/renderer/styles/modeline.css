@@ -67,6 +67,36 @@
   padding-left: 0.85rem;
 }
 
+/* The connected agent at the right end (SR-228): a dot and its words in the colour of the secondary texts; the dot
+   is green while an agent is connected (AK1) and grey after (AK2). "No agent connected" and "Connect AI agent"
+   (AK3) are buttons that look like the other segments and take the text colour under the pointer. */
+.modeline .agent {
+  gap: 0.4rem;
+  color: var(--muted);
+}
+
+.modeline button.agent {
+  border: 0;
+  background: var(--raised);
+  font: inherit;
+  cursor: pointer;
+}
+
+.modeline button.agent:hover {
+  color: var(--text);
+}
+
+.modeline .agent-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.modeline .agent[data-agent="connected"] .agent-dot {
+  background: var(--agent-connected);
+}
+
 .minibuffer {
   position: relative;
 }

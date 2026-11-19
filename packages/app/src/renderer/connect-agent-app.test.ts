@@ -17,6 +17,7 @@ import {
   texts,
   type,
 } from "./components.test-helper.js";
+import { AGENTS_POLL_MS } from "./agent-status.js";
 import { NONE_OPENED } from "./connect-agent.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
 
@@ -134,7 +135,7 @@ const fake = (open: boolean, recent: readonly string[] = [], output: unknown = C
     });
     await settle();
   };
-  return { bridge, invoke, copyText, openWorkspace, opened };
+  return { bridge, invoke, copyText, openWorkspace, opened, handlers };
 };
 
 const render = async (bridge: ReqSeqBridge): Promise<void> => {
@@ -285,5 +286,81 @@ describe("Connect AI agent in the app", () => {
     await runCommand("Connect AI agent");
     // The read said why; the action adds no claim about the catalog.
     expect(query('[aria-label="Minibuffer"]').textContent).not.toContain("catalog has no");
+  });
+});
+
+describe("the connected agent in the modeline (SR-228)", () => {
+  const agentPart = (): HTMLElement | null => document.querySelector(".modeline .agent");
+  /** Waits past one poll of `workspace.agents`. */
+  const nextPoll = async (): Promise<void> => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, AGENTS_POLL_MS + 100));
+    });
+    await settle();
+  };
+
+  it("shows nothing without an answer or a usable cache folder, and Connect AI agent when none was ever connected", async () => {
+    const { bridge, handlers } = fake(true);
+    await render(bridge);
+    expect(agentPart()).toBeNull();
+    handlers["workspace.agents"] = () => ({ recorded: false, connected: [], last: null });
+    await nextPoll();
+    expect(agentPart()).toBeNull();
+    handlers["workspace.agents"] = () => ({ recorded: true, connected: [], last: null });
+    await nextPoll();
+    expect(agentPart()?.textContent).toBe("Connect AI agent");
+    expect(agentPart()?.tagName).toBe("BUTTON");
+    expect(agentPart()?.querySelector(".agent-dot")).toBeNull();
+  });
+
+  it("a click on Connect AI agent or on No agent connected starts Connect AI agent, as the command prompt does", async () => {
+    const { bridge, handlers } = fake(true);
+    handlers["workspace.agents"] = () => ({ recorded: true, connected: [], last: null });
+    await render(bridge);
+    await act(async () => {
+      agentPart()?.click();
+      await Promise.resolve();
+    });
+    await settle();
+    expect(query("label").textContent).toBe(CLIENT_LABEL);
+    expect(texts('[role="option"] .name')).toEqual(CLIENTS);
+    await keyDown(query("input"), "Escape");
+    handlers["workspace.agents"] = () => ({
+      recorded: true,
+      connected: [],
+      last: { client: "Claude Code", at: "2026-11-19T10:00:00Z" },
+    });
+    await nextPoll();
+    expect(agentPart()?.textContent).toBe("No agent connected");
+    expect(agentPart()?.getAttribute("title")).toMatch(
+      /^Claude Code · last connected \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/,
+    );
+    await act(async () => {
+      agentPart()?.click();
+      await Promise.resolve();
+    });
+    await settle();
+    expect(query("label").textContent).toBe(CLIENT_LABEL);
+  });
+
+  it("shows Agent connected with a dot while a client is connected, each connection in the hover, and no button", async () => {
+    const { bridge, handlers } = fake(true);
+    handlers["workspace.agents"] = () => ({
+      recorded: true,
+      connected: [
+        { client: "Claude Code", since: "2026-11-19T10:00:00Z" },
+        { client: null, since: "2026-11-19T10:00:05Z" },
+      ],
+      last: null,
+    });
+    await render(bridge);
+    expect(agentPart()?.textContent).toBe("Agent connected");
+    expect(agentPart()?.tagName).toBe("SPAN");
+    expect(agentPart()?.dataset["agent"]).toBe("connected");
+    expect(agentPart()?.querySelector(".agent-dot")).not.toBeNull();
+    expect(agentPart()?.getAttribute("title")?.split("\n")).toEqual([
+      expect.stringMatching(/^Claude Code · connected since \d{4}-/),
+      expect.stringMatching(/^unknown client · connected since \d{4}-/),
+    ]);
   });
 });

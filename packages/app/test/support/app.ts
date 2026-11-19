@@ -120,6 +120,11 @@ export interface RunningApp {
    */
   mcp(runtime?: Runtime): Promise<McpSession>;
   /**
+   * Starts `reqseq mcp` on the workspace with the app's cache folder and sends nothing (SR-228): the test
+   * connects as a client of the revision it stands for. The server ends with the app or with `close()`.
+   */
+  mcpRaw(): RawMcp;
+  /**
    * Ends the app as a user does: it closes the window, which saves its input first (SR-105 AK1), and
    * waits at most `CLOSE_WAIT_MS` for the app to end. A window that is still open then is destroyed, and
    * `close` throws, so a close that hangs fails the test. With `discard` (or after `discardAtClose()`)
@@ -161,12 +166,25 @@ export interface McpSession {
   close(): Promise<void>;
 }
 
-/** Starts `reqseq mcp` with `args` and `env`, and initializes an MCP session on it. */
-const startMcp = async (
-  args: readonly string[],
-  environment: NodeJS.ProcessEnv,
-  runtime: Runtime = {},
-): Promise<McpSession> => {
+/**
+ * A `reqseq mcp` process without a session of its own (SR-228): the test writes each message, as a client of any
+ * protocol revision does, and ends it cleanly or kills it as a crash does.
+ */
+export interface RawMcp {
+  /** Sends a request and resolves to the message that answers it (by its id). */
+  readonly request: (method: string, params: unknown) => Promise<Record<string, unknown>>;
+  /** Writes one message without waiting for an answer: a notification, or a request that gets none yet. */
+  readonly write: (message: Readonly<Record<string, unknown>>) => void;
+  /** What the server wrote to standard error so far. */
+  readonly stderr: () => string;
+  /** Ends it as a client does: closes its standard input and waits for it to end. */
+  readonly close: () => Promise<void>;
+  /** Ends it as a crash does (SIGKILL), with no time to record the end; waits for it to end. */
+  readonly kill: () => Promise<void>;
+}
+
+/** Starts `reqseq mcp` with `args` and `env`, with no message sent yet. */
+const spawnMcp = (args: readonly string[], environment: NodeJS.ProcessEnv, runtime: Runtime = {}): RawMcp => {
   const { program, env } = runner(runtime, environment);
   const child = spawn(program, ["--import", BLOCK_NETWORK, CLI, "mcp", ...args], {
     env,
@@ -223,12 +241,52 @@ const startMcp = async (
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     return answer;
   };
+  const running = (): boolean => child.exitCode === null && child.signalCode === null;
+  const ended = (): Promise<void> =>
+    running()
+      ? new Promise((resolve) => {
+          child.once("exit", () => {
+            resolve();
+          });
+        })
+      : Promise.resolve();
+  return {
+    request,
+    write: (message) => {
+      child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", ...message })}\n`);
+    },
+    stderr: () => stderr,
+    close: async () => {
+      const end = ended();
+      if (running()) {
+        child.stdin.end();
+      }
+      await end;
+    },
+    kill: async () => {
+      const end = ended();
+      if (running()) {
+        child.kill("SIGKILL");
+      }
+      await end;
+    },
+  };
+};
+
+/** Starts `reqseq mcp` with `args` and `env`, and initializes an MCP session on it. */
+const startMcp = async (
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+  runtime: Runtime = {},
+): Promise<McpSession> => {
+  const raw = spawnMcp(args, environment, runtime);
+  const { request } = raw;
   await request("initialize", {
     protocolVersion: "2025-06-18",
     capabilities: {},
     clientInfo: { name: "reqseq-app-e2e", version: "1" },
   });
-  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
+  raw.write({ method: "notifications/initialized" });
   return {
     call: async (tool, toolArgs) => {
       const answer = await request("tools/call", { name: tool, arguments: toolArgs });
@@ -244,14 +302,8 @@ const startMcp = async (
       const result = answer["result"] as { tools: { name: string }[] };
       return result.tools.map((tool) => tool.name);
     },
-    stderr: () => stderr,
-    close: async () => {
-      if (child.exitCode === null) {
-        const ended = new Promise((resolve) => child.once("exit", resolve));
-        child.stdin.end();
-        await ended;
-      }
-    },
+    stderr: raw.stderr,
+    close: raw.close,
   };
 };
 
@@ -541,7 +593,7 @@ export const launchApp = async (
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),
   });
   let stderr = "";
-  const sessions: McpSession[] = [];
+  const sessions: { close(): Promise<void> }[] = [];
   /** The CLI calls still running, each with where its time went (`timedCli`). */
   const pendingCli = new Set<() => string>();
   // The app's code has ended once Node waits for the debugger, even before its process has ended.
@@ -615,6 +667,11 @@ export const launchApp = async (
       );
       sessions.push(session);
       return session;
+    },
+    mcpRaw: () => {
+      const raw = spawnMcp(workspace === undefined ? [] : ["--workspace", workspace.root], env);
+      sessions.push(raw);
+      return raw;
     },
     kept: { home, workspace },
     discardAtClose: () => {
@@ -787,10 +844,11 @@ export interface CoreRequests {
 }
 
 /**
- * Records every request the window sends to core from now on, and when its answer arrives. The bridge's port
- * lives in the world of the preload script, which a page script cannot reach (the bridge is frozen), so this
- * goes through the DevTools protocol into that world and watches `postMessage` of its ports and their
- * messages. Only for tests that count or time what a view reads.
+ * Records every request the window sends to core from now on, and when its answer arrives, except the
+ * modeline's poll of `workspace.agents` (SR-228). The bridge's port lives in the world of the preload script,
+ * which a page script cannot reach (the bridge is frozen), so this goes through the DevTools protocol into that
+ * world and watches `postMessage` of its ports and their messages. Only for tests that count or time what a
+ * view reads.
  */
 export const recordRequests = async (window: Page): Promise<CoreRequests> => {
   const session = await window.context().newCDPSession(window);
@@ -817,7 +875,8 @@ export const recordRequests = async (window: Page): Promise<CoreRequests> => {
       const watched = new WeakSet();
       const post = MessagePort.prototype.postMessage;
       MessagePort.prototype.postMessage = function (message, ...rest) {
-        if (message !== null && typeof message === "object" && message.kind === "invoke") {
+        // Not the modeline's poll of the connected agent (SR-228), which asks every 500 ms whatever the buffers do.
+        if (message !== null && typeof message === "object" && message.kind === "invoke" && message.name !== "workspace.agents") {
           if (!watched.has(this)) {
             watched.add(this);
             this.addEventListener("message", (event) => {
