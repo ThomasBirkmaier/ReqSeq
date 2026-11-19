@@ -1521,7 +1521,7 @@ export interface MetamodelEffectiveType {
 }
 
 /**
- * Property definition (SR-012 AK3).
+ * Property definition (SR-012 AK3). Its key is not `id`, `type` or `status`, the fields every element has (D-012); such a key is a metamodel error.
  * Schema: `schemas/metamodel.schema.json#/$defs/property`.
  */
 export interface MetamodelProperty {
@@ -1569,7 +1569,7 @@ export type MetamodelPropertyMeaning =
   | "translation";
 
 /**
- * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
+ * Relation kind. Stored under its key in the source file, which is not `id`, `type` or `status`, the fields every element has (D-012; such a key is a metamodel error). `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
  * Schema: `schemas/metamodel.schema.json#/$defs/relationKind`.
  */
 export interface MetamodelRelationKind {
@@ -2662,6 +2662,129 @@ export interface MetamodelRemoveTypeOutput {
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
   /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.addRelationKind` as `run` gets it: validated, properties with a `default` filled in. Add a relation kind to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addRelationKind.json input`.
+ */
+export interface MetamodelAddRelationKindInput {
+  /** Display name of the relation kind; no other relation kind may have it. */
+  readonly name: string;
+  /** Fixed key of the relation kind (D-043), under which element files hold its relations; no property or other relation kind may have it. Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Name shown at the target, such as Derived by (`inverse-name`). */
+  readonly inverseName?: string;
+  /** What the relation kind means, for people. */
+  readonly description?: string;
+  /** Keys of the types whose elements may be the source (`source-types`); a type also allows the types that extend it (SR-012 AK2). Left out: every type. */
+  readonly sourceTypes?: readonly Key[];
+  /** Keys of the types whose elements may be the target (`target-types`); a type also allows the types that extend it (SR-012 AK2). Left out: every type. */
+  readonly targetTypes?: readonly Key[];
+  /** Minimum and maximum number of relations per target type, written as in the metamodel file (SR-152). Left out: any number. */
+  readonly limits?: readonly MetamodelRelationLimit[];
+  /** Built-in meaning of the relation kind (D-012), one of `relationMeaning` of metamodel.schema.json. */
+  readonly meaning?: MetamodelRelationMeaning;
+}
+
+/**
+ * Output of `metamodel.addRelationKind`. Add a relation kind to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addRelationKind.json output`.
+ */
+export interface MetamodelAddRelationKindOutput {
+  readonly answer: Answer;
+  /** The definition as written to the file. */
+  readonly relationKind: MetamodelRelationKind;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeRelationKind` as `run` gets it: validated, properties with a `default` filled in. Change the name, inverse name, description, source and target types, limits or meaning of a relation kind; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeRelationKind.json input`.
+ */
+export interface MetamodelChangeRelationKindInput {
+  /** Key of the relation kind to change. */
+  readonly kind: Key;
+  /** New display name; no other relation kind may have it. */
+  readonly name?: string;
+  /** New name shown at the target (`inverse-name`); null removes it. */
+  readonly inverseName?: string | null;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** New keys of the types whose elements may be the source (`source-types`); a type also allows the types that extend it (SR-012 AK2). null: every type. */
+  readonly sourceTypes?: readonly Key[] | null;
+  /** New keys of the types whose elements may be the target (`target-types`); a type also allows the types that extend it (SR-012 AK2). null: every type. */
+  readonly targetTypes?: readonly Key[] | null;
+  /** New limits, the whole list, written as in the metamodel file (SR-152); null: any number. */
+  readonly limits?: readonly MetamodelRelationLimit[] | null;
+  /** New built-in meaning (D-012), one of `relationMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | null;
+}
+
+/**
+ * Output of `metamodel.changeRelationKind`. Change the name, inverse name, description, source and target types, limits or meaning of a relation kind; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeRelationKind.json output`.
+ */
+export interface MetamodelChangeRelationKindOutput {
+  readonly answer: Answer;
+  /** The definition as it is written afterwards. */
+  readonly relationKind: MetamodelRelationKind;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeRelationKind` as `run` gets it: validated, properties with a `default` filled in. Remove a relation kind that no element file holds; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeRelationKind.json input`.
+ */
+export interface MetamodelRemoveRelationKindInput {
+  /** Key of the relation kind to remove. */
+  readonly kind: Key;
+}
+
+/**
+ * Output of `metamodel.removeRelationKind`. Remove a relation kind that no element file holds; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeRelationKind.json output`.
+ */
+export interface MetamodelRemoveRelationKindOutput {
+  readonly answer: Answer;
+  /** Key of the removed relation kind. */
+  readonly relationKind: Key;
+  /** Saved filters, perspectives and mapping files that name the removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
   /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
@@ -5205,6 +5328,9 @@ export interface CommandTypes {
   readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
   readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
+  readonly "metamodel.addRelationKind": { readonly input: MetamodelAddRelationKindInput; readonly output: MetamodelAddRelationKindOutput };
+  readonly "metamodel.changeRelationKind": { readonly input: MetamodelChangeRelationKindInput; readonly output: MetamodelChangeRelationKindOutput };
+  readonly "metamodel.removeRelationKind": { readonly input: MetamodelRemoveRelationKindInput; readonly output: MetamodelRemoveRelationKindOutput };
   readonly "metamodel.addStatus": { readonly input: MetamodelAddStatusInput; readonly output: MetamodelAddStatusOutput };
   readonly "metamodel.changeStatus": { readonly input: MetamodelChangeStatusInput; readonly output: MetamodelChangeStatusOutput };
   readonly "metamodel.removeStatus": { readonly input: MetamodelRemoveStatusInput; readonly output: MetamodelRemoveStatusOutput };

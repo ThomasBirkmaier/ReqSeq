@@ -36,7 +36,6 @@ export const SHOWS_OUTPUT = new Set([
   "reqif.import",
   "reqif.export",
   "tool.guide",
-  "workspace.init",
 ]);
 
 const POSITION = "a position or size, not a number of elements";

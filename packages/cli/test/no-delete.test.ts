@@ -35,7 +35,11 @@ const SAVED_DELETES: readonly string[] = ["filter.delete", "perspective.delete"]
  * Remove a definition from the metamodel files, refused while any element uses it (SR-236 AK7); no
  * element and no element file changes (ADR-0002 rule 5).
  */
-const DEFINITION_REMOVES: readonly string[] = ["metamodel.removeType", "metamodel.removeStatus"];
+const DEFINITION_REMOVES: readonly string[] = [
+  "metamodel.removeType",
+  "metamodel.removeStatus",
+  "metamodel.removeRelationKind",
+];
 /** Every delete-like command of the catalog, in catalog order; none of them deletes an element. */
 const ALLOWED = catalogNames.filter(
   (name) => name === RELATION_REMOVE || SAVED_DELETES.includes(name) || DEFINITION_REMOVES.includes(name),

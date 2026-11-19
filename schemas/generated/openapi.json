@@ -4036,6 +4036,809 @@
         }
       }
     },
+    "/v1/commands/metamodel.addRelationKind": {
+      "post": {
+        "operationId": "metamodel_addRelationKind",
+        "summary": "Add a relation kind to the metamodel; only the metamodel file that gets it changes, line by line.",
+        "tags": [
+          "metamodel"
+        ],
+        "x-reqseq-effect": "write-files",
+        "x-reqseq-stage": 6,
+        "x-reqseq-implements": [
+          "SR-236",
+          "SR-239"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Display name of the relation kind; no other relation kind may have it."
+                  },
+                  "key": {
+                    "$ref": "#/components/schemas/common/$defs/key",
+                    "description": "Fixed key of the relation kind, under which element files hold its relations; no property or other relation kind may have it. Left out: made from the name."
+                  },
+                  "inverseName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Name shown at the target, such as Derived by (`inverse-name`)."
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "What the relation kind means, for people."
+                  },
+                  "sourceTypes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/key"
+                    },
+                    "description": "Keys of the types whose elements may be the source (`source-types`); a type also allows the types that extend it. Left out: every type."
+                  },
+                  "targetTypes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/key"
+                    },
+                    "description": "Keys of the types whose elements may be the target (`target-types`); a type also allows the types that extend it. Left out: every type."
+                  },
+                  "limits": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/components/schemas/metamodel/$defs/relationLimit"
+                    },
+                    "description": "Minimum and maximum number of relations per target type, written as in the metamodel file. Left out: any number."
+                  },
+                  "meaning": {
+                    "$ref": "#/components/schemas/metamodel/$defs/relationMeaning",
+                    "description": "Built-in meaning of the relation kind, one of `relationMeaning` of metamodel.schema.json."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
+                    "relationKind": {
+                      "title": "Relation kind",
+                      "$ref": "#/components/schemas/metamodel/$defs/relationKind",
+                      "description": "The definition as written to the file."
+                    },
+                    "files": {
+                      "title": "Files",
+                      "type": "array",
+                      "description": "The metamodel files changed.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/outputPath",
+                        "description": "Written file, relative to the workspace root."
+                      }
+                    },
+                    "versionsChanged": {
+                      "title": "Versions changed",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
+                    },
+                    "missingRequired": {
+                      "title": "Missing required properties",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "problems": {
+                      "title": "Problems",
+                      "type": "array",
+                      "description": "The warnings of the metamodel afterwards.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      },
+                      "x-normal": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "answer",
+                    "relationKind",
+                    "files",
+                    "versionsChanged",
+                    "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
+                    "problems"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/metamodel.changeRelationKind": {
+      "post": {
+        "operationId": "metamodel_changeRelationKind",
+        "summary": "Change the name, inverse name, description, source and target types, limits or meaning of a relation kind; only the metamodel file that has it changes, line by line.",
+        "tags": [
+          "metamodel"
+        ],
+        "x-reqseq-effect": "write-files",
+        "x-reqseq-stage": 6,
+        "x-reqseq-implements": [
+          "SR-236",
+          "SR-239"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/components/schemas/common/$defs/key",
+                    "description": "Key of the relation kind to change."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "New display name; no other relation kind may have it."
+                  },
+                  "inverseName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New name shown at the target (`inverse-name`); null removes it."
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New description, for people; null removes it."
+                  },
+                  "sourceTypes": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "$ref": "#/components/schemas/common/$defs/key"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New keys of the types whose elements may be the source (`source-types`); a type also allows the types that extend it. null: every type."
+                  },
+                  "targetTypes": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "$ref": "#/components/schemas/common/$defs/key"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New keys of the types whose elements may be the target (`target-types`); a type also allows the types that extend it. null: every type."
+                  },
+                  "limits": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "$ref": "#/components/schemas/metamodel/$defs/relationLimit"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New limits, the whole list, written as in the metamodel file; null: any number."
+                  },
+                  "meaning": {
+                    "enum": [
+                      "derivation",
+                      "replacement",
+                      "succession",
+                      "exclusion",
+                      null
+                    ],
+                    "description": "New built-in meaning, one of `relationMeaning` of metamodel.schema.json; null removes it."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind"
+                ],
+                "minProperties": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
+                    "relationKind": {
+                      "title": "Relation kind",
+                      "$ref": "#/components/schemas/metamodel/$defs/relationKind",
+                      "description": "The definition as it is written afterwards."
+                    },
+                    "files": {
+                      "title": "Files",
+                      "type": "array",
+                      "description": "The metamodel files changed.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/outputPath",
+                        "description": "Written file, relative to the workspace root."
+                      }
+                    },
+                    "versionsChanged": {
+                      "title": "Versions changed",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
+                    },
+                    "missingRequired": {
+                      "title": "Missing required properties",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "problems": {
+                      "title": "Problems",
+                      "type": "array",
+                      "description": "The warnings of the metamodel afterwards.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      },
+                      "x-normal": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "answer",
+                    "relationKind",
+                    "files",
+                    "versionsChanged",
+                    "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
+                    "problems"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/metamodel.removeRelationKind": {
+      "post": {
+        "operationId": "metamodel_removeRelationKind",
+        "summary": "Remove a relation kind that no element file holds; only the metamodel files change, and no element.",
+        "tags": [
+          "metamodel"
+        ],
+        "x-reqseq-effect": "write-files",
+        "x-reqseq-stage": 6,
+        "x-reqseq-implements": [
+          "SR-236",
+          "SR-239"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/components/schemas/common/$defs/key",
+                    "description": "Key of the relation kind to remove."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
+                    "relationKind": {
+                      "title": "Relation kind",
+                      "$ref": "#/components/schemas/common/$defs/key",
+                      "description": "Key of the removed relation kind."
+                    },
+                    "mentions": {
+                      "title": "Files naming a removed key",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/outputPath",
+                        "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+                      },
+                      "description": "Saved filters, perspectives and mapping files that name the removed key as a mapping key or text value, except their own name and description.",
+                      "x-normal": []
+                    },
+                    "files": {
+                      "title": "Files",
+                      "type": "array",
+                      "description": "The metamodel files changed.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/outputPath",
+                        "description": "Written file, relative to the workspace root."
+                      }
+                    },
+                    "versionsChanged": {
+                      "title": "Versions changed",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
+                    },
+                    "missingRequired": {
+                      "title": "Missing required properties",
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "problems": {
+                      "title": "Problems",
+                      "type": "array",
+                      "description": "The warnings of the metamodel afterwards.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      },
+                      "x-normal": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "answer",
+                    "relationKind",
+                    "mentions",
+                    "files",
+                    "versionsChanged",
+                    "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
+                    "problems"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/commands/metamodel.addStatus": {
       "post": {
         "operationId": "metamodel_addStatus",
@@ -21812,7 +22615,7 @@
             "additionalProperties": false
           },
           "property": {
-            "description": "Property definition.",
+            "description": "Property definition. Its key is not `id`, `type` or `status`, the fields every element has; such a key is a metamodel error.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/metamodel/$defs/named"
@@ -21904,7 +22707,7 @@
             ]
           },
           "relationKind": {
-            "description": "Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set.",
+            "description": "Relation kind. Stored under its key in the source file, which is not `id`, `type` or `status`, the fields every element has (such a key is a metamodel error). `source-types`/`target-types` restrict where it may be set.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/metamodel/$defs/named"
