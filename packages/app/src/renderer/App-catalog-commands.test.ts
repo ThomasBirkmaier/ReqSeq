@@ -22,6 +22,8 @@ import {
   renderList,
   texts,
   calls,
+  container,
+  NO_WORKSPACE,
 } from "./App.test-helper.js";
 
 describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-archive#85)", () => {
@@ -58,6 +60,93 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("label").textContent).toBe("Show affected elements · ref:");
     await keyDown(query("input"), "Backspace");
     expect(query("label").textContent).toBe("Command");
+  });
+
+  it("[SR-223/AK-gvv1] keeps the shown buffer after a write command and says its answer in the command line; a click on it opens the output, and the next message is no link", async () => {
+    let written = 0;
+    const fake = fakeBridge({
+      ...workspace(),
+      "baseline.create": () =>
+        written++ === 0
+          ? { answer: "Created baseline R1; 1 file written; 2 problems.", files: ["b.yaml"] }
+          : new Error("Baseline R1 exists"),
+    });
+    const write = listing("baseline.list", {
+      name: "baseline.create",
+      title: "Make snapshot",
+      effect: "write-files",
+    });
+    const bridge = { ...fake.bridge, commands: () => Promise.resolve([write] as never) };
+    await render(bridge);
+    const before = text("Sheet");
+    await runCommand("Make snapshot");
+    expect(calls(fake.invoke, "baseline.create")).toEqual([{}]);
+    expect(text("Sheet")).toBe(before);
+    expect(text("Minibuffer")).toBe("Created baseline R1; 1 file written; 2 problems.");
+    await click(query(".echo-open"));
+    expect(text("Modeline")).toContain("Make snapshot");
+    expect(text("Sheet")).toContain("b.yaml");
+    // Any other message ends the link.
+    await runCommand("Make snapshot");
+    expect(text("Minibuffer")).toBe("Baseline R1 exists");
+    expect(container.querySelector(".echo-open")).toBeNull();
+  });
+
+  describe("Create workspace in a folder open without one (SR-226 AK2, SR-223 AK8)", () => {
+    const init = listing("baseline.list", {
+      name: "workspace.init",
+      title: "Create workspace",
+      effect: "write-files",
+      whileReadOnly: "allow",
+    });
+    const setup = async () => {
+      const fake = fakeBridge({
+        "workspace.status": () => NO_WORKSPACE,
+        "workspace.init": () => ({
+          answer: "Created workspace Station; 3 files written.",
+          files: ["a.yaml"],
+        }),
+      });
+      await render({ ...fake.bridge, commands: () => Promise.resolve([init] as never) });
+      await runCommand("Create workspace");
+      expect(calls(fake.invoke, "workspace.init")).toEqual([{}]);
+      expect(text("Minibuffer")).toBe("Created workspace Station; 3 files written.");
+      return fake;
+    };
+
+    it("[SR-226/AK-sz63] shows the overview once the status names the new workspace, and keeps the answer, whose click opens the output", async () => {
+      const fake = await setup();
+      // The overview waits for the status of the new workspace: until then the window shows nothing new.
+      expect(container.querySelector('[aria-label="Overview"]')).toBeNull();
+      Object.assign(fake.handlers, workspace(), {
+        "workspace.status": () => ({ name: "Station", readOnly: false }),
+      });
+      await fake.change("written");
+      expect(container.querySelector('[aria-label="Overview"]')).not.toBeNull();
+      expect(text("Modeline")).toContain("Station");
+      expect(text("Minibuffer")).toBe("Created workspace Station; 3 files written.");
+      await click(query(".echo-open"));
+      expect(text("Sheet")).toContain("a.yaml");
+    });
+
+    it("keeps the window and the answer when the workspace was created in another folder, and a click opens the output", async () => {
+      const fake = await setup();
+      // The open folder still has no workspace: no overview starts.
+      await fake.change("written");
+      expect(container.querySelector('[aria-label="Overview"]')).toBeNull();
+      expect(text("Minibuffer")).toBe("Created workspace Station; 3 files written.");
+      await click(query(".echo-open"));
+      expect(text("Sheet")).toContain("a.yaml");
+    });
+
+    it("ends the link when another workspace opens, and keeps the message until its status", async () => {
+      const fake = await setup();
+      // The status of the workspace opened has not come yet.
+      fake.invoke.mockImplementation(() => new Promise(() => undefined));
+      await fake.change("opened");
+      expect(text("Minibuffer")).toBe("Created workspace Station; 3 files written.");
+      expect(container.querySelector(".echo-open")).toBeNull();
+    });
   });
 
   it("puts the selected row of the shown list first for an element argument", async () => {

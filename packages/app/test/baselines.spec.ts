@@ -238,6 +238,9 @@ test.describe("baselines in the app", () => {
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Create baseline · name:");
     await window.keyboard.type("Release 3");
     await window.keyboard.press("Enter");
+    // The page stays; the answer in the command line opens the output (SR-223 AK8).
+    await expect(shownLayer(window).locator("article h1")).toHaveText("Display");
+    await window.locator(".echo-open").click();
     const lines = await resultLines(window);
     // Each value under its title from the catalog (SR-223 AK1).
     expect(lines).toContain("Files 1");

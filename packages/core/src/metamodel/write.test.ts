@@ -14,7 +14,7 @@ import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "./state.js";
 import type { MetamodelChange, MetamodelSource } from "./write.js";
-import { changeMetamodel, definitionAt, editedFiles } from "./write.js";
+import { changeMetamodel, definitionAt, editedFiles, fileForNew } from "./write.js";
 
 const TYPES = "models/model/types.yaml";
 const PROPERTIES = "models/model/properties.yaml";
@@ -331,6 +331,13 @@ describe("definitionAt and editedFiles", () => {
     const file = { ...parsed.content, path: "m.yaml" } as unknown as YamlFile;
     expect(definitionAt([file], "types", "b")).toEqual({ file, index: 1 });
     expect(definitionAt([file], "statuses", "b")).toBeUndefined();
+    // A new definition goes into the first file that has its list, else into the first file.
+    const other = { ...file, path: "n.yaml", data: { statuses: [] } } as unknown as YamlFile;
+    expect([fileForNew([file, other], "statuses"), fileForNew([file, other], "types")]).toEqual([
+      other,
+      file,
+    ]);
+    expect(fileForNew([file], "relations")).toBe(file);
     const bytes = editedFiles([
       { file, edit: (yaml) => setMapValue(yaml, "m.yaml", ["types", 0], "name", "Z") },
       { file, edit: (yaml) => removeListItem(yaml, "m.yaml", ["types"], 1) },

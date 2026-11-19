@@ -161,6 +161,8 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await expect(names(window).first()).toHaveText(`${hint?.targetShortId ?? "-"} · ${hint?.message ?? "-"}`);
     await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(shownLayer(window).locator(".result")).toContainText("Confirmed hints");
     await open(window, "Response time at most 20 ms");
     await expect(shownLayer(window).locator("article .relation .outdated")).toHaveCount(0);
@@ -337,6 +339,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(label(window)).toContainText("Create baseline");
     await window.keyboard.type("R2");
     await window.keyboard.press("Enter");
+    await window.locator(".echo-open").click();
     await expect(shownLayer(window).locator(".result")).toContainText("R2");
     const r2 = await fs.readFile(path.join(ws.root, "baselines", "R2.yaml"), "utf8");
     expect(r2).toContain(COAST);
@@ -366,6 +369,7 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     // Neither hint has a hint ID to confirm: nothing is offered.
     await expect(names(window)).toHaveCount(0);
     await window.keyboard.press("Enter");
+    await window.locator(".echo-open").click();
     await expect(shownLayer(window).locator(".result")).toContainText(reason?.message ?? "-");
     expect(await fs.readFile(path.join(ws.root, "variants", "VAR-0000000000c1.md"), "utf8")).toBe(before);
     await open(window, "Coast");

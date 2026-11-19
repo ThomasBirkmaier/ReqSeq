@@ -2,7 +2,8 @@
 // command line or as the name of the MCP tool. The command is a `CommandName`, so a call of a command outside
 // the catalog does not compile. The command-line form follows the catalog: a required field that is not a
 // list or an object is a positional argument in the order of the input schema, every other field a flag
-// named by its catalog argument (`--set` for `properties`) or by the field in kebab-case, an object of
+// named by its catalog argument (`--set` for `properties`) or by the field in kebab-case (a boolean as
+// `--x` or `--no-x`), an object of
 // named values one `--<flag> key=<value>` per entry, a list one flag per item (packages/cli/src/fields.ts; a test
 // of the command line checks that each call of the guide parses back to its command and input).
 import type { CommandName } from "../../../catalog.js";
@@ -58,6 +59,10 @@ const commandLineWords = (entry: CatalogEntry, input: Readonly<Record<string, un
       const flag = `--${flagOf(name)}`;
       if (Array.isArray(value)) {
         return value.flatMap((item) => [flag, valueText(item)]);
+      }
+      // A boolean is a flag without a value on the command line: `--x` for true, `--no-x` for false.
+      if (typeof value === "boolean") {
+        return [value ? flag : `--no-${flagOf(name)}`];
       }
       return isRecord(value)
         ? Object.entries(value).flatMap(([key, item]) => [flag, `${key}=${valueText(item)}`])

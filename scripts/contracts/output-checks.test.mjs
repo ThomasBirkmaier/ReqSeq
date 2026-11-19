@@ -249,7 +249,7 @@ describe("checkOutputs", () => {
       "evidence.enrichJunit",
       "reqif.export",
       "reqif.import",
-      "workspace.init",
+      "tool.guide",
     ]);
     expect(errorsOf(write("reqif.import", { showsOutput: true }), write("element.update"))).toEqual([]);
     expect(

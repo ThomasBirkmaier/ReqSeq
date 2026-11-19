@@ -77,12 +77,16 @@ class Sink {
 }
 
 /** `reqseq <argv>` in `system`, in this process. */
-const cli = async (ws: FixtureWorkspace, argv: readonly string[]): Promise<{ code: number; out: string }> => {
+const cli = async (
+  ws: FixtureWorkspace,
+  argv: readonly string[],
+  at = "system",
+): Promise<{ code: number; out: string }> => {
   const stdout = new Sink();
   const stderr = new Sink();
   const code = await runCli({
     argv: [...argv],
-    cwd: ws.path("system"),
+    cwd: ws.path(at),
     stdin: Readable.from([]),
     stdout,
     stderr,
@@ -97,9 +101,13 @@ type ApiCall = (
 ) => Promise<{ status: number | undefined; body: Record<string, unknown> }>;
 
 /** An API server on the workspace `system` for `use`, which calls its commands. */
-const withApi = async (ws: FixtureWorkspace, use: (call: ApiCall) => Promise<void>): Promise<void> => {
-  const folder = cacheFolder(ws.path("system"));
-  const workspace = new Workspace(ws.path("system"), { cacheFolder: folder });
+const withApi = async (
+  ws: FixtureWorkspace,
+  use: (call: ApiCall) => Promise<void>,
+  at = "system",
+): Promise<void> => {
+  const folder = cacheFolder(ws.path(at));
+  const workspace = new Workspace(ws.path(at), { cacheFolder: folder });
   const server = await startApiServer({ workspace, runtime, cacheFolder: folder });
   try {
     const { token } = JSON.parse(await fs.readFile(server.endpointFile, "utf8")) as { token: string };
@@ -139,8 +147,9 @@ const mcp = async (
   ws: FixtureWorkspace,
   command: string,
   input: Record<string, unknown>,
+  at = "system",
 ): Promise<{ isError: boolean; body: Record<string, unknown> }> => {
-  const workspace = new Workspace(ws.path("system"), { cacheFolder: cacheFolder(ws.path("system")) });
+  const workspace = new Workspace(ws.path(at), { cacheFolder: cacheFolder(ws.path(at)) });
   const toServer = new PassThrough();
   const toClient = new PassThrough();
   const served = serveMcp({
@@ -304,5 +313,50 @@ describe("local paths through API and MCP only inside the repositories (SR-142)"
     const store = await cli(ws, ["data", "store", "../outside"]);
     expect(store.code, store.out).toBe(EXIT.ok);
     expect((await fs.readdir(ws.path("outside"))).filter((f) => f.endsWith(".jsonl"))).toHaveLength(1);
+  });
+});
+
+describe("the skill file through API and MCP only inside the repositories (SR-229 AK8, SR-142)", () => {
+  /** A Git repository whose workspace lies in `spec/`, so the skill file belongs above it, at the Git root. */
+  const below = async (): Promise<FixtureWorkspace> => {
+    const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" }, git: true });
+    fixtures.push(ws);
+    await fs.access(ws.path(".git/HEAD"));
+    await fs.mkdir(ws.path("spec"));
+    const init = new Workspace(ws.path("spec"));
+    await runtime.invoke("workspace.init", { path: ws.path("spec"), name: "Station" }, { workspace: init });
+    await init.close();
+    return ws;
+  };
+  const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+  const refused = {
+    code: "input.invalid",
+    message:
+      "Not written: the skill file lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run `reqseq tool guide --skill --write` in the workspace folder",
+    details: {
+      command: "tool.guide",
+      reason: "outside-repositories",
+      field: "skill file",
+      path: `../${SKILL}`,
+    },
+  };
+
+  it("[SR-229/AK-v09f] the API and the MCP server write nothing at a Git root above the workspace and name the command line; the command line writes it", async () => {
+    const ws = await below();
+    const reply = await mcp(ws, "tool.guide", { skill: true, write: true }, "spec");
+    expect(reply).toEqual({ isError: true, body: refused });
+    expect(JSON.stringify(reply.body)).not.toContain(ws.root);
+    await withApi(
+      ws,
+      async (api) => {
+        const answer = await api("tool.guide", { skill: true, write: true });
+        expect([answer.status, answer.body]).toEqual([400, refused]);
+      },
+      "spec",
+    );
+    await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
+    const written = await cli(ws, ["tool", "guide", "--skill", "--write"], "spec");
+    expect(written.code).toBe(EXIT.ok);
+    expect(await fs.readFile(ws.path(SKILL), "utf8")).toMatch(/^---\nname: managing-requirements\n/);
   });
 });

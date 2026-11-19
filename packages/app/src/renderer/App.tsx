@@ -86,9 +86,13 @@ import { useSwipeObjects, useSwipeSwitch } from "./use-swipe-switch.js";
 import { useMetamodelModel, useWorkspaceStatus } from "./use-workspace-status.js";
 import { useAgentStatus } from "./use-agent-status.js";
 import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
+import { useEchoLink } from "./use-echo-link.js";
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
-  const [echo, setEcho] = useState("");
+  const [echo, setEchoLine] = useState("");
+  // The answer of a write command opens its output on a click (SR-223 AK8); every other message ends that.
+  const echoLink = useEchoLink(setEchoLine);
+  const setEcho = echoLink.echo;
   const [stopped, setStopped] = useState(false);
   // Another workspace is being opened (SR-131 AK3): from main's request to save until it is open, or
   // until it is not. The sheet takes no input then, so nothing is typed that the switch would drop.
@@ -269,6 +273,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     titlesRef,
     setShownView,
     setAbout,
+    endEchoLink: echoLink.end,
   });
 
   // What the shown element buffer lets the app do, at once (a prompt that opens saves its input first).
@@ -393,6 +398,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     ask,
     setEcho,
+    report: echoLink.report,
     setAbout,
     copy,
     bridge,
@@ -875,6 +881,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       />
       <Minibuffer
         echo={echoLine(echo, view)}
+        onEcho={echoLink.openOf(echoLine(echo, view))}
         prompt={prompt}
         nextKeys={prefix.rows}
         onCommand={() => {

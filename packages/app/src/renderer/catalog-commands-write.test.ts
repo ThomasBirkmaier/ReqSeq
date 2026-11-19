@@ -59,13 +59,29 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     }
   });
 
-  it("asks every offered write command but hint.confirm for a required argument", () => {
+  it("asks every offered write command but hint.confirm and tool.guide for a required argument", () => {
     expect(
       writes
         .filter((entry) => entry.name !== "element.update")
         .filter((entry) => (entry.input as { required?: unknown }).required === undefined)
         .map((entry) => entry.name),
-    ).toEqual(["hint.confirm"]);
+    ).toEqual(["tool.guide", "hint.confirm"]);
+  });
+
+  it("runs Agent guide, a write command since it can write the skill file, and shows the guide text", async () => {
+    const guide = "# Working with ReqSeq\n\nReqSeq keeps needs.\n";
+    const { context, asked, call, dispatched } = setup([list], { "tool.guide": () => ({ guide }) });
+    start(context, "tool.guide");
+    // As a write command without a required argument it asks its first one, `names`, first.
+    const names = await last(asked);
+    expect(names.label).toBe("Agent guide · names:");
+    item(names.items, "cli").run();
+    await flush();
+    expect(call).toHaveBeenCalledWith("tool.guide", { names: "cli" });
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { kind: "result", command: "tool.guide", output: { guide } },
+    });
   });
 
   it("offers no write command that a read-only workspace refuses, and still the read commands", () => {
@@ -81,9 +97,13 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
-  it("offers only Create workspace while a folder without a workspace is open, and asks its path and name", async () => {
-    const { context, asked, call, dispatched } = setup([], {
-      "workspace.init": () => ({ root: "/station", files: ["reqseq-workspace.yaml"] }),
+  it("offers only Create workspace while a folder without a workspace is open, asks its path and name, and opens no output buffer", async () => {
+    const { context, asked, call, dispatched, echoed, reported } = setup([], {
+      "workspace.init": () => ({
+        answer: "Created workspace Station; 1 file written.",
+        root: "/station",
+        files: ["reqseq-workspace.yaml"],
+      }),
     });
     const bare = { ...context, workspace: false };
     expect(titles(bare)).toEqual(["Create workspace"]);
@@ -94,7 +114,14 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     name.text?.("Station");
     await flush();
     expect(call).toHaveBeenLastCalledWith("workspace.init", { path: ".", name: "Station" });
-    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { written: true } });
+    // No output buffer: the command line says the answer, whose click opens the output (SR-223 AK8); the
+    // overview of the new workspace comes with its status (`use-workspace-status.ts`, SR-226 AK2).
+    expect(dispatched).toEqual([]);
+    expect(echoed).toEqual(["Created workspace Station; 1 file written."]);
+    reported[0]?.open();
+    expect(dispatched).toMatchObject([
+      { type: "open", buffer: { command: "workspace.init", written: true } },
+    ]);
   });
 
   it("saves a filter by its name, with its condition built from hits (#1645)", async () => {
@@ -116,7 +143,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
   });
 
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
-    const { context, asked, call, dispatched } = setup([shown], {
+    const { context, asked, call, dispatched, reported } = setup([shown], {
       "hint.confirm": () => ({ confirmed: ["h1"], files: ["f1.md"], problems: [] }),
       "hint.list": () => HINTS,
     });
@@ -133,6 +160,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     hintIds.empty?.(false);
     await flush();
     expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
+    reported[0]?.open();
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
       buffer: { kind: "result", name: "Confirm hints SR-000001 (SR-1)", written: true },

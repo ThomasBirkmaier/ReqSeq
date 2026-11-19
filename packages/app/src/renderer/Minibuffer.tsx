@@ -10,7 +10,12 @@ export interface MinibufferProps {
   readonly echo: string;
   /** The question being asked; `serial` is new for every question, so a new one starts empty. */
   readonly prompt: { readonly serial: number; readonly prompt: Prompt } | undefined;
-  /** A click on the idle line, anywhere but on the card of the next keys: ask for a command. */
+  /**
+   * A click on the message: it opens what the message reports (SR-223 AK8, the output of a write command).
+   * Absent: the message is no link.
+   */
+  readonly onEcho?: (() => void) | undefined;
+  /** A click on the idle line, anywhere but on the card of the next keys or a linked message: ask for a command. */
   readonly onCommand: () => void;
   /** The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. */
   readonly onClose: (cancelled: boolean) => void;
@@ -44,12 +49,16 @@ const NextKeys = ({
     </Card>
   );
 
-/** Whether `target` is on the card above the line (the next keys), which is no part of the line. */
+/**
+ * Whether `target` is on the card above the line (the next keys), which is no part of the line, or on a message
+ * that opens something of its own.
+ */
 const onCard = (target: EventTarget): boolean =>
-  target instanceof Element && target.closest(".card") !== null;
+  target instanceof Element && target.closest(".card, .echo-open") !== null;
 
 export const Minibuffer = ({
   echo,
+  onEcho,
   prompt,
   onCommand,
   onClose,
@@ -85,7 +94,15 @@ export const Minibuffer = ({
       {prompt === undefined ? (
         <>
           {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
-          <div className="echo">{echo}</div>
+          <div className="echo">
+            {onEcho === undefined ? (
+              echo
+            ) : (
+              <button type="button" className="echo-open" title="Open the output" onClick={onEcho}>
+                {echo}
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} ahead={ahead} />
