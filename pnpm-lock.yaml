@@ -216,6 +216,10 @@ importers:
       '@reqseq/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@reqseq/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/app:
     dependencies:

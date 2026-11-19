@@ -457,6 +457,31 @@
             }
           ]
         },
+        "countedElement": {
+          "description": "An element that a number of a write command's output counts.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "title": "Element",
+              "$ref": "#/$defs/uuid"
+            },
+            "shortId": {
+              "title": "Short ID",
+              "$ref": "#/$defs/shortId"
+            },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "Workspace name of the repository of its file."
+            }
+          },
+          "required": [
+            "id",
+            "shortId",
+            "repository"
+          ],
+          "additionalProperties": false
+        },
         "elementName": {
           "description": "How an output names an element it gives elsewhere by UUID only, for people: its short ID, its identifier when it has one and its title, as element.list gives them.",
           "type": "object",
@@ -1039,7 +1064,7 @@
           "additionalProperties": false
         },
         "outputSelection": {
-          "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages.",
+          "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages; with `count`, the elements one number of its output counts.",
           "type": "object",
           "required": [
             "command",
@@ -1056,6 +1081,31 @@
               "title": "Input",
               "type": "object",
               "description": "Its input."
+            },
+            "count": {
+              "title": "Number",
+              "type": "object",
+              "description": "A number of the output that counts elements (its `outputFields` entry has `elements`, neither `true` nor `answer`): the elements it counts for this input, over all pages. Without it, the answer's.",
+              "required": [
+                "field"
+              ],
+              "properties": {
+                "field": {
+                  "title": "Field",
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9-]*(\\[\\])?(\\.[A-Za-z][A-Za-z0-9-]*(\\[\\])?)*$",
+                  "description": "Its path in `outputFields`, `[]` per list, no position: `degree.counts.open`, `groups[].count`."
+                },
+                "key": {
+                  "title": "Entries",
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "Per `[]` of `field`, outermost first: the entry by the fields its `keys` names, one it lacks left out. An entry the output lacks gives no elements."
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -1109,12 +1159,14 @@
               "description": "Identifier of a package or target, when it has one."
             },
             "unavailable": {
+              "x-elements": "selection",
               "title": "Unavailable targets",
               "type": "integer",
               "minimum": 1,
               "description": "Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace)."
             },
             "count": {
+              "x-elements": "selection",
               "title": "Rows",
               "type": "integer",
               "minimum": 1,
@@ -2073,9 +2125,23 @@
           "additionalProperties": false
         },
         "rowVerification": {
-          "description": "What a row of a list shows of its element's verification, the fields a node of trace.graph carries for it, in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: empty for an element with none of them.",
+          "description": "What a row of a list shows of its element's verification, the fields a node of trace.graph carries for it, in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: its element, and nothing else for an element with none of them.",
           "type": "object",
           "properties": {
+            "id": {
+              "title": "Element",
+              "$ref": "common.schema.json#/$defs/uuid"
+            },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "Workspace name of the repository of its file."
+            },
+            "file": {
+              "title": "File",
+              "$ref": "common.schema.json#/$defs/outputPath",
+              "description": "Path relative to the repository."
+            },
             "verification": {
               "title": "Verification status",
               "type": "array",
@@ -2097,7 +2163,12 @@
               "description": "For a need, the verification degree of the requirements derived directly from it, as trace.graph gives it (`degree` of a node)."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "repository",
+            "file"
+          ]
         },
         "verificationEntry": {
           "type": "object",
@@ -2257,6 +2328,7 @@
               "description": "(verified + indirect) / total, unrounded; left out when total is 0. Shown as a percentage rounded down to one decimal."
             },
             "total": {
+              "x-elements": "selection",
               "title": "Requirements",
               "type": "integer",
               "minimum": 0,
@@ -2275,30 +2347,35 @@
               ],
               "properties": {
                 "open": {
+                  "x-elements": "selection",
                   "title": "Open",
                   "description": "Requirements with the verification status open.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "verified": {
+                  "x-elements": "selection",
                   "title": "Verified",
                   "description": "Requirements with the verification status verified.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "indirect": {
+                  "x-elements": "selection",
                   "title": "Indirect",
                   "description": "Requirements verified indirectly, through their children.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "failed": {
+                  "x-elements": "selection",
                   "title": "Failed",
                   "description": "Requirements with the verification status failed.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "outdated": {
+                  "x-elements": "selection",
                   "title": "Outdated",
                   "description": "Requirements with the verification status outdated.",
                   "type": "integer",
@@ -4408,7 +4485,7 @@
                     "description": "The normal value: a shown value equal to it appears only with Show details."
                   },
                   "elements": {
-                    "description": "`answer`: the elements that are the answer of the output. `true`: listed elements. A list of paths: the lists of the elements this number counts.",
+                    "description": "`answer`: the elements that are the answer of the output. `true`: listed elements. A list of paths: the lists of the elements this number counts. `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count`.",
                     "anyOf": [
                       {
                         "const": true
@@ -4417,12 +4494,25 @@
                         "const": "answer"
                       },
                       {
+                        "const": "selection"
+                      },
+                      {
                         "type": "array",
                         "items": {
                           "type": "string"
                         }
                       }
                     ]
+                  },
+                  "keys": {
+                    "type": "array",
+                    "description": "Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list. A field an entry does not have is left out of the object.",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
                   }
                 },
                 "additionalProperties": false
@@ -5374,6 +5464,7 @@
               ]
             },
             "checkedElements": {
+              "x-elements": "selection",
               "title": "Checked elements",
               "type": "integer",
               "minimum": 0,
@@ -5584,7 +5675,9 @@
           },
           {
             "path": "checkedElements",
-            "title": "Checked elements"
+            "title": "Checked elements",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "durationMs",
@@ -6425,6 +6518,7 @@
                   "description": "The workspace names of its repositories, in the order of the workspace file."
                 },
                 "elements": {
+                  "x-elements": "selection",
                   "title": "Elements",
                   "type": "integer",
                   "minimum": 0,
@@ -6585,7 +6679,9 @@
           },
           {
             "path": "workspace.elements",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "license",
@@ -7616,13 +7712,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -7641,6 +7759,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -7700,11 +7820,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -8002,13 +8168,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -8027,6 +8215,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -8086,11 +8276,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -8352,13 +8588,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -8379,6 +8637,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -8416,11 +8676,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -8721,13 +9027,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0."
+              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -8746,6 +9074,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -8813,11 +9143,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -9159,13 +9535,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0."
+              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -9184,6 +9582,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -9251,11 +9651,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -9489,13 +9935,35 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0."
+              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
             },
             "missingRequired": {
               "title": "Missing required properties",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements that now miss a value of a required property they did not miss before."
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -9515,6 +9983,8 @@
             "files",
             "versionsChanged",
             "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
             "problems"
           ]
         },
@@ -9540,11 +10010,57 @@
           },
           {
             "path": "versionsChanged",
-            "title": "Versions changed"
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
           },
           {
             "path": "missingRequired",
-            "title": "Missing required properties"
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -11738,6 +12254,11 @@
               }
             },
             "rowVerification": {
+              "x-key": [
+                "id",
+                "repository",
+                "file"
+              ],
               "title": "Verification per row",
               "type": "array",
               "description": "Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them.",
@@ -11798,6 +12319,9 @@
               }
             },
             "groups": {
+              "x-key": [
+                "value"
+              ],
               "title": "Groups",
               "type": "array",
               "description": "Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
@@ -11818,6 +12342,7 @@
               "description": "Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
             },
             "total": {
+              "x-elements": "elements",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -12613,6 +13138,20 @@
             "title": "Verification per row"
           },
           {
+            "path": "rowVerification[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "rowVerification[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "rowVerification[].file",
+            "title": "File",
+            "technical": true
+          },
+          {
             "path": "rowVerification[].verification",
             "title": "Verification status"
           },
@@ -12696,7 +13235,15 @@
           },
           {
             "path": "rowVerification[].degree.total",
-            "title": "Requirements"
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts",
@@ -12704,23 +13251,63 @@
           },
           {
             "path": "rowVerification[].degree.counts.open",
-            "title": "Open"
+            "title": "Open",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.verified",
-            "title": "Verified"
+            "title": "Verified",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.indirect",
-            "title": "Indirect"
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.failed",
-            "title": "Failed"
+            "title": "Failed",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.outdated",
-            "title": "Outdated"
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "tree",
@@ -12774,11 +13361,23 @@
           },
           {
             "path": "groups[].unavailable",
-            "title": "Unavailable targets"
+            "title": "Unavailable targets",
+            "elements": "selection",
+            "keys": [
+              [
+                "value"
+              ]
+            ]
           },
           {
             "path": "groups[].count",
-            "title": "Rows"
+            "title": "Rows",
+            "elements": "selection",
+            "keys": [
+              [
+                "value"
+              ]
+            ]
           },
           {
             "path": "groups[].offset",
@@ -12794,7 +13393,11 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "elements"
+            ],
+            "keys": []
           },
           {
             "path": "incomplete",
@@ -13040,12 +13643,16 @@
               "$ref": "../common.schema.json#/$defs/answer"
             },
             "total": {
+              "x-elements": "selection",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
               "description": "Elements in the selection."
             },
             "types": {
+              "x-key": [
+                "key"
+              ],
               "title": "Types",
               "type": "array",
               "description": "The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed.",
@@ -13064,6 +13671,7 @@
                     "type": "string"
                   },
                   "count": {
+                    "x-elements": "selection",
                     "title": "Elements",
                     "description": "Selected elements of exactly this type.",
                     "type": "integer",
@@ -13079,6 +13687,9 @@
               }
             },
             "statuses": {
+              "x-key": [
+                "key"
+              ],
               "title": "Statuses",
               "type": "array",
               "description": "The statuses of the selected elements as written in the files, with the number of elements: statuses of the metamodel in metamodel order, then other values in store order. Elements without status are not counted.",
@@ -13091,6 +13702,7 @@
                     "type": "string"
                   },
                   "count": {
+                    "x-elements": "selection",
                     "title": "Elements",
                     "description": "Selected elements with this status.",
                     "type": "integer",
@@ -13105,6 +13717,9 @@
               }
             },
             "properties": {
+              "x-key": [
+                "key"
+              ],
               "title": "Properties",
               "type": "array",
               "description": "Every property that a type of a selected element has, in the order of the property definitions of the metamodel. Keys no type has are not listed. The counts and values are those of all selected elements, as the filter conditions read them (any type): an element whose type lacks the property counts by the value its file holds (usually none).",
@@ -13132,12 +13747,14 @@
                     ]
                   },
                   "count": {
+                    "x-elements": "selection",
                     "title": "Elements with a value",
                     "type": "integer",
                     "minimum": 0,
                     "description": "Selected elements that have some value."
                   },
                   "missing": {
+                    "x-elements": "selection",
                     "title": "Elements without a value",
                     "type": "integer",
                     "minimum": 0,
@@ -13155,6 +13772,9 @@
                     "description": "Only for free text: there are more distinct values than maxValues, and `distinct` stopped counting at maxValues + 1."
                   },
                   "values": {
+                    "x-key": [
+                      "value"
+                    ],
                     "title": "Values",
                     "type": "array",
                     "description": "Left out for free text (see maxValues). Choices: in metamodel order, then other values as written. Relation targets: by title ignoring case, then short ID. Others: numbers ascending, then texts ignoring case, then booleans. Each value is what a property condition takes with op eq and selects exactly the elements counted: for a relation target its short ID; a choice stored under a name the condition would map to another key, or one that names several choices, is not given. Targets that are not available are left out (a condition cannot name them).",
@@ -13171,6 +13791,7 @@
                           ]
                         },
                         "count": {
+                          "x-elements": "selection",
                           "title": "Elements",
                           "type": "integer",
                           "minimum": 1,
@@ -13232,7 +13853,9 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "types",
@@ -13248,7 +13871,13 @@
           },
           {
             "path": "types[].count",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": "selection",
+            "keys": [
+              [
+                "key"
+              ]
+            ]
           },
           {
             "path": "statuses",
@@ -13260,7 +13889,13 @@
           },
           {
             "path": "statuses[].count",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": "selection",
+            "keys": [
+              [
+                "key"
+              ]
+            ]
           },
           {
             "path": "properties",
@@ -13280,11 +13915,23 @@
           },
           {
             "path": "properties[].count",
-            "title": "Elements with a value"
+            "title": "Elements with a value",
+            "elements": "selection",
+            "keys": [
+              [
+                "key"
+              ]
+            ]
           },
           {
             "path": "properties[].missing",
-            "title": "Elements without a value"
+            "title": "Elements without a value",
+            "elements": "selection",
+            "keys": [
+              [
+                "key"
+              ]
+            ]
           },
           {
             "path": "properties[].distinct",
@@ -13304,7 +13951,16 @@
           },
           {
             "path": "properties[].values[].count",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": "selection",
+            "keys": [
+              [
+                "key"
+              ],
+              [
+                "value"
+              ]
+            ]
           },
           {
             "path": "properties[].values[].name",
@@ -13529,7 +14185,18 @@
               "title": "Affected elements",
               "type": "integer",
               "minimum": 0,
+              "x-elements": "affectedElements",
               "description": "The number of directly affected elements: the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed. For an element without a version (a value that counts has no normal form) what the version is computed from is compared, so a save of only its title or status also gives 0."
+            },
+            "affectedElements": {
+              "title": "Affected elements",
+              "type": "array",
+              "description": "The elements `affected` counts, in store order; empty when it is 0.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "problems": {
               "title": "Problems",
@@ -13546,7 +14213,8 @@
             "element",
             "fileSha256",
             "files",
-            "affected"
+            "affected",
+            "affectedElements"
           ]
         },
         "outputFields": [
@@ -13965,7 +14633,30 @@
           },
           {
             "path": "affected",
-            "title": "Affected elements"
+            "title": "Affected elements",
+            "elements": [
+              "affectedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "affectedElements",
+            "title": "Affected elements",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "affectedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "affectedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "affectedElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -14808,7 +15499,18 @@
               "title": "Unchanged elements",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements of the selection that have the result already."
+              "description": "Elements of the selection that have the result already: those of `unchangedElements`.",
+              "x-elements": "unchangedElements"
+            },
+            "unchangedElements": {
+              "title": "Unchanged elements",
+              "type": "array",
+              "description": "The elements of the selection that have the result already, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "skipped": {
               "title": "Skipped elements",
@@ -14885,6 +15587,7 @@
             "count",
             "affected",
             "unchanged",
+            "unchangedElements",
             "skipped",
             "files",
             "problems",
@@ -14906,7 +15609,8 @@
             "title": "Affected elements",
             "elements": [
               "affected"
-            ]
+            ],
+            "keys": []
           },
           {
             "path": "affected",
@@ -14924,7 +15628,30 @@
           },
           {
             "path": "unchanged",
-            "title": "Unchanged elements"
+            "title": "Unchanged elements",
+            "elements": [
+              "unchangedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "unchangedElements",
+            "title": "Unchanged elements",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "unchangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "unchangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "unchangedElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "skipped",
@@ -15275,7 +16002,8 @@
             "title": "Changed elements",
             "elements": [
               "changed"
-            ]
+            ],
+            "keys": []
           },
           {
             "path": "changed",
@@ -17452,6 +18180,7 @@
               "x-elements": "answer"
             },
             "total": {
+              "x-elements": "elements",
               "title": "Total",
               "description": "The number of all related elements; `elements` holds the page.",
               "type": "integer",
@@ -17850,7 +18579,11 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "elements"
+            ],
+            "keys": []
           },
           {
             "path": "incomplete",
@@ -18052,6 +18785,7 @@
               "x-elements": "answer"
             },
             "total": {
+              "x-elements": "affected",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -18150,7 +18884,11 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "affected"
+            ],
+            "keys": []
           },
           {
             "path": "records",
@@ -18802,6 +19540,11 @@
               "$ref": "../common.schema.json#/$defs/answer"
             },
             "columns": {
+              "x-key": [
+                "kind",
+                "direction",
+                "property"
+              ],
               "title": "Columns",
               "type": "array",
               "description": "One column per relation kind and direction that occurs in the whole selection, not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape.",
@@ -18849,18 +19592,21 @@
                     "description": "For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart."
                   },
                   "count": {
+                    "x-elements": "selection",
                     "title": "Rows with a relation",
                     "type": "integer",
                     "minimum": 0,
                     "description": "How many rows of the whole selection have at least one relation in this column, whatever the status or availability of its other end; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in."
                   },
                   "expected": {
+                    "x-elements": "selection",
                     "title": "Rows with a minimum",
                     "type": "integer",
                     "minimum": 1,
                     "description": "Only on the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row of the whole selection: how many rows have such a minimum. Rows of an unknown type or with a status the metamodel marks invalid have none. Left out on every other column, which has no gap and no share."
                   },
                   "met": {
+                    "x-elements": "selection",
                     "title": "Rows that meet the minimum",
                     "type": "integer",
                     "minimum": 0,
@@ -19081,6 +19827,7 @@
               "x-elements": true
             },
             "total": {
+              "x-elements": "selection",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -19165,15 +19912,39 @@
           },
           {
             "path": "columns[].count",
-            "title": "Rows with a relation"
+            "title": "Rows with a relation",
+            "elements": "selection",
+            "keys": [
+              [
+                "kind",
+                "direction",
+                "property"
+              ]
+            ]
           },
           {
             "path": "columns[].expected",
-            "title": "Rows with a minimum"
+            "title": "Rows with a minimum",
+            "elements": "selection",
+            "keys": [
+              [
+                "kind",
+                "direction",
+                "property"
+              ]
+            ]
           },
           {
             "path": "columns[].met",
-            "title": "Rows that meet the minimum"
+            "title": "Rows that meet the minimum",
+            "elements": "selection",
+            "keys": [
+              [
+                "kind",
+                "direction",
+                "property"
+              ]
+            ]
           },
           {
             "path": "columns[].share",
@@ -19479,7 +20250,9 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "incomplete",
@@ -19505,7 +20278,9 @@
           },
           {
             "path": "evidence.degree.total",
-            "title": "Requirements"
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "evidence.degree.counts",
@@ -19513,23 +20288,33 @@
           },
           {
             "path": "evidence.degree.counts.open",
-            "title": "Open"
+            "title": "Open",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "evidence.degree.counts.verified",
-            "title": "Verified"
+            "title": "Verified",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "evidence.degree.counts.indirect",
-            "title": "Indirect"
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "evidence.degree.counts.failed",
-            "title": "Failed"
+            "title": "Failed",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "evidence.degree.counts.outdated",
-            "title": "Outdated"
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "names",
@@ -19684,6 +20469,11 @@
               "$ref": "../common.schema.json#/$defs/uuid"
             },
             "nodes": {
+              "x-key": [
+                "id",
+                "repository",
+                "file"
+              ],
               "title": "Nodes",
               "type": "array",
               "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
@@ -20113,7 +20903,15 @@
           },
           {
             "path": "nodes[].degree.total",
-            "title": "Requirements"
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "nodes[].degree.counts",
@@ -20121,23 +20919,63 @@
           },
           {
             "path": "nodes[].degree.counts.open",
-            "title": "Open"
+            "title": "Open",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "nodes[].degree.counts.verified",
-            "title": "Verified"
+            "title": "Verified",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "nodes[].degree.counts.indirect",
-            "title": "Indirect"
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "nodes[].degree.counts.failed",
-            "title": "Failed"
+            "title": "Failed",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "nodes[].degree.counts.outdated",
-            "title": "Outdated"
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "edges",
@@ -21667,6 +22505,9 @@
               "x-elements": "answer"
             },
             "groups": {
+              "x-key": [
+                "value"
+              ],
               "title": "Groups",
               "type": "array",
               "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
@@ -21687,6 +22528,11 @@
               "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
             },
             "rowVerification": {
+              "x-key": [
+                "id",
+                "repository",
+                "file"
+              ],
               "title": "Verification per row",
               "type": "array",
               "description": "Only with `withVerification`: for each row of `hits`, in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them.",
@@ -21695,6 +22541,7 @@
               }
             },
             "total": {
+              "x-elements": "hits",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -21845,11 +22692,23 @@
           },
           {
             "path": "groups[].unavailable",
-            "title": "Unavailable targets"
+            "title": "Unavailable targets",
+            "elements": "selection",
+            "keys": [
+              [
+                "value"
+              ]
+            ]
           },
           {
             "path": "groups[].count",
-            "title": "Rows"
+            "title": "Rows",
+            "elements": "selection",
+            "keys": [
+              [
+                "value"
+              ]
+            ]
           },
           {
             "path": "groups[].offset",
@@ -21866,6 +22725,20 @@
           {
             "path": "rowVerification",
             "title": "Verification per row"
+          },
+          {
+            "path": "rowVerification[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "rowVerification[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "rowVerification[].file",
+            "title": "File",
+            "technical": true
           },
           {
             "path": "rowVerification[].verification",
@@ -21951,7 +22824,15 @@
           },
           {
             "path": "rowVerification[].degree.total",
-            "title": "Requirements"
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts",
@@ -21959,27 +22840,71 @@
           },
           {
             "path": "rowVerification[].degree.counts.open",
-            "title": "Open"
+            "title": "Open",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.verified",
-            "title": "Verified"
+            "title": "Verified",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.indirect",
-            "title": "Indirect"
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.failed",
-            "title": "Failed"
+            "title": "Failed",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "rowVerification[].degree.counts.outdated",
-            "title": "Outdated"
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": [
+              [
+                "id",
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "hits"
+            ],
+            "keys": []
           },
           {
             "path": "incomplete",
@@ -26551,6 +27476,7 @@
               "x-elements": "answer"
             },
             "total": {
+              "x-elements": "elements",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -26958,7 +27884,11 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "elements"
+            ],
+            "keys": []
           },
           {
             "path": "incomplete",
@@ -27026,6 +27956,9 @@
               "$ref": "../common.schema.json#/$defs/answer"
             },
             "levels": {
+              "x-key": [
+                "type"
+              ],
               "title": "Levels",
               "type": "array",
               "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order. Elements whose status the metamodel marks invalid are not counted; other types have no level.",
@@ -27151,6 +28084,11 @@
             "elements": [
               "levels[].elements.withChildren",
               "levels[].elements.withoutChildren"
+            ],
+            "keys": [
+              [
+                "type"
+              ]
             ]
           },
           {
@@ -27158,6 +28096,11 @@
             "title": "With children",
             "elements": [
               "levels[].elements.withChildren"
+            ],
+            "keys": [
+              [
+                "type"
+              ]
             ]
           },
           {
@@ -27165,6 +28108,11 @@
             "title": "With evidence",
             "elements": [
               "levels[].elements.withEvidence"
+            ],
+            "keys": [
+              [
+                "type"
+              ]
             ]
           },
           {
@@ -27304,7 +28252,9 @@
           },
           {
             "path": "degree.total",
-            "title": "Requirements"
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "degree.counts",
@@ -27312,23 +28262,33 @@
           },
           {
             "path": "degree.counts.open",
-            "title": "Open"
+            "title": "Open",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "degree.counts.verified",
-            "title": "Verified"
+            "title": "Verified",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "degree.counts.indirect",
-            "title": "Indirect"
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "degree.counts.failed",
-            "title": "Failed"
+            "title": "Failed",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "degree.counts.outdated",
-            "title": "Outdated"
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "view",
@@ -27430,6 +28390,7 @@
               "x-elements": "answer"
             },
             "total": {
+              "x-elements": "elements",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -27843,7 +28804,11 @@
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "elements"
+            ],
+            "keys": []
           },
           {
             "path": "view",
@@ -28088,6 +29053,18 @@
           {
             "path": "selection.output.input",
             "title": "Input"
+          },
+          {
+            "path": "selection.output.count",
+            "title": "Number"
+          },
+          {
+            "path": "selection.output.count.field",
+            "title": "Field"
+          },
+          {
+            "path": "selection.output.count.key",
+            "title": "Entries"
           },
           {
             "path": "repositories",
@@ -29411,7 +30388,17 @@
                   "title": "Elements",
                   "type": "integer",
                   "minimum": 0,
-                  "description": "Number of elements in the file."
+                  "description": "Number of elements in the file: those of `entries`.",
+                  "x-elements": "entries"
+                },
+                "entries": {
+                  "title": "Entries",
+                  "type": "array",
+                  "description": "The elements the file lists, in its order.",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/countedElement"
+                  },
+                  "x-elements": true
                 }
               },
               "additionalProperties": false,
@@ -29420,7 +30407,8 @@
                 "file",
                 "repository",
                 "date",
-                "elements"
+                "elements",
+                "entries"
               ]
             },
             "problems": {
@@ -29476,7 +30464,29 @@
           },
           {
             "path": "baseline.elements",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": [
+              "baseline.entries"
+            ],
+            "keys": []
+          },
+          {
+            "path": "baseline.entries",
+            "title": "Entries",
+            "elements": true
+          },
+          {
+            "path": "baseline.entries[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "baseline.entries[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "baseline.entries[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",
@@ -29671,6 +30681,10 @@
               "$ref": "../common.schema.json#/$defs/answer"
             },
             "baselines": {
+              "x-key": [
+                "repository",
+                "file"
+              ],
               "title": "Baselines",
               "type": "array",
               "description": "The valid baselines, in file order (code units of the file name).",
@@ -29702,6 +30716,7 @@
                     "description": "The variant whose baseline it is: its stored selection is only that view. Left out otherwise."
                   },
                   "elements": {
+                    "x-elements": "selection",
                     "title": "Elements",
                     "type": "integer",
                     "minimum": 0,
@@ -29777,7 +30792,14 @@
           },
           {
             "path": "baselines[].elements",
-            "title": "Elements"
+            "title": "Elements",
+            "elements": "selection",
+            "keys": [
+              [
+                "repository",
+                "file"
+              ]
+            ]
           },
           {
             "path": "location",
@@ -30208,42 +31230,49 @@
               "description": "Elements per `state` over all pages.",
               "properties": {
                 "unchanged": {
+                  "x-elements": "selection",
                   "title": "Unchanged",
                   "description": "Elements unchanged since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "changed": {
+                  "x-elements": "selection",
                   "title": "Changed",
                   "description": "Elements changed since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "superseded": {
+                  "x-elements": "selection",
                   "title": "Superseded",
                   "description": "Elements superseded since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "removed": {
+                  "x-elements": "selection",
                   "title": "Removed",
                   "description": "Elements that left the selection since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "added": {
+                  "x-elements": "selection",
                   "title": "Added",
                   "description": "Elements that joined the selection since the baseline.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "missing": {
+                  "x-elements": "selection",
                   "title": "Missing",
                   "description": "Elements of the baseline that are not found.",
                   "type": "integer",
                   "minimum": 0
                 },
                 "inaccessible": {
+                  "x-elements": "selection",
                   "title": "Not on this machine",
                   "description": "Elements of the baseline in a repository that is not on this machine.",
                   "type": "integer",
@@ -30262,6 +31291,7 @@
               ]
             },
             "total": {
+              "x-elements": "elements",
               "title": "Total",
               "type": "integer",
               "minimum": 0,
@@ -30634,35 +31664,53 @@
           },
           {
             "path": "counts.unchanged",
-            "title": "Unchanged"
+            "title": "Unchanged",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.changed",
-            "title": "Changed"
+            "title": "Changed",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.superseded",
-            "title": "Superseded"
+            "title": "Superseded",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.removed",
-            "title": "Removed"
+            "title": "Removed",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.added",
-            "title": "Added"
+            "title": "Added",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.missing",
-            "title": "Missing"
+            "title": "Missing",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "counts.inaccessible",
-            "title": "Not on this machine"
+            "title": "Not on this machine",
+            "elements": "selection",
+            "keys": []
           },
           {
             "path": "total",
-            "title": "Total"
+            "title": "Total",
+            "elements": [
+              "elements"
+            ],
+            "keys": []
           },
           {
             "path": "names",
@@ -32168,8 +33216,9 @@
               "description": "The written ReqIF file, relative to the workspace root when it lies inside, else absolute."
             },
             "elements": {
+              "x-elements": "exportedElements",
               "title": "Exported elements",
-              "description": "Exported elements.",
+              "description": "Exported elements: those of `exportedElements`.",
               "type": "integer",
               "minimum": 0
             },
@@ -32183,8 +33232,28 @@
               "title": "Without statement",
               "type": "integer",
               "minimum": 0,
-              "description": "With statements: exported elements without a statement.",
-              "x-normal": 0
+              "description": "With statements: exported elements without a statement, those of `elementsWithoutStatement`.",
+              "x-normal": 0,
+              "x-elements": "elementsWithoutStatement"
+            },
+            "exportedElements": {
+              "title": "List of exported elements",
+              "type": "array",
+              "description": "The exported elements, in the order of the file.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true
+            },
+            "elementsWithoutStatement": {
+              "title": "List without statement",
+              "type": "array",
+              "description": "With statements: the exported elements without a statement, in the order of the file; empty without statements.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
             },
             "files": {
               "title": "Files",
@@ -32208,7 +33277,9 @@
             "answer",
             "file",
             "elements",
-            "relations"
+            "relations",
+            "exportedElements",
+            "elementsWithoutStatement"
           ]
         },
         "showsOutput": true,
@@ -32224,7 +33295,11 @@
           },
           {
             "path": "elements",
-            "title": "Exported elements"
+            "title": "Exported elements",
+            "elements": [
+              "exportedElements"
+            ],
+            "keys": []
           },
           {
             "path": "relations",
@@ -32233,7 +33308,48 @@
           {
             "path": "withoutStatement",
             "title": "Without statement",
-            "normal": 0
+            "normal": 0,
+            "elements": [
+              "elementsWithoutStatement"
+            ],
+            "keys": []
+          },
+          {
+            "path": "exportedElements",
+            "title": "List of exported elements",
+            "elements": true
+          },
+          {
+            "path": "exportedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "exportedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "exportedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "elementsWithoutStatement",
+            "title": "List without statement",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "elementsWithoutStatement[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "elementsWithoutStatement[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "elementsWithoutStatement[].repository",
+            "title": "Repository"
           },
           {
             "path": "files",

@@ -1,5 +1,5 @@
 // The fields of a command's output with their title and marks (SR-224 AK3, AK4, D-078): `title`, `x-technical`,
-// `x-normal` and `x-elements` of the output schemas (ADR-0002 rule 1). A field takes its own keyword, else the one
+// `x-normal`, `x-elements` and `x-key` of the output schemas (ADR-0002 rule 1). A field takes its own keyword, else the one
 // of the definition its `$ref` names (and so on along `$ref`s). `x-technical` also holds when an `anyOf` or
 // `oneOf` branch or the `items` of an array are technical (`viewId` → `elementId` → `uuid`). `catalog-checks.mjs`
 // checks the marks with these fields; `generate.mjs` writes them resolved into each entry of the generated catalog
@@ -20,7 +20,7 @@ export const TECHNICAL_DEFINITIONS = [
 ];
 
 /** The marks of the output schemas; `title` is the JSON Schema annotation. */
-export const MARKS = ["x-technical", "x-normal", "x-elements"];
+export const MARKS = ["x-technical", "x-normal", "x-elements", "x-key"];
 
 const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -156,6 +156,28 @@ export function outputFieldsOf(output, schemas, pointer = "/output") {
   return fields;
 }
 
+/**
+ * The lists a field is inside, outermost first, one per `[]` of its path: `{ path, field, key }` with the array
+ * field (undefined when no field of the output has that path) and its `x-key`, the fields of an item that
+ * identify the entry (SR-224 AK4). `maps` counts the `.*` of the path, the values of a map.
+ */
+export function listsAbove(field, schemas) {
+  const byPath = new Map();
+  for (let above = field.parent; above !== undefined; above = above.parent) {
+    byPath.set(above.path, above);
+  }
+  const lists = [...field.path.matchAll(/\[\]/g)].map((match) => {
+    const path = field.path.slice(0, match.index);
+    const array = byPath.get(path);
+    return {
+      path,
+      field: array,
+      key: array === undefined ? undefined : inherited(array.schema, array.file, schemas, "x-key"),
+    };
+  });
+  return { lists, maps: [...field.path.matchAll(/\.\*(?=\.|$)/g)].length };
+}
+
 /** The title of a field: its own, else that of the definition its `$ref` names. */
 export const titleOf = (field, schemas) => inherited(field.schema, field.file, schemas, "title");
 
@@ -171,7 +193,8 @@ export const relativePath = (field, relative) => {
 /**
  * The fields of an output as the generated catalog gives them (`outputFields`): one per path, the first place
  * of a path wins, each with its resolved `title`, `technical` (`true` or `"with-element"`), `normal` and
- * `elements` (`true`, `"answer"`, or the paths of the lists a count counts).
+ * `elements` (`true`, `"answer"`, `"selection"`, or the paths of the lists a count counts). A count also has
+ * `keys`: the `x-key` of each list it is inside, outermost first, so a reader names its entry (SR-224 AK4).
  */
 export function resolvedOutputFields(output, schemas) {
   const seen = new Set();
@@ -184,6 +207,7 @@ export function resolvedOutputFields(output, schemas) {
     const technical = technicalOf(field.schema, field.file, schemas);
     const normal = normalOf(field, schemas);
     const elements = field.schema["x-elements"];
+    const counts = elements !== undefined && elements !== true && elements !== "answer";
     return [
       {
         path: field.path,
@@ -194,10 +218,11 @@ export function resolvedOutputFields(output, schemas) {
           ? {}
           : {
               elements:
-                typeof elements === "boolean" || elements === "answer"
+                typeof elements === "boolean" || elements === "answer" || elements === "selection"
                   ? elements
                   : [elements].flat().map((relative) => relativePath(field, relative)),
             }),
+        ...(counts ? { keys: listsAbove(field, schemas).lists.map((list) => [list.key ?? []].flat()) } : {}),
       },
     ];
   });

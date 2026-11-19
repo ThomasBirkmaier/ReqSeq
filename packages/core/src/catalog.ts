@@ -60,6 +60,14 @@ export interface CommandDefinition<In, Out> {
    */
   readonly outputElements?: (ctx: CommandContext, input: In) => Promise<OutputElements>;
   /**
+   * The elements a number of the output marked `x-elements: "selection"` counts, over all pages, for
+   * `selection.output.count` (SR-224 AK4); `count` is checked against the catalog. Every read command with
+   * such a number has it (commands/registry.test.ts); `run` and this share the step that collects the
+   * elements and the rule that sorts them, so each number of `run` is the size of what this gives. An entry
+   * the output does not have gives no elements.
+   */
+  readonly countedElements?: (ctx: CommandContext, input: In, count: OutputCount) => Promise<OutputElements>;
+  /**
    * The answer of an output (SR-224 AK1): one English sentence on what the command found,
    * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
    * is the same through every access; no time relative to reading it. `invoke` puts it first in the
@@ -89,14 +97,47 @@ export interface OutputElements {
    */
   readonly elements: readonly { readonly id: string; readonly repository: string; readonly file?: string }[];
   readonly incomplete: boolean;
+  /**
+   * The view the elements were counted in, for a number that depends on one (a verification degree, #1915),
+   * shaped as `View` of the variants block, which `catalog` does not import.
+   */
+  readonly view?:
+    | { readonly kind: "core" }
+    | { readonly kind: "variant"; readonly variant: { readonly id: string; readonly repository: string } };
 }
+
+/**
+ * A number of an output named for `selection.output.count` (SR-224 AK4): its path as `outputFields` gives it,
+ * and one key per list it is in, outermost first (runtime/output-count.ts).
+ */
+export interface OutputCount {
+  readonly field: string;
+  readonly key: readonly Readonly<Record<string, unknown>>[];
+}
+
+/**
+ * Whether `entry` of a list of an output is the one `key` names by the key fields `fields` of the list: each
+ * has the same value in both, compared by type, a field neither has included (runtime/output-count.ts).
+ */
+export const matchesKey = (
+  entry: unknown,
+  key: Readonly<Record<string, unknown>>,
+  fields: readonly string[],
+): boolean =>
+  typeof entry === "object" &&
+  entry !== null &&
+  fields.every((field) => (entry as Readonly<Record<string, unknown>>)[field] === key[field]);
 
 /**
  * Runs the read command `command` with `input` for `selection.output` and gives its `outputElements`, as `invoke`
  * would run it: the same input check and defaults, the same local path rule, the caller's signal, and no
  * recorded access (SR-117). Errors keep their code and name their fields under `selection.output.input`.
  */
-export type OutputElementsReader = (command: string, input: unknown) => Promise<OutputElements>;
+export type OutputElementsReader = (
+  command: string,
+  input: unknown,
+  count?: { readonly field: string; readonly key?: readonly Readonly<Record<string, unknown>>[] },
+) => Promise<OutputElements>;
 
 /** Implementation of the catalog command `N`, typed from its catalog schemas. */
 export interface CatalogCommand<N extends CommandName> extends CommandDefinition<
@@ -286,6 +327,13 @@ export const lazyCommand = <N extends CommandName>(
         throw new Error(`command ${name} gives no output elements`);
       }
       return outputElements(ctx, input);
+    },
+    countedElements: async (ctx, input, count) => {
+      const { countedElements } = await load();
+      if (countedElements === undefined) {
+        throw new Error(`command ${name} gives no counted elements`);
+      }
+      return countedElements(ctx, input, count);
     },
     // `invoke` asks for the answer only after `run`, which loaded the module.
     answer: (output, input, names) => {

@@ -45,31 +45,62 @@ export const countedIn = (
   elements: readonly ElementRecord[],
 ): ElementRecord[] => elements.filter((element) => mayCount(source, element));
 
+/** The counted elements of a degree by verification status (rules 2 and 3), in the order of the selection. */
+export type DegreeElements = Readonly<Record<VerificationStatus, readonly ElementRecord[]>>;
+
 /**
- * The verification degree of `elements` in `view` (see the file comment). Pure and synchronous: the
- * caller has run `status.prepare(elements, { own: true })` before, else an own record is measured
- * against no version and reads `outdated`.
+ * The elements `degreeOf` counts, by verification status (see the file comment): the one rule both the
+ * numbers of a degree and the elements behind them follow (SR-224 AK4). Pure and synchronous, as `degreeOf`.
+ */
+export const degreeElements = (
+  status: Pick<WorkspaceStatus, "source" | "evaluate">,
+  elements: readonly ElementRecord[],
+  view: View,
+): DegreeElements => {
+  const by: Record<VerificationStatus, ElementRecord[]> = {
+    open: [],
+    verified: [],
+    indirect: [],
+    failed: [],
+    outdated: [],
+  };
+  for (const element of elements) {
+    const result = mayCount(status.source, element) ? status.evaluate(element, view) : undefined;
+    if (result !== undefined) {
+      by[result.status].push(element);
+    }
+  }
+  return by;
+};
+
+/**
+ * The elements of the number of a degree at `field` below it (`total`, `counts.open`), each once; the
+ * catalog check of `selection.output.count` lets only these fields through.
+ */
+export const degreeFieldElements = (by: DegreeElements, field: string): readonly ElementRecord[] =>
+  field === "total"
+    ? [...by.open, ...by.verified, ...by.indirect, ...by.failed, ...by.outdated]
+    : by[field.slice("counts.".length) as VerificationStatus];
+
+/**
+ * The verification degree of `elements` in `view` (see the file comment): the sizes of `degreeElements`.
+ * Pure and synchronous: the caller has run `status.prepare(elements, { own: true })` before, else an own
+ * record is measured against no version and reads `outdated`.
  */
 export const degreeOf = (
   status: Pick<WorkspaceStatus, "source" | "evaluate">,
   elements: readonly ElementRecord[],
   view: View,
 ): VerificationDegree => {
+  const by = degreeElements(status, elements, view);
   const counts: Record<VerificationStatus, number> = {
-    open: 0,
-    verified: 0,
-    indirect: 0,
-    failed: 0,
-    outdated: 0,
+    open: by.open.length,
+    verified: by.verified.length,
+    indirect: by.indirect.length,
+    failed: by.failed.length,
+    outdated: by.outdated.length,
   };
-  let total = 0;
-  for (const element of elements) {
-    const result = mayCount(status.source, element) ? status.evaluate(element, view) : undefined;
-    if (result !== undefined) {
-      counts[result.status] += 1;
-      total += 1;
-    }
-  }
+  const total = counts.open + counts.verified + counts.indirect + counts.failed + counts.outdated;
   return { ...(total === 0 ? {} : { share: (counts.verified + counts.indirect) / total }), total, counts };
 };
 
@@ -89,4 +120,16 @@ export const selectionDegree = async (
   const counted = countedIn(status.source, elements);
   await status.prepare(counted, { own: true });
   return degreeOf(status, counted, view);
+};
+
+/** The elements `selectionDegree` counts, by verification status, with the same reads. */
+export const selectionDegreeElements = async (
+  workspace: Workspace,
+  elements: readonly ElementRecord[],
+  view: View,
+): Promise<DegreeElements> => {
+  const status = await workspace.get(verificationState);
+  const counted = countedIn(status.source, elements);
+  await status.prepare(counted, { own: true });
+  return degreeElements(status, counted, view);
 };

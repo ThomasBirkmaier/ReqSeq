@@ -58,10 +58,10 @@ export interface ContractsBundle {
 export const contractsBundle = bundle as unknown as ContractsBundle;
 
 /**
- * The marks of output fields in the catalog (SR-224 AK3, AK4, ADR-0002 rule 1): `x-technical`, `x-normal` and
- * `x-elements`, annotations that validate nothing (scripts/contracts/output-fields.mjs).
+ * The marks of output fields in the catalog (SR-224 AK3, AK4, ADR-0002 rule 1): `x-technical`, `x-normal`,
+ * `x-elements` and `x-key`, annotations that validate nothing (scripts/contracts/output-fields.mjs).
  */
-export const OUTPUT_MARKS = ["x-technical", "x-normal", "x-elements"] as const;
+export const OUTPUT_MARKS = ["x-technical", "x-normal", "x-elements", "x-key"] as const;
 
 // `verbose` (input, and files that failed) gives each error its schema, which `inputViolations` reads for readable messages.
 // `validateSchema` checks each schema against the JSON Schema meta-schema when it is added or compiled: off

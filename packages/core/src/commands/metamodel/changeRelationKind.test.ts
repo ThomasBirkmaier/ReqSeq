@@ -62,6 +62,8 @@ describe("metamodel.changeRelationKind changes a relation kind in place (SR-239 
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     expect(await read(MODEL)).toBe(

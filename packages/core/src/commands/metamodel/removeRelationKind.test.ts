@@ -51,6 +51,8 @@ describe("metamodel.removeRelationKind removes an unused relation kind (SR-239 A
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     // The list stays, empty; every other line is as it was.

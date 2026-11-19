@@ -84,13 +84,31 @@
         "title": "Versions changed",
         "type": "integer",
         "minimum": 0,
-        "description": "Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+        "description": "Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+        "x-elements": "versionsChangedElements"
       },
       "missingRequired": {
         "title": "Missing required properties",
         "type": "integer",
         "minimum": 0,
-        "description": "Elements that now miss a value of a required property they did not miss before (SR-015 AK3)."
+        "description": "Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`.",
+        "x-elements": "missingRequiredElements"
+      },
+      "versionsChangedElements": {
+        "title": "Elements with another version",
+        "type": "array",
+        "description": "The elements `versionsChanged` counts, in store order.",
+        "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
+        "x-elements": true,
+        "x-normal": []
+      },
+      "missingRequiredElements": {
+        "title": "Elements missing a required property",
+        "type": "array",
+        "description": "The elements `missingRequired` counts, in store order.",
+        "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
+        "x-elements": true,
+        "x-normal": []
       },
       "problems": {
         "title": "Problems",
@@ -103,6 +121,15 @@
       }
     },
     "additionalProperties": false,
-    "required": ["answer", "type", "files", "versionsChanged", "missingRequired", "problems"]
+    "required": [
+      "answer",
+      "type",
+      "files",
+      "versionsChanged",
+      "missingRequired",
+      "versionsChangedElements",
+      "missingRequiredElements",
+      "problems"
+    ]
   }
 }

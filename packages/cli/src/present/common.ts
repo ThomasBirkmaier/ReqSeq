@@ -72,6 +72,45 @@ export const withPercent = (value: unknown): unknown => {
   );
 };
 
+/** An element a number of a write command counts (`common.schema.json#/$defs/countedElement`): exactly `id`, `shortId` and `repository`. */
+export const isCountedElement = (value: unknown): value is Rec & { readonly shortId: string } =>
+  isRecord(value) &&
+  Object.keys(value).length === 3 &&
+  typeof value["id"] === "string" &&
+  typeof value["shortId"] === "string" &&
+  typeof value["repository"] === "string";
+
+/** How many short IDs a list of counted elements shows before it is cut. */
+const SHOWN_COUNTED = 10;
+
+/**
+ * A list of counted elements on one line: their short IDs, cut after `SHOWN_COUNTED`, `none` when empty
+ * (a write can count 50,000 elements, N-036).
+ */
+export const countedElementsText = (list: readonly { readonly shortId: string }[]): string => {
+  if (list.length === 0) {
+    return "none";
+  }
+  const shown = list
+    .slice(0, SHOWN_COUNTED)
+    .map((element) => element.shortId)
+    .join(", ");
+  const more = list.length - SHOWN_COUNTED;
+  return more > 0 ? `${shown} … and ${String(more)} more (--yaml lists them)` : shown;
+};
+
+/** `value` with every list of counted elements in it, in objects and lists, as `countedElementsText`. */
+export const withCountedLists = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.length > 0 && value.every(isCountedElement)
+      ? countedElementsText(value)
+      : (value as unknown[]).map(withCountedLists);
+  }
+  return isRecord(value)
+    ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withCountedLists(item)]))
+    : value;
+};
+
 /** An element as outputs name it: at least its short ID and title. */
 export const isElement = (
   value: unknown,

@@ -39,6 +39,8 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     // Its lines go, with the comment directly above a removed definition; every other line stays.

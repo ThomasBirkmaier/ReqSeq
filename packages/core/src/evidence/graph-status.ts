@@ -23,10 +23,12 @@ import type { ElementRecord } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import type { VerificationDegree } from "./degree.js";
-import { countedIn, degreeOf, viewIdOf } from "./degree.js";
+import type { DegreeElements } from "./degree.js";
+import { countedIn, degreeElements, degreeOf, viewIdOf } from "./degree.js";
 import type { VerificationResult } from "./indirect.js";
 import { criterionNameAt } from "./criteria.js";
 import type { CriteriaCount, StatusSource, VerificationEntries } from "./status.js";
+import type { StateStatus } from "./verification.js";
 import { entryOf, verificationState } from "./verification.js";
 
 /** What a node of the graph shows of its verification (SR-136); empty for a node with nothing to show. */
@@ -62,6 +64,12 @@ export const shownCriteria = (
 
 const NOTHING: NodeVerification = Object.freeze({});
 
+/** The derivation children of a need that its degree counts, each once (rule 3). */
+const derivedOf = (
+  status: Pick<StateStatus, "source" | "children">,
+  element: ElementRecord,
+): ElementRecord[] => countedIn(status.source, [...new Set(status.children?.childrenOf(element) ?? [])]);
+
 const CORE: View = Object.freeze({ kind: "core" });
 
 /** The verification of each node of `elements` in `view`, the core without one (see the file comment). */
@@ -71,11 +79,11 @@ export const graphVerification = async (
   view: View = CORE,
 ): Promise<(element: ElementRecord) => NodeVerification> => {
   const status = await workspace.get(verificationState);
-  const { source, children } = status;
+  const { source } = status;
   const derived = new Map<ElementRecord, ElementRecord[]>();
   for (const element of elements) {
     if (source.needs.has(element.type)) {
-      derived.set(element, countedIn(source, [...new Set(children?.childrenOf(element) ?? [])]));
+      derived.set(element, derivedOf(status, element));
     }
   }
   const requirements = elements.filter((element) => source.requirements.has(element.type));
@@ -97,6 +105,31 @@ export const graphVerification = async (
 };
 
 /**
+ * The elements the degree of the node of `element` counts, by verification status (rule 3, SR-224 AK4): the
+ * same children `graphVerification` counts; undefined for an element that is no need.
+ */
+export const needDegreeElements = async (
+  workspace: Workspace,
+  element: ElementRecord,
+  view: View,
+): Promise<DegreeElements | undefined> => {
+  const status = await workspace.get(verificationState);
+  if (!status.source.needs.has(element.type)) {
+    return undefined;
+  }
+  const counted = derivedOf(status, element);
+  await status.prepare(counted, { own: true });
+  return degreeElements(status, counted, view);
+};
+
+/** What a row shows of its element's verification, with the element, so a count of it is named by its key (SR-224 AK4). */
+export type RowVerification = NodeVerification & {
+  readonly id: string;
+  readonly repository: string;
+  readonly file: string;
+};
+
+/**
  * What each row of a list shows of its element's verification (SR-137): `graphVerification` of its
  * record in the view of the list's selection (`views[0]`, the selection's, else its saved filter's, as
  * evidence.degree takes it; the core without one), one entry per row in the order of `records`.
@@ -105,7 +138,12 @@ export const rowsVerification = async (
   workspace: Workspace,
   records: readonly ElementRecord[],
   views: readonly View[],
-): Promise<NodeVerification[]> => {
+): Promise<RowVerification[]> => {
   const of = await graphVerification(workspace, [...new Set(records)], views[0] ?? CORE);
-  return records.map(of);
+  return records.map((record) => ({
+    id: record.id,
+    repository: record.repository,
+    file: record.file,
+    ...of(record),
+  }));
 };

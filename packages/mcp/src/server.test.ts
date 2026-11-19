@@ -56,16 +56,20 @@ const catalog = {
  * schema self-contained, so only `FILTER_GRAMMAR_TOOL` carries the recursive condition with the short semantics
  * of each operator (agents learn them from these descriptions only); every other selection tool carries a stub
  * that names it (#1927). Each kind of selection part has its own bound (the full one 6.6 KB with
- * ThomasBirkmaier/ReqSeq-archive#336, 8 KB since #1249, 8.5 KB since #1873; ADR-0009), and the rest of each tool keeps the bound of
+ * ThomasBirkmaier/ReqSeq-archive#336, 8 KB since #1249, 8.5 KB since #1873, 9.5 KB since #1915; ADR-0009), and the rest of each tool keeps the bound of
  * ThomasBirkmaier/ReqSeq-archive#303. The rest of a selection tool leaves out every definition the full grammar
  * reaches, as before the stub: a definition it reaches also outside its selection (`common.key` from a sort key
  * of `element_list`) is bounded once, in the selection part of `FILTER_GRAMMAR_TOOL`, and the stub moves no
  * definition into the rest of a tool.
  */
-// 8.5 KB: raised for the selection kind `output` (#1873), 8 KB for the field descriptions of the reference (#1249).
-const SELECTION_MAX_BYTES = 8.5 * 1024;
-/** The selection part with the stub of the filter condition (#1927); 2 KB for the selection kind `output` (#1873). */
-const STUB_SELECTION_MAX_BYTES = 2 * 1024;
+// 9.5 KB: raised for `selection.output.count` (#1915), 8.5 KB for the selection kind `output` (#1873), 8 KB for
+// the field descriptions of the reference (#1249).
+const SELECTION_MAX_BYTES = 9.5 * 1024;
+/**
+ * The selection part with the stub of the filter condition (#1927); 2.75 KB for `selection.output.count` (#1915),
+ * 2 KB for the selection kind `output` (#1873).
+ */
+const STUB_SELECTION_MAX_BYTES = 2.75 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */
@@ -572,8 +576,8 @@ describe("callTool", () => {
       marked.map((entry) => toolName(entry.name)).sort(),
     );
     expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
-    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at once.
-    // Only a subset: loadUpfront also marks commands the guide does not name, such as element_search.
+    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at
+    // once, and loadUpfront marks exactly those (#1926): the tools the guide names with a workspace, and tool_guide.
     await getCommandRuntime().invoke("workspace.init", { path: dir, name: "Station" }, { workspace });
     const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
     const tools = new Set(listed.tools.map((tool) => tool.name));
@@ -581,9 +585,8 @@ describe("callTool", () => {
       .map((match) => match[1] ?? "")
       .filter((name) => tools.has(name));
     expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
-    const upfrontNames = new Set(upfront.map((tool) => tool.name));
-    // Without a workspace the guide names tool_guide, to read it again.
-    expect([...named, "tool_guide"].filter((name) => !upfrontNames.has(name))).toEqual([]);
+    // Without a workspace the guide also names tool_guide, to read it again.
+    expect([...new Set([...named, "tool_guide"])].sort()).toEqual(upfront.map((tool) => tool.name).sort());
     expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
     // The other tools' stub points at the filter grammar in this tool, so a client must load it upfront (#1927).
     expect(upfront.map((tool) => tool.name)).toContain(FILTER_GRAMMAR_TOOL);

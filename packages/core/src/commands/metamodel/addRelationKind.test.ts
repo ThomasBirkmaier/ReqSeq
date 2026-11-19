@@ -52,6 +52,8 @@ describe("metamodel.addRelationKind adds a relation kind (SR-239 AK1)", () => {
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     expect(await read(MODEL)).toBe(

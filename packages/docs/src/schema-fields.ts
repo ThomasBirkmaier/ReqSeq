@@ -197,7 +197,11 @@ const marksText = (schema: Schema, context: SchemaContext): string => {
     normal === undefined ? "" : `Normally ${code(JSON.stringify(normal))}.`,
     elements === "answer" ? "The elements of the answer." : "",
     elements === true ? "Lists elements." : "",
-    (typeof elements === "string" && elements !== "answer") || Array.isArray(elements)
+    elements === "selection"
+      ? `Counts elements; ${code("element.list")} lists them with ${code("selection.output.count")}.`
+      : "",
+    (typeof elements === "string" && elements !== "answer" && elements !== "selection") ||
+    Array.isArray(elements)
       ? `Counts the elements of ${[elements]
           .flat()
           .map((path) => code(String(path)))

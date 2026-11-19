@@ -7,11 +7,21 @@
 // `chainEvidenceOf` on the same index in the view (the core without one), so it is what trace.chain
 // lists below the element in that view. The summaries are no nodes: `limit` counts the elements only (assumption on #217). An evidence location that is not on this
 // machine makes the graph `incomplete`.
+//
+// `countedElements` (SR-224 AK4): the requirements the degree of a need's node counts (`needDegreeElements`,
+// the rule of the node), in the graph's view; the key names the node by `id`, `repository` and `file` (two
+// files of one UUID are two nodes, SR-088), and only a node of the graph counts, within `limit`; it walks the
+// graph only (`elementGraphWalk`), without the output and the verification of every node.
 import type { CommandOutput } from "../../catalog.js";
-import { defineCommand } from "../../catalog.js";
+import { defineCommand, matchesKey } from "../../catalog.js";
 import type { ElementEvidence } from "../../evidence/index.js";
-import { chainEvidenceOf, evidenceIndexState } from "../../evidence/index.js";
-import { elementGraphOf } from "../../graph/index.js";
+import {
+  chainEvidenceOf,
+  degreeFieldElements,
+  evidenceIndexState,
+  needDegreeElements,
+} from "../../evidence/index.js";
+import { elementGraphOf, elementGraphWalk } from "../../graph/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import type { ElementGraph, TraceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
@@ -95,6 +105,19 @@ export default defineCommand({
       ...rest,
       ...(withEvidence ? { evidence: await evidenceOf(ctx.workspace, base, graph, view, maxDepth) } : {}),
       problems,
+    };
+  },
+  countedElements: async (ctx, input, count) => {
+    const { withEvidence: _evidence, ...asked } = input;
+    const { graph, view, incomplete } = await elementGraphWalk(ctx.workspace, asked, "trace.graph");
+    const [key = {}] = count.key;
+    const node = graph.nodes.find(({ element }) => matchesKey(element, key, ["id", "repository", "file"]));
+    const shown = view ?? CORE;
+    const by = node === undefined ? undefined : await needDegreeElements(ctx.workspace, node.element, shown);
+    return {
+      elements: by === undefined ? [] : degreeFieldElements(by, count.field.slice("nodes[].degree.".length)),
+      incomplete,
+      view: shown,
     };
   },
 });
