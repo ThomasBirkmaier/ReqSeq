@@ -4,16 +4,16 @@
 // second write finds it unchanged. `readSkillFile` tells what is there (#1920, AK10), `writeSkillFile` writes
 // it (`tool.guide` with `write`, and `workspace.init`, #1919, AK9) and returns a refusal as a value.
 //
-// Writing, in this order, with nothing written before the last step:
-// 1. the file is looked at without following a link: a link or a folder there is `file.not-regular`;
-// 2. ReqSeq's own unchanged file (checksum, guide/skill.ts) is replaced, or left when it is the same; any
-//    other file only with `replace`, else `file.exists`;
-// 3. through API and MCP the path passes the SR-142 check of the call (`localPaths`): outside the
+// Writing, in this order, with nothing read or written before the check and nothing written before the last step:
+// 1. through API and MCP the path passes the SR-142 check of the call (`localPaths`): outside the
 //    repositories of the workspace (a Git root above the workspace folder) it is refused and names the
 //    command-line call instead; no message or detail holds an absolute path (ADR-0009);
-// 4. the real folder must not lie in a `.git` folder (`refuseGitAt`, D-036), then the folders are created
-//    and the file is written atomically: `createFolder` and `writeFileAtomic` refuse folders linked out of
-//    the root and a file changed since step 1 (`file.changed-on-disk`).
+// 2. the file is looked at without following a link: a link or a folder there is `file.not-regular`;
+// 3. ReqSeq's own unchanged file (checksum, guide/skill.ts) is replaced, or left when it is the same; any
+//    other file only with `replace`, else `file.exists`;
+// 4. the folder must not meet Git (`gitPlaceOf`, and `refuseGitAt` for its real folder, D-036), then the
+//    folders are created and the file is written atomically: `createFolder` and `writeFileAtomic` refuse
+//    folders linked out of the root and a file changed since step 2 (`file.changed-on-disk`).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { LocalPaths } from "../../../catalog.js";
@@ -22,7 +22,13 @@ import type { FileSnapshot } from "../../../files/index.js";
 import { createFolder, readFileSnapshot, writeFileAtomic } from "../../../files/index.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { Workspace } from "../../../runtime/workspace.js";
-import { gitRootOf, refuseGitAt, workspaceLayoutState } from "../../../workspace/index.js";
+import {
+  GIT_PLACE,
+  gitPlaceOf,
+  gitRootOf,
+  refuseGitAt,
+  workspaceLayoutState,
+} from "../../../workspace/index.js";
 import { renderCall } from "./calls.js";
 import { SKILL_FILE, identifySkill, skillFile } from "./skill.js";
 
@@ -73,6 +79,16 @@ const notRegular = (location: SkillLocation): CommandError =>
     { path: location.path },
   );
 
+/** A file that cannot be read: a folder above it linked out of the root, no permission, or a swap since the look. */
+const unreadable = (location: SkillLocation, problem: { readonly message: string }): CommandError =>
+  new CommandError(
+    "file.faulty",
+    `Not written: the skill file ${location.path} cannot be read: ${problem.message}`,
+    {
+      path: location.path,
+    },
+  );
+
 /** Looks at the file without following a link (step 1). */
 const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): Promise<Looked> => {
   const stat = await fs.lstat(location.absolute).catch((error: unknown) => {
@@ -96,9 +112,8 @@ const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): 
     return { found: { state: "foreign" } };
   }
   const read = await readFileSnapshot(location.root, SKILL_FILE);
-  // A problem here is a folder above linked out of the root, or a file swapped since the look.
   if (read.kind === "problem") {
-    throw notRegular(location);
+    throw unreadable(location, read.problem);
   }
   const text = new TextDecoder().decode(read.bytes);
   const identity = identifySkill(text);
@@ -116,7 +131,7 @@ const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): 
 const snapshotOf = async (location: SkillLocation): Promise<FileSnapshot> => {
   const read = await readFileSnapshot(location.root, SKILL_FILE);
   if (read.kind === "problem") {
-    throw notRegular(location);
+    throw unreadable(location, read.problem);
   }
   return read.snapshot;
 };
@@ -168,12 +183,34 @@ const checkAccess = async (
       throw error;
     }
     const reason = (error.details as { reason?: unknown } | undefined)?.reason;
+    const why =
+      reason === "outside-repositories"
+        ? "the skill file lies outside the repositories of the workspace"
+        : "the place of the skill file cannot be checked";
     throw new CommandError(
       "input.invalid",
-      `Not written: the skill file lies outside the repositories of the workspace, where ReqSeq writes through the API and the MCP server only; run ${writeCall(entries, options.replace)} in the workspace folder`,
+      `Not written: ${why}, and through the API and the MCP server ReqSeq writes only inside them; run ${writeCall(entries, options.replace)} in the workspace folder`,
       { command: "tool.guide", reason, field: "skill file", path: location.path },
     );
   }
+};
+
+/**
+ * Refuses a skill folder that meets Git (D-036): one below the root that some system takes for `.git`, holds
+ * a `.git` entry, or leads into such a folder by a link (`gitPlaceOf`), and a real folder in a `.git` folder
+ * (`refuseGitAt`).
+ */
+const refuseGitPlace = async (location: SkillLocation): Promise<void> => {
+  const folder = path.dirname(location.absolute);
+  const place = await gitPlaceOf(location.root, folder);
+  if (place !== undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `Not written: the skill file ${location.path}: ${place.path} ${GIT_PLACE[place.rule]}; ReqSeq never writes to Git`,
+      { path: location.path, reason: "git-folder", rule: place.rule },
+    );
+  }
+  await refuseGitAt(folder, SKILL_FILE);
 };
 
 /** Writes the skill file, or why not, in the order of the file comment. */
@@ -185,6 +222,8 @@ const write = async (
   // A workspace file must be there; the metamodel need not be valid, since the skill names none of it.
   await workspace.get(workspaceLayoutState);
   const location = await skillLocation(workspace);
+  // Before the file is looked at: through API and MCP nothing outside the repositories is read (SR-142 AK1).
+  await checkAccess(location, options, entries);
   const { found, snapshot } = await look(location, entries);
   const own = found.state === "own" && found.intact;
   if (own && found.current) {
@@ -199,9 +238,7 @@ const write = async (
       { path: location.path, reason },
     );
   }
-  await checkAccess(location, options, entries);
-  const folder = path.dirname(location.absolute);
-  await refuseGitAt(folder, SKILL_FILE);
+  await refuseGitPlace(location);
   const expected = found.state === "missing" ? null : (snapshot ?? (await snapshotOf(location)));
   await createFolder(location.root, path.posix.dirname(SKILL_FILE));
   await writeFileAtomic(location.root, SKILL_FILE, skillFile(entries), expected, { kind: "copy" });

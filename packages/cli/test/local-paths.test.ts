@@ -332,7 +332,7 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
   const refused = {
     code: "input.invalid",
     message:
-      "Not written: the skill file lies outside the repositories of the workspace, where ReqSeq writes through the API and the MCP server only; run `reqseq tool guide --skill --write` in the workspace folder",
+      "Not written: the skill file lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run `reqseq tool guide --skill --write` in the workspace folder",
     details: {
       command: "tool.guide",
       reason: "outside-repositories",

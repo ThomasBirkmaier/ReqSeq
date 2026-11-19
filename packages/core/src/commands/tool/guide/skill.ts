@@ -75,13 +75,17 @@ export const identifySkill = (text: string): SkillIdentity => {
 };
 
 /** A version `major.minor.patch` with an optional pre-release after `-`; build metadata after `+` is ignored. */
-const VERSION = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+
+/** Compares two numbers written without leading zeros, of any length: by length, then digit by digit. */
+const compareNumbers = (a: string, b: string): number =>
+  a.length === b.length ? (a < b ? -1 : a > b ? 1 : 0) : Math.sign(a.length - b.length);
 
 /** Compares two pre-release identifiers as Semantic Versioning does: numbers by value and below words. */
 const compareIdentifier = (a: string, b: string): number => {
   const numeric = (s: string): boolean => /^\d+$/.test(s);
   if (numeric(a) && numeric(b)) {
-    return Math.sign(Number(a) - Number(b));
+    return compareNumbers(a, b);
   }
   if (numeric(a) !== numeric(b)) {
     return numeric(a) ? -1 : 1;
@@ -99,7 +103,7 @@ export const compareVersions = (a: string, b: string): number | undefined => {
     return undefined;
   }
   for (const i of [1, 2, 3]) {
-    const order = Math.sign(Number(x[i]) - Number(y[i]));
+    const order = compareNumbers(String(x[i]), String(y[i]));
     if (order !== 0) {
       return order;
     }

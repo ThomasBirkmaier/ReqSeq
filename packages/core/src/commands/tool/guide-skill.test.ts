@@ -379,7 +379,7 @@ describe("tool.guide with write", () => {
       const error = await refusal(path.join(top, "spec"), WRITE, access);
       expect(error.code).toBe("input.invalid");
       expect(error.message).toBe(
-        "Not written: the skill file lies outside the repositories of the workspace, where ReqSeq writes through the API and the MCP server only; run `reqseq tool guide --skill --write` in the workspace folder",
+        "Not written: the skill file lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run `reqseq tool guide --skill --write` in the workspace folder",
       );
       expect(error.details).toEqual({
         command: "tool.guide",
@@ -392,6 +392,19 @@ describe("tool.guide with write", () => {
     await expect(fs.stat(path.join(top, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
     // The command line writes there.
     expect((await run(path.join(top, "spec"), WRITE, "cli")).file?.action).toBe("created");
+    // Once a file is there, API and MCP still refuse before they look at it: nothing outside is read.
+    for (const text of [undefined, "# Mine\n"]) {
+      if (text !== undefined) {
+        await fs.writeFile(skillAt(top), text);
+      }
+      for (const access of ["api", "mcp"] as const) {
+        const error = await refusal(path.join(top, "spec"), WRITE, access);
+        expect([error.code, (error.details as { reason?: string }).reason]).toEqual([
+          "input.invalid",
+          "outside-repositories",
+        ]);
+      }
+    }
   });
 
   it("[SR-229/AK-v09f] refuses a link at the file, a folder linked out of the root or into .git, and a file under a linked folder", async () => {
@@ -433,7 +446,14 @@ describe("tool.guide with write", () => {
           await fs.writeFile(path.join(outside, "linked/skills/managing-requirements/SKILL.md"), "mine");
           await fs.symlink(path.join(outside, "linked"), path.join(root, ".claude"), "dir");
         },
-        "file.not-regular",
+        "file.faulty",
+      ],
+      [
+        ".claude holding a .git entry",
+        async (root) => {
+          await gitEntry(path.join(root, ".claude"));
+        },
+        "input.invalid",
       ],
       [
         "a loop of links",
@@ -461,7 +481,23 @@ describe("tool.guide with write", () => {
     const root = await folder(workspaceFiles());
     await fs.symlink(path.join(outside, "linked"), path.join(root, ".claude"), "dir");
     expect((await refusal(root, WRITE)).code).toBe("file.exists");
-    expect((await refusal(root, { ...WRITE, replace: true })).code).toBe("file.not-regular");
+    expect((await refusal(root, { ...WRITE, replace: true })).code).toBe("file.faulty");
+  });
+
+  it("[SR-229/AK-v09f] writes nothing into a repository that lies in a .git folder", async () => {
+    const holder = await folder();
+    const root = path.join(holder, ".git", "work");
+    await fs.mkdir(path.join(root, "metamodel"), { recursive: true });
+    for (const [name, text] of Object.entries(workspaceFiles())) {
+      await fs.writeFile(path.join(root, name), text);
+    }
+    await gitEntry(root);
+    const error = await refusal(root, WRITE);
+    expect([error.code, (error.details as { reason?: string }).reason]).toEqual([
+      "input.invalid",
+      "git-folder",
+    ]);
+    await expect(fs.stat(path.join(root, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it.skipIf(NO_PERMISSIONS)(
@@ -585,6 +621,10 @@ describe("the skill file's helpers", () => {
       }
     }
     expect(compareVersions("1.0.0+build.5", "1.0.0")).toBe(0);
+    // Numbers of any length, beyond the safe integers of JavaScript.
+    expect(compareVersions("1.0.0-9007199254740993", "1.0.0-9007199254740992")).toBe(1);
+    expect(compareVersions("9007199254740993.0.0", "9007199254740992.0.0")).toBe(1);
+    expect(compareVersions("01.0.0", "1.0.0")).toBeUndefined();
     expect(compareVersions("1.0", "1.0.0")).toBeUndefined();
     expect(compareVersions("1.0.0", "next")).toBeUndefined();
   });

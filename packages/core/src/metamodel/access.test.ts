@@ -177,7 +177,7 @@ describe("read-only workspace", () => {
 
   it("allows only workspace.init and tool.guide while read-only in the product catalog, until an SR decides otherwise", () => {
     const writes = loadContracts().commands.filter((c) => c.effect === "write-files");
-    // tool.guide writes only the skill file, which names nothing of the metamodel (SR-229 AK7).
+    // tool.guide writes only the skill file, which names nothing of the metamodel (SR-229 AK7, question #1977).
     expect(writes.filter((c) => c.whileReadOnly === "allow").map((c) => c.name)).toEqual([
       "workspace.init",
       "tool.guide",
