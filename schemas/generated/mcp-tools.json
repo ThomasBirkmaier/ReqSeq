@@ -12659,7 +12659,7 @@
             "x-elements": "elementsWithoutStatement"
           },
           "exportedElements": {
-            "title": "Exported elements",
+            "title": "List of exported elements",
             "type": "array",
             "description": "The exported elements, in the order of the file.",
             "items": {
@@ -12668,7 +12668,7 @@
             "x-elements": true
           },
           "elementsWithoutStatement": {
-            "title": "Without statement",
+            "title": "List without statement",
             "type": "array",
             "description": "With statements: the exported elements without a statement, in the order of the file; empty without statements.",
             "items": {

@@ -269,6 +269,7 @@ export default defineCommand({
   countedElements: async (ctx, input, count) => {
     const selected = await selectedOf(ctx, input);
     const { grouping } = groupOf(selected, "element.list", input);
+    checkedSort(selected, "element.list", input.sort);
     return listCountElements(
       ctx.workspace,
       {

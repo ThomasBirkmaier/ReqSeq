@@ -210,6 +210,25 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
         details: { command, fields: [`${under}${field}`] },
       });
     }
+    // The same holds for a count of the output (SR-224 AK4).
+    const sorted = { group: "status", sort: [{ by: "nonsense" }] } as const;
+    const counted = (
+      await failure(
+        list(workspace, {
+          selection: {
+            output: {
+              command: "element.list",
+              input: sorted,
+              count: { field: "groups[].count", key: [{ value: "draft" }] },
+            },
+          },
+        }),
+      )
+    ).toJSON();
+    expect(counted.details).toEqual({
+      command: "element.list",
+      fields: ["selection.output.input.sort[0].by"],
+    });
     expect(await refused("trace.affected", { ref: "SR-ffffff" })).toMatchObject({
       code: "ref.unknown",
       message: expect.stringMatching(/^selection\.output\.input: /) as unknown,
