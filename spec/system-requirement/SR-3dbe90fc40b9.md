@@ -11,7 +11,7 @@ acceptance-criteria:
   - key: hw12
     text: Gegeben eine Datei mit Konfliktmarkern von Git, wenn der Arbeitsbereich gelesen wird, dann meldet das Tool die Datei als ungelösten Konflikt mit dem Schweregrad Fehler.
   - key: kdrw
-    text: Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst; ist es eine Element-Datei, lehnt der Import einer Lieferung ab (SR-053 AK3).
+    text: Gegeben eine fehlerhafte Datei, wenn weitergearbeitet wird, dann arbeitet das Tool mit allen anderen Elementen normal und überschreibt die fehlerhafte Datei nie von selbst; ist es eine Element-Datei, lehnt der Import einer Lieferung ab (SR-053 AK3), ebenso jede Änderung am Metamodell, die nur ohne Nutzung gelingt (SR-236 AK7).
   - key: pm64
     text: "Gegeben eine Datei des Tools mit einer Formatnummer, die das Tool nicht kennt, zum Beispiel `reqseq-filter: 2`, wenn das Tool sie liest, dann meldet es die Datei als fehlerhaft und verwendet ihren Inhalt nicht."
 verification-method: test
