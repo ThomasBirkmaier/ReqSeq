@@ -155,7 +155,6 @@ describe("appendListItem", () => {
       ["- a\n", ["types"]],
       ["{types: []}\n", ["types"]],
       ["types: 1\n", ["types"]],
-      ["types:\n  - {key: a}\n", ["types", 0, "required"]],
       ["types:\n  - key: a\n", ["types", 3, "required"]],
       ["", ["types", 0, "required"]],
     ] as const) {
@@ -165,6 +164,15 @@ describe("appendListItem", () => {
     expect(errorOf(() => appendListItem({ text: "a: [\n", bom: false }, "m.yaml", ["a"], "x")).code).toBe(
       "file.faulty",
     );
+  });
+
+  it("adds a missing list to a flow mapping as its last entry, on its line", () => {
+    expect(
+      decode(
+        appendListItem(fileOf("types:\n  - {key: a}   # kept\n"), "m.yaml", ["types", 0, "required"], "x")
+          .bytes,
+      ),
+    ).toBe("types:\n  - {key: a, required: [x]}   # kept\n");
   });
 
   it("refuses with internal when the result would not hold exactly the intended data", () => {

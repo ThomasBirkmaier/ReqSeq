@@ -103,9 +103,11 @@ export {
   mentioningFiles,
   metamodelUses,
   metamodelUsesState,
+  propertyUse,
   refuseMissingRepositories,
   refuseUses,
   useOf,
+  valueUse,
   withSubtypes,
 } from "./metamodel-uses.js";
 export type { MetamodelUses, Use, UseKind } from "./metamodel-uses.js";

@@ -11,6 +11,7 @@
 //   its last item (after `[` when empty), so only that line changes. A missing list is added with
 //   the item after the last line of the block mapping that gets it (the same way), in the column of
 //   its keys; a missing top-level list at the end of the file, before a document end marker `...`.
+//   A missing list of a flow mapping (`- { key: a, name: A }`) becomes its last entry, on its line.
 // - The line ending is that of the line the item follows, else CRLF when the file has one, else LF.
 // - A list, or a node on the path to it, that is an alias or carries an anchor is refused
 //   (`file.faulty` with file and line), as an edit there would change what another place of the file
@@ -309,8 +310,14 @@ export const appendListItem = (
   item: unknown,
 ): YamlEditResult => {
   const parsed = parsedOf(yaml, file);
-  const insertion = insertionFor(parsed, file, at, item);
-  const out = spliced(parsed.text, insertion.at, insertion.at, insertion.text);
+  const { holder, value } = locateList(parsed, file, at);
+  // A missing list of a flow mapping is a new entry of it, on its line.
+  const out =
+    value === undefined && isMap(holder) && holder.flow === true
+      ? flowMapEdit(parsed.text, holder, at.at(-1) as string, [item])
+      : ((insertion) => spliced(parsed.text, insertion.at, insertion.at, insertion.text))(
+          insertionFor(parsed, file, at, item),
+        );
   return checked(yaml, file, out, withItem(parsed.data, at, item), `adding to ${at.join(".")}`);
 };
 
@@ -473,6 +480,16 @@ export const setMapValue = (
     withValue(parsed.data, at, key, value),
     `changing ${[...at, key].join(".")}`,
   );
+};
+
+/**
+ * Refuses the node at `at` in `yaml`, read from `file`, when it or anything in it, or a node on the
+ * way to it, is an alias or carries an anchor (`file.faulty` with file and line, SR-236 AK5): a
+ * command checks each definition it changes before it plans its edits.
+ */
+export const refuseSharedAt = (yaml: EditableYaml, file: string, at: YamlPath): void => {
+  const parsed = parsedOf(yaml, file);
+  refuseSharedWithin(parsed, file, nodeAt(parsed, file, at), at.join("."));
 };
 
 /**

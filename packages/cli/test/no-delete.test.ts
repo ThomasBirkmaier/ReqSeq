@@ -35,7 +35,7 @@ const SAVED_DELETES: readonly string[] = ["filter.delete", "perspective.delete"]
  * Remove a definition from the metamodel files, refused while any element uses it (SR-236 AK7); no
  * element and no element file changes (ADR-0002 rule 5).
  */
-const DEFINITION_REMOVES: readonly string[] = ["metamodel.removeType"];
+const DEFINITION_REMOVES: readonly string[] = ["metamodel.removeProperty", "metamodel.removeType"];
 /** Every delete-like command of the catalog, in catalog order; none of them deletes an element. */
 const ALLOWED = catalogNames.filter(
   (name) => name === RELATION_REMOVE || SAVED_DELETES.includes(name) || DEFINITION_REMOVES.includes(name),
@@ -116,9 +116,10 @@ describe("the command line offers no delete (SR-099)", () => {
       expect([group, offered.sort()]).toEqual([group, actions.sort()]);
       const deletes = offered.filter((action) => DELETE_LIKE.test(action));
       expect(deletes.map((action) => `${group}.${action}`)).toEqual(
-        ALLOWED.filter((name) => name.startsWith(`${group}.`)).map((name) =>
-          name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`),
-        ),
+        // In the order of `offered`, which is sorted above.
+        ALLOWED.filter((name) => name.startsWith(`${group}.`))
+          .map((name) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`))
+          .sort(),
       );
     }
   });

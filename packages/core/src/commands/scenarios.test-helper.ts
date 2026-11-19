@@ -281,6 +281,18 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", prefix: "SR" },
   ],
   "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
+  "metamodel.addProperty": [
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+  ],
+  "metamodel.changeProperty": [
+    { property: "rationale", name: "Reason" },
+    { property: "title", kind: "number" },
+  ],
+  "metamodel.removeProperty": [
+    { type: "decision", property: "rationale" },
+    { type: "system-requirement", property: "title" },
+  ],
   "metamodel.get": [{}, { extra: true }],
   "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [
