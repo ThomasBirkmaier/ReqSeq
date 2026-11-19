@@ -298,7 +298,7 @@ scenariosOf("html.export", [
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files["site/elements/31313131-0000-4000-8000-3131310000e3.html"]));
         expect(page).toContain(
-          '<p>Given a reading, then it shows.</p><details class="rq-evidence"><summary>Evidence records (1)</summary><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></details>',
+          '<p>Given a reading, then it shows.</p><div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div>',
         );
       }
     },

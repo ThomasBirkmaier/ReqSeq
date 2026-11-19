@@ -61,17 +61,18 @@ const page = (records: EvidenceRecord[], views: string[]): ElementPage => ({
 });
 
 describe("evidence records at a criterion (SR-232 AK3)", () => {
-  it("[SR-232/AK-z2fm] names a JUnit test case by class name and name, and gives one line per view and execution when results differ", () => {
-    // Two records of one execution in the core (two result files), one other result in a variant.
+  it("[SR-232/AK-z2fm] names a JUnit test case by class name and name, and gives one line per view and execution when results differ, the core first", () => {
+    // One other result in a variant, listed first, then two records of one execution in the core (two result files):
+    // the core's line comes first.
     const html = criterionEvidence(
       context,
-      page([at("passed"), at("passed"), at("failed", "v")], ["core", "v"]),
+      page([at("failed", "v"), at("passed"), at("passed")], ["core", "v"]),
       1,
     );
     expect(html).toBe(
-      '<details class="rq-evidence"><summary>Evidence records (2)</summary><ul>' +
+      '<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>' +
         '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · passed · 2026-11-02 · core</span></li>' +
-        '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · failed · 2026-11-02 · v</span></li></ul></details>',
+        '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · failed · 2026-11-02 · v</span></li></ul></div>',
     );
   });
 });

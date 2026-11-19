@@ -107,7 +107,7 @@ describe("html.export shows the evidence records at each acceptance criterion (S
         criteria: "kred",
         testCase: "wind shows",
       }),
-      // A result that differs: each view its own line.
+      // A result that differs: each view its own line, the core first, although the variant's file comes first.
       "evidence/calm-core.md": record(R, r, {
         result: "passed",
         date: D,
@@ -136,16 +136,16 @@ describe("html.export shows the evidence records at each acceptance criterion (S
     const page = contentOf(await fs.readFile(fixture.path(`site/elements/${R}.html`), "utf8"));
     expect(page).toContain(
       "<p>Given wind, then it shows.</p>" +
-        '<details class="rq-evidence"><summary>Evidence records (2)</summary><ul>' +
+        '<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>' +
         '<li><code dir="auto">wind shows</code> <span class="rq-legend">test · passed · 2026-11-02T10:00:00Z · core, VAR-0000c1</span></li>' +
-        '<li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></details></li>',
+        '<li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div></li>',
     );
     expect(page).toContain(
       "<p>Given calm, then 0 shows.</p>" +
-        '<details class="rq-evidence"><summary>Evidence records (3)</summary><ul>' +
-        '<li><code dir="auto">calm</code> <span class="rq-legend">test · failed · 2026-11-02T10:00:00Z · VAR-0000c2</span></li>' +
+        '<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>' +
         '<li><code dir="auto">calm</code> <span class="rq-legend">test · passed · 2026-11-02T10:00:00Z · core</span></li>' +
-        '<li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></details></li>',
+        '<li><code dir="auto">calm</code> <span class="rq-legend">test · failed · 2026-11-02T10:00:00Z · VAR-0000c2</span></li>' +
+        '<li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div></li>',
     );
     expect(page).not.toContain("2026-11-01");
     expect(page).not.toContain('id="evidence-records"');

@@ -3,7 +3,8 @@
 // (`element-data.ts`), so a record without criterion stands at each criterion, as it counts for each (SR-031 AK6).
 // Each line names the test case (JUnit class name and name) or else the method, then the method beside a test case,
 // result, date as written and views. The records of one test case make one line with all their views when they share
-// result and date; else each view has its lines (SR-223 AK4). A record without test case is a line of its own.
+// result and date; else each view has its lines, in the order of the case's views, the core first (SR-223 AK4). A
+// record without test case is a line of its own. The records stand open, as the app shows them (SR-032 AK3).
 // Validation records are not shown.
 import type { Display, EvidenceRecord } from "../evidence/index.js";
 import { instantOf } from "../evidence/index.js";
@@ -39,7 +40,9 @@ const linesOf = (records: readonly EvidenceRecord[], entry: Case): Line[] => {
       lines.set(key, { first: record, views: [viewOf(record)] });
     }
   }
-  return [...lines.values()];
+  // In the order of the case's views (the core first), as the status rows name them; stable within one view.
+  const rank = (line: Line): number => entry.views.indexOf(String(line.views[0]));
+  return [...lines.values()].sort((a, b) => rank(a) - rank(b));
 };
 
 /** One line as HTML. */
@@ -81,7 +84,7 @@ export const criterionEvidence = (
   const items = itemsOf(context, page, (row) => row.criterion === criterion);
   return items.length === 0
     ? ""
-    : `<details class="rq-evidence"><summary>Evidence records (${String(items.length)})</summary><ul>${items.join("")}</ul></details>`;
+    : `<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>${items.join("")}</ul></div>`;
 };
 
 /** The evidence records of a requirement without acceptance criteria; nothing without one. */
@@ -93,4 +96,7 @@ export const evidenceSection = (context: ElementPageContext, page: ElementPage):
 };
 
 /** The styles of the evidence records. */
-export const EVIDENCE_CSS = [".rq-legend { color: var(--sl-color-gray-3); font-size: var(--sl-text-xs); }"];
+export const EVIDENCE_CSS = [
+  ".rq-legend { color: var(--sl-color-gray-3); font-size: var(--sl-text-xs); }",
+  ".rq-evidence-title { font-size: var(--sl-text-sm); font-weight: 600; }",
+];
