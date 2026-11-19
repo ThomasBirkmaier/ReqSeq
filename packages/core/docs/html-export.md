@@ -21,7 +21,7 @@ Texts and Markdown properties are rendered at export time in core (ADR-0002): `m
 - raw HTML;
 - a link with another scheme than http, https or mailto (a `reqseq:` reference and a link without a scheme keep their link text without a link, SR-235 AK5);
 - an image with a scheme (network, `data:`) or a path outside the element's repository (`imageLink`);
-- an SVG image that binds a namespace other than SVG and XLink, or whose text holds a script, embedded content or an animation under any prefix, an event attribute, a character reference, a script or data address, or a reference outside the file;
+- an SVG image that binds a namespace other than SVG and XLink, or whose text holds a script, embedded content or an animation under any prefix, an event attribute, a character reference, a script or data address, an entity or attribute list declaration, or a reference outside the file;
 - a Mermaid block with a click action, an HTML label or its own configuration (`mermaidRisk`). Until #1963 every Mermaid block is shown as code.
 
 An image of the repository is read with `readFileSnapshot`, which follows no link. A missing file, a link or bytes that are no image are not copied: the place is text and the problem is `html.image-not-copied`.

@@ -46,6 +46,7 @@ describe("svgRisk", () => {
     ["a namespace without quotes", "<g xmlns:h=x/>", "a namespace other than SVG and XLink"],
     ["a foreign object", "<foreignObject><div/></foreignObject>", "a script or embedded content"],
     ["an entity", '<!ENTITY x "y">', "a script or embedded content"],
+    ["a default attribute", '<!ATTLIST svg onload CDATA "alert(1)">', "a script or embedded content"],
     ["an event attribute", '<rect onload="f()"/>', "an event attribute"],
     [
       "an animation that sets an address",

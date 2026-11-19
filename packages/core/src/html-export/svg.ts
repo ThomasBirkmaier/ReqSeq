@@ -3,7 +3,7 @@
 // So an SVG is copied only when its text holds nothing that runs or loads: no namespace but SVG and
 // XLink (so no XHTML element can come in under a prefix), no script, foreign object, embedded content
 // or animation under any prefix, no event attribute, no character reference, no `javascript:` or
-// `data:` address, no reference outside the file and no entity declaration. The test is on the text,
+// `data:` address, no reference outside the file and no entity or attribute list declaration. The test is on the text,
 // in lower case, and refuses rather than parses.
 
 /** The namespaces an SVG of the export may bind, by `xmlns` or `xmlns:<prefix>`. */
@@ -30,7 +30,8 @@ export const svgRisk = (bytes: Uint8Array): string | undefined => {
   if (!knownNamespaces(text)) {
     return "a namespace other than SVG and XLink";
   }
-  if (RUNS.test(text) || text.includes("<!entity")) {
+  // A declaration in the document type can add attributes, such as an event, that the text does not show.
+  if (RUNS.test(text) || /<!\s*(?:entity|attlist)/u.test(text)) {
     return "a script or embedded content";
   }
   if (/\s(?:[^\s=<>:]+:)?on[a-z]+\s*=/u.test(text)) {
