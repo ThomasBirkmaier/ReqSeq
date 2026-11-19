@@ -61,6 +61,15 @@ describe("appendListItem", () => {
     );
   });
 
+  it("adds a plain value to a block list of plain values as a block item, also nested", () => {
+    expect(append("statuses:\n  - draft\n  - approved\nx: 1\n", "obsolete", ["statuses"])).toBe(
+      "statuses:\n  - draft\n  - approved\n  - obsolete\nx: 1\n",
+    );
+    expect(
+      append("types:\n  - key: a\n    required:\n      - title\n", "spec-id", ["types", 0, "required"]),
+    ).toBe("types:\n  - key: a\n    required:\n      - title\n      - spec-id\n");
+  });
+
   it("keeps CRLF line endings and the byte order mark", () => {
     const bytes = appendListItem(fileOf("﻿types:\r\n  - key: a\r\nother: 1\n"), "m.yaml", ["types"], {
       key: "b",
@@ -113,8 +122,8 @@ describe("appendListItem", () => {
   it("refuses an alias or an anchor on the list or on the way to it, with file and line", () => {
     for (const [text, at, line] of [
       ["a: &x\n  - k\ntypes: *x\n", ["types"], 3],
-      ["types: &t\n  - key: a\n", ["types"], 2],
-      ["types:\n  - &i\n    key: a\n", ["types", 0, "required"], 3],
+      ["types: &t\n  - key: a\n", ["types"], 1],
+      ["types:\n  - &i\n    key: a\n", ["types", 0, "required"], 2],
     ] as const) {
       const error = errorOf(() => appendListItem(fileOf(text), "m.yaml", at, "x"));
       expect([error.code, error.details]).toEqual(["file.faulty", { file: "m.yaml", line }]);

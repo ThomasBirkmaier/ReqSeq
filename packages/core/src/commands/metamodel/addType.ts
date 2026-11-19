@@ -35,11 +35,12 @@ const typeKey = (metamodel: Metamodel, name: string, key: string | undefined): s
   );
 };
 
-/** Refuses a name or prefix another type has (SR-236 AK2). */
+/** Refuses a name or prefix another type has (SR-236 AK2), compared in Unicode normal form NFC. */
 const refuseTaken = (metamodel: Metamodel, name: string, prefix: string): void => {
   for (const field of ["name", "prefix"] as const) {
     const value = field === "name" ? name : prefix;
-    const other = metamodel.types.find((t) => t[field] === value);
+    // A name counts as taken in the same Unicode normal form, as the key is made from it (SR-236 AK6).
+    const other = metamodel.types.find((t) => t[field].normalize("NFC") === value.normalize("NFC"));
     if (other !== undefined) {
       throw new CommandError("input.invalid", `Type ${other.key} already has the ${field} ${value}`, {
         reason: "taken",

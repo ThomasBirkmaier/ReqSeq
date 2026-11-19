@@ -42,14 +42,23 @@ export interface YamlEditResult {
 }
 
 /**
- * `data` in the fixed style (see the file comment), ending with a line break; with `flow`, every
- * collection in flow style on one line (an item `yaml-list.ts` adds to a flow list).
+ * `data` in the fixed style (see the file comment), ending with a line break. `style` `flow`: every
+ * collection in flow style on one line (an item `yaml-list.ts` adds to a flow list); `block-list`:
+ * `data` is a list rendered in block style whatever its items (an item added to a block list).
  */
-export const renderYaml = (data: object, eol: LineEnding, flow = false): string => {
+export const renderYaml = (
+  data: object,
+  eol: LineEnding,
+  style: "fixed" | "flow" | "block-list" = "fixed",
+): string => {
   const document = new Document(data, YAML_OPTIONS);
   visit(document, {
-    Collection: (_, node) => {
-      if (flow || (isSeq(node) && node.items.every((item) => isScalar(item)))) {
+    Collection: (_, node, path) => {
+      const root = path.length === 1;
+      if (style === "block-list" && root) {
+        return;
+      }
+      if (style === "flow" || (isSeq(node) && node.items.every((item) => isScalar(item)))) {
         node.flow = true;
       }
     },

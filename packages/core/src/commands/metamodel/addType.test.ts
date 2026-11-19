@@ -146,6 +146,12 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
       "input.invalid",
       { reason: "taken", field: "name", type: "need" },
     ]);
+    // The same name in another Unicode normal form is the same name.
+    const { workspace: named } = await own({
+      [OWN.types]: "reqseq-metamodel: 1\ntypes:\n  - { key: waste, name: M\u00fcll, prefix: W }\n",
+    });
+    const nfd = await failure(named, { name: "Mu\u0308ll", prefix: "MU" });
+    expect(nfd.details).toEqual({ reason: "taken", field: "name", type: "waste" });
     const prefix = await failure(workspace, { name: "Risk", prefix: "SR" });
     expect([prefix.code, prefix.details]).toEqual([
       "input.invalid",
@@ -234,7 +240,10 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
       [OWN.types]: "reqseq-metamodel: 1\ntypes: &all\n  - { key: need, name: Need, prefix: N }\n",
     });
     const alias = await failure(anchored.workspace, RISK);
-    expect([alias.code, alias.details]).toEqual(["file.faulty", { file: "model/types.yaml", line: 3 }]);
+    expect([alias.code, alias.details]).toEqual([
+      "file.faulty",
+      { file: "model/types.yaml", line: 2, repository: "models" },
+    ]);
     expect(await anchored.read(OWN.types)).toBe(
       "reqseq-metamodel: 1\ntypes: &all\n  - { key: need, name: Need, prefix: N }\n",
     );

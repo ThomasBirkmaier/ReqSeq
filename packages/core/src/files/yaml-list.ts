@@ -66,12 +66,17 @@ const linesAt = (text: string, end: number, rendered: string, eol: LineEnding): 
 const intoBlockList = (text: string, seq: YAMLSeq, lines: LineCounter, item: unknown): Insertion => {
   const [start, end] = rangeOf(seq);
   const eol = lineEndingBefore(text, end);
-  return linesAt(text, end, indented(renderYaml([item], eol), lines.linePos(start).col - 1), eol);
+  return linesAt(
+    text,
+    end,
+    indented(renderYaml([item], eol, "block-list"), lines.linePos(start).col - 1),
+    eol,
+  );
 };
 
 /** The insertion of `item` into the flow list `seq`, after its last item or after `[`. */
 const intoFlowList = (seq: YAMLSeq, item: unknown): Insertion => {
-  const flowItem = renderYaml([item], "\n", true).replace(/^\[|\]\n$/g, "");
+  const flowItem = renderYaml([item], "\n", "flow").replace(/^\[|\]\n$/g, "");
   const last = seq.items.at(-1) as Node | undefined;
   return last === undefined
     ? { at: rangeOf(seq)[0] + 1, text: flowItem }
@@ -120,6 +125,19 @@ const encode = (yaml: EditableYaml, text: string): Uint8Array =>
 const shared = (node: unknown): boolean =>
   isAlias(node) || ((isMap(node) || isSeq(node)) && node.anchor !== undefined);
 
+/**
+ * The line of the anchor of `node`, or of the alias that `node` is: an anchor stands before the
+ * node's content, on its line or one above it (`types: &all` before `- ...`).
+ */
+const sharedLine = (parsed: Parsed, node: unknown): number | undefined => {
+  if (!isMap(node) && !isSeq(node)) {
+    return parsed.lineOf(node);
+  }
+  const start = rangeOf(node)[0];
+  const at = parsed.text.lastIndexOf(`&${String(node.anchor)}`, start);
+  return parsed.lines.linePos(at).line;
+};
+
 /** A parsed document and how to name its lines. */
 interface Parsed {
   readonly text: string;
@@ -138,7 +156,7 @@ const locateList = (parsed: Parsed, file: string, at: YamlPath): { holder: unkno
       throw faulty(
         file,
         `uses a YAML anchor or alias on the way to ${shown}; ReqSeq does not change it there`,
-        parsed.lineOf(holder),
+        sharedLine(parsed, holder),
       );
     }
   }
@@ -147,7 +165,7 @@ const locateList = (parsed: Parsed, file: string, at: YamlPath): { holder: unkno
     throw faulty(
       file,
       `uses a YAML anchor or alias for ${shown}; ReqSeq does not change it there`,
-      parsed.lineOf(value),
+      sharedLine(parsed, value),
     );
   }
   return { holder, value };

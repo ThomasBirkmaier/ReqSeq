@@ -1,6 +1,7 @@
 // The write layer of the metamodel commands (SR-236): the parts no single command shows, called
 // directly with a plan. On fixtures/SR-018/own-repository: types, properties and statuses in three
 // files of the repository models; the workspace file and the elements in system.
+import { writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -140,7 +141,7 @@ describe("changeMetamodel (SR-236)", () => {
     const error = await failure(
       changeWith(workspace, (source) => {
         const plan = twoFiles(source);
-        void fs.writeFile(fixture.path(TYPES), other);
+        writeFileSync(fixture.path(TYPES), other);
         return plan;
       }),
     );
@@ -153,8 +154,8 @@ describe("changeMetamodel (SR-236)", () => {
     const { fixture, workspace } = await open();
     const error = await failure(
       changeWith(workspace, (source) => {
-        // Written synchronously before the check reads the folder: it defines need a second time.
-        void fs.writeFile(
+        // Written before the check reads the folder: it defines need a second time.
+        writeFileSync(
           fixture.path("models/model/zz.yaml"),
           "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need 2, prefix: NN }\n",
         );
@@ -227,11 +228,53 @@ describe("changeMetamodel (SR-236)", () => {
     expect(error.details).toMatchObject({ command: "test", problems: [{ code: "file.invalid-yaml" }] });
   });
 
-  it("refuses when the metamodel repository is not on this machine", async () => {
+  it("refuses when the metamodel repository is not on this machine, and names it", async () => {
     const { fixture, workspace } = await open();
     await fs.rm(fixture.path("models"), { recursive: true });
     const error = await failure(changeWith(workspace, () => new Map()));
-    expect(error.code).toBe("workspace.read-only");
+    expect([error.code, error.message, error.details]).toEqual([
+      "workspace.read-only",
+      "The metamodel repository models is not on this machine; test changes no file",
+      { command: "test", repository: "models", problems: [] },
+    ]);
+  });
+
+  it("refuses a plan that names a file it did not read", async () => {
+    const { workspace } = await open();
+    const error = await failure(changeWith(workspace, () => new Map([["model/new.yaml", new Uint8Array()]])));
+    expect([error.code, error.message]).toEqual([
+      "internal",
+      "Not written: model/new.yaml is no metamodel file that was read",
+    ]);
+  });
+
+  it("names the files it could not put back also after an error that is no command error", async () => {
+    const { workspace, read } = await open();
+    const realpath = fs.realpath.bind(fs);
+    const rename = fs.rename.bind(fs);
+    let written = false;
+    vi.spyOn(fs, "rename").mockImplementation(async (a, b) => {
+      if (written) {
+        throw Object.assign(new Error("EIO"), { code: "EIO" });
+      }
+      await rename(a, b);
+      written = true;
+    });
+    // The Git check of the second file fails with a plain error once the first file is written.
+    vi.spyOn(fs, "realpath").mockImplementation((async (target: string) => {
+      if (written) {
+        throw new Error("broken");
+      }
+      return realpath(target);
+    }) as typeof fs.realpath);
+    const error = await failure(changeWith(workspace, twoFiles));
+    expect([error.code, error.message, error.details]).toEqual([
+      "internal",
+      "Not written: ../models/model/types.yaml (Error: broken)",
+      { written: ["../models/model/properties.yaml"] },
+    ]);
+    vi.restoreAllMocks();
+    expect(await read(PROPERTIES)).toContain("note");
   });
 
   it("[SR-236/AK-k2s3] never writes into a metamodel folder that is .git or a repository of its own, and the layout warns about it", async () => {

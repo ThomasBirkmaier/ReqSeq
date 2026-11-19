@@ -19,7 +19,7 @@
 //    (SR-236 AK9); other processes see the change through their watcher (SR-015 AK1).
 import path from "node:path";
 import type { Problem } from "../catalog.js";
-import { CommandError, commandErrorOrThrow } from "../catalog.js";
+import { CommandError } from "../catalog.js";
 import type { FileSnapshot, YamlFile } from "../files/index.js";
 import { checkReplaceable, parseYamlFileBytes, readYamlFile, writeFileAtomic } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -120,7 +120,10 @@ const writeAll = async (repository: RepositoryLocation, writes: readonly Write[]
       if (kept.length === 0) {
         throw error;
       }
-      const failure = commandErrorOrThrow(error);
+      const failure =
+        error instanceof CommandError
+          ? error
+          : new CommandError("internal", `Not written: ${write.shown} (${String(error)})`);
       throw new CommandError(
         failure.code,
         failure.message,
@@ -129,6 +132,35 @@ const writeAll = async (repository: RepositoryLocation, writes: readonly Write[]
       );
     }
   }
+};
+
+/**
+ * The plan of `source`, checked: every file it changes is one of the files read, and a `file.faulty`
+ * it throws names the metamodel repository, as the metamodel problems do (`file` is relative to it).
+ */
+const checkedPlan = <T>(
+  plan: (source: MetamodelSource) => MetamodelPlan<T>,
+  source: MetamodelSource,
+  repository: string,
+): MetamodelPlan<T> => {
+  let planned: MetamodelPlan<T>;
+  try {
+    planned = plan(source);
+  } catch (error) {
+    if (error instanceof CommandError && error.code === "file.faulty") {
+      throw new CommandError(error.code, error.message, { ...error.details, repository }, { cause: error });
+    }
+    throw error;
+  }
+  const known = new Set(source.files.map((f) => f.path));
+  const unknown = [...planned.bytes.keys()].filter((file) => !known.has(file));
+  if (unknown.length > 0) {
+    throw new CommandError(
+      "internal",
+      `Not written: ${unknown.join(", ")} is no metamodel file that was read`,
+    );
+  }
+  return planned;
 };
 
 /**
@@ -159,10 +191,17 @@ export const changeMetamodel = async <T>(
     }
     return result;
   };
+  if (repository === undefined) {
+    throw new CommandError(
+      "workspace.read-only",
+      `The metamodel repository ${name} is not on this machine; ${command} changes no file`,
+      { command, repository: name, problems: [] },
+    );
+  }
   const before = await loadMetamodel(layout, recording);
   // In the order the loader read them, which is that of `before.files`; a valid metamodel read them all.
   const [first, ...others] = [...read.values()];
-  if (repository === undefined || !before.valid || first === undefined) {
+  if (!before.valid || first === undefined) {
     throw new CommandError(
       "workspace.read-only",
       `The metamodel is missing or faulty; ${command} changes no file. Fix the metamodel files first.`,
@@ -170,7 +209,7 @@ export const changeMetamodel = async <T>(
     );
   }
   const files: readonly [YamlFile, ...YamlFile[]] = [first, ...others];
-  const { bytes: planned, result } = plan({ metamodel: before, files });
+  const { bytes: planned, result } = checkedPlan(plan, { metamodel: before, files }, name);
   const planning: MetamodelReader = async (root, file) => {
     const bytes = planned.get(file);
     if (bytes === undefined) {
