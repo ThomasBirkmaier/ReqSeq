@@ -362,6 +362,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
   ],
+  "tool.guide": [{}, { names: "mcp" }, { extra: true }],
   "tool.info": [{}, { extra: true }],
   "workspace.recent": [{}, { extra: true }],
   "workspace.connectAgent": [{}, { client: "other" }, { client: "claude-code" }, { extra: true }],
