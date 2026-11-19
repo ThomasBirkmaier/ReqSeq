@@ -287,13 +287,13 @@ describe("changeMetamodel (SR-236)", () => {
           "system/reqseq-workspace.yaml": `reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: ${folder} }\n`,
         },
       });
-      const into = fixture.path(path.join("system", folder));
+      const into = fixture.path(`system/${folder}`);
       await fs.mkdir(into, { recursive: true });
       for (const name of ["types.yaml", "properties.yaml", "statuses.yaml"]) {
         await fs.copyFile(fixture.path(`models/model/${name}`), path.join(into, name));
       }
       if (setup !== undefined) {
-        await fs.writeFile(fixture.path(path.join("system", setup)), "gitdir: elsewhere\n");
+        await fs.writeFile(fixture.path(`system/${setup}`), "gitdir: elsewhere\n");
       }
       const before = await fs.readFile(path.join(into, "types.yaml"), "utf8");
       const error = await failure(
