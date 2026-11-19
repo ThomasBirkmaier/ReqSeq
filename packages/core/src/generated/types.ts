@@ -2635,7 +2635,7 @@ export interface MetamodelAddRelationKindOutput {
   readonly relationKind: MetamodelRelationKind;
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted definitions change and that have a value for one of them, such as elements whose file already holds the new key. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0. */
   readonly versionsChanged: number;
   /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
   readonly missingRequired: number;
@@ -2676,7 +2676,7 @@ export interface MetamodelChangeRelationKindOutput {
   readonly relationKind: MetamodelRelationKind;
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4), such as elements with a relation of the kind when its meaning changes. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0. */
   readonly versionsChanged: number;
   /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
   readonly missingRequired: number;

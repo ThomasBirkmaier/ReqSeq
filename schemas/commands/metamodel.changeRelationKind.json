@@ -131,7 +131,7 @@
         "title": "Versions changed",
         "type": "integer",
         "minimum": 0,
-        "description": "Elements whose version is another under the new metamodel (SR-015 AK4), such as elements with a relation of the kind when its meaning changes."
+        "description": "Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0."
       },
       "missingRequired": {
         "title": "Missing required properties",

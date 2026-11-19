@@ -8721,7 +8721,7 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted definitions change and that have a value for one of them, such as elements whose file already holds the new key."
+              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0."
             },
             "missingRequired": {
               "title": "Missing required properties",
@@ -9159,7 +9159,7 @@
               "title": "Versions changed",
               "type": "integer",
               "minimum": 0,
-              "description": "Elements whose version is another under the new metamodel, such as elements with a relation of the kind when its meaning changes."
+              "description": "Elements whose version is another under the new metamodel. A relation kind is no definition the version is computed from, so this is 0."
             },
             "missingRequired": {
               "title": "Missing required properties",
