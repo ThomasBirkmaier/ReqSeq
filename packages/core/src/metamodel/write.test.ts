@@ -8,13 +8,13 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
-import { appendListItem } from "../files/index.js";
+import { appendListItem, parseYamlFileBytes, removeListItem, setMapValue } from "../files/index.js";
 import type { YamlFile } from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "./state.js";
 import type { MetamodelChange, MetamodelSource } from "./write.js";
-import { changeMetamodel } from "./write.js";
+import { changeMetamodel, definitionAt, editedFiles } from "./write.js";
 
 const TYPES = "models/model/types.yaml";
 const PROPERTIES = "models/model/properties.yaml";
@@ -316,5 +316,27 @@ describe("changeMetamodel (SR-236)", () => {
       const layout = await workspace.get(workspaceLayoutState);
       expect(layout.problems.map((p) => p.message).filter((m) => m.startsWith("metamodel:"))).toHaveLength(1);
     }
+  });
+});
+
+describe("definitionAt and editedFiles", () => {
+  it("finds a definition by list and key, and applies edits in order, each on the text before, keeping a byte order mark", () => {
+    const parsed = parseYamlFileBytes(
+      "m.yaml",
+      new TextEncoder().encode("﻿types:\n  - key: a\n    name: A\n  - key: b\nproperties: []\n"),
+    );
+    if (parsed.kind !== "parsed") {
+      throw new Error("fixture does not parse");
+    }
+    const file = { ...parsed.content, path: "m.yaml" } as unknown as YamlFile;
+    expect(definitionAt([file], "types", "b")).toEqual({ file, index: 1 });
+    expect(definitionAt([file], "statuses", "b")).toBeUndefined();
+    const bytes = editedFiles([
+      { file, edit: (yaml) => setMapValue(yaml, "m.yaml", ["types", 0], "name", "Z") },
+      { file, edit: (yaml) => removeListItem(yaml, "m.yaml", ["types"], 1) },
+    ]);
+    expect(new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes.get("m.yaml"))).toBe(
+      "﻿types:\n  - key: a\n    name: Z\nproperties: []\n",
+    );
   });
 });

@@ -1,9 +1,10 @@
 // Line-wise list edits (SR-236 AK3): every other line stays byte for byte.
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CommandError } from "../catalog.js";
 import { parseYamlFileBytes } from "./parse.js";
 import type { YamlPath } from "./yaml-list.js";
-import { appendListItem } from "./yaml-list.js";
+import { appendListItem, removeListItem, setMapValue } from "./yaml-list.js";
 
 const decode = (bytes: Uint8Array): string => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
 
@@ -170,5 +171,273 @@ describe("appendListItem", () => {
     // A field without a value is not written, so the file would not hold the item as given.
     const error = errorOf(() => append("types:\n  - key: a\n", { key: "b", name: undefined }));
     expect(error.code).toBe("internal");
+  });
+});
+
+const set = (text: string, at: YamlPath, key: string, value: unknown): string =>
+  decode(setMapValue(fileOf(text), "m.yaml", at, key, value).bytes);
+
+const remove = (text: string, at: YamlPath, index: number): string =>
+  decode(removeListItem(fileOf(text), "m.yaml", at, index).bytes);
+
+describe("setMapValue", () => {
+  const TYPES = [
+    "# head",
+    "types:",
+    "  - key: need   # the need",
+    "    name: Need # its name",
+    "    prefix: N",
+    "    # about need",
+    "  - key: sr",
+    "    name: SR",
+    "    prefix: SR",
+    "",
+  ].join("\n");
+
+  it("replaces the key's line in place, drops the comment at its end and keeps every other line", () => {
+    expect(set(TYPES, ["types", 0], "name", "Wish")).toBe(
+      TYPES.replace("name: Need # its name", "name: Wish"),
+    );
+  });
+
+  it("changes the first key on the dash line", () => {
+    expect(set("types:\n  - name: A\n    prefix: A\n", ["types", 0], "name", "B")).toBe(
+      "types:\n  - name: B\n    prefix: A\n",
+    );
+  });
+
+  it("replaces a value over several lines and quotes a text that needs it", () => {
+    const text = "types:\n  - key: a\n    description: |\n      two\n      lines\n    prefix: A\n";
+    expect(set(text, ["types", 0], "description", "a: b\nc")).toBe(
+      'types:\n  - key: a\n    description: "a: b\\nc"\n    prefix: A\n',
+    );
+  });
+
+  it("adds a missing key after the item's last line, before the comment of the next item", () => {
+    expect(set(TYPES, ["types", 0], "abstract", true)).toBe(
+      TYPES.replace("    # about need\n", "    # about need\n    abstract: true\n"),
+    );
+    expect(set("types:\n  - key: a\n", ["types", 0], "extends", "b")).toBe(
+      "types:\n  - key: a\n    extends: b\n",
+    );
+  });
+
+  it("removes a key with its lines; the first key of an item gives the dash to the next one", () => {
+    expect(set(TYPES, ["types", 1], "name", undefined)).toBe(TYPES.replace("    name: SR\n", ""));
+    expect(set("types:\n  - abstract: true\n    key: a\n", ["types", 0], "abstract", undefined)).toBe(
+      "types:\n  - key: a\n",
+    );
+    expect(set(TYPES, ["types", 1], "extends", undefined)).toBe(TYPES);
+    // A comment line between the first key and the next one stays; the dash keeps its line.
+    expect(
+      set("types:\n  - abstract: true\n    # the key\n    key: a\n", ["types", 0], "abstract", undefined),
+    ).toBe("types:\n  -\n    # the key\n    key: a\n");
+  });
+
+  it("changes the last line of a file without a line break, and a key without a value", () => {
+    expect(set("types:\n  - key: a\n    name: A", ["types", 0], "name", "B")).toBe(
+      "types:\n  - key: a\n    name: B",
+    );
+    expect(set("types:\n  - key: a\n    name:\n", ["types", 0], "name", "B")).toBe(
+      "types:\n  - key: a\n    name: B\n",
+    );
+  });
+
+  it("keeps CRLF line endings", () => {
+    const text = "types:\r\n  - key: a\r\n    name: A\r\n";
+    expect(set(text, ["types", 0], "name", "B")).toBe("types:\r\n  - key: a\r\n    name: B\r\n");
+    expect(set(text, ["types", 0], "prefix", "P")).toBe(
+      "types:\r\n  - key: a\r\n    name: A\r\n    prefix: P\r\n",
+    );
+  });
+
+  it("changes only the entry of a flow mapping", () => {
+    const text = "values:\n  - { key: a, name: A }   # first\n  - {}\n";
+    expect(set(text, ["values", 0], "name", "B C")).toBe(
+      "values:\n  - { key: a, name: B C }   # first\n  - {}\n",
+    );
+    expect(set(text, ["values", 0], "description", "d")).toBe(
+      "values:\n  - { key: a, name: A, description: d }   # first\n  - {}\n",
+    );
+    expect(set(text, ["values", 1], "key", "b")).toBe(
+      "values:\n  - { key: a, name: A }   # first\n  - { key: b }\n",
+    );
+    expect(set(text, ["values", 0], "key", undefined)).toBe("values:\n  - { name: A }   # first\n  - {}\n");
+    expect(set(text, ["values", 0], "name", undefined)).toBe("values:\n  - { key: a }   # first\n  - {}\n");
+    expect(set("values:\n  - { key: a }\n", ["values", 0], "key", undefined)).toBe("values:\n  - {  }\n");
+    expect(set(text, ["values", 0], "other", undefined)).toBe(text);
+    // A key without a value in a flow mapping.
+    expect(set("values:\n  - { key: a, name }\n", ["values", 0], "description", "d")).toBe(
+      "values:\n  - { key: a, name, description: d }\n",
+    );
+  });
+
+  it("refuses an anchor or alias and a path to no mapping", () => {
+    const anchored = "types:\n  - &a\n    key: a\n    name: A\n";
+    expect(errorOf(() => set(anchored, ["types", 0], "name", "B")).details).toEqual({
+      file: "m.yaml",
+      line: 2,
+    });
+    const alias = "x: &n Name\ntypes:\n  - key: a\n    name: *n\n";
+    expect(errorOf(() => set(alias, ["types", 0], "name", "B")).details).toEqual({ file: "m.yaml", line: 4 });
+    expect(errorOf(() => set("types: [a]\n", ["types", 0], "name", "B")).code).toBe("file.faulty");
+    expect(errorOf(() => set("- a\n", ["types", 0], "name", "B")).code).toBe("file.faulty");
+  });
+});
+
+describe("anchors and aliases inside a definition (SR-236 AK5)", () => {
+  const ANCHORED = "types:\n  - key: a\n    name: &n Scratch\n  - key: b\n    name: *n\n";
+  it("refuses to change or remove a definition that holds an anchor or an alias, with file and line", () => {
+    expect(errorOf(() => set(ANCHORED, ["types", 0], "prefix", "S")).details).toEqual({
+      file: "m.yaml",
+      line: 3,
+    });
+    expect(errorOf(() => set(ANCHORED, ["types", 1], "prefix", "S")).details).toEqual({
+      file: "m.yaml",
+      line: 5,
+    });
+    expect(errorOf(() => remove(ANCHORED, ["types"], 0)).details).toEqual({ file: "m.yaml", line: 3 });
+    expect(errorOf(() => remove(ANCHORED, ["types"], 1)).code).toBe("file.faulty");
+  });
+});
+
+describe("removeListItem", () => {
+  it("removes a block item with the comment lines directly above it and keeps the rest", () => {
+    const text = [
+      "types:",
+      "  - key: a",
+      "    name: A",
+      "",
+      "  # about b",
+      "  # more about b",
+      "  - key: b   # b",
+      "    name: B",
+      "    # below b",
+      "  - key: c",
+      "",
+    ].join("\n");
+    expect(remove(text, ["types"], 1)).toBe(
+      // The comment below b in the column of its keys goes with it.
+      ["types:", "  - key: a", "    name: A", "", "  - key: c", ""].join("\n"),
+    );
+    // A comment above the item in another column than its dash belongs to the item before: it stays.
+    expect(remove(text, ["types"], 2)).toBe(text.replace("  - key: c\n", ""));
+  });
+
+  it("removes a plain item and an item of a nested list, also at the end of a file without a line break", () => {
+    expect(
+      remove("types:\n  - key: a\n    statuses:\n      - x\n      - y", ["types", 0, "statuses"], 1),
+    ).toBe("types:\n  - key: a\n    statuses:\n      - x\n");
+  });
+
+  it("removes a line of a flow list written over several lines and leaves no blank line", () => {
+    const text = "properties: [\n    title,\n    rationale, # why\n    packages\n  ]\n";
+    expect(remove(text, ["properties"], 0)).toBe("properties: [\n    rationale, # why\n    packages\n  ]\n");
+    expect(remove(text, ["properties"], 1)).toBe("properties: [\n    title,\n    packages\n  ]\n");
+    expect(remove(text, ["properties"], 2)).toBe("properties: [\n    title,\n    rationale\n  ]\n");
+  });
+
+  it("removes the comment lines below a block item in the column of its keys, not those of the next item", () => {
+    expect(
+      remove("types:\n  - key: a\n    name: A\n    # about a\n  # about b\n  - key: b\n", ["types"], 0),
+    ).toBe("types:\n  # about b\n  - key: b\n");
+  });
+
+  it("finds the dash of an item that starts below it, past a dash in a comment", () => {
+    expect(remove("types:\n  - # the a-type\n    # a - b\n    key: a\n  - key: b\n", ["types"], 0)).toBe(
+      "types:\n  - key: b\n",
+    );
+  });
+
+  it("removes comment lines up to the start of the file", () => {
+    expect(remove("types:\n- key: a\n- key: b\n", ["types"], 0)).toBe("types:\n- key: b\n");
+    expect(remove("types:\n  # x\n  - a\n  - b\n", ["types"], 0)).toBe("types:\n  - b\n");
+  });
+
+  it("leaves an empty flow list when the last item goes", () => {
+    expect(remove("types: # all\n  # the one\n  - key: a\nstatuses: []\n", ["types"], 0)).toBe(
+      "types: [] # all\nstatuses: []\n",
+    );
+    expect(remove("t:\n  types:\n    - key: a\n", ["t", "types"], 0)).toBe("t:\n  types: []\n");
+  });
+
+  it("removes a flow item with its separator", () => {
+    expect(remove("statuses: [a, b, c]\n", ["statuses"], 1)).toBe("statuses: [a, c]\n");
+    expect(remove("statuses: [a, b, c]\n", ["statuses"], 2)).toBe("statuses: [a, b]\n");
+    expect(remove("statuses: [a]\n", ["statuses"], 0)).toBe("statuses: []\n");
+  });
+
+  it("refuses an anchored item and a missing item", () => {
+    const anchored = "types:\n  - &a\n    key: a\n  - *a\n";
+    expect(errorOf(() => remove(anchored, ["types"], 0)).details).toEqual({ file: "m.yaml", line: 2 });
+    expect(errorOf(() => remove(anchored, ["types"], 1)).details).toEqual({ file: "m.yaml", line: 4 });
+    expect(errorOf(() => remove("types: []\n", ["types"], 0)).code).toBe("file.faulty");
+    expect(errorOf(() => remove("types: x\n", ["types"], 0)).code).toBe("file.faulty");
+  });
+});
+
+describe("line edits on the metamodel files of this repository", () => {
+  const FILES = ["spec/metamodel/spec-model.yaml", "schemas/examples/metamodel/standard-model.yaml"];
+  const read = (file: string): string =>
+    fs.readFileSync(new URL(`../../../../${file}`, import.meta.url), "utf8");
+
+  /** Whether `after` is `before` without one run of whole lines. */
+  const linesRemoved = (before: string, after: string): boolean => {
+    const a = before.split("\n");
+    const b = after.split("\n");
+    let head = 0;
+    while (head < b.length && a[head] === b[head]) {
+      head += 1;
+    }
+    let tail = 0;
+    while (tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) {
+      tail += 1;
+    }
+    return head + tail === b.length && b.length < a.length;
+  };
+
+  it.each(FILES)("removing any definition of %s removes only its lines (SR-236 AK3)", (file) => {
+    const text = read(file);
+    const data = fileOf(text);
+    const lists = ["types", "properties", "relations", "statuses"] as const;
+    let removed = 0;
+    for (const list of lists) {
+      const items = (
+        parseYamlFileBytes(file, new TextEncoder().encode(text)) as {
+          content: { data: Record<string, unknown[]> };
+        }
+      ).content.data[list];
+      for (let index = 0; index < (items?.length ?? 0); index += 1) {
+        const out = decode(removeListItem(data, file, [list], index).bytes);
+        expect(linesRemoved(text, out), `${list}[${String(index)}]`).toBe(true);
+        removed += 1;
+      }
+    }
+    expect(removed).toBeGreaterThan(10);
+  });
+
+  it.each(FILES)("changing the name of any type of %s changes only its name line (SR-236 AK3)", (file) => {
+    const text = read(file);
+    const types = (
+      parseYamlFileBytes(file, new TextEncoder().encode(text)) as { content: { data: { types: unknown[] } } }
+    ).content.data.types;
+    types.forEach((_, index) => {
+      const out = set(text, ["types", index], "name", "Changed name");
+      const a = text.split("\n");
+      const b = out.split("\n");
+      expect(b.length).toBe(a.length);
+      expect(a.filter((line, i) => line !== b[i])).toHaveLength(1);
+    });
+  });
+
+  it("applies several edits to one file, each on the text the one before gave", () => {
+    let yaml = fileOf("types:\n  - key: a\n    name: A\n  - key: b\n    name: B\nproperties:\n  - key: p\n");
+    const step = (result: { readonly bytes: Uint8Array }): void => {
+      yaml = { text: decode(result.bytes), bom: false };
+    };
+    step(setMapValue(yaml, "m.yaml", ["types", 0], "name", "Z"));
+    step(removeListItem(yaml, "m.yaml", ["types"], 1));
+    step(removeListItem(yaml, "m.yaml", ["properties"], 0));
+    expect(yaml.text).toBe("types:\n  - key: a\n    name: Z\nproperties: []\n");
   });
 });

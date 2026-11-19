@@ -251,6 +251,14 @@ const PREPARE: Readonly<Record<string, (root: string) => Promise<void>>> = {
   "workspace.recent": async (root) => {
     await rememberWorkspace(root, { now: new Date(SHOWN_TIME) });
   },
+  // Every type of the standard model is named by a relation kind or a property, so none can be removed
+  // (SR-237 AK5): the example removes a type of a second metamodel file that nothing uses or names.
+  "metamodel.removeType": async (root) => {
+    await writeFile(
+      join(root, "metamodel", "risks.yaml"),
+      "reqseq-metamodel: 1\ntypes:\n  - key: risk\n    name: Risk\n    prefix: RI\n    properties: [title]\n",
+    );
+  },
 };
 
 /** The variables that name the user's home and cache folders, which `workspace.recent` and the activity read. */

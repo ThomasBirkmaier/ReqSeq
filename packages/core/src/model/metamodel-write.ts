@@ -6,6 +6,7 @@ import { changeMetamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { MetamodelEffects } from "./metamodel-effects.js";
 import { metamodelEffects } from "./metamodel-effects.js";
+import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
 export type MetamodelWrite<T> = MetamodelChange<T> & MetamodelEffects;
@@ -14,10 +15,11 @@ export type MetamodelWrite<T> = MetamodelChange<T> & MetamodelEffects;
 export const writeMetamodel = async <T>(
   workspace: Workspace,
   command: string,
-  plan: (source: MetamodelSource) => MetamodelPlan<T>,
+  plan: (source: MetamodelSource & { readonly store: ElementStore }) => MetamodelPlan<T>,
 ): Promise<MetamodelWrite<T>> => {
-  // Loaded before the write, so a store that cannot be read refuses the command before it writes.
+  // Loaded before the write, so a store that cannot be read refuses the command before it writes;
+  // the plan counts uses on it, the state at execution (SR-236 AK10).
   const store = await workspace.get(elementStoreState);
-  const change = await changeMetamodel(workspace, command, plan);
+  const change = await changeMetamodel(workspace, command, (source) => plan({ ...source, store }));
   return { ...change, ...metamodelEffects(store, change.before, change.after) };
 };
