@@ -316,7 +316,6 @@ export const ElementView = ({
   // its input at once (SR-105 AK1): the app does it with the draft it keeps, since the editors go; not over
   // a change on disk or a file that is gone (SR-106).
   useEffect(() => {
-    console.log("DBG elementview mounted", buffer.key);
     mounted.current = true;
     const made = createAutosave({
       save: () => api.current.saveInput("quiet"),
@@ -584,15 +583,7 @@ export const ElementView = ({
     // An answer asked before a save of this buffer answered is older than that save's answer (autosave
     // writes while the reload of the last save is on its way).
     const writes = settled.current;
-    console.log("DBG read asked", writes, "touched", touched, "revision", revision);
     void asked.then((answer) => {
-      console.log(
-        "DBG read answered",
-        writes,
-        settled.current,
-        current,
-        answer.ok ? JSON.stringify(answer.output.element.text) : "err",
-      );
       if (!current || staleRead(writes, settled.current)) {
         return;
       }

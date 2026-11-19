@@ -33,22 +33,12 @@ test.describe("find and replace in the element buffer", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
-    // Diagnostic for #1940, removed before review: the renderer's DBG lines, printed when a test fails.
-    const logs: string[] = [];
-    (globalThis as { dbg?: string[] }).dbg = logs;
-    running.window.on("console", (m) => {
-      const text = m.text().replace(/"(?:[^"\\]|\\.)*"/g, (q) => `«${q.slice(-40)}»`);
-      if (text.startsWith("DBG")) logs.push(`${String(Date.now())} ${text.slice(0, 300)}`);
-    });
     await listAll(running.window);
     await editing(running.window);
     await running.window.keyboard.type("Quarz eins, Quarz zwei, Quarz drei");
     await running.window.keyboard.press("Home");
   });
-  test.afterEach(async ({}, info) => {
-    if (info.status !== info.expectedStatus) {
-      console.log((globalThis as { dbg?: string[] }).dbg?.join("\n"));
-    }
+  test.afterEach(async () => {
     await running.close();
   });
 
@@ -122,15 +112,4 @@ test.describe("find and replace in the element buffer", () => {
     await expect(window.locator(".cm-content")).toContainText("Quarz eins, Quarz zwei, Quarz drei");
     await expectSaved("Quarz eins, Quarz zwei, Quarz drei\n");
   });
-
-  for (let run = 1; run <= 300; run += 1) {
-    test(`diagnostic #1940 run ${String(run)}: one undo after Replace all`, async () => {
-      const { window } = running;
-      await replaceAll(window);
-      await expectSaved("Wind eins, Wind zwei, Wind drei\n");
-      await window.keyboard.press("ControlOrMeta+z");
-      await expect(window.locator(".cm-content")).toContainText("Quarz eins, Quarz zwei, Quarz drei");
-      await expectSaved("Quarz eins, Quarz zwei, Quarz drei\n");
-    });
-  }
 });
