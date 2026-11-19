@@ -7,7 +7,7 @@ import { degreePercent } from "../evidence/degree-text.js";
 type GraphNode = CommandOutput<"trace.graph">["nodes"][number];
 type GraphEdge = CommandOutput<"trace.graph">["edges"][number];
 type GraphMark = GraphNode["marks"][number];
-type Metamodel = CommandOutput<"metamodel.get">;
+type Metamodel = Omit<CommandOutput<"metamodel.get">, "uses">;
 
 /** The words of the marks (SR-111 AK4), in the order of the output. */
 export const MARK_WORDS: Readonly<Record<GraphMark, string>> = {

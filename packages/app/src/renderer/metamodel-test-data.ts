@@ -265,6 +265,22 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     ],
   },
   files: [{ repository: "system", path: "metamodel/standard-model.yaml" }],
+  uses: {
+    types: { item: 0, requirement: 1, "software-requirement": 0, decision: 1, package: 0 },
+    properties: { title: 2, rationale: 0, component: 0, packages: 0, severity: 0 },
+    values: { component: { display: 0, sensor: 0 } },
+    relations: {
+      "derives-from": 0,
+      replaces: 0,
+      "delegates-to": 0,
+      "based-on": 0,
+      concerns: 0,
+      refines: 0,
+      "traces-to": 0,
+      blocks: 0,
+    },
+    statuses: { draft: 1, approved: 0, retired: 0, open: 1, decided: 0 },
+  },
 };
 
 /** A metamodel of `types` and `relations` only, the rest empty. */
@@ -278,6 +294,7 @@ export const metamodelOutput = (
   meanings: {},
   relationKinds: {},
   files: [],
+  uses: { types: {}, properties: {}, values: {}, relations: {}, statuses: {} },
   ...parts,
 });
 

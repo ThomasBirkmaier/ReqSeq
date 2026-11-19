@@ -95,6 +95,20 @@ export type {
 } from "./store.js";
 export { metamodelEffects } from "./metamodel-effects.js";
 export type { MetamodelEffects } from "./metamodel-effects.js";
+export {
+  USES_NAMED,
+  hasStatus,
+  holdsKey,
+  lostUses,
+  mentioningFiles,
+  metamodelUses,
+  metamodelUsesState,
+  refuseMissingRepositories,
+  refuseUses,
+  useOf,
+  withSubtypes,
+} from "./metamodel-uses.js";
+export type { MetamodelUses, Use, UseKind } from "./metamodel-uses.js";
 export { writeMetamodel } from "./metamodel-write.js";
 export type { MetamodelWrite } from "./metamodel-write.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";

@@ -7,7 +7,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE, CATALOG_HEADER } from "./load.mjs";
-import { checkCatalog } from "./catalog-checks.mjs";
+import { checkCatalog, removesDefinition } from "./catalog-checks.mjs";
 import { checkCommandExamples } from "./command-examples.mjs";
 import { checkOutputs } from "./output-checks.mjs";
 import { outputFieldsOf } from "./output-fields.mjs";
@@ -49,7 +49,14 @@ for (const cmd of catalog.commands) {
   }
   // D-045, SR-072 AK2: no access may offer deleting an element. A `deletes` entry deletes the file of a
   // perspective or saved filter, which is no element (D-056, SR-217); the meta schema binds it to those groups.
-  if (/delete|remove/i.test(cmd.name) && !cmd.name.startsWith("relation.") && cmd.deletes === undefined) {
+  // A `metamodel.remove*` command removes a definition of the metamodel, refused while any element uses it
+  // (SR-236 AK7, `removesDefinition`).
+  if (
+    /delete|remove/i.test(cmd.name) &&
+    !cmd.name.startsWith("relation.") &&
+    cmd.deletes === undefined &&
+    !removesDefinition(cmd)
+  ) {
     errors.push(`${file}: elements are superseded, never deleted (D-045)`);
   }
   for (const part of ["input", "output"]) {
