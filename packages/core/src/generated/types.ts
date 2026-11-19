@@ -499,6 +499,7 @@ export interface CommandErrorObject {
     | "variant.nested"
     | "baseline.uncommitted-changes"
     | "baseline.exists"
+    | "file.exists"
     | "reqif.invalid"
     | "reqif.unmapped"
     | "reqif.conflict"
@@ -2453,22 +2454,37 @@ export interface ToolInfoOutput {
 }
 
 /**
- * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.
  * Schema: `schemas/commands/tool.guide.json input`.
  */
 export interface ToolGuideInput {
-  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. */
+  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways. */
   readonly names: "cli" | "mcp";
+  /** Give the skill file instead of the agent guide. It reads nothing from the workspace, so it works without one. */
+  readonly skill: boolean;
+  /** Also write the skill file into the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
+  readonly write: boolean;
+  /** Replace a skill file that ReqSeq did not write or that was changed since (needs `write`). */
+  readonly replace: boolean;
 }
 
 /**
- * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
   readonly answer: Answer;
-  /** The agent guide as Markdown, LF line endings and a final newline. */
+  /** The agent guide, or with `skill` the skill file, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
+  /** The skill file `write` wrote; only with `write`. */
+  readonly file?: {
+    /** The skill file, relative to the workspace root, with `/`. */
+    readonly path: OutputPath;
+    /** `created`: there was no file; `replaced`: the file was replaced; `unchanged`: it was already the file of this version. */
+    readonly action: "created" | "replaced" | "unchanged";
+    /** The ReqSeq version that wrote the replaced file. */
+    readonly previousVersion?: string;
+  };
 }
 
 /**
@@ -2642,6 +2658,137 @@ export interface MetamodelRemoveTypeOutput {
     readonly statuses: readonly Key[];
   };
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.addStatus` as `run` gets it: validated, properties with a `default` filled in. Give a type a status, an existing one or a new one; only the metamodel files that have them change, line by line.
+ * Schema: `schemas/commands/metamodel.addStatus.json input`.
+ */
+export interface MetamodelAddStatusInput {
+  /** Key of the type that gets the status. */
+  readonly type: Key;
+  /** Key of an existing status the type does not have. Left out: `name` describes a new status. */
+  readonly status?: Key;
+  /** Display name of a new status; no other status may have it. */
+  readonly name?: string;
+  /** Fixed key of the new status (D-043). Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** The new status is marked invalid: elements with it do not count for coverage and indirect verification, but stay visible in chains (D-044). */
+  readonly invalid?: boolean;
+}
+
+/**
+ * Output of `metamodel.addStatus`. Give a type a status, an existing one or a new one; only the metamodel files that have them change, line by line.
+ * Schema: `schemas/commands/metamodel.addStatus.json output`.
+ */
+export interface MetamodelAddStatusOutput {
+  readonly answer: Answer;
+  /** Key of the type that got the status. */
+  readonly type: Key;
+  /** The definition of the status, as written. */
+  readonly status: MetamodelStatus;
+  /** true when the status is new to the metamodel. */
+  readonly created: boolean;
+  /** The statuses of the type afterwards, own and inherited, in the order of the metamodel's statuses. */
+  readonly statuses: readonly Key[];
+  /** The other types that have the status now and did not before, except types that extend the type: types without a list of statuses, their own or an ancestor's, which have every status (SR-240 AK1), and types whose list names the key of a new status already (an unknown status before, a metamodel warning). */
+  readonly alsoTypes: readonly Key[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeStatus` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, invalid mark or initial mark of a status; only the metamodel files that have them change, line by line, and no element changes its status.
+ * Schema: `schemas/commands/metamodel.changeStatus.json input`.
+ */
+export interface MetamodelChangeStatusInput {
+  /** Key of the status to change. */
+  readonly status: Key;
+  /** New display name; no other status may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** true: elements with the status do not count for coverage and indirect verification, but stay visible in chains (D-044); false removes the mark. */
+  readonly invalid?: boolean;
+  /** true: new elements get the status, and the status that had the mark loses it (SR-240 AK2); false removes the mark, which leaves no initial status and is refused. */
+  readonly initial?: boolean;
+}
+
+/**
+ * Output of `metamodel.changeStatus`. Change the name, description, invalid mark or initial mark of a status; only the metamodel files that have them change, line by line, and no element changes its status.
+ * Schema: `schemas/commands/metamodel.changeStatus.json output`.
+ */
+export interface MetamodelChangeStatusOutput {
+  readonly answer: Answer;
+  /** The definition as it is written afterwards. */
+  readonly status: MetamodelStatus;
+  /** Key of the status that lost the initial mark; only when the status became initial. */
+  readonly previousInitial?: Key;
+  /** The elements that have the status, of any type; only when the invalid mark changed (D-044); those of `elementsWithStatus`. */
+  readonly elements?: number;
+  /** The elements `elements` counts, in store order; only when the invalid mark changed. */
+  readonly elementsWithStatus?: readonly CountedElement[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeStatus` as `run` gets it: validated, properties with a `default` filled in. Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeStatus.json input`.
+ */
+export interface MetamodelRemoveStatusInput {
+  /** Key of the type that loses the status. */
+  readonly type: Key;
+  /** Key of the status to remove from the type. */
+  readonly status: Key;
+}
+
+/**
+ * Output of `metamodel.removeStatus`. Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeStatus.json output`.
+ */
+export interface MetamodelRemoveStatusOutput {
+  readonly answer: Answer;
+  /** Key of the type that lost the status. */
+  readonly type: Key;
+  /** Key of the removed status. */
+  readonly status: Key;
+  /** true when no type has the status any more and its definition was removed (SR-240 AK3). */
+  readonly removed: boolean;
+  /** Saved filters, perspectives and mapping files that name the removed definition as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
@@ -5058,6 +5205,9 @@ export interface CommandTypes {
   readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
   readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
+  readonly "metamodel.addStatus": { readonly input: MetamodelAddStatusInput; readonly output: MetamodelAddStatusOutput };
+  readonly "metamodel.changeStatus": { readonly input: MetamodelChangeStatusInput; readonly output: MetamodelChangeStatusOutput };
+  readonly "metamodel.removeStatus": { readonly input: MetamodelRemoveStatusInput; readonly output: MetamodelRemoveStatusOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };

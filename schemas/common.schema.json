@@ -530,6 +530,7 @@
             "variant.nested",
             "baseline.uncommitted-changes",
             "baseline.exists",
+            "file.exists",
             "reqif.invalid",
             "reqif.unmapped",
             "reqif.conflict",
