@@ -1,8 +1,9 @@
 name: Docs pages
 
 # ADR-0017: builds the user documentation of a release tag, adds the HTML export of ReqSeq's own spec under /spec/
-# (D-080), and deploys both to GitHub Pages. Only the latest release is online (D-067), so a tag that is not the latest release is built but not deployed. Called by release.yml after it
-# published a release (a release published with `github.token` starts no workflow of its own), or by hand for a tag.
+# (D-080), and deploys both to GitHub Pages. Only the latest release is online (D-067), so a tag that is not the
+# latest release is built but not deployed. Called by release.yml after it published a release (a release published
+# with `github.token` starts no workflow of its own), or by hand for a tag.
 # Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` allowed in the environment
 # `github-pages`.
 on:
@@ -40,8 +41,8 @@ jobs:
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
-          # The release tags for the page "What's new" (#1259), and the history the HTML export reads for the change of
-          # an element since a baseline.
+          # The release tags for the page "What's new" (#1259), and the history the HTML export is to read for the
+          # change of an element since a baseline (#1968).
           fetch-depth: 0
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -59,9 +60,18 @@ jobs:
       # the offline build (.github/actions/docs-site). A tag from before the action cannot be rebuilt here.
       - uses: ./.github/actions/docs-site
       # ReqSeq's own spec as an HTML export (D-080) under /spec/ of the site, from the CLI of this tag and without
-      # network, like the site build. A tag from before the command `html.export` cannot be rebuilt here.
+      # network, like the site build. A tag from before the command `html.export` is deployed without /spec/. Problems
+      # of the export (texts written as text, foreign files) do not stop the build; each becomes a warning.
       - name: Export the spec as HTML without network (unshare -rn)
-        run: unshare -rn node packages/cli/dist/bin.js html export packages/docs/site/dist/spec --workspace spec
+        run: |
+          if [ ! -f schemas/commands/html.export.json ]; then
+            echo "::notice::$GITHUB_REF_NAME has no command html.export: the site is deployed without /spec/"
+            exit 0
+          fi
+          unshare -rn node packages/cli/dist/bin.js html export packages/docs/site/dist/spec --workspace spec --json \
+            > "$RUNNER_TEMP/html-export.json"
+          jq -r '"Exported \(.pages) element pages to /spec/."' "$RUNNER_TEMP/html-export.json"
+          jq -r '.problems[] | "::warning::html export: \(.code): \(.message)"' "$RUNNER_TEMP/html-export.json"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: packages/docs/site/dist
