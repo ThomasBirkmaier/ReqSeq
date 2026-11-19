@@ -47,8 +47,8 @@ const initialized = async (raw: RawMcp, clientInfo?: Record<string, unknown>): P
 };
 
 /**
- * Notes in the window the epoch time of the frame after the modeline's agent part shows `state` (`data-agent`);
- * `shownAt` reads it.
+ * Notes in the window `Date.now()` (the clock of the test and of core) in the frame after the modeline's agent
+ * part shows `state` (`data-agent`); `shownAt` reads it.
  */
 const arm = (window: Page, state: "connected" | "ended"): Promise<void> =>
   window.evaluate((state) => {
@@ -57,7 +57,7 @@ const arm = (window: Page, state: "connected" | "ended"): Promise<void> =>
     const seen = (): boolean => document.querySelector(`.modeline .agent[data-agent="${state}"]`) !== null;
     const note = (): void => {
       requestAnimationFrame(() => {
-        page.agentShown = performance.timeOrigin + performance.now();
+        page.agentShown = Date.now();
       });
     };
     if (seen()) {
@@ -175,7 +175,8 @@ test("[SR-228/AK-zn8v] a client of a revision without initialize: green at most 
   const sent = Date.now();
   // `subscriptions/listen` waits for no answer: the arrival connects (no clientInfo: no name).
   server.write({
-    id: 1,
+    // Far from the ids `request` numbers (the ping took 1).
+    id: 1000,
     method: "subscriptions/listen",
     params: { _meta: { [PROTOCOL_VERSION_KEY]: REVISION } },
   });

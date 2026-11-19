@@ -228,9 +228,10 @@ const spawnMcp = (args: readonly string[], environment: NodeJS.ProcessEnv, runti
       answered(line);
     }
   });
+  const running = (): boolean => child.exitCode === null && child.signalCode === null;
   let next = 0;
   const request = (method: string, params: unknown): Promise<Record<string, unknown>> => {
-    if (child.exitCode !== null) {
+    if (!running()) {
       return Promise.reject(new Error(`reqseq mcp ended: ${stderr}`));
     }
     next += 1;
@@ -241,7 +242,6 @@ const spawnMcp = (args: readonly string[], environment: NodeJS.ProcessEnv, runti
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     return answer;
   };
-  const running = (): boolean => child.exitCode === null && child.signalCode === null;
   const ended = (): Promise<void> =>
     running()
       ? new Promise((resolve) => {

@@ -343,6 +343,30 @@ describe("the connected agent in the modeline (SR-228)", () => {
     expect(query("label").textContent).toBe(CLIENT_LABEL);
   });
 
+  it("after a switch to another workspace shows nothing of the one before, and asks the new one at once", async () => {
+    const { bridge, handlers, opened } = fake(true);
+    handlers["workspace.agents"] = () => ({
+      recorded: true,
+      connected: [{ client: "Claude Code", since: "2026-11-19T10:00:00Z" }],
+      last: null,
+    });
+    await render(bridge);
+    expect(agentPart()?.textContent).toBe("Agent connected");
+    handlers["workspace.agents"] = () => ({ recorded: true, connected: [], last: null });
+    await opened();
+    expect(agentPart()?.textContent).toBe("Connect AI agent");
+  });
+
+  it("keeps polling after an answer that cannot be read", async () => {
+    const { bridge, handlers } = fake(true);
+    handlers["workspace.agents"] = () => ({ recorded: true, connected: null, last: null });
+    await render(bridge);
+    expect(agentPart()).toBeNull();
+    handlers["workspace.agents"] = () => ({ recorded: true, connected: [], last: null });
+    await nextPoll();
+    expect(agentPart()?.textContent).toBe("Connect AI agent");
+  });
+
   it("shows Agent connected with a dot while a client is connected, each connection in the hover, and no button", async () => {
     const { bridge, handlers } = fake(true);
     handlers["workspace.agents"] = () => ({

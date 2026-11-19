@@ -27,8 +27,6 @@ The command prompt also shows the last message, and a command needing input asks
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
-At its right end the modeline shows whether an AI agent is connected to this copy of the workspace through the MCP server: a green dot and "Agent connected" while one is, a grey dot and "No agent connected" once the last connection has ended, also by a crash, and "Connect AI agent" when none has ever been connected to it. Hover over it for the client and since when it is connected, or which client was connected last and when. A click on "No agent connected" or "Connect AI agent" starts **Connect AI agent**. `reqseq workspace agents` gives the same on the command line.
-
 ## Buffers
 
 Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
