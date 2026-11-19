@@ -61,7 +61,21 @@ export {
   versionDifferences,
 } from "./repository-metamodels.js";
 export { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
-export { keyFromName } from "./new-key.js";
+export { keyFromName, keyOrMade } from "./new-key.js";
+export {
+  choicesOf,
+  fieldsOutside,
+  newChoices,
+  newPropertyKey,
+  ownLists,
+  ownerAbove,
+  propertyDefinition,
+  refuseOutsideKind,
+  refusePropertyName,
+  refuseSingleLimit,
+  unknownDefinition,
+} from "./property-plan.js";
+export type { KindField, PropertyKind } from "./property-plan.js";
 export { metamodelState } from "./state.js";
 export { statusKeysOf, statusListHolders, typeDefinition, widenedTypes } from "./status-lists.js";
 export { changeMetamodel, definitionAt, definitionsOf, editedFiles, fileForNew } from "./write.js";
