@@ -43,6 +43,7 @@ import perspectiveRename from "./perspective/rename.js";
 import perspectiveSave from "./perspective/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
+import metamodelAddType from "./metamodel/addType.js";
 import metamodelGet from "./metamodel/get.js";
 import metamodelMermaid from "./metamodel/mermaid.js";
 import relationAdd from "./relation/add.js";
@@ -101,6 +102,7 @@ export const commands: readonly AnyCommand[] = [
   filterSave,
   hintConfirm,
   hintList,
+  metamodelAddType,
   metamodelGet,
   metamodelMermaid,
   perspectiveDelete,

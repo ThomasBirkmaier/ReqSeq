@@ -14,6 +14,7 @@
     "tool.guide",
     "metamodel.get",
     "metamodel.mermaid",
+    "metamodel.addType",
     "element.create",
     "element.get",
     "element.resolve",

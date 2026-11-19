@@ -3007,22 +3007,27 @@
             "name": true,
             "description": true,
             "prefix": {
+              "title": "Prefix",
               "$ref": "#/$defs/metamodel/$defs/prefix",
               "description": "Prefix of the short ID, e.g. SR. UNKNOWN is reserved for elements of an unknown type and is a metamodel error."
             },
             "extends": {
+              "title": "Extends",
               "$ref": "#/$defs/metamodel/$defs/key",
               "description": "Parent type; its properties and required properties are inherited, over any number of levels. A parent that is not defined, or a cycle, is a metamodel error."
             },
             "abstract": {
+              "title": "Abstract",
               "type": "boolean",
               "default": false,
               "description": "No elements of this type can be created; only for inheritance."
             },
             "meaning": {
+              "title": "Meaning",
               "$ref": "#/$defs/metamodel/$defs/typeMeaning"
             },
             "properties": {
+              "title": "Properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -3030,6 +3035,7 @@
               "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it."
             },
             "required": {
+              "title": "Required properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -3037,6 +3043,7 @@
               "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it. Empty values are allowed but give a hint."
             },
             "statuses": {
+              "title": "Statuses",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -5323,6 +5330,96 @@
         "required": [
           "answer",
           "mermaid",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_addType",
+      "title": "Add type",
+      "description": "Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name of the type; no other type may have it."
+          },
+          "prefix": {
+            "$ref": "#/$defs/metamodel/$defs/prefix",
+            "description": "Prefix of the short IDs of its elements, e.g. SR; no other type may have it."
+          },
+          "key": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Fixed key of the type. Left out: made from the name."
+          },
+          "extends": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type it extends; its properties, required properties and statuses are inherited."
+          },
+          "abstract": {
+            "type": "boolean",
+            "default": false,
+            "description": "No elements of the type can be created; it is only extended."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "prefix"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/metamodel/$defs/type",
+            "description": "The definition as written to the file."
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "files",
+          "versionsChanged",
+          "missingRequired",
           "problems"
         ]
       }
