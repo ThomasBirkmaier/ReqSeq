@@ -204,7 +204,8 @@ export class SwipeDrag {
 
   /**
    * The swipe switches from where it stands: the layers lose what the drag gave them, in the task of the switch
-   * (no frame is painted between), and the slide goes on from the returned part of the width.
+   * (no frame is painted between), except the target's `data-peek`, which `unpeek` removes after the switch's
+   * commit in the same task; the slide goes on from the returned part of the width.
    */
   handOff(): number {
     const progress = this.progress;
