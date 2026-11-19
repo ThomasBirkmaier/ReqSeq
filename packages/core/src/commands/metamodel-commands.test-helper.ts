@@ -116,6 +116,26 @@ export const openSmall = async (
   return { fixture, workspace, read: (file) => fs.readFile(fixture.path(file), "utf8") };
 };
 
+/**
+ * fixtures/SR-004/three-repositories with the small model in `system` and `files` (relative to the
+ * folder of the repositories, `product/…`): elements of the other repositories count too. `read`
+ * takes a path in `system`. The need of `product` and the requirements of `system` and `sensor`
+ * are of types the small model does not have.
+ */
+export const openSmallAcross = async (
+  files: FixtureOptions["files"] = {},
+  model: string = SMALL_MODEL,
+): Promise<Opened> => {
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-004/three-repositories",
+    files: { [`system/${MODEL}`]: model, ...files },
+  });
+  onTestFinished(() => fixture.cleanup());
+  const workspace = new Workspace(fixture.path("system"));
+  onTestFinished(() => workspace.close());
+  return { fixture, workspace, read: (file) => fs.readFile(fixture.path(`system/${file}`), "utf8") };
+};
+
 /** Runs `command` through MCP. */
 export const run = async <T>(workspace: Workspace, command: CommandName, input: unknown): Promise<T> =>
   (await invoke(command, input, { workspace, access: "mcp" })) as T;
