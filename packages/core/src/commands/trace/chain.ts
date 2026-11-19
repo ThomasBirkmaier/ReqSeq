@@ -52,7 +52,7 @@ import {
   viewRuleOf,
 } from "../../variants/index.js";
 import { variantIndependentOf } from "../../workspace/index.js";
-import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
+import { counted, incompleteNote, problemsNote, rootNamed, sentence } from "../answer.js";
 
 const CORE: View = { kind: "core" };
 
@@ -118,7 +118,7 @@ export default defineCommand({
   name: "trace.chain",
   answer: (output, input) =>
     sentence(
-      `The chain of ${input.ref} has ${counted(output.total, "element")}`,
+      `The chain of ${rootNamed(output.root, output.nodes, input.ref)} has ${counted(output.total, "element")}`,
       output.gaps.length === 0
         ? ""
         : `${counted(output.gaps.length, "gap")}${output.nodes.length < output.total ? " on this page" : ""}`,

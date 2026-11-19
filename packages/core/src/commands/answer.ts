@@ -16,6 +16,19 @@ export const named = (element: { readonly shortId: string; readonly identifier?:
   element.identifier ?? element.shortId;
 
 /**
+ * The root of an output as a sentence names it (`named`): by its node among `nodes`, so a UUID and a short ID
+ * as `ref` give the same sentence; `ref` as given when the page of `nodes` does not hold the root.
+ */
+export const rootNamed = (
+  root: string,
+  nodes: readonly { readonly id: string; readonly shortId: string; readonly identifier?: string }[],
+  ref: string,
+): string => {
+  const node = nodes.find((each) => each.id === root);
+  return node === undefined ? ref : named(node);
+};
+
+/**
  * A view as a sentence names it: `core`, or its variant by identifier, else short ID, from the `names` of
  * the output; the UUID only when `names` lacks it.
  */

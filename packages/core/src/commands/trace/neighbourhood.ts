@@ -17,13 +17,13 @@ import {
   traceNeighbourhood,
 } from "../../trace/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
-import { counted, incompleteNote, sentence } from "../answer.js";
+import { counted, incompleteNote, rootNamed, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.neighbourhood",
   answer: (output, input) =>
     sentence(
-      `The neighbourhood of ${input.ref} has ${counted(output.total, "element")}`,
+      `The neighbourhood of ${rootNamed(output.root, output.nodes, input.ref)} has ${counted(output.total, "element")}`,
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"trace.neighbourhood">> => {
