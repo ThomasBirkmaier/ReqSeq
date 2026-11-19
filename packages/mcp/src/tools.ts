@@ -35,7 +35,12 @@ export interface McpToolList {
  */
 export interface ServerTool extends Omit<McpTool, "outputSchema"> {
   readonly command: string;
+  /** For the catalog entries with `loadUpfront`: a client that defers tools loads these at once (#1926). */
+  readonly _meta?: { readonly [ALWAYS_LOAD]: true };
 }
+
+/** The `_meta` key with which Claude Code loads a tool upfront instead of deferring it (ADR-0009). */
+export const ALWAYS_LOAD = "anthropic/alwaysLoad";
 
 /** `element.setStatus` is the tool `element_setStatus`. */
 export const toolName = (command: string): string => command.replace(".", "_");
@@ -205,6 +210,7 @@ export function serverTools(runtime: CommandRuntime): ServerTool[] {
         ...plain,
         command: entry.name,
         inputSchema: selfContained(withoutDisplayMarks(flat(plain.inputSchema)) as JsonSchema, defs),
+        ...(entry.loadUpfront === true ? { _meta: { [ALWAYS_LOAD]: true } as const } : {}),
       };
     });
 }
