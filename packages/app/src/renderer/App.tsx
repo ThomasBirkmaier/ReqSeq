@@ -192,17 +192,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const perspectiveUse = usePerspectiveUse(appStorage);
   // The order Next and Previous buffer walk (SR-115 AK5), and the buffer they switched to last.
   const walk = useRef<Walk>(NO_WALK);
+  // The last change of the metamodel made in the app, marked until the next one (SR-130 AK7); another
+  // workspace starts without one (`clearMetamodelChange` of `useWorkspaceStatus`).
+  const [metamodelChange, setMetamodelChange] = useState<MetamodelChange>(NO_CHANGE);
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
   // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
   // what is still to be restored.
-  // The last change of the metamodel made in the app, marked until the next one (SR-130 AK7); another
-  // workspace starts without one.
-  const [metamodelChange, setMetamodelChange] = useState<MetamodelChange>(NO_CHANGE);
   const [session, setSession] = useState<string | undefined>(undefined);
-  // A change of the metamodel marks only in the workspace it was made in (SR-130 AK7).
-  useEffect(() => {
-    setMetamodelChange(NO_CHANGE);
-  }, [session]);
   // What was stored last (the key and the text), so that a change of a selected row alone writes nothing.
   const sessionStored = useRef<string | undefined>(undefined);
 
@@ -258,6 +254,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     setSession,
     setEcho,
     leavingWrites,
+    clearMetamodelChange: () => {
+      setMetamodelChange(NO_CHANGE);
+    },
     setSwitchSaves,
     macRef,
     setView,

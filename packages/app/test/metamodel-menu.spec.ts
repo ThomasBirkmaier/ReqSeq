@@ -2,8 +2,8 @@
 // on the built app, on a copy of fixtures/SR-130/metamodel: a right-click on the name or prefix of a type, a
 // property row, a status, the label line of a relation property or of a relation kind offers the commands of
 // that place, and each opens the command prompt with the definition given. "Add status to type" run from the
-// menu writes the metamodel, the graph and the text mark the new status until the next metamodel command,
-// and a removal marks nothing. Right-clicks go through Chromium's input (Playwright's mouse). The light
+// menu writes the metamodel, the graph and the text mark the new status until the next metamodel command in
+// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go through Chromium's input (Playwright's mouse). The light
 // screenshot goes to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -116,7 +116,7 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-130/AK-wb12] the graph and the text mark a status added in the app until the next metamodel command, and nothing after a removal", async () => {
+  test("[SR-130/AK-wb12] the graph and the text mark a status added in the app until the next metamodel command, not a change through the CLI or by hand, and nothing after a removal", async () => {
     const { window } = running;
     await fsp.mkdir(SHOTS, { recursive: true });
     expect(await changed(window)).toEqual([]);
@@ -149,6 +149,14 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     await expect(window.locator('.mm-text-status.changed[data-status="pending"]')).toHaveText("Pending");
     expect(await changed(window)).toEqual(["Pending"]);
     await window.keyboard.press("ControlOrMeta+T");
+    // A change through the CLI and one by hand mark nothing, and the mark of the app's change stays.
+    const cli = await running.cli(["metamodel", "change-type", "decision", "--name", "Ruling"]);
+    expect(cli.code, cli.stderr).toBe(0);
+    await expect(box(window, "decision").locator(".mm-name")).toHaveText("Ruling");
+    const types = path.join(running.workspace?.root ?? "", "model", "types.yaml");
+    await fsp.writeFile(types, (await fsp.readFile(types, "utf8")).replace("name: Package", "name: Bundle"));
+    await expect(box(window, "package").locator(".mm-name")).toHaveText("Bundle");
+    expect(await changed(window)).toEqual(["Pending"]);
     // A removal marks nothing.
     await chooseOn(
       status,

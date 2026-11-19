@@ -82,7 +82,7 @@ test.describe("the metamodel commands in the command prompt (SR-236)", () => {
     expect(file).toMatch(/target-type: decision[\s\S]*min: 1|min: 1[\s\S]*target-type: decision/u);
   });
 
-  test("[SR-236/AK-wq1x] Change property shows the value kind of a property elements hold as locked with their number", async () => {
+  test("[SR-236/AK-wq1x] Change property definition shows the value kind of a property elements hold as locked with their number", async () => {
     const { window } = running;
     await fsp.mkdir(SHOTS, { recursive: true });
     await window.keyboard.press("ControlOrMeta+Shift+P");
