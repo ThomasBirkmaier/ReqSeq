@@ -92,8 +92,8 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 
 export { isUuid } from "./uuid.js";
 
-/** The keys every element has (D-012): fields of their own, never properties. */
-export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
+/** The keys every element has (D-012): fields of their own, never properties (`metamodel/load.ts`). */
+export { STRUCTURAL_KEYS } from "../metamodel/index.js";
 
 /**
  * The line in the file of the value at `path` (a top-level key, then list indexes or keys; line 1

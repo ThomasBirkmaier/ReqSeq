@@ -25,6 +25,7 @@ import { OverviewView } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import type { PerspectiveRow, RecentRow } from "./overview.js";
 import type { RecentEntry } from "./recent.js";
+import type { OutputField } from "./result.js";
 import { ResultView } from "./ResultView.js";
 import type { DrawnBy, Neighbour } from "./neighbours.js";
 import type { Area, WindowAction } from "./window-layout.js";
@@ -44,6 +45,8 @@ export const LoadingView = ({
   readonly dispatch: (action: WindowAction) => void;
   /** Copies a value of a result, such as the setup of "Connect AI agent" (SR-227 AK7). */
   readonly onCopy?: (label: string, text: string) => void;
+  /** The fields of a command's output in the catalog, whose titles an output page shows (SR-223 AK1). */
+  readonly outputFields?: AreaViews["outputFields"];
 }): React.JSX.Element => {
   const shared = {
     call: props.call,
@@ -57,7 +60,15 @@ export const LoadingView = ({
   // The rows that changed outside are highlighted (SR-116).
   const marking = props.outside === undefined ? {} : { outside: props.outside };
   if (buffer.kind === "result") {
-    return <ResultView key={buffer.key} buffer={buffer} {...shared} />;
+    const fields = props.outputFields?.(buffer.command);
+    return (
+      <ResultView
+        key={buffer.key}
+        buffer={buffer}
+        {...shared}
+        {...(fields === undefined ? {} : { fields })}
+      />
+    );
   }
   if (buffer.kind === "neighbourhood") {
     return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...drawn} {...marking} />;
@@ -88,6 +99,8 @@ export interface AreaViews {
   readonly onEcho: (message: string) => void;
   /** Puts a value on the clipboard, and the modeline confirms it (SR-128 AK2). */
   readonly onCopy: (label: string, text: string) => void;
+  /** The fields of the output of `command` in the catalog (`outputFields`); undefined while it is not read. */
+  readonly outputFields: (command: string) => readonly OutputField[] | undefined;
   /** A view cannot draw its buffer: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
   readonly onDrawn: (key: string) => void;
   /** The names of the types by their key, from the metamodel. */
@@ -218,6 +231,7 @@ const BufferView = ({
       onEcho={onEcho}
       onDrawn={onDrawn}
       onCopy={views.onCopy}
+      outputFields={views.outputFields}
     />
   );
 };

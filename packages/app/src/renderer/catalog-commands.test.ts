@@ -1375,11 +1375,11 @@ describe("the arguments a command expects, completed with the values of the meta
     expect((await last(broken.asked)).label).toBe("Broken · Bulk update elements component · value:");
   });
 
-  it("Create relation: the shown element as source, a kind relation options allows from it, a target, and the written result", async () => {
-    const { context, asked, call, dispatched } = setup([shown], {
+  it("Create relation: the shown element as source, a kind relation options allows from it, a target, and the written result on a click on the message", async () => {
+    const { context, asked, call, dispatched, reported } = setup([shown], {
       "relation.options": () => OPTIONS,
       "element.search": () => ({ hits: [hit(7)], total: 1 }),
-      "relation.add": () => ({ files: ["f1.md"] }),
+      "relation.add": () => ({ answer: "Added SR-1 refines SR-7; 1 file written.", files: ["f1.md"] }),
     });
     start(context, "relation.add");
     const source = await last(asked);
@@ -1397,6 +1397,8 @@ describe("the arguments a command expects, completed with the values of the meta
       kind: "refines",
       target: "uuid-7",
     });
+    expect(reported.map((said) => said.message)).toEqual(["Added SR-1 refines SR-7; 1 file written."]);
+    reported[0]?.open();
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
       buffer: { kind: "result", name: "Create relation SR-000001 (SR-1) refines SR-000007", written: true },

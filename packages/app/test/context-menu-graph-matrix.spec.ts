@@ -195,6 +195,8 @@ test.describe("the context menu of the graph and the matrix", () => {
     await window.keyboard.type("See the wind");
     await expect(candidates(window).first().locator(".name")).toHaveText("N-0000a1 See the wind");
     await window.keyboard.press("Enter");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toBeVisible();
     expect(await relationsOf(running, "SR-0000b4")).toContain("derives-from N-0000a1");
 
@@ -209,6 +211,8 @@ test.describe("the context menu of the graph and the matrix", () => {
     await window.keyboard.type("Show a dial");
     await expect(candidates(window).first().locator(".name")).toHaveText("SR-0000b4 Show a dial");
     await window.keyboard.press("Enter");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toBeVisible();
     expect(await relationsOf(running, "SR-0000b4")).toEqual(
       expect.arrayContaining(["derives-from N-0000a1", "derives-from N-0000a2"]),
@@ -226,6 +230,8 @@ test.describe("the context menu of the graph and the matrix", () => {
     expect(await entryNames(window)).toEqual(ENTRY_THEN_REMOVE);
     expect(await relationsOf(running, "SR-0000b1")).toContain("derives-from N-0000a1");
     await choose(window, "Remove relation");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toBeVisible();
     expect(await relationsOf(running, "SR-0000b1")).not.toContain("derives-from N-0000a1");
     // The other relations of the row stay, and the same kind between other elements too.
@@ -248,6 +254,8 @@ test.describe("the context menu of the graph and the matrix", () => {
     await rightClick(incoming);
     expect(await entryNames(window)).toEqual(ENTRY_THEN_REMOVE);
     await choose(window, "Remove relation");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toBeVisible();
     expect(await relationsOf(running, "SR-0000b5")).toEqual(["derives-from N-0000a1", "based-on D-0000e1"]);
   });

@@ -53,6 +53,7 @@ export interface ContextParts {
   readonly dispatch: (action: WindowAction) => void;
   readonly ask: (next: Prompt) => void;
   readonly setEcho: Setter<string>;
+  readonly report: (message: string, open: () => void) => void;
   readonly setAbout: Setter<AboutInfo | undefined>;
   readonly copy: (label: string, text: string) => void;
   readonly bridge: ReqSeqBridge;
@@ -83,7 +84,7 @@ export interface ContextParts {
 
 export const actionContext = (parts: ContextParts): ActionContext => {
   const { view, buffers, walk, releasedAt, slides, layout, revisionNow, leavesClean, mac, theme } = parts;
-  const { call, viewCall, dispatch, ask, setEcho, setAbout, copy, bridge, notify, recentRef } = parts;
+  const { call, viewCall, dispatch, ask, setEcho, report, setAbout, copy, bridge, notify, recentRef } = parts;
   const { recentNames, elementControls, row, marked, current, loaded, drafts, armed, onDraft } = parts;
   const {
     saveKept,
@@ -133,6 +134,7 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     dispatch,
     ask,
     echo: setEcho,
+    report,
     about: setAbout,
     copy,
     // "Paste" (SR-195 AK3): main pastes into the field that has the focus now; it refuses without a click
@@ -267,13 +269,15 @@ export interface ViewParts {
   readonly packages: PackageModel | undefined;
   readonly variantTypes: ReadonlySet<string>;
   readonly properties: PropertyModel;
+  /** The catalog as the window read it, for the titles of an output's fields (SR-223 AK1). */
+  readonly catalog: RefObject<readonly CommandListing[]>;
 }
 
 export const areaViews = (parts: ViewParts): AreaViews => {
   const { viewCall, revision, seen, outside, dispatch, onData, setEcho, onDrawn, gate, ready } = parts;
   const { leavesClean, stopped, drop, switchSaves, typeNames, kindNames, overview, recent, latest } = parts;
   const { forgetName, call, copy, ask, context, titles, drafts, onDraft, keepOf, setElementControls } = parts;
-  const { packages, variantTypes, properties } = parts;
+  const { packages, variantTypes, properties, catalog } = parts;
   const openTarget = (id: string, repository?: string): void => {
     // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
     // A reference names the repository when the link has one.
@@ -301,6 +305,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
     onData,
     onEcho: setEcho,
     onCopy: copy,
+    outputFields: (command) => catalog.current.find((entry) => entry.name === command)?.outputFields,
     onDrawn,
     gate,
     ready,

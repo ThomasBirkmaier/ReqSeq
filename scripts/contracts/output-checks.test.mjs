@@ -250,7 +250,6 @@ describe("checkOutputs", () => {
       "reqif.export",
       "reqif.import",
       "tool.guide",
-      "workspace.init",
     ]);
     expect(errorsOf(write("reqif.import", { showsOutput: true }), write("element.update"))).toEqual([]);
     expect(

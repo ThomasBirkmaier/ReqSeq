@@ -235,6 +235,8 @@ test.describe("the command prompt", () => {
     await window.keyboard.press("ControlOrMeta+Enter");
     await expect(names(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
+    // The element stays; the answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toContainText("evidence/");
     const written = /evidence\/\S+\.md/u.exec(await window.locator(".result").innerText())?.[0];
     expect(written).toBeDefined();
@@ -281,6 +283,7 @@ test.describe("the command prompt", () => {
     await window.keyboard.type("See the wind");
     await expect(names(window).first()).toHaveText("N-0000a1 See the wind");
     await window.keyboard.press("Enter");
+    await window.locator(".echo-open").click();
     await expect(window.locator(".result")).toBeVisible();
     const source = path.join("requirements", "SR-0000000000b5.md");
     await expect
@@ -358,7 +361,7 @@ test.describe("the command prompt", () => {
     await expect(label).toHaveCount(0);
   });
 
-  test("Confirm hints: Enter, Enter, Enter on an element with one outdated relation confirms it", async () => {
+  test("[SR-223/AK-gvv1] Confirm hints: Enter, Enter, Enter on an element with one outdated relation confirms it, keeps the element and says the answer, whose click opens the output", async () => {
     // The text of D1 changed, so that S1's `based-on` D1 is outdated (SR-025), as in neighbourhood.spec.ts.
     const d1 = "5e107a7d-2b4f-4c61-9d08-0d0000000001";
     running = await launchApp({
@@ -397,8 +400,16 @@ test.describe("the command prompt", () => {
     const card = window.locator(".candidates");
     expect(await card.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
     await window.keyboard.press("Enter");
+    // The element stays shown, and the command line says the answer (SR-223 AK8).
+    const answer = window.locator(".echo-open");
+    await expect(answer).toHaveText("Confirmed 1 hint; 1 file written.");
+    await expect(window.locator("article h1")).toContainText("Show wind speed");
+    await expect(window.locator(".result")).toHaveCount(0);
+    await fs.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-write-answer-light.png") });
+    await answer.click();
     await expect(window.locator(".modeline")).toContainText("Confirm hints SR-b0000000001");
-    await expect(window.locator(".result")).toContainText("confirmed");
+    await expect(window.locator(".result")).toContainText("Confirmed hints");
     expect(await hints()).toEqual([]);
   });
 
@@ -506,7 +517,8 @@ test.describe("the command prompt", () => {
       await expect(names(window).first()).toHaveText("Approved");
       await expect(names(window).first().locator("mark")).toHaveText(["Ap", "r", "v"]);
       await window.keyboard.press("Enter");
-      await expect(window.locator(".result")).toBeVisible();
+      // The write has run: the command line says its answer (SR-223 AK8).
+      await expect(window.locator(".echo-open")).toBeVisible();
       const element = await running.cli(["element", "get", "SWR-0000f1"]);
       expect((JSON.parse(element.stdout) as { element: { status: string } }).element.status).toBe("approved");
     });
@@ -544,7 +556,8 @@ test.describe("the command prompt", () => {
       await window.keyboard.type("ultrasnd");
       await expect(names(window).first()).toHaveText("D-0000e1 Use ultrasound");
       await window.keyboard.press("Enter");
-      await expect(window.locator(".result")).toBeVisible();
+      // The write has run: the command line says its answer (SR-223 AK8).
+      await expect(window.locator(".echo-open")).toBeVisible();
       const element = await running.cli(["element", "get", "SR-0000b1"]);
       const relations = (
         JSON.parse(element.stdout) as { element: { relations: { kind: string; shortId?: string }[] } }
@@ -677,7 +690,7 @@ test.describe("the command prompt", () => {
       await expect(marked).toHaveText("No");
       await window.keyboard.press("ControlOrMeta+Enter");
       await expect.poll(rationale).toBe(value);
-      await expect(window.locator(".result")).toContainText("applied");
+      await expect(window.locator(".result .line", { hasText: "Written" })).toHaveText("Writtenyes");
       // The same change again writes no element: the prompt asks nothing and says so.
       await toValue();
       await window.keyboard.type(value);

@@ -8,8 +8,9 @@ import { bufferName, elementBuffer, readOnlyBuffer, resultBuffer } from "./buffe
 import type { Call } from "./call.js";
 import { bufferView } from "./modeline.js";
 import type { BufferData } from "./modeline.js";
-import { MAX_RESULT_LINES, resultLines, resultSummary } from "./result.js";
-import { ResultView } from "./ResultView.js";
+import type { OutputField } from "./result.js";
+import { MAX_RESULT_LINES, resultAnswer, resultLines, resultSummary } from "./result.js";
+import { INCOMPLETE_NOTE, ResultView } from "./ResultView.js";
 import { LoadingView } from "./BufferArea.js";
 import type { WindowAction } from "./window-layout.js";
 import { ONE_AREA, areas, reduceWindow } from "./window-layout.js";
@@ -35,7 +36,7 @@ const hint = {
 };
 
 describe("result lines", () => {
-  it("lays out elements as rows that open, problems as one line and the rest as an indented outline", () => {
+  it("lays out elements as rows that open, problems first under a heading of their severity and the rest as an indented outline", () => {
     const lines = resultLines({
       root: element(1, { identifier: "SR-1" }),
       nodes: [element(2)],
@@ -44,22 +45,23 @@ describe("result lines", () => {
       incomplete: false,
       name: "Weather",
     });
-    expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
-      ["element", 0, "SR-000001 (SR-1)", "Title 1"],
-      ["text", 0, "nodes", "1"],
-      ["element", 1, "SR-000002", "Title 2"],
-      ["text", 0, "problems", "2"],
-      ["problem", 1, "", "warning  relation.outdated  SR-000002  The target changed"],
-      ["problem", 1, "", "info  workspace.x  Nothing to say"],
-      ["text", 0, "depth", ""],
-      ["text", 1, "up", "2"],
-      ["text", 1, "down", "0"],
+    expect(lines.map((line) => [line.kind, line.depth, line.label, line.text, line.status])).toEqual([
+      ["heading", 0, "", "Warnings", undefined],
+      ["problem", 0, "SR-000002", "The target changed", "relation.outdated"],
+      ["heading", 0, "", "Info", undefined],
+      ["problem", 0, "", "Nothing to say", "workspace.x"],
+      ["element", 0, "SR-000001 (SR-1)", "Title 1", undefined],
+      ["text", 0, "nodes", "1", undefined],
+      ["element", 1, "SR-000002", "Title 2", undefined],
+      ["text", 0, "depth", "", undefined],
+      ["text", 1, "up", "2", undefined],
+      ["text", 1, "down", "0", undefined],
       // `incomplete` goes to the modeline (#276).
-      ["text", 0, "name", "Weather"],
+      ["text", 0, "name", "Weather", undefined],
     ]);
-    expect(lines[0]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1"));
-    expect(lines[4]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002"));
-    expect(lines[5]?.open).toBeUndefined();
+    expect(lines[4]?.open).toEqual(elementBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1"));
+    expect(lines[1]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002"));
+    expect(lines[3]?.open).toBeUndefined();
   });
 
   it("opens the element of a problem in the repository of its element, named by its ID when it has no other name", () => {
@@ -70,7 +72,7 @@ describe("result lines", () => {
     // With an identifier, the short ID and the identifier name it before it is read (SR-084 AK4).
     const [named] = resultLines([{ ...hint, elementIdentifier: "SR-2" }]);
     expect(named?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 (SR-2)"));
-    expect(named?.text).toBe("warning  relation.outdated  SR-000002 (SR-2)  The target changed");
+    expect([named?.label, named?.text]).toEqual(["Warning SR-000002 (SR-2)", "The target changed"]);
     const [identified] = resultLines([{ ...hint, elementShortId: undefined, elementIdentifier: "SR-2" }]);
     expect(identified?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-2"));
   });
@@ -208,6 +210,140 @@ describe("result lines", () => {
     ).toEqual(["view", "kind", "total", "constructor"]);
   });
 
+  it("shows every value under the title of its field in the catalog, and a key of a map as it is (SR-223 AK1)", () => {
+    const fields: OutputField[] = [
+      { path: "checkedElements", title: "Checked elements" },
+      { path: "degree", title: "Verification degree" },
+      { path: "degree.counts", title: "Counts" },
+      { path: "degree.counts.open", title: "Open" },
+      { path: "byStatus", title: "Elements per status" },
+      { path: "byStatus.*", title: "Status" },
+      { path: "items", title: "Items" },
+      { path: "items[].note", title: "Note" },
+      { path: "plain" },
+    ];
+    const lines = resultLines(
+      {
+        checkedElements: 4,
+        degree: { counts: { open: 2 } },
+        byStatus: { draft: 3 },
+        items: [{ note: "n" }],
+        plain: true,
+        unlisted: false,
+      },
+      fields,
+    );
+    expect(lines.map((line) => [line.depth, line.label, line.text, line.field])).toEqual([
+      [0, "Checked elements", "4", "checkedElements"],
+      [0, "Verification degree", "", "degree"],
+      [1, "Counts", "", "degree.counts"],
+      [2, "Open", "2", "degree.counts.open"],
+      [0, "Elements per status", "", "byStatus"],
+      [1, "draft", "3", "byStatus.*"],
+      [0, "Items", "1", "items"],
+      [1, "Note", "n", "items[].note"],
+      // A field without a title, and one the catalog does not list, keep their key; a flag is yes or no.
+      [0, "plain", "yes", "plain"],
+      [0, "unlisted", "no", "unlisted"],
+    ]);
+    // Each record of a list starts after a gap; an empty one has no line.
+    const items = resultLines({ items: [{ a: 1, b: 2 }, {}, { a: 3 }] });
+    expect(items.map((line) => [line.label, line.itemStart])).toEqual([
+      ["items", undefined],
+      ["a", true],
+      ["b", undefined],
+      ["a", true],
+    ]);
+    // A map at the top: its values are `.*`, as the generator writes them.
+    expect(
+      resultLines({ draft: 3 }, [{ path: ".*", title: "Status" }]).map((line) => [line.label, line.field]),
+    ).toEqual([["draft", ".*"]]);
+    // A pair line names the second element by the title of its field.
+    const pair = resultLines(
+      { replaced: [{ core: "uuid-1", replacement: "uuid-2" }], names: [element(1), element(2)] },
+      [{ path: "replaced[].replacement", title: "Replacement" }],
+    );
+    expect(pair[1]?.text).toBe("Title 1 · Replacement: SR-000002 Title 2");
+  });
+
+  it("leaves out a value equal to the normal value the catalog names for its field (SR-223 AK7)", () => {
+    const fields: OutputField[] = [
+      { path: "ok", title: "Passed", normal: true },
+      { path: "problems", title: "Problems", normal: [] },
+      { path: "repositories[].readOnly", title: "Read-only", normal: false },
+    ];
+    const output = {
+      ok: true,
+      problems: [],
+      repositories: [
+        { name: "spec", readOnly: false },
+        { name: "lib", readOnly: true },
+      ],
+    };
+    expect(resultLines(output, fields).map((line) => [line.label, line.text])).toEqual([
+      ["repositories", "2"],
+      ["name", "spec"],
+      ["name", "lib"],
+      ["Read-only", "yes"],
+    ]);
+    expect(resultLines({ ok: false }, fields).map((line) => [line.label, line.text])).toEqual([
+      ["Passed", "no"],
+    ]);
+  });
+
+  it("puts the problems of the output first, errors before warnings before infos, each under its heading", () => {
+    const problem = (severity: string, message: string, extra: object = {}) => ({
+      code: `x.${severity}`,
+      severity,
+      message,
+      ...extra,
+    });
+    const lines = resultLines({
+      checked: 3,
+      problems: [
+        problem("warning", "W1", { file: "a.md", line: 3, repository: "spec" }),
+        problem("info", "I1", { file: "b.md" }),
+        problem("error", "E1", { elementId: "uuid-1", elementShortId: "SR-000001", repository: "spec" }),
+        problem("warning", "W2"),
+      ],
+      hidden: [problem("error", "E2")],
+    });
+    expect(lines.map((line) => [line.kind, line.label, line.text])).toEqual([
+      ["heading", "", "Errors"],
+      ["problem", "SR-000001", "E1"],
+      ["problem", "", "E2"],
+      ["heading", "", "Warnings"],
+      ["problem", "a.md:3", "W1"],
+      ["problem", "", "W2"],
+      ["heading", "", "Info"],
+      ["problem", "b.md", "I1"],
+      ["text", "checked", "3"],
+    ]);
+    // A list of problems inside the output keeps its place, by severity, each line naming its severity.
+    const nested = resultLines({ element: { problems: [problem("info", "I"), problem("error", "E")] } });
+    expect(nested.map((line) => [line.depth, line.label, line.text])).toEqual([
+      [0, "element", ""],
+      [1, "problems", "2"],
+      [2, "Error", "E"],
+      [2, "Info", "I"],
+    ]);
+    // A severity the page does not know stands last, under its own word.
+    expect(resultLines([problem("notice", "N"), problem("info", "I")]).map((line) => line.label)).toEqual([
+      "Info",
+      "notice",
+    ]);
+    expect(resultLines({ problems: [problem("notice", "N")] }).map((line) => line.text)).toEqual([
+      "Other problems",
+      "N",
+    ]);
+  });
+
+  it("gives the answer of an output, which heads its page (SR-224 AK1)", () => {
+    expect(resultAnswer({ answer: "Checked 4 elements." })).toBe("Checked 4 elements.");
+    expect(resultAnswer({ answer: 3 })).toBeUndefined();
+    expect(resultAnswer([1])).toBeUndefined();
+  });
+
   it("leaves the answer out of the lines, and keeps a field of that name with another shape (SR-224 AK1, #1874)", () => {
     const output = { answer: "Listed 1 element.", elements: [element(1)], total: 1 };
     expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
@@ -331,7 +467,7 @@ describe("result view", () => {
       "SR-000001Title 1",
       "SR-000002Title 2approved",
     ]);
-    const listbox = container.querySelector('[role="listbox"]');
+    const listbox = container.querySelector(".buffer.result");
     expect(listbox?.getAttribute("aria-activedescendant")).toBeNull();
     // No line is selected at first (SR-122).
     expect(container.querySelector("[data-cursor]")).toBeNull();
@@ -453,11 +589,11 @@ describe("result view", () => {
     );
     expect(call).toHaveBeenCalledWith("trace.affected", { ref: "uuid-1" });
     expect(texts()).toEqual([
+      "Warnings",
+      "SR-000002The target changedrelation.outdated",
       "count1",
       "elements1",
       "SR-000003Title 3",
-      "problems1",
-      "warning  relation.outdated  SR-000002  The target changed",
     ]);
     await rerender(2);
     expect(call).toHaveBeenCalledTimes(2);
@@ -480,6 +616,52 @@ describe("result view", () => {
     answer({ ok: true, output: { total: 5 } });
     await flush();
     expect(actions).toEqual([]);
+  });
+
+  it("heads the page with the answer, a line under it when the output is incomplete, and the values under their titles", async () => {
+    const output = { answer: "Found 1 element.", count: 1, incomplete: true };
+    const buffer = resultBuffer("trace.affected", {}, "Affected", output, 0);
+    await act(async () => {
+      root.render(
+        createElement(ResultView, {
+          call: vi.fn<Call>(),
+          buffer,
+          revision: 0,
+          dispatch: vi.fn(),
+          onData: vi.fn(),
+          onEcho: vi.fn(),
+          fields: [{ path: "count", title: "Affected elements" }],
+        }),
+      );
+      await Promise.resolve();
+    });
+    const column = container.querySelector(".result.output .column");
+    expect([...(column?.children ?? [])].map((child) => [child.tagName, child.textContent])).toEqual([
+      ["H1", "Found 1 element."],
+      ["P", INCOMPLETE_NOTE],
+      ["DIV", "Affected elements1"],
+    ]);
+  });
+
+  it("takes the fields of its command from the views of its area", async () => {
+    const buffer = resultBuffer("trace.affected", {}, "Affected", { count: 2 }, 0);
+    const outputFields = vi.fn(() => [{ path: "count", title: "Affected elements" }]);
+    await act(async () => {
+      root.render(
+        createElement(LoadingView, {
+          call: vi.fn<Call>(),
+          buffer,
+          revision: 0,
+          dispatch: vi.fn(),
+          onData: vi.fn(),
+          onEcho: vi.fn(),
+          outputFields,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(outputFields).toHaveBeenCalledWith("trace.affected");
+    expect(texts()).toEqual(["Affected elements2"]);
   });
 
   it("is the view the sheet shows for a result buffer", async () => {

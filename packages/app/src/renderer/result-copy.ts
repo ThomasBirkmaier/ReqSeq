@@ -3,12 +3,14 @@
 // nothing here knows a command except the chain, which `chain-lines.ts` lays out (SR-033).
 import type { ResultBuffer } from "./buffers.js";
 import { chainLines } from "./chain-lines.js";
-import type { ResultLine } from "./result.js";
+import type { OutputField, ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
 
-/** The lines of the buffer's output, as its view shows them. */
-export const linesOf = (buffer: Pick<ResultBuffer, "command" | "output">): ResultLine[] =>
-  (buffer.command === "trace.chain" ? chainLines : resultLines)(buffer.output);
+/** The lines of the buffer's output, as its view shows them, under the titles of `fields` (`outputFields`). */
+export const linesOf = (
+  buffer: Pick<ResultBuffer, "command" | "output">,
+  fields: readonly OutputField[] = [],
+): ResultLine[] => (buffer.command === "trace.chain" ? chainLines : resultLines)(buffer.output, fields);
 
 const lineText = (line: ResultLine): string => {
   const head = line.kind === "text" && line.label !== "" ? `${line.label}:` : line.label;
