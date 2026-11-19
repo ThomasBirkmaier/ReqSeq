@@ -114,6 +114,7 @@ const harness = (gate: ReadGate) => {
     onData: () => undefined,
     onEcho: () => undefined,
     onCopy: () => undefined,
+    outputFields: () => undefined,
     onDrawn: () => undefined,
     typeNames: options.typeNames ?? new Map(),
     kindNames: new Map(),

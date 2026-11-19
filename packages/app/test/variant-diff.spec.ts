@@ -55,11 +55,11 @@ test.describe("the difference of a variant in the app", () => {
   test("[SR-044/AK-nxhm] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2 in the app", async () => {
     const result = await showDifference(running.window);
     await expect(result.locator(".line")).toHaveText([
-      "added1",
+      "Added1",
       "SR-0000b2Warn of storms",
-      "replaced1",
-      `SR-0000a1${K1} · replacement: SR-0000b1 ${A1}`,
-      "excluded1",
+      "Replaced1",
+      `SR-0000a1${K1} · Replacement: SR-0000b1 ${A1}`,
+      "Excluded1",
       "SR-0000a2Measure the wind",
     ]);
     // The same lists as the CLI gives (SR-080).

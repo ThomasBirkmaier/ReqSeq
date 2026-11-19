@@ -14,7 +14,7 @@ const names = (window: Page): Locator => window.locator('.candidates [role="opti
 const lines = async (window: Page): Promise<string[]> =>
   window.locator(".result .line").evaluateAll((all) =>
     all.map((line) => {
-      const depth = Math.round((parseFloat((line as HTMLElement).style.paddingLeft) - 0.75) / 1.25);
+      const depth = Number((line as HTMLElement).dataset["depth"]);
       const label = line.querySelector(".label")?.textContent ?? "";
       return `${"  ".repeat(depth)}${label}|${line.querySelector(".text")?.textContent ?? ""}`;
     }),
