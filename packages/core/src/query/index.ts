@@ -45,11 +45,11 @@ export { deleteFilter, deletePerspective } from "./saved-delete.js";
 export type { SavedDelete, SavedDeleteExpected } from "./saved-delete.js";
 export { renameFilter, renamePerspective } from "./saved-rename.js";
 export type { SavedRename } from "./saved-rename.js";
-export { orderedGroups, orderedSelection } from "./ordered.js";
+export { checkedSort, orderedGroups, orderedSelection } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
 export { checkGroupKey, groupUnavailable, groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";
-export type { Selected, StoredSelection } from "./selection.js";
+export type { Selected, SelectionContext, StoredSelection } from "./selection.js";
 export { sortElements } from "./sort.js";
 export type { SortContext, SortedElements, TreePlace } from "./sort.js";
 export {
@@ -59,6 +59,7 @@ export {
   carrySearchIndex,
   describeHit,
   documentOf,
+  matchingElements,
   matchingKeys,
   rankedHits,
   recordKey,

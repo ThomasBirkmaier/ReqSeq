@@ -3,8 +3,17 @@
 // CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4). Adds the short
 // ID of the element each problem of the output names (`withElementShortIds`, ThomasBirkmaier/ReqSeq-archive#315). Records the
 // element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
-// local paths of an API or MCP call outside the repositories of the workspace (SR-142).
-import type { AnswerNames, AnyCommand, LocalPaths } from "../catalog.js";
+// local paths of an API or MCP call outside the repositories of the workspace (SR-142). Gives each
+// command `readOutputElements`, which runs another read command for `selection.output` (SR-224 AK5) the same way
+// (`outputElementsReader`).
+import type {
+  AnswerNames,
+  AnyCommand,
+  CommandErrorDetails,
+  LocalPaths,
+  OutputElements,
+  OutputElementsReader,
+} from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -15,6 +24,7 @@ import type { Contracts } from "./contracts.js";
 import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
+import type { InputViolation } from "./input-errors.js";
 import { settledValue } from "./settled.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import { internalError, learnWorkspaceRoots } from "./internal-cause.js";
@@ -142,6 +152,62 @@ const toCommandError = (
   return internalError(`Internal error in ${name}`, error, { workspace, command: name });
 };
 
+/** The most `selection.output` selections inside each other (#1873): deeper is `input.invalid`. */
+export const MAX_OUTPUT_DEPTH = 4;
+
+/** Where the input of `selection.output` is, as messages and `details` name fields. */
+const INNER = "selection.output.input";
+
+/** `field` of the inner command's input as a field of the outer one. */
+const innerField = (field: string): string => (field === "" ? INNER : `${INNER}.${field}`);
+
+/** The violations and fields an inner error may name in its `details`. */
+interface NamedDetails {
+  readonly command?: string;
+  readonly fields?: readonly string[];
+  readonly errors?: readonly InputViolation[];
+}
+
+/**
+ * An error of the inner command of `selection.output` with its fields named under `selection.output.input`, in
+ * `details` and in the message; the code stays (#1873).
+ */
+const innerError = (error: CommandError): CommandError => {
+  const details = error.details as (CommandErrorDetails & NamedDetails) | undefined;
+  const errors = details?.errors?.map((violation): InputViolation => ({
+    ...violation,
+    field: innerField(violation.field),
+    path: `/selection/output/input${violation.path}`,
+    message:
+      violation.field === ""
+        ? violation.message.replace(/^The input /, `${INNER} `)
+        : `${INNER}.${violation.message}`,
+  }));
+  const fields = details?.fields?.map(innerField);
+  const message =
+    errors !== undefined
+      ? `Invalid input for ${String(details?.command)}: ${describeInputViolations(errors)}`
+      : details?.fields?.some((field) => error.message.startsWith(`${field}:`)) === true
+        ? `${INNER}.${error.message}`
+        : `${INNER}: ${error.message}`;
+  return new CommandError(
+    error.code,
+    message,
+    details === undefined
+      ? undefined
+      : {
+          ...details,
+          ...(fields === undefined ? {} : { fields }),
+          ...(errors === undefined ? {} : { errors }),
+        },
+    { cause: error },
+  );
+};
+
+/** `input.invalid` of `command` at `field` of `selection.output`. */
+const outputInvalid = (command: string, field: string, message: string): CommandError =>
+  new CommandError("input.invalid", `${field}: ${message}`, { command, fields: [field] });
+
 /**
  * Bind implementations to their catalog entries. Holds compiled schemas only, never workspace
  * state, so one runtime serves any number of workspaces. Throws a plain `Error` when an
@@ -199,15 +265,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     }
   }
 
-  async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
-    const command = registry.get(name);
-    if (command === undefined) {
-      throw contracts.entry(name) === undefined
-        ? new CommandError("input.invalid", `Unknown command: ${name}`, { command: name })
-        : new CommandError("command.not-implemented", `Command ${name} is not implemented yet`, {
-            command: name,
-          });
-    }
+  /** A copy of `input` checked against the input schema of `name`, with its defaults, else `input.invalid`. */
+  const checkedInput = (name: string, input: unknown): unknown => {
     let checked: unknown;
     try {
       // Defaults are filled into a copy; the caller's object stays as it was.
@@ -234,6 +293,115 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         },
       );
     }
+    return checked;
+  };
+
+  /**
+   * The local path rule of the access of `ctx` for `name` (SR-142, SR-143): `checked` with a leading `~` of its
+   * local path fields as the home folder in the app, and the check a confined access makes of them before the
+   * command runs (SR-142 AK1), for a call and for the inner call of `selection.output` alike.
+   */
+  const pathRuleOf = (
+    ctx: InvokeContext,
+    name: string,
+    checked: unknown,
+  ): {
+    readonly localPaths: LocalPaths;
+    readonly input: unknown;
+    readonly checkPaths: () => Promise<void>;
+  } => {
+    const { access } = ctx;
+    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
+    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
+    const fields = pathFields.get(name);
+    const input = withHome(checked, fields, localPaths.home);
+    return {
+      localPaths,
+      input,
+      checkPaths: () => (confined ? localPaths.check(localPathUses(input, fields)) : Promise.resolve()),
+    };
+  };
+
+  /**
+   * `readOutputElements` of a call at `depth` (0 for the call itself): the output elements of a read command, run as `invoke`
+   * runs it inside this call: the same input check, the local path rule of the call's access (`~` as home
+   * in the app, confined paths checked first through the API and MCP), the call's signal, no recorded access.
+   */
+  const outputElementsReader =
+    (ctx: InvokeContext, signal: AbortSignal, caller: string, depth: number): OutputElementsReader =>
+    async (name: string, input: unknown): Promise<OutputElements> => {
+      if (depth >= MAX_OUTPUT_DEPTH) {
+        throw outputInvalid(
+          caller,
+          "selection.output",
+          `at most ${String(MAX_OUTPUT_DEPTH)} output selections may be nested in each other`,
+        );
+      }
+      const entry = contracts.entry(name);
+      const command = registry.get(name);
+      if (entry === undefined) {
+        throw outputInvalid(
+          caller,
+          "selection.output.command",
+          `${JSON.stringify(name)} is no command of the catalog`,
+        );
+      }
+      if (entry.effect !== "read") {
+        throw outputInvalid(
+          caller,
+          "selection.output.command",
+          `${name} writes files; selection.output runs read commands only`,
+        );
+      }
+      if (entry.outputFields?.some((field) => field.elements === "answer") !== true) {
+        throw outputInvalid(
+          caller,
+          "selection.output.command",
+          `${name} lists no elements (no output field is marked x-elements "answer")`,
+        );
+      }
+      if (command === undefined) {
+        throw new CommandError("command.not-implemented", `Command ${name} is not implemented yet`, {
+          command: name,
+        });
+      }
+      // Every product command with such a field has it (commands/registry.test.ts); else a bug, `internal`.
+      const { outputElements } = command;
+      if (outputElements === undefined) {
+        throw new Error(
+          `command ${name} has an output field marked x-elements "answer", but no outputElements`,
+        );
+      }
+      signal.throwIfAborted();
+      try {
+        const rule = pathRuleOf(ctx, name, checkedInput(name, input));
+        await rule.checkPaths();
+        return await outputElements(
+          {
+            workspace: ctx.workspace,
+            signal,
+            localPaths: rule.localPaths,
+            readOutputElements: outputElementsReader(ctx, signal, name, depth + 1),
+          },
+          rule.input as never,
+        );
+      } catch (error) {
+        throw error instanceof CommandError ? innerError(error) : error;
+      }
+    };
+
+  async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
+    const command = registry.get(name);
+    if (command === undefined) {
+      throw contracts.entry(name) === undefined
+        ? new CommandError("input.invalid", `Unknown command: ${name}`, { command: name })
+        : new CommandError("command.not-implemented", `Command ${name} is not implemented yet`, {
+            command: name,
+          });
+    }
+    const rule = pathRuleOf(ctx, name, checkedInput(name, input));
+    const checked = rule.input;
+    const { localPaths } = rule;
     const signal = ctx.signal ?? new AbortController().signal;
     const { access } = ctx;
     const known = calls.get(name);
@@ -241,9 +409,6 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       access !== undefined && FOLLOWED_ACCESSES.includes(access) && known !== undefined
         ? { ...known, access }
         : undefined;
-    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
-    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
-    checked = withHome(checked, pathFields.get(name), localPaths.home);
     let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {
@@ -252,17 +417,20 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         async () => {
           // Read now, so that an internal error can name the root in its real form too (#1794).
           await learnWorkspaceRoots(ctx.workspace);
-          if (confined) {
-            // Before anything else: a refused path is neither read nor written (SR-142 AK1).
-            await localPaths.check(localPathUses(checked, pathFields.get(name)));
-          }
+          // Before anything else: a refused path is neither read nor written (SR-142 AK1).
+          await rule.checkPaths();
           if (guarded.has(name)) {
             await assertWritable(ctx.workspace, name);
           }
           // Before the command runs: a catalog the locator cannot follow fails before anything is written.
           const locator = locators.get(name)?.();
           const result = await command.run(
-            { workspace: ctx.workspace, signal, localPaths },
+            {
+              workspace: ctx.workspace,
+              signal,
+              localPaths,
+              readOutputElements: outputElementsReader(ctx, signal, name, 0),
+            },
             checked as never,
           );
           // Every problem that names an element names its short ID too (ThomasBirkmaier/ReqSeq-archive#315),

@@ -24,7 +24,7 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"evidence.status">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "evidence.status");
+    const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.status");
     const page = selected.elements.slice(input.offset, input.offset + input.limit);
     const status = await workspaceStatus(ctx.workspace, page);
     const elements = await listElements(ctx.workspace, selected, page, {
@@ -36,5 +36,9 @@ export default defineCommand({
       incomplete: selected.incomplete,
       ...namesField(namesOf(selected, verificationNameIds(elements.flatMap((e) => e.verification ?? [])))),
     };
+  },
+  outputElements: async (ctx, input) => {
+    const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.status");
+    return { elements: selected.elements, incomplete: selected.incomplete };
   },
 });

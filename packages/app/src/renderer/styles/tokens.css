@@ -1,7 +1,7 @@
 /* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer
    (or two side by side), the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
-   everything; one accent colour, for "outdated" and for a gap in the chain, and the colours of a failed and
-   an outdated verification badge (D-062). Every colour is a
+   everything; one accent colour, for "outdated" and for a gap in the chain, the colours of a failed and
+   an outdated verification badge (D-062), and green for a connected agent (SR-228). Every colour is a
    token below with a light and a dark value; the page follows the system (`color-scheme`), and the action
    "Toggle dark mode" sets `data-theme` on the root. A rule uses a token, never a colour of its own
    (styles.test.ts). */
@@ -20,6 +20,9 @@
      colour of the sheet (AK4: 4.5:1); outdated is the accent of "outdated" (styles.test.ts). */
   --badge-failed: light-dark(#cf222e, #f85149);
   --badge-outdated: light-dark(#b54708, #f0883e);
+  /* The dot of a connected agent (SR-228 AK1): green, the first colour for a state without a problem, at 3:1
+     on the modeline at least (styles.test.ts). */
+  --agent-connected: light-dark(#1a7f37, #3fb950);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --outside-change: light-dark(#ebeef1, #292e34);
   /* A mark in the input of the command prompt (SR-215 AK3): a grey of its own, not the selection's. */

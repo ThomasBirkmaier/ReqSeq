@@ -248,4 +248,16 @@ describe("lazyCommand", () => {
     expect(await command.load()).toBe(status);
     expect(importModule).toHaveBeenCalledTimes(2);
   });
+
+  it("passes outputElements on to the module, and fails when the module has none (#1873)", async () => {
+    const elements = { elements: [{ id: "a", repository: "system" }], incomplete: false };
+    const listing = defineCommand({ ...status, outputElements: () => Promise.resolve(elements) });
+    const input = {} as CommandInput<"workspace.status">;
+    const lazy = lazyCommand("workspace.status", () => Promise.resolve({ default: listing }));
+    expect(await lazy.outputElements?.(ctx, input)).toBe(elements);
+    const without = lazyCommand("workspace.status", () => Promise.resolve({ default: status }));
+    await expect(without.outputElements?.(ctx, input)).rejects.toThrow(
+      "command workspace.status gives no output elements",
+    );
+  });
 });

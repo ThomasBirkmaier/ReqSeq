@@ -91,7 +91,7 @@ export default defineCommand({
     const command = "trace.matrix";
     const base = await traceContext(ctx.workspace);
     checkRelationKinds(base.metamodel, input.kinds, command);
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const sorted = orderedSelection(selected, command, input.sort);
     const includes = viewsInclude({ workspace: ctx.workspace, ...selected }, selected.views);
     const context = matrixContext(base, {

@@ -229,7 +229,10 @@ test('[SR-117/AK-b5v1] the modeline shows "following agent" while the mode is on
   try {
     await expect(modeline(window)).not.toContainText("following agent");
     await window.keyboard.press("ControlOrMeta+Shift+O");
-    await expect(modeline(window).locator(".workspace .segment").last()).toHaveText("following agent");
+    // The last mark of the workspace; only the connected agent stands after it (SR-228).
+    await expect(modeline(window).locator(".workspace .segment:not(.agent)").last()).toHaveText(
+      "following agent",
+    );
     await window.keyboard.press("ControlOrMeta+Shift+O");
     await expect(modeline(window)).not.toContainText("following agent");
   } finally {

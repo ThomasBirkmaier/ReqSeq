@@ -43,7 +43,7 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"element.facets">> => {
-    const resolved = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.facets");
+    const resolved = await resolveSelection(ctx, input.selection ?? {}, "element.facets");
     const selected =
       input.search === undefined ? resolved : await searched(ctx.workspace, resolved, input.search);
     return {

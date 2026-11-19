@@ -287,11 +287,11 @@ test.describe("without a workspace", () => {
       await expect(running.window.getByLabel("Minibuffer")).toHaveText(
         `No reqseq-workspace.yaml in the workspace folder. To create one here, press ${
           process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P"
-        } for Initialise workspace.`,
+        } for Create workspace.`,
       );
       await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
       await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
-      await expect(running.window.locator('[role="option"] .name')).toContainText(["Initialise workspace"]);
+      await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }

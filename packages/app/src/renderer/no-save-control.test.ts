@@ -36,11 +36,16 @@ describe("no save control (SR-105 AK3)", () => {
       return hits.map((pattern) => `${path.relative(SOURCE, file)}: ${String(pattern)}`);
     });
     expect(found).toEqual([]);
-    // The buttons the window has: the copy symbol of a field, Copy all of "About ReqSeq", and "help" of the
-    // explanation line.
+    // The buttons the window has: the copy symbol of a field, Copy all of "About ReqSeq", "help" of the
+    // explanation line, and "No agent connected" and "Connect AI agent" in the modeline (SR-228 AK3).
     const buttons = sources(SOURCE).filter((file) => readFileSync(file, "utf8").includes("<button"));
     expect(buttons.map((file) => path.relative(SOURCE, file)).sort()).toEqual(
-      [ABOUT, path.join("renderer", "FieldBox.tsx"), path.join("renderer", "PromptLine.tsx")].sort(),
+      [
+        ABOUT,
+        path.join("renderer", "FieldBox.tsx"),
+        path.join("renderer", "ModelineBar.tsx"),
+        path.join("renderer", "PromptLine.tsx"),
+      ].sort(),
     );
   });
 });

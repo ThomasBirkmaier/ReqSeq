@@ -54,6 +54,12 @@ export interface CommandDefinition<In, Out> {
   /** Gets input that already passed the catalog input schema, with defaults applied. */
   readonly run: (ctx: CommandContext, input: In) => Promise<Out>;
   /**
+   * The elements of the output field the catalog marks `x-elements: "answer"`, over all pages, without
+   * building a page (`selection.output`, SR-224 AK5). Every command with such a field has it; `run` and
+   * `outputElements` share the step that finds the elements, so a page never holds an element it lacks.
+   */
+  readonly outputElements?: (ctx: CommandContext, input: In) => Promise<OutputElements>;
+  /**
    * The answer of an output (SR-224 AK1): one English sentence on what the command found,
    * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
    * is the same through every access; no time relative to reading it. `invoke` puts it first in the
@@ -73,6 +79,24 @@ export interface AnswerNames {
   /** The name of the type `key` in the metamodel; the key itself for a type it does not have. */
   type(key: string): string;
 }
+
+/** What `outputElements` gives: the elements, each once, in any order, and whether the output is `incomplete` (SR-006 AK2). */
+export interface OutputElements {
+  /**
+   * By repository and UUID, as `selection.output` matches them with the elements of the store; with `file`
+   * (a record of the store), only that copy of a UUID found twice (SR-088), so a number that counts one copy
+   * lists one.
+   */
+  readonly elements: readonly { readonly id: string; readonly repository: string; readonly file?: string }[];
+  readonly incomplete: boolean;
+}
+
+/**
+ * Runs the read command `command` with `input` for `selection.output` and gives its `outputElements`, as `invoke`
+ * would run it: the same input check and defaults, the same local path rule, the caller's signal, and no
+ * recorded access (SR-117). Errors keep their code and name their fields under `selection.output.input`.
+ */
+export type OutputElementsReader = (command: string, input: unknown) => Promise<OutputElements>;
 
 /** Implementation of the catalog command `N`, typed from its catalog schemas. */
 export interface CatalogCommand<N extends CommandName> extends CommandDefinition<
@@ -98,6 +122,8 @@ export interface CommandContext {
    * file names, the target of a mapping) through `check` before it reads or writes there.
    */
   readonly localPaths: LocalPaths;
+  /** The output elements of another read command, for `selection.output` (`OutputElementsReader`); `invoke` builds it per call. */
+  readonly readOutputElements: OutputElementsReader;
 }
 
 /** A local path and the input field (or file content) it comes from, as `LocalPaths.check` names it. */
@@ -254,6 +280,13 @@ export const lazyCommand = <N extends CommandName>(
     name,
     load,
     run: async (ctx, input) => (await load()).run(ctx, input),
+    outputElements: async (ctx, input) => {
+      const { outputElements } = await load();
+      if (outputElements === undefined) {
+        throw new Error(`command ${name} gives no output elements`);
+      }
+      return outputElements(ctx, input);
+    },
     // `invoke` asks for the answer only after `run`, which loaded the module.
     answer: (output, input, names) => {
       if (loaded === undefined) {

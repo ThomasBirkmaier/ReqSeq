@@ -14,7 +14,8 @@
 // - Both sides check the mapping against the own metamodel (`checkMapping`), which they only read:
 //   known types, properties (of the mapped type when `source-type` names one), choice keys,
 //   relation kinds or relation-valued properties as the kind of a relation type, a known target
-//   repository. Every violation is listed in one `input.invalid`.
+//   repository, an export profile without `selection.output` (#1873). Every violation is listed in one
+//   `input.invalid`.
 // - Mapping files are not elements (D-056); ReqSeq never deletes or renames one.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -250,9 +251,19 @@ const mappingViolations = (
       ? []
       : propertyViolations(metamodel, mapping.statement.property, `${at}.statement.property`)),
     ...omitted(mapping["omit-properties"], `${at}.omit-properties`),
-    ...(mapping["export-profiles"] ?? []).flatMap((profile, i) =>
-      omitted(profile["omit-properties"], `${at}.export-profiles[${String(i)}].omit-properties`),
-    ),
+    ...(mapping["export-profiles"] ?? []).flatMap((profile, i) => [
+      ...omitted(profile["omit-properties"], `${at}.export-profiles[${String(i)}].omit-properties`),
+      // A profile stores its selection; the output of a command is none (#1873), as for baseline.create.
+      ...(profile.selection.output === undefined
+        ? []
+        : [
+            {
+              field: `${at}.export-profiles[${String(i)}].selection.output`,
+              message:
+                "a profile stores its selection, and a command output is no stored selection; leave it out",
+            },
+          ]),
+    ]),
   ];
 };
 

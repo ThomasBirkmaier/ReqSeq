@@ -34,16 +34,23 @@
 //   them (SR-098 with grouping: test/perf/search-speed.test.ts).
 // - With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph
 //   shows of its verification (`rowsVerification`), from the hit's record.
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { rowsVerification } from "../../evidence/index.js";
 import type { ElementSearchInput, ElementSearchOutput } from "../../generated/types.js";
 import type { ElementRecord } from "../../model/index.js";
 import { identifierField, titleKeyOf } from "../../model/index.js";
-import type { RankedHit, SearchHit, SearchIndex, Selected } from "../../query/index.js";
+import type {
+  RankedHit,
+  SearchElementsOptions,
+  SearchHit,
+  SearchIndex,
+  Selected,
+} from "../../query/index.js";
 import {
   describeHit,
   groupingOf,
+  matchingElements,
   rankedHits,
   resolveSelection,
   searchElements,
@@ -149,6 +156,37 @@ const verificationOf = async (
     ? { rowVerification: await rowsVerification(workspace, records, selected.views) }
     : {};
 
+/** The selection, the index and the options of the search of `input` (see the file comment). */
+const searchOf = async (
+  ctx: CommandContext,
+  input: ElementSearchInput,
+): Promise<{
+  readonly selected: Selected;
+  readonly index: SearchIndex;
+  readonly options: Omit<SearchElementsOptions, "offset" | "limit">;
+  readonly propertyKeys: readonly string[] | undefined;
+}> => {
+  const selected = await resolveSelection(ctx, input.selection ?? {}, "element.search");
+  const checked = searchFieldsOf("element.search", selected.metamodel, input.fields);
+  const index = await searchIndex(ctx.workspace);
+  // A metamodel changed meanwhile resets the index (a new build): checked again against its own.
+  const chosen =
+    index.metamodel === selected.metamodel
+      ? checked
+      : searchFieldsOf("element.search", index.metamodel, input.fields);
+  // The single properties the snippet may come from: undefined for every property.
+  const { propertyKeys } = chosen;
+  // Every element of the index's store selected: no restriction to pass (it costs a set of 50,000
+  // keys). A store swapped meanwhile may hold elements the selection never saw: restricted then.
+  const restricted =
+    index.store !== selected.store || selected.elements.length < selected.store.elements.length;
+  const options = {
+    ...chosen,
+    ...(restricted ? { within: selected.elements } : {}),
+  };
+  return { selected, index, options, propertyKeys };
+};
+
 export default defineCommand({
   name: "element.search",
   answer: (output, input) =>
@@ -157,24 +195,7 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"element.search">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.search");
-    const checked = searchFieldsOf("element.search", selected.metamodel, input.fields);
-    const index = await searchIndex(ctx.workspace);
-    // A metamodel changed meanwhile resets the index (a new build): checked again against its own.
-    const chosen =
-      index.metamodel === selected.metamodel
-        ? checked
-        : searchFieldsOf("element.search", index.metamodel, input.fields);
-    // The single properties the snippet may come from: undefined for every property.
-    const { propertyKeys } = chosen;
-    // Every element of the index's store selected: no restriction to pass (it costs a set of 50,000
-    // keys). A store swapped meanwhile may hold elements the selection never saw: restricted then.
-    const restricted =
-      index.store !== selected.store || selected.elements.length < selected.store.elements.length;
-    const options = {
-      ...chosen,
-      ...(restricted ? { within: selected.elements } : {}),
-    };
+    const { selected, index, options, propertyKeys } = await searchOf(ctx, input);
     if (input.group !== undefined) {
       const ranked = rankedHits(index, input.query, options);
       const { output, records } = grouped(
@@ -208,5 +229,14 @@ export default defineCommand({
       total: results.total,
       incomplete: selected.incomplete,
     };
+  },
+  outputElements: async (ctx, input) => {
+    const { selected, index, options } = await searchOf(ctx, input);
+    const elements = matchingElements(index, input.query, options);
+    // A group that `run` refuses is refused here too, checked against the same hits.
+    if (input.group !== undefined) {
+      groupingOf({ ...selected, elements }, "element.search", input.group);
+    }
+    return { elements, incomplete: selected.incomplete };
   },
 });

@@ -9,6 +9,8 @@ import type { PartFlag } from "./fields.js";
 import { inputFields } from "./fields.js";
 import type { Style } from "./style.js";
 import { PLAIN } from "./style.js";
+import type { CallSite } from "./present/next.js";
+import { isNextSteps, nextLines } from "./present/next.js";
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -252,10 +254,22 @@ const causeLine = (error: CommandError): string => {
 /**
  * An error for stderr: the error object as JSON with `--json`, else `error <code>: <message>`, where
  * `message` is the text for people (default the error's own; see `spelledMessage`), and for an `internal`
- * error the line with its cause.
+ * error the line with its cause; with a `site`, the next steps of `details.next` as calls (SR-226 AK1).
  */
-export const renderError = (error: CommandError, json: boolean, message = error.message): string =>
-  json ? `${JSON.stringify(error.toJSON())}\n` : `error ${error.code}: ${message}\n${causeLine(error)}`;
+export const renderError = (
+  error: CommandError,
+  json: boolean,
+  message = error.message,
+  site?: CallSite,
+): string => {
+  if (json) {
+    return `${JSON.stringify(error.toJSON())}\n`;
+  }
+  // The next steps of the error (SR-226 AK1) as calls, after its line.
+  const next = error.details?.["next"];
+  const steps = site !== undefined && isNextSteps(next) ? nextLines(next, site) : [];
+  return `error ${error.code}: ${message}\n${causeLine(error)}${steps.map((line) => `${line}\n`).join("")}`;
+};
 
 /** Exit code 1 when the output has an error finding or reports `ok: false` (ADR-0009), else 0. */
 export const outcomeExitCode = (output: unknown): 0 | 1 => {

@@ -11,6 +11,11 @@ import { shownResult } from "./action-conditions.js";
 
 export const CONNECT_AGENT = "workspace.connectAgent" satisfies keyof CommandTypes;
 
+/** The action of the command prompt that covers it (`app-actions.ts`), which the modeline starts too (SR-228 AK3). */
+export const CONNECT_AGENT_ACTION = "connect-agent";
+/** Its title, the same as the catalog command's. */
+export const CONNECT_AI_AGENT = "Connect AI agent";
+
 type Output = CommandTypes[typeof CONNECT_AGENT]["output"];
 
 /** The label of the block: what "Copy field" copies and the modeline confirms ("Copied Setup"). */

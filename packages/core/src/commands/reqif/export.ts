@@ -46,11 +46,11 @@ import {
   writeFileAtomic,
 } from "../../files/index.js";
 import type { MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
-import type { Workspace } from "../../runtime/workspace.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, TargetItem } from "../../model/index.js";
 import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
+import type { SelectionContext } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
@@ -252,15 +252,15 @@ interface SourceRecords {
  * of the list (see the file comment).
  */
 const sourceRecords = async (
-  workspace: Workspace,
+  ctx: SelectionContext,
   layout: WorkspaceLayout,
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<SourceRecords> => {
   const command = "reqif.export";
-  const selected = await resolveSelection(workspace, input.selection ?? {}, command);
+  const selected = await resolveSelection(ctx, input.selection ?? {}, command);
   const { metamodel } = selected;
-  const { mapping } = await readMappingFile(layout, metamodel, workspace.root, mappingPath, command);
+  const { mapping } = await readMappingFile(layout, metamodel, ctx.workspace.root, mappingPath, command);
   const sourceKey = originKey("source", metamodel);
   const identifierKey = originKey("source-identifier", metamodel);
   const source = mapping.source.name;
@@ -308,17 +308,12 @@ const refuseSharedUuids = (records: readonly ElementRecord[], command: string): 
 
 /** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
 const statementsOf = async (
-  workspace: Workspace,
+  ctx: SelectionContext,
   layout: WorkspaceLayout,
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<StatementsPlan> => {
-  const { selected, mapping, records, identifierKey } = await sourceRecords(
-    workspace,
-    layout,
-    input,
-    mappingPath,
-  );
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
   const statement = statementOf(mapping, mappingPath, selected.metamodel);
   const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
   return planStatements({
@@ -363,19 +358,14 @@ const textsOf = async (
  * of the mapping at `mappingPath`, with or without statements, written to `absolute`.
  */
 const sourceModelExport = async (
-  workspace: Workspace,
+  ctx: SelectionContext,
   layout: WorkspaceLayout,
   input: CommandInput<"reqif.export">,
   mappingPath: string,
   absolute: string,
 ): Promise<CommandOutput<"reqif.export">> => {
   const command = "reqif.export";
-  const { selected, mapping, records, identifierKey } = await sourceRecords(
-    workspace,
-    layout,
-    input,
-    mappingPath,
-  );
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
   const model = mapping["source-model"];
   if (model === undefined) {
     throw new CommandError(
@@ -387,7 +377,7 @@ const sourceModelExport = async (
   const omissions = await exportOmissions(
     layout,
     selected.metamodel,
-    workspace.root,
+    ctx.workspace.root,
     mappingPath,
     input.omitProperties,
     command,
@@ -424,7 +414,7 @@ const sourceModelExport = async (
   await writeOutput(absolute, plan.file, [], command);
   const saved = await saveOmissions(layout, omissions);
   return {
-    file: shown(workspace.root, absolute),
+    file: shown(ctx.workspace.root, absolute),
     elements: elements.length,
     relations: 0,
     ...(input.statements === true ? { withoutStatement: plan.withoutStatement } : {}),
@@ -527,7 +517,7 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      return sourceModelExport(workspace, layout, input, input.mapping, absolute);
+      return sourceModelExport(ctx, layout, input, input.mapping, absolute);
     }
     if (input.statements === true) {
       if (input.mapping === undefined) {
@@ -537,7 +527,7 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const plan = await statementsOf(workspace, layout, input, input.mapping);
+      const plan = await statementsOf(ctx, layout, input, input.mapping);
       await writeOutput(absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
@@ -548,7 +538,7 @@ export default defineCommand({
         problems: [],
       };
     }
-    const selected = await resolveSelection(workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const { elements } = orderedSelection(selected, command, undefined);
     const omissions = await exportOmissions(
       layout,
