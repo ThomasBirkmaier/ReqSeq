@@ -138,6 +138,11 @@ const startState = (
   codec: DocCodec,
 ): EditorState => {
   const { text, effects, init } = codec.decode(doc);
+  console.log(
+    "DBG startState",
+    JSON.stringify(doc),
+    restore === undefined ? "fresh" : "restore " + JSON.stringify(restore.doc.toString()),
+  );
   if (restore === undefined) {
     return EditorState.create({ doc: text, extensions: [init, extensions] });
   }
@@ -348,6 +353,13 @@ const theme = EditorView.theme({
 const replaceDocument = (editor: EditorView, doc: string, codec: DocCodec): void => {
   const { text, effects } = codec.decode(doc);
   const change = minimalChange(editor.state.doc.toString(), text);
+  console.log(
+    "DBG replaceDocument",
+    JSON.stringify(editor.state.doc.toString()),
+    "->",
+    JSON.stringify(text),
+    new Error().stack?.split("\n").slice(2, 6).join("|"),
+  );
   editor.dispatch({ changes: change, effects, annotations: Transaction.addToHistory.of(false) });
 };
 
@@ -470,6 +482,7 @@ export const Editor = ({
       },
     });
     return () => {
+      console.log("DBG editor destroyed", JSON.stringify(editor.state.doc.toString()));
       latest.current.onClose?.(editor.state);
       latest.current.handle?.(undefined);
       editor.destroy();
@@ -490,6 +503,14 @@ export const Editor = ({
   // The text changed from outside (the file changed, or it was saved): the document follows when there
   // is no unsaved input, that is when it still is the text it was loaded as.
   useEffect(() => {
+    console.log(
+      "DBG text effect",
+      JSON.stringify(text),
+      "last",
+      JSON.stringify(lastText.current),
+      "doc",
+      JSON.stringify(view && coded.encode(view.state)),
+    );
     if (view !== undefined) {
       if (coded.encode(view.state) === lastText.current) {
         replaceDocument(view, text, coded);

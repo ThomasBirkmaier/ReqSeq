@@ -121,6 +121,13 @@ export const elementLoads = (
   const apply = (answered: DataExportElement, sha: string, changedJustNow: boolean): void => {
     const element = now.current.buffer.readOnly === true ? { ...answered, readOnly: true } : answered;
     const loaded = element.text ?? "";
+    console.log(
+      "DBG apply",
+      saving.current,
+      loadedOnce.current,
+      JSON.stringify(loaded),
+      new Error().stack?.split("\n").slice(2, 4).join("|"),
+    );
     const docs = storedDocs(fieldBoxes(element, now.current.properties));
     // A save that runs sets the baseline itself with its answer.
     if (!saving.current) {
@@ -164,6 +171,7 @@ export const elementLoads = (
   // AK3), any other failure is only echoed. A buffer shown again with a draft after its file was deleted
   // shows the element the draft was typed on, with the input, as the shown buffer does.
   const failed = (answer: { readonly code: string; readonly message: string }): void => {
+    console.log("DBG failed", answer.code);
     // Only reads that keep finding the file gone count towards its deletion.
     setDiskState(readFailed(diskState.current, answer.code));
     const kept = initialDraft.current?.shown;
@@ -370,11 +378,13 @@ export const elementSaves = (
     const sent: SentWrite = { doc, edits, added: onFile.current.added };
     const expected = held.current?.sha;
     saving.current = true;
+    console.log("DBG save sent", JSON.stringify(doc), mode);
     const answer = await run("element.update", {
       ...updateInput(shown.id, textDirty ? doc : undefined, edits),
       ...(expected === undefined ? {} : { expectedFileSha256: expected }),
     });
     saving.current = false;
+    console.log("DBG save answered", answer.ok ? JSON.stringify(answer.output.element.text) : "err");
     if (!mounted.current) {
       // The buffer was left while the save ran: the app keeps its draft, and saves what is left of it.
       if (!answer.ok) {

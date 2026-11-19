@@ -583,7 +583,15 @@ export const ElementView = ({
     // An answer asked before a save of this buffer answered is older than that save's answer (autosave
     // writes while the reload of the last save is on its way).
     const writes = settled.current;
+    console.log("DBG read asked", writes, "touched", touched, "revision", revision);
     void asked.then((answer) => {
+      console.log(
+        "DBG read answered",
+        writes,
+        settled.current,
+        current,
+        answer.ok ? JSON.stringify(answer.output.element.text) : "err",
+      );
       if (!current || staleRead(writes, settled.current)) {
         return;
       }
