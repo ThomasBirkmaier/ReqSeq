@@ -104,7 +104,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ### Gaps of verification
 
-Only a full check reports a gap, at the workspace file. Without an evidence location no test result counts, so once there is a requirement a warning (`evidence.no-location`) names the entry to add. `workspace init` writes one, the folder `evidence` of the main repository.
+Only a full check reports a gap, at the workspace file. Without an evidence location, which `workspace init` writes, no test result counts, and a warning names the entry to add.
 
 With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. It names the call that lists them; `--fail-on info` fails the step while any is left:
 

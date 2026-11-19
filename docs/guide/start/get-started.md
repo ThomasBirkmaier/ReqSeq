@@ -34,7 +34,7 @@ next:
   reqseq element create <type> <title>              Create element
 ```
 
-The workspace file names the folder `evidence` as its evidence location; the folder itself is not created. The skill file tells an AI agent how to work with ReqSeq. In a Git repository, the skill file goes to `.claude/skills/managing-requirements/SKILL.md` at the root of the repository. `--no-skill` leaves it out. ReqSeq never commits: put the folder under Git yourself.
+ReqSeq never commits: put the folder under Git yourself.
 
 In the app: Ctrl+O and choose the folder, then run **Create workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 
