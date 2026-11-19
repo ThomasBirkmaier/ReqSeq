@@ -1,7 +1,8 @@
 // The output page (SR-223 AK1, SR-073 AK2): the output of a catalog command run from the command prompt that
 // no other buffer shows. In the calm centre column of an element (SR-148), its answer heads the page, a line
 // under it says when the output is incomplete (SR-006 AK2), and below stand its lines, laid out by its shape
-// under the titles of the catalog (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
+// under the titles of the catalog (`result.ts`); its technical values and those equal to their normal value only
+// while "Show details" is on for the buffer, as details in the second grey (SR-223 AK2, AK7). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
 // a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). The output of
 // `trace.chain` has its evidence under the elements it belongs to and the validation records of its root
@@ -60,8 +61,16 @@ export const ResultView = ({
   const bufferAttribute = bufferMark(useHidden());
   // The chain shows its evidence under the elements (SR-033); every other output is laid out by shape.
   const lines = useMemo(
-    () => linesOf({ command: buffer.command, output: buffer.output }, fields),
-    [buffer.command, buffer.output, fields],
+    () =>
+      linesOf(
+        {
+          command: buffer.command,
+          output: buffer.output,
+          ...(buffer.details === true ? { details: true } : {}),
+        },
+        fields,
+      ),
+    [buffer.command, buffer.output, buffer.details, fields],
   );
   const answer = resultAnswer(buffer.output);
   const { incomplete } = resultSummary(buffer.output);
@@ -132,7 +141,16 @@ export const ResultView = ({
   };
 
   if (hints !== undefined) {
-    return <HintListView call={call} buffer={buffer} output={hints} dispatch={dispatch} onData={onData} />;
+    return (
+      <HintListView
+        call={call}
+        buffer={buffer}
+        output={hints}
+        dispatch={dispatch}
+        onData={onData}
+        {...(fields === undefined ? {} : { fields })}
+      />
+    );
   }
 
   if (setup !== undefined) {
@@ -161,7 +179,7 @@ export const ResultView = ({
             <div
               key={at}
               id={`${scope}result-${String(at)}`}
-              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}`}
+              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}`}
               title={line.title}
               // Only a line that opens an element is an option; a text line is shown, not chosen.
               {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
