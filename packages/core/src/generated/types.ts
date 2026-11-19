@@ -2359,7 +2359,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup; for Claude Code also the command-line call that writes the skill file. Only with a client. */
+  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
   readonly next?: string;
 }
 
