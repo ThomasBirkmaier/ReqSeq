@@ -101,12 +101,14 @@ export default defineCommand({
         edit: (yaml) =>
           setMapValue(yaml, place.file.path, ["types", place.index], field, written(input, field)),
       }));
-      // The definition afterwards: each changed field with its value, a removed one left out.
+      // The definition afterwards, in the order of its lines: a changed field in its place, a new one
+      // at the end (as `setMapValue` writes it), a removed one left out.
+      const values = new Map<string, unknown>(Object.entries(own));
+      for (const field of changed) {
+        values.set(field, written(input, field));
+      }
       const result = Object.fromEntries(
-        [
-          ...Object.entries(own).filter(([field]) => !(changed as readonly string[]).includes(field)),
-          ...changed.map((field) => [field, written(input, field)] as const),
-        ].filter(([, value]) => value !== undefined),
+        [...values].filter(([, value]) => value !== undefined),
       ) as unknown as MetamodelType;
       return {
         bytes: editedFiles(edits),
