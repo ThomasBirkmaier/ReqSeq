@@ -66,6 +66,7 @@
         "x-elements": "answer"
       },
       "total": {
+        "x-elements": "elements",
         "title": "Total",
         "description": "The number of all related elements; `elements` holds the page.",
         "type": "integer",

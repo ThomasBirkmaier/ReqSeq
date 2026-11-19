@@ -56,6 +56,7 @@
     "properties": {
       "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "columns": {
+        "x-key": ["kind", "direction", "property"],
         "title": "Columns",
         "type": "array",
         "description": "One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation (SR-153, spec question #838 Q1). Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape.",
@@ -93,18 +94,21 @@
               "description": "For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart."
             },
             "count": {
+              "x-elements": "selection",
               "title": "Rows with a relation",
               "type": "integer",
               "minimum": 0,
               "description": "How many rows of the whole selection have at least one relation in this column (SR-125 AK3, SR-153 AK2), whatever the status or availability of its other end; a relation to a missing target counts. With a view, the relations the cells show. 0 only for a column with minima that no row has a relation in."
             },
             "expected": {
+              "x-elements": "selection",
               "title": "Rows with a minimum",
               "type": "integer",
               "minimum": 1,
               "description": "SR-153 AK1: only on the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row of the whole selection: how many rows have such a minimum (spec question #838 Q2). Rows of an unknown type or with a status the metamodel marks invalid have none (as SR-152). Left out on every other column, which has no gap and no share (SR-153 AK2)."
             },
             "met": {
+              "x-elements": "selection",
               "title": "Rows that meet the minimum",
               "type": "integer",
               "minimum": 0,
@@ -294,6 +298,7 @@
         "x-elements": true
       },
       "total": {
+        "x-elements": "selection",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

@@ -4,7 +4,9 @@ import type { Style } from "../style.js";
 import { padTo, widthOf } from "../style.js";
 import type { Namer, Names, Rec } from "./common.js";
 import {
+  countedElementsText,
   indent,
+  isCountedElement,
   isElement,
   isProblem,
   isRecord,
@@ -14,6 +16,7 @@ import {
   namerOf,
   text,
   withIdentifier,
+  withCountedLists,
   withNames,
   withPercent,
   yamlLines,
@@ -92,7 +95,10 @@ export const valueLines = (
   }
   return (
     (Array.isArray(value) ? arrayLines(key, value, names, style) : undefined) ??
-    yamlLines({ [key]: withNames(withPercent(value), names) })
+    yamlLines({
+      // The rows of `partial` (element.list `fields`, #982) may have the same three fields; they stay rows.
+      [key]: withNames(withPercent(key === "partial" ? value : withCountedLists(value)), names),
+    })
   );
 };
 
@@ -105,6 +111,9 @@ const arrayLines = (
 ): string[] | undefined => {
   if (value.length === 0) {
     return [`${key}: none`];
+  }
+  if (key !== "partial" && value.every(isCountedElement)) {
+    return [`${key}: ${countedElementsText(value)}`];
   }
   if (value.every(isElement)) {
     return [`${key}:`, ...elementListLines(value, names, style)];

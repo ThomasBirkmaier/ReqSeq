@@ -14,7 +14,13 @@ import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
-import { currentVersionsOf, elementStoreState, NORMAL_FORM, workspacePath } from "../model/index.js";
+import {
+  currentVersionsOf,
+  elementStoreState,
+  NORMAL_FORM,
+  shortIdState,
+  workspacePath,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { locate, refuseGitPlace, workspaceLayoutState } from "../workspace/index.js";
@@ -49,10 +55,14 @@ const entriesOf = async (
   workspace: Workspace,
   elements: readonly ElementRecord[],
   home: string,
-): Promise<{ readonly entries: BaselineFile["elements"][number][]; readonly embeds: Checked["embeds"] }> => {
+): Promise<{
+  readonly entries: BaselineFile["elements"][number][];
+  readonly records: readonly ElementRecord[];
+  readonly embeds: Checked["embeds"];
+}> => {
   const store = await workspace.get(elementStoreState);
   const versions = await currentVersionsOf(workspace, elements);
-  const entries: BaselineFile["elements"][number][] = [];
+  const entries: { readonly entry: BaselineFile["elements"][number]; readonly record: ElementRecord }[] = [];
   const faulty: ElementRecord[] = [];
   const embeds = new Map<string, Map<string, ElementRecord[]>>();
   for (const [record, entry] of versions) {
@@ -65,9 +75,12 @@ const entriesOf = async (
       record.repository !== home ||
       store.byId.get(record.id)?.some((c) => c.repository !== record.repository) === true;
     entries.push({
-      id: record.id,
-      version: entry.forms[NORMAL_FORM],
-      ...(elsewhere ? { repository: record.repository } : {}),
+      entry: {
+        id: record.id,
+        version: entry.forms[NORMAL_FORM],
+        ...(elsewhere ? { repository: record.repository } : {}),
+      },
+      record,
     });
     const byFile = embeds.get(record.repository) ?? new Map<string, ElementRecord[]>();
     for (const image of entry.images.filter((i) => i.found !== "nested")) {
@@ -85,7 +98,8 @@ const entriesOf = async (
   }
   const key = (e: { readonly id: string; readonly repository?: string }): string =>
     `${e.id}\n${e.repository ?? ""}`;
-  return { entries: entries.sort((x, y) => (key(x) < key(y) ? -1 : 1)), embeds };
+  const sorted = entries.sort((x, y) => (key(x.entry) < key(y.entry) ? -1 : 1));
+  return { entries: sorted.map((e) => e.entry), records: sorted.map((e) => e.record), embeds };
 };
 
 /** Creates the baseline `request` in `workspace` (see the file comment). */
@@ -131,7 +145,7 @@ export const createBaseline = async (
   );
   // A repository without a commit (AK7) is refused before any version is computed (#444, N-036).
   const commits = await involvedCommits(layout, request.elements);
-  const { entries, embeds } = await entriesOf(workspace, request.elements, repository.name);
+  const { entries, records, embeds } = await entriesOf(workspace, request.elements, repository.name);
   await refuseUncommitted(workspace, commits, {
     elements: request.elements,
     embeds,
@@ -149,6 +163,7 @@ export const createBaseline = async (
   });
   const file = await writeNewBaseline(repository, relativeTo(repository, folder), request.name, text);
   const shownFile = workspacePath(layout, repository, file);
+  const shortIds = await workspace.get(shortIdState);
   return {
     files: [shownFile],
     baseline: {
@@ -157,6 +172,12 @@ export const createBaseline = async (
       repository: repository.name,
       date,
       elements: entries.length,
+      // The elements of the file, in its order, as the number counts them (SR-224 AK4).
+      entries: records.map((record) => ({
+        id: record.id,
+        shortId: shortIds.of(record),
+        repository: record.repository,
+      })),
     },
     ...(request.incomplete
       ? {

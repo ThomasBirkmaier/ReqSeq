@@ -29,10 +29,10 @@ import { evidenceReadState, graphVerification } from "../evidence/index.js";
 import { outdatedAmong } from "../hints/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { meaningUnassignedMessage } from "../metamodel/index.js";
-import type { ElementStore } from "../model/index.js";
+import type { ElementStore, ShortIds } from "../model/index.js";
 import { invalidStatuses, resolveRef, shortIdState } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
-import type { ElementGraph, GraphMark, MarksOf, TraceContext } from "../trace/index.js";
+import type { ElementGraph, GraphMark, MarksOf, NeighbourhoodContext, TraceContext } from "../trace/index.js";
 import {
   checkRelationKinds,
   currentVersionLookup,
@@ -101,15 +101,26 @@ export interface ElementGraphResult {
   readonly maxDepth: number | undefined;
 }
 
+/** The walk of trace.graph: its graph within the limit and its view, without the output built from them. */
+export interface ElementGraphWalk {
+  readonly base: TraceContext;
+  readonly graph: ElementGraph;
+  readonly view: View | undefined;
+  /** The depth asked; undefined for the whole chain. */
+  readonly maxDepth: number | undefined;
+  /** Whether the view or the records the status or the evidence read are incomplete. */
+  readonly incomplete: boolean;
+}
+
 /**
- * The output of trace.graph for `input` without the evidence (see the file comment); problems and errors
- * name `command`, the command that asks.
+ * The walk of trace.graph for `input` (see the file comment), for a caller that needs its nodes only (the
+ * elements of a number, SR-224 AK4); errors name `command`, the command that asks.
  */
-export const elementGraphOf = async (
+export const elementGraphWalk = async (
   workspace: Workspace,
   input: ElementGraphInput,
   command: CommandName,
-): Promise<ElementGraphResult> => {
+): Promise<ElementGraphWalk & { readonly context: NeighbourhoodContext; readonly shortIds: ShortIds }> => {
   const base = await traceContext(workspace);
   const { metamodel, store } = base;
   if (input.allLevels && input.maxDepth !== undefined) {
@@ -140,6 +151,25 @@ export const elementGraphOf = async (
     ...(includes === undefined ? {} : { includes }),
     limit: input.limit,
   });
+  const incomplete = viewIncomplete(base.layout, view) || (await evidenceIncomplete(workspace));
+  return { base, graph, view, maxDepth, incomplete, context, shortIds };
+};
+
+/**
+ * The output of trace.graph for `input` without the evidence (see the file comment); problems and errors
+ * name `command`, the command that asks.
+ */
+export const elementGraphOf = async (
+  workspace: Workspace,
+  input: ElementGraphInput,
+  command: CommandName,
+): Promise<ElementGraphResult> => {
+  const { base, graph, view, maxDepth, incomplete, context, shortIds } = await elementGraphWalk(
+    workspace,
+    input,
+    command,
+  );
+  const { metamodel, store } = base;
   const output = await elementGraphOutput(
     graph,
     { ...context, shortIds },
@@ -154,9 +184,7 @@ export const elementGraphOf = async (
   return {
     output: {
       ...output,
-      ...(viewIncomplete(base.layout, view) || (await evidenceIncomplete(workspace))
-        ? { incomplete: true }
-        : {}),
+      ...(incomplete ? { incomplete: true } : {}),
       problems: problemsOf(metamodel, command),
     },
     base,

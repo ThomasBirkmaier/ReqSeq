@@ -142,7 +142,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 | Block | Imports (values) | Imports (types only) |
 |---|---|---|
-| runtime entry (`invoke`, `warm`, `element-short-ids`, `local-path-fields`) | commands, metamodel, model, query, runtime state, workspace | |
+| runtime entry (`invoke`, `warm`, `element-short-ids`, `local-path-fields`, `output-count`) | commands, metamodel, model, query, runtime state, workspace | |
 | `commands` | baselines, data, evidence, files, graph, hints, html-export, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
 | `reqif` | files, metamodel, model, runtime state, workspace | |

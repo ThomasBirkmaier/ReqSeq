@@ -105,7 +105,16 @@
         "title": "Unchanged elements",
         "type": "integer",
         "minimum": 0,
-        "description": "Elements of the selection that have the result already."
+        "description": "Elements of the selection that have the result already: those of `unchangedElements`.",
+        "x-elements": "unchangedElements"
+      },
+      "unchangedElements": {
+        "title": "Unchanged elements",
+        "type": "array",
+        "description": "The elements of the selection that have the result already, in store order.",
+        "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
+        "x-elements": true,
+        "x-normal": []
       },
       "skipped": {
         "title": "Skipped elements",
@@ -172,6 +181,7 @@
       "count",
       "affected",
       "unchanged",
+      "unchangedElements",
       "skipped",
       "files",
       "problems",
