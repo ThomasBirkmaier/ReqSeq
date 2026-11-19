@@ -24,6 +24,7 @@ import {
   buildSearchIndex,
   engineOptions,
   documentOf,
+  prepareSearchIndex,
   searchElements,
   searchIndexOf,
 } from "../../src/query/search-index.js";
@@ -261,7 +262,9 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
 
   it("records carrying the index over a save and over a pull of 1,000 files", async () => {
     const ws = opened();
-    await searchIndex(ws);
+    // Prepared as a server prepares it at the end of its build (`warmSearchIndex`), so the rows
+    // compare carries, not the first build of what a carry patches.
+    prepareSearchIndex(await searchIndex(ws));
     const [saved] = store.elements;
     if (saved === undefined) {
       throw new Error("no element");
