@@ -22,18 +22,19 @@ reqseq workspace init . "Weather station"
 ```
 
 ```text title="Output"
-Created workspace Weather station; 3 files written.
+Created workspace Weather station; 4 files written.
 files:
   metamodel/standard-model.yaml
   reqseq-workspace.yaml
   .gitignore
+  .claude/skills/managing-requirements/SKILL.md
 No problems.
 next:
   reqseq workspace connect-agent --client <client>  Connect AI agent
   reqseq element create <type> <title>              Create element
 ```
 
-ReqSeq never commits: put the folder under Git yourself.
+The workspace file names the folder `evidence` as its evidence location, and the skill file tells an AI agent how to work with ReqSeq; in a Git repository it goes to the root of the repository. `--no-skill` leaves it out. ReqSeq never commits: put the folder under Git yourself.
 
 In the app: Ctrl+O and choose the folder, then run **Create workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 

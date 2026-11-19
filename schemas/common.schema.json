@@ -494,6 +494,7 @@
         "workspace.metamodel-mismatch",
         "workspace.invalid",
         "workspace.not-watched",
+        "workspace.skill-not-written",
         "git.unavailable",
         "git.revision-missing",
         "reqif.replaces-local",

@@ -324,7 +324,12 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     await fs.access(ws.path(".git/HEAD"));
     await fs.mkdir(ws.path("spec"));
     const init = new Workspace(ws.path("spec"));
-    await runtime.invoke("workspace.init", { path: ws.path("spec"), name: "Station" }, { workspace: init });
+    // Without the skill file, which is what the test writes (SR-229 AK9 is init.test.ts in core).
+    await runtime.invoke(
+      "workspace.init",
+      { path: ws.path("spec"), name: "Station", skill: false },
+      { workspace: init },
+    );
     await init.close();
     return ws;
   };

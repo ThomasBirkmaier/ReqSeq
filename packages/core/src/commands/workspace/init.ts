@@ -1,16 +1,41 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
 // workspace; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
-// (SR-226 AK2).
+// (SR-226 AK2). Unless `skill` is false, it also writes the skill file as `tool.guide` with `write` does, without
+// `replace` (SR-229 AK9, `writeSkillFile`): written, it is listed among the files; refused, the workspace stays
+// created and the refusal becomes the problem `workspace.skill-not-written`.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandOutput, LocalPaths } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
+import type { CommandCatalog, Problem } from "../../generated/types.js";
 import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT, metamodelState } from "../../metamodel/index.js";
+import { contractsBundle } from "../../runtime/contracts.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
 import { filesNote, problemsNote, sentence } from "../answer.js";
 import { afterInitSteps } from "../../next-steps.js";
+import { writeSkillFile } from "../tool/guide/skill-file.js";
+
+/** The catalog commands of this version, which the skill file names. */
+const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
+
+/** The skill file of the new workspace, written without `replace` (SR-229 AK9): the path written, or the refusal. */
+const writeSkill = async (
+  created: Workspace,
+  localPaths: LocalPaths,
+): Promise<{ readonly files: readonly string[]; readonly problems: readonly Problem[] }> => {
+  const result = await writeSkillFile(created, ENTRIES, { replace: false, localPaths });
+  if ("refused" in result) {
+    const problem: Problem = {
+      code: "workspace.skill-not-written",
+      severity: "warning",
+      message: result.refused.message,
+    };
+    return { files: [], problems: [problem] };
+  }
+  return { files: result.written.action === "unchanged" ? [] : [result.written.path], problems: [] };
+};
 
 /** The path with links resolved, so two spellings of one folder compare equal; the path itself when it does not exist. */
 const realPath = async (folder: string): Promise<string> => fs.realpath(folder).catch(() => folder);
@@ -40,11 +65,12 @@ export default defineCommand({
     try {
       const layout = await created.get(workspaceLayoutState);
       const metamodel = await created.get(metamodelState);
+      const skill = input.skill ? await writeSkill(created, ctx.localPaths) : { files: [], problems: [] };
       return {
-        files: [...files],
+        files: [...files, ...skill.files],
         // The next steps run in the new workspace (SR-226 AK2), named by its absolute path.
         next: afterInitSteps(root),
-        problems: [...layout.problems, ...metamodel.problems],
+        problems: [...layout.problems, ...metamodel.problems, ...skill.problems],
       };
     } finally {
       await created.close();

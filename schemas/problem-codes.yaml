@@ -303,6 +303,10 @@ problems:
     title: Folder not watched
     cause: ReqSeq cannot watch a folder for changes, for example because the system's limit of watched folders is reached.
     remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
+  workspace.skill-not-written:
+    title: Skill file not written
+    cause: "`workspace.init` created the workspace but did not write the skill file: a file at its place was not written by ReqSeq or was changed since, the place is a link or meets Git, or, through the API and the MCP server, it lies outside the repositories of the workspace. The message says which."
+    remedy: Keep the file, or write the skill file with `reqseq tool guide --skill --write`, with `--replace` to replace a file ReqSeq did not write.
   git.unavailable:
     title: Git cannot read the repository
     cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.

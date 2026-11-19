@@ -97,7 +97,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
-  it("offers only Create workspace while a folder without a workspace is open, and asks its path and name", async () => {
+  it("[SR-229/AK-x7d8] offers only Create workspace while a folder without a workspace is open, and asks its path and name, nothing about the skill file", async () => {
     const { context, asked, call, dispatched } = setup([], {
       "workspace.init": () => ({ root: "/station", files: ["reqseq-workspace.yaml"] }),
     });
