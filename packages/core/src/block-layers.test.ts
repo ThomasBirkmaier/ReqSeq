@@ -34,6 +34,7 @@ type Unit =
 type Shared =
   | "catalog"
   | "product"
+  | "problem-titles"
   | "build-info"
   | "installation"
   | "agent-setup"
@@ -152,6 +153,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   "runtime state": { values: [] },
   catalog: { values: ["generated"], types: ["runtime state"] },
   product: { values: ["generated"] },
+  "problem-titles": { values: ["generated"] },
   "build-info": { values: [] },
   installation: { values: [] },
   "agent-setup": { values: [], types: ["installation"] },
@@ -162,6 +164,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
 const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set([
   "catalog",
   "product",
+  "problem-titles",
   "build-info",
   "installation",
   "agent-setup",
@@ -174,6 +177,18 @@ const BLOCK_FOLDERS: ReadonlySet<string> = new Set(
   LAYERS.flat().filter((unit) => unit !== "runtime entry" && unit !== "runtime state"),
 );
 
+/** The modules at the root of `src`. */
+const ROOT_MODULES: ReadonlySet<string> = new Set([
+  "index",
+  "catalog",
+  "product",
+  "problem-titles",
+  "build-info",
+  "installation",
+  "agent-setup",
+  "next-steps",
+]);
+
 const SRC = import.meta.dirname;
 
 /** The unit of a module, from its path relative to `src` with `/`; a string is an error. */
@@ -181,15 +196,7 @@ function unitOf(module: string): { readonly unit: Unit | Shared } | { readonly e
   const [first = "", second] = module.split("/");
   if (second === undefined) {
     const name = first.replace(/\.(?:ts|js)$/, "");
-    return name === "index" ||
-      name === "catalog" ||
-      name === "product" ||
-      name === "build-info" ||
-      name === "installation" ||
-      name === "agent-setup" ||
-      name === "next-steps"
-      ? { unit: name }
-      : { error: "unknown root module" };
+    return ROOT_MODULES.has(name) ? { unit: name as Shared } : { error: "unknown root module" };
   }
   if (first === "generated") {
     return { unit: "generated" };

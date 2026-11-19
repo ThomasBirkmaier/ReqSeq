@@ -66,6 +66,10 @@
     "./fold": {
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
+    },
+    "./problem-titles": {
+      "types": "./dist/problem-titles.d.ts",
+      "default": "./dist/problem-titles.js"
     }
   },
   "scripts": {
