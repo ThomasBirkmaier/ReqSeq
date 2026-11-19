@@ -9,6 +9,15 @@
 // `securityLevel: "strict"` (label texts sanitized, no click handlers) is defence in depth.
 import type mermaidApi from "mermaid";
 import type { MermaidConfig } from "mermaid";
+import {
+  DIAGRAM_COLOURS,
+  MAX_EDGES,
+  MAX_STATEMENTS,
+  MAX_TEXT_SIZE,
+  MERMAID_SETTINGS,
+  SECURE_KEYS,
+  diagramOverLimit,
+} from "@reqseq/core/render-options";
 
 export type DiagramResult =
   | {
@@ -34,94 +43,17 @@ export interface DiagramTheme {
   readonly fontFamily: string;
 }
 
-/**
- * Bounds against a diagram that would hold the editor up: its text, its statements (lines or parts of a
- * line between `;`), the edges of a flowchart.
- */
-export const MAX_TEXT_SIZE = 50_000;
-export const MAX_STATEMENTS = 500;
-export const MAX_EDGES = 500;
-
-/**
- * The configuration keys a diagram cannot change with an `%%{init: …}%%` directive: Mermaid's own list
- * (security level, limits, error rendering) and the look, which stays the app's (D-062).
- */
-export const SECURE_KEYS = [
-  "secure",
-  "securityLevel",
-  "startOnLoad",
-  "maxTextSize",
-  "suppressErrorRendering",
-  "maxEdges",
-  "theme",
-  "themeVariables",
-  "themeCSS",
-  "htmlLabels",
-  "fontFamily",
-  "deterministicIds",
-  "darkMode",
-] as const;
+/** Bounds and settings shared with the HTML export (`@reqseq/core/render-options`, SR-231 AK5). */
+export { MAX_EDGES, MAX_STATEMENTS, MAX_TEXT_SIZE, SECURE_KEYS };
 
 export const mermaidConfig = (theme: DiagramTheme): MermaidConfig => ({
-  startOnLoad: false,
-  securityLevel: "strict",
-  deterministicIds: true,
-  suppressErrorRendering: true,
-  // Labels as SVG text, not HTML in a `foreignObject`: measured with the app's font, drawn the same in the image.
-  htmlLabels: false,
-  maxTextSize: MAX_TEXT_SIZE,
-  maxEdges: MAX_EDGES,
-  theme: "base",
+  ...MERMAID_SETTINGS,
   darkMode: theme.dark,
   fontFamily: theme.fontFamily,
   themeVariables: {
     darkMode: theme.dark,
     fontFamily: theme.fontFamily,
-    background: theme.sheet,
-    primaryColor: theme.raised,
-    primaryTextColor: theme.text,
-    primaryBorderColor: theme.edge,
-    secondaryColor: theme.sheet,
-    secondaryTextColor: theme.text,
-    secondaryBorderColor: theme.edge,
-    tertiaryColor: theme.sheet,
-    tertiaryTextColor: theme.text,
-    tertiaryBorderColor: theme.rule,
-    mainBkg: theme.raised,
-    nodeBorder: theme.edge,
-    clusterBkg: theme.sheet,
-    clusterBorder: theme.rule,
-    lineColor: theme.muted,
-    textColor: theme.text,
-    titleColor: theme.text,
-    edgeLabelBackground: theme.sheet,
-    noteBkgColor: theme.sheet,
-    noteTextColor: theme.text,
-    noteBorderColor: theme.rule,
-    actorBkg: theme.raised,
-    actorBorder: theme.edge,
-    actorTextColor: theme.text,
-    actorLineColor: theme.muted,
-    signalColor: theme.text,
-    signalTextColor: theme.text,
-    labelBoxBkgColor: theme.raised,
-    labelBoxBorderColor: theme.edge,
-    labelTextColor: theme.text,
-    loopTextColor: theme.text,
-    activationBkgColor: theme.rule,
-    activationBorderColor: theme.edge,
-    sequenceNumberColor: theme.sheet,
-    labelColor: theme.text,
-    altBackground: theme.rule,
-    stateBkg: theme.raised,
-    stateLabelColor: theme.text,
-    compositeBackground: theme.sheet,
-    compositeTitleBackground: theme.raised,
-    transitionColor: theme.muted,
-    transitionLabelColor: theme.text,
-    specialStateColor: theme.muted,
-    errorBkgColor: theme.raised,
-    errorTextColor: theme.text,
+    ...Object.fromEntries(Object.entries(DIAGRAM_COLOURS).map(([name, token]) => [name, theme[token]])),
   },
   secure: [...SECURE_KEYS],
 });
@@ -141,20 +73,7 @@ export const errorMessage = (error: unknown): string => {
 };
 
 /** Why `source` is not drawn at all, before Mermaid sees it; undefined when it is within the bounds. */
-export const overLimit = (source: string): string | undefined => {
-  if (source.length > MAX_TEXT_SIZE) {
-    return `Diagram too large: ${String(source.length)} characters, at most ${String(MAX_TEXT_SIZE)}.`;
-  }
-  // A `;` separates statements as a line break does, except the one that ends an entity such as `#35;`, of which
-  // the Mermaid text of a graph puts many into its labels (SR-151 AK3).
-  const statements = source
-    .replace(/#(?:\d+|[A-Za-z]+);/g, "")
-    .split(/[\n;]/)
-    .filter((part) => part.trim() !== "").length;
-  return statements > MAX_STATEMENTS
-    ? `Diagram too large: ${String(statements)} statements, at most ${String(MAX_STATEMENTS)}.`
-    : undefined;
-};
+export const overLimit = diagramOverLimit;
 
 const ROOT = /<svg\b[^>]*>/;
 

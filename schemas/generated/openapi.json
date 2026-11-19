@@ -162,12 +162,15 @@
                                     "searchField",
                                     "properties",
                                     "relations",
+                                    "choices",
+                                    "choiceChanges",
+                                    "limits",
                                     "text",
                                     "number",
                                     "boolean",
                                     "json"
                                   ],
-                                  "description": "element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`."
+                                  "description": "element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). choices: a list of new fixed values `{ name, key? }`, each a name and its key, the key suggested from the name. choiceChanges: a list of `{ choice, name?, description? }`: a fixed value of the property (metamodel.get), then its new name or description. limits: a list of `relationLimit` of metamodel.schema.json: the target types for limits as marks from every type (metamodel.get; those of the limits there are marked, a limit for one source type is kept as it is), then a minimum and a maximum, each a number or empty, per target type marked. text, number, boolean: typed free input; in the steps of the metamodel commands, an empty input of a `number` field that also takes null gives null. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`."
                                 },
                                 "of": {
                                   "type": "string",
@@ -193,7 +196,7 @@
                                     "path",
                                     "output"
                                   ],
-                                  "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element; revision: a Git revision; query: a search query or a pattern that finds text; path: a path or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source)."
+                                  "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element; revision: a Git revision; query: a search query or a pattern that finds text; path: a path or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name`."
                                 },
                                 "replaces": {
                                   "type": "array",
@@ -3835,7 +3838,7 @@
                           "items": {
                             "$ref": "#/components/schemas/common/$defs/key"
                           },
-                          "description": "Properties whose definition was removed, as no other type has them."
+                          "description": "Properties whose definition was removed, as no other type has them and no element holds them."
                         },
                         "statuses": {
                           "title": "Statuses",
@@ -3843,7 +3846,7 @@
                           "items": {
                             "$ref": "#/components/schemas/common/$defs/key"
                           },
-                          "description": "Statuses whose definition was removed, as no other type has them."
+                          "description": "Statuses whose definition was removed, as no other type has them and no element has them."
                         }
                       },
                       "additionalProperties": false,
@@ -3851,7 +3854,20 @@
                         "properties",
                         "statuses"
                       ],
-                      "description": "The definitions removed with the type: its properties and statuses that no other type has."
+                      "description": "The definitions removed with the type: its properties and statuses that no other type has and no element holds or has, never the initial status; those that stay are in `kept`."
+                    },
+                    "kept": {
+                      "title": "Definitions kept",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/keptDefinition"
+                      },
+                      "description": "Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them, properties first, in metamodel order; the initial status too, whose definition never goes.",
+                      "x-key": [
+                        "kind",
+                        "key"
+                      ],
+                      "x-normal": []
                     },
                     "mentions": {
                       "title": "Files naming a removed key",
@@ -3921,6 +3937,7 @@
                     "answer",
                     "type",
                     "removed",
+                    "kept",
                     "mentions",
                     "files",
                     "versionsChanged",
@@ -4767,7 +4784,7 @@
     "/v1/commands/metamodel.removeProperty": {
       "post": {
         "operationId": "metamodel_removeProperty",
-        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
+        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.",
         "tags": [
           "metamodel"
         ],
@@ -4826,12 +4843,25 @@
                     "definitionRemoved": {
                       "title": "Definition removed",
                       "type": "boolean",
-                      "description": "true when no type had the property any more, so its definition was removed."
+                      "description": "true when no type had the property any more and no element held its key, so its definition was removed."
                     },
                     "inheritedFrom": {
                       "title": "Kept from",
                       "$ref": "#/components/schemas/common/$defs/key",
                       "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+                    },
+                    "kept": {
+                      "title": "Definitions kept",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/keptDefinition"
+                      },
+                      "description": "The property when no type has it any more and its definition stays, as the files of elements of any type hold its key; empty otherwise.",
+                      "x-key": [
+                        "kind",
+                        "key"
+                      ],
+                      "x-normal": []
                     },
                     "mentions": {
                       "title": "Files naming a removed key",
@@ -4902,6 +4932,7 @@
                     "type",
                     "property",
                     "definitionRemoved",
+                    "kept",
                     "mentions",
                     "files",
                     "versionsChanged",
@@ -6417,8 +6448,21 @@
                     "removed": {
                       "title": "Definition removed",
                       "type": "boolean",
-                      "description": "true when no type has the status any more and its definition was removed.",
+                      "description": "true when no type and no element has the status any more and its definition was removed.",
                       "x-normal": false
+                    },
+                    "kept": {
+                      "title": "Definitions kept",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/keptDefinition"
+                      },
+                      "description": "The status when no type has it any more and its definition stays, as elements of any type have it; empty otherwise.",
+                      "x-key": [
+                        "kind",
+                        "key"
+                      ],
+                      "x-normal": []
                     },
                     "mentions": {
                       "title": "Files naming a removed key",
@@ -6489,6 +6533,7 @@
                     "type",
                     "status",
                     "removed",
+                    "kept",
                     "mentions",
                     "files",
                     "versionsChanged",
@@ -13062,7 +13107,7 @@
                   },
                   "target": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+                    "description": "Confirm the open confirmable hints on relations and inline references that point at this element."
                   },
                   "all": {
                     "type": "boolean",
@@ -13071,7 +13116,7 @@
                   },
                   "kind": {
                     "type": "array",
-                    "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+                    "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/problemCode"
                     }
@@ -20754,6 +20799,48 @@
             ],
             "additionalProperties": false
           },
+          "keptDefinition": {
+            "description": "A property or status definition that no type has any more and that stays, as elements of any type, also of a type the metamodel does not know, hold it.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "title": "Kind",
+                "type": "string",
+                "enum": [
+                  "property",
+                  "status"
+                ],
+                "description": "property, or status."
+              },
+              "key": {
+                "title": "Key",
+                "$ref": "#/components/schemas/common/$defs/key"
+              },
+              "count": {
+                "title": "Elements holding it",
+                "type": "integer",
+                "minimum": 1,
+                "description": "The elements that have the status, or whose file holds the property key, also with an empty value; those of `elements`.",
+                "x-elements": "elements"
+              },
+              "elements": {
+                "title": "Elements holding it",
+                "type": "array",
+                "description": "The elements `count` counts, in store order.",
+                "items": {
+                  "$ref": "#/components/schemas/common/$defs/countedElement"
+                },
+                "x-elements": true
+              }
+            },
+            "required": [
+              "kind",
+              "key",
+              "count",
+              "elements"
+            ],
+            "additionalProperties": false
+          },
           "elementName": {
             "description": "How an output names an element it gives elsewhere by UUID only, for people: its short ID, its identifier when it has one and its title, as element.list gives them.",
             "type": "object",
@@ -21221,6 +21308,7 @@
               "workspace.metamodel-mismatch",
               "workspace.invalid",
               "workspace.not-watched",
+              "workspace.skill-older-version",
               "git.unavailable",
               "git.revision-missing",
               "reqif.replaces-local",
@@ -21231,6 +21319,7 @@
               "reqif.source-value-chosen",
               "html.unsafe-content",
               "html.image-not-copied",
+              "html.formula-error",
               "html.foreign-file",
               "html.marker-entry-ignored",
               "html.cleanup-failed"
