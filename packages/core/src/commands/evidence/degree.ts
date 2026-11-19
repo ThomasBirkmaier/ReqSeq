@@ -3,10 +3,19 @@
 // selection is the one of `element.list` (query/selection.ts). `incomplete` (SR-006 AK2): a repository
 // of the workspace file is not on this machine, so requirements, children or evidence locations there
 // are not seen, or a condition of the selection met such a target. `names` names the variant of the
-// view (ThomasBirkmaier/ReqSeq-archive#588). Nothing is written (D-030).
+// view (ThomasBirkmaier/ReqSeq-archive#588). Nothing is written (D-030). `countedElements` gives the
+// requirements of `degree.total` and of each `degree.counts.*` (SR-224 AK4) in the same view, by the rule
+// the degree counts with (`degreeElements`).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { evidenceReadState, selectionDegree, variantIdsOf, viewIdOf } from "../../evidence/index.js";
+import {
+  degreeFieldElements,
+  evidenceReadState,
+  selectionDegree,
+  selectionDegreeElements,
+  variantIdsOf,
+  viewIdOf,
+} from "../../evidence/index.js";
 import { namesField, namesOf } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 import type { View } from "../../variants/index.js";
@@ -36,6 +45,17 @@ export default defineCommand({
       view: id,
       incomplete: selected.incomplete || read.incomplete,
       ...namesField(namesOf(selected, variantIdsOf(id))),
+    };
+  },
+  countedElements: async (ctx, input, count) => {
+    const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.degree");
+    const view = selected.views[0] ?? CORE;
+    const by = await selectionDegreeElements(ctx.workspace, selected.elements, view);
+    const read = await ctx.workspace.get(evidenceReadState);
+    return {
+      elements: degreeFieldElements(by, count.field.slice("degree.".length)),
+      incomplete: selected.incomplete || read.incomplete,
+      view,
     };
   },
 });

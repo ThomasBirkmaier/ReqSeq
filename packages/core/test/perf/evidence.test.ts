@@ -316,6 +316,33 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(last.elements).toHaveLength(MAX_LIMIT);
   });
 
+  it("records element.list of the open requirements of the degree, by its number (SR-224 AK4, #1915)", async () => {
+    await reopen();
+    await readEvidence(ws());
+    const input = {
+      selection: {
+        output: { command: "evidence.degree", input: {}, count: { field: "degree.counts.open" } },
+      },
+      limit: 200,
+    };
+    const { result: cold } = await measure(
+      "element.list, first page (200) of the elements of degree.counts.open: first after the start",
+      () => run("element.list", input),
+      { basis: `SR-224 AK4 (cold; ${COMPARE_AK4})`, ...COMPARED },
+    );
+    const { result: warm } = await measure(
+      "element.list, first page (200) of the elements of degree.counts.open: after one evaluation",
+      () => run("element.list", input),
+      { basis: `SR-224 AK4 (warm; ${COMPARE_AK4})`, ...COMPARED },
+    );
+    expect(warm).toEqual(cold);
+    const { degree } = await run("evidence.degree", {});
+    expect([warm.total, warm.elements.length]).toEqual([
+      degree.counts.open,
+      Math.min(200, degree.counts.open),
+    ]);
+  });
+
   /**
    * Opens an element as the app shows it (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line at the same
    * time; SR-082 AK3 is the time of both (open-filter-chain.test.ts).

@@ -52,6 +52,9 @@ const nodeOf = async (workspace: Workspace, id: string, view?: string): Promise<
   )) as CommandOutput<"trace.graph">;
   const node = output.nodes[0];
   return {
+    id: String(node?.id),
+    repository: String(node?.repository),
+    file: String(node?.file),
     ...(node?.verification === undefined ? {} : { verification: node.verification }),
     ...(node?.criteria === undefined ? {} : { criteria: node.criteria }),
     ...(node?.degree === undefined ? {} : { degree: node.degree }),
@@ -107,10 +110,18 @@ describe("element.list and element.search: the verification of the rows (SR-137)
       ["core"],
       { verified: 1, total: 1 },
     ]);
-    expect(rowOf(core, b099)).toEqual({});
+    // Its element only (SR-224 AK4 names a row's numbers by it).
+    expect(rowOf(core, b099)).toEqual({
+      id: b099,
+      repository: "system",
+      file: "requirements/SR-00000000b099.md",
+    });
     const inCoast = await list(workspace, { selection: { view: coast } });
     expect(rowOf(inCoast, b001)?.verification?.map((v) => v.view)).toEqual([coast]);
     expect(rowOf(inCoast, b099)).toEqual({
+      id: b099,
+      repository: "system",
+      file: "requirements/SR-00000000b099.md",
       verification: [{ view: coast, status: "open" }],
       criteria: {
         verified: 0,
@@ -161,7 +172,12 @@ describe("element.list and element.search: the verification of the rows (SR-137)
     expect(byId.get(U("b101"))?.criteria).toBeUndefined();
     expect(byId.get(U("b012"))?.criteria).toBeUndefined();
     expect(byId.get(U("a002"))?.degree?.share).toBeUndefined();
-    expect([...byId.values()].some((row) => row !== undefined && Object.keys(row).length === 0)).toBe(true);
+    // A row with nothing to show names its element only.
+    expect(
+      [...byId.values()].some(
+        (row) => row !== undefined && Object.keys(row).sort().join() === "file,id,repository",
+      ),
+    ).toBe(true);
   });
 
   it("[SR-137/AK-gq6h] gives the rows of a page, of a grouped list and of a search as their nodes", async () => {

@@ -72,6 +72,15 @@ describe("reqif.export with statements (SR-058)", () => {
       elements: 3,
       relations: 0,
       withoutStatement: 1,
+      // The elements of both numbers (SR-224 AK4).
+      exportedElements: ["a1", "a2", "a3"].map((tail) => ({
+        id: `58058058-0000-4000-8000-0000000058${tail}`,
+        shortId: `SR-0058${tail}`,
+        repository: "system",
+      })),
+      elementsWithoutStatement: [
+        { id: "58058058-0000-4000-8000-0000000058a2", shortId: "SR-0058a2", repository: "system" },
+      ],
       files: [],
       problems: [],
     });

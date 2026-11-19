@@ -94,6 +94,34 @@ describe("command registry", () => {
     expect(without).toEqual([]);
   });
 
+  it('gives countedElements for every read command with a number marked x-elements "selection" or by lists (SR-224 AK4, #1915)', async () => {
+    const marked = contracts.commands
+      .filter(
+        (entry) =>
+          entry.effect === "read" &&
+          entry.outputFields?.some(
+            (field) =>
+              field.elements === "selection" ||
+              (Array.isArray(field.elements) &&
+                field.elements.some(
+                  (path) => entry.outputFields?.find((f) => f.path === path)?.elements !== "answer",
+                )),
+          ) === true,
+      )
+      .map((entry) => entry.name);
+    expect(marked.length).toBeGreaterThan(5);
+    const without: string[] = [];
+    for (const name of marked) {
+      const command = commands.find((c) => c.name === name);
+      const module =
+        command !== undefined && isLazy(command) ? ((await command.load()) as AnyCommand) : command;
+      if (module?.countedElements === undefined) {
+        without.push(name);
+      }
+    }
+    expect(without).toEqual([]);
+  });
+
   it("only lists stages that exist in the catalog", () => {
     const stages = new Set(contracts.commands.map((c) => c.stage));
     expect(COMPLETED_STAGES.filter((s) => !stages.has(s))).toEqual([]);

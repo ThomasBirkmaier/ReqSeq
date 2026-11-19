@@ -149,12 +149,25 @@ export const baselineElements = (
   return { elements: [...present, ...added], absent: present.length < copies.length };
 };
 
-/** The baseline with its entries and what became of them (see the file comment). */
-export const showBaseline = async (workspace: Workspace, request: ShowRequest): Promise<Output> => {
+/** A row of the output before its version date and evidence, with its copy and that copy's current version. */
+interface StateRow {
+  readonly row: Row;
+  readonly record: ElementRecord | undefined;
+  readonly current?: VersionForms | undefined;
+}
+
+/**
+ * Every row of the baseline over all pages with its state (see the file comment): the one rule of the
+ * `counts` and of the elements behind each (`stateElements`, SR-224 AK4). Warnings go into `problems`.
+ */
+const stateRows = async (
+  workspace: Workspace,
+  request: Pick<ShowRequest, "baseline" | "metamodel" | "store" | "selected">,
+  problems: Problem[],
+): Promise<StateRow[]> => {
   const { baseline, metamodel, store } = request;
   const layout = await workspace.get(workspaceLayoutState);
   const shortIds = await workspace.get(shortIdState);
-  const problems = [...request.problems];
   const { entries, copies, listed } = entriesOf(store, baseline, problems);
   const selected = request.selected;
   const now = selected === undefined ? undefined : new Set(selected);
@@ -177,34 +190,33 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     return formsOfEntry(entry);
   };
   const invalid = invalidStatuses(metamodel);
-  const rows: { row: Row; record: ElementRecord | undefined; current?: VersionForms | undefined }[] =
-    entries.map((entry, index) => {
-      const record = copies[index];
-      if (record === undefined) {
-        const state = isUnavailableRepository(layout, entry.repository) ? "inaccessible" : "missing";
-        const missing = { id: entry.id, state, version: entry.version } as const;
-        return {
-          row: entry.repository === undefined ? missing : { ...missing, repository: entry.repository },
-          record,
-        };
-      }
-      const current = currentOf(record);
-      const state: State = invalid.has(String(record.data["status"]))
-        ? "superseded"
-        : now !== undefined && !now.has(record)
-          ? "removed"
-          : current !== undefined && sameVersion(entry.version, current)
-            ? "unchanged"
-            : "changed";
-      const row: Row = {
-        id: entry.id,
-        repository: record.repository,
-        state,
-        version: entry.version,
-        ...currentField(current, entry.version),
+  const rows: StateRow[] = entries.map((entry, index) => {
+    const record = copies[index];
+    if (record === undefined) {
+      const state = isUnavailableRepository(layout, entry.repository) ? "inaccessible" : "missing";
+      const missing = { id: entry.id, state, version: entry.version } as const;
+      return {
+        row: entry.repository === undefined ? missing : { ...missing, repository: entry.repository },
+        record,
       };
-      return { row, record, current };
-    });
+    }
+    const current = currentOf(record);
+    const state: State = invalid.has(String(record.data["status"]))
+      ? "superseded"
+      : now !== undefined && !now.has(record)
+        ? "removed"
+        : current !== undefined && sameVersion(entry.version, current)
+          ? "unchanged"
+          : "changed";
+    const row: Row = {
+      id: entry.id,
+      repository: record.repository,
+      state,
+      version: entry.version,
+      ...currentField(current, entry.version),
+    };
+    return { row, record, current };
+  });
   for (const record of added) {
     const row: Row = {
       id: record.id,
@@ -214,6 +226,30 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     };
     rows.push({ row, record });
   }
+  return rows;
+};
+
+/**
+ * The elements behind the number of `state` in `counts` (SR-224 AK4), each once: a `missing` or
+ * `inaccessible` entry has no element in the store, so `absent` says that the number counts one.
+ */
+export const stateElements = async (
+  workspace: Workspace,
+  request: Pick<ShowRequest, "baseline" | "metamodel" | "store" | "selected">,
+  state: State,
+): Promise<{ readonly elements: readonly ElementRecord[]; readonly absent: boolean }> => {
+  const rows = (await stateRows(workspace, request, [])).filter(({ row }) => row.state === state);
+  const elements = rows.flatMap(({ record }) => (record === undefined ? [] : [record]));
+  return { elements: [...new Set(elements)], absent: elements.length < rows.length };
+};
+
+/** The baseline with its entries and what became of them (see the file comment). */
+export const showBaseline = async (workspace: Workspace, request: ShowRequest): Promise<Output> => {
+  const { baseline, metamodel, store } = request;
+  const layout = await workspace.get(workspaceLayoutState);
+  const shortIds = await workspace.get(shortIdState);
+  const problems = [...request.problems];
+  const rows = await stateRows(workspace, request, problems);
   const counts = {
     unchanged: 0,
     changed: 0,
@@ -275,7 +311,7 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
     repository: baseline.repository,
     date: baseline.data.date,
     ...(request.view === undefined ? {} : { view: request.view }),
-    selectionKnown: selected !== undefined,
+    selectionKnown: request.selected !== undefined,
     repositories: baseline.data.repositories.map((r) => ({ name: r.name, commit: r.commit })),
     elements,
     counts,

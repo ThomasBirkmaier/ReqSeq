@@ -11,7 +11,8 @@
 // is written (AK5). With `fields` (#982) the page is in `partial`, each element narrowed to the
 // fields asked for and those always given (`partOf`); its relations are looked up only when asked for.
 // With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph shows
-// of its verification (`rowsVerification`).
+// of its verification (`rowsVerification`), with the row's element. `countedElements` gives the elements of
+// the numbers of the groups and of the rows' degrees over every page (SR-224 AK4, list-counts.ts).
 // With `perspective` (SR-213 AK4 to AK7, query/perspectives.ts) the perspective is read by name on each
 // call, with the saved filter it names: its `where` and its filter hold beside the input's selection
 // (`resolveSelection`), the input `sort` comes first, then the stored sorts (`orderedSelection`), and
@@ -49,6 +50,7 @@ import {
 import type { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { incompleteNote, paged, problemsNote, sentence } from "../answer.js";
+import { listCountElements } from "../list-counts.js";
 
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
@@ -262,5 +264,22 @@ export default defineCommand({
     groupOf(selected, "element.list", input);
     checkedSort(selected, "element.list", input.sort);
     return { elements: selected.elements, incomplete: selected.incomplete };
+  },
+  // The numbers of the groups and of the rows' verification over every page (SR-224 AK4, list-counts.ts).
+  countedElements: async (ctx, input, count) => {
+    const selected = await selectedOf(ctx, input);
+    const { grouping } = groupOf(selected, "element.list", input);
+    checkedSort(selected, "element.list", input.sort);
+    return listCountElements(
+      ctx.workspace,
+      {
+        records: selected.elements,
+        grouping,
+        withVerification: input.withVerification === true,
+        views: selected.views,
+        incomplete: selected.incomplete,
+      },
+      count,
+    );
   },
 });

@@ -1,9 +1,12 @@
 // baseline.list (SR-051): the valid baseline files of the workspace (baselines/read.ts, ADR-0018),
 // with name, date, number of elements and the variant whose baseline it is: a stored selection of
 // exactly the key `view` that names a variant (SR-103 AK4). Read on every call, kept by file.
+// `countedElements` gives the elements of the entries of the baseline its key names by `repository` and
+// `file` (SR-224 AK4): the copy of each entry (`copyOf`), incomplete when an entry has none here.
 import type { CommandOutput } from "../../catalog.js";
-import { defineCommand } from "../../catalog.js";
-import { workspaceBaselines } from "../../baselines/index.js";
+import { defineCommand, matchesKey } from "../../catalog.js";
+import type { ElementRecord } from "../../model/index.js";
+import { copyOf, workspaceBaselines } from "../../baselines/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState, shortIdState } from "../../model/index.js";
 import { resolveView } from "../../variants/index.js";
@@ -58,6 +61,23 @@ export default defineCommand({
       location: found.location,
       ...(found.problems.length === 0 ? {} : { problems: [...found.problems] }),
       ...(found.incomplete ? { incomplete: true } : {}),
+    };
+  },
+  countedElements: async ({ workspace }, _input, count) => {
+    const found = await workspaceBaselines(workspace);
+    const store = await workspace.get(elementStoreState);
+    const [key = {}] = count.key;
+    const baseline = found.baselines.find((b) =>
+      matchesKey({ repository: b.repository, file: b.shown }, key, ["repository", "file"]),
+    );
+    if (baseline === undefined) {
+      return { elements: [], incomplete: found.incomplete };
+    }
+    const copies = baseline.data.elements.map((entry) => copyOf(store.byId, baseline, entry));
+    const elements = copies.filter((copy): copy is ElementRecord => typeof copy === "object");
+    return {
+      elements: [...new Set(elements)],
+      incomplete: found.incomplete || elements.length < copies.length,
     };
   },
 });

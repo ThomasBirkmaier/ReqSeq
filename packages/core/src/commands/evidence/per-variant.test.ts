@@ -257,6 +257,6 @@ describe("verification status per variant (SR-047)", () => {
       { selection: { ids: ["SR-0000a3"], view: C }, withVerification: true },
       { workspace },
     )) as CommandOutput<"element.list">;
-    expect(inC.rowVerification?.[0]).toEqual({ verification: [{ view: C, status: "verified" }] });
+    expect(inC.rowVerification?.[0]).toMatchObject({ verification: [{ view: C, status: "verified" }] });
   });
 });

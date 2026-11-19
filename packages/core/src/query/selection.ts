@@ -34,7 +34,9 @@
 //   `outputElementsReader`). An element is matched by repository and UUID, and by its file when it names one
 //   (a record: only that copy of a UUID found twice, SR-088); one the store does not hold
 //   is not selected; the inner output's `incomplete` holds, which baseline.get sets for such an entry
-//   (assumption of #1932). baseline.create refuses it.
+//   (assumption of #1932). baseline.create refuses it. With `output.count` (SR-224 AK4, #1915) the elements
+//   one number of that output counts (runtime/output-count.ts); a number counted in a view (a verification
+//   degree) gives the view of the selection when it names none, and another `view` is `input.invalid`.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
@@ -211,17 +213,21 @@ const keyOf = (element: {
 }): string =>
   `${element.repository}\u0000${element.id}${element.file === undefined ? "" : `\u0000${element.file}`}`;
 
-/** The part `output` of `selection` (see the file comment): its test of an element, if given, and its `incomplete`. */
+/**
+ * The part `output` of `selection` (see the file comment): its test of an element, if given, its `incomplete`
+ * and the view its number was counted in.
+ */
 const outputPart = async (
   caller: SelectionContext,
   selection: ElementSelection,
-): Promise<{ readonly tests: readonly Predicate[]; readonly incomplete: boolean }> => {
+): Promise<{ readonly tests: readonly Predicate[]; readonly incomplete: boolean; readonly view?: View }> => {
   if (selection.output === undefined) {
     return { tests: [], incomplete: false };
   }
-  const { elements, incomplete } = await caller.readOutputElements(
+  const { elements, incomplete, view } = await caller.readOutputElements(
     selection.output.command,
     selection.output.input,
+    selection.output.count,
   );
   const keys = new Set(elements.map(keyOf));
   return {
@@ -230,7 +236,33 @@ const outputPart = async (
         keys.has(keyOf(element)) || keys.has(keyOf({ id: element.id, repository: element.repository })),
     ],
     incomplete,
+    ...(view === undefined ? {} : { view }),
   };
+};
+
+/** Whether two views are the same: the core, or the same variant. */
+const sameView = (a: View, b: View): boolean =>
+  a.kind === "core"
+    ? b.kind === "core"
+    : b.kind === "variant" && a.variant.id === b.variant.id && a.variant.repository === b.variant.repository;
+
+/**
+ * The view of a selection: its own, else the one the number of its `output` was counted in; `input.invalid`
+ * when both are given and differ (see the file comment).
+ */
+const viewOfSelection = (
+  own: View | undefined,
+  counted: View | undefined,
+  command: CommandName,
+): View | undefined => {
+  if (own !== undefined && counted !== undefined && !sameView(own, counted)) {
+    throw new CommandError(
+      "input.invalid",
+      "selection.view: the number of selection.output is counted in another view; leave the view out or name that one",
+      { command, fields: ["selection.view"] },
+    );
+  }
+  return own ?? counted;
 };
 
 /**
@@ -254,10 +286,13 @@ export const resolveSelection = async (
   const saved: SavedFilter | undefined =
     selection.filter === undefined ? undefined : await savedFilterFor(layout, selection.filter, command);
   const savedView = saved === undefined ? undefined : savedViewOf(base, saved, command);
-  const view =
+  const view = viewOfSelection(
     selection.view === undefined
       ? undefined
-      : resolveView(base, selection.view, command, "selection.view", true);
+      : resolveView(base, selection.view, command, "selection.view", true),
+    fromOutput.view,
+    command,
+  );
   const context: QueryContext = { ...base, view: view ?? savedView };
   const tests: Predicate[] = [];
   const notes: QueryNotes[] = [];
