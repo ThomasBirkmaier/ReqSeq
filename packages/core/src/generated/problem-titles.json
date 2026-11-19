@@ -86,6 +86,7 @@
     "reqif.source-value-chosen": "First source value written",
     "html.unsafe-content": "Content shown as text",
     "html.image-not-copied": "Image not copied",
+    "html.formula-error": "Formula with an error",
     "html.foreign-file": "File not written by the export",
     "html.marker-entry-ignored": "Marker file entry not used",
     "html.cleanup-failed": "Staging folder left"

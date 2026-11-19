@@ -75,6 +75,35 @@
       "required": ["id", "shortId", "repository"],
       "additionalProperties": false
     },
+    "keptDefinition": {
+      "description": "A property or status definition that no type has any more and that stays, as elements of any type, also of a type the metamodel does not know, hold it (SR-238 AK5, SR-240 AK3).",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string",
+          "enum": ["property", "status"],
+          "description": "property, or status."
+        },
+        "key": { "title": "Key", "$ref": "#/$defs/key" },
+        "count": {
+          "title": "Elements holding it",
+          "type": "integer",
+          "minimum": 1,
+          "description": "The elements that have the status, or whose file holds the property key, also with an empty value; those of `elements`.",
+          "x-elements": "elements"
+        },
+        "elements": {
+          "title": "Elements holding it",
+          "type": "array",
+          "description": "The elements `count` counts, in store order.",
+          "items": { "$ref": "#/$defs/countedElement" },
+          "x-elements": true
+        }
+      },
+      "required": ["kind", "key", "count", "elements"],
+      "additionalProperties": false
+    },
     "elementName": {
       "description": "How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.",
       "type": "object",
@@ -504,6 +533,7 @@
         "reqif.source-value-chosen",
         "html.unsafe-content",
         "html.image-not-copied",
+        "html.formula-error",
         "html.foreign-file",
         "html.marker-entry-ignored",
         "html.cleanup-failed"
