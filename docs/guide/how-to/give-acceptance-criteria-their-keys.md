@@ -55,7 +55,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 1 element and found 3 warnings.
+Checked 1 element and found 2 warnings and 2 info.
 ok: true
 ...
 warning  element.criterion-key-missing  SR-00a204  This System Requirement has 2 acceptance criteria without criterion key  ...

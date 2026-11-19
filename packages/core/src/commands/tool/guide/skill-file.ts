@@ -181,6 +181,11 @@ export interface SkillWriteOptions {
   readonly replace: boolean;
   /** The local path rule of the call (SR-142). */
   readonly localPaths: LocalPaths;
+  /**
+   * Leave ReqSeq's own unchanged file of another version as it is (`unchanged`): `workspace.init` changes no
+   * existing file (SR-014 AK1, assumption of question #2002).
+   */
+  readonly keepOwn?: boolean;
 }
 
 /** The command-line call that writes the skill file, which a refusal through API and MCP names (AK8). */
@@ -247,7 +252,7 @@ const write = async (
   await checkAccess(location, options, entries);
   const { found, snapshot } = await look(location, entries);
   const own = found.state === "own" && found.intact;
-  if (own && found.current) {
+  if (own && (found.current || options.keepOwn === true)) {
     return { path: location.path, action: "unchanged" };
   }
   if (found.state !== "missing" && !own && !options.replace) {

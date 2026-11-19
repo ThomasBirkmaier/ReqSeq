@@ -165,9 +165,21 @@ describe("workspace.init", () => {
         code: "workspace.skill-not-written",
         severity: "warning",
         message: `Not written: the skill file ${SKILL} was not written by ReqSeq; ReqSeq replaces it only on request: \`reqseq tool guide --skill --write --replace\``,
+        file: SKILL,
       },
     ]);
     expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe("my own skill\n");
+  });
+
+  it("[SR-014/AK-yh7s] leaves ReqSeq's own skill file of an older version as it is (question #2002)", async () => {
+    const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
+    const older = skillFile(ENTRIES, "0.0.1");
+    const ws = await createFixtureWorkspace({ files: { [SKILL]: older } });
+    onTestFinished(() => ws.cleanup());
+    const out = await init(open(ws.root), { path: ws.root, name: "W" });
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(out.problems).toEqual([]);
+    expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(older);
   });
 
   it("resets the workspace of the call when the new folder is its root under another spelling", async () => {

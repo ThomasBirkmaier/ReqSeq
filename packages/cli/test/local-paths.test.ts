@@ -346,6 +346,33 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     },
   };
 
+  it("[SR-229/AK-x7d8] workspace init through the MCP server and the API creates the workspace below a Git root and warns that the skill file lies outside", async () => {
+    for (const access of ["mcp", "api"] as const) {
+      const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" }, git: true });
+      fixtures.push(ws);
+      await fs.mkdir(ws.path("spec"));
+      const input = { path: ".", name: "Station" };
+      let body: unknown;
+      if (access === "mcp") {
+        body = (await mcp(ws, "workspace.init", input, "spec")).body;
+      } else {
+        await withApi(ws, async (api) => void (body = (await api("workspace.init", input)).body), "spec");
+      }
+      expect(body).toMatchObject({
+        files: ["metamodel/standard-model.yaml", "reqseq-workspace.yaml", ".gitignore"],
+        problems: [
+          {
+            code: "workspace.skill-not-written",
+            severity: "warning",
+            message: refused.message,
+            file: `../${SKILL}`,
+          },
+        ],
+      });
+      await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
+    }
+  });
+
   it("[SR-229/AK-v09f] the API and the MCP server write nothing at a Git root above the workspace and name the command line; the command line writes it", async () => {
     const ws = await below();
     const reply = await mcp(ws, "tool.guide", { skill: true, write: true }, "spec");

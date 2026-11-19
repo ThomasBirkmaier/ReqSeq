@@ -13,7 +13,7 @@ Any test tool that writes JUnit XML (Vitest, pytest, Jest, the Node test runner 
 
 The tests name only the ID, never the version. When a requirement changes, the next run records the new version, and until then it shows as `outdated`. For tests of a variant, and for the evidence as it stood at a baseline, see [Record evidence for a variant](/how-to/record-evidence-for-a-variant/). Dashboards and other evaluation tools read the requirements with their evidence and status from `reqseq data export`.
 
-The workspace file `reqseq-workspace.yaml` must list the evidence folder, under the name of one of its repositories:
+The workspace file `reqseq-workspace.yaml` must list the evidence folder, under the name of one of its repositories; `workspace init` lists the folder `evidence` of the main repository:
 
 ```yaml
 evidence:

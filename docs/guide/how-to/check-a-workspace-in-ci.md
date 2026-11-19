@@ -35,10 +35,10 @@ reqseq workspace check --fail-on warning
 ```
 
 ```text title="Output"
-Checked 1 element and found no problem.
+Checked 1 element and found 1 info.
 ok: true
 checkedElements: 1
-No problems.
+info  evidence.folder-missing  The evidence folder evidence does not exist  ...
 ```
 
 By default only errors fail the check. `--fail-on warning` lets warnings fail it too, and `--fail-on info` every problem. `--severity` only changes what is shown, never the result.
@@ -104,18 +104,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 ### Gaps of verification
 
-Only a full check reports a gap, at the workspace file. Without an evidence location no test result counts, so once there is a requirement a warning names the entry to add:
-
-```sh
-reqseq workspace check
-```
-
-```text title="Output"
-Checked 2 elements and found 4 warnings.
-ok: true
-...
-warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: ..., path: evidence }]  reqseq-workspace.yaml
-```
+Only a full check reports a gap, at the workspace file. Without an evidence location no test result counts, so once there is a requirement a warning (`evidence.no-location`) names the entry to add. `workspace init` writes one, the folder `evidence` of the main repository.
 
 With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. It names the call that lists them; `--fail-on info` fails the step while any is left:
 
