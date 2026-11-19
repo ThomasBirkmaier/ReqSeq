@@ -5,11 +5,9 @@ import { PassThrough } from "node:stream";
 import type { CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
-  FIRST_COMMANDS,
   PRODUCT_VERSION,
   Workspace,
   createCommandRuntime,
-  agentInstructions,
   defineTestCommand,
   getCommandRuntime,
   loadContracts,
@@ -19,8 +17,8 @@ import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { MAX_TEXT_BYTES, callTool, largeOutputNote, serveMcp } from "./server.js";
 import { MAX_MESSAGE_BYTES } from "./transport.js";
-import { toolName } from "./tools.js";
 import { LineTransport } from "./transport.js";
+import { toolName } from "./tools.js";
 
 const entry = (name: string, effect = "read", input: Record<string, unknown> = {}) => ({
   name,
@@ -44,6 +42,7 @@ const catalog = {
     entry("test.fail"),
     entry("test.wait"),
     entry("test.later", "write-files"),
+    entry("tool.guide", "read", { properties: { names: { enum: ["cli", "mcp"] } } }),
   ],
 };
 
@@ -205,6 +204,11 @@ const runtime = createCommandRuntime({
       run: (ctx, input: { text: string }) => Promise.resolve({ text: input.text, root: ctx.workspace.root }),
     }),
     defineTestCommand({
+      name: "tool.guide",
+      run: (ctx, input: { names?: string }) =>
+        Promise.resolve({ guide: `Guide for ${ctx.workspace.root} with ${String(input.names)} names` }),
+    }),
+    defineTestCommand({
       name: "test.fail",
       run: () => Promise.reject(new CommandError("element.read-only", "Read-only element", { id: "x" })),
     }),
@@ -282,10 +286,11 @@ describe("serveMcp", () => {
       ["test_echo", "Title of test echo", true, "Test command test.echo."],
       ["test_fail", "Title of test fail", true, "Test command test.fail."],
       ["test_wait", "Title of test wait", true, "Test command test.wait."],
+      ["tool_guide", "Title of tool guide", true, "Test command tool.guide."],
     ]);
     expect(tools[0]?.inputSchema).toEqual(catalog.commands[0]?.input);
     // No output schemas: MCP does not need them for structured content, and they made up most of the list.
-    expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined]);
+    expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined, undefined]);
   });
 
   it("[SR-079/AK-g12j] opens no network socket: no network module, and no socket while a session runs", async () => {
@@ -358,9 +363,9 @@ describe("serveMcp", () => {
     );
   });
 
-  it("sends the instructions of core in its initialize result", async () => {
+  it("sends the output of tool.guide with the MCP names as the instructions of its initialize result", async () => {
     const { client } = await open();
-    expect(client.getInstructions()).toBe(agentInstructions(runtime, toolName));
+    expect(client.getInstructions()).toBe(`Guide for ${workspace.root} with mcp names`);
   });
 
   it("ends when the input ends", async () => {
@@ -515,17 +520,23 @@ describe("callTool", () => {
   });
 
   it("runs on the runtime of the process by default", async () => {
-    const { listed, instructions } = await productList();
+    const { listed } = await productList();
     expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
     // ThomasBirkmaier/ReqSeq-archive#303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
     // into its context. Each tool now carries only the definitions it uses (bounds above, ThomasBirkmaier/ReqSeq-archive#336, ThomasBirkmaier/ReqSeq-archive#496).
     expect(overBounds(listed)).toEqual([]);
     const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
-    expect(instructions).toContain("workspace_status");
   });
 
-  it("marks exactly the catalog entries with loadUpfront to load upfront, the first commands among them (#1926)", async () => {
+  it("[SR-229/AK-p4y6] sends exactly the tool.guide output with the MCP tool names as its initialize instructions", async () => {
+    const { instructions } = await productList();
+    const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
+    expect(instructions).toBe((guide as { guide: string }).guide);
+    expect(instructions).toContain("`workspace_check`");
+  });
+
+  it("marks exactly the catalog entries with loadUpfront to load upfront, the commands of the agent guide among them (#1926)", async () => {
     const { listed } = await productList();
     const upfront = listed.tools.filter((tool) => tool._meta?.["anthropic/alwaysLoad"] === true);
     const marked = getCommandRuntime().contracts.commands.filter((entry) => entry.loadUpfront === true);
@@ -533,8 +544,18 @@ describe("callTool", () => {
       marked.map((entry) => toolName(entry.name)).sort(),
     );
     expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
-    // The server instructions name the first commands, so an agent must have their schemas at once.
-    expect(marked.map((entry) => entry.name)).toEqual(expect.arrayContaining([...FIRST_COMMANDS]));
+    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at once.
+    // Only a subset: loadUpfront also marks commands the guide does not name, such as element_search.
+    await getCommandRuntime().invoke("workspace.init", { path: dir, name: "Station" }, { workspace });
+    const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
+    const tools = new Set(listed.tools.map((tool) => tool.name));
+    const named = [...(guide as { guide: string }).guide.matchAll(/`([a-z]+_[A-Za-z]+)`/g)]
+      .map((match) => match[1] ?? "")
+      .filter((name) => tools.has(name));
+    expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
+    const upfrontNames = new Set(upfront.map((tool) => tool.name));
+    // Without a workspace the guide names tool_guide, to read it again.
+    expect([...named, "tool_guide"].filter((name) => !upfrontNames.has(name))).toEqual([]);
     expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
   });
 

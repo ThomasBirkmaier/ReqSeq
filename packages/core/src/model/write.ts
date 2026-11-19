@@ -308,7 +308,7 @@ export const withChoiceKeys = (
  * statuses are all invalid, whose elements without status are current (ThomasBirkmaier/ReqSeq-archive#344, option 1). The tool
  * never picks one beyond this rule.
  */
-const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): string | undefined => {
+export const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): string | undefined => {
   const [working] = typeStatuses(metamodel, type).filter((s) => s.invalid !== true);
   if (working === undefined) {
     return undefined;
