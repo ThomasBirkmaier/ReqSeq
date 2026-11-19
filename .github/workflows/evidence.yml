@@ -182,7 +182,9 @@ jobs:
           JUNIT: ${{ runner.temp }}/junit
         run: |
           # The files of this run go to $new (published); spec/evidence/ci holds main's files of every kind with this
-          # run's on top, so that the check and the degree below read what main will hold.
+          # run's on top, so that the check and the degree below read what main will hold. $new lies in no evidence
+          # location, so each enrich output has an evidence.outside-location warning (SR-230 AK3) until the files are
+          # copied to $out; the warning does not change the exit code.
           out=spec/evidence/ci
           new="$RUNNER_TEMP/out/ci"
           rm -rf "$out" && mkdir -p "$out" "$new"

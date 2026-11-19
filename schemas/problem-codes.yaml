@@ -231,6 +231,10 @@ problems:
     title: Criterion named by number
     cause: The name of a JUnit test case names an acceptance criterion by its number (a number after `/AK` in brackets, or a name pattern whose `{ak}` reads a number), by a criterion key that no acceptance criterion or more than one carries in the current version of the requirement, or with an `AK` that is neither. `evidence.enrichJunit` leaves the test case unchanged, since a number points to another criterion once one is inserted.
     remedy: Name the criterion by its criterion key from the element file, `[SR-036/AK-k7f3]` or `sr_348143_ak_k7f3` with a name pattern; the message gives the key where the number names a criterion that has one. Then run the test and enrich its file again.
+  evidence.outside-location:
+    title: Enriched file in no evidence location
+    cause: "`evidence.enrichJunit` enriched a JUnit file that lies in no evidence location of the workspace file, or that the evidence walk does not read there (a name not ending in `.xml` in lower case, an ignore glob, a link, a nested repository). Its results do not count until the walk reads it. The file is enriched all the same, and the exit code stays as it is."
+    remedy: Move the file, with a name ending in `.xml`, into a folder under `evidence` of the workspace file that the walk reads, or enrich it again with such an `output`.
   evidence.no-location:
     title: No evidence location
     cause: The workspace file names no evidence location (`evidence`), while the workspace has at least one requirement. No test result or evidence record can count, so every verification status stays open. A full workspace check reports it while the metamodel is valid; a check restricted to changed elements does not.

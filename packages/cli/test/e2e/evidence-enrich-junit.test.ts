@@ -45,6 +45,17 @@ const open = async (): Promise<FixtureWorkspace> => {
   return ws;
 };
 
+const OUTSIDE = "evidence.outside-location";
+
+/**
+ * The `--json` output without `evidence.outside-location`: most tests enrich a file of `results/` in
+ * place, which lies in no evidence location (SR-230 AK3, its own test below).
+ */
+const inside = (stdout: string): Output => {
+  const out = JSON.parse(stdout) as Output;
+  return { ...out, problems: out.problems.filter((p) => p.code !== OUTSIDE) };
+};
+
 /** `reqseq evidence enrich-junit <file> <item> …` in the root of `ws`. */
 const enrich = (ws: FixtureWorkspace, args: readonly string[]): Promise<Run> =>
   reqseq(["evidence", "enrich-junit", ...args], { cwd: ws.root });
@@ -83,8 +94,8 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const ws = await open();
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE, "--json"]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(run.stdout)).toEqual({
-      answer: "Enriched 3 test cases; 5 test cases without an element; 1 file written.",
+    expect(inside(run.stdout)).toEqual({
+      answer: "Enriched 3 test cases; 5 test cases without an element; 1 file written; 1 problem.",
       testCases: 3,
       withoutReference: 5,
       notInView: 0,
@@ -116,7 +127,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const ws = await open();
     const json = await enrich(ws, ["results/unknown.xml", "build-512", "--date", DATE, "--json"]);
     expect(json.code).toBe(1);
-    const out = JSON.parse(json.stdout) as Output;
+    const out = inside(json.stdout);
     expect(out.unknown.map((u) => [u.testCase, u.line, u.ref])).toEqual([
       ["[SR-ffffff] names no element", 4, "SR-ffffff"],
       ["a typo in the property", 5, "SR-0366"],
@@ -245,7 +256,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     await fs.writeFile(ws.path("results/run.xml"), before);
     const run = await enrich(ws, [...args, "--skip-not-in-view", "--json"]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(run.stdout) as Output).toMatchObject({ testCases: 1, notInView: 2, problems: [] });
+    expect(inside(run.stdout)).toMatchObject({ testCases: 1, notInView: 2, problems: [] });
     const written = await fs.readFile(ws.path("results/run.xml"), "utf8");
     expect(written.match(/reqseq:(element|variant)" value="[^"]*"/g)).toEqual([
       'reqseq:element" value="43043043-0000-4000-8000-0000000000a3"',
@@ -278,7 +289,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     ];
     const run = await enrich(ws, args);
     expect([run.code, run.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(run.stdout) as Output).toMatchObject({ testCases: 1, notInView: 1, problems: [] });
+    expect(inside(run.stdout)).toMatchObject({ testCases: 1, notInView: 1, problems: [] });
     const written = await fs.readFile(ws.path("results/run.xml"));
     expect(written.toString("utf8")).toContain(
       '<testcase name="[SR-0000b2] storm"><properties><property name="reqseq:not-in-view" value="core"/>' +
@@ -286,7 +297,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     );
     const again = await enrich(ws, args);
     expect([again.code, again.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(again.stdout) as Output).toMatchObject({ files: [], notInView: 1, problems: [] });
+    expect(inside(again.stdout)).toMatchObject({ files: [], notInView: 1, problems: [] });
     expect(await fs.readFile(ws.path("results/run.xml"))).toEqual(written);
   });
 
@@ -311,8 +322,8 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       "--json",
     ]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(run.stdout)).toEqual({
-      answer: "Enriched 2 test cases; 2 test cases without an element; 1 file written.",
+    expect(inside(run.stdout)).toEqual({
+      answer: "Enriched 2 test cases; 2 test cases without an element; 1 file written; 1 problem.",
       testCases: 2,
       withoutReference: 2,
       notInView: 0,
@@ -397,5 +408,38 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const bad = await enrich(ws, ["results/rust.xml", "build-512", "--name-pattern", "{prefix}_{id}{ak}"]);
     expect(bad.code).not.toBe(0);
     expect(bad.stderr).toContain("has {id} and {ak} next to each other");
+  });
+});
+
+describe("reqseq evidence enrich-junit and the evidence locations (SR-230 AK3)", () => {
+  it("[SR-230/AK-z4yt] warns about a file enriched outside every evidence location, writes it, and keeps the exit code", async () => {
+    const ws = await open();
+    const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE, "--json"]);
+    expect([run.code, run.stderr]).toEqual([0, ""]);
+    const out = JSON.parse(run.stdout) as Output;
+    expect(out.files).toEqual(["results/pytest.xml"]);
+    expect(out.problems.map((p) => [p.code, p.severity, p.file])).toEqual([
+      [OUTSIDE, "warning", "results/pytest.xml"],
+    ]);
+    expect(await fs.readFile(ws.path("results/pytest.xml"), "utf8")).toContain("reqseq:item");
+    // Readable output names it, exit code 0 as before.
+    const other = await open();
+    const readable = await enrich(other, ["results/pytest.xml", "build-512", "--date", DATE]);
+    expect(readable.code).toBe(0);
+    expect(readable.stdout + readable.stderr).toContain("results/pytest.xml lies in no evidence location");
+    // With an error the exit code is 1, with the warning and without it (an output in the location).
+    const unknown = await enrich(ws, ["results/unknown.xml", "build-512", "--date", DATE, "--json"]);
+    const located = await enrich(other, [
+      "results/unknown.xml",
+      "build-512",
+      "--date",
+      DATE,
+      "--output",
+      "evidence/ci/unknown.xml",
+      "--json",
+    ]);
+    expect([unknown.code, located.code]).toEqual([1, 1]);
+    expect((JSON.parse(unknown.stdout) as Output).problems.map((p) => p.code)).toContain(OUTSIDE);
+    expect((JSON.parse(located.stdout) as Output).problems.map((p) => p.code)).not.toContain(OUTSIDE);
   });
 });
