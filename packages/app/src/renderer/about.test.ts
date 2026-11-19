@@ -3,6 +3,7 @@ import type { AboutInfo } from "./about.js";
 import { aboutGroups, aboutText } from "./about.js";
 
 const DELIVERY: AboutInfo = {
+  answer: "ReqSeq 0.9.0 with workspace w.",
   versions: { app: "0.9.0", cli: "0.9.0", mcp: "0.9.0" },
   build: { commit: "abc1234", date: "2026-11-08T10:00:00Z", platform: "darwin", arch: "arm64" },
   runtime: { electron: "39.0.0", node: "22.20.0", chromium: "142.0.0" },
@@ -19,6 +20,7 @@ const DELIVERY: AboutInfo = {
 };
 
 const CHECKOUT: AboutInfo = {
+  answer: "ReqSeq 0.9.0 with workspace w.",
   versions: { app: "0.9.0", cli: "0.9.0", mcp: "0.9.0" },
   build: { development: true, platform: "linux", arch: "x64" },
   runtime: { node: "22.20.0" },

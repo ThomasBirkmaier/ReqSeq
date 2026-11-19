@@ -9,8 +9,18 @@ import { EXIT, runCli } from "../../../dist/main.js";
 import { connectProcess } from "../../../dist/process.js";
 
 /** Problems listed in `<root>/test-problems.json`, plus one info problem per `changedFiles` entry. */
+// Each test command has an `answer` like its product command: the catalog output schemas require it
+// (SR-224 AK1), and `invoke` adds it only from the command's `answer`.
 const check = defineCommand({
   name: "workspace.check",
+  answer: (output) => {
+    const counts = ["error", "warning", "info"]
+      .map((severity) => [output.problems.filter((p) => p.severity === severity).length, severity])
+      .filter(([n]) => n > 0)
+      .map(([n, severity]) => `${String(n)} ${severity}${n === 1 || severity === "info" ? "" : "s"}`);
+    const found = counts.length === 0 ? "no problem" : counts.join(" and ");
+    return `Checked ${String(output.checkedElements)} elements and found ${found}.`;
+  },
   async run(ctx, input) {
     const file = path.join(ctx.workspace.root, "test-problems.json");
     const listed = await fs.readFile(file, "utf8").then(JSON.parse, () => []);
@@ -27,6 +37,7 @@ const check = defineCommand({
 
 const status = defineCommand({
   name: "workspace.status",
+  answer: (output) => `Workspace ${output.name} has 1 repository, 1 available.`,
   run: (ctx) =>
     Promise.resolve({
       name: path.basename(ctx.workspace.root),
@@ -39,12 +50,14 @@ const status = defineCommand({
 
 const get = defineCommand({
   name: "element.get",
+  answer: (output) => `Found ${output.element.title}.`,
   run: (_ctx, input) =>
     Promise.reject(new CommandError("element.not-found", `No element ${input.ref}`, { ref: input.ref })),
 });
 
 const crash = defineCommand({
   name: "metamodel.get",
+  answer: () => "The metamodel has no types.",
   run: () => Promise.reject(new Error("internal detail at /secret/path")),
 });
 

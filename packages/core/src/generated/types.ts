@@ -437,6 +437,9 @@ export type ProblemCode =
   | "evidence.unknown-criterion"
   | "evidence.invalid-criterion-name"
   | "evidence.counts-in-no-view"
+  | "evidence.outside-location"
+  | "evidence.no-location"
+  | "evidence.open-requirements"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -458,7 +461,8 @@ export type ProblemCode =
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
-  | "reqif.source-model-unsaved";
+  | "reqif.source-model-unsaved"
+  | "reqif.source-value-chosen";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -497,9 +501,15 @@ export interface CommandErrorObject {
     | "internal";
   /** What went wrong, for people. */
   readonly message: string;
-  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
+
+/**
+ * One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. ReqSeq builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it (SR-224 AK1). The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid (SR-224 AK2).
+ * Schema: `schemas/common.schema.json#/$defs/answer`.
+ */
+export type Answer = string;
 
 /**
  * True when a result is incomplete because targets are in repositories that are not available locally (SR-006 AK2, SR-036 AK3).
@@ -508,7 +518,7 @@ export interface CommandErrorObject {
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
@@ -520,6 +530,18 @@ export interface ElementSelection {
   /** Name of a baseline, or its file name in the baselines folder (with or without .yaml). */
   readonly baseline?: string;
   readonly view?: View;
+  readonly output?: OutputSelection;
+}
+
+/**
+ * The elements of the output field of a read command marked `x-elements: "answer"`, over all pages (SR-224 AK5).
+ * Schema: `schemas/common.schema.json#/$defs/outputSelection`.
+ */
+export interface OutputSelection {
+  /** A read command, `group.action`. */
+  readonly command: string;
+  /** Its input. */
+  readonly input: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -650,10 +672,27 @@ export type Duration = number;
 export type OutputPath = string;
 
 /**
+ * A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.
+ * Schema: `schemas/common.schema.json#/$defs/nextStep`.
+ */
+export interface NextStep {
+  /** Name of the command in the catalog. */
+  readonly command: string;
+  /** The input fields known already, with their values; a path is absolute. */
+  readonly input: Readonly<Record<string, unknown>>;
+  /** The input fields still to give, in the order of the command's arguments. */
+  readonly open: readonly string[];
+  /** Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`). */
+  readonly workspace?: OutputPath;
+}
+
+/**
  * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
+  /** The answer of `data.export` (SR-224 AK1), which its output always has; not in the file that `data.store` writes nor in the JSON Lines form. */
+  readonly answer?: Answer;
   /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). 4: every line of the JSON Lines form also carries `repositories` and `incomplete` (SR-062 AK1). 5: a record names a criterion by key or number, and `notVerified` names each criterion with number, key and text (SR-205 AK2). */
   readonly "reqseq-data": 5;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
@@ -1276,6 +1315,12 @@ export type FilterCondition =
   }
   | FilterPropertyCondition
   | FilterRelationCondition;
+
+/**
+ * Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`.
+ * Schema: `schemas/filter.schema.json#/$defs/conditionStub`.
+ */
+export type FilterConditionStub = Readonly<Record<string, unknown>>;
 
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];
@@ -2037,7 +2082,10 @@ export interface WorkspaceInitInput {
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
+  /** What to do next in the new workspace (SR-226 AK2): connect an AI agent, then create an element. */
+  readonly next: readonly NextStep[];
   readonly problems?: readonly Problem[];
 }
 
@@ -2052,6 +2100,7 @@ export type WorkspaceStatusInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/workspace.status.json output`.
  */
 export interface WorkspaceStatusOutput {
+  readonly answer: Answer;
   /** Name of the workspace, from reqseq-workspace.yaml. */
   readonly name: string;
   /** The repositories of the workspace file, in its order. */
@@ -2114,6 +2163,7 @@ export interface WorkspaceCheckInput {
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
+  readonly answer: Answer;
   /** False when the workspace has a problem at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the problems the restriction keeps. */
   readonly ok: boolean;
   readonly problems: readonly Problem[];
@@ -2143,6 +2193,7 @@ export type WorkspaceActivityInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/workspace.activity.json output`.
  */
 export interface WorkspaceActivityOutput {
+  readonly answer: Answer;
   /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded. */
   readonly activity: ActivityAccess | null;
 }
@@ -2158,6 +2209,7 @@ export type WorkspaceAgentsInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/workspace.agents.json output`.
  */
 export interface WorkspaceAgentsOutput {
+  readonly answer: Answer;
   /** Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty. */
   readonly recorded: boolean;
   /** Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count. */
@@ -2187,6 +2239,7 @@ export type WorkspaceRecentInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/workspace.recent.json output`.
  */
 export interface WorkspaceRecentOutput {
+  readonly answer: Answer;
   /** The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
   readonly workspaces: readonly {
     /** The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml). */
@@ -2216,6 +2269,7 @@ export interface WorkspaceListFolderInput {
  * Schema: `schemas/commands/workspace.listFolder.json output`.
  */
 export interface WorkspaceListFolderOutput {
+  readonly answer: Answer;
   /** The folder listed, absolute and normalised, without a separator at its end except at the root. Missing when the path is `invalid`. */
   readonly folder?: OutputPath;
   /** The typed name: the text after the last separator. Names that start with "." are listed only when it starts with ".". */
@@ -2248,7 +2302,7 @@ export interface WorkspaceConnectAgentInput {
  */
 export interface WorkspaceConnectAgentOutput {
   /** What to do with the setup, in one sentence; without a client, which clients there are. */
-  readonly answer: string;
+  readonly answer: Answer;
   /** The clients to choose from, in this order. Only without a client. */
   readonly clients?: readonly {
     /** The value of `client`. */
@@ -2295,6 +2349,7 @@ export type ToolInfoInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/tool.info.json output`.
  */
 export interface ToolInfoOutput {
+  readonly answer: Answer;
   /** The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version. */
   readonly versions: {
     /** Version of the app. */
@@ -2375,6 +2430,7 @@ export interface ToolGuideInput {
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
+  readonly answer: Answer;
   /** The agent guide, or with `skill` the skill file, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
   /** The skill file `write` wrote; only with `write`. */
@@ -2399,6 +2455,7 @@ export type MetamodelGetInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/metamodel.get.json output`.
  */
 export interface MetamodelGetOutput {
+  readonly answer: Answer;
   /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (ThomasBirkmaier/ReqSeq-archive#306). */
   readonly types: readonly MetamodelEffectiveType[];
   /** The property definitions as written, except that each carries `content`, false when not written: whether a change of its value gives a new version and makes evidence and relations outdated (D-057, #624). */
@@ -2418,6 +2475,19 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
+  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine. */
+  readonly uses: {
+    /** Type key -> elements of the type. */
+    readonly types: Readonly<Record<string, number>>;
+    /** Property key -> elements of a type that has the property whose file holds its key, also with an empty value. */
+    readonly properties: Readonly<Record<string, number>>;
+    /** Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it. */
+    readonly values: Readonly<Record<string, Readonly<Record<string, number>>>>;
+    /** Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list. */
+    readonly relations: Readonly<Record<string, number>>;
+    /** Status key -> elements with the status. */
+    readonly statuses: Readonly<Record<string, number>>;
+  };
 }
 
 /**
@@ -2431,9 +2501,120 @@ export type MetamodelMermaidInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/metamodel.mermaid.json output`.
  */
 export interface MetamodelMermaidOutput {
+  readonly answer: Answer;
   /** The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`. */
   readonly mermaid: string;
   /** The problems of the metamodel, as `metamodel.get` gives them. */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.addType` as `run` gets it: validated, properties with a `default` filled in. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json input`.
+ */
+export interface MetamodelAddTypeInput {
+  /** Display name of the type; no other type may have it. */
+  readonly name: string;
+  /** Prefix of the short IDs of its elements, e.g. SR (D-017); no other type may have it. */
+  readonly prefix: MetamodelPrefix;
+  /** Fixed key of the type (D-043). Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Key of the type it extends; its properties, required properties and statuses are inherited (SR-012 AK2). */
+  readonly extends?: Key;
+  /** No elements of the type can be created; it is only extended (SR-012 AK4). */
+  readonly abstract: boolean;
+}
+
+/**
+ * Output of `metamodel.addType`. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json output`.
+ */
+export interface MetamodelAddTypeOutput {
+  readonly answer: Answer;
+  /** The definition as written to the file. */
+  readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  readonly missingRequired: number;
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeType` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeType.json input`.
+ */
+export interface MetamodelChangeTypeInput {
+  /** Key of the type to change. */
+  readonly type: Key;
+  /** New display name; no other type may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** New prefix of the short IDs of its elements (D-017); no other type may have it. Only while no element has the type. */
+  readonly prefix?: MetamodelPrefix;
+  /** Key of the new parent type; null removes the parent. Refused while an element uses a property or status the type or a type that extends it loses. */
+  readonly extends?: Key | null;
+  /** true: no elements of the type can be created (SR-012 AK4), only while no element has the type; false removes the mark. */
+  readonly abstract?: boolean;
+  /** New built-in meaning of the type (D-012), one of `typeMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?: "requirement" | "need" | "variant" | "package" | null;
+}
+
+/**
+ * Output of `metamodel.changeType`. Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeType.json output`.
+ */
+export interface MetamodelChangeTypeOutput {
+  readonly answer: Answer;
+  /** The definition as it is written afterwards. */
+  readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  readonly missingRequired: number;
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeType` as `run` gets it: validated, properties with a `default` filled in. Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeType.json input`.
+ */
+export interface MetamodelRemoveTypeInput {
+  /** Key of the type to remove. */
+  readonly type: Key;
+}
+
+/**
+ * Output of `metamodel.removeType`. Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeType.json output`.
+ */
+export interface MetamodelRemoveTypeOutput {
+  readonly answer: Answer;
+  /** Key of the removed type. */
+  readonly type: Key;
+  /** The definitions removed with the type: its properties and statuses that no other type has (SR-238 AK5, SR-240 AK3). */
+  readonly removed: {
+    /** Properties whose definition was removed, as no other type has them. */
+    readonly properties: readonly Key[];
+    /** Statuses whose definition was removed, as no other type has them. */
+    readonly statuses: readonly Key[];
+  };
+  /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  readonly missingRequired: number;
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
 
@@ -2463,6 +2644,7 @@ export interface ElementCreateInput {
  * Schema: `schemas/commands/element.create.json output`.
  */
 export interface ElementCreateOutput {
+  readonly answer: Answer;
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
@@ -2495,6 +2677,7 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/element.get.json output`.
  */
 export interface ElementGetOutput {
+  readonly answer: Answer;
   /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
@@ -2529,6 +2712,7 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/element.resolve.json output`.
  */
 export interface ElementResolveOutput {
+  readonly answer: Answer;
   /** The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275). */
   readonly element: DataExportElement;
   /** With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205 AK5). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204 AK10) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference. */
@@ -2583,6 +2767,7 @@ export interface ElementListInput {
  * Schema: `schemas/commands/element.list.json output`.
  */
 export type ElementListOutput = {
+  readonly answer: Answer;
   /** Without `fields`: one page of the list. With `group`, or a perspective that stores one, the page of the grouped list (the elements of the first group, then of the next): an element in several groups is listed once in each, so a page can hold it more than once; key the rows by their position, not by the element. */
   readonly elements?: readonly DataExportElement[];
   /** Only with `fields`, instead of `elements`: the same page, each element with the fields asked for. */
@@ -2645,6 +2830,7 @@ export interface ElementFacetsInput {
  * Schema: `schemas/commands/element.facets.json output`.
  */
 export interface ElementFacetsOutput {
+  readonly answer: Answer;
   /** Elements in the selection. */
   readonly total: number;
   /** The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118). */
@@ -2727,6 +2913,7 @@ export interface ElementUpdateInput {
  * Schema: `schemas/commands/element.update.json output`.
  */
 export interface ElementUpdateOutput {
+  readonly answer: Answer;
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
@@ -2755,6 +2942,7 @@ export interface ElementSetStatusInput {
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -2779,6 +2967,7 @@ export interface ElementSupersedeInput {
  * Schema: `schemas/commands/element.supersede.json output`.
  */
 export interface ElementSupersedeOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -2809,6 +2998,7 @@ export interface ElementBulkUpdateInput {
  * Schema: `schemas/commands/element.bulkUpdate.json output`.
  */
 export interface ElementBulkUpdateOutput {
+  readonly answer: Answer;
   /** True when the files were written (confirm). */
   readonly applied: boolean;
   /** Number of affected elements (SR-071 AK2). */
@@ -2852,6 +3042,7 @@ export interface ElementAssignCriterionKeysInput {
  * Schema: `schemas/commands/element.assignCriterionKeys.json output`.
  */
 export interface ElementAssignCriterionKeysOutput {
+  readonly answer: Answer;
   /** Number of changed elements (SR-204 AK3). */
   readonly count: number;
   /** The changed elements, in store order, each with the number of its acceptance criteria that got a key. */
@@ -2899,6 +3090,7 @@ export interface ElementAddAttachmentInput {
  * Schema: `schemas/commands/element.addAttachment.json output`.
  */
 export interface ElementAddAttachmentOutput {
+  readonly answer: Answer;
   /** The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused. */
   readonly file: OutputPath;
   /** The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update. */
@@ -2921,6 +3113,7 @@ export interface RelationOptionsInput {
  * Schema: `schemas/commands/relation.options.json output`.
  */
 export interface RelationOptionsOutput {
+  readonly answer: Answer;
   /** In metamodel order: every relation kind whose source-types allow the type of the element (subtypes count) and whose target-types allow some type; none for an element of a type the metamodel does not know (SR-016 AK3). These are the kinds relation.add accepts. */
   readonly kinds: readonly {
     readonly kind: Key;
@@ -2949,6 +3142,7 @@ export interface RelationAddInput {
  * Schema: `schemas/commands/relation.add.json output`.
  */
 export interface RelationAddOutput {
+  readonly answer: Answer;
   /** Written files, relative to the workspace root. */
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
@@ -2974,6 +3168,7 @@ export interface RelationRemoveInput {
  * Schema: `schemas/commands/relation.remove.json output`.
  */
 export interface RelationRemoveOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -3006,6 +3201,7 @@ export interface TraceChainInput {
  * Schema: `schemas/commands/trace.chain.json output`.
  */
 export interface TraceChainOutput {
+  readonly answer: Answer;
   readonly root: Uuid;
   /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage ThomasBirkmaier/ReqSeq-archive#290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
   readonly nodes: readonly {
@@ -3123,6 +3319,7 @@ export interface TraceRelatedInput {
  * Schema: `schemas/commands/trace.related.json output`.
  */
 export interface TraceRelatedOutput {
+  readonly answer: Answer;
   readonly elements: readonly DataExportElement[];
   /** The number of all related elements; `elements` holds the page. */
   readonly total: number;
@@ -3151,6 +3348,7 @@ export interface TraceAffectedInput {
  * Schema: `schemas/commands/trace.affected.json output`.
  */
 export interface TraceAffectedOutput {
+  readonly answer: Answer;
   /** The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference (in the text or in a property marked `markdown`, SR-127) to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element. */
   readonly affected: readonly {
     readonly id: Uuid;
@@ -3220,6 +3418,7 @@ export interface TraceNeighbourhoodInput {
  * Schema: `schemas/commands/trace.neighbourhood.json output`.
  */
 export interface TraceNeighbourhoodOutput {
+  readonly answer: Answer;
   readonly root: Uuid;
   /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
   readonly nodes: readonly {
@@ -3298,6 +3497,7 @@ export interface TraceMatrixInput {
  * Schema: `schemas/commands/trace.matrix.json output`.
  */
 export interface TraceMatrixOutput {
+  readonly answer: Answer;
   /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column, except the `out` column of a relation kind whose limits set a minimum (`min` of 1 or more) for the type of a row, which is there even when no row has such a relation (SR-153, spec question #838 Q1). Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
   readonly columns: readonly {
     /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type. */
@@ -3415,6 +3615,7 @@ export interface TraceGraphInput {
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
+  readonly answer: Answer;
   readonly root: Uuid;
   /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
   readonly nodes: readonly {
@@ -3525,6 +3726,7 @@ export interface TraceMermaidInput {
  * Schema: `schemas/commands/trace.mermaid.json output`.
  */
 export interface TraceMermaidOutput {
+  readonly answer: Answer;
   /** The Mermaid flowchart, bottom to top, LF line endings and a final newline. Labels are quoted, with `#`, `&`, `<`, `>`, `"`, `:` and `{` written as Mermaid entities in node labels and `&`, `<` and `>` in edge labels. In an edge label `"` becomes `'` and `%%{` becomes `%% {`; line breaks and other control characters become one space. */
   readonly mermaid: string;
   /** More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones. */
@@ -3560,6 +3762,7 @@ export interface HintListInput {
  * Schema: `schemas/commands/hint.list.json output`.
  */
 export interface HintListOutput {
+  readonly answer: Answer;
   /** The number of hints that pass the filters per kind (SR-026 AK6), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`. */
   readonly kinds: readonly {
     readonly code: ProblemCode;
@@ -3598,6 +3801,7 @@ export interface HintConfirmInput {
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
+  readonly answer: Answer;
   /** The IDs of the confirmed hints, each once. */
   readonly confirmed: readonly string[];
   /** Written files, relative to the workspace root. */
@@ -3631,6 +3835,7 @@ export interface ElementSearchInput {
  * Schema: `schemas/commands/element.search.json output`.
  */
 export interface ElementSearchOutput {
+  readonly answer: Answer;
   /** One page of the hits. With `group`, the page of the grouped rows (the hits of the first group, then of the next): a hit in several groups is a row in each, so a page can hold it more than once; key the rows by their position, not by the element. */
   readonly hits: readonly {
     readonly id: Uuid;
@@ -3702,6 +3907,7 @@ export type ElementSearchFieldsInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/element.searchFields.json output`.
  */
 export interface ElementSearchFieldsOutput {
+  readonly answer: Answer;
   /** The fields in the order above. */
   readonly fields: readonly {
     /** What element.search `fields` takes: `title`, `text`, `id`, `properties` or the key of a property. */
@@ -3722,6 +3928,7 @@ export type FilterListInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/filter.list.json output`.
  */
 export interface FilterListOutput {
+  readonly answer: Answer;
   /** In the order of their files. A faulty file is not listed; it is one of `problems`. */
   readonly filters: readonly {
     readonly name: FilterName;
@@ -3759,6 +3966,7 @@ export interface FilterSaveInput {
  * Schema: `schemas/commands/filter.save.json output`.
  */
 export interface FilterSaveOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -3779,6 +3987,7 @@ export interface FilterRenameInput {
  * Schema: `schemas/commands/filter.rename.json output`.
  */
 export interface FilterRenameOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
   readonly renamed: readonly {
@@ -3817,6 +4026,7 @@ export interface FilterDeleteInput {
  * Schema: `schemas/commands/filter.delete.json output`.
  */
 export interface FilterDeleteOutput {
+  readonly answer: Answer;
   /** The name stored in the file of the saved filter. */
   readonly name: string;
   /** Its file, relative to the workspace root. */
@@ -3841,6 +4051,7 @@ export type PerspectiveListInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/perspective.list.json output`.
  */
 export interface PerspectiveListOutput {
+  readonly answer: Answer;
   /** In the order of their files. A faulty file is not listed; it is one of `problems`. */
   readonly perspectives: readonly {
     readonly name: PerspectiveName;
@@ -3882,6 +4093,7 @@ export interface PerspectiveSaveInput {
  * Schema: `schemas/commands/perspective.save.json output`.
  */
 export interface PerspectiveSaveOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -3902,6 +4114,7 @@ export interface PerspectiveRenameInput {
  * Schema: `schemas/commands/perspective.rename.json output`.
  */
 export interface PerspectiveRenameOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   /** The renamed file: its path before and after, relative to the workspace root. Empty when the file name stays. */
   readonly renamed: readonly {
@@ -3933,6 +4146,7 @@ export interface PerspectiveDeleteInput {
  * Schema: `schemas/commands/perspective.delete.json output`.
  */
 export interface PerspectiveDeleteOutput {
+  readonly answer: Answer;
   /** The name stored in the file of the perspective. */
   readonly name: string;
   /** Its file, relative to the workspace root. */
@@ -3966,6 +4180,7 @@ export interface EvidenceListInput {
  * Schema: `schemas/commands/evidence.list.json output`.
  */
 export interface EvidenceListOutput {
+  readonly answer: Answer;
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence document (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
   /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
@@ -4065,6 +4280,7 @@ export interface EvidenceRecordInput {
  * Schema: `schemas/commands/evidence.record.json output`.
  */
 export interface EvidenceRecordOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   /** With `criteria`: each criterion the record holds for, in the order of the criteria, with its number, its criterion key and the first 60 characters of its text (SR-030 AK4). */
   readonly criteria?: readonly {
@@ -4105,6 +4321,7 @@ export interface EvidenceEnrichJunitInput {
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
+  readonly answer: Answer;
   /** The test cases that name at least one element and are enriched: by this call, or already before. */
   readonly testCases: number;
   /** The test cases that name no element: no `reqseq:element` property and no name token or pattern match that names one (a pytest parameter list counts here). Test cases enriched already, listed in `unknown` or refused are not counted. Information only: it does not change the exit code. */
@@ -4145,6 +4362,7 @@ export interface EvidenceStatusInput {
  * Schema: `schemas/commands/evidence.status.json output`.
  */
 export interface EvidenceStatusOutput {
+  readonly answer: Answer;
   /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
@@ -4169,6 +4387,7 @@ export interface EvidenceCoverageInput {
  * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {
+  readonly answer: Answer;
   /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
   readonly levels: readonly {
     readonly type: Key;
@@ -4205,6 +4424,7 @@ export interface EvidenceDegreeInput {
  * Schema: `schemas/commands/evidence.degree.json output`.
  */
 export interface EvidenceDegreeOutput {
+  readonly answer: Answer;
   readonly degree: DataExportVerificationDegree;
   /** core, or the variant of the selection's view (else of its saved filter's). */
   readonly view: ViewId;
@@ -4231,6 +4451,7 @@ export interface EvidenceWithoutPassedTestInput {
  * Schema: `schemas/commands/evidence.withoutPassedTest.json output`.
  */
 export interface EvidenceWithoutPassedTestOutput {
+  readonly answer: Answer;
   /** One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question ThomasBirkmaier/ReqSeq-archive#532). Each as evidence.status gives it, with `verification` and `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every listed requirement, not only the page. */
@@ -4256,7 +4477,9 @@ export interface DataExportInput {
  * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line; a selection narrows it.
  * Schema: `schemas/commands/data.export.json output`.
  */
-export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
+export type DataExportOutput = DataExportFile & {
+  readonly answer: unknown;
+};
 
 /**
  * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state as JSON Lines to `<commit>.jsonl` in a folder, so that many states load as one table.
@@ -4274,6 +4497,7 @@ export interface DataStoreInput {
  * Schema: `schemas/commands/data.store.json output`.
  */
 export interface DataStoreOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -4292,6 +4516,7 @@ export interface VariantDiffInput {
  * Schema: `schemas/commands/variant.diff.json output`.
  */
 export interface VariantDiffOutput {
+  readonly answer: Answer;
   /** Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order. */
   readonly added: readonly Uuid[];
   /** One row per pair, in store order of the core requirement, then of the replacement: two replacements of one core requirement are two rows (SR-041 AK7). A core requirement that is also excluded is not here (SR-042 AK5). */
@@ -4327,6 +4552,7 @@ export interface VariantExcludeInput {
  * Schema: `schemas/commands/variant.exclude.json output`.
  */
 export interface VariantExcludeOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
@@ -4346,6 +4572,7 @@ export interface BaselineCreateInput {
  * Schema: `schemas/commands/baseline.create.json output`.
  */
 export interface BaselineCreateOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   /** The written baseline. */
   readonly baseline: {
@@ -4375,6 +4602,7 @@ export type BaselineListInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/baseline.list.json output`.
  */
 export interface BaselineListOutput {
+  readonly answer: Answer;
   /** The valid baselines, in file order (code units of the file name). */
   readonly baselines: readonly {
     /** Name of the baseline. */
@@ -4417,6 +4645,7 @@ export interface BaselineGetInput {
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
+  readonly answer: Answer;
   /** Name of the baseline. */
   readonly name: string;
   /** Relative to the workspace root, / as separator. */
@@ -4512,6 +4741,7 @@ export interface BaselineCompareInput {
  * Schema: `schemas/commands/baseline.compare.json output`.
  */
 export interface BaselineCompareOutput {
+  readonly answer: Answer;
   /** Workspace name of the repository of the element. */
   readonly repository: string;
   readonly from: Commit;
@@ -4543,6 +4773,7 @@ export interface ReqifAnalyzeInput {
  * Schema: `schemas/commands/reqif.analyze.json output`.
  */
 export interface ReqifAnalyzeOutput {
+  readonly answer: Answer;
   readonly unmapped: readonly ReqifUnmapped[];
   /** Objects the import would create as new elements, without UUID. */
   readonly new: readonly ReqifObject[];
@@ -4581,6 +4812,7 @@ export interface ReqifImportInput {
  * Schema: `schemas/commands/reqif.import.json output`.
  */
 export interface ReqifImportOutput {
+  readonly answer: Answer;
   /** New elements. */
   readonly created: readonly ReqifObject[];
   /** Elements of an earlier delivery the delivery was written into (changed, taken, or a title, property or relation that differed). */
@@ -4690,12 +4922,13 @@ export interface ReqifSaveMappingInput {
  * Schema: `schemas/commands/reqif.saveMapping.json output`.
  */
 export interface ReqifSaveMappingOutput {
+  readonly answer: Answer;
   readonly files: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -4705,19 +4938,22 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;
-  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`. */
+  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`. */
   readonly mapping?: LocalPath;
   /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
   /** Export the elements of the mapping's source with their statements, back to that source; needs `mapping`. */
   readonly statements?: boolean;
+  /** Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous. */
+  readonly sourceModel?: boolean;
 }
 
 /**
- * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {
+  readonly answer: Answer;
   /** The written ReqIF file, relative to the workspace root when it lies inside, else absolute. */
   readonly file: OutputPath;
   /** Exported elements. */
@@ -4744,6 +4980,9 @@ export interface CommandTypes {
   readonly "tool.guide": { readonly input: ToolGuideInput; readonly output: ToolGuideOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
+  readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
+  readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
+  readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };

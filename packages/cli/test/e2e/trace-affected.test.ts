@@ -66,6 +66,7 @@ describe("reqseq trace affected (SR-024)", () => {
     // path, named unless it is the element asked for (SR-024 AK1 "mit Weg und Abstand", ThomasBirkmaier/ReqSeq-archive#310).
     expect(human.stdout).toBe(
       [
+        "3 elements are affected by a change of SR-00b001.",
         "affected:",
         "  1  SR-00b002  Show gusts  [via derives-from]",
         "  1  SR-00b003  Show wind direction  [via reference]",

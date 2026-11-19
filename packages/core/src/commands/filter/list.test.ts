@@ -105,6 +105,7 @@ describe("filter.list (SR-070)", () => {
     const theirs = new Workspace(clone);
     onTestFinished(() => theirs.close());
     expect(await listed(theirs)).toEqual({
+      answer: "Found 1 saved filter.",
       filters: [{ name: "Draft requirements", file: "filters/draft-requirements.yaml", where }],
       problems: [],
       incomplete: false,

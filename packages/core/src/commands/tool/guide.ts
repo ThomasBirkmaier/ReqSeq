@@ -7,6 +7,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { CommandCatalog } from "../../generated/types.js";
 import { contractsBundle } from "../../runtime/contracts.js";
+import { sentence } from "../answer.js";
 import { readGuideFacts } from "./guide/facts.js";
 import { skillFile } from "./guide/skill.js";
 import { writeSkillFile } from "./guide/skill-file.js";
@@ -30,8 +31,19 @@ const needs = (field: string, other: string): CommandError =>
     ],
   });
 
+/** The verb of the answer for what a write did to the skill file. */
+const FILE_ACTION = { created: "Created", replaced: "Replaced", unchanged: "Left" } as const;
+
 export default defineCommand({
   name: "tool.guide",
+  answer: (output, input) =>
+    sentence(
+      output.file !== undefined
+        ? `${FILE_ACTION[output.file.action]} the skill file ${output.file.path}${output.file.action === "unchanged" ? " unchanged" : ""}`
+        : input.skill
+          ? "Wrote the skill file for an AI agent"
+          : `Wrote the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
+    ),
   run: async (ctx, input): Promise<CommandOutput<"tool.guide">> => {
     if (input.write && !input.skill) {
       throw needs("write", "skill");

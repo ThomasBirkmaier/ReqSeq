@@ -24,7 +24,7 @@ import {
   skillFile,
 } from "./guide/skill.js";
 import { SKILL_READ_MAX, readSkillFile, skillLocation, writeSkillFile } from "./guide/skill-file.js";
-import { GUIDE_RULES, GUIDE_TAIL } from "./guide/text.js";
+import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES } from "./guide/text.js";
 
 const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
 const NO_PERMISSIONS = process.platform === "win32" || process.getuid?.() === 0;
@@ -226,9 +226,12 @@ describe("tool.guide with skill", () => {
     }
     expect([...text.matchAll(/`[a-z]+_[A-Za-z]+`/g)].length).toBe(pairs.length);
     expect([...text.matchAll(/`reqseq /g)].length).toBe(pairs.length);
-    for (const rule of GUIDE_RULES) {
-      expect(text).not.toContain(rule);
-    }
+    // No rule of the guide (SR-229 AK5, AK13), nor any sentence or clause of one, appears in the skill.
+    const parts = [...GUIDE_RULES, ...GUIDE_WRITING_RULES].flatMap((rule) =>
+      rule.split(/[.;:]\s+/).filter((part) => part.length > 30),
+    );
+    expect(parts.length).toBeGreaterThan(GUIDE_RULES.length + GUIDE_WRITING_RULES.length);
+    expect(parts.filter((part) => text.includes(part))).toEqual([]);
     const pipeline = GUIDE_TAIL.lines({
       workspace: undefined,
       facts: { reason: "", noWorkspace: true },

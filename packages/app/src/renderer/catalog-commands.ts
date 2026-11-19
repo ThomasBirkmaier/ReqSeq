@@ -1,7 +1,7 @@
 // Catalog commands in the command prompt (SR-073 AK2, SR-108, ThomasBirkmaier/ReqSeq-archive#85). The prompt lists the implemented read
 // and write commands by their `title`, except those an app action covers; while the workspace is
 // read-only, no write command that core refuses then; while a folder without a workspace is open, only
-// "Initialise workspace". Choosing one asks its arguments one by one in the command prompt, Emacs
+// "Create workspace". Choosing one asks its arguments one by one in the command prompt, Emacs
 // `completing-read` style, in the order of the catalog's `arguments`; each source is answered by one
 // existing read command and shown as it is (ADR-0002: the app builds the input and decides nothing about
 // what is allowed; core validates). The output opens a result buffer.
@@ -751,6 +751,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
                   },
                 ],
           find: withTypedReference(
+            context,
             findElements(
               context,
               (row) => {

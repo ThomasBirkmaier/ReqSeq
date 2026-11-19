@@ -2,7 +2,9 @@
 // `GUIDE_SECTIONS` in this order, each a heading and its lines, then `GUIDE_TAIL`, the pipeline paragraph
 // (AK11), whose calls are always command-line calls; a new section is one more entry of the list. Names and
 // values come from the catalog (the calls, guide/calls.ts) and from the metamodel of the workspace by meaning
-// (guide/facts.ts). The steps follow AK3 in its order, and the rules are `GUIDE_RULES` (AK5, question #1928).
+// (guide/facts.ts). The steps follow AK3 in its order, after the impact check (AK12), with the writing rules
+// `GUIDE_WRITING_RULES` after the requirement step (AK13), and the rules are `GUIDE_RULES` (AK5). Both rule
+// lists are English with the meaning of the German criterion (question #1928).
 //
 // The guide goes into the prompt of an AI agent, and the names of a workspace are written by anyone who can
 // change its files. So every name, path and reason from the workspace passes `guideValue` (one line, no
@@ -22,10 +24,31 @@ export const GUIDE_RULES: readonly string[] = [
   "The AI agent reads and changes elements through the commands, not through their files.",
   "Project rules take precedence over the agent guide.",
   "Before finishing a piece of work, the AI agent checks the workspace and the verification degree and names the problems and gaps.",
+  "If a requirement is unclear or incomplete or contradicts another element, the AI agent asks a person and names its assumption; it does not resolve it silently in the implementation.",
+  "If the implementation does not fit a requirement, the AI agent does not change the requirement on its own to make it fit; it names the deviation and asks.",
+  "The AI agent confirms a hint about an outdated relation or an outdated reference only if a project rule allows it, and only after it has read the source against the changed target; otherwise it proposes the confirmation to a person. If the source contradicts the target, it does not confirm and changes the source by the rule for changes to the content, or asks.",
+  "The AI agent switches off no test and removes no file from an evidence location to make a verification status or the verification degree look better; it gives no test the reference of an acceptance criterion the test does not check, and records no evidence record for a check that did not take place.",
+  "The AI agent adds a relation only if its relation kind holds in substance between the two elements, not to remove a hint or a problem.",
+  "If, after the change, a requirement whose status is not the initial status of its type demands something other than before, the AI agent names both ways when it asks: to change it, or to supersede it and create a successor; it does not choose itself.",
+  "Without a reply, the AI agent works on only the steps that can be undone, and names the assumption they rest on.",
+];
+
+/** The rules for writing requirements (SR-229 AK13), word for word in every output, numbered from 1. */
+export const GUIDE_WRITING_RULES: readonly string[] = [
+  "A requirement holds exactly one binding obligation, names who or what must fulfil it, and can be understood without other requirements; several obligations become several requirements.",
+  "It says what the system or a named part must achieve, not how it is built; a rule on how it is built is a constraint with a rationale.",
+  "Every quantity has a value, a unit and a condition.",
+  'It contains no vague word such as "fast", "easy" or "etc." and no exception without a named case such as "as a rule" or "if possible".',
+  'The acceptance criterion fits the kind of requirement: a behaviour as "Given …, when …, then …"; a measurable characteristic with quantity, unit, limit and measuring condition; an interface with input and expected response; a constraint as a condition that an inspection finds met or not met.',
+  "An acceptance criterion names the conditions under which it is checked and does not repeat the requirement.",
+  "The verification method fits the acceptance criteria of the requirement: test where a test can show them, else analysis, inspection or demonstration.",
+  "It names its rationale where its type has a property for it; the AI agent does not invent a rationale that nobody gave.",
+  "A term always stands for the same thing; where the workspace has a glossary, it stands as it is defined there.",
+  "The AI agent does not invent a value that nobody gave it; it asks and marks the value in the text as open until someone replies.",
 ];
 
 /** The longest guide with the standard model, in code points (SR-229 AK1). */
-export const GUIDE_MAX_LENGTH = 6000;
+export const GUIDE_MAX_LENGTH = 9000;
 
 /** The longest name from a workspace in the guide, and the longest reason, in code points. */
 const VALUE_MAX = 80;
@@ -116,7 +139,7 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
     ...statusLines([...workspace.needs, ...workspace.requirements]),
     ...(kinds.length === 0 ? [] : [`- Derivation: ${kinds.join(", ")}.`]),
     workspace.evidence.length === 0
-      ? "- Evidence locations: none yet. Add one to `reqseq-workspace.yaml`, for example `evidence: [{ repository: <repository>, path: <folder> }]`."
+      ? "- Evidence locations: none yet; add one to `reqseq-workspace.yaml`: `evidence: [{ repository: <repository>, path: <folder> }]`."
       : `- Evidence locations: ${workspace.evidence.map((folder) => (isPlainPath(folder) ? `\`${folder}\`` : guideValue(folder))).join(", ")}.`,
   ];
 };
@@ -124,9 +147,13 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
 /** A path that a code span and a shell word show as it is. */
 const isPlainPath = (folder: string): boolean => /^[\w./-]{1,80}$/.test(folder);
 
-/** The first evidence location that is a plain path, for a call; else a placeholder. */
+/** The longest evidence location a call names; a longer one would take the room of AK1's length limit twice. */
+const CALL_PATH_MAX = 40;
+
+/** The first evidence location that is a plain path of at most `CALL_PATH_MAX` characters, for a call; else a placeholder. */
 const evidenceLocation = (context: GuideContext): string =>
-  context.workspace?.evidence.find(isPlainPath) ?? "<evidence location>";
+  context.workspace?.evidence.find((folder) => isPlainPath(folder) && folder.length <= CALL_PATH_MAX) ??
+  "<evidence location>";
 
 /** The input of `element.create` for `type`: its required properties as placeholders, then `given` where it has them. */
 const createInput = (
@@ -192,42 +219,55 @@ const enrichCall = (context: GuideContext): GuideCall => ({
 export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { heading: "Values from this workspace", lines: workspaceLines },
   {
+    heading: "Impact check",
+    lines: (context) => [
+      `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches for each new or changed term and for its identifier (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
+      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
+    ],
+  },
+  {
     heading: "1. Need",
     lines: (context) => [
-      `Write down what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: createInput(context.workspace?.needs[0], "<need type>", "<text>") })}.`,
+      `Record what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: createInput(context.workspace?.needs[0], "<need type>", "<text>") })}.`,
+      `Where its type has a property for them, give the need validation criteria, by which a person checks whether the system fulfils it. A person records the validation as an evidence record, not the AI agent: ${context.call({ command: "evidence.record", input: { ref: "<need>", kind: "validation", result: "passed" } })}.`,
     ],
   },
   {
     heading: "2. Requirement with acceptance criteria and verification method",
     lines: (context: GuideContext): readonly string[] => {
-      const method = context.workspace?.verificationMethod;
       const kind = derivationKind(context);
       return [
-        `Create the requirement with its acceptance criteria and its verification method: ${context.call(requirementCall(context))}.`,
-        ...(method === undefined || method.choices.length === 0
-          ? []
-          : [`Verification methods: ${method.choices.map((choice) => `\`${choice}\``).join(", ")}.`]),
+        `Create the requirement: ${context.call(requirementCall(context))}.`,
         `Then relate it to what it derives from: ${context.call({ command: "relation.add", input: { source: "<requirement>", kind, target: "<need>" } })}.`,
       ];
     },
   },
   {
+    heading: "Writing requirements",
+    lines: () => [
+      "These rules hold for the requirements the AI agent creates or changes; it does not rewrite existing ones for their sake without asking (see Rules).",
+      "",
+      ...GUIDE_WRITING_RULES.map((rule, index) => `${String(index + 1)}. ${rule}`),
+    ],
+  },
+  {
     heading: "3. One test per acceptance criterion",
     lines: (context) => [
-      `Name each test case with the reference of its acceptance criterion, \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier of the requirement, or its short ID, and the criterion key, never the number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion.`,
+      `Name each test case with \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier or short ID of the requirement and the key of the acceptance criterion, never its number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion; ${context.call({ command: "element.resolve", input: { ref: "<reference>" } })} resolves an identifier, short ID or test name.`,
     ],
   },
   {
     heading: "4. Evidence location",
     lines: () => [
-      "Test results count only in an evidence location of the workspace. Every test run gets a file of its own there; never overwrite the file of an earlier run.",
+      "Test results count only in an evidence location. Every test run gets a file of its own there; never overwrite an earlier one.",
     ],
   },
   {
     heading: "5. Enrich test results",
     lines: (context) => [
-      `Run the tests with JUnit XML output, then enrich the result into a new file in an evidence location: ${context.call(enrichCall(context))}. The item under test is what was tested, for example the build or the commit of the software.`,
+      `Run the tests with JUnit XML output, then enrich the result into a new file in an evidence location: ${context.call(enrichCall(context))}. The item under test is what was tested, such as the build or commit.`,
       `For an acceptance criterion with another verification method than test, record the check: ${context.call({ command: "evidence.record", input: { ref: "<requirement>", kind: "verification", result: "passed", method: "inspection" } })}.`,
+      "After a change to the content of a requirement, its evidence records of the old version no longer count, and its verification status and validation status are outdated. The AI agent adapts the tests to the change, runs them again and enriches their results into a new file in an evidence location; another verification method than test, and the validation, need a new check.",
     ],
   },
   {
@@ -239,10 +279,17 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "7. Workspace check",
     lines: (context) => [
-      `${context.call({ command: "workspace.check" })} lists every problem of the workspace with how to fix it.`,
+      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories, ${context.call({ command: "metamodel.get" })} its metamodel.`,
     ],
   },
-  { heading: "Rules", lines: () => GUIDE_RULES.map((rule) => `- ${rule}`) },
+  {
+    heading: "Rules",
+    lines: (context) => [
+      `Change an element with ${context.call({ command: "element.update", input: { ref: "<element>" } })}, its status with ${context.call({ command: "element.setStatus", input: { refs: ["<element>"], status: "<status>" } })}, and supersede it with ${context.call({ command: "element.supersede", input: { ref: "<element>", status: "<status>" } })}.`,
+      "",
+      ...GUIDE_RULES.map((rule) => `- ${rule}`),
+    ],
+  },
 ];
 
 /** The last section, after every section of the list (SR-229 AK11). */
@@ -254,7 +301,7 @@ export const GUIDE_TAIL: GuideSection = {
 };
 
 const INTRODUCTION =
-  "ReqSeq keeps needs, requirements, their relations and their evidence as Markdown files in Git repositories. Each step below names the command that does it; the command line, the local API and the MCP server offer the same commands with the same results.";
+  "ReqSeq keeps needs, requirements, relations and evidence as Markdown files in Git. Each step names its command.";
 
 /** The agent guide as Markdown (SR-229 AK1), LF line endings and a final newline. */
 export const agentGuide = (

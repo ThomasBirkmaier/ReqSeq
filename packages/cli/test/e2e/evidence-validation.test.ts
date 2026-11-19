@@ -24,22 +24,25 @@ const reqseq = async (args: readonly string[]): Promise<Run> => {
   return run(args, { cwd: ws.root });
 };
 
-const firstLine = async (ref: string): Promise<string> => {
+/** The line of the element in the text output of element get, after its answer (SR-224 AK2). */
+const elementLine = async (ref: string): Promise<string> => {
   const result = await reqseq(["element", "get", ref]);
   expect([result.code, result.stderr]).toEqual([0, ""]);
-  return result.stdout.split("\n")[0] ?? "";
+  return result.stdout.split("\n")[1] ?? "";
 };
 
 describe("reqseq and the validation status (SR-038)", () => {
   it("[SR-038/AK-w0j6] reqseq element get shows the validation status of a need apart from the verification status", async () => {
-    expect(await firstLine("N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: validated]");
-    expect(await firstLine("SR-00b001")).toBe(
+    expect(await elementLine("N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: validated]");
+    expect(await elementLine("SR-00b001")).toBe(
       "SR-00b001  approved  Show wind speed  [verification: core failed]  [validation: validated]",
     );
   });
 
   it("[SR-038/AK-g54k] reqseq element get shows outdated for a need validated on an older version", async () => {
-    expect(await firstLine("N-00a003")).toBe("N-00a003  approved  Know the pressure  [validation: outdated]");
+    expect(await elementLine("N-00a003")).toBe(
+      "N-00a003  approved  Know the pressure  [validation: outdated]",
+    );
   });
 
   it("[SR-038/AK-wb3p] reqseq evidence status prints the validation status of every element", async () => {
@@ -47,6 +50,7 @@ describe("reqseq and the validation status (SR-038)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed the verification status of 9 elements.",
         "elements:",
         "  N-00a001  approved  Know the wind  [validation: validated]",
         "  N-00a002  approved  Know the rain  [validation: failed]",

@@ -2,7 +2,7 @@
 // evidence records (SR-028, ThomasBirkmaier/ReqSeq-archive#40); here they are given through `evidenceRecordsState`, and
 // `workspace.check` reports the evidence of an element whose newest record is for an older version.
 // The CLI test follows with the records in stage 4.
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { forms } from "../model/version-forms.test-helper.js";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -66,7 +66,10 @@ const check = async (
   input: Readonly<Record<string, unknown>> = {},
 ): Promise<Output> => {
   const out = (await invoke("workspace.check", input, { workspace })) as Output;
-  return { ...out, problems: out.problems.filter((p) => p.code !== "evidence.counts-in-no-view") };
+  return {
+    ...out,
+    problems: withoutVerificationGaps(out.problems).filter((p) => p.code !== "evidence.counts-in-no-view"),
+  };
 };
 
 /** The current version of `id` in the form the tool writes. */
@@ -128,7 +131,12 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, A_VERSION, "2026-01-01T10:00:00Z"),
       record(A, OLD, "2026-01-02T10:00:00Z"),
     ]);
-    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace)).toEqual({
+      answer: "Checked 4 elements and found 2 warnings.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-tmds] reports nothing when the newest record is for the current version", async () => {
@@ -136,7 +144,12 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, OLD, "2026-01-01T10:00:00Z"),
       record(A, A_VERSION, "2026-01-02T10:00:00+02:00"),
     ]);
-    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace)).toEqual({
+      answer: "Checked 4 elements and found 2 warnings.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-tmds] [SR-205/AK-m2vv] reports a criterion with records of older versions only while the others are verified (SR-031 AK8), named with number, key and text", async () => {

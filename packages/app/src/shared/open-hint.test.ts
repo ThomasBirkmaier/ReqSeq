@@ -31,6 +31,6 @@ describe("the hint how to open a workspace", () => {
       fs.readFileSync(new URL("../../../../schemas/commands/workspace.init.json", import.meta.url), "utf8"),
     ) as { readonly title: string };
     expect(init.title).toBe(INIT_WORKSPACE_COMMAND);
-    expect(initHint(false)).toBe("To create one here, press Ctrl+Shift+P for Initialise workspace.");
+    expect(initHint(false)).toBe("To create one here, press Ctrl+Shift+P for Create workspace.");
   });
 });

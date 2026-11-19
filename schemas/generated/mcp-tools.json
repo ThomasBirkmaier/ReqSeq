@@ -896,6 +896,9 @@
             "evidence.unknown-criterion",
             "evidence.invalid-criterion-name",
             "evidence.counts-in-no-view",
+            "evidence.outside-location",
+            "evidence.no-location",
+            "evidence.open-requirements",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
@@ -917,7 +920,8 @@
             "reqif.choice-unused",
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
-            "reqif.source-model-unsaved"
+            "reqif.source-model-unsaved",
+            "reqif.source-value-chosen"
           ],
           "x-technical": true
         },
@@ -967,11 +971,17 @@
               "type": "string"
             },
             "details": {
-              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
+              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
               "type": "object"
             }
           },
           "additionalProperties": false
+        },
+        "answer": {
+          "title": "Answer",
+          "description": "One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. ReqSeq builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it. The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid.",
+          "type": "string",
+          "minLength": 1
         },
         "incomplete": {
           "description": "True when a result is incomplete because targets are in repositories that are not available locally.",
@@ -980,7 +990,7 @@
           "title": "Incomplete"
         },
         "selection": {
-          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.",
+          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.",
           "type": "object",
           "properties": {
             "ids": {
@@ -1011,6 +1021,32 @@
             "view": {
               "title": "View",
               "$ref": "#/$defs/common/$defs/view"
+            },
+            "output": {
+              "title": "Command output",
+              "$ref": "#/$defs/common/$defs/outputSelection"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSelection": {
+          "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages.",
+          "type": "object",
+          "required": [
+            "command",
+            "input"
+          ],
+          "properties": {
+            "command": {
+              "title": "Command",
+              "type": "string",
+              "minLength": 1,
+              "description": "A read command, `group.action`."
+            },
+            "input": {
+              "title": "Input",
+              "type": "object",
+              "description": "Its input."
             }
           },
           "additionalProperties": false
@@ -1256,6 +1292,46 @@
           "x-technical": true,
           "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
           "type": "string"
+        },
+        "nextStep": {
+          "title": "Next step",
+          "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
+          "type": "object",
+          "properties": {
+            "command": {
+              "title": "Command",
+              "description": "Name of the command in the catalog.",
+              "type": "string",
+              "minLength": 1,
+              "x-technical": true
+            },
+            "input": {
+              "title": "Known input",
+              "description": "The input fields known already, with their values; a path is absolute.",
+              "type": "object"
+            },
+            "open": {
+              "title": "Open fields",
+              "description": "The input fields still to give, in the order of the command's arguments.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "x-technical": true
+            },
+            "workspace": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "title": "Workspace",
+              "description": "Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`)."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "input",
+            "open"
+          ]
         }
       }
     },
@@ -1273,6 +1349,10 @@
         "elements"
       ],
       "properties": {
+        "answer": {
+          "$ref": "#/$defs/common/$defs/answer",
+          "description": "The answer of `data.export`, which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
+        },
         "reqseq-data": {
           "title": "Format version",
           "const": 5,
@@ -2768,6 +2848,10 @@
             }
           ]
         },
+        "conditionStub": {
+          "type": "object",
+          "description": "Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`."
+        },
         "keys": {
           "type": "array",
           "minItems": 1,
@@ -2990,22 +3074,27 @@
             "name": true,
             "description": true,
             "prefix": {
+              "title": "Prefix",
               "$ref": "#/$defs/metamodel/$defs/prefix",
               "description": "Prefix of the short ID, e.g. SR. UNKNOWN is reserved for elements of an unknown type and is a metamodel error."
             },
             "extends": {
+              "title": "Extends",
               "$ref": "#/$defs/metamodel/$defs/key",
               "description": "Parent type; its properties and required properties are inherited, over any number of levels. A parent that is not defined, or a cycle, is a metamodel error."
             },
             "abstract": {
+              "title": "Abstract",
               "type": "boolean",
               "default": false,
               "description": "No elements of this type can be created; only for inheritance."
             },
             "meaning": {
+              "title": "Meaning",
               "$ref": "#/$defs/metamodel/$defs/typeMeaning"
             },
             "properties": {
+              "title": "Properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -3013,6 +3102,7 @@
               "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it."
             },
             "required": {
+              "title": "Required properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -3020,6 +3110,7 @@
               "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it. Empty values are allowed but give a hint."
             },
             "statuses": {
+              "title": "Statuses",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
@@ -4037,7 +4128,7 @@
   "tools": [
     {
       "name": "workspace_init",
-      "title": "Initialise workspace",
+      "title": "Create workspace",
       "description": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
       "annotations": {
         "readOnlyHint": false,
@@ -4080,12 +4171,23 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/outputPath",
               "description": "Written file, relative to the workspace root."
+            }
+          },
+          "next": {
+            "title": "Next steps",
+            "description": "What to do next in the new workspace: connect an AI agent, then create an element.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/nextStep"
             }
           },
           "problems": {
@@ -4099,7 +4201,9 @@
         },
         "additionalProperties": false,
         "required": [
-          "files"
+          "answer",
+          "files",
+          "next"
         ]
       }
     },
@@ -4120,6 +4224,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "name": {
             "title": "Workspace name",
             "description": "Name of the workspace, from reqseq-workspace.yaml.",
@@ -4258,6 +4365,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "name",
           "repositories",
           "metamodel",
@@ -4314,6 +4422,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "ok": {
             "title": "Passed",
             "type": "boolean",
@@ -4375,6 +4486,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "ok",
           "problems"
         ]
@@ -4397,6 +4509,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "activity": {
             "title": "Last agent access",
             "anyOf": [
@@ -4412,6 +4527,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "activity"
         ]
       }
@@ -4433,6 +4549,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "recorded": {
             "title": "Recorded",
             "type": "boolean",
@@ -4492,6 +4611,7 @@
           }
         },
         "required": [
+          "answer",
           "recorded",
           "connected",
           "last"
@@ -4516,6 +4636,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "workspaces": {
             "title": "Workspaces",
             "type": "array",
@@ -4552,6 +4675,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "workspaces"
         ]
       }
@@ -4592,6 +4716,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "folder": {
             "title": "Folder",
             "$ref": "#/$defs/common/$defs/outputPath",
@@ -4650,6 +4777,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "name",
           "entries"
         ]
@@ -4685,9 +4813,7 @@
         "type": "object",
         "properties": {
           "answer": {
-            "title": "Answer",
-            "type": "string",
-            "minLength": 1,
+            "$ref": "#/$defs/common/$defs/answer",
             "description": "What to do with the setup, in one sentence; without a client, which clients there are."
           },
           "clients": {
@@ -4846,6 +4972,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "versions": {
             "title": "Versions",
             "type": "object",
@@ -5039,6 +5168,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "versions",
           "build",
           "runtime",
@@ -5089,6 +5219,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "guide": {
             "title": "Agent guide",
             "type": "string",
@@ -5128,6 +5261,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "guide"
         ]
       }
@@ -5149,6 +5283,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "types": {
             "title": "Types",
             "type": "array",
@@ -5260,17 +5397,82 @@
               "$ref": "#/$defs/common/$defs/problem"
             },
             "x-normal": []
+          },
+          "uses": {
+            "title": "Uses",
+            "type": "object",
+            "properties": {
+              "types": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "title": "Types",
+                "description": "Type key -> elements of the type."
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "title": "Properties",
+                "description": "Property key -> elements of a type that has the property whose file holds its key, also with an empty value."
+              },
+              "values": {
+                "title": "Fixed values",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "description": "Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it."
+              },
+              "relations": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "title": "Relation kinds",
+                "description": "Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list."
+              },
+              "statuses": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "title": "Statuses",
+                "description": "Status key -> elements with the status."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "types",
+              "properties",
+              "values",
+              "relations",
+              "statuses"
+            ],
+            "description": "The uses of each definition by the elements of the workspace, in any status, counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine."
           }
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "types",
           "properties",
           "relations",
           "statuses",
           "meanings",
           "relationKinds",
-          "files"
+          "files",
+          "uses"
         ]
       }
     },
@@ -5291,6 +5493,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "mermaid": {
             "title": "Mermaid",
             "type": "string",
@@ -5308,7 +5513,339 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "mermaid",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_addType",
+      "title": "Add type",
+      "description": "Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name of the type; no other type may have it."
+          },
+          "prefix": {
+            "$ref": "#/$defs/metamodel/$defs/prefix",
+            "description": "Prefix of the short IDs of its elements, e.g. SR; no other type may have it."
+          },
+          "key": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Fixed key of the type. Left out: made from the name."
+          },
+          "extends": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type it extends; its properties, required properties and statuses are inherited."
+          },
+          "abstract": {
+            "type": "boolean",
+            "default": false,
+            "description": "No elements of the type can be created; it is only extended."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "prefix"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/metamodel/$defs/type",
+            "description": "The definition as written to the file."
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_changeType",
+      "title": "Change type",
+      "description": "Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type to change."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "New display name; no other type may have it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description, for people; null removes it."
+          },
+          "prefix": {
+            "$ref": "#/$defs/metamodel/$defs/prefix",
+            "description": "New prefix of the short IDs of its elements; no other type may have it. Only while no element has the type."
+          },
+          "extends": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/common/$defs/key"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key of the new parent type; null removes the parent. Refused while an element uses a property or status the type or a type that extends it loses."
+          },
+          "abstract": {
+            "type": "boolean",
+            "description": "true: no elements of the type can be created, only while no element has the type; false removes the mark."
+          },
+          "meaning": {
+            "enum": [
+              "requirement",
+              "need",
+              "variant",
+              "package",
+              null
+            ],
+            "description": "New built-in meaning of the type, one of `typeMeaning` of metamodel.schema.json; null removes it."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type"
+        ],
+        "minProperties": 2
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/metamodel/$defs/type",
+            "description": "The definition as it is written afterwards."
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_removeType",
+      "title": "Remove type",
+      "description": "Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type to remove."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the removed type."
+          },
+          "removed": {
+            "title": "Removed definitions",
+            "type": "object",
+            "properties": {
+              "properties": {
+                "title": "Properties",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/common/$defs/key"
+                },
+                "description": "Properties whose definition was removed, as no other type has them."
+              },
+              "statuses": {
+                "title": "Statuses",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/common/$defs/key"
+                },
+                "description": "Statuses whose definition was removed, as no other type has them."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "properties",
+              "statuses"
+            ],
+            "description": "The definitions removed with the type: its properties and statuses that no other type has."
+          },
+          "mentions": {
+            "title": "Files naming a removed key",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+            },
+            "description": "Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "removed",
+          "mentions",
+          "files",
+          "versionsChanged",
+          "missingRequired",
           "problems"
         ]
       }
@@ -5367,6 +5904,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "element": {
             "title": "Element",
             "$ref": "#/$defs/data-export/$defs/element"
@@ -5398,6 +5938,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "element",
           "files"
         ]
@@ -5458,6 +5999,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "element": {
             "title": "Element",
             "$ref": "#/$defs/data-export/$defs/element",
@@ -5488,6 +6032,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "element",
           "fileSha256"
         ]
@@ -5543,6 +6088,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "element": {
             "title": "Element",
             "$ref": "#/$defs/data-export/$defs/element",
@@ -5583,6 +6131,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "element",
           "current"
         ]
@@ -5667,6 +6216,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "elements": {
             "title": "Elements",
             "type": "array",
@@ -5785,6 +6337,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "total"
         ],
         "oneOf": [
@@ -5853,6 +6406,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "total": {
             "title": "Total",
             "type": "integer",
@@ -6031,6 +6587,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "total",
           "types",
           "statuses",
@@ -6149,6 +6706,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "element": {
             "title": "Element",
             "$ref": "#/$defs/data-export/$defs/element"
@@ -6191,6 +6751,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "element",
           "fileSha256",
           "files",
@@ -6238,6 +6799,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -6257,6 +6821,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -6299,6 +6864,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -6318,6 +6886,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -6393,6 +6962,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "applied": {
             "title": "Written",
             "type": "boolean",
@@ -6505,6 +7077,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "applied",
           "count",
           "affected",
@@ -6541,6 +7114,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "count": {
             "title": "Changed elements",
             "type": "integer",
@@ -6632,6 +7208,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "count",
           "changed",
           "skipped",
@@ -6696,6 +7273,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "file": {
             "title": "Image file",
             "$ref": "#/$defs/common/$defs/outputPath",
@@ -6709,6 +7289,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "file",
           "markdown"
         ]
@@ -6743,6 +7324,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "kinds": {
             "title": "Relation kinds",
             "type": "array",
@@ -6779,6 +7363,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "kinds"
         ]
       }
@@ -6818,6 +7403,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "description": "Written files, relative to the workspace root.",
@@ -6837,6 +7425,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -6880,6 +7469,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -6899,6 +7491,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -6975,6 +7568,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "root": {
             "title": "Root element",
             "$ref": "#/$defs/common/$defs/uuid"
@@ -7319,6 +7915,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "root",
           "nodes",
           "total",
@@ -7390,6 +7987,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "elements": {
             "title": "Related elements",
             "type": "array",
@@ -7410,6 +8010,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "elements",
           "total"
         ]
@@ -7469,6 +8070,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "affected": {
             "title": "Affected elements",
             "type": "array",
@@ -7600,6 +8204,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "affected",
           "total",
           "records",
@@ -7695,6 +8300,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "root": {
             "title": "Root element",
             "$ref": "#/$defs/common/$defs/uuid"
@@ -7887,6 +8495,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "root",
           "nodes",
           "total",
@@ -7945,6 +8554,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "columns": {
             "title": "Columns",
             "type": "array",
@@ -8267,6 +8879,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "columns",
           "rows",
           "total",
@@ -8352,6 +8965,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "root": {
             "title": "Root element",
             "$ref": "#/$defs/common/$defs/uuid"
@@ -8632,6 +9248,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "root",
           "nodes",
           "edges",
@@ -8714,6 +9331,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "mermaid": {
             "title": "Mermaid",
             "type": "string",
@@ -8739,6 +9359,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "mermaid",
           "truncated",
           "incomplete",
@@ -8803,6 +9424,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "kinds": {
             "title": "Hints per kind",
             "type": "array",
@@ -8849,6 +9473,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "kinds",
           "hints",
           "total",
@@ -8907,6 +9532,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "confirmed": {
             "title": "Confirmed hints",
             "description": "The IDs of the confirmed hints, each once.",
@@ -8934,6 +9562,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "confirmed",
           "files"
         ]
@@ -8999,6 +9628,9 @@
         "type": "object",
         "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet.",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "hits": {
             "title": "Hits",
             "type": "array",
@@ -9219,6 +9851,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "hits",
           "total",
           "incomplete"
@@ -9242,6 +9875,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "fields": {
             "title": "Fields",
             "type": "array",
@@ -9270,6 +9906,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "fields"
         ]
       }
@@ -9291,6 +9928,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "filters": {
             "title": "Saved filters",
             "type": "array",
@@ -9351,6 +9991,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "filters"
         ]
       }
@@ -9399,6 +10040,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -9418,6 +10062,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -9452,6 +10097,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -9521,6 +10169,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files",
           "renamed",
           "perspectives"
@@ -9565,6 +10214,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "name": {
             "title": "Saved filter",
             "type": "string",
@@ -9604,6 +10256,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "name",
           "file",
           "fileSha256",
@@ -9629,6 +10282,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "perspectives": {
             "title": "Perspectives",
             "type": "array",
@@ -9694,6 +10350,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "perspectives"
         ]
       }
@@ -9746,6 +10403,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -9765,6 +10425,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -9799,6 +10460,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -9843,6 +10507,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files",
           "renamed"
         ]
@@ -9886,6 +10551,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "name": {
             "title": "Perspective",
             "type": "string",
@@ -9925,6 +10593,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "name",
           "file",
           "fileSha256",
@@ -9978,6 +10647,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "records": {
             "title": "Evidence records",
             "type": "array",
@@ -10229,6 +10901,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "records",
           "bearing",
           "display",
@@ -10338,6 +11011,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -10393,6 +11069,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files",
           "record"
         ]
@@ -10455,6 +11132,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "testCases": {
             "title": "Enriched test cases",
             "type": "integer",
@@ -10532,6 +11212,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "testCases",
           "withoutReference",
           "notInView",
@@ -10576,6 +11257,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "elements": {
             "title": "Elements",
             "type": "array",
@@ -10606,6 +11290,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "elements",
           "total"
         ]
@@ -10633,6 +11318,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "levels": {
             "title": "Levels",
             "type": "array",
@@ -10736,6 +11424,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "levels"
         ]
       }
@@ -10762,6 +11451,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "degree": {
             "title": "Verification degree",
             "$ref": "#/$defs/data-export/$defs/verificationDegree"
@@ -10785,6 +11477,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "degree",
           "view"
         ]
@@ -10825,6 +11518,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "elements": {
             "title": "Requirements without a passed test",
             "type": "array",
@@ -10860,6 +11556,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "elements",
           "total",
           "view"
@@ -10887,6 +11584,9 @@
       },
       "outputSchema": {
         "type": "object",
+        "required": [
+          "answer"
+        ],
         "$ref": "#/$defs/data-export"
       }
     },
@@ -10919,6 +11619,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -10938,6 +11641,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -10967,6 +11671,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "added": {
             "title": "Added",
             "type": "array",
@@ -11032,6 +11739,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "added",
           "replaced",
           "excluded"
@@ -11076,6 +11784,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -11095,6 +11806,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -11129,6 +11841,9 @@
         "type": "object",
         "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}); git.unavailable when a repository involved is not under Git or has no commit (details.repository); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter; file.faulty when the baselines folder cannot be listed (details.repository, details.file); input.invalid with details.reason git-folder (details.repository, details.file, details.rule, details.path) when the baselines folder meets Git: a name taken for .git, a folder with a .git entry or a link into .git, also where the workspace file places it. The baseline is never replaced afterwards.",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -11192,6 +11907,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files",
           "baseline"
         ]
@@ -11214,6 +11930,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "baselines": {
             "title": "Baselines",
             "type": "array",
@@ -11283,6 +12002,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "baselines",
           "location"
         ]
@@ -11332,6 +12052,9 @@
         "type": "object",
         "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "name": {
             "title": "Baseline",
             "description": "Name of the baseline.",
@@ -11590,6 +12313,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "name",
           "file",
           "repository",
@@ -11634,6 +12358,9 @@
         "type": "object",
         "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "repository": {
             "title": "Repository",
             "description": "Workspace name of the repository of the element.",
@@ -11676,6 +12403,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "repository",
           "from",
           "to",
@@ -11718,6 +12446,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "unmapped": {
             "title": "Unmapped",
             "type": "array",
@@ -11780,6 +12511,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "unmapped",
           "new",
           "changed",
@@ -11843,6 +12575,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "created": {
             "title": "Created",
             "type": "array",
@@ -11906,6 +12641,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "created",
           "updated",
           "kept",
@@ -11953,6 +12689,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "files": {
             "title": "Files",
             "type": "array",
@@ -11972,6 +12711,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "files"
         ]
       }
@@ -11979,7 +12719,7 @@
     {
       "name": "reqif_export",
       "title": "Export ReqIF",
-      "description": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+      "description": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -12001,7 +12741,7 @@
             "type": "string"
           },
           "mapping": {
-            "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
+            "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`.",
             "$ref": "#/$defs/common/$defs/localPath"
           },
           "omitProperties": {
@@ -12014,6 +12754,10 @@
           "statements": {
             "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
             "type": "boolean"
+          },
+          "sourceModel": {
+            "description": "Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous.",
+            "type": "boolean"
           }
         },
         "additionalProperties": false,
@@ -12024,6 +12768,9 @@
       "outputSchema": {
         "type": "object",
         "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
           "file": {
             "title": "ReqIF file",
             "$ref": "#/$defs/common/$defs/outputPath",
@@ -12067,6 +12814,7 @@
         },
         "additionalProperties": false,
         "required": [
+          "answer",
           "file",
           "elements",
           "relations"

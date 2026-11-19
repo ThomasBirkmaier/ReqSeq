@@ -5,6 +5,14 @@ import { scenariosOf } from "../../scenario.js";
 scenariosOf("workspace.status", [
   { name: "one repository", input: {}, expect: "output" },
   {
+    // A folder without a workspace: the error names creating one there, the same in every access (SR-226 AK1, AK4).
+    name: "folder without a workspace",
+    tag: "[SR-226/AK-whxq]",
+    fixture: { files: { ".keep": "" } },
+    input: {},
+    expect: "error",
+  },
+  {
     name: "three repositories, one missing",
     fixture: { fixture: "SR-004/three-repositories", git: ["system", "product"], files: {} },
     root: "system",

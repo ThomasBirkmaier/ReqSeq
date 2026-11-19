@@ -1,5 +1,5 @@
 // workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-022 AK6, SR-028, SR-040, SR-072,
-// SR-085, SR-086, SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
+// SR-085, SR-086, SR-088, SR-089, SR-090 and SR-230 AK1, AK2): every finding of the whole workspace against the metamodel, as
 // `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
 // reset, so a second check of an unchanged workspace reads no file again, except the workspace file
@@ -45,11 +45,18 @@
 //   These problems come with those of the metamodel and are always kept.
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
+// - The gaps of verification (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location while a
+//   requirement exists (a warning), else the count of the requirements with method test whose status
+//   is open in the core (one info); computed per call after SR-103, only in a full check.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
 //   every access (SR-080 AK2).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { evidenceProblemsState, olderCriterionProblems } from "../../evidence/index.js";
+import {
+  evidenceProblemsState,
+  olderCriterionProblems,
+  verificationGapProblems,
+} from "../../evidence/index.js";
 import { metamodelState, repositoryMetamodelProblems } from "../../metamodel/index.js";
 import {
   changedFiles,
@@ -88,6 +95,7 @@ import {
   targetNotCoreProblemsState,
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, listed, sentence } from "../answer.js";
 
 type Severity = Problem["severity"];
 
@@ -156,6 +164,24 @@ const sinceBaselineOf = async (
 
 export default defineCommand({
   name: "workspace.check",
+  answer: (output) => {
+    const count = (severity: string): number =>
+      output.problems.filter((problem) => problem.severity === severity).length;
+    const found = [
+      [count("error"), "error"],
+      [count("warning") + (output.hidden?.warning ?? 0), "warning"],
+      [count("info") + (output.hidden?.info ?? 0), "info"],
+    ] as const;
+    const parts = found
+      .filter(([n]) => n > 0)
+      .map(([n, severity]) => (severity === "info" ? `${String(n)} info` : counted(n, severity)));
+    const what = parts.length === 0 ? "found no problem" : `found ${listed(parts)}`;
+    return sentence(
+      output.checkedElements === undefined
+        ? `The workspace check ${what}`
+        : `Checked ${counted(output.checkedElements, "element")} and ${what}`,
+    );
+  },
   run: async (ctx, input): Promise<Output> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const metamodel = await ctx.workspace.get(metamodelState);
@@ -185,9 +211,16 @@ export default defineCommand({
       }
     }
     // Asked on every call: the criteria of records of an older version (SR-028 AK5, of Git) and SR-103.
+    // SR-230 AK1, AK2: only in a full check (`restricted`), at the workspace file (`evidence/gaps.ts`).
     const perCall = [
       ...(await olderCriterionProblems(ctx.workspace)),
       ...(await sinceBaselineOf(ctx.workspace, { layout, metamodel, store })),
+      ...(await verificationGapProblems(ctx.workspace, {
+        layout,
+        metamodel,
+        store,
+        restricted: changed !== undefined,
+      })),
     ];
     for (const problem of perCall.filter(keeps)) {
       findings.push(problem);

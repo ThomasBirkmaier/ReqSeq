@@ -36,6 +36,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "folder": {
         "title": "Folder",
         "$ref": "../common.schema.json#/$defs/outputPath",
@@ -82,6 +83,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["name", "entries"]
+    "required": ["answer", "name", "entries"]
   }
 }

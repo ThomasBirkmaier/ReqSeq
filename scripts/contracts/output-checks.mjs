@@ -35,6 +35,7 @@ export const SHOWS_OUTPUT = new Set([
   "reqif.import",
   "reqif.export",
   "tool.guide",
+  "workspace.init",
 ]);
 
 /** The schema a field's `$ref`s end at. */

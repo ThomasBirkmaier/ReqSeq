@@ -30,6 +30,9 @@ export interface WorkspaceView {
   readonly message: string;
 }
 
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
 /** The title of the window: the workspace's name, then the app's. On macOS the title bar shows it too. */
@@ -40,16 +43,19 @@ export const windowTitle = (view: WorkspaceView | undefined): string =>
 export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.readOnly === true;
 
 /**
- * The modeline and command prompt of a `workspace.status` answer, with the keys of macOS when `mac`. A folder without
- * a workspace (core's `workspace.not-found`, which names the missing `file`) and none one level below gets the way
- * to make one there.
+ * The modeline and command prompt of a `workspace.status` answer, with the keys of macOS when `mac`. A folder for
+ * which core's `workspace.not-found` names creating a workspace as the next step (`details.next`, SR-226 AK1) gets
+ * the way to make one there, by the command's title.
  */
 export const workspaceView = (result: InvokeResult, mac: boolean): WorkspaceView => {
   if (!result.ok) {
     const { code, message, details } = result.error;
-    // Not when core found a workspace one level below (`below`): that folder is the one to open.
+    // Core names the next step (SR-226 AK1): creating a workspace here; not when it found one one level below.
+    const next = details?.["next"];
     const bare =
-      code === "workspace.not-found" && details?.["file"] !== undefined && details["below"] === undefined;
+      code === "workspace.not-found" &&
+      Array.isArray(next) &&
+      next.some((step: unknown) => isRecord(step) && step["command"] === "workspace.init");
     return {
       name: undefined,
       readOnly: false,

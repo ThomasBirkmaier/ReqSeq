@@ -4,8 +4,15 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { confirmHints } from "../../hints/index.js";
+import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "hint.confirm",
+  answer: (output) =>
+    sentence(
+      `Confirmed ${counted(output.confirmed.length, "hint")}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"hint.confirm">> => confirmHints(ctx.workspace, input),
 });

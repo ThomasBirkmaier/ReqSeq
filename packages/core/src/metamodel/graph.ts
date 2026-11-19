@@ -17,7 +17,8 @@
 //   inheritance first, then the relation kinds and then the relation properties, in metamodel order.
 import type { CommandOutput } from "../catalog.js";
 
-type MetamodelGetOutput = CommandOutput<"metamodel.get">;
+// The uses (SR-236 AK8) are no part of the graph: `metamodel.mermaid` draws the metamodel without them.
+type MetamodelGetOutput = Omit<CommandOutput<"metamodel.get">, "uses">;
 
 /** The key of the node of a type. */
 export const typeKey = (type: string): string => `type:${type}`;

@@ -29,6 +29,7 @@ describe("variant diff (SR-044)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Variant VAR-0000c1 adds 1 requirement, replaces 1 and excludes 1.",
         "added:",
         "  SR-0000b2  Warn of storms",
         "replaced:",

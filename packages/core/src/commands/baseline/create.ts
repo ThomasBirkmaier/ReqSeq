@@ -11,7 +11,8 @@
 //   filter name different views, the elements apply in both (SR-101 AK2), which one stored view
 //   cannot say: refused with `input.invalid` (assumption of spec question #440 on SR-050 AK3); the
 //   same view is stored once.
-// - `selection.baseline` is refused: a baseline is not made of another one.
+// - `selection.baseline` is refused: a baseline is not made of another one. So is `selection.output`
+//   (#1873), which is no form the file stores (ADR-0018 "selection").
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createBaseline } from "../../baselines/index.js";
@@ -23,6 +24,7 @@ import { canonicalCondition, resolveSelection } from "../../query/index.js";
 import { invalidAt } from "../../query/context.js";
 import type { View } from "../../variants/index.js";
 import { settingLocation, workspaceLayoutState } from "../../workspace/index.js";
+import { counted, filesNote, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 /** `selection` as the baseline file stores it, for a file in the repository `home` (see the file comment). */
 const storedSelection = (
@@ -71,6 +73,13 @@ const storedSelection = (
 
 export default defineCommand({
   name: "baseline.create",
+  answer: (output) =>
+    sentence(
+      `Created baseline ${output.baseline.name} with ${counted(output.baseline.elements, "element")}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"baseline.create">> => {
     const command = "baseline.create";
     const { workspace } = ctx;
@@ -81,7 +90,14 @@ export default defineCommand({
         "a baseline is not made of another baseline; leave it out",
       );
     }
-    const selected = await resolveSelection(workspace, input.selection, command);
+    if (input.selection.output !== undefined) {
+      throw invalidAt(
+        { command },
+        "selection.output",
+        "a baseline stores its selection, and a command output is no stored selection; leave it out",
+      );
+    }
+    const selected = await resolveSelection(ctx, input.selection, command);
     const layout = await workspace.get(workspaceLayoutState);
     const context: QueryContext = { ...selected, workspace, command, view: undefined };
     return createBaseline(workspace, {

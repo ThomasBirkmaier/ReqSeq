@@ -384,7 +384,11 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
     const opened = await open();
     expect(await statusHints(opened)).toContain(`element.status-not-allowed ${TERM_DRAFT}`);
     const out = await setStatus(opened, ["T-eee002"], null);
-    expect(out).toEqual({ files: [TERM_DRAFT], problems: [] });
+    expect(out).toEqual({
+      answer: "Removed the status of 1 element.",
+      files: [TERM_DRAFT],
+      problems: [],
+    });
     expect(await read(opened, TERM_DRAFT)).toBe(
       "---\nid: 5e5e5e5e-5555-4555-8555-000000eee002\ntype: term\ntitle: Term with a status\n---\n",
     );
@@ -403,7 +407,11 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
       `element.status-not-allowed ${LEFTOVER}`,
     ]);
     const out = await setStatus(opened, ["GT-fff002", "GT-fff003"], null);
-    expect(out).toEqual({ files: [RETIRED, LEFTOVER], problems: [] });
+    expect(out).toEqual({
+      answer: "Removed the status of 2 elements.",
+      files: [RETIRED, LEFTOVER],
+      problems: [],
+    });
     expect(await read(opened, RETIRED)).toBe(RETIRED_TEXT.replace("status: retired\n", ""));
     expect(await read(opened, LEFTOVER)).toBe(LEFTOVER_TEXT.replace("status: draft\n", ""));
     expect((await statusHints(opened)).filter((h) => h.includes("GT-"))).toEqual([]);
@@ -448,9 +456,17 @@ describe("removing a status with element.setStatus and status null (ThomasBirkma
     const empty = "---\nid: 5e5e5e5e-5555-4555-8555-000000eee002\ntype: term\nstatus:\ntitle: Empty\n---\n";
     const opened = await open({ [TERM_DRAFT]: empty });
     const before = await read(opened, TERM);
-    expect(await setStatus(opened, ["T-eee001", "T-eee001"], null)).toEqual({ files: [], problems: [] });
+    expect(await setStatus(opened, ["T-eee001", "T-eee001"], null)).toEqual({
+      answer: "No element changed its status.",
+      files: [],
+      problems: [],
+    });
     expect(await read(opened, TERM)).toBe(before);
-    expect(await setStatus(opened, ["T-eee002"], null)).toEqual({ files: [TERM_DRAFT], problems: [] });
+    expect(await setStatus(opened, ["T-eee002"], null)).toEqual({
+      answer: "Removed the status of 1 element.",
+      files: [TERM_DRAFT],
+      problems: [],
+    });
     expect(await read(opened, TERM_DRAFT)).toBe(empty.replace("status:\n", ""));
   });
 

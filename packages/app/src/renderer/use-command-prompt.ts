@@ -65,7 +65,7 @@ export const useCommandPrompt = (parts: CommandParts): Commands => {
     });
   }, [bridge]);
   // The command prompt: the actions that apply now and the catalog's read and write commands (ThomasBirkmaier/ReqSeq-archive#85);
-  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`). `shown`: the
+  // without a workspace, "Create workspace" of the folder core opened (`catalogItems`). `shown`: the
   // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
   // entries run from the prefix key or the context menu have no command prompt to go back to.
   // While the catalog is read, the prompt opens with the actions and takes keys, and its entries are built

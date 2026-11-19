@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { ANY_KEY, linkLabel, metamodelGraph } from "./graph.js";
 
-type Output = CommandOutput<"metamodel.get">;
+type Output = Omit<CommandOutput<"metamodel.get">, "uses">;
 type Type = Output["types"][number];
 
 const type = (key: string, properties: string[], parent?: string): Type => ({

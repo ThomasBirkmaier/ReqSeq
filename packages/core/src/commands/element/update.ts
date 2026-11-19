@@ -13,9 +13,17 @@ import { updateElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
+import { counted, filesNote, named, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.update",
+  answer: (output) =>
+    sentence(
+      `Updated ${named(output.element)}`,
+      output.affected === 0 ? "" : `${counted(output.affected, "element")} directly affected`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.update">> => {
     const written = await updateElement(
       ctx.workspace,

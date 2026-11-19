@@ -72,6 +72,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "root": {
         "title": "Root element",
         "$ref": "../common.schema.json#/$defs/uuid"
@@ -365,6 +366,7 @@
     },
     "additionalProperties": false,
     "required": [
+      "answer",
       "root",
       "nodes",
       "total",

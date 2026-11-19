@@ -714,7 +714,8 @@ describe("element.list refuses sort keys it cannot apply", () => {
 describe("sortElements", () => {
   it("takes the elements of the store in store order only, as resolveSelection gives them", async () => {
     const { workspace } = await open();
-    const selected = await resolveSelection(workspace, {}, "element.list");
+    const readOutputElements = (): Promise<never> => Promise.reject(new Error("no selection.output here"));
+    const selected = await resolveSelection({ workspace, readOutputElements }, {}, "element.list");
     const context = { ...selected, command: "element.list" } as const;
     const hierarchy = [{ by: "hierarchy", order: "asc" }] as const;
     expect(sortElements(context, selected.elements, hierarchy).elements).toHaveLength(9);

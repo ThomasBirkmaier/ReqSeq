@@ -328,7 +328,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     expect((await search(shortId)).hits[0]?.id).toBe(record.id);
     expect((await search(identifier)).hits[0]?.id).toBe(record.id);
     // The criterion keys are mapped with the index, after a carry, and on the first search of a
-    // one-shot process that loaded the index from the cache (search-index.ts `keyedIn`): recorded.
+    // one-shot process that loaded the index from the cache (search-build.ts `keyedIn`): recorded.
     const started = performance.now();
     const keyed = keyedRecords(store, metamodel, (one) => `${one.repository}\0${one.file}`);
     await recordValue(
@@ -527,7 +527,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       measurements.push(measurement);
     }
     // The table is built with the index, after a carry, and on the first search of a one-shot process
-    // that loaded the index from the cache (search-index.ts `designationsIn`): recorded.
+    // that loaded the index from the cache (search-build.ts `designationsIn`): recorded.
     const started = performance.now();
     const table = designationTable(store.elements, metamodel);
     await recordValue(

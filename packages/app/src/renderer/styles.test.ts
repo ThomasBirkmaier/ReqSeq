@@ -32,6 +32,7 @@ const TOKENS = [
   "badge-outdated",
   "shadow",
   "outside-change",
+  "agent-connected",
 ] as const;
 
 /** The `:root` rule of styles.css: its declarations, and the rest of the file. */
@@ -95,7 +96,7 @@ describe("the style sheet", () => {
 });
 
 describe("the colours of the sheet", () => {
-  it("has the thirteen tokens, each with a light and a dark value", () => {
+  it("has the fourteen tokens, each with a light and a dark value", () => {
     for (const name of TOKENS) {
       const both = values(name);
       expect(both.light, name).not.toBe("");
@@ -549,5 +550,44 @@ describe("the window About ReqSeq (SR-161)", () => {
     const blur = (rule: string): string | undefined =>
       /box-shadow:\s*0 -?\d+px (\d+)px var\(--shadow\);/.exec(rule)?.[1];
     expect(blur(card)).toBe(blur(list));
+  });
+});
+
+describe("the connected agent in the modeline (SR-228)", () => {
+  /** The hue of a hex colour in degrees. */
+  const hue = (hex: string): number => {
+    const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255) as [
+      number,
+      number,
+      number,
+    ];
+    const max = Math.max(r, g, b);
+    const span = max - Math.min(r, g, b);
+    const degrees = max === r ? ((g - b) / span) % 6 : max === g ? (b - r) / span + 2 : (r - g) / span + 4;
+    return (degrees * 60 + 360) % 360;
+  };
+
+  it.each(["light", "dark"] as const)(
+    "[SR-228/AK-zn8v] draws the dot of a connected agent green, by a token, visible on the modeline (%s)",
+    (scheme) => {
+      expect(ruleOf('.modeline .agent[data-agent="connected"] .agent-dot')).toMatch(
+        /background:\s*var\(--agent-connected\);/,
+      );
+      const green = values("agent-connected")[scheme];
+      expect(hue(green)).toBeGreaterThan(90);
+      expect(hue(green)).toBeLessThan(150);
+      // A graphical object next to its words: 3:1 (WCAG 2.2, 1.4.11).
+      expect(ratio(green, values("raised")[scheme])).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it("[SR-228/AK-d19d] writes the agent's words in the colour of the secondary texts, the grey dot too", () => {
+    expect(ruleOf(".modeline .agent")).toMatch(/color:\s*var\(--muted\);/);
+    expect(ruleOf(".modeline .agent-dot")).toMatch(/background:\s*var\(--muted\);/);
+    // A button that looks like the other segments: no frame, the modeline's tone and font.
+    const button = ruleOf(".modeline button.agent");
+    expect(button).toMatch(/border:\s*0;/);
+    expect(button).toMatch(/background:\s*var\(--raised\);/);
+    expect(button).toMatch(/font:\s*inherit;/);
   });
 });

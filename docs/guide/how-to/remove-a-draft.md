@@ -30,6 +30,7 @@ reqseq element create need "See the wind speed"
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -41,6 +42,7 @@ reqseq element create system-requirement "Show the wind speed" --relations deriv
 ```
 
 ```text title="Output"
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -52,6 +54,7 @@ reqseq trace neighbourhood N-7fe707 --direction down
 ```
 
 ```text title="Output"
+The neighbourhood of N-7fe707 has 2 elements.
 N-7fe707  draft  See the wind speed
 children:
   1  SR-c67baa  draft  Show the wind speed  [not expanded]
@@ -66,6 +69,7 @@ reqseq element get N-7fe707
 ```
 
 ```text title="Output"
+N-7fe707 is of type Need with status draft.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
   file: ...need/N-d0e44b7fe707.md
@@ -83,12 +87,14 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 2 elements and found 4 warnings.
 ok: true
 ...
 warning  trace.no-parent  SR-c67baa  ...
+warning  evidence.no-location  ...
 ```
 
-No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way.
+No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last warning says that the workspace file names no evidence location yet, so no test result counts ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 
 ## API
 

@@ -56,6 +56,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "affected": {
         "title": "Affected elements",
         "type": "array",
@@ -168,6 +169,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["affected", "total", "records", "incomplete"]
+    "required": ["answer", "affected", "total", "records", "incomplete"]
   }
 }

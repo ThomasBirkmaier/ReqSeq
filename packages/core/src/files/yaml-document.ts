@@ -13,13 +13,13 @@
 // - The result is parsed again and must hold exactly the intended data, so a write never breaks a
 //   file or changes another value silently (an alias into a changed key, for example).
 import { isDeepStrictEqual } from "node:util";
-import { Document, LineCounter, isMap, isScalar, parseDocument, visit } from "yaml";
+import { Document, LineCounter, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { LineEnding } from "./frontmatter.js";
 import { parseYamlFileBytes } from "./parse.js";
 
-const BOM = "﻿";
-const YAML_OPTIONS = { version: "1.2", schema: "core" } as const;
+export const BOM = "﻿";
+export const YAML_OPTIONS = { version: "1.2", schema: "core" } as const;
 
 /** One edit of a top-level key: `value` sets it (appended when missing), no `value` removes it. */
 export interface YamlKeyEdit {
@@ -41,12 +41,24 @@ export interface YamlEditResult {
   readonly changed: boolean;
 }
 
-/** `data` in the fixed style (see the file comment), ending with a line break. */
-const render = (data: object, eol: LineEnding): string => {
+/**
+ * `data` in the fixed style (see the file comment), ending with a line break. `style` `flow`: every
+ * collection in flow style on one line (an item `yaml-list.ts` adds to a flow list); `block-list`:
+ * `data` is a list rendered in block style whatever its items (an item added to a block list).
+ */
+export const renderYaml = (
+  data: object,
+  eol: LineEnding,
+  style: "fixed" | "flow" | "block-list" = "fixed",
+): string => {
   const document = new Document(data, YAML_OPTIONS);
   visit(document, {
-    Seq: (_, node) => {
-      if (node.items.every((item) => isScalar(item))) {
+    Collection: (_, node, path) => {
+      const root = path.length === 1;
+      if (style === "block-list" && root) {
+        return;
+      }
+      if (style === "flow" || (isSeq(node) && node.items.every((item) => isScalar(item)))) {
         node.flow = true;
       }
     },
@@ -61,7 +73,7 @@ const render = (data: object, eol: LineEnding): string => {
 };
 
 /** A new YAML document with the keys of `data` in their order, in the fixed style, with LF line breaks. */
-export const renderYamlDocument = (data: object): string => render(data, "\n");
+export const renderYamlDocument = (data: object): string => renderYaml(data, "\n");
 
 const faulty = (reason: string): CommandError => new CommandError("file.faulty", `Not written: ${reason}`);
 
@@ -129,7 +141,7 @@ const planEdits = (
   for (const edit of edits) {
     const at = keys.get(edit.key);
     const set = "value" in edit;
-    const rendered = set ? render({ [edit.key]: edit.value }, eol) : "";
+    const rendered = set ? renderYaml({ [edit.key]: edit.value }, eol) : "";
     if (set) {
       expected.set(edit.key, edit.value);
     } else {

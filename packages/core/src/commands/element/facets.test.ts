@@ -461,7 +461,14 @@ describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
 
   it("counts an empty selection as nothing", async () => {
     const out = await facets(await open(), { selection: { where: { type: ["nope"] } } });
-    expect(out).toEqual({ total: 0, types: [], statuses: [], properties: [], incomplete: false });
+    expect(out).toEqual({
+      answer: "The selection has 0 elements of 0 types and 0 statuses.",
+      total: 0,
+      types: [],
+      statuses: [],
+      properties: [],
+      incomplete: false,
+    });
   });
 
   it("refuses a selection by an unknown baseline like element.list", async () => {

@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -122,6 +122,7 @@ describe("hint.confirm (SR-027)", () => {
     const before = read(ws, A_FILE);
     const current = currentOf(hints, DERIVES);
     expect(await confirm(workspace, [DERIVES])).toEqual({
+      answer: "Confirmed 1 hint; 1 file written.",
       confirmed: [DERIVES],
       files: [A_FILE],
       problems: [],
@@ -207,6 +208,7 @@ describe("hint.confirm (SR-027)", () => {
     ]);
     const current = currentOf(hints, derives);
     expect(await confirm(workspace, [derives, link(3)])).toEqual({
+      answer: "Confirmed 2 hints; 1 file written.",
       confirmed: [derives, link(3)],
       files: [A_FILE],
       problems: [],
@@ -237,7 +239,12 @@ describe("hint.confirm (SR-027)", () => {
     });
     const workspace = open(ws.root);
     const id = `relation.outdated/${AT_B}/origin/${N}?version=${OLD}`;
-    expect(await confirm(workspace, [id])).toEqual({ confirmed: [id], files: [B_FILE], problems: [] });
+    expect(await confirm(workspace, [id])).toEqual({
+      answer: "Confirmed 1 hint; 1 file written.",
+      confirmed: [id],
+      files: [B_FILE],
+      problems: [],
+    });
     expect(read(ws, B_FILE)).toContain(`origin: { id: ${N}, version: ${await versionOf(workspace, N)} }\n`);
   });
 
@@ -264,6 +271,7 @@ describe("hint.confirm (SR-027)", () => {
     ]);
     const out = await confirm(workspace, [LINK, refines, DERIVES, VALIDITY, refinesB]);
     expect(out).toEqual({
+      answer: "Confirmed 5 hints; 3 files written.",
       confirmed: [LINK, refines, DERIVES, VALIDITY, refinesB],
       files: [A_FILE, B_FILE, C_FILE],
       problems: [],
@@ -429,6 +437,7 @@ describe("hint.confirm (SR-027)", () => {
     // Confirmed already: nothing to write.
     const again = await confirm(workspace, [DERIVES]);
     expect(again).toEqual({
+      answer: "Confirmed 0 hints; no file written; 1 problem.",
       confirmed: [],
       files: [],
       problems: [expect.objectContaining({ code: "hint.not-found", hintId: DERIVES })],
@@ -495,7 +504,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(before.problems.map((p) => p.hintId)).toContain(DERIVES);
     await confirm(workspace, [DERIVES]);
     const after = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(after.problems.map((p) => p.hintId)).toEqual([VALIDITY, LINK]);
+    expect(withoutVerificationGaps(after.problems).map((p) => p.hintId)).toEqual([VALIDITY, LINK]);
     expect(tree(ws.path(".git"))).toEqual(git);
     // A normal change of the working tree: one line out, one line in, nothing staged.
     expect(await ws.git(["status", "--porcelain"])).toBe(` M ${A_FILE}\n`);
@@ -526,7 +535,12 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     await changeTargets(other);
     const workspace = open(other.root);
     expect(await confirmBy(workspace, { ref: A })).toEqual(expected);
-    expect(expected).toEqual({ confirmed: [VALIDITY, DERIVES, LINK], files: [A_FILE], problems: [] });
+    expect(expected).toEqual({
+      answer: "Confirmed 3 hints; 1 file written.",
+      confirmed: [VALIDITY, DERIVES, LINK],
+      files: [A_FILE],
+      problems: [],
+    });
     expect(read(other, A_FILE)).toBe(read(ws, A_FILE));
     // A changed, so B's relation to A is open now: a hint of another element, not confirmed.
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
@@ -538,6 +552,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     const workspace = open(ws.root);
     // N is the target of A's relation and of its inline reference; the validity names V.
     expect(await confirmBy(workspace, { target: N })).toEqual({
+      answer: "Confirmed 2 hints; 1 file written.",
       confirmed: [DERIVES, LINK],
       files: [A_FILE],
       problems: [],
@@ -555,6 +570,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     await changeTargets(ws);
     const workspace = open(ws.root);
     expect(await confirmBy(workspace, { ref: A, kind: ["element.unknown-property"] })).toEqual({
+      answer: "Confirmed 0 hints; no file written; 1 problem.",
       confirmed: [],
       files: [],
       problems: [
@@ -566,6 +582,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
       ],
     });
     expect(await confirmBy(workspace, { hintIds: [LINK], target: N, kind: ["relation.outdated"] })).toEqual({
+      answer: "Confirmed 2 hints; 1 file written.",
       confirmed: [LINK, DERIVES],
       files: [A_FILE],
       problems: [],
@@ -582,6 +599,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     await changeTargets(ws);
     const workspace = open(ws.root);
     expect(await confirmBy(workspace, { target: N })).toEqual({
+      answer: "Confirmed 2 hints; 1 file written.",
       confirmed: [DERIVES, LINK],
       files: [A_FILE],
       problems: [],
@@ -614,6 +632,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     const respelled = DERIVES.replace("%2F", "%2f");
     expect(respelled).not.toBe(DERIVES);
     expect(await confirmBy(workspace, { hintIds: [respelled], target: N })).toEqual({
+      answer: "Confirmed 2 hints; 1 file written.",
       confirmed: [respelled, LINK],
       files: [A_FILE],
       problems: [],
@@ -717,6 +736,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
     expect(await failure(workspace, { target: "SR-ffffff" })).toMatchObject({ code: "ref.unknown" });
     // Empty hintIds alone select nothing, as an empty selection does: a warning, no failure.
     expect(await confirmBy(workspace, { hintIds: [] })).toEqual({
+      answer: "Confirmed 0 hints; no file written; 1 problem.",
       confirmed: [],
       files: [],
       problems: [
@@ -755,7 +775,12 @@ describe("hint.confirm of an element whose UUID another file has (SR-088, D-058)
     expect(hints.map((h) => h.hintId)).toEqual([id]);
     const current = currentOf(hints, id);
     const out = await confirm(workspace, [id]);
-    expect(out).toEqual({ confirmed: [id], files: [`supplier/${A_FILE}`], problems: [] });
+    expect(out).toEqual({
+      answer: "Confirmed 1 hint; 1 file written.",
+      confirmed: [id],
+      files: [`supplier/${A_FILE}`],
+      problems: [],
+    });
     expect(read(ws, `supplier/${A_FILE}`)).toBe(TWIN.replace(OLD, current));
     expect(read(ws, A_FILE)).toBe(fromFixture(A_FILE));
   });
@@ -770,7 +795,12 @@ describe("hint.confirm of an element whose UUID another file has (SR-088, D-058)
     expect(hints.map((h) => h.hintId)).toContain(id);
     const current = currentOf(hints, id);
     const out = await confirm(workspace, [id]);
-    expect(out).toEqual({ confirmed: [id], files: [COPY], problems: [] });
+    expect(out).toEqual({
+      answer: "Confirmed 1 hint; 1 file written.",
+      confirmed: [id],
+      files: [COPY],
+      problems: [],
+    });
     expect(read(ws, COPY)).toBe(TWIN.replace(OLD, current));
     expect(read(ws, A_FILE)).toBe(fromFixture(A_FILE));
   });

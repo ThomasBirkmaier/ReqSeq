@@ -37,6 +37,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "elements": {
         "title": "Requirements without a passed test",
         "type": "array",
@@ -71,6 +72,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["elements", "total", "view"]
+    "required": ["answer", "elements", "total", "view"]
   }
 }

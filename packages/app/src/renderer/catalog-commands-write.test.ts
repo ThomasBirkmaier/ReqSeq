@@ -92,21 +92,21 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
         entry.whileReadOnly !== "refuse" && entry.name !== "element.update",
       );
     }
-    expect(readOnly).toContain("Initialise workspace");
+    expect(readOnly).toContain("Create workspace");
     expect(readOnly).toContain("Show trace chain");
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
-  it("offers only Initialise workspace while a folder without a workspace is open, and asks its path and name", async () => {
+  it("offers only Create workspace while a folder without a workspace is open, and asks its path and name", async () => {
     const { context, asked, call, dispatched } = setup([], {
       "workspace.init": () => ({ root: "/station", files: ["reqseq-workspace.yaml"] }),
     });
     const bare = { ...context, workspace: false };
-    expect(titles(bare)).toEqual(["Initialise workspace"]);
+    expect(titles(bare)).toEqual(["Create workspace"]);
     start(bare, "workspace.init");
     (await last(asked)).text?.(".");
     const name = await last(asked);
-    expect(name.label).toBe("Initialise workspace . · name:");
+    expect(name.label).toBe("Create workspace . · name:");
     name.text?.("Station");
     await flush();
     expect(call).toHaveBeenLastCalledWith("workspace.init", { path: ".", name: "Station" });

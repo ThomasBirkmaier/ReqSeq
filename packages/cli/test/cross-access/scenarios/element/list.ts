@@ -153,6 +153,29 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-224/AK-v2bx]",
+    name: "a selection by the output of a command: every element it affects, not only the page its input names",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      selection: { output: { command: "trace.affected", input: { ref: "N-0000a1", offset: 1, limit: 1 } } },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[] } }
+      ).output;
+      expect(elements.map((e) => e.shortId)).toEqual(["SR-0000b1", "SR-0000b2", "SR-0000b3", "SR-0000e1"]);
+    },
+  },
+  {
+    name: "a selection by the output of a command that lists no elements: refused, nothing run (#1873)",
+    fixture: EXPORT,
+    root: "system",
+    input: { selection: { output: { command: "workspace.listFolder", input: { path: "/" } } } },
+    expect: "error",
+  },
+  {
     name: "with the verification of the rows: status and progress ring as the graph's nodes (SR-137)",
     fixture: { fixture: "SR-136/graph", git: true },
     input: { withVerification: true },

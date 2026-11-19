@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { checkCatalog, contextOf, SUMMARY_WORDS } from "./catalog-checks.mjs";
+import { checkCatalog, removesDefinition, contextOf, SUMMARY_WORDS } from "./catalog-checks.mjs";
 
 const input = {
   type: "object",
@@ -49,6 +49,8 @@ const command = (name, title, args = ALL, schema = input) => ({
   input: described(schema),
 });
 const check = (...commands) => checkCatalog({ commands });
+/** The answer every output names (SR-224 AK1). */
+const ANSWER = { $ref: "../common.schema.json#/$defs/answer" };
 
 describe("catalog checks (titles and argument sources, SR-108)", () => {
   it("accepts the product catalog", () => {
@@ -68,6 +70,36 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       'schemas/commands/test.one.json: title "Remove it": elements are superseded, never deleted (D-045)',
     ]);
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
+  });
+
+  it("a metamodel.remove* write command of SR-236 may say remove, never delete (ADR-0002 rule 5)", () => {
+    const remover = (name, title, more = {}) => ({
+      ...command(name, title),
+      effect: "write-files",
+      implements: ["SR-236", "SR-237"],
+      ...more,
+    });
+    expect(removesDefinition(remover("metamodel.removeType", "Remove type"))).toBe(true);
+    expect(check(remover("metamodel.removeType", "Remove type"))).toEqual([]);
+    const refused = (name, title) =>
+      `schemas/commands/${name}.json: title "${title}": elements are superseded, never deleted (D-045)`;
+    expect(check(remover("metamodel.removeType", "Delete type"))).toEqual([
+      refused("metamodel.removeType", "Delete type"),
+    ]);
+    expect(check(remover("metamodel.removeType", "Remove type and elements!"))).toEqual([
+      refused("metamodel.removeType", "Remove type and elements!"),
+    ]);
+    expect(check(remover("element.removeType", "Remove type"))).toEqual([
+      refused("element.removeType", "Remove type"),
+    ]);
+    expect(removesDefinition(remover("metamodel.deleteType", "Remove type"))).toBe(false);
+    expect(removesDefinition(remover("metamodel.removeType", "Remove type", { effect: "read" }))).toBe(false);
+    expect(
+      removesDefinition(remover("metamodel.removeType", "Remove type", { implements: ["SR-237"] })),
+    ).toBe(false);
+    expect(
+      removesDefinition({ ...remover("metamodel.removeType", "Remove type"), implements: undefined }),
+    ).toBe(false);
   });
 
   it("a deletes entry may say delete, only as a write command of perspective or filter with confirm false by default (SR-217 AK5)", () => {
@@ -482,6 +514,7 @@ describe("catalog checks (jsonLines, #319)", () => {
     "lines.schema.json": {
       type: "object",
       properties: {
+        answer: ANSWER,
         version: { const: 1 },
         names: { type: "array", items: { type: "string" } },
         rows: { type: "array", items: { $ref: "#/$defs/row" } },
@@ -492,7 +525,10 @@ describe("catalog checks (jsonLines, #319)", () => {
       },
     },
   };
-  const withLines = (jsonLines, output = { type: "object", $ref: "../lines.schema.json" }) => ({
+  const withLines = (
+    jsonLines,
+    output = { type: "object", required: ["answer"], $ref: "../lines.schema.json" },
+  ) => ({
     ...command("test.one", "One", [], { type: "object" }),
     output,
     jsonLines,
@@ -502,7 +538,8 @@ describe("catalog checks (jsonLines, #319)", () => {
   it("accepts items that are a top-level array and fields that are top-level values", () => {
     const inline = {
       type: "object",
-      properties: { mark: { const: 1 }, rows: { type: "array", items: { type: "object" } } },
+      properties: { answer: ANSWER, mark: { const: 1 }, rows: { type: "array", items: { type: "object" } } },
+      required: ["answer"],
     };
     expect(lines({ items: "rows", fields: [] })).toEqual([]);
     expect(lines({ items: "rows", fields: ["mark"] }, inline)).toEqual([]);
@@ -531,8 +568,13 @@ describe("catalog checks (jsonLines, #319)", () => {
 describe("catalog checks (textOutput, SR-151 AK4)", () => {
   const output = {
     type: "object",
-    properties: { text: { type: "string" }, loose: { type: "string" }, count: { type: "integer" } },
-    required: ["text", "count"],
+    properties: {
+      answer: ANSWER,
+      text: { type: "string" },
+      loose: { type: "string" },
+      count: { type: "integer" },
+    },
+    required: ["answer", "text", "count"],
   };
   const text = (textOutput) =>
     checkCatalog({
@@ -547,5 +589,25 @@ describe("catalog checks (textOutput, SR-151 AK4)", () => {
           `schemas/commands/test.one.json: textOutput: "${field}" is not a required top-level string of the output`,
       ),
     );
+  });
+});
+
+describe("catalog checks (answer, SR-224 AK1)", () => {
+  const answer = (output) =>
+    checkCatalog({ commands: [{ ...command("test.one", "One", [], { type: "object" }), output }] });
+  const refused = [
+    'schemas/commands/test.one.json: output: no required top-level "answer" that is a $ref to common.schema.json#/$defs/answer (SR-224 AK1)',
+  ];
+
+  it("accepts a required answer that names the answer definition", () => {
+    expect(answer({ type: "object", properties: { answer: ANSWER }, required: ["answer"] })).toEqual([]);
+  });
+
+  it("refuses an output without the answer, with it optional, or with a schema of its own", () => {
+    expect(answer({ type: "object", properties: {} })).toEqual(refused);
+    expect(answer({ type: "object", properties: { answer: ANSWER } })).toEqual(refused);
+    expect(
+      answer({ type: "object", properties: { answer: { type: "string" } }, required: ["answer"] }),
+    ).toEqual(refused);
   });
 });

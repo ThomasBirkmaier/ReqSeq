@@ -64,6 +64,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 0 elements and found no problem.
 ok: true
 checkedElements: 0
 No problems.

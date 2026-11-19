@@ -34,9 +34,16 @@ import {
   viewRuleIn,
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "variant.diff",
+  answer: (output, input) =>
+    sentence(
+      `Variant ${input.variant} adds ${counted(output.added.length, "requirement")}, replaces ${String(output.replaced.length)} and excludes ${String(output.excluded.length)}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"variant.diff">> => {
     const command = "variant.diff";
     const metamodel = await ctx.workspace.get(metamodelState);

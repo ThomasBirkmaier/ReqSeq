@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -67,8 +67,15 @@ const NO_STATUS = hint(
   4,
 );
 
-const check = async (opened: Opened): Promise<CommandOutput<"workspace.check">> =>
-  (await invoke("workspace.check", {}, { workspace: opened.workspace })) as CommandOutput<"workspace.check">;
+/** `workspace.check` without the gaps of verification (SR-230 AK1, AK2). */
+const check = async (opened: Opened): Promise<CommandOutput<"workspace.check">> => {
+  const out = (await invoke(
+    "workspace.check",
+    {},
+    { workspace: opened.workspace },
+  )) as CommandOutput<"workspace.check">;
+  return { ...out, problems: withoutVerificationGaps(out.problems) };
+};
 
 const statusHints = async (opened: Opened): Promise<readonly Problem[]> =>
   (await check(opened)).problems.filter((p) => CODES.has(p.code));

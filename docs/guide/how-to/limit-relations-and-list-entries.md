@@ -66,6 +66,7 @@ reqseq hint list --kind relation.too-few
 ```
 
 ```text title="Output"
+Found 1 open hint.
 kinds:
   - code: relation.too-few
     count: 1

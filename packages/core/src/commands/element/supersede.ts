@@ -4,9 +4,16 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { supersedeElement } from "../../model/index.js";
+import { filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.supersede",
+  answer: (output, input) =>
+    sentence(
+      `Superseded ${input.ref} with status ${input.status}${input.successor === undefined ? "" : `, succeeded by ${input.successor}`}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.supersede">> => {
     const { files, problems } = await supersedeElement(ctx.workspace, input);
     return { files: [...files], problems: [...problems] };

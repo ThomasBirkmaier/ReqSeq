@@ -61,6 +61,9 @@ export const FILES: Readonly<Record<string, string>> = {
   "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
+  // A type no element has and nothing names, so metamodel.removeType writes.
+  "metamodel/zz-scratch.yaml":
+    "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n",
   "new/layout.png": "an image",
   "filters/wind.yaml": "reqseq-filter: 1\nname: Wind\nwhere: { status: [draft] }\n",
   "filters/gusts.yaml": "reqseq-filter: 1\nname: Gusts\nwhere: { status: [approved] }\n",
@@ -269,6 +272,15 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     {},
   ],
   "hint.list": [{}, { kind: ["relation.outdated"], type: ["need"] }, { ref: OBSOLETE }, { ref: "SR-ffffff" }],
+  "metamodel.addType": [
+    { name: "Risk", prefix: "RI" },
+    { name: "Risk", prefix: "RX" },
+  ],
+  "metamodel.changeType": [
+    { type: "decision", name: "Design decision" },
+    { type: "decision", prefix: "SR" },
+  ],
+  "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
   "metamodel.get": [{}, { extra: true }],
   "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [

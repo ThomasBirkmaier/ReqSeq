@@ -31,8 +31,15 @@ const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard
 const RELATION_REMOVE = "relation.remove";
 /** Delete the file of a saved filter or perspective, which is no element (D-056, SR-217 AK5). */
 const SAVED_DELETES: readonly string[] = ["filter.delete", "perspective.delete"];
+/**
+ * Remove a definition from the metamodel files, refused while any element uses it (SR-236 AK7); no
+ * element and no element file changes (ADR-0002 rule 5).
+ */
+const DEFINITION_REMOVES: readonly string[] = ["metamodel.removeType"];
 /** Every delete-like command of the catalog, in catalog order; none of them deletes an element. */
-const ALLOWED = catalogNames.filter((name) => name === RELATION_REMOVE || SAVED_DELETES.includes(name));
+const ALLOWED = catalogNames.filter(
+  (name) => name === RELATION_REMOVE || SAVED_DELETES.includes(name) || DEFINITION_REMOVES.includes(name),
+);
 
 const ELEMENT_FILE = "requirements/SR-6328cee88fb3.md";
 const REF = "SR-e88fb3";
@@ -109,7 +116,9 @@ describe("the command line offers no delete (SR-099)", () => {
       expect([group, offered.sort()]).toEqual([group, actions.sort()]);
       const deletes = offered.filter((action) => DELETE_LIKE.test(action));
       expect(deletes.map((action) => `${group}.${action}`)).toEqual(
-        ALLOWED.filter((name) => name.startsWith(`${group}.`)),
+        ALLOWED.filter((name) => name.startsWith(`${group}.`)).map((name) =>
+          name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`),
+        ),
       );
     }
   });

@@ -1,8 +1,9 @@
 {
   "name": "workspace.init",
-  "title": "Initialise workspace",
+  "title": "Create workspace",
   "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
   "effect": "write-files",
+  "showsOutput": true,
   "whileReadOnly": "allow",
   "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
   "stage": 1,
@@ -45,12 +46,21 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "files": {
         "title": "Files",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/outputPath",
           "description": "Written file, relative to the workspace root."
+        }
+      },
+      "next": {
+        "title": "Next steps",
+        "description": "What to do next in the new workspace (SR-226 AK2): connect an AI agent, then create an element.",
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/nextStep"
         }
       },
       "problems": {
@@ -63,6 +73,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["files"]
+    "required": ["answer", "files", "next"]
   }
 }

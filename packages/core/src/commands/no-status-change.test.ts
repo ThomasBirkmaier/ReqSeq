@@ -195,11 +195,13 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z" },
       { workspace },
     );
-    // The two needs give a kind warning each (#843), which changes no status either.
+    // The two needs give a kind warning each (#843), and the file lies in no evidence location (SR-230
+    // AK3): warnings, which change no status either.
     expect(out).toMatchObject({ testCases: 4, withoutReference: 0, unknown: [], files: [RAW_JUNIT] });
     expect((out as { problems: { code: string }[] }).problems.map((p) => p.code)).toEqual([
       "evidence.kind-mismatch",
       "evidence.kind-mismatch",
+      "evidence.outside-location",
     ]);
     expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/reqseq:version/g)).toHaveLength(4);
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
@@ -209,7 +211,11 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     const { fixture, workspace } = await open(true);
     const commit = await fixture.head();
     const out = await runtime.invoke("data.store", { folder: "out" }, { workspace });
-    expect(out).toEqual({ files: [`out/${commit}.jsonl`], problems: [] });
+    expect(out).toEqual({
+      answer: `Stored the data in out/${commit}.jsonl.`,
+      files: [`out/${commit}.jsonl`],
+      problems: [],
+    });
     // One element per line (#319).
     const lines = fs
       .readFileSync(fixture.path(`out/${commit}.jsonl`), "utf8")

@@ -35,10 +35,13 @@ export const relationKindsState = defineWorkspaceState(
   { dependsOn: [metamodelState] },
 );
 
-/** The output of metamodel.get on `workspace` (see the file comment). */
+/**
+ * The output of metamodel.get on `workspace` (see the file comment), without the uses of the
+ * definitions, which the command counts over the element store (SR-236 AK8, model block).
+ */
 export const metamodelOutput = async (
   workspace: Workspace,
-): Promise<CommandOutput<"metamodel.get"> & { readonly problems: readonly Problem[] }> => {
+): Promise<Omit<CommandOutput<"metamodel.get">, "uses"> & { readonly problems: readonly Problem[] }> => {
   const metamodel = await workspace.get(metamodelState);
   return {
     types: metamodel.effectiveTypes,
