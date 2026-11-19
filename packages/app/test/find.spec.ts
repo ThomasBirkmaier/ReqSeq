@@ -46,7 +46,7 @@ test.describe("find and replace in the element buffer", () => {
     await running.window.keyboard.press("Home");
   });
   test.afterEach(async ({}, info) => {
-    if (info.status !== info.expectedStatus || info.title.startsWith("diagnostic")) {
+    if (info.status !== info.expectedStatus) {
       console.log((globalThis as { dbg?: string[] }).dbg?.join("\n"));
     }
     await running.close();
@@ -123,7 +123,7 @@ test.describe("find and replace in the element buffer", () => {
     await expectSaved("Quarz eins, Quarz zwei, Quarz drei\n");
   });
 
-  for (let run = 1; run <= 40; run += 1) {
+  for (let run = 1; run <= 300; run += 1) {
     test(`diagnostic #1940 run ${String(run)}: one undo after Replace all`, async () => {
       const { window } = running;
       await replaceAll(window);
