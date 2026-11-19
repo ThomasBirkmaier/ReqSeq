@@ -35,6 +35,7 @@ import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
 import { catalogItems, startBuilder, withExplanations } from "./catalog-commands.js";
+import { useConnectAgent } from "./use-connect-agent.js";
 import type { Draft } from "./drafts.js";
 import type { DraftStorage, KeptDrafts } from "./draft-store.js";
 import { takeDrafts, useWindowDrafts } from "./draft-store.js";
@@ -814,6 +815,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const catalog = useRef<readonly CommandListing[]>([]);
   // "New perspective" and "New saved filter" (SR-219): set below, where the command prompt it goes back to is.
   const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
+  // "Connect AI agent" (SR-227, SR-225 AK7): set below, where the command prompt it goes back to is.
+  const connector = useRef<(from: ActionContext) => void>(() => undefined);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
@@ -904,6 +907,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     catalog: () => catalog.current,
     build: (command, from) => {
       builder.current(command, from);
+    },
+    connectAgent: (from) => {
+      connector.current(from);
     },
     follow: follow.controls,
     // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
@@ -1154,6 +1160,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       catalog.current,
     );
   };
+  connector.current = useConnectAgent(
+    {
+      catalog: () => catalog.current,
+      catalogRead: () => catalogRead.current,
+      catalogContext: (from) => ({
+        ...from,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands(true));
+        },
+      }),
+      latest: () => latest.current,
+    },
+    context.workspace,
+  );
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
     mac: context.mac,
@@ -1618,6 +1639,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch,
     onData,
     onEcho: setEcho,
+    onCopy: copy,
     onDrawn,
     gate,
     ready,
