@@ -123,8 +123,8 @@ export interface BulkUpdateResult {
   readonly applied: boolean;
   /** The elements whose file the change rewrites (rewrote), in store order. */
   readonly affected: readonly NamedElement[];
-  /** Elements that allow the property and have the result already. */
-  readonly unchanged: number;
+  /** Elements that allow the property and have the result already, in store order (SR-224 AK4). */
+  readonly unchanged: readonly (NamedElement & { readonly repository: string })[];
   readonly skipped: readonly SkippedElement[];
   /** Written files relative to the workspace root, `/` as separator; empty in a preview. */
   readonly files: readonly string[];
@@ -621,14 +621,14 @@ export const bulkUpdateElements = async (
     readonly named: NamedElement;
     readonly parsed: ParsedContent | undefined;
   })[] = [];
-  let unchanged = 0;
+  const unchanged: (NamedElement & { readonly repository: string })[] = [];
   for (const { record, type, repository, current } of await readAllUnchanged(workspace, layout, candidates)) {
     const edits = await editsFor(plan, current.record, current.file.snapshot.sha256);
     const { bytes, changed, parsed } = editElementFile(current.file, { edits, keyOrder: type.properties });
     if (changed) {
       planned.push({ repository, current, bytes, named: named(record), parsed });
     } else {
-      unchanged += 1;
+      unchanged.push({ ...named(record), repository: record.repository });
     }
   }
   const fingerprint = planFingerprint(

@@ -85,8 +85,26 @@ export const coverageRules = (
   };
 };
 
-/** The coverage of `elements` (in selection order) by `rules`: one level per level type with a counted element. */
-export const coverageOf = (elements: readonly ElementRecord[], rules: CoverageRules): CoverageLevel[] => {
+/** One level of the coverage with the records behind each number, as `coverageRecordsOf` gives it. */
+export interface CoverageRecordLevel {
+  readonly type: string;
+  /** Whether evidence counts for the type (`withEvidence` and `withoutEvidence` are empty otherwise). */
+  readonly evidence: boolean;
+  readonly withChildren: readonly ElementRecord[];
+  readonly withoutChildren: readonly ElementRecord[];
+  readonly withEvidence: readonly ElementRecord[];
+  readonly withoutEvidence: readonly ElementRecord[];
+}
+
+/**
+ * The coverage of `elements` (in selection order) by `rules`, with the records behind every number: one level
+ * per level type with a counted element. `coverageOf` and the elements of a number of `evidence.coverage`
+ * (SR-224 AK4) both come from it, so a record of an SR-088 duplicate is counted and listed alike.
+ */
+export const coverageRecordsOf = (
+  elements: readonly ElementRecord[],
+  rules: CoverageRules,
+): CoverageRecordLevel[] => {
   const byType = new Map<string, ElementRecord[]>();
   for (const element of elements) {
     if (rules.levels.has(element.type) && rules.counts(element)) {
@@ -95,33 +113,41 @@ export const coverageOf = (elements: readonly ElementRecord[], rules: CoverageRu
       byType.set(element.type, own);
     }
   }
-  const levels: CoverageLevel[] = [];
+  const levels: CoverageRecordLevel[] = [];
   for (const [type, evidence] of rules.levels) {
     const counted = byType.get(type);
     if (counted === undefined) {
       continue;
     }
-    const withChildren: string[] = [];
-    const withoutChildren: string[] = [];
-    const withEvidence: string[] = [];
-    const withoutEvidence: string[] = [];
+    const withChildren: ElementRecord[] = [];
+    const withoutChildren: ElementRecord[] = [];
+    const withEvidence: ElementRecord[] = [];
+    const withoutEvidence: ElementRecord[] = [];
     for (const element of counted) {
-      (rules.hasChild(element) ? withChildren : withoutChildren).push(element.id);
+      (rules.hasChild(element) ? withChildren : withoutChildren).push(element);
       if (evidence) {
-        (rules.hasEvidence(element) ? withEvidence : withoutEvidence).push(element.id);
+        (rules.hasEvidence(element) ? withEvidence : withoutEvidence).push(element);
       }
     }
-    levels.push({
-      type,
-      total: counted.length,
-      withChildren: withChildren.length,
-      ...(evidence ? { withEvidence: withEvidence.length } : {}),
-      elements: {
-        withChildren,
-        withoutChildren,
-        ...(evidence ? { withEvidence, withoutEvidence } : {}),
-      },
-    });
+    levels.push({ type, evidence, withChildren, withoutChildren, withEvidence, withoutEvidence });
   }
   return levels;
 };
+
+const ids = (records: readonly ElementRecord[]): string[] => records.map((record) => record.id);
+
+/** The coverage of `elements` (in selection order) by `rules`: one level per level type with a counted element. */
+export const coverageOf = (elements: readonly ElementRecord[], rules: CoverageRules): CoverageLevel[] =>
+  coverageRecordsOf(elements, rules).map((level) => ({
+    type: level.type,
+    total: level.withChildren.length + level.withoutChildren.length,
+    withChildren: level.withChildren.length,
+    ...(level.evidence ? { withEvidence: level.withEvidence.length } : {}),
+    elements: {
+      withChildren: ids(level.withChildren),
+      withoutChildren: ids(level.withoutChildren),
+      ...(level.evidence
+        ? { withEvidence: ids(level.withEvidence), withoutEvidence: ids(level.withoutEvidence) }
+        : {}),
+    },
+  }));

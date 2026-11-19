@@ -19,6 +19,11 @@ import { incomingTo } from "./incoming.js";
 export const directLinks = (index: IncomingIndex, element: ElementRecord): IncomingLink[] =>
   incomingTo(index, element.repository, element.id).filter((link) => link.source !== element);
 
+/** The elements `directLinks` names, each once, in the order of their first link (SR-024 AK2). */
+export const directlyAffected = (index: IncomingIndex, element: ElementRecord): ElementRecord[] => [
+  ...new Set(directLinks(index, element).map((link) => link.source)),
+];
+
 /** The number of elements `directLinks` names, each once (SR-024 AK2). */
 export const directlyAffectedCount = (index: IncomingIndex, element: ElementRecord): number =>
-  new Set(directLinks(index, element).map((link) => link.source)).size;
+  directlyAffected(index, element).length;

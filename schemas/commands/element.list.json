@@ -116,6 +116,7 @@
         }
       },
       "rowVerification": {
+        "x-key": ["id", "repository", "file"],
         "title": "Verification per row",
         "type": "array",
         "description": "Only with `withVerification`: for each row of `elements` (or `partial`), in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3).",
@@ -167,6 +168,7 @@
         }
       },
       "groups": {
+        "x-key": ["value"],
         "title": "Groups",
         "type": "array",
         "description": "Only with `group`, or a perspective that stores one: every group of the whole list in order, also those on other pages; a group without elements is not given. `offset` and `rows` follow from the counts and are given for convenience.",
@@ -185,6 +187,7 @@
         "description": "Only with `group`, or a perspective that stores one: the rows of the grouped list, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when elements are in several groups."
       },
       "total": {
+        "x-elements": "elements",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

@@ -83,7 +83,8 @@ export interface SourceExportInput {
 
 export interface SourceExportPlan {
   readonly file: ReqifWritable;
-  readonly withoutStatement: number;
+  /** With statements: the exported elements without a statement, in the order of the file. */
+  readonly withoutStatement: readonly ElementRecord[];
   readonly problems: readonly Problem[];
 }
 
@@ -513,7 +514,7 @@ export const planSourceExport = (input: SourceExportInput): SourceExportPlan => 
   const refusals = new Map<string, Set<string>>();
   const problems: Problem[] = [];
   const used = new Set<SourceType>();
-  let withoutStatement = 0;
+  const withoutStatement: ElementRecord[] = [];
   const specObjects = input.elements.flatMap((element) => {
     const refuse = (reason: string): void => {
       refusals.set(reason, (refusals.get(reason) ?? new Set<string>()).add(element.shortId));
@@ -525,7 +526,9 @@ export const planSourceExport = (input: SourceExportInput): SourceExportPlan => 
     return types.slice(0, 1).map((t) => {
       used.add(t);
       const { values, without } = objectValues({ input, element, t, refuse, problems });
-      withoutStatement += without ? 1 : 0;
+      if (without) {
+        withoutStatement.push(element.record);
+      }
       return { identifier: element.identifier, lastChange, type: t.identifier, values };
     });
   });

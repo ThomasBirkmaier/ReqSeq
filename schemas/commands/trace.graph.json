@@ -111,6 +111,7 @@
         "$ref": "../common.schema.json#/$defs/uuid"
       },
       "nodes": {
+        "x-key": ["id", "repository", "file"],
         "title": "Nodes",
         "type": "array",
         "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",

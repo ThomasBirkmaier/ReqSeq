@@ -16,6 +16,7 @@
     "properties": {
       "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "baselines": {
+        "x-key": ["repository", "file"],
         "title": "Baselines",
         "type": "array",
         "description": "The valid baselines, in file order (code units of the file name).",
@@ -47,6 +48,7 @@
               "description": "The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise."
             },
             "elements": {
+              "x-elements": "selection",
               "title": "Elements",
               "type": "integer",
               "minimum": 0,

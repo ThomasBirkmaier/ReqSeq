@@ -5,10 +5,12 @@
 // element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
 // local paths of an API or MCP call outside the repositories of the workspace (SR-142). Gives each
 // command `readOutputElements`, which runs another read command for `selection.output` (SR-224 AK5) the same way
-// (`outputElementsReader`).
+// (`outputElementsReader`), and with `selection.output.count` gives the elements one number of its output counts
+// (SR-224 AK4, output-count.ts).
 import type {
   AnswerNames,
   AnyCommand,
+  CommandContext,
   CommandErrorDetails,
   LocalPaths,
   OutputElements,
@@ -28,6 +30,8 @@ import type { InputViolation } from "./input-errors.js";
 import { settledValue } from "./settled.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import { internalError, learnWorkspaceRoots } from "./internal-cause.js";
+import type { CatalogOutputField } from "./output-count.js";
+import { checkedCount, countsAnswer } from "./output-count.js";
 import type { LocalPathField } from "./local-path-fields.js";
 import { localPathFields, localPathUses, replaceLocalPaths } from "./local-path-fields.js";
 import { OPEN_LOCAL_PATHS, appLocalPaths, confinedLocalPaths } from "../workspace/local-paths.js";
@@ -83,6 +87,34 @@ const withHome = (
 const answerNames = (metamodel: Metamodel | undefined): AnswerNames => ({
   type: (key) => (metamodel === undefined ? undefined : findType(metamodel, key)?.name) ?? key,
 });
+
+/**
+ * How `readOutputElements` gets the elements of `name` (ADR-0002 rule 4): the answer, or the number
+ * `counted` names (`runtime/output-count.ts`). Every product command with such a field has the hook it
+ * needs (commands/registry.test.ts); a command without it is a bug, `internal`.
+ */
+const elementsOf = (
+  name: string,
+  command: AnyCommand,
+  fields: readonly CatalogOutputField[],
+  counted: ReturnType<typeof checkedCount> | undefined,
+): ((ctx: CommandContext, input: never) => Promise<OutputElements>) => {
+  const { outputElements, countedElements } = command;
+  if (counted === undefined || countsAnswer(counted.field, fields)) {
+    if (outputElements === undefined) {
+      throw new Error(
+        `command ${name} has an output field marked x-elements "answer", but no outputElements`,
+      );
+    }
+    return outputElements;
+  }
+  if (countedElements === undefined) {
+    throw new Error(
+      `command ${name} has an output field marked x-elements ${JSON.stringify(counted.elements)}, but no countedElements`,
+    );
+  }
+  return (ctx, input) => countedElements(ctx, input, counted.count);
+};
 
 /**
  * `output` with the answer of `command` first (SR-224 AK1), or as it is for a command without
@@ -329,7 +361,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
    */
   const outputElementsReader =
     (ctx: InvokeContext, signal: AbortSignal, caller: string, depth: number): OutputElementsReader =>
-    async (name: string, input: unknown): Promise<OutputElements> => {
+    async (name, input, asked): Promise<OutputElements> => {
       if (depth >= MAX_OUTPUT_DEPTH) {
         throw outputInvalid(
           caller,
@@ -353,7 +385,10 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
           `${name} writes files; selection.output runs read commands only`,
         );
       }
-      if (entry.outputFields?.some((field) => field.elements === "answer") !== true) {
+      const fields = entry.outputFields ?? [];
+      // A number of the output (SR-224 AK4), else its answer (AK5).
+      const counted = asked === undefined ? undefined : checkedCount(caller, name, fields, asked);
+      if (counted === undefined && !fields.some((field) => field.elements === "answer")) {
         throw outputInvalid(
           caller,
           "selection.output.command",
@@ -365,26 +400,18 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
           command: name,
         });
       }
-      // Every product command with such a field has it (commands/registry.test.ts); else a bug, `internal`.
-      const { outputElements } = command;
-      if (outputElements === undefined) {
-        throw new Error(
-          `command ${name} has an output field marked x-elements "answer", but no outputElements`,
-        );
-      }
+      const resolve = elementsOf(name, command, fields, counted);
       signal.throwIfAborted();
       try {
         const rule = pathRuleOf(ctx, name, checkedInput(name, input));
         await rule.checkPaths();
-        return await outputElements(
-          {
-            workspace: ctx.workspace,
-            signal,
-            localPaths: rule.localPaths,
-            readOutputElements: outputElementsReader(ctx, signal, name, depth + 1),
-          },
-          rule.input as never,
-        );
+        const inner = {
+          workspace: ctx.workspace,
+          signal,
+          localPaths: rule.localPaths,
+          readOutputElements: outputElementsReader(ctx, signal, name, depth + 1),
+        };
+        return await resolve(inner, rule.input as never);
       } catch (error) {
         throw error instanceof CommandError ? innerError(error) : error;
       }

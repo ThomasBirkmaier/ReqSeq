@@ -85,7 +85,19 @@ describe("baseline.create", () => {
     expect(out).toEqual({
       answer: "Created baseline Release 2 with 2 elements; 1 file written.",
       files: [file],
-      baseline: { name: "Release 2", file, repository: "system", date: "2026-11-02T13:00:00Z", elements: 2 },
+      baseline: {
+        name: "Release 2",
+        file,
+        repository: "system",
+        date: "2026-11-02T13:00:00Z",
+        elements: 2,
+        // The elements the number counts, in the order of the file (SR-224 AK4).
+        entries: ["b1", "b2"].map((tail) => ({
+          id: `${ID}${tail}`,
+          shortId: `SR-0000${tail}`,
+          repository: "system",
+        })),
+      },
     });
     const text = [
       "reqseq-baseline: 1",

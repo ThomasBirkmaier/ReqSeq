@@ -118,6 +118,7 @@
             "description": "The workspace names of its repositories, in the order of the workspace file."
           },
           "elements": {
+            "x-elements": "selection",
             "title": "Elements",
             "type": "integer",
             "minimum": 0,

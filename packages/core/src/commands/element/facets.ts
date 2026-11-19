@@ -10,11 +10,18 @@
 // (every field) cannot select. The fields are checked as element.search checks them, against the
 // selection's metamodel and then the index's; the hits are compared by repository and file, as the
 // `text` condition compares them, so an index carried to a newer store restricts the selection's records.
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { ElementFacetsInput } from "../../generated/types.js";
 import type { Selected } from "../../query/index.js";
-import { facetsOf, matchingKeys, recordKey, resolveSelection, searchIndex } from "../../query/index.js";
+import {
+  facetElements,
+  facetsOf,
+  matchingKeys,
+  recordKey,
+  resolveSelection,
+  searchIndex,
+} from "../../query/index.js";
 import { searchFieldsOf } from "../../query/search-fields.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { counted, incompleteNote, sentence } from "../answer.js";
@@ -35,6 +42,12 @@ const searched = async (
   return { ...selected, elements: selected.elements.filter((element) => keys.has(recordKey(element))) };
 };
 
+/** The elements of the facets of `input`: its selection, with `search` its hits (see the file comment). */
+const selectedOf = async (ctx: CommandContext, input: ElementFacetsInput): Promise<Selected> => {
+  const resolved = await resolveSelection(ctx, input.selection ?? {}, "element.facets");
+  return input.search === undefined ? resolved : searched(ctx.workspace, resolved, input.search);
+};
+
 export default defineCommand({
   name: "element.facets",
   answer: (output) =>
@@ -43,13 +56,16 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"element.facets">> => {
-    const resolved = await resolveSelection(ctx, input.selection ?? {}, "element.facets");
-    const selected =
-      input.search === undefined ? resolved : await searched(ctx.workspace, resolved, input.search);
+    const selected = await selectedOf(ctx, input);
     return {
       total: selected.elements.length,
       ...facetsOf(selected, input.maxValues),
       incomplete: selected.incomplete,
     };
+  },
+  // The elements of each number, counted as `facetsOf` counts them (SR-224 AK4).
+  countedElements: async (ctx, input, count) => {
+    const selected = await selectedOf(ctx, input);
+    return { elements: facetElements(selected, input.maxValues, count), incomplete: selected.incomplete };
   },
 });

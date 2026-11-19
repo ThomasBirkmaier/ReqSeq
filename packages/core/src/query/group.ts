@@ -53,6 +53,8 @@ export interface Grouping {
   readonly heads: readonly GroupHead[];
   /** The indexes into `heads` of the groups of `element`, each once, ascending. */
   readonly groupsOf: (element: ElementRecord) => readonly number[];
+  /** Whether `element` is one the last group counts as `unavailable` (SR-224 AK4). */
+  readonly unavailable: (element: ElementRecord) => boolean;
 }
 
 /** A distinct value while the groups are found: its heading and how it ranks. */
@@ -217,7 +219,7 @@ export const groupingOf = (selected: Selected, command: CommandName, by: string)
   const read = readerOf(selected, command, by);
   const distinct = new Map<string, Slot>();
   const slotsOf = new Map<ElementRecord, Slot[]>();
-  let unavailable = 0;
+  const unavailable = new Set<ElementRecord>();
   for (const element of selected.elements) {
     const slots: Slot[] = [];
     // Set by the reader's callback, so an object: a `let` would read as never set here.
@@ -240,7 +242,7 @@ export const groupingOf = (selected: Selected, command: CommandName, by: string)
     if (slots.length > 0) {
       slotsOf.set(element, slots);
     } else if (seen.unavailable) {
-      unavailable += 1;
+      unavailable.add(element);
     }
   }
   const ordered = [...distinct.values()].sort((a, b) => compareSortValues(a.found.rank, b.found.rank));
@@ -252,7 +254,11 @@ export const groupingOf = (selected: Selected, command: CommandName, by: string)
   );
   const none = [ordered.length];
   return {
-    heads: [...ordered.map((slot) => slot.found.head), unavailable === 0 ? {} : { unavailable }],
+    heads: [
+      ...ordered.map((slot) => slot.found.head),
+      unavailable.size === 0 ? {} : { unavailable: unavailable.size },
+    ],
     groupsOf: (element) => groups.get(element) ?? none,
+    unavailable: (element) => unavailable.has(element),
   };
 };
