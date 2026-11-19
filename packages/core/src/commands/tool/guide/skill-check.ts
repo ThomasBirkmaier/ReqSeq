@@ -12,7 +12,7 @@
 // The file is read on every call (its place is outside the files the workspace states keep), with no input
 // path, so the result is the same in every access (SR-080 AK2): the place of D-079 is fixed and only read,
 // also when it lies in a Git root above the workspace folder, where API and MCP do not write (AK8).
-// Assumption of question #2001: a file that differs only in its version line has the same content.
+// "Content apart from the version and the check value that follows from it (AK7)" (SR-229 AK10): a file that differs only there is not reported.
 import type { Problem } from "../../../catalog.js";
 import { CommandError } from "../../../catalog.js";
 import type { CommandCatalog } from "../../../generated/types.js";
