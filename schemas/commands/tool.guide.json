@@ -4,6 +4,7 @@
   "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.",
   "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one.",
   "effect": "read",
+  "loadUpfront": true,
   "textOutput": "guide",
   "stage": 3,
   "implements": ["SR-229"],
