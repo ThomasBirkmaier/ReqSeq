@@ -2786,6 +2786,10 @@
             }
           ]
         },
+        "conditionStub": {
+          "type": "object",
+          "description": "Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`."
+        },
         "keys": {
           "type": "array",
           "minItems": 1,
