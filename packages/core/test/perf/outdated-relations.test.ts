@@ -22,6 +22,7 @@ import {
   noParentHints,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -107,7 +108,8 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(out.problems)).toEqual([]);
     expect(noParentHints(out.problems)).toHaveLength(orphans);
-    const outdated = withoutNoParent(out.problems);
+    // And the gaps of verification at the workspace file (SR-230 AK1, AK2).
+    const outdated = withoutVerificationGaps(withoutNoParent(out.problems));
     expect(outdated.filter((p) => p.code !== "relation.outdated")).toEqual([]);
     expect(outdated).toHaveLength(expected);
     expect(outdated.every((p) => p.targetId !== undefined && changed.has(p.targetId))).toBe(true);
@@ -130,11 +132,13 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       async () => (await invoke("hint.list", { limit: 5000 }, { workspace })) as CommandOutput<"hint.list">,
       { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
     );
-    expect(all.total).toBe(check.problems.length);
+    // A hint names an element: the gaps of verification at the workspace file are none (SR-230 AK1, AK2).
+    const hints = withoutVerificationGaps(check.problems);
+    expect(all.total).toBe(hints.length);
     // hint.list adds the titles of the element and of the target (elementTitle, targetTitle, #1592); the
     // rest is as workspace.check gives it.
     expect(all.hints.map(({ elementTitle: _element, targetTitle: _target, ...hint }) => hint)).toEqual(
-      check.problems.slice(0, 5000),
+      hints.slice(0, 5000),
     );
     const titles = new Map(tree.elements.map((e) => [e.id, e.title]));
     expect(all.hints.every((h) => h.elementTitle === titles.get(h.elementId ?? ""))).toBe(true);

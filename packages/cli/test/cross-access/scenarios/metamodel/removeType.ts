@@ -2,7 +2,7 @@
 // On SR-004/one-repository with a second metamodel file that has a type nothing uses or names.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
-import { ONE_REPOSITORY } from "../../fixtures.js";
+import { KEPT_DEFINITIONS, ONE_REPOSITORY } from "../../fixtures.js";
 import { scenariosOf } from "../../scenario.js";
 
 /** A type no element has and no definition names, with a property only it has. */
@@ -35,5 +35,22 @@ scenariosOf("metamodel.removeType", [
     tag: "[SR-236/AK-rtcn]",
     input: { type: "system-requirement" },
     expect: "error",
+  },
+  {
+    name: "keeps each definition an element of another type still holds and names their numbers through every access (SR-237 AK5, SR-236 AK12)",
+    tag: "[SR-237/AK-b0j6]",
+    fixture: KEPT_DEFINITIONS,
+    input: { type: "note" },
+    expect: "output",
+    check: (results) => {
+      for (const { outcome, changed } of Object.values(results)) {
+        expect(changed).toEqual(["metamodel/standard-model.yaml"]);
+        const { kept } = (outcome as { output: { kept: readonly { key: string; count: number }[] } }).output;
+        expect(kept.map(({ key, count }) => [key, count])).toEqual([
+          ["remark", 1],
+          ["noted", 1],
+        ]);
+      }
+    },
   },
 ]);

@@ -8,7 +8,9 @@
 //   holds its key, also with an empty value, in any status (SR-236 AK7): `lostUses` on the metamodel
 //   afterwards, as metamodel.changeType checks a new parent, so a subtype that lists the key itself
 //   keeps it and its elements do not count.
-// - When no type has the property itself afterwards, its definition goes too (SR-238 AK5).
+// - When no type has the property itself afterwards, its definition goes too (SR-238 AK5), unless
+//   an element of any type still holds its key: then it stays and `kept` names it with the number
+//   of those elements (`keptDefinitions`).
 // - Saved filters, perspectives and mapping files that name a removed definition are listed, not changed.
 // - While the store cannot read an element file, which may hold the key, the removal is refused
 //   (`file.faulty`, assumption of #1990).
@@ -28,6 +30,8 @@ import {
   lostUses,
   mentioningFiles,
   elementStoreState,
+  keptDefinitions,
+  keptNote,
   refuseMissingRepositories,
   refuseUnreadableFiles,
   refuseUses,
@@ -53,6 +57,7 @@ export default defineCommand({
         output.definitionRemoved ? " and from the metamodel" : ""
       }`,
       output.inheritedFrom === undefined ? "" : `it keeps it from its parent type ${output.inheritedFrom}`,
+      keptNote(output.kept),
       filesNote(output.files),
       output.mentions.length === 0
         ? ""
@@ -101,12 +106,17 @@ export default defineCommand({
           edit: (yaml) => removeListItem(yaml, file.path, ["types", index, list], lists[list]),
         }));
       // Required keys are properties too (metamodel.schema.json).
-      const kept = metamodel.types.some(
+      const had = metamodel.types.some(
         (t) =>
           t.key !== input.type &&
           (t.properties?.includes(input.property) === true || t.required?.includes(input.property) === true),
       );
-      if (!kept) {
+      const { properties, kept } = keptDefinitions(store, shortIds, {
+        properties: had ? [] : [input.property],
+        statuses: [],
+      });
+      const definitionRemoved = properties.length > 0;
+      if (definitionRemoved) {
         edits.push({
           file: propertyPlace.file,
           edit: (yaml) => removeListItem(yaml, propertyPlace.file.path, ["properties"], propertyPlace.index),
@@ -114,7 +124,7 @@ export default defineCommand({
       }
       return {
         bytes: editedFiles(edits),
-        result: { definitionRemoved: !kept, from },
+        result: { definitionRemoved, kept, from },
         check: (after: Metamodel): void => {
           refuseUses(
             `Property ${input.property} stays in type ${input.type} while elements hold it`,
@@ -128,6 +138,7 @@ export default defineCommand({
       property: input.property,
       definitionRemoved: change.result.definitionRemoved,
       ...(change.result.from === undefined ? {} : { inheritedFrom: change.result.from }),
+      kept: [...change.result.kept],
       mentions: change.result.definitionRemoved
         ? [...(await mentioningFiles(layout, new Set([input.property])))]
         : [],

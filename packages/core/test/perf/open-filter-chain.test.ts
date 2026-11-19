@@ -17,6 +17,7 @@ import {
   thresholdMessage,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import fs from "node:fs/promises";
@@ -585,7 +586,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // Besides the generated requirements that got no derivation (SR-022 AK6, #659).
     expect(malformedNoParentHints(checked.problems)).toEqual([]);
     expect(noParentHints(checked.problems)).toHaveLength(withoutParent(tree.files));
-    const outdated = withoutNoParent(checked.problems);
+    // And the gaps of verification at the workspace file (SR-230 AK1, AK2).
+    const outdated = withoutVerificationGaps(withoutNoParent(checked.problems));
     expect(outdated.length).toBeGreaterThan(0);
     // Exactly the relations and references to it (17 = 10 + 7 in the generated workspace).
     const index = incomingFor(current, await current.get(elementStoreState), metamodel);
