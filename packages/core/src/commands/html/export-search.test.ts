@@ -82,7 +82,10 @@ describe("html.export: search (SR-231 AK7)", () => {
     const elementPage = await read(`elements/${WIND}.html`);
     expect(elementPage).toContain('<reqseq-search class="astro-');
     expect(elementPage).toContain('<script src="../assets/reqseq.js"></script>');
-    expect(await read("assets/reqseq.js")).toContain("function searchScript(");
+    const script = await read("assets/reqseq.js");
+    expect(script).toContain("function searchScript(");
+    // ASCII only, so a server's charset cannot change the script.
+    expect(script).toMatch(/^[\0-\x7f]*$/u);
     const body = /<body[^>]*>([^]*)<\/body>/u.exec(elementPage)?.[1] ?? "";
     const page = searchPage({ html: body });
     page.key("k", { ctrlKey: true });

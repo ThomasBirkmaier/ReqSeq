@@ -20,6 +20,7 @@ const ENTRIES: SearchEntry[] = [
   entry({ id: "00000000-0000-4000-8000-000000b2b2b2", identifier: "SR-1", title: "Show wind speed" }),
   entry({ id: "00000000-0000-4000-8000-000000c3c3c3", title: "Prüfung der Böen", type: "Need" }),
   entry({ id: "00000000-0000-4000-8000-000000d4d4d4" }),
+  entry({ id: "00000000-0000-4000-8000-000000e5e5e5", title: "Straße sperren" }),
 ];
 
 const INDEX = searchIndexScript(ENTRIES);
@@ -52,6 +53,7 @@ describe("searchIndexScript (SR-231 AK7)", () => {
         ["SR-1", "SR-b2b2b2", "Show wind speed", 0, "00000000-0000-4000-8000-000000b2b2b2"],
         ["", "SR-c3c3c3", "Prüfung der Böen", 1, "00000000-0000-4000-8000-000000c3c3c3"],
         ["", "SR-d4d4d4", "", 0, "00000000-0000-4000-8000-000000d4d4d4"],
+        ["", "SR-e5e5e5", "Stra\u00dfe sperren", 0, "00000000-0000-4000-8000-000000e5e5e5"],
       ],
     });
     expect(SEARCH_INDEX).toBe("assets/search-index.js");
@@ -111,6 +113,9 @@ describe("the search field (SR-231 AK7)", () => {
     page.type("d4d4");
     await settle();
     expect(page.hits().map((h) => h.text)).toEqual(["SR-d4d4d4 | System Requirement"]);
+    page.type("STRASSE");
+    await settle();
+    expect(page.hits().map((h) => h.text)).toEqual(["SR-e5e5e5 Straße sperren | System Requirement"]);
     page.type("wind\ngusts");
     await settle();
     expect(page.hits()).toEqual([]);
@@ -162,6 +167,19 @@ describe("the search field (SR-231 AK7)", () => {
     expect(page.hits()).toHaveLength(100);
     expect(page.window.document.activeElement.getAttribute("href")).toBe(page.hits()[50]?.href);
     expect(more.textContent).toBe("Show 20 more");
+    const arrow = (key: string) => {
+      page.window.document.activeElement.dispatchEvent(
+        new page.window.KeyboardEvent("keydown", { key, bubbles: true }),
+      );
+    };
+    more.focus();
+    arrow("ArrowDown");
+    expect(page.window.document.activeElement).toBe(more);
+    arrow("ArrowUp");
+    expect(page.window.document.activeElement.getAttribute("href")).toBe(page.hits()[99]?.href);
+    button(page, "button.close").focus();
+    arrow("ArrowUp");
+    expect(page.window.document.activeElement).toBe(button(page, "button.close"));
     more.click();
     expect(page.hits()).toHaveLength(120);
     expect(more.hidden).toBe(true);

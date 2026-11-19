@@ -15,6 +15,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
 import type { ElementRecord, ShortIds } from "../model/index.js";
 import { identifierField } from "../model/index.js";
+import { asciiOnly } from "./page-script.js";
 
 /** The index file, relative to the export folder. */
 export const SEARCH_INDEX = "assets/search-index.js";
@@ -52,14 +53,6 @@ export const searchEntries = (
       id: record.id,
     };
   });
-
-/** Each UTF-16 unit beyond ASCII as `\uXXXX`. */
-const asciiOnly = (json: string): string =>
-  json.replace(/[^\0-\x7f]/gu, (character) =>
-    [...Array(character.length).keys()]
-      .map((i) => `\\u${character.charCodeAt(i).toString(16).padStart(4, "0")}`)
-      .join(""),
-  );
 
 /** `assets/search-index.js` for `entries` (see the file comment). */
 export const searchIndexScript = (entries: readonly SearchEntry[]): string => {
@@ -173,7 +166,7 @@ export function searchScript(settings: SearchScriptSettings): void {
   input.placeholder = label;
   input.setAttribute("aria-label", label);
   if (/Mac|iPhone|iPad/u.test(navigator.platform)) {
-    kbd.textContent = "⌘ K";
+    kbd.textContent = "\u2318 K";
     open.setAttribute("aria-keyshortcuts", "Meta+K");
   }
   field.hidden = false;
@@ -186,6 +179,8 @@ export function searchScript(settings: SearchScriptSettings): void {
     readonly type: string;
     readonly id: string;
   }
+  // Lower case, and ß as ss, so that the upper-case spelling SS finds it.
+  const fold = (text: string): string => text.toLowerCase().replaceAll("\u00df", "ss");
   // One load at a time; a failed one is forgotten, so the next search tries again.
   let loading: Promise<Item[]> | undefined;
   const load = (): Promise<Item[]> => {
@@ -200,7 +195,7 @@ export function searchScript(settings: SearchScriptSettings): void {
           }
           resolve(
             index.elements.map(([identifier, shortId, title, type, id]) => ({
-              hay: `${identifier}\n${shortId}\n${title}`.toLowerCase(),
+              hay: fold(`${identifier}\n${shortId}\n${title}`),
               identifier,
               shortId,
               title,
@@ -225,9 +220,7 @@ export function searchScript(settings: SearchScriptSettings): void {
   };
 
   const wordsOf = (query: string): string[] =>
-    query
-      .normalize("NFC")
-      .toLowerCase()
+    fold(query.normalize("NFC"))
       .split(/\s+/u)
       .filter((word) => word !== "");
   const pageOf = (item: Item): string => `${root}elements/${item.id}.html`;
@@ -238,7 +231,7 @@ export function searchScript(settings: SearchScriptSettings): void {
     const name = document.createElement("strong");
     name.textContent = [item.identifier || item.shortId, item.title].filter((t) => t !== "").join(" ");
     const facts = document.createElement("span");
-    facts.textContent = [item.type, ...(item.identifier === "" ? [] : [item.shortId])].join(" · ");
+    facts.textContent = [item.type, ...(item.identifier === "" ? [] : [item.shortId])].join(" \u00b7 ");
     link.append(name, facts);
     entry.append(link);
     return entry;
@@ -269,7 +262,7 @@ export function searchScript(settings: SearchScriptSettings): void {
     const rest: Item[] = [];
     for (const item of words.length === 0 ? [] : items) {
       if (words.every((word) => item.hay.includes(word))) {
-        const exact = item.identifier.toLowerCase() === whole || item.shortId.toLowerCase() === whole;
+        const exact = fold(item.identifier) === whole || fold(item.shortId) === whole;
         (exact ? first : rest).push(item);
       }
     }
@@ -350,19 +343,15 @@ export function searchScript(settings: SearchScriptSettings): void {
       () => undefined,
     );
   });
-  // Down from the box goes to the first hit, Up and Down move between hits, Up from the first goes back.
+  // Up and Down move from the box through the hits to Show more and back; elsewhere the keys keep their meaning.
   dialog.addEventListener("keydown", (event) => {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+    const stops = [input, ...hits.querySelectorAll("a"), ...(more.hidden ? [] : [more])];
+    const at = stops.indexOf(document.activeElement as Element);
+    if ((event.key !== "ArrowDown" && event.key !== "ArrowUp") || at < 0) {
       return;
     }
-    const links = [...hits.querySelectorAll("a")];
-    const at = links.indexOf(document.activeElement as Element);
-    const next = event.key === "ArrowDown" ? at + 1 : at - 1;
-    if (next < 0) {
-      input.focus();
-    } else {
-      links[next]?.focus();
-    }
+    const next = event.key === "ArrowDown" ? Math.min(at + 1, stops.length - 1) : Math.max(at - 1, 0);
+    stops[next]?.focus();
     event.preventDefault();
   });
 }
