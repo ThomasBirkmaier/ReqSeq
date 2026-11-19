@@ -34,10 +34,10 @@ derives-from:
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 refines:
   - { id: 39cd1be4-4927-4c92-ace2-2ea5eb9fde56, version: n2:05176b3d9f1a47cc, title: In der App zwischen Perspektiven wechseln }
-  - { id: 30bb227d-2fc6-40d0-8450-2318af473702, version: n2:331154a0f00ccd27, title: Argumente mit festen Werten in der Befehlszeile aus den Treffern wählen }
+  - { id: 30bb227d-2fc6-40d0-8450-2318af473702, version: n2:0ff87a9bd44b4435, title: Argumente mit festen Werten in der Befehlszeile aus den Treffern wählen }
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
 ---
 
-Die App muss einen gespeicherten Filter aus der gezeigten [Liste von Elementen](reqseq:a6eba69f-df0b-490c-8bc2-a22659e9d1f7?version=n2:7efa122135fa30f9) mit nur einem Namen speichern lassen, wie eine [Perspektive](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:3080b7f3f9c464c9) (SR-214), und Perspektiven und gespeicherte Filter ohne Liste in der [Befehlszeile](reqseq:8014c1d5-3d19-4c70-8d12-5696db492f77?version=n2:a3b284c17b1349e8) Schritt für Schritt neu aufbauen lassen; dabei speichert sie erst nach dem letzten Schritt.
+Die App muss einen gespeicherten Filter aus der gezeigten [Liste von Elementen](reqseq:a6eba69f-df0b-490c-8bc2-a22659e9d1f7?version=n2:0c815c2205ba5724) mit nur einem Namen speichern lassen, wie eine [Perspektive](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:3080b7f3f9c464c9) (SR-214), und Perspektiven und gespeicherte Filter ohne Liste in der [Befehlszeile](reqseq:8014c1d5-3d19-4c70-8d12-5696db492f77?version=n2:a3b284c17b1349e8) Schritt für Schritt neu aufbauen lassen; dabei speichert sie erst nach dem letzten Schritt.

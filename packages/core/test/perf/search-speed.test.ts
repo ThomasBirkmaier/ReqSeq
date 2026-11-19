@@ -58,6 +58,7 @@ import type { Metamodel } from "../../src/metamodel/index.js";
 import { findType, metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../../src/model/index.js";
 import { elementStoreState } from "../../src/model/index.js";
+import { keyedRecords } from "../../src/query/search-criteria.js";
 import { designationTable } from "../../src/query/search-designations.js";
 import { WORD_FIELDS, scoringOf } from "../../src/query/search-index.js";
 import { documentKeys, scoreWords, searchOptionsOf } from "../../src/query/search-scoring.js";
@@ -239,6 +240,16 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     const title = String(record.data["title"]);
     const shortId = `${String(findType(metamodel, record.type)?.prefix)}-${record.id.slice(-6)}`;
     const identifier = String(record.data["spec-id"]);
+    // A requirement from the middle on, for its criteria (SR-222): its first criterion key is k001.
+    const requirement = store.elements
+      .slice(Math.floor(ELEMENTS / 2))
+      .find(
+        (one) => Array.isArray(one.data["acceptance-criteria"]) && typeof one.data["spec-id"] === "string",
+      );
+    if (requirement === undefined) {
+      throw new Error("no requirement");
+    }
+    const requirementShortId = `${String(findType(metamodel, requirement.type)?.prefix)}-${requirement.id.slice(-6)}`;
     const terms: readonly (readonly [string, string])[] = [
       ...["s", "st", "sta", "stat", "stati", "statio", "station"].map(
         (term) => ["typing a word of every text", term] as const,
@@ -265,6 +276,12 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ["an identifier", identifier],
       ["a short ID", shortId],
       ["the tail of a UUID", record.id.slice(-8)],
+      ["the criterion key of the first criterion of every requirement (SR-222 AK1)", "k001"],
+      [
+        "a criterion reference by identifier (SR-222 AK2)",
+        `[${String(requirement.data["spec-id"])}/AK-k001]`,
+      ],
+      ["a criterion reference by short ID (SR-222 AK2)", `${requirementShortId}/AK-k001`],
     ];
     return { terms, record };
   };
@@ -310,6 +327,19 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     expect((await search(title)).hits[0]?.id).toBe(record.id);
     expect((await search(shortId)).hits[0]?.id).toBe(record.id);
     expect((await search(identifier)).hits[0]?.id).toBe(record.id);
+    // The criterion keys are mapped with the index, after a carry, and on the first search of a
+    // one-shot process that loaded the index from the cache (search-index.ts `keyedIn`): recorded.
+    const started = performance.now();
+    const keyed = keyedRecords(store, metamodel, (one) => `${one.repository}\0${one.file}`);
+    await recordValue(
+      "criterion keys of 50,000 elements, k001 in every requirement (SR-222)",
+      performance.now() - started,
+      {
+        basis:
+          "SR-098 AK1 (recorded: built with the index, after a carry, or by the first search of a one-shot process)",
+      },
+    );
+    expect(keyed.get("k001")?.length).toBeGreaterThan(10_000);
     const slowest = Math.max(...singles);
     await recordValue(`element.search: slowest single run of ${String(singles.length)}`, slowest, {
       basis: "SR-098 AK1 (recorded: single runs include GC and scheduler pauses)",

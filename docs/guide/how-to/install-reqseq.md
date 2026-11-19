@@ -71,17 +71,7 @@ Nothing more to install: `reqseq serve api` starts the local API in a workspace,
 
 ## MCP
 
-An MCP client starts the server with `reqseq mcp`. In its MCP configuration, give the absolute path of the launcher:
-
-```json
-{ "command": "/Applications/ReqSeq.app/Contents/Resources/bin/reqseq", "args": ["mcp", "--workspace", "/path/to/workspace"] }
-```
-
-On Linux it is the absolute path of `~/ReqSeq/bin/reqseq`. On Windows, clients that start programs without a shell cannot start `reqseq.cmd`; give the app's runtime:
-
-```json
-{ "command": "C:\\Tools\\ReqSeq\\ReqSeq.exe", "args": ["C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js", "mcp", "--workspace", "C:\\path\\to\\workspace"], "env": { "ELECTRON_RUN_AS_NODE": "1" } }
-```
+An agent's client starts the MCP server with `reqseq mcp` and the workspace. `reqseq workspace connect-agent` prints that setup for each client: see [Connect an AI agent](/how-to/connect-an-ai-agent/).
 
 ## Update or remove
 

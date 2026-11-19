@@ -235,6 +235,14 @@ problems:
     title: Enriched file in no evidence location
     cause: "`evidence.enrichJunit` enriched a JUnit file that lies in no evidence location of the workspace file, or that the evidence walk does not read there (a name not ending in `.xml` in lower case, an ignore glob, a link, a nested repository). Its results do not count until the walk reads it. The file is enriched all the same, and the exit code stays as it is."
     remedy: Move the file, with a name ending in `.xml`, into a folder under `evidence` of the workspace file that the walk reads, or enrich it again with such an `output`.
+  evidence.no-location:
+    title: No evidence location
+    cause: The workspace file names no evidence location (`evidence`), while the workspace has at least one requirement. No test result or evidence record can count, so every verification status stays open. A full workspace check reports it while the metamodel is valid; a check restricted to changed elements does not.
+    remedy: Add an entry under `evidence` in the workspace file, the folder `evidence` of the main repository, and write the evidence records and enriched JUnit files there.
+  evidence.open-requirements:
+    title: Open verification status
+    cause: Requirements whose status is not marked invalid and whose verification method is test, or that have no verification method, have the verification status open in the core. Without a property with the meaning `verification-method` every such requirement counts. One info gives their number and the `element list` call that lists them. A full workspace check reports it while the metamodel is valid and an evidence location is named; a check restricted to changed elements does not.
+    remedy: Run the call the message gives to see them, then write their tests and record the results in an evidence location. With `--fail-on info` the check fails while any are left.
   baseline.invalid:
     title: Invalid baseline
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
@@ -323,6 +331,10 @@ problems:
     title: Source model not saved
     cause: "`reqif.import` read the mapping from outside the mapping folder, where ReqSeq writes no mapping file, so the source's types, attributes and datatypes of this delivery were not saved in it (`source-model`). The elements were imported."
     remedy: Move the mapping file into the mapping folder of the workspace (`mappings`, default `reqif`) and import through it there.
+  reqif.source-value-chosen:
+    title: First source value written
+    cause: "`reqif.export` with `sourceModel` writes a choice into an enumeration of the source whose mapping (`values`) gives several values of the source for it; it wrote the first in the mapping's order. The message names the requirement and the attribute."
+    remedy: If another value is meant, map only that one to the choice in the mapping's `values`.
 
 errors:
   input.invalid:
@@ -391,6 +403,15 @@ errors:
   file.folder-missing:
     cause: The folder to write to does not exist or is in a repository that is not on this machine. Outside the workspace's repositories ReqSeq creates no folders.
     remedy: Create the folder, or clone the repository.
+  agent.app-translocated:
+    cause: On macOS the app runs from a temporary place the system gives a downloaded app that was not moved, so a setup for an agent's client would stop working after this start.
+    remedy: Move ReqSeq.app to /Applications, start it from there, and run Connect AI agent again.
+  agent.path-unsupported:
+    cause: The path of ReqSeq or of the workspace holds a character that the command for this client cannot pass safely on this system, for example `&` or `%` for VS Code on Windows.
+    remedy: Move ReqSeq or the workspace to a path without the character the message names, or choose the client `other` and add its JSON block to the client's configuration by hand.
+  agent.cli-missing:
+    cause: The command line of this installation (its `bin.js`) is missing, for example in a checkout that was not built, so there is no program an agent's client could start.
+    remedy: Build the command line (`pnpm build` in a checkout), or use a delivery of ReqSeq.
   command.not-implemented:
     cause: The command is in the catalog, but this ReqSeq version does not implement it yet.
     remedy: Use a later ReqSeq version.

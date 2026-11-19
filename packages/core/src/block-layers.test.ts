@@ -30,7 +30,7 @@ type Unit =
   | "runtime state";
 
 /** Modules every block may import, and the public entry point, which sits above all blocks. */
-type Shared = "catalog" | "product" | "build-info" | "generated" | "index";
+type Shared = "catalog" | "product" | "build-info" | "installation" | "agent-setup" | "generated" | "index";
 
 /** The layers from the bottom (README section 5). Every import points to a lower layer. */
 const LAYERS: readonly (readonly Unit[])[] = [
@@ -142,6 +142,8 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   catalog: { values: ["generated"], types: ["runtime state"] },
   product: { values: ["generated"] },
   "build-info": { values: [] },
+  installation: { values: [] },
+  "agent-setup": { values: [], types: ["installation"] },
   generated: { values: [] },
 };
 
@@ -149,9 +151,11 @@ const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set([
   "catalog",
   "product",
   "build-info",
+  "installation",
+  "agent-setup",
   "generated",
 ]);
-const RUNTIME_ENTRY = new Set(["invoke", "warm", "instructions", "element-short-ids", "local-path-fields"]);
+const RUNTIME_ENTRY = new Set(["invoke", "warm", "element-short-ids", "local-path-fields"]);
 const RUNTIME_STATE = new Set(["workspace", "settled", "contracts", "input-errors", "internal-cause"]);
 const BLOCK_FOLDERS: ReadonlySet<string> = new Set(
   LAYERS.flat().filter((unit) => unit !== "runtime entry" && unit !== "runtime state"),
@@ -164,7 +168,12 @@ function unitOf(module: string): { readonly unit: Unit | Shared } | { readonly e
   const [first = "", second] = module.split("/");
   if (second === undefined) {
     const name = first.replace(/\.(?:ts|js)$/, "");
-    return name === "index" || name === "catalog" || name === "product" || name === "build-info"
+    return name === "index" ||
+      name === "catalog" ||
+      name === "product" ||
+      name === "build-info" ||
+      name === "installation" ||
+      name === "agent-setup"
       ? { unit: name }
       : { error: "unknown root module" };
   }

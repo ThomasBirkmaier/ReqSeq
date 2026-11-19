@@ -38,7 +38,7 @@ export interface ActivityAccess {
 }
 
 /**
- * `agent-<process>.json` in the cache folder of the working copy (ADR-0008): one MCP server process of the copy whose client is connected or was connected last (SR-228). The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.
+ * `agent-<process>.json` in the cache folder of the working copy (ADR-0008): one MCP server process of the copy whose client is connected or was connected last (SR-228). The MCP server writes it when the client is connected: when it has written the successful answer to the client's `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.
  * Schema: `schemas/agent-connection.schema.json#`.
  */
 export interface AgentConnectionFile {
@@ -47,14 +47,14 @@ export interface AgentConnectionFile {
   /** The MCP server process: its process ID and 8 random hex digits, new for every connection. The file name is `agent-<process>.json`; a file whose name does not match is ignored. */
   readonly process: string;
   readonly client: AgentConnectionClient;
-  /** When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived. */
+  /** When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived. */
   readonly since: IsoDateTime;
   /** When the connection ended cleanly (the client closed standard input, the server was stopped); null while it runs, and after a crash. */
   readonly ended: IsoDateTime | null;
 }
 
 /**
- * The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.
+ * The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control, format and surrogate characters other than the joiners removed, trimmed, cut at a character boundary to at most 40 characters (grapheme clusters, so an accented letter or a composed emoji counts as one and is not split) and at most 400 UTF-16 code units. null when it gave none or nothing is left. A longer name in the file is cut when it is read.
  * Schema: `schemas/agent-connection.schema.json#/$defs/client`.
  */
 export type AgentConnectionClient = string | null;
@@ -438,6 +438,8 @@ export type ProblemCode =
   | "evidence.invalid-criterion-name"
   | "evidence.counts-in-no-view"
   | "evidence.outside-location"
+  | "evidence.no-location"
+  | "evidence.open-requirements"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -459,7 +461,8 @@ export type ProblemCode =
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
-  | "reqif.source-model-unsaved";
+  | "reqif.source-model-unsaved"
+  | "reqif.source-value-chosen";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -490,6 +493,9 @@ export interface CommandErrorObject {
     | "file.read-only"
     | "file.not-regular"
     | "file.folder-missing"
+    | "agent.app-translocated"
+    | "agent.path-unsupported"
+    | "agent.cli-missing"
     | "command.not-implemented"
     | "internal";
   /** What went wrong, for people. */
@@ -1205,7 +1211,7 @@ export interface FilterFile {
 }
 
 /**
- * Name of a saved filter, unique in the workspace ignoring case (spec-frage ThomasBirkmaier/ReqSeq-archive#363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.
+ * Name of a saved filter, unique in the workspace ignoring case (spec question ThomasBirkmaier/ReqSeq-archive#363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.
  * Schema: `schemas/filter.schema.json#/$defs/name`.
  */
 export type FilterName = string;
@@ -1268,11 +1274,17 @@ export type FilterCondition =
     readonly source: string;
   }
   | {
-    /** Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs (SR-221), quoted words as a phrase (SR-068 AK4), and a designation also through the other designations of its element (SR-220). A query without a word matches none. */
+    /** Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and, exact with 4+ letters and no digit, inside words (SR-221), quoted words as a phrase (SR-068 AK4), a designation through its element's other ones (SR-220), criterion keys and references. A query without a word matches none. */
     readonly text: string;
   }
   | FilterPropertyCondition
   | FilterRelationCondition;
+
+/**
+ * Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`.
+ * Schema: `schemas/filter.schema.json#/$defs/conditionStub`.
+ */
+export type FilterConditionStub = Readonly<Record<string, unknown>>;
 
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];
@@ -1913,6 +1925,8 @@ export interface CommandCatalog {
     readonly whileReadOnlyReason?: string;
     /** The command deletes a file, the file of a perspective or saved filter, which is no element (D-056, SR-217 AK5): only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint` (ADR-0002 rule 5, ADR-0009). */
     readonly deletes?: "saved-file";
+    /** The command is on the everyday path of an agent: the MCP server marks its tool with `_meta["anthropic/alwaysLoad"]: true`, so a client that defers tools loads this one with its schema at once (ADR-0009, #1926). Left out on every other command; other accesses ignore it. */
+    readonly loadUpfront?: true;
     /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
@@ -2158,7 +2172,7 @@ export interface WorkspaceAgentsOutput {
   /** Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count. */
   readonly connected: readonly {
     readonly client: AgentConnectionClient;
-    /** When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived. */
+    /** When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived. */
     readonly since: IsoDateTime;
   }[];
   /** The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows. */
@@ -2226,6 +2240,57 @@ export interface WorkspaceListFolderOutput {
   readonly problem?: "missing" | "unreadable" | "invalid";
   /** The folder has more than 50,000 matching entries; folders and links come first. */
   readonly truncated?: true;
+}
+
+/**
+ * Input of `workspace.connectAgent` as `run` gets it: validated, properties with a `default` filled in. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Schema: `schemas/commands/workspace.connectAgent.json input`.
+ */
+export interface WorkspaceConnectAgentInput {
+  /** The client of the agent. Left out, the output lists the clients. */
+  readonly client?: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+}
+
+/**
+ * Output of `workspace.connectAgent`. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Schema: `schemas/commands/workspace.connectAgent.json output`.
+ */
+export interface WorkspaceConnectAgentOutput {
+  /** What to do with the setup, in one sentence; without a client, which clients there are. */
+  readonly answer: string;
+  /** The clients to choose from, in this order. Only without a client. */
+  readonly clients?: readonly {
+    /** The value of `client`. */
+    readonly value: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+    /** The name of the client. */
+    readonly title: string;
+  }[];
+  /** The chosen client. */
+  readonly client?: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
+  /** The program, arguments and environment the setup gives the client. Only with a client. */
+  readonly server?: {
+    /** The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node). */
+    readonly command: string;
+    /** Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace. */
+    readonly args: readonly string[];
+    /** Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty. */
+    readonly env: Readonly<Record<string, string>>;
+  };
+  /** What the user pastes. Only with a client. */
+  readonly setup?: {
+    /** `command`: a command for the terminal; `json`: a JSON block for a configuration file. */
+    readonly form: "command" | "json";
+    /** The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`. */
+    readonly shell?: "sh" | "powershell";
+    /** The command or the JSON block to paste, with the paths filled in. */
+    readonly text: string;
+    /** The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it. */
+    readonly file?: string;
+  };
+  /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
+  readonly valid?: string;
+  /** How to go on after pasting the setup. Only with a client. */
+  readonly next?: string;
 }
 
 /**
@@ -2297,6 +2362,24 @@ export interface ToolInfoOutput {
     /** The address of the releases, as text only: ReqSeq never opens it. */
     readonly releases: string;
   };
+}
+
+/**
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Schema: `schemas/commands/tool.guide.json input`.
+ */
+export interface ToolGuideInput {
+  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. */
+  readonly names: "cli" | "mcp";
+}
+
+/**
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Schema: `schemas/commands/tool.guide.json output`.
+ */
+export interface ToolGuideOutput {
+  /** The agent guide as Markdown, LF line endings and a final newline. */
+  readonly guide: string;
 }
 
 /**
@@ -3521,11 +3604,11 @@ export interface HintConfirmOutput {
  * Schema: `schemas/commands/element.search.json input`.
  */
 export interface ElementSearchInput {
-  /** Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '"Filter list"'`. A query without a word finds nothing. */
+  /** Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A criterion key, also after `AK-`, also matches each criterion with it, exactly, where the acceptance criteria are searched (SR-222 AK1). A criterion reference of a test name, with or without brackets, matches each requirement its identifier or short ID names with exactly one criterion with the key, as an ID match (with `id`) and in that criterion; its words still match as an ID's, but not in these requirements; one that fits none is plain words (SR-222 AK2). Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier, UUID, criterion key or criterion reference still matches as without quotes. In a shell: `reqseq element search '"Filter list"'`. A query without a word finds nothing. */
   readonly query: string;
   /** Search only within it (SR-068 AK3): a view, a filter, a package or IDs. */
   readonly selection?: ElementSelection;
-  /** Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word, SR-221) or through another designation (SR-220 AK1), and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields. */
+  /** Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier, and a criterion reference, SR-222 AK2), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values, the acceptance criteria property also by the criterion keys of its criteria, SR-222 AK1); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word, SR-221) or through another designation (SR-220 AK1), and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields. */
   readonly fields?: readonly SearchFieldKey[];
   /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
   readonly group?: GroupKey;
@@ -3555,15 +3638,15 @@ export interface ElementSearchOutput {
     readonly status?: string;
     /** Empty without a title. */
     readonly title: string;
-    /** Relevance of the matched words, rounded to 6 significant digits; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score. */
+    /** Relevance of the matched words, rounded to 6 significant digits; a criterion key found in a criterion (SR-222) adds that of one word found once, in as many elements as carry the key; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score. */
     readonly score: number;
-    /** What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`. */
+    /** What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`, and so is a criterion key or reference found in a criterion (SR-222). */
     readonly fields: readonly ("title" | "text" | "properties" | "id")[];
-    /** The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a phrase or another designation of two or more words. */
+    /** The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a criterion key found in a criterion, a criterion reference in the requirements it fits (SR-222), a phrase or another designation of two or more words. */
     readonly terms: readonly string[];
     /** The matched words in `title` (SR-174 AK4), of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole (SR-174 AK6, SR-220 AK3); only when a word, phrase or designation was found in the title. */
     readonly titleMarks?: TextMarks;
-    /** Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole and none of its words elsewhere (SR-174 AK6, SR-220 AK3). A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
+    /** Where a word was found and one line around the first match in reading order (SR-174), or the start of an acceptance criterion's text where only its key was found (SR-222 AK3), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole and none of its words elsewhere (SR-174 AK6, SR-220 AK3). A list item or a nested value is a value of its own; a choice shows its name; an acceptance criterion is named in `criterion`. None when no visible word and no criterion key matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it. */
     readonly snippet?:
       | {
         readonly field: "text";
@@ -3576,6 +3659,15 @@ export interface ElementSearchOutput {
         readonly property: string;
         /** Its name in the metamodel; the key for a property the metamodel does not define. */
         readonly propertyName: string;
+        /** When the value is an acceptance criterion (SR-222 AK3): its number and criterion key, as element.resolve gives them in `criterion`; the snippet stands for its text. */
+        readonly criterion?: {
+          /** Its position in the current version, from 1. */
+          readonly criterion: number;
+          /** The criterion key; left out without one. */
+          readonly key?: CriterionKey;
+          /** Only its key was found in it: the location highlights the key, and the snippet is the start of its text without marks. */
+          readonly keyMarked?: true;
+        };
         readonly text: string;
         readonly marks: TextMarks;
       };
@@ -4597,7 +4689,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -4607,16 +4699,18 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;
-  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`. */
+  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`. */
   readonly mapping?: LocalPath;
   /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
   /** Export the elements of the mapping's source with their statements, back to that source; needs `mapping`. */
   readonly statements?: boolean;
+  /** Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous. */
+  readonly sourceModel?: boolean;
 }
 
 /**
- * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {
@@ -4641,7 +4735,9 @@ export interface CommandTypes {
   readonly "workspace.agents": { readonly input: WorkspaceAgentsInput; readonly output: WorkspaceAgentsOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
+  readonly "workspace.connectAgent": { readonly input: WorkspaceConnectAgentInput; readonly output: WorkspaceConnectAgentOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
+  readonly "tool.guide": { readonly input: ToolGuideInput; readonly output: ToolGuideOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };

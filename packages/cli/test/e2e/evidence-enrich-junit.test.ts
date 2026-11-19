@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
 import type { Run } from "../support/reqseq.js";
 import { reqseq, requireBuiltCli } from "../support/reqseq.js";
@@ -157,7 +157,8 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect(run.code).toBe(0);
     const check = await reqseq(["workspace", "check", "--json"], { cwd: ws.root });
     const problems = (JSON.parse(check.stdout) as { problems: readonly Problem[] }).problems;
-    expect(problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+    // Besides the count of open requirements (SR-230 AK2).
+    expect(withoutVerificationGaps(problems).filter((p) => p.code.startsWith("evidence."))).toEqual([]);
     expect([...((await coverage()) ?? [])].sort()).toEqual([LOGIN, SPEC].sort());
   });
 

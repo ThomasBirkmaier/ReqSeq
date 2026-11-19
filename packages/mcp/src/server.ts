@@ -6,7 +6,6 @@ import {
   CommandError,
   PRODUCT_NAME,
   PRODUCT_VERSION,
-  agentInstructions,
   getCommandRuntime,
   internalError,
   jsonByteLength,
@@ -29,6 +28,21 @@ export interface McpServerOptions {
   readonly maxTextBytes?: number;
 }
 
+/** What `createMcpServer` sends in its `initialize` result. */
+export interface McpServerStart extends McpServerOptions {
+  /** The instructions: the output of `tool.guide` with the names of the MCP tools (`mcpInstructions`). */
+  readonly instructions: string;
+}
+
+/**
+ * The instructions of the `initialize` result: exactly the agent guide of `tool.guide` with the names of the
+ * MCP tools, for the workspace the server is started for (SR-229 AK1). The adapter adds no text of its own.
+ */
+export async function mcpInstructions(runtime: CommandRuntime, workspace: Workspace): Promise<string> {
+  const output = await runtime.invoke("tool.guide", { names: "mcp" }, { workspace });
+  return (output as { readonly guide: string }).guide;
+}
+
 /**
  * Largest output whose JSON is also sent as text content: 32 MiB, the bound of an incoming message
  * (`MAX_MESSAGE_BYTES`). Above it the text is a note (`largeOutputNote`); `structuredContent` is the
@@ -48,6 +62,7 @@ const listed = (tool: ServerTool): Tool => ({
   // Every catalog input schema has `type: "object"` at its root (catalog.meta.schema.json), as MCP requires.
   inputSchema: tool.inputSchema as Tool["inputSchema"],
   annotations: { ...tool.annotations },
+  ...(tool._meta === undefined ? {} : { _meta: { ...tool._meta } }),
 });
 
 /** One tool call: the command output, or the CommandError as a tool error. Never rejects. */
@@ -82,20 +97,20 @@ export async function callTool(
 
 /**
  * An MCP server that lists one tool per implemented catalog command, all calling `invoke` on
- * `options.workspace`, with the instructions of core in its `initialize` result. The tool handlers are set
+ * `options.workspace`, with `options.instructions` in its `initialize` result. The tool handlers are set
  * on the protocol server directly, not with `registerTool` (which would make `McpServer` install its own,
  * and those answer every unregistered tool with a protocol error): a call to a catalog command that is not
  * listed (not implemented yet) must reach `invoke` and give `command.not-implemented`, as on every access
  * (SR-080 AK2). Input validation is core's alone.
  */
-export function createMcpServer(options: McpServerOptions): McpServer {
+export function createMcpServer(options: McpServerStart): McpServer {
   const runtime = options.runtime ?? getCommandRuntime();
   const list = serverTools(runtime).map(listed);
   const commands = new Map(runtime.contracts.commands.map((entry) => [toolName(entry.name), entry.name]));
   // No `tools` capability here: with it, McpServer installs its own tool handlers.
   const mcp = new McpServer(
     { name: PRODUCT_NAME.toLowerCase(), version: PRODUCT_VERSION },
-    { capabilities: {}, instructions: agentInstructions(runtime, toolName) },
+    { capabilities: {}, instructions: options.instructions },
   );
   const server = mcp.server;
   server.registerCapabilities({ tools: { listChanged: false } });
@@ -138,13 +153,14 @@ export interface ServeMcpOptions extends McpServerOptions {
  * API or the command line).
  */
 export async function serveMcp(options: ServeMcpOptions): Promise<void> {
+  const instructions = await mcpInstructions(options.runtime ?? getCommandRuntime(), options.workspace);
   let connection: AgentRecording | undefined;
   const transport = new LineTransport(options.input, options.output, {
     onConnect: (client) => {
       connection = recordAgentConnection(options.workspace, client);
     },
   });
-  const handle = serveStdio(() => createMcpServer(options), { transport });
+  const handle = serveStdio(() => createMcpServer({ ...options, instructions }), { transport });
   const stop = (): void => {
     void handle.close();
   };

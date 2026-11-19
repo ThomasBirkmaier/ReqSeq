@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
@@ -810,7 +810,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       ["reqseq:not-in-view=core", `reqseq:not-in-view=${MOUNTAIN}`],
     ]);
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(check.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+    expect(withoutVerificationGaps(check.problems).filter((p) => p.code.startsWith("evidence."))).toEqual([]);
     // A re-run with the same views leaves the file as it is.
     const again = { file: "evidence/ci/run.xml", variant: input.variant, skipNotInView: true };
     expect(await enrich(workspace, again)).toMatchObject({ files: [], notInView: 1, problems: [] });

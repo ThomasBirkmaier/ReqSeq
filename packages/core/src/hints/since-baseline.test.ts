@@ -4,7 +4,7 @@
 // versions of the fixture, except in AK2, which creates them with baseline.create.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
@@ -80,9 +80,9 @@ const reopened = (fixture: { readonly root: string }): Workspace => {
 
 /** The findings of workspace.check but the fixture's requirements without a parent (SR-022 AK6), which this file does not test. */
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
-  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems.filter(
-    (p) => p.code !== "trace.no-parent",
-  );
+  withoutVerificationGaps(
+    ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems,
+  ).filter((p) => p.code !== "trace.no-parent");
 
 const listed = async (
   workspace: Workspace,

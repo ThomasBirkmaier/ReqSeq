@@ -4,7 +4,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import electron from "electron";
-import { docsFolder } from "./docs.js";
+import { cliEntry, docsFolder } from "./docs.js";
 import { startShell } from "./shell.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -24,6 +24,16 @@ void startShell(electron, {
       argv: process.argv,
       cwd: process.cwd(),
     }),
+  },
+  // The core process is a utility process: it stands for this binary and the command line next to the app (SR-227 AK3).
+  installation: {
+    runtime: process.execPath,
+    entry: cliEntry({
+      packaged: electron.app.isPackaged,
+      resources: process.resourcesPath,
+      app: path.join(here, "..", ".."),
+    }),
+    electron: true,
   },
   log: (line) => process.stderr.write(`${line}\n`),
 });

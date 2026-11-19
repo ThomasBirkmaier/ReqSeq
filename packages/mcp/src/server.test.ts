@@ -8,8 +8,8 @@ import {
   PRODUCT_VERSION,
   Workspace,
   createCommandRuntime,
-  agentInstructions,
   defineTestCommand,
+  getCommandRuntime,
   loadContracts,
   rememberWorkspace,
 } from "@reqseq/core";
@@ -17,7 +17,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { MAX_TEXT_BYTES, callTool, largeOutputNote, serveMcp } from "./server.js";
 import { MAX_MESSAGE_BYTES } from "./transport.js";
-import { toolName } from "./tools.js";
+import { FILTER_GRAMMAR_TOOL, toolName } from "./tools.js";
 import { LineTransport } from "./transport.js";
 
 const entry = (name: string, effect = "read", input: Record<string, unknown> = {}) => ({
@@ -42,6 +42,7 @@ const catalog = {
     entry("test.fail"),
     entry("test.wait"),
     entry("test.later", "write-files"),
+    entry("tool.guide", "read", { properties: { names: { enum: ["cli", "mcp"] } } }),
   ],
 };
 
@@ -50,22 +51,28 @@ const catalog = {
  * whole list into its context, so raise them only on purpose, with the reason in the PR.
  *
  * The selection part of a tool is the `$defs` its input schema reaches from `common.selection` or, in a tool
- * that takes a condition without a selection (`filter.save`), from `filter.condition`: the selection,
- * the recursive filter condition with the short semantics of each operator (agents learn them from these
- * descriptions only) and the definitions they use. It is the same in every tool with a selection, and every
- * such tool repeats it, because MCP has no `$defs` shared across tools and ADR-0009 makes each input schema
- * self-contained. So it has its own bound (6.6 KB with ThomasBirkmaier/ReqSeq-archive#336, 7 KB until ThomasBirkmaier/ReqSeq-archive#595, now 7.5 KB: SR-035's `emergent`
- * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of ThomasBirkmaier/ReqSeq-archive#303.
+ * that takes a condition without a selection (`filter.save`), from `filter.condition`: the selection, the filter
+ * condition and the definitions they use. MCP has no `$defs` shared across tools and ADR-0009 makes each input
+ * schema self-contained, so only `FILTER_GRAMMAR_TOOL` carries the recursive condition with the short semantics
+ * of each operator (agents learn them from these descriptions only); every other selection tool carries a stub
+ * that names it (#1927). Each kind of selection part has its own bound (the full one 6.6 KB with
+ * ThomasBirkmaier/ReqSeq-archive#336, 8 KB since #1249; ADR-0009), and the rest of each tool keeps the bound of
+ * ThomasBirkmaier/ReqSeq-archive#303. The rest of a selection tool leaves out every definition the full grammar
+ * reaches, as before the stub: a definition it reaches also outside its selection (`common.key` from a sort key
+ * of `element_list`) is bounded once, in the selection part of `FILTER_GRAMMAR_TOOL`, and the stub moves no
+ * definition into the rest of a tool.
  */
 // 8 KB: raised for the field descriptions of the reference (#1249).
 const SELECTION_MAX_BYTES = 8 * 1024;
+/** The selection part with the stub of the filter condition (#1927). */
+const STUB_SELECTION_MAX_BYTES = 1.5 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */
 const TOOL_MAX_BYTES = 6 * 1024;
 /**
  * The tools that carry the selection part, exactly. A new selection tool fails the test until it is named
- * here, which raises the bound of the whole list by one selection part: the deliberate raise (ADR-0009).
+ * here, which raises the bound of the whole list by one stub selection part: the deliberate raise (ADR-0009).
  */
 const SELECTION_TOOLS: readonly string[] = [
   "element_list",
@@ -96,13 +103,20 @@ const SELECTION_TOOLS: readonly string[] = [
 // 2.125 KB: raised for the field descriptions of the reference (#1249).
 const TOOL_ALLOWANCE_BYTES = 2.125 * 1024;
 /**
- * The whole list: 2 KB per listed tool plus one selection part per selection tool (ThomasBirkmaier/ReqSeq-archive#496; ADR-0009). It grows
- * with the commands, because the context an agent loads grows with the commands it is meant to call. ThomasBirkmaier/ReqSeq-archive#303's
- * risk, whole schema files repeated in every tool, is caught per tool by `TOOL_MAX_BYTES`, and per selection
- * part by `SELECTION_MAX_BYTES`.
+ * The whole list: 2.125 KB per listed tool, one full selection part for `FILTER_GRAMMAR_TOOL` and one stub
+ * selection part per other selection tool (ThomasBirkmaier/ReqSeq-archive#496, #1927; ADR-0009). It grows with
+ * the commands, because the context an agent loads grows with the commands it is meant to call.
+ * ThomasBirkmaier/ReqSeq-archive#303's risk, whole schema files repeated in every tool, is caught per tool by
+ * `TOOL_MAX_BYTES`, and per selection part by `selectionMaxBytes`.
  */
 const toolsListMaxBytes = (tools: number): number =>
-  tools * TOOL_ALLOWANCE_BYTES + SELECTION_TOOLS.length * SELECTION_MAX_BYTES;
+  tools * TOOL_ALLOWANCE_BYTES +
+  SELECTION_MAX_BYTES +
+  (SELECTION_TOOLS.length - 1) * STUB_SELECTION_MAX_BYTES;
+
+/** The bound of the selection part of a tool: the full grammar in one tool only. */
+const selectionMaxBytes = (tool: string): number =>
+  tool === FILTER_GRAMMAR_TOOL ? SELECTION_MAX_BYTES : STUB_SELECTION_MAX_BYTES;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -131,8 +145,31 @@ const reached = (defs: Readonly<Record<string, unknown>>, start: string): Set<st
   return names;
 };
 
-/** A listed tool split into its selection part (empty without a selection) and the rest. */
-const sizesOf = (tool: { readonly inputSchema: unknown }): { selection: number; rest: number } => {
+/** The definitions of the full selection part: those `FILTER_GRAMMAR_TOOL` reaches from its selection roots. */
+const grammarOf = (listed: Listed): Set<string> => {
+  const carrier = listed.tools.find((tool) => tool.name === FILTER_GRAMMAR_TOOL);
+  const schema = isObject(carrier?.inputSchema) ? carrier.inputSchema : {};
+  const defs = isObject(schema["$defs"]) ? schema["$defs"] : {};
+  return new Set(SELECTION_ROOTS.filter((name) => name in defs).flatMap((root) => [...reached(defs, root)]));
+};
+
+/**
+ * A listed tool split into its selection part (empty without a selection) and the rest, which leaves out the
+ * definitions of `grammar` too (see above). The rest leaves out `_meta` (#1926): the bound of a tool is about
+ * the schema and description an agent reads to call it, and the `_meta` key is no part of that; it would push
+ * `element_update` (6,121 of 6,144) over by its 38 bytes. The whole list (`overBounds`) counts `_meta`, since a
+ * client receives it.
+ */
+const sizesOf = (
+  {
+    _meta: _load,
+    ...tool
+  }: {
+    readonly inputSchema: unknown;
+    readonly _meta?: unknown;
+  },
+  grammar: ReadonlySet<string>,
+): { selection: number; rest: number } => {
   const schema = isObject(tool.inputSchema) ? tool.inputSchema : {};
   const defs = isObject(schema["$defs"]) ? schema["$defs"] : {};
   const roots = SELECTION_ROOTS.filter((name) => name in defs);
@@ -140,7 +177,7 @@ const sizesOf = (tool: { readonly inputSchema: unknown }): { selection: number; 
     return { selection: 0, rest: bytes(tool) };
   }
   const part = new Set(roots.flatMap((root) => [...reached(defs, root)]));
-  const kept = Object.entries(defs).filter(([name]) => !part.has(name));
+  const kept = Object.entries(defs).filter(([name]) => !part.has(name) && !grammar.has(name));
   const selection = bytes(Object.fromEntries(Object.entries(defs).filter(([name]) => part.has(name))));
   return { selection, rest: bytes({ ...tool, inputSchema: { ...schema, $defs: Object.fromEntries(kept) } }) };
 };
@@ -153,10 +190,12 @@ interface Listed {
 const overBounds = (listed: Listed): string[] => {
   const max = toolsListMaxBytes(listed.tools.length);
   const over = bytes(listed) < max ? [] : [`list: ${String(bytes(listed))} of ${String(max)}`];
+  const grammar = grammarOf(listed);
   for (const tool of listed.tools) {
-    const { selection, rest } = sizesOf(tool);
-    if (selection >= SELECTION_MAX_BYTES) {
-      over.push(`${tool.name} selection: ${String(selection)} of ${String(SELECTION_MAX_BYTES)}`);
+    const { selection, rest } = sizesOf(tool, grammar);
+    const bound = selectionMaxBytes(tool.name);
+    if (selection >= bound) {
+      over.push(`${tool.name} selection: ${String(selection)} of ${String(bound)}`);
     }
     if (rest >= TOOL_MAX_BYTES) {
       over.push(`${tool.name}: ${String(rest)} of ${String(TOOL_MAX_BYTES)}`);
@@ -190,6 +229,11 @@ const runtime = createCommandRuntime({
     defineTestCommand({
       name: "test.echo",
       run: (ctx, input: { text: string }) => Promise.resolve({ text: input.text, root: ctx.workspace.root }),
+    }),
+    defineTestCommand({
+      name: "tool.guide",
+      run: (ctx, input: { names?: string }) =>
+        Promise.resolve({ guide: `Guide for ${ctx.workspace.root} with ${String(input.names)} names` }),
     }),
     defineTestCommand({
       name: "test.fail",
@@ -269,10 +313,11 @@ describe("serveMcp", () => {
       ["test_echo", "Title of test echo", true, "Test command test.echo."],
       ["test_fail", "Title of test fail", true, "Test command test.fail."],
       ["test_wait", "Title of test wait", true, "Test command test.wait."],
+      ["tool_guide", "Title of tool guide", true, "Test command tool.guide."],
     ]);
     expect(tools[0]?.inputSchema).toEqual(catalog.commands[0]?.input);
     // No output schemas: MCP does not need them for structured content, and they made up most of the list.
-    expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined]);
+    expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined, undefined]);
   });
 
   it("[SR-079/AK-g12j] opens no network socket: no network module, and no socket while a session runs", async () => {
@@ -345,9 +390,9 @@ describe("serveMcp", () => {
     );
   });
 
-  it("sends the instructions of core in its initialize result", async () => {
+  it("sends the output of tool.guide with the MCP names as the instructions of its initialize result", async () => {
     const { client } = await open();
-    expect(client.getInstructions()).toBe(agentInstructions(runtime, toolName));
+    expect(client.getInstructions()).toBe(`Guide for ${workspace.root} with mcp names`);
   });
 
   it("ends when the input ends", async () => {
@@ -502,14 +547,45 @@ describe("callTool", () => {
   });
 
   it("runs on the runtime of the process by default", async () => {
-    const { listed, instructions } = await productList();
+    const { listed } = await productList();
     expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
     // ThomasBirkmaier/ReqSeq-archive#303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
     // into its context. Each tool now carries only the definitions it uses (bounds above, ThomasBirkmaier/ReqSeq-archive#336, ThomasBirkmaier/ReqSeq-archive#496).
     expect(overBounds(listed)).toEqual([]);
-    const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
+    const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool, grammarOf(listed)) }));
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
-    expect(instructions).toContain("workspace_status");
+  });
+
+  it("[SR-229/AK-p4y6] sends exactly the tool.guide output with the MCP tool names as its initialize instructions", async () => {
+    const { instructions } = await productList();
+    const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
+    expect(instructions).toBe((guide as { guide: string }).guide);
+    expect(instructions).toContain("`workspace_check`");
+  });
+
+  it("marks exactly the catalog entries with loadUpfront to load upfront, the commands of the agent guide among them (#1926)", async () => {
+    const { listed } = await productList();
+    const upfront = listed.tools.filter((tool) => tool._meta?.["anthropic/alwaysLoad"] === true);
+    const marked = getCommandRuntime().contracts.commands.filter((entry) => entry.loadUpfront === true);
+    expect(upfront.map((tool) => tool.name).sort()).toEqual(
+      marked.map((entry) => toolName(entry.name)).sort(),
+    );
+    expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
+    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at once.
+    // Only a subset: loadUpfront also marks commands the guide does not name, such as element_search.
+    await getCommandRuntime().invoke("workspace.init", { path: dir, name: "Station" }, { workspace });
+    const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
+    const tools = new Set(listed.tools.map((tool) => tool.name));
+    const named = [...(guide as { guide: string }).guide.matchAll(/`([a-z]+_[A-Za-z]+)`/g)]
+      .map((match) => match[1] ?? "")
+      .filter((name) => tools.has(name));
+    expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
+    const upfrontNames = new Set(upfront.map((tool) => tool.name));
+    // Without a workspace the guide names tool_guide, to read it again.
+    expect([...named, "tool_guide"].filter((name) => !upfrontNames.has(name))).toEqual([]);
+    expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
+    // The other tools' stub points at the filter grammar in this tool, so a client must load it upfront (#1927).
+    expect(upfront.map((tool) => tool.name)).toContain(FILTER_GRAMMAR_TOOL);
   });
 
   it("bounds the list by an allowance per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
@@ -533,5 +609,10 @@ describe("callTool", () => {
     expect(adding(large).map((over) => over.split(":")[0])).toEqual(["list"]);
     // ThomasBirkmaier/ReqSeq-archive#303: a tool that carries whole schema files (13 KB of common and filter $defs) fails its own bound.
     expect(adding([filler("whole", 13 * 1024)])).toContain("whole: 13312 of 6144");
+    // #1927: a second tool with the whole filter grammar fails the bound of a stub selection part.
+    const carrier = listed.tools.find((tool) => tool.name === FILTER_GRAMMAR_TOOL);
+    expect(adding([{ inputSchema: carrier?.inputSchema, name: "copy" }])).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^copy selection: \d+ of 1536$/)]),
+    );
   });
 });
