@@ -151,7 +151,13 @@ describe("the catalog the API gives", () => {
         .filter((entry) => entry.showsOutput === true)
         .map((entry) => entry.name)
         .sort(),
-    ).toEqual(["element.bulkUpdate", "evidence.enrichJunit", "reqif.export", "reqif.import"]);
+    ).toEqual([
+      "element.bulkUpdate",
+      "evidence.enrichJunit",
+      "reqif.export",
+      "reqif.import",
+      "workspace.init",
+    ]);
     // A command that names only its files, problems and the element it wrote does not show its output.
     for (const name of ["element.create", "element.update", "relation.add", "filter.save", "hint.confirm"]) {
       expect(writes.find((entry) => entry.name === name)?.showsOutput, name).toBeUndefined();

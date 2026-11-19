@@ -8,6 +8,7 @@ import { readYamlFile } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocalFile, WorkspaceRepository } from "../generated/types.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import { fileMessage, inputViolations } from "../runtime/input-errors.js";
+import { createWorkspaceStep } from "../next-steps.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
 
 export { WORKSPACE_FILE };
@@ -53,7 +54,18 @@ const workspacesBelow = async (root: string): Promise<readonly string[]> => {
   return found.filter((name) => name !== undefined).sort();
 };
 
-const notFound = async (root: string): Promise<CommandError> => {
+const isFolder = async (folder: string): Promise<boolean> =>
+  fs.stat(folder).then(
+    (stat) => stat.isDirectory(),
+    () => false,
+  );
+
+/** Whether `workspace.init` can create a workspace in `root`: a folder, or a missing one in a folder (#637). */
+const creatable = async (root: string): Promise<boolean> =>
+  (await isFolder(root)) || (!(await exists(root)) && (await isFolder(path.dirname(root))));
+
+const notFound = async (given: string): Promise<CommandError> => {
+  const root = path.resolve(given);
   const below = await workspacesBelow(root);
   const shown = below.slice(0, BELOW_SHOWN).map((name) => `${name}/${WORKSPACE_FILE}`);
   const more = below.length > BELOW_SHOWN ? ` and ${String(below.length - BELOW_SHOWN)} more` : "";
@@ -61,9 +73,11 @@ const notFound = async (root: string): Promise<CommandError> => {
     below.length === 0
       ? ""
       : `; one level below lies ${shown.join(", ")}${more}: open that folder as the workspace`;
+  // Without a workspace one level below, the next step creates one in this folder (SR-226 AK1), where init can.
+  const next = below.length === 0 && (await creatable(root)) ? { next: [createWorkspaceStep(root)] } : {};
   return new CommandError("workspace.not-found", `No ${WORKSPACE_FILE} in the workspace folder${hint}`, {
     file: WORKSPACE_FILE,
-    ...(below.length === 0 ? {} : { below }),
+    ...(below.length === 0 ? next : { below }),
   });
 };
 

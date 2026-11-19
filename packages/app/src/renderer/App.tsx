@@ -458,7 +458,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     leaveSwitching,
   });
   // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
-  // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
+  // opened, gets the catalog's commands ("Create workspace", the minibuffer's hint) when they are there (#1413).
   const catalogRead = useRef<Promise<void> | undefined>(undefined);
   // What a view that shows several elements reads again on: any change of the workspace, also from outside.
   const seen = revision + outside.seq;

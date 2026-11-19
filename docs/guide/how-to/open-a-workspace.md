@@ -18,7 +18,7 @@ The workspace you choose takes the place of the open one in the same window, aft
 
 If you choose the folder one level above a workspace with Ctrl+O, such as the root of the repository, the bottom line names the right one: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
 
-To create a workspace, open a folder that is not inside a workspace with Ctrl+O. The bottom line says `To create one here, press Ctrl+Shift+P for Initialise workspace.` (⌘⇧P on macOS). Run **Initialise workspace** there, enter `.` as the path, which is the folder you opened, and a name.
+To create a workspace, open a folder that is not inside a workspace with Ctrl+O. The bottom line says `To create one here, press Ctrl+Shift+P for Create workspace.` (⌘⇧P on macOS). Run **Create workspace** there, enter `.` as the path, which is the folder you opened, and a name.
 
 To open a workspace when the app starts, give its folder with `--workspace`:
 
@@ -42,7 +42,7 @@ name: Weather station
 No problems.
 ```
 
-Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does.
+Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
 
 `workspace recent` lists the workspaces the app opened last; the CLI only reads that list:
 

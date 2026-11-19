@@ -500,7 +500,7 @@ export interface CommandErrorObject {
     | "internal";
   /** What went wrong, for people. */
   readonly message: string;
-  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
@@ -669,6 +669,21 @@ export type Duration = number;
  * Schema: `schemas/common.schema.json#/$defs/outputPath`.
  */
 export type OutputPath = string;
+
+/**
+ * A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.
+ * Schema: `schemas/common.schema.json#/$defs/nextStep`.
+ */
+export interface NextStep {
+  /** Name of the command in the catalog. */
+  readonly command: string;
+  /** The input fields known already, with their values; a path is absolute. */
+  readonly input: Readonly<Record<string, unknown>>;
+  /** The input fields still to give, in the order of the command's arguments. */
+  readonly open: readonly string[];
+  /** Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`). */
+  readonly workspace?: OutputPath;
+}
 
 /**
  * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit`, `dirty`, `repositories` and `incomplete`, then the element. Also defines the element and relation shapes all commands return.
@@ -2068,6 +2083,8 @@ export interface WorkspaceInitInput {
 export interface WorkspaceInitOutput {
   readonly answer: Answer;
   readonly files: readonly OutputPath[];
+  /** What to do next in the new workspace (SR-226 AK2): connect an AI agent, then create an element. */
+  readonly next: readonly NextStep[];
   readonly problems?: readonly Problem[];
 }
 

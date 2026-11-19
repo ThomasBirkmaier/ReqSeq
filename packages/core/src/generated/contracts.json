@@ -980,7 +980,7 @@
               "type": "string"
             },
             "details": {
-              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
+              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
               "type": "object"
             }
           },
@@ -1301,6 +1301,46 @@
           "x-technical": true,
           "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
           "type": "string"
+        },
+        "nextStep": {
+          "title": "Next step",
+          "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
+          "type": "object",
+          "properties": {
+            "command": {
+              "title": "Command",
+              "description": "Name of the command in the catalog.",
+              "type": "string",
+              "minLength": 1,
+              "x-technical": true
+            },
+            "input": {
+              "title": "Known input",
+              "description": "The input fields known already, with their values; a path is absolute.",
+              "type": "object"
+            },
+            "open": {
+              "title": "Open fields",
+              "description": "The input fields still to give, in the order of the command's arguments.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "x-technical": true
+            },
+            "workspace": {
+              "$ref": "#/$defs/outputPath",
+              "title": "Workspace",
+              "description": "Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`)."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "input",
+            "open"
+          ]
         }
       }
     },
@@ -4472,9 +4512,10 @@
     "commands": [
       {
         "name": "workspace.init",
-        "title": "Initialise workspace",
+        "title": "Create workspace",
         "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "effect": "write-files",
+        "showsOutput": true,
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
         "stage": 1,
@@ -4543,6 +4584,14 @@
                 "description": "Written file, relative to the workspace root."
               }
             },
+            "next": {
+              "title": "Next steps",
+              "description": "What to do next in the new workspace: connect an AI agent, then create an element.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/nextStep"
+              }
+            },
             "problems": {
               "title": "Problems",
               "type": "array",
@@ -4555,7 +4604,8 @@
           "additionalProperties": false,
           "required": [
             "answer",
-            "files"
+            "files",
+            "next"
           ]
         },
         "outputFields": [
@@ -4566,6 +4616,29 @@
           {
             "path": "files",
             "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "next",
+            "title": "Next steps"
+          },
+          {
+            "path": "next[].command",
+            "title": "Command",
+            "technical": true
+          },
+          {
+            "path": "next[].input",
+            "title": "Known input"
+          },
+          {
+            "path": "next[].open",
+            "title": "Open fields",
+            "technical": true
+          },
+          {
+            "path": "next[].workspace",
+            "title": "Workspace",
             "technical": true
           },
           {
