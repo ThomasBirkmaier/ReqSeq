@@ -1,5 +1,5 @@
 // Running a write command from the command prompt (`catalog-commands.ts`): the input of the open buffers is
-// saved first (`notSaved`), the output is shown (`show`), and `element.bulkUpdate` shows its preview and asks
+// saved first (`notSaved`), the output is shown or said in the command line (`show`, SR-223 AK8), and `element.bulkUpdate` shows its preview and asks
 // the confirmation before it writes (`previewed`, SR-071 AK5).
 
 import type { AboutInfo } from "./about.js";
@@ -139,7 +139,8 @@ export const notSaved = async (context: CatalogContext, entry: Entry): Promise<b
 
 /**
  * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
- * window (SR-161, D-062), any other output in a result buffer (of a write command, one that is not asked again).
+ * window (SR-161, D-062), the output of a write command without `showsOutput` as a message (`reported`, SR-223
+ * AK8), any other output in a result buffer (of a write command, one that is not asked again).
  */
 export const show = (
   context: CatalogContext,
@@ -156,9 +157,31 @@ export const show = (
   } else if (name === ABOUT_COMMAND && context.about !== undefined) {
     context.about(output as AboutInfo);
   } else {
-    context.dispatch({
-      type: "open",
-      buffer: resultBuffer(name, input, lineOf(entry), output, revision, isWrite(entry.command)),
-    });
+    const open = (): void => {
+      context.dispatch({
+        type: "open",
+        buffer: resultBuffer(name, input, lineOf(entry), output, revision, isWrite(entry.command)),
+      });
+    };
+    if (isWrite(entry.command) && entry.command.showsOutput !== true) {
+      reported(context, entry, output, open);
+    } else {
+      open();
+    }
+  }
+};
+
+/**
+ * A write command the catalog does not mark `showsOutput` keeps the shown buffer (SR-223 AK8): the command
+ * line says its answer, which core gives with the number of its problems (`problemsNote`), and a click on the
+ * message opens the output (`open`). An output without an answer (a test catalog) is named by its command line.
+ */
+const reported = (context: CatalogContext, entry: Entry, output: unknown, open: () => void): void => {
+  const answer = (output as { readonly answer?: unknown } | undefined)?.answer;
+  const message = typeof answer === "string" ? answer : lineOf(entry);
+  if (context.report === undefined) {
+    context.echo(message);
+  } else {
+    context.report(message, open);
   }
 };

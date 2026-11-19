@@ -116,7 +116,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
   });
 
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
-    const { context, asked, call, dispatched } = setup([shown], {
+    const { context, asked, call, dispatched, reported } = setup([shown], {
       "hint.confirm": () => ({ confirmed: ["h1"], files: ["f1.md"], problems: [] }),
       "hint.list": () => HINTS,
     });
@@ -133,6 +133,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     hintIds.empty?.(false);
     await flush();
     expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
+    reported[0]?.open();
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
       buffer: { kind: "result", name: "Confirm hints SR-000001 (SR-1)", written: true },

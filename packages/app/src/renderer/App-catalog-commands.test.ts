@@ -22,6 +22,7 @@ import {
   renderList,
   texts,
   calls,
+  container,
 } from "./App.test-helper.js";
 
 describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-archive#85)", () => {
@@ -58,6 +59,36 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("label").textContent).toBe("Show affected elements · ref:");
     await keyDown(query("input"), "Backspace");
     expect(query("label").textContent).toBe("Command");
+  });
+
+  it("[SR-223/AK-gvv1] keeps the shown buffer after a write command and says its answer in the command line; a click on it opens the output, and the next message is no link", async () => {
+    let written = 0;
+    const fake = fakeBridge({
+      ...workspace(),
+      "baseline.create": () =>
+        written++ === 0
+          ? { answer: "Created baseline R1; 1 file written; 2 problems.", files: ["b.yaml"] }
+          : new Error("Baseline R1 exists"),
+    });
+    const write = listing("baseline.list", {
+      name: "baseline.create",
+      title: "Make snapshot",
+      effect: "write-files",
+    });
+    const bridge = { ...fake.bridge, commands: () => Promise.resolve([write] as never) };
+    await render(bridge);
+    const before = text("Sheet");
+    await runCommand("Make snapshot");
+    expect(calls(fake.invoke, "baseline.create")).toEqual([{}]);
+    expect(text("Sheet")).toBe(before);
+    expect(text("Minibuffer")).toBe("Created baseline R1; 1 file written; 2 problems.");
+    await click(query(".echo-open"));
+    expect(text("Modeline")).toContain("Make snapshot");
+    expect(text("Sheet")).toContain("b.yaml");
+    // Any other message ends the link.
+    await runCommand("Make snapshot");
+    expect(text("Minibuffer")).toBe("Baseline R1 exists");
+    expect(container.querySelector(".echo-open")).toBeNull();
   });
 
   it("puts the selected row of the shown list first for an element argument", async () => {

@@ -53,6 +53,7 @@ export interface ContextParts {
   readonly dispatch: (action: WindowAction) => void;
   readonly ask: (next: Prompt) => void;
   readonly setEcho: Setter<string>;
+  readonly report: (message: string, open: () => void) => void;
   readonly setAbout: Setter<AboutInfo | undefined>;
   readonly copy: (label: string, text: string) => void;
   readonly bridge: ReqSeqBridge;
@@ -83,7 +84,7 @@ export interface ContextParts {
 
 export const actionContext = (parts: ContextParts): ActionContext => {
   const { view, buffers, walk, releasedAt, slides, layout, revisionNow, leavesClean, mac, theme } = parts;
-  const { call, viewCall, dispatch, ask, setEcho, setAbout, copy, bridge, notify, recentRef } = parts;
+  const { call, viewCall, dispatch, ask, setEcho, report, setAbout, copy, bridge, notify, recentRef } = parts;
   const { recentNames, elementControls, row, marked, current, loaded, drafts, armed, onDraft } = parts;
   const {
     saveKept,
@@ -133,6 +134,7 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     dispatch,
     ask,
     echo: setEcho,
+    report,
     about: setAbout,
     copy,
     // "Paste" (SR-195 AK3): main pastes into the field that has the focus now; it refuses without a click
