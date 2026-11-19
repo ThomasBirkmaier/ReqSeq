@@ -33,7 +33,7 @@
     },
     {
       "field": "maxItems",
-      "complete": "json"
+      "complete": "number"
     },
     {
       "field": "targetTypes",
@@ -61,11 +61,11 @@
     },
     {
       "field": "addChoices",
-      "complete": "json"
+      "complete": "choices"
     },
     {
       "field": "changeChoices",
-      "complete": "json"
+      "complete": "choiceChanges"
     },
     {
       "field": "removeChoices",

@@ -342,9 +342,10 @@ beforeAll(async () => {
   await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
-// Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
-// than the default hook timeout of 30 s (#304).
+// Removes the templates and the copies the tests left, after the removals `release` started. With all
+// copies left to this hook, about 1,900 Git work trees, it ran past 120 s on Windows (#304, #1862).
 afterAll(async () => {
+  await Promise.all(releasing.splice(0));
   await Promise.all([...templates.values()].map((f) => f.cleanup()));
   templates.clear();
   await Promise.all(
@@ -372,8 +373,39 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
 
+/** The removals `release` started; `afterAll` waits for them. */
+const releasing: Promise<void>[] = [];
+
 /**
- * A test runs one command through all four accesses. A write command gets four copies. Each access may
+ * Starts removing a copy made by `copy` that no access needs any more, while the tests go on, so neither a
+ * test nor the `afterAll` hook waits for it (#1862). A removal that fails (EBUSY or EPERM on Windows) leaves
+ * the copy to `afterAll`.
+ */
+const release = ({ top }: Copy): void => {
+  const base = path.dirname(top);
+  releasing.push(
+    fs.rm(base, { recursive: true, force: true, maxRetries: 3 }).then(
+      () => {
+        const index = copies.indexOf(base);
+        if (index >= 0) {
+          copies.splice(index, 1);
+        }
+      },
+      () => undefined,
+    ),
+  );
+};
+
+/** The folders of a copy except Git's, as paths relative to the copy: an empty one is no file of `filesOf`. */
+const foldersOf = async (top: string): Promise<string[]> =>
+  (await fs.readdir(top, { recursive: true, withFileTypes: true }))
+    .filter((e) => e.isDirectory())
+    .map((e) => path.relative(top, path.join(e.parentPath, e.name)))
+    .filter((relative) => !relative.split(path.sep).includes(".git"))
+    .sort();
+
+/**
+ * A test runs one command through all five accesses. A write command gets up to five copies. Each access may
  * read Git through a child process. On Linux and macOS a test takes well under a second. Process starts on
  * Windows runners vary from 0.1 s to more than 1 s, so the default limit of 5 s is too tight there. This
  * limit only catches a hang. On the Windows runner of CI it is 60 s, as for every other test there
@@ -441,6 +473,23 @@ const withoutDate = (access: string, result: Result, start: number, end: number)
   return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
 };
 
+/** The outcome of `entry` with `input` on the workspace at `root` through `access`. */
+const via = (
+  access: (typeof ACCESSES)[number],
+  root: string,
+  entry: CatalogEntry,
+  input: Record<string, unknown>,
+): Promise<Outcome> =>
+  access === "core"
+    ? viaCore(root, entry, input)
+    : access === "cli"
+      ? viaCli(root, entry, input)
+      : access === "api"
+        ? viaApi(root, entry, input, cache)
+        : access === "mcp"
+          ? viaMcp(root, entry, input)
+          : viaApp(root, entry, input);
+
 /** A fresh copy of the scenario's fixture, prepared. */
 const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
   const made = await copy(scenario);
@@ -450,8 +499,10 @@ const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
 
 /**
  * Run a scenario through all five accesses. A write command gets a fresh copy per access, so each one starts
- * from the same files. A read command, and a command without an implementation (it cannot write), share one
- * copy. Either way, the files of the copy are compared after each access.
+ * from the same files; an access that left its copy as it found it (an error, mostly) hands it to the next
+ * one, when the scenario has no `prepare` (it may not be repeatable on the same copy). A read command, and a
+ * command without an implementation (it cannot write), share one copy. Either way, the files of the copy
+ * are compared after each access. Each copy is removed once no access needs it (#1862).
  */
 const runAll = async (
   entry: CatalogEntry,
@@ -463,22 +514,33 @@ const runAll = async (
   // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
-  for (const access of accesses) {
-    const { top, root } = shared ?? (await copy(scenario));
+  // The copy of the running access, and one the last access left unchanged; both released at the end.
+  let current: Copy | undefined;
+  let unchanged: Copy | undefined;
+  try {
+    for (const access of accesses) {
+      results[access] = await runAccess(access);
+    }
+  } finally {
+    for (const each of new Set([shared, current, unchanged])) {
+      if (each !== undefined) {
+        release(each);
+      }
+    }
+  }
+  return results;
+
+  async function runAccess(access: (typeof ACCESSES)[number]): Promise<Result> {
+    const made = shared ?? unchanged ?? (await copy(scenario));
+    current = shared === undefined ? made : undefined;
+    unchanged = undefined;
+    const { top, root } = made;
     await scenario.prepare?.({ top, root });
     const before = await filesOf(top);
+    const foldersBefore = shared === undefined ? await foldersOf(top) : [];
     const input = { ...scenario.input };
     const start = Date.now();
-    const called =
-      access === "core"
-        ? await viaCore(root, entry, input)
-        : access === "cli"
-          ? await viaCli(root, entry, input)
-          : access === "api"
-            ? await viaApi(root, entry, input, cache)
-            : access === "mcp"
-              ? await viaMcp(root, entry, input)
-              : await viaApp(root, entry, input);
+    const called = await via(access, root, entry, input);
     const end = Date.now();
     const outcome = comparable(access, entry.name, called, start, end);
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
@@ -488,12 +550,23 @@ const runAll = async (
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }
+    if (shared === undefined) {
+      const same =
+        scenario.prepare === undefined &&
+        JSON.stringify(files) === JSON.stringify(before) &&
+        JSON.stringify(await foldersOf(top)) === JSON.stringify(foldersBefore);
+      current = undefined;
+      if (same) {
+        unchanged = made;
+      } else {
+        release(made);
+      }
+    }
     const masked = masks(result, scenario.masks ?? []);
     const named = scenario.newElement === true ? maskNewElement(masked) : masked;
     // Sorted again: the order of new files followed their random UUIDs before the mask.
-    results[access] = { ...named, changed: [...named.changed].sort() };
+    return { ...named, changed: [...named.changed].sort() };
   }
-  return results;
 };
 
 /** `result` with each match of `patterns` replaced by `<masked>` (see `Scenario.masks`). */

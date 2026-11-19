@@ -473,7 +473,12 @@ export type ProblemCode =
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
   | "reqif.source-model-unsaved"
-  | "reqif.source-value-chosen";
+  | "reqif.source-value-chosen"
+  | "html.unsafe-content"
+  | "html.image-not-copied"
+  | "html.foreign-file"
+  | "html.marker-entry-ignored"
+  | "html.cleanup-failed";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1414,6 +1419,19 @@ export interface FilterSortKeyWithDefaults {
 }
 
 /**
+ * The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export (SR-235): it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into (SR-235 AK1). ReqSeq writes it anew on every export; it is not meant to be edited.
+ * Schema: `schemas/html-export-marker.schema.json#`.
+ */
+export interface HtmlExportMarkerFile {
+  /** Version of this file format. */
+  readonly "reqseq-html-export": 1;
+  /** The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed (SR-235 AK2). */
+  readonly files: readonly string[];
+  /** Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it. */
+  readonly pending?: ".reqseq-export-staging";
+}
+
+/**
  * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (ThomasBirkmaier/ReqSeq-archive#141); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
  * Schema: `schemas/metamodel.schema.json#`.
  */
@@ -1993,7 +2011,7 @@ export interface CommandCatalog {
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`. */
+      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). choices: a list of new fixed values `{ name, key? }`, each a name and its key, the key suggested from the name (SR-236 AK6, AK11). choiceChanges: a list of `{ choice, name?, description? }`: a fixed value of the property (metamodel.get), then its new name or description. limits: a list of `relationLimit` of metamodel.schema.json: the target types for limits as marks from every type (metamodel.get; those of the limits there are marked, a limit for one source type is kept as it is), then a minimum and a maximum, each a number or empty, per target type marked (SR-236 AK11). text, number, boolean: typed free input; in the steps of the metamodel commands, an empty input of a `number` field that also takes null gives null. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`. */
       readonly complete:
         | "element"
         | "type"
@@ -2024,6 +2042,9 @@ export interface CommandCatalog {
         | "searchField"
         | "properties"
         | "relations"
+        | "choices"
+        | "choiceChanges"
+        | "limits"
         | "text"
         | "number"
         | "boolean"
@@ -2032,7 +2053,7 @@ export interface CommandCatalog {
       readonly of?: string;
       /** Only on an `element` source: the field takes an element whose type has this meaning (`variant`, D-020; `package`, D-040), and its values are those elements. A field with a meaning is never the nearest earlier field a source without `of` reads, so `evidence.record criteria` reads `ref`, not `variant`; an explicit `of` may name it (`catalog-checks.mjs`). */
       readonly meaning?: "variant" | "package";
-      /** Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list (SR-215 AK2), so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source). */
+      /** Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list (SR-215 AK2), so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name` (SR-236 AK6). */
       readonly class?:
         | "name"
         | "title"
@@ -2359,7 +2380,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup. Only with a client. */
+  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
   readonly next?: string;
 }
 
@@ -5463,6 +5484,32 @@ export interface ReqifExportOutput {
   readonly problems?: readonly Problem[];
 }
 
+/**
+ * Input of `html.export` as `run` gets it: validated, properties with a `default` filled in. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json input`.
+ */
+export interface HtmlExportInput {
+  /** The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export. */
+  readonly output: LocalPath;
+}
+
+/**
+ * Output of `html.export`. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json output`.
+ */
+export interface HtmlExportOutput {
+  readonly answer: Answer;
+  /** The written folder, relative to the workspace root when it lies inside, else absolute. */
+  readonly folder: OutputPath;
+  /** Pages of elements written: one for each element of `exportedElements`. */
+  readonly pages: number;
+  /** Files of the earlier export that this export no longer writes and removed. */
+  readonly removed: number;
+  /** The elements that got a page, in the order of the element store. */
+  readonly exportedElements: readonly CountedElement[];
+  readonly problems: readonly Problem[];
+}
+
 /** Input and output type of every catalog command, by name (`defineCommand` in catalog.ts). */
 export interface CommandTypes {
   readonly "workspace.init": { readonly input: WorkspaceInitInput; readonly output: WorkspaceInitOutput };
@@ -5541,4 +5588,5 @@ export interface CommandTypes {
   readonly "reqif.import": { readonly input: ReqifImportInput; readonly output: ReqifImportOutput };
   readonly "reqif.saveMapping": { readonly input: ReqifSaveMappingInput; readonly output: ReqifSaveMappingOutput };
   readonly "reqif.export": { readonly input: ReqifExportInput; readonly output: ReqifExportOutput };
+  readonly "html.export": { readonly input: HtmlExportInput; readonly output: HtmlExportOutput };
 }
