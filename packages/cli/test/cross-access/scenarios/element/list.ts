@@ -169,6 +169,34 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-224/AK-h9kx]",
+    name: "a selection by a number of a command's output: the elements a facet value counts",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      selection: {
+        output: {
+          command: "element.facets",
+          input: {},
+          count: {
+            field: "properties[].values[].count",
+            key: [{ key: "requirement-type" }, { value: "functional" }],
+          },
+        },
+      },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements, total } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[]; total: number } }
+      ).output;
+      expect([elements.map((e) => e.shortId).sort(), total]).toEqual([
+        ["SR-0000b1", "SR-0000b3", "SR-0000b4"],
+        3,
+      ]);
+    },
+  },
+  {
     name: "a selection by the output of a command that lists no elements: refused, nothing run (#1873)",
     fixture: EXPORT,
     root: "system",

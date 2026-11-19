@@ -66,11 +66,19 @@
             "title": "Elements",
             "type": "integer",
             "minimum": 0,
-            "description": "Number of elements in the file."
+            "description": "Number of elements in the file: those of `entries`.",
+            "x-elements": "entries"
+          },
+          "entries": {
+            "title": "Entries",
+            "type": "array",
+            "description": "The elements the file lists, in its order.",
+            "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
+            "x-elements": true
           }
         },
         "additionalProperties": false,
-        "required": ["name", "file", "repository", "date", "elements"]
+        "required": ["name", "file", "repository", "date", "elements", "entries"]
       },
       "problems": {
         "title": "Problems",

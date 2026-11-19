@@ -24,5 +24,8 @@
   },
   "dependencies": {
     "@reqseq/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@reqseq/testkit": "workspace:*"
   }
 }

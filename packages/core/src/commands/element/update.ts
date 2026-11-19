@@ -9,7 +9,7 @@
 // for its variants and views (#1216).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { updateElement } from "../../model/index.js";
+import { shortIdState, updateElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
@@ -33,6 +33,20 @@ export default defineCommand({
     );
     const { fileSha256, files, problems, affected } = written;
     const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
-    return { element, ...names, fileSha256, files: [...files], affected, problems: [...problems] };
+    const shortIds = await ctx.workspace.get(shortIdState);
+    return {
+      element,
+      ...names,
+      fileSha256,
+      files: [...files],
+      affected,
+      // The elements `affected` counts (SR-224 AK4).
+      affectedElements: written.affectedElements.map((record) => ({
+        id: record.id,
+        shortId: shortIds.of(record),
+        repository: record.repository,
+      })),
+      problems: [...problems],
+    };
   },
 });

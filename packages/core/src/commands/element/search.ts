@@ -33,7 +33,9 @@
 //   `groupingOf` whatever the query finds. Cost: the search, one sort of every hit and one pass over
 //   them (SR-098 with grouping: test/perf/search-speed.test.ts).
 // - With `withVerification` (SR-137) `rowVerification` gives for each row what its node in trace.graph
-//   shows of its verification (`rowsVerification`), from the hit's record.
+//   shows of its verification (`rowsVerification`), from the hit's record, with that record. `countedElements`
+//   gives the elements of the numbers of the groups and of the rows' degrees over every page (SR-224 AK4,
+//   list-counts.ts).
 import type { CommandContext, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { rowsVerification } from "../../evidence/index.js";
@@ -60,6 +62,7 @@ import { searchFieldsOf } from "../../query/search-fields.js";
 import { searchSnippet, titleMarks } from "../../query/search-snippet.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { incompleteNote, paged, sentence } from "../answer.js";
+import { listCountElements } from "../list-counts.js";
 
 type Hit = ElementSearchOutput["hits"][number];
 
@@ -238,5 +241,26 @@ export default defineCommand({
       groupingOf({ ...selected, elements }, "element.search", input.group);
     }
     return { elements, incomplete: selected.incomplete };
+  },
+  // The numbers of the groups and of the rows' verification over every page (SR-224 AK4): the hit records
+  // grouped as `grouped` groups them.
+  countedElements: async (ctx, input, count) => {
+    const { selected, index, options } = await searchOf(ctx, input);
+    const records = rankedHits(index, input.query, options).map((hit) => hit.element);
+    const grouping =
+      input.group === undefined
+        ? undefined
+        : groupingOf({ ...selected, elements: records }, "element.search", input.group);
+    return listCountElements(
+      ctx.workspace,
+      {
+        records,
+        grouping,
+        withVerification: input.withVerification === true,
+        views: selected.views,
+        incomplete: selected.incomplete,
+      },
+      count,
+    );
   },
 });

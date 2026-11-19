@@ -44,7 +44,9 @@ const read = (properties, extra = {}) => ({
   output: { type: "object", properties },
   ...extra,
 });
-const errorsOf = (...commands) => checkOutputs({ commands }, schemas);
+/** The integer fields of the test schemas that count no elements. */
+const NOT_COUNTS = new Map([["common.schema.json#/$defs/problem/properties/line", "a position"]]);
+const errorsOf = (...commands) => checkOutputs({ commands }, schemas, NOT_COUNTS);
 
 describe("checkOutputs", () => {
   it("accepts the repository's catalog", () => {
@@ -95,6 +97,7 @@ describe("checkOutputs", () => {
       "schemas/commands/x.read.json#/output/properties/id (id): is a UUID: refer to common.schema.json#/$defs/uuid",
       'schemas/commands/x.read.json#/output/properties/off (off): x-technical is true or "with-element"; leave it out otherwise',
       'schemas/commands/x.read.json#/output/properties/line (line): x-technical "with-element" is only for file and line of a problem',
+      'schemas/commands/x.read.json: output line: a number: mark it x-elements if it counts elements, else list "x.read line" in NOT_ELEMENT_COUNTS of output-checks.mjs with the reason (SR-224 AK4)',
     ]);
   });
 
@@ -103,7 +106,7 @@ describe("checkOutputs", () => {
     const changed = {
       "common.schema.json": { $defs: { ...rest, uuid: { type: "string" }, other: { "x-technical": true } } },
     };
-    expect(checkOutputs({ commands: [] }, changed)).toEqual([
+    expect(checkOutputs({ commands: [] }, changed, new Map())).toEqual([
       'common.schema.json#/$defs/uuid: a definition SR-224 AK3 names needs "x-technical": true',
       "common.schema.json#/$defs/other: only the definitions SR-224 AK3 names carry x-technical; mark the field instead",
     ]);
@@ -111,7 +114,7 @@ describe("checkOutputs", () => {
     const wrong = {
       "common.schema.json": { $defs: { ...common.$defs, uuid: { "x-technical": "with-element" } } },
     };
-    expect(checkOutputs({ commands: [] }, wrong)).toEqual([
+    expect(checkOutputs({ commands: [] }, wrong, new Map())).toEqual([
       "common.schema.json#/$defs/uuid: x-technical of a definition is true",
     ]);
   });
@@ -151,11 +154,88 @@ describe("checkOutputs", () => {
     ).toEqual([
       'schemas/commands/x.read.json: output texts: x-elements true is for an array of UUIDs or of objects with a UUID "id"',
       'schemas/commands/x.read.json: output nested.ids: x-elements "answer" is for a top-level field',
-      "schemas/commands/x.read.json: output text: x-elements with paths is for a number that counts elements",
+      "schemas/commands/x.read.json: output text: x-elements with paths or selection is for a number that counts elements",
       'schemas/commands/x.read.json: output count: x-elements "texts/none" names no field with x-elements true or "answer"',
-      'schemas/commands/x.read.json: output odd: x-elements is true, "answer", or the paths of the lists a number counts',
+      'schemas/commands/x.read.json: output odd: x-elements is true, "answer", "selection", or the paths of the lists a number counts',
       'schemas/commands/x.read.json: x-elements "answer" on one, two, nested.ids: at most one field is the answer',
     ]);
+  });
+
+  it("decides every number of an output: a count of elements, or listed with its reason (SR-224 AK4)", () => {
+    const uuids = { type: "array", items: { $ref: `${C}uuid` } };
+    const keyed = (key) => ({
+      title: "Rows",
+      type: "array",
+      ...(key === undefined ? {} : { "x-key": key }),
+      items: {
+        type: "object",
+        properties: {
+          name: { title: "Name", type: "string" },
+          n: { title: "N", type: "integer", "x-elements": "selection" },
+        },
+      },
+    });
+    const notCounts = new Map([
+      ["x.read offset", "a position"],
+      ["x.read listed", "a position"],
+      ["x.read gone", "a position"],
+      ["common.schema.json#/$defs/shortId", "no number"],
+    ]);
+    const write = {
+      ...read({ n: { title: "N", type: "integer", "x-elements": "selection" } }),
+      name: "x.write",
+      effect: "write-files",
+    };
+    expect(
+      checkOutputs(
+        {
+          commands: [
+            read(
+              {
+                ids: { title: "IDs", "x-elements": "answer", ...uuids },
+                page: { title: "Page", "x-elements": true, ...uuids },
+                offset: { title: "Offset", type: "integer" },
+                bare: { title: "Bare", type: "integer" },
+                listed: { title: "Listed", type: "integer", "x-elements": "ids" },
+                paged: { title: "Paged", type: "integer", "x-elements": "page" },
+                rows: keyed(["name"]),
+                unkeyed: keyed(undefined),
+                wrong: keyed(["value"]),
+                notList: { title: "Not a list", type: "string", "x-key": ["a"] },
+                map: {
+                  title: "Map",
+                  type: "object",
+                  additionalProperties: {
+                    type: "object",
+                    properties: { n: { title: "N", type: "integer", "x-elements": "selection" } },
+                  },
+                },
+              },
+              { input: { type: "object", properties: { limit: { type: "integer" } } } },
+            ),
+            write,
+          ],
+        },
+        schemas,
+        notCounts,
+      ),
+    ).toEqual([
+      'schemas/commands/x.read.json: output bare: a number: mark it x-elements if it counts elements, else list "x.read bare" in NOT_ELEMENT_COUNTS of output-checks.mjs with the reason (SR-224 AK4)',
+      "schemas/commands/x.read.json: output listed: is marked x-elements and listed in NOT_ELEMENT_COUNTS; keep one",
+      'schemas/commands/x.read.json: output paged: x-elements "page" names a list of one page; mark the number "selection"',
+      'schemas/commands/x.read.json: output unkeyed[].n: the list unkeyed needs "x-key": the fields that identify its entry',
+      'schemas/commands/x.read.json: output wrong[].n: x-key of wrong names "value", which its entry does not have',
+      "schemas/commands/x.read.json: output notList: x-key is for a list: the fields of its entry that identify it",
+      "schemas/commands/x.read.json: output map.*.n: a number of elements is not inside a map: a reader cannot name its entry",
+      'schemas/commands/x.write.json: output n: x-elements "selection" is for a read command; a write command names the list of its output',
+      'NOT_ELEMENT_COUNTS "x.read gone" names no number of an output; remove it',
+      'NOT_ELEMENT_COUNTS "common.schema.json#/$defs/shortId" names no number of an output; remove it',
+    ]);
+    // The catalog carries the key fields of each list a number is in.
+    const rows = resolvedOutputFields(read({ rows: keyed(["name"]) }).output, schemas).find(
+      (f) => f.path === "rows[].n",
+    );
+    expect(rows).toEqual({ path: "rows[].n", title: "N", elements: "selection", keys: [["name"]] });
   });
 
   it("[SR-224/AK-zk0v] holds showsOutput to the write commands with content of their own, in both directions", () => {
@@ -261,6 +341,7 @@ describe("output fields", () => {
       path: "levels[].total",
       title: "Total",
       elements: ["levels[].elements.withChildren", "levels[].elements.withoutChildren"],
+      keys: [["type"]],
     });
     expect(fields.find((f) => f.path === "levels[].elements.withChildren")).toMatchObject({
       technical: true,

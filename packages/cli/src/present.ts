@@ -55,6 +55,9 @@
 //   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line, and `SHORT-ID  title` as the variant of a record of a
 //   chain (#676). A UUID that `names` leaves out stays as it is.
+// - A list of the elements a number of a write command counts (items of exactly `id`, `shortId` and
+//   `repository`, `countedElement`, SR-224 AK4), at any depth but the rows of `partial`, is one line of short IDs, cut after 10 with
+//   `… and N more (--yaml lists them)`, `none` when empty: a write may count 50,000 elements (N-036).
 // - The answer (`answer`, SR-224) is the first line, as core gives it; an output whose text is a
 //   format (`textOutput`, such as Mermaid, SR-151 AK4) is printed alone, without it (render.ts).
 // - Next steps (a list of steps, `common.schema.json#/$defs/nextStep`, SR-226 AK2) print last, after the line after the problems, as
