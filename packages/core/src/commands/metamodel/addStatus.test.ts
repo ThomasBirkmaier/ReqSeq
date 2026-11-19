@@ -143,13 +143,6 @@ describe("metamodel.addStatus gives a type a status (SR-240 AK1)", () => {
 describe("metamodel commands: the frame as the status commands show it (SR-236)", () => {
   it("[SR-236/AK-sx7z] refuses a status change that would give the metamodel an error and names it; writes with warnings and names them", async () => {
     const { workspace, read } = await openSmall();
-    const twice = await failure(workspace, "metamodel.addStatus", {
-      type: "note",
-      name: "Opened",
-      key: "open",
-    });
-    expect(twice.details).toMatchObject({ reason: "metamodel-invalid" });
-    expect(twice.message).toContain("open");
     const none = await failure(workspace, "metamodel.changeStatus", { status: "draft", initial: false });
     expect(none.details).toMatchObject({ reason: "metamodel-invalid" });
     expect(none.message).toContain("No status is initial");
@@ -171,6 +164,12 @@ describe("metamodel commands: the frame as the status commands show it (SR-236)"
       "input.invalid",
       { reason: "taken", field: "name", status: "noted" },
     ]);
+    const key = await failure(workspace, "metamodel.addStatus", {
+      type: "hazard",
+      name: "Opened",
+      key: "open",
+    });
+    expect(key.details).toEqual({ reason: "taken", field: "key", status: "open" });
     const changed = await failure(workspace, "metamodel.changeStatus", { status: "open", name: "Draft" });
     expect(changed.details).toEqual({ reason: "taken", field: "name", status: "draft" });
     expect(await read(MODEL)).toBe(model);

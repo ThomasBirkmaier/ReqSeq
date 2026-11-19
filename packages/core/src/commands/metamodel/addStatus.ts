@@ -34,6 +34,14 @@ type Input = CommandInput<"metamodel.addStatus">;
 /** The key of a new status: as given, else made from the name (SR-236 AK6). */
 const statusKey = (metamodel: Metamodel, name: string, key: string | undefined): string => {
   if (key !== undefined) {
+    const other = metamodel.statuses.find((s) => s.key === key);
+    if (other !== undefined) {
+      throw new CommandError("input.invalid", `The key ${key} is already the key of status ${other.name}`, {
+        reason: "taken",
+        field: "key",
+        status: key,
+      });
+    }
     return key;
   }
   const made = keyFromName(name);
