@@ -5957,7 +5957,7 @@
     },
     {
       "name": "metamodel_addProperty",
-      "title": "Add property",
+      "title": "Add property to type",
       "description": "Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.",
       "annotations": {
         "readOnlyHint": false,
@@ -6443,7 +6443,7 @@
     },
     {
       "name": "metamodel_removeProperty",
-      "title": "Remove property",
+      "title": "Remove property from type",
       "description": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
       "annotations": {
         "readOnlyHint": false,

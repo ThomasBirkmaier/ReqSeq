@@ -1381,6 +1381,7 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
     "metamodel.changeProperty maxItems",
     "metamodel.changeProperty addChoices",
     "metamodel.changeProperty changeChoices",
+    "metamodel.addProperty choices",
   ];
 
   /** The commands the prompt offers by their own entry (not those an action covers), with a list shown. */
