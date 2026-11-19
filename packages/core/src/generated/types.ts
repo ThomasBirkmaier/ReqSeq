@@ -2779,6 +2779,137 @@ export interface MetamodelRemoveRelationKindOutput {
 }
 
 /**
+ * Input of `metamodel.addStatus` as `run` gets it: validated, properties with a `default` filled in. Give a type a status, an existing one or a new one; only the metamodel files that have them change, line by line.
+ * Schema: `schemas/commands/metamodel.addStatus.json input`.
+ */
+export interface MetamodelAddStatusInput {
+  /** Key of the type that gets the status. */
+  readonly type: Key;
+  /** Key of an existing status the type does not have. Left out: `name` describes a new status. */
+  readonly status?: Key;
+  /** Display name of a new status; no other status may have it. */
+  readonly name?: string;
+  /** Fixed key of the new status (D-043). Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** The new status is marked invalid: elements with it do not count for coverage and indirect verification, but stay visible in chains (D-044). */
+  readonly invalid?: boolean;
+}
+
+/**
+ * Output of `metamodel.addStatus`. Give a type a status, an existing one or a new one; only the metamodel files that have them change, line by line.
+ * Schema: `schemas/commands/metamodel.addStatus.json output`.
+ */
+export interface MetamodelAddStatusOutput {
+  readonly answer: Answer;
+  /** Key of the type that got the status. */
+  readonly type: Key;
+  /** The definition of the status, as written. */
+  readonly status: MetamodelStatus;
+  /** true when the status is new to the metamodel. */
+  readonly created: boolean;
+  /** The statuses of the type afterwards, own and inherited, in the order of the metamodel's statuses. */
+  readonly statuses: readonly Key[];
+  /** The other types that have the status now and did not before, except types that extend the type: types without a list of statuses, their own or an ancestor's, which have every status (SR-240 AK1), and types whose list names the key of a new status already (an unknown status before, a metamodel warning). */
+  readonly alsoTypes: readonly Key[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeStatus` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, invalid mark or initial mark of a status; only the metamodel files that have them change, line by line, and no element changes its status.
+ * Schema: `schemas/commands/metamodel.changeStatus.json input`.
+ */
+export interface MetamodelChangeStatusInput {
+  /** Key of the status to change. */
+  readonly status: Key;
+  /** New display name; no other status may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** true: elements with the status do not count for coverage and indirect verification, but stay visible in chains (D-044); false removes the mark. */
+  readonly invalid?: boolean;
+  /** true: new elements get the status, and the status that had the mark loses it (SR-240 AK2); false removes the mark, which leaves no initial status and is refused. */
+  readonly initial?: boolean;
+}
+
+/**
+ * Output of `metamodel.changeStatus`. Change the name, description, invalid mark or initial mark of a status; only the metamodel files that have them change, line by line, and no element changes its status.
+ * Schema: `schemas/commands/metamodel.changeStatus.json output`.
+ */
+export interface MetamodelChangeStatusOutput {
+  readonly answer: Answer;
+  /** The definition as it is written afterwards. */
+  readonly status: MetamodelStatus;
+  /** Key of the status that lost the initial mark; only when the status became initial. */
+  readonly previousInitial?: Key;
+  /** The elements that have the status, of any type; only when the invalid mark changed (D-044); those of `elementsWithStatus`. */
+  readonly elements?: number;
+  /** The elements `elements` counts, in store order; only when the invalid mark changed. */
+  readonly elementsWithStatus?: readonly CountedElement[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeStatus` as `run` gets it: validated, properties with a `default` filled in. Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeStatus.json input`.
+ */
+export interface MetamodelRemoveStatusInput {
+  /** Key of the type that loses the status. */
+  readonly type: Key;
+  /** Key of the status to remove from the type. */
+  readonly status: Key;
+}
+
+/**
+ * Output of `metamodel.removeStatus`. Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeStatus.json output`.
+ */
+export interface MetamodelRemoveStatusOutput {
+  readonly answer: Answer;
+  /** Key of the type that lost the status. */
+  readonly type: Key;
+  /** Key of the removed status. */
+  readonly status: Key;
+  /** true when no type has the status any more and its definition was removed (SR-240 AK3). */
+  readonly removed: boolean;
+  /** Saved filters, perspectives and mapping files that name the removed definition as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
  * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json input`.
  */
@@ -5156,6 +5287,9 @@ export interface CommandTypes {
   readonly "metamodel.addRelationKind": { readonly input: MetamodelAddRelationKindInput; readonly output: MetamodelAddRelationKindOutput };
   readonly "metamodel.changeRelationKind": { readonly input: MetamodelChangeRelationKindInput; readonly output: MetamodelChangeRelationKindOutput };
   readonly "metamodel.removeRelationKind": { readonly input: MetamodelRemoveRelationKindInput; readonly output: MetamodelRemoveRelationKindOutput };
+  readonly "metamodel.addStatus": { readonly input: MetamodelAddStatusInput; readonly output: MetamodelAddStatusOutput };
+  readonly "metamodel.changeStatus": { readonly input: MetamodelChangeStatusInput; readonly output: MetamodelChangeStatusOutput };
+  readonly "metamodel.removeStatus": { readonly input: MetamodelRemoveStatusInput; readonly output: MetamodelRemoveStatusOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };
