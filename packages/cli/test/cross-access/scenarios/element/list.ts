@@ -587,4 +587,34 @@ scenariosOf("element.list", [
       ]);
     },
   })),
+  {
+    tag: "[SR-222/AK-b63b]",
+    name: "the condition text finds a criterion key and a criterion reference, a property condition only the criterion texts",
+    fixture: { fixture: "SR-222/criteria" },
+    input: {
+      selection: {
+        where: {
+          all: [
+            { text: "k7f3" },
+            {
+              any: [
+                { text: "[SR-036/AK-k7f3]" },
+                { property: "acceptance-criteria", op: "contains", value: "rain" },
+              ],
+            },
+            { not: { property: "acceptance-criteria", op: "contains", value: "k7f3" } },
+          ],
+        },
+      },
+    },
+    expect: "output",
+    check: (results: Readonly<Record<string, Result>>) => {
+      const [first] = Object.values(results);
+      const outcome = first?.outcome;
+      const output = (outcome !== undefined && "output" in outcome ? outcome.output : {}) as {
+        elements: { shortId: string }[];
+      };
+      expect(output.elements.map((element) => element.shortId).sort()).toEqual(["SR-0000d1", "SR-0000d2"]);
+    },
+  },
 ]);

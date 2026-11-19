@@ -7,7 +7,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { FixtureWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace, generateLargeWorkspace, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  createFixtureWorkspace,
+  generateLargeWorkspace,
+  withoutVerificationGaps,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import * as reader from "../../git/reader.js";
@@ -133,8 +138,8 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
       problems: [],
       checkedElements: 1,
     });
-    // The full check reports the same relations.
-    expect(brief((await check(workspace)).problems)).toEqual(brief(viaB.problems));
+    // The full check reports the same relations, and the missing evidence location (SR-230 AK1).
+    expect(brief(withoutVerificationGaps((await check(workspace)).problems))).toEqual(brief(viaB.problems));
   });
 
   it("counts changed embedded images, untracked files, and both inputs together", async () => {
@@ -731,7 +736,8 @@ describe("SR-092 AK1 on a generated workspace", () => {
       p.elementId === undefined
         ? true
         : selectedIds.has(p.elementId) || (p.targetId !== undefined && changed.includes(p.targetId));
-    expect(brief(restricted.problems)).toEqual(brief(full.problems.filter(belongs)));
+    // The gaps of verification are left out of a restricted check (SR-230 AK1, AK2).
+    expect(brief(restricted.problems)).toEqual(brief(withoutVerificationGaps(full.problems).filter(belongs)));
     expect(restricted.checkedElements).toBe(selectedIds.size);
     expect(restricted.ok).toBe(false);
     const has = (problems: readonly Problem[], code: string, element: string, target?: string): boolean =>

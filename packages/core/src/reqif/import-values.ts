@@ -134,14 +134,14 @@ const choiceValue = (
  * The lexical form of xs:dateTime (ReqIF 1.2 §10.8.7) with a four-digit year, which a date property
  * can hold, or of its day alone.
  */
-const DATE_TIME =
+export const DATE_TIME =
   /^\d{4}-\d{2}-\d{2}(?:T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?|24:00:00(?:\.0+)?)(?:Z|[+-](?:(?:0\d|1[0-3]):[0-5]\d|14:00))?)?$/;
 
 /** The time of xs:dateTime that is the first instant of the next day (XSD 1.1 Part 2 §3.3.8). */
 const END_OF_DAY = /^T24:00:00(?:\.0+)?(?:Z|[+-]\d{2}:\d{2})?$/;
 
 /** The time of `date` (`YYYY-MM-DD`) in UTC, if it is a day of the calendar. */
-const dayTime = (date: string): number | undefined => {
+export const dayTime = (date: string): number | undefined => {
   const time = Date.parse(`${date}T00:00:00Z`);
   return !Number.isNaN(time) && new Date(time).toISOString().startsWith(date) ? time : undefined;
 };
@@ -171,7 +171,7 @@ const dateValue = (raw: string, loss: Loss): string | undefined => {
 };
 
 /** Lexical forms of xs:integer and xs:double (ReqIF 1.2 §10.8.20, §10.8.22). */
-const LEXICAL: Readonly<Record<string, RegExp>> = {
+export const LEXICAL: Readonly<Record<string, RegExp>> = {
   integer: /^[+-]?\d+$/,
   real: /^(?:[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[+-]?INF|NaN)$/,
 };

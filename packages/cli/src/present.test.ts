@@ -6,15 +6,15 @@ import { lines } from "./present.test-helper.js";
 describe("renderHuman: the answer (SR-224 AK2)", () => {
   it("[SR-224/AK-tjmm] prints the answer of core as the first line, before every other line, on a terminal too", () => {
     const output = {
-      answer: "Created need N-7fe707; 1 file written.",
+      answer: "Created Need N-7fe707; 1 file written.",
       files: ["need/N-0000007fe707.md"],
       problems: [],
     };
     expect(renderHuman(output, false)).toBe(
-      lines("Created need N-7fe707; 1 file written.", "files:", "  need/N-0000007fe707.md", "No problems."),
+      lines("Created Need N-7fe707; 1 file written.", "files:", "  need/N-0000007fe707.md", "No problems."),
     );
     const styled = renderHuman(output, false, { columns: 80, colors: true });
-    expect(stripVTControlCharacters(styled).split("\n")[0]).toBe("Created need N-7fe707; 1 file written.");
+    expect(stripVTControlCharacters(styled).split("\n")[0]).toBe("Created Need N-7fe707; 1 file written.");
   });
 });
 
@@ -691,6 +691,48 @@ describe("renderHuman: on a terminal (#988)", () => {
         "total: 2",
       ),
     );
+  });
+
+  it("[SR-222/AK-h8py] names the number and key of the criterion a snippet stands in, the key strong when core marks it", () => {
+    const criterion = (tail: string, found: Record<string, unknown>) =>
+      element(tail, "Gust alarm", {
+        snippet: {
+          field: "properties",
+          property: "acceptance-criteria",
+          propertyName: "Acceptance Criteria",
+          text: "Given a gust, then the alarm sounds.",
+          marks: [],
+          ...found,
+        },
+      });
+    const output = {
+      hits: [
+        criterion("a1", { criterion: { criterion: 3, key: "rqjp", keyMarked: true } }),
+        criterion("a2", { criterion: { criterion: 2, key: "k7f3" } }),
+        criterion("a3", { criterion: { criterion: 1 } }),
+      ],
+      total: 3,
+    };
+    expect(renderHuman(output)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Gust alarm",
+        "    Acceptance Criteria AK3 (rqjp): Given a gust, then the alarm sounds.",
+        "  SR-a2  draft  Gust alarm",
+        "    Acceptance Criteria AK2 (k7f3): Given a gust, then the alarm sounds.",
+        "  SR-a3  draft  Gust alarm",
+        "    Acceptance Criteria AK1: Given a gust, then the alarm sounds.",
+        "total: 3",
+      ),
+    );
+    const styled = renderHuman(output, true, terminal);
+    expect(styled).toContain(
+      `${style("dim", "Acceptance Criteria AK3 (")}${style("bold", "rqjp")}${style("dim", "):")} Given`,
+    );
+    expect(styled).toContain(
+      `${style("dim", "Acceptance Criteria AK2 (")}${style("dim", "k7f3")}${style("dim", "):")} Given`,
+    );
+    expect(styled).toContain(`${style("dim", "Acceptance Criteria AK1:")} Given`);
   });
 
   it("shows the snippet of a search hit below its line, the marks core gives strong (SR-174)", () => {

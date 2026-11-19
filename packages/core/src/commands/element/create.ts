@@ -13,9 +13,9 @@ import { filesNote, named, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.create",
-  answer: (output) =>
+  answer: (output, _input, names) =>
     sentence(
-      `Created ${output.element.type} ${named(output.element)}`,
+      `Created ${names.type(output.element.type)} ${named(output.element)}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

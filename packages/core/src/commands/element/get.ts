@@ -22,9 +22,9 @@ import { incompleteNote, named, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.get",
-  answer: (output) =>
+  answer: (output, _input, names) =>
     sentence(
-      `${named(output.element)} is a ${output.element.type}${output.element.status === undefined ? " without status" : ` with status ${output.element.status}`}`,
+      `${named(output.element)} is of type ${names.type(output.element.type)}${output.element.status === undefined ? " without status" : ` with status ${output.element.status}`}`,
       problemsNote(output.element.problems),
       incompleteNote(output.incomplete),
     ),

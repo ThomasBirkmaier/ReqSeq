@@ -23,7 +23,7 @@
   "additionalProperties": false,
   "$defs": {
     "name": {
-      "description": "Name of a saved filter, unique in the workspace ignoring case (spec-frage ThomasBirkmaier/ReqSeq-archive#363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.",
+      "description": "Name of a saved filter, unique in the workspace ignoring case (spec question ThomasBirkmaier/ReqSeq-archive#363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.",
       "type": "string",
       "maxLength": 200,
       "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
@@ -196,7 +196,7 @@
             "text": {
               "title": "Text search",
               "type": "string",
-              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs (SR-221), quoted words as a phrase (SR-068 AK4), and a designation also through the other designations of its element (SR-220). A query without a word matches none."
+              "description": "Elements that element.search finds for this query in all fields (SR-068, SR-220 AK6): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and, exact with 4+ letters and no digit, inside words (SR-221), quoted words as a phrase (SR-068 AK4), a designation through its element's other ones (SR-220), criterion keys and references. A query without a word matches none."
             }
           },
           "additionalProperties": false
@@ -204,6 +204,10 @@
         { "$ref": "#/$defs/propertyCondition" },
         { "$ref": "#/$defs/relationCondition" }
       ]
+    },
+    "conditionStub": {
+      "type": "object",
+      "description": "Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`."
     },
     "keys": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/key" } },
     "propertyCondition": {

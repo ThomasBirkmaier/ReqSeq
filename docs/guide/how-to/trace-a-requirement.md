@@ -31,7 +31,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
-Created need N-7fe707; 1 file written.
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -41,7 +41,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 3 problems.
+Created System Requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -51,7 +51,7 @@ reqseq element create system-requirement "Warn of gusts" --text "The station mus
 ```
 
 ```text title="Output"
-Created system-requirement SR-5e1d0a; 1 file written; 3 problems.
+Created System Requirement SR-5e1d0a; 1 file written; 3 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -121,7 +121,7 @@ reqseq element create system-requirement "Log the wind" --text "The station must
 ```
 
 ```text title="Output"
-Created system-requirement SR-62fb87; 1 file written; 3 problems.
+Created System Requirement SR-62fb87; 1 file written; 3 problems.
 SR-62fb87  draft  Log the wind  [verification: core open]
 ...
 warning  trace.no-parent  ...
@@ -143,10 +143,11 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 5 elements and found 9 warnings.
+Checked 5 elements and found 10 warnings.
 ok: true
 ...
 warning  trace.no-parent  SR-62fb87  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  ...
+warning  evidence.no-location  ...
 ```
 
 Which relation kinds lead to a parent is up to the metamodel: every kind with the meaning `derivation`, in the standard model `derives-from` and `refines`. `based-on` has no meaning, so a decision is no parent; [Extend the metamodel](/how-to/extend-the-metamodel/) shows how a project makes it one.

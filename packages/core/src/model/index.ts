@@ -52,8 +52,17 @@ export {
   isCriterionMapping,
   isKeyedCriterion,
 } from "./criterion-items.js";
-export { criterionReferencesOf, referenceNameOf } from "./criterion-references.js";
-export type { CriterionReferenceContext, CriterionReferences } from "./criterion-references.js";
+export {
+  criterionKeysOf,
+  criterionReferencesOf,
+  referenceNameOf,
+  requirementTypesOf,
+} from "./criterion-references.js";
+export type {
+  CriterionKeys,
+  CriterionReferenceContext,
+  CriterionReferences,
+} from "./criterion-references.js";
 export {
   allCriterionKeyFindings,
   criterionKeyFindings,
@@ -84,6 +93,10 @@ export type {
   StoreUpdate,
   WrittenFile,
 } from "./store.js";
+export { metamodelEffects } from "./metamodel-effects.js";
+export type { MetamodelEffects } from "./metamodel-effects.js";
+export { writeMetamodel } from "./metamodel-write.js";
+export type { MetamodelWrite } from "./metamodel-write.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";
 export type { RequiredFinding } from "./required.js";
 export { allStatusFindings, statusFindings, statusProblemsState } from "./status-findings.js";
@@ -293,6 +306,7 @@ export type { NewElementBase } from "./write.js";
 export {
   assertElementWritable,
   createElement,
+  initialStatus,
   newElementBase,
   propertyKeyRefusal,
   newElementBytes,

@@ -285,6 +285,52 @@ describe("the search prompt in the minibuffer", () => {
     });
   });
 
+  it("[SR-222/AK-h8py] names the criterion a hit's snippet stands in by number and key, the key marked when only it was found", async () => {
+    const criterion = (n: number, key: string, keyMarked: boolean): Hit =>
+      hit(n, {
+        snippet: {
+          field: "properties",
+          property: "acceptance-criteria",
+          propertyName: "Acceptance Criteria",
+          criterion: { criterion: 3, key, ...(keyMarked ? { keyMarked: true } : {}) },
+          text: "Given a gust, then the dial warns.",
+          marks: keyMarked ? [] : [{ start: 8, end: 12 }],
+        },
+      });
+    await mount(() => output([criterion(1, "rqjp", true), criterion(2, "k7f3", false)]));
+    await type("rqjp");
+    const shown = options().map((option) => ({
+      where: text(option, ".snippet .where"),
+      whereMarks: [...option.querySelectorAll(".snippet .where mark")].map((mark) => mark.textContent),
+      marks: [...option.querySelectorAll(".snippet > mark")].map((mark) => mark.textContent),
+      tooltip: option.querySelector(".snippet")?.getAttribute("title"),
+    }));
+    expect(shown).toEqual([
+      {
+        where: "Acceptance Criteria AK3 (rqjp):",
+        whereMarks: ["rqjp"],
+        marks: [],
+        tooltip: "Acceptance Criteria AK3 (rqjp): Given a gust, then the dial warns.",
+      },
+      {
+        where: "Acceptance Criteria AK3 (k7f3):",
+        whereMarks: [],
+        marks: ["gust"],
+        tooltip: "Acceptance Criteria AK3 (k7f3): Given a gust, then the dial warns.",
+      },
+    ]);
+  });
+
+  it("[SR-222/AK-ttpn] marks the identifier a typed criterion reference names, else the short ID", async () => {
+    const found = (n: number, identifier: string): Hit =>
+      hit(n, { identifier, fields: ["id"], terms: [], titleMarks: [] }, false);
+    await mount(() => output([found(1, "SR-036"), found(2, "SR-0367")]));
+    await type("[SR-036/AK-k7f3]");
+    expect(
+      options().map((option) => [...option.querySelectorAll(".name mark")].map((mark) => mark.textContent)),
+    ).toEqual([["SR-036"], ["SR-000002"]]);
+  });
+
   it("[SR-183/AK-jrbc] Enter opens the hit chosen with Ctrl+N, Ctrl+P or the arrows", async () => {
     for (const [keys, wanted] of [
       [[["n", { ctrlKey: true }]], "element:spec:u1"],

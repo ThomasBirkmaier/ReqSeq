@@ -30,7 +30,7 @@ reqseq element create package "Wind measurement"
 ```
 
 ```text title="Output"
-Created package PKG-65ba20; 1 file written.
+Created Package PKG-65ba20; 1 file written.
 PKG-65ba20  draft  Wind measurement
 ...
 ```

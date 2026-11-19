@@ -5,7 +5,18 @@
   "effect": "read",
   "loadUpfront": true,
   "stage": 3,
-  "implements": ["SR-066", "SR-068", "SR-098", "SR-137", "SR-149", "SR-174", "SR-216", "SR-220", "SR-221"],
+  "implements": [
+    "SR-066",
+    "SR-068",
+    "SR-098",
+    "SR-137",
+    "SR-149",
+    "SR-174",
+    "SR-216",
+    "SR-220",
+    "SR-221",
+    "SR-222"
+  ],
   "arguments": [
     { "field": "query", "complete": "text", "class": "query" },
     { "field": "selection", "complete": "selection" },
@@ -20,7 +31,7 @@
     "properties": {
       "query": {
         "type": "string",
-        "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
+        "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A criterion key, also after `AK-`, also matches each criterion with it, exactly, where the acceptance criteria are searched (SR-222 AK1). A criterion reference of a test name, with or without brackets, matches each requirement its identifier or short ID names with exactly one criterion with the key, as an ID match (with `id`) and in that criterion; its words still match as an ID's, but not in these requirements; one that fits none is plain words (SR-222 AK2). Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier, UUID, criterion key or criterion reference still matches as without quotes. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
       },
       "selection": {
         "$ref": "../common.schema.json#/$defs/selection",
@@ -31,7 +42,7 @@
         "minItems": 1,
         "uniqueItems": true,
         "items": { "$ref": "../common.schema.json#/$defs/searchFieldKey" },
-        "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word, SR-221) or through another designation (SR-220 AK1), and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
+        "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier, and a criterion reference, SR-222 AK2), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values, the acceptance criteria property also by the criterion keys of its criteria, SR-222 AK1); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word, SR-221) or through another designation (SR-220 AK1), and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
       },
       "group": {
         "$ref": "../common.schema.json#/$defs/groupKey",
@@ -106,12 +117,12 @@
               "title": "Score",
               "type": "number",
               "minimum": 0,
-              "description": "Relevance of the matched words, rounded to 6 significant digits; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
+              "description": "Relevance of the matched words, rounded to 6 significant digits; a criterion key found in a criterion (SR-222) adds that of one word found once, in as many elements as carry the key; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
             },
             "fields": {
               "title": "Fields",
               "type": "array",
-              "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`.",
+              "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`, and so is a criterion key or reference found in a criterion (SR-222).",
               "items": {
                 "type": "string",
                 "enum": ["title", "text", "properties", "id"]
@@ -120,7 +131,7 @@
             "terms": {
               "title": "Matched words",
               "type": "array",
-              "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a phrase or another designation of two or more words.",
+              "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a criterion key found in a criterion, a criterion reference in the requirements it fits (SR-222), a phrase or another designation of two or more words.",
               "items": {
                 "type": "string"
               }
@@ -132,7 +143,7 @@
             },
             "snippet": {
               "title": "Snippet",
-              "description": "Where a word was found and one line around the first match in reading order (SR-174), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole and none of its words elsewhere (SR-174 AK6, SR-220 AK3). A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+              "description": "Where a word was found and one line around the first match in reading order (SR-174), or the start of an acceptance criterion's text where only its key was found (SR-222 AK3), only in the fields searched (SR-216 AK5): in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word (SR-221 AK3), a phrase or another designation of several words as a whole and none of its words elsewhere (SR-174 AK6, SR-220 AK3). A list item or a nested value is a value of its own; a choice shows its name; an acceptance criterion is named in `criterion`. None when no visible word and no criterion key matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
               "oneOf": [
                 {
                   "type": "object",
@@ -157,6 +168,31 @@
                       "title": "Property name",
                       "type": "string",
                       "description": "Its name in the metamodel; the key for a property the metamodel does not define."
+                    },
+                    "criterion": {
+                      "title": "Criterion",
+                      "type": "object",
+                      "description": "When the value is an acceptance criterion (SR-222 AK3): its number and criterion key, as element.resolve gives them in `criterion`; the snippet stands for its text.",
+                      "properties": {
+                        "criterion": {
+                          "title": "Number",
+                          "type": "integer",
+                          "minimum": 1,
+                          "description": "Its position in the current version, from 1."
+                        },
+                        "key": {
+                          "title": "Criterion key",
+                          "$ref": "../common.schema.json#/$defs/criterionKey",
+                          "description": "The criterion key; left out without one."
+                        },
+                        "keyMarked": {
+                          "title": "Key marked",
+                          "const": true,
+                          "description": "Only its key was found in it: the location highlights the key, and the snippet is the start of its text without marks."
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": ["criterion"]
                     },
                     "text": { "title": "Text", "type": "string", "minLength": 1 },
                     "marks": { "title": "Marks", "$ref": "../common.schema.json#/$defs/textMarks" }

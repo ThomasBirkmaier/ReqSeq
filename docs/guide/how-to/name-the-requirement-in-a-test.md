@@ -5,12 +5,12 @@ sidebar:
   order: 4.1
 ---
 
-A test shows a requirement once it names it, in one of two ways that give the same result:
+A test shows a requirement once it names it, in one of two equivalent ways:
 
 - **In the test name**, in square brackets: `[SR-b2c0de]`, or with an acceptance criterion by its criterion key, [`[SR-b2c0de/AK-k7f3]`](/how-to/give-acceptance-criteria-their-keys/#the-reference-of-a-criterion). Several brackets name several requirements. Without `/AK` the test counts for all criteria.
 - **As the property `reqseq:element`** of the test case, with the ID as its value. For one criterion, add the property `reqseq:criterion` with the ID, a colon and the key (`SR-b2c0de:k7f3`).
 
-The key is in the element file. A number in the name, or a key no criterion or several carry, is reported (`evidence.invalid-criterion-name`), the test case unchanged.
+The key is in the element file. A number in the name, or a key no criterion or several carry, is reported (`evidence.invalid-criterion-name`), the test case unchanged. Searching `[SR-b2c0de/AK-k7f3]` finds the requirement (SR-222).
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
@@ -60,7 +60,7 @@ For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pat
 fn sr_c67baa_ak_k7f3_shows_the_wind_speed_in_knots() { /* … */ }
 ```
 
-`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak_{ak}"` then records the test for SR-c67baa and its acceptance criterion with the key `k7f3`, as `[SR-c67baa/AK-k7f3]` would.
+`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak_{ak}"` then enriches the test case for SR-c67baa and its acceptance criterion with the key `k7f3`, as `[SR-c67baa/AK-k7f3]` would.
 
 ## API
 

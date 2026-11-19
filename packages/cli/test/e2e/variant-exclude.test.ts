@@ -42,7 +42,7 @@ describe("variant exclude (SR-042)", () => {
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a3"], { cwd: ws.root });
     expect([result.code, result.stdout, result.stderr]).toEqual([
       0,
-      `files:\n  ${A_FILE}\nNo problems.\n`,
+      `Variant VAR-0000c1 excludes SR-0000a3; 1 file written.\nfiles:\n  ${A_FILE}\nNo problems.\n`,
       "",
     ]);
     expect(await requirementsIn(ws, "VAR-0000c1")).toEqual(["SR-0000a4", "SR-0000b1", "SR-0000b2"]);
@@ -60,7 +60,11 @@ describe("variant exclude (SR-042)", () => {
     const result = await run(["variant", "exclude", "VAR-0000c1", "--refs", "SR-0000a3", "--json"], {
       cwd: ws.root,
     });
-    expect(JSON.parse(result.stdout)).toEqual({ files: [A_FILE], problems: [] });
+    expect(JSON.parse(result.stdout)).toEqual({
+      answer: "Variant VAR-0000c1 excludes SR-0000a3; 1 file written.",
+      files: [A_FILE],
+      problems: [],
+    });
     expect(await read(ws, "requirements/SR-0000000000a3.md")).toBe(core);
     expect(await read(ws, A_FILE)).toContain(
       "  - { id: 43043043-0000-4000-8000-0000000000a3, version: n2:22b0303ec030d854, title: Measure the rain }\n",

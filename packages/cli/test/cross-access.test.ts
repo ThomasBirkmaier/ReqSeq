@@ -739,7 +739,7 @@ describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
 describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => {
   it("[SR-151/AK-c801] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr", async () => {
     const texts = runtime.contracts.commands.filter((e) => e.textOutput !== undefined);
-    expect(texts.map((e) => e.name).sort()).toEqual(["metamodel.mermaid", "trace.mermaid"]);
+    expect(texts.map((e) => e.name).sort()).toEqual(["metamodel.mermaid", "tool.guide", "trace.mermaid"]);
     for (const entry of texts) {
       const field = entry.textOutput ?? "";
       for (const scenario of (SCENARIOS.get(entry.name as CommandName) ?? []).filter(
@@ -748,7 +748,10 @@ describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => 
         const { root } = await copy(scenario);
         const core = (await viaCore(root, entry, scenario.input)) as { output: Record<string, unknown> };
         const text = core.output[field];
-        const problems = (core.output["problems"] as unknown[]).map((problem) => renderProblem(problem));
+        // tool.guide has no problems (SR-229): the guide itself names why it lacks facts.
+        const problems = ((core.output["problems"] ?? []) as unknown[]).map((problem) =>
+          renderProblem(problem),
+        );
         const stdout = new Sink();
         const stderr = new Sink();
         const argv = [...argvFor(entry, scenario.input, runtime.contracts.schemas), "--workspace", root];
@@ -973,10 +976,23 @@ const crashing = createCommandRuntime({
           input: { type: "object", additionalProperties: false },
           output: { type: "object" },
         },
+        // The MCP server takes its instructions from tool.guide before it serves (SR-229 AK1).
+        {
+          name: "tool.guide",
+          title: "Agent guide",
+          summary: "The guide for an agent (test only).",
+          effect: "read",
+          stage: 1,
+          implements: ["SR-229"],
+          arguments: [],
+          input: { type: "object" },
+          output: { type: "object" },
+        },
       ],
     },
   }),
   commands: [
+    defineTestCommand({ name: "tool.guide", run: () => Promise.resolve({ guide: "Test guide" }) }),
     defineTestCommand<Record<string, never>, unknown>({
       name: "test.crash",
       run: (ctx) => {

@@ -27,7 +27,7 @@ reqseq element create need "See the wind speed"
 ```
 
 ```text title="Output"
-Created need N-7fe707; 1 file written.
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -37,7 +37,7 @@ reqseq element create system-requirement "Show the wind speed" --relations deriv
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 2 problems.
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -47,7 +47,7 @@ reqseq element create system-requirement "Warn of gusts" --relations derives-fro
 ```
 
 ```text title="Output"
-Created system-requirement SR-5e1d0a; 1 file written; 2 problems.
+Created System Requirement SR-5e1d0a; 1 file written; 2 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -144,7 +144,7 @@ reqseq element create system-requirement "Warn of gusts and squalls" --relations
 ```
 
 ```text title="Output"
-Created system-requirement SR-62fb87; 1 file written; 2 problems.
+Created System Requirement SR-62fb87; 1 file written; 2 problems.
 SR-62fb87  draft  Warn of gusts and squalls  [verification: core open]
 ...
 ```

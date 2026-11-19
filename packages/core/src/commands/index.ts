@@ -43,11 +43,13 @@ import perspectiveRename from "./perspective/rename.js";
 import perspectiveSave from "./perspective/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
+import metamodelAddType from "./metamodel/addType.js";
 import metamodelGet from "./metamodel/get.js";
 import metamodelMermaid from "./metamodel/mermaid.js";
 import relationAdd from "./relation/add.js";
 import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
+import toolGuide from "./tool/guide.js";
 import toolInfo from "./tool/info.js";
 import traceAffected from "./trace/affected.js";
 import traceChain from "./trace/chain.js";
@@ -100,6 +102,7 @@ export const commands: readonly AnyCommand[] = [
   filterSave,
   hintConfirm,
   hintList,
+  metamodelAddType,
   metamodelGet,
   metamodelMermaid,
   perspectiveDelete,
@@ -113,6 +116,7 @@ export const commands: readonly AnyCommand[] = [
   lazyCommand("reqif.export", () => import("./reqif/export.js")),
   lazyCommand("reqif.import", () => import("./reqif/import.js")),
   lazyCommand("reqif.saveMapping", () => import("./reqif/saveMapping.js")),
+  toolGuide,
   toolInfo,
   traceAffected,
   traceChain,

@@ -9,7 +9,7 @@ import {
   swipeAction,
   actionFor,
   commandPrompt,
-  criterionChoices,
+  criterionEntryOf,
   jumpPrompt,
   referencePrompt,
   runAction,
@@ -557,11 +557,47 @@ describe("go to element or buffer", () => {
     expect(await prompt.find?.("[SR-036/AK-zzzz]")).toEqual([]);
     expect(echoed).toEqual(["SR-036 has no acceptance criterion with the criterion key zzzz"]);
     expect(
-      await criterionChoices(
+      await criterionEntryOf(
         setup([list], { "element.resolve": { element: resolvedElement, current: null } }).context,
         "[SR-036/AK-zzzz]",
       ),
-    ).toEqual([]);
+    ).toBeUndefined();
+  });
+
+  it("[SR-222/AK-znd8] Go to lists the requirement of a typed criterion reference once, as the criterion's entry", async () => {
+    const found = (id: string, shortId: string, identifier: string): Record<string, unknown> => ({
+      id,
+      repository: "spec",
+      shortId,
+      identifier,
+      title: "Wind",
+      type: "t",
+      score: 0,
+      fields: ["id"],
+      terms: [],
+    });
+    const { context, dispatched } = setup([list], {
+      "element.resolve": {
+        element: { id: "u1", repository: "spec", shortId: "SR-000001", identifier: "SR-036", title: "Wind" },
+        criterion: { criterion: 2, key: "k7f3", text: "Given a gust.", reference: "[SR-036/AK-k7f3]" },
+        current: null,
+      },
+      // The search finds the requirement by the reference, and another one by its words.
+      "element.search": {
+        hits: [found("u1", "SR-000001", "SR-036"), found("u7", "SR-000007", "SR-0367")],
+        total: 2,
+        incomplete: false,
+      },
+    });
+    const choices = await jumpPrompt(context).find?.("[SR-036/AK-k7f3]");
+    expect(choices?.map((choice) => [choice.id, choice.name])).toEqual([
+      ["criterion:element:spec:u1", "SR-000001 (SR-036) Wind · AK2 (k7f3) · Given a gust."],
+      ["element:spec:u7", "SR-000007 (SR-0367) Wind"],
+    ]);
+    choices?.[0]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: elementBuffer("u1", "spec", "SR-000001 (SR-036) Wind") },
+    ]);
   });
 
   it("[SR-115/AK-gxzy] Go to offers no element shown last that is open, nor the shown buffer, and none without recent elements", () => {
@@ -952,7 +988,7 @@ describe("save element and edit text", () => {
       }
     }
     // Each of the actions among them is shown somewhere ("Create element" is a catalog command,
-    // `catalog-commands.test.ts`).
+    // `catalog-commands-create.test.ts`).
     expect([...seen].sort()).toEqual(MOST_FREQUENT.filter((id) => !id.startsWith("command:")).sort());
     // Written out once: the letters of the list and the overview.
     const onList = commandPrompt(setup([list]).context).items;

@@ -47,7 +47,7 @@ export interface EvidenceFiles {
 }
 
 /** `location.path` as the walk names folders: `/` as separator, no `.`, `""` for the repository root. */
-const startOf = (relativePath: string): string => {
+export const startOf = (relativePath: string): string => {
   const normal = path.posix.normalize(relativePath).replace(/\/+$/, "");
   return normal === "." ? "" : normal;
 };

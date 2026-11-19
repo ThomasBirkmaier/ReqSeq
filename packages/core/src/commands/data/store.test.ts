@@ -684,6 +684,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
         fs.chmodSync(ws.path("locked"), 0o755);
       });
       expect(await storeIn(ws.root, { folder: "locked/inner/out" })).toEqual({
+        answer: "Stored no data; 1 problem.",
         files: [],
         problems: [
           {

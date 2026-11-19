@@ -14,6 +14,7 @@ import {
   createFixtureWorkspace,
   defaultStandardModelFile,
   generateLargeWorkspace,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -135,7 +136,8 @@ describe("cold load in worker threads (ADR-0008, ThomasBirkmaier/ReqSeq-archive#
       checkedElements: number;
     };
     expect(output).toMatchObject({ ok: true, checkedElements: ELEMENTS });
-    // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
-    expect(output.problems.filter((p) => p.code !== "trace.no-parent")).toEqual([]);
+    // The generated requirements that got no derivation are hints (SR-022 AK6), and the workspace file
+    // names no evidence location (SR-230 AK1); nothing else is reported.
+    expect(withoutVerificationGaps(output.problems).filter((p) => p.code !== "trace.no-parent")).toEqual([]);
   });
 });

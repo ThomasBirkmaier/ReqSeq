@@ -35,7 +35,7 @@ describe("reqseq element search (SR-068)", () => {
     const result = await run(["element", "search", "MESURE"], { cwd: ws.root });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
-      "hits:\n  SR-0000b1  approved  Measure wind speed\n  SR-0000b2  draft  Measure every second\ntotal: 2\n",
+      "Found 2 hits for the query MESURE.\nhits:\n  SR-0000b1  approved  Measure wind speed\n  SR-0000b2  draft  Measure every second\ntotal: 2\n",
     );
   });
 

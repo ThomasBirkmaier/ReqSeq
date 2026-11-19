@@ -31,7 +31,7 @@ reqseq element create need "See the wind speed"
 ```
 
 ```text title="Output"
-Created need N-7fe707; 1 file written.
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -41,7 +41,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 3 problems.
+Created System Requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -51,7 +51,7 @@ reqseq element get SR-c67baa
 ```
 
 ```text title="Output"
-SR-c67baa is a system-requirement with status draft; 3 problems.
+SR-c67baa is of type System Requirement with status draft; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
   text: |

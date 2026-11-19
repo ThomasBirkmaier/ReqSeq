@@ -110,7 +110,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/agent-connection.schema.json",
       "title": "Agent connection file",
-      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
+      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has written the successful answer to the client's `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
       "type": "object",
       "required": [
         "version",
@@ -134,7 +134,7 @@
         },
         "since": {
           "$ref": "common.schema.json#/$defs/dateTime",
-          "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+          "description": "When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
         },
         "ended": {
           "anyOf": [
@@ -151,7 +151,7 @@
       "additionalProperties": false,
       "$defs": {
         "client": {
-          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
+          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control, format and surrogate characters other than the joiners removed, trimmed, cut at a character boundary to at most 40 characters (grapheme clusters, so an accented letter or a composed emoji counts as one and is not split) and at most 400 UTF-16 code units. null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
           "anyOf": [
             {
               "type": "string",
@@ -906,6 +906,9 @@
             "evidence.unknown-criterion",
             "evidence.invalid-criterion-name",
             "evidence.counts-in-no-view",
+            "evidence.outside-location",
+            "evidence.no-location",
+            "evidence.open-requirements",
             "baseline.invalid",
             "baseline.repository-commit-differs",
             "filter.invalid",
@@ -927,7 +930,8 @@
             "reqif.choice-unused",
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
-            "reqif.source-model-unsaved"
+            "reqif.source-model-unsaved",
+            "reqif.source-value-chosen"
           ],
           "x-technical": true
         },
@@ -2808,7 +2812,7 @@
                 "text": {
                   "title": "Text search",
                   "type": "string",
-                  "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs, quoted words as a phrase, and a designation also through the other designations of its element. A query without a word matches none."
+                  "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and, exact with 4+ letters and no digit, inside words, quoted words as a phrase, a designation through its element's other ones, criterion keys and references. A query without a word matches none."
                 }
               },
               "additionalProperties": false
@@ -2820,6 +2824,10 @@
               "$ref": "#/$defs/relationCondition"
             }
           ]
+        },
+        "conditionStub": {
+          "type": "object",
+          "description": "Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`."
         },
         "keys": {
           "type": "array",
@@ -3045,22 +3053,27 @@
             "name": true,
             "description": true,
             "prefix": {
+              "title": "Prefix",
               "$ref": "#/$defs/prefix",
               "description": "Prefix of the short ID, e.g. SR. UNKNOWN is reserved for elements of an unknown type and is a metamodel error."
             },
             "extends": {
+              "title": "Extends",
               "$ref": "#/$defs/key",
               "description": "Parent type; its properties and required properties are inherited, over any number of levels. A parent that is not defined, or a cycle, is a metamodel error."
             },
             "abstract": {
+              "title": "Abstract",
               "type": "boolean",
               "default": false,
               "description": "No elements of this type can be created; only for inheritance."
             },
             "meaning": {
+              "title": "Meaning",
               "$ref": "#/$defs/typeMeaning"
             },
             "properties": {
+              "title": "Properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/key"
@@ -3068,6 +3081,7 @@
               "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it."
             },
             "required": {
+              "title": "Required properties",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/key"
@@ -3075,6 +3089,7 @@
               "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it. Empty values are allowed but give a hint."
             },
             "statuses": {
+              "title": "Statuses",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/key"
@@ -5625,7 +5640,7 @@
                   "since": {
                     "title": "Connected since",
                     "$ref": "../common.schema.json#/$defs/dateTime",
-                    "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+                    "description": "When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
                   }
                 },
                 "required": [
@@ -6532,6 +6547,68 @@
         ]
       },
       {
+        "name": "tool.guide",
+        "title": "Agent guide",
+        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.",
+        "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one.",
+        "effect": "read",
+        "loadUpfront": true,
+        "textOutput": "guide",
+        "stage": 3,
+        "implements": [
+          "SR-229"
+        ],
+        "arguments": [
+          {
+            "field": "names",
+            "complete": "choice"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "enum": [
+                "cli",
+                "mcp"
+              ],
+              "default": "cli",
+              "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "guide": {
+              "title": "Agent guide",
+              "type": "string",
+              "contentMediaType": "text/markdown",
+              "description": "The agent guide as Markdown, LF line endings and a final newline."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "guide"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "guide",
+            "title": "Agent guide"
+          }
+        ]
+      },
+      {
         "name": "metamodel.get",
         "title": "Show metamodel",
         "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
@@ -7116,6 +7193,356 @@
           {
             "path": "mermaid",
             "title": "Mermaid"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
+      },
+      {
+        "name": "metamodel.addType",
+        "title": "Add type",
+        "summary": "Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.",
+        "details": "The type is added at the end of `types` in the first metamodel file by name that has the list, else at the end of the first file, where the list is created. Every other line of the file stays as it was, with its comment and line ending; no element file changes and nothing in Git. Without `key`, the key is made from the name: lower case, the German umlauts and sharp s as ae, oe, ue and ss, every run of other characters one hyphen; it is fixed afterwards. A type that extends no other type gets the property with the meaning `title` as a required property, when the metamodel has one. The metamodel files are read again before the change, and the metamodel afterwards is checked as a read would check it: an error refuses the command, warnings are in `problems`. The next command of the same process uses the new metamodel. Errors: input.invalid with details.reason key-required when no key is given and the one made from the name is empty (a name without letters or digits), does not start with a letter, is longer than 64 characters or is another type's key (details.key); input.invalid with details.reason taken when another type has the name (in Unicode normal form NFC) or the prefix (details.field, details.type); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error (such as a key that is already defined or an unknown type in `extends`); workspace.read-only when the metamodel files do not give a valid metamodel; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when the list `types` of the file is an alias or has an anchor (details.repository, details.file, details.line) or is no list; workspace.read-only when the metamodel repository is not on this machine (details.repository); file.changed-on-disk when another process changed the file since it was read. Nothing is written on these.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
+        "stage": 6,
+        "implements": [
+          "SR-236",
+          "SR-237"
+        ],
+        "arguments": [
+          {
+            "field": "name",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "prefix",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "key",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "extends",
+            "complete": "type"
+          },
+          {
+            "field": "abstract",
+            "complete": "boolean"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Display name of the type; no other type may have it."
+            },
+            "prefix": {
+              "$ref": "../metamodel.schema.json#/$defs/prefix",
+              "description": "Prefix of the short IDs of its elements, e.g. SR; no other type may have it."
+            },
+            "key": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Fixed key of the type. Left out: made from the name."
+            },
+            "extends": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the type it extends; its properties, required properties and statuses are inherited."
+            },
+            "abstract": {
+              "type": "boolean",
+              "default": false,
+              "description": "No elements of the type can be created; it is only extended."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "prefix"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "type": {
+              "title": "Type",
+              "$ref": "../metamodel.schema.json#/$defs/type",
+              "description": "The definition as written to the file."
+            },
+            "files": {
+              "title": "Files",
+              "type": "array",
+              "description": "The metamodel files changed.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Written file, relative to the workspace root."
+              }
+            },
+            "versionsChanged": {
+              "title": "Versions changed",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+            },
+            "missingRequired": {
+              "title": "Missing required properties",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements that now miss a value of a required property they did not miss before."
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The warnings of the metamodel afterwards.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "type",
+            "files",
+            "versionsChanged",
+            "missingRequired",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "type",
+            "title": "Type"
+          },
+          {
+            "path": "type.prefix",
+            "title": "Prefix"
+          },
+          {
+            "path": "type.extends",
+            "title": "Extends"
+          },
+          {
+            "path": "type.abstract",
+            "title": "Abstract"
+          },
+          {
+            "path": "type.meaning",
+            "title": "Meaning"
+          },
+          {
+            "path": "type.properties",
+            "title": "Properties"
+          },
+          {
+            "path": "type.required",
+            "title": "Required properties"
+          },
+          {
+            "path": "type.statuses",
+            "title": "Statuses"
+          },
+          {
+            "path": "type.key",
+            "title": "Key"
+          },
+          {
+            "path": "type.name",
+            "title": "Name"
+          },
+          {
+            "path": "type.description",
+            "title": "Description"
+          },
+          {
+            "path": "files",
+            "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "versionsChanged",
+            "title": "Versions changed"
+          },
+          {
+            "path": "missingRequired",
+            "title": "Missing required properties"
           },
           {
             "path": "problems",
@@ -18969,7 +19396,8 @@
           "SR-174",
           "SR-216",
           "SR-220",
-          "SR-221"
+          "SR-221",
+          "SR-222"
         ],
         "arguments": [
           {
@@ -19007,7 +19435,7 @@
           "properties": {
             "query": {
               "type": "string",
-              "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
+              "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A criterion key, also after `AK-`, also matches each criterion with it, exactly, where the acceptance criteria are searched. A criterion reference of a test name, with or without brackets, matches each requirement its identifier or short ID names with exactly one criterion with the key, as an ID match (with `id`) and in that criterion; its words still match as an ID's, but not in these requirements; one that fits none is plain words. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier, UUID, criterion key or criterion reference still matches as without quotes. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
             },
             "selection": {
               "$ref": "../common.schema.json#/$defs/selection",
@@ -19020,7 +19448,7 @@
               "items": {
                 "$ref": "../common.schema.json#/$defs/searchFieldKey"
               },
-              "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word) or through another designation, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
+              "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier, and a criterion reference), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values, the acceptance criteria property also by the criterion keys of its criteria); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word) or through another designation, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
             },
             "group": {
               "$ref": "../common.schema.json#/$defs/groupKey",
@@ -19099,12 +19527,12 @@
                     "title": "Score",
                     "type": "number",
                     "minimum": 0,
-                    "description": "Relevance of the matched words, rounded to 6 significant digits; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
+                    "description": "Relevance of the matched words, rounded to 6 significant digits; a criterion key found in a criterion adds that of one word found once, in as many elements as carry the key; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
                   },
                   "fields": {
                     "title": "Fields",
                     "type": "array",
-                    "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`.",
+                    "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`, and so is a criterion key or reference found in a criterion.",
                     "items": {
                       "type": "string",
                       "enum": [
@@ -19118,7 +19546,7 @@
                   "terms": {
                     "title": "Matched words",
                     "type": "array",
-                    "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a phrase or another designation of two or more words.",
+                    "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a criterion key found in a criterion, a criterion reference in the requirements it fits, a phrase or another designation of two or more words.",
                     "items": {
                       "type": "string"
                     }
@@ -19130,7 +19558,7 @@
                   },
                   "snippet": {
                     "title": "Snippet",
-                    "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+                    "description": "Where a word was found and one line around the first match in reading order, or the start of an acceptance criterion's text where only its key was found, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name; an acceptance criterion is named in `criterion`. None when no visible word and no criterion key matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
                     "oneOf": [
                       {
                         "type": "object",
@@ -19172,6 +19600,33 @@
                             "title": "Property name",
                             "type": "string",
                             "description": "Its name in the metamodel; the key for a property the metamodel does not define."
+                          },
+                          "criterion": {
+                            "title": "Criterion",
+                            "type": "object",
+                            "description": "When the value is an acceptance criterion: its number and criterion key, as element.resolve gives them in `criterion`; the snippet stands for its text.",
+                            "properties": {
+                              "criterion": {
+                                "title": "Number",
+                                "type": "integer",
+                                "minimum": 1,
+                                "description": "Its position in the current version, from 1."
+                              },
+                              "key": {
+                                "title": "Criterion key",
+                                "$ref": "../common.schema.json#/$defs/criterionKey",
+                                "description": "The criterion key; left out without one."
+                              },
+                              "keyMarked": {
+                                "title": "Key marked",
+                                "const": true,
+                                "description": "Only its key was found in it: the location highlights the key, and the snippet is the start of its text without marks."
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "criterion"
+                            ]
                           },
                           "text": {
                             "title": "Text",
@@ -19349,6 +19804,22 @@
           {
             "path": "hits[].snippet.propertyName",
             "title": "Property name"
+          },
+          {
+            "path": "hits[].snippet.criterion",
+            "title": "Criterion"
+          },
+          {
+            "path": "hits[].snippet.criterion.criterion",
+            "title": "Number"
+          },
+          {
+            "path": "hits[].snippet.criterion.key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "hits[].snippet.criterion.keyMarked",
+            "title": "Key marked"
           },
           {
             "path": "groups",
@@ -29598,7 +30069,8 @@
       {
         "name": "reqif.export",
         "title": "Export ReqIF",
-        "summary": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+        "summary": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+        "details": "With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
@@ -29608,7 +30080,8 @@
           "SR-054",
           "SR-058",
           "SR-059",
-          "SR-101"
+          "SR-101",
+          "SR-158"
         ],
         "arguments": [
           {
@@ -29635,6 +30108,10 @@
           {
             "field": "statements",
             "complete": "boolean"
+          },
+          {
+            "field": "sourceModel",
+            "complete": "boolean"
           }
         ],
         "input": {
@@ -29653,7 +30130,7 @@
               "type": "string"
             },
             "mapping": {
-              "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
+              "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`.",
               "$ref": "../common.schema.json#/$defs/localPath"
             },
             "omitProperties": {
@@ -29665,6 +30142,10 @@
             },
             "statements": {
               "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
+              "type": "boolean"
+            },
+            "sourceModel": {
+              "description": "Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous.",
               "type": "boolean"
             }
           },
@@ -29983,6 +30464,9 @@
     "evidence.counts-in-no-view": "Record in no view",
     "evidence.unknown-criterion": "Unknown acceptance criterion",
     "evidence.invalid-criterion-name": "Criterion named by number",
+    "evidence.outside-location": "Enriched file in no evidence location",
+    "evidence.no-location": "No evidence location",
+    "evidence.open-requirements": "Open verification status",
     "baseline.invalid": "Invalid baseline",
     "baseline.repository-commit-differs": "Repository at another commit",
     "filter.invalid": "Invalid saved filter",
@@ -30004,6 +30488,7 @@
     "reqif.choice-unused": "Unused conflict choice",
     "reqif.edited-elsewhere": "Edited in another tool",
     "reqif.mapping-differs": "Different saved mapping",
-    "reqif.source-model-unsaved": "Source model not saved"
+    "reqif.source-model-unsaved": "Source model not saved",
+    "reqif.source-value-chosen": "First source value written"
   }
 }

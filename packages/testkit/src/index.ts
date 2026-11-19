@@ -6,3 +6,4 @@ export * from "./no-parent.js";
 export * from "./perf.js";
 export * from "./watching.js";
 export * from "./validate-reqif.js";
+export * from "./verification-gaps.js";

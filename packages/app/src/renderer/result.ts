@@ -8,7 +8,8 @@
 // row of `variant.diff` (`core`, `replacement`), is one line that opens both side by side, read-only
 // (SR-044 AK2); a row with a third field would be an outline again. A UUID in two repositories (SR-088)
 // opens in the repository `names` gives first. A top-level `total`, `view` and `incomplete` describe the
-// answer and go to the modeline (#276). Layout only: nothing here knows a command (ADR-0002).
+// answer and go to the modeline (#276). The answer of the output (`answer`, SR-224 AK1) is no line here:
+// showing it first is the output page of #1874. Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { shownId, shownIdTitle } from "./id-title.js";
@@ -288,7 +289,7 @@ const SUMMARY_FIELDS: Readonly<Record<string, string>> = {
 
 /**
  * An output split into its summary fields (`SUMMARY_FIELDS`), which describe the answer and go to the
- * modeline (#276), and the rest, which the lines show.
+ * modeline (#276), and the rest, which the lines show, without the answer itself (SR-224 AK1, #1874).
  */
 const splitSummary = (
   output: unknown,
@@ -308,7 +309,11 @@ const splitSummary = (
       view: view === "core" ? "Core" : (named?.title ?? view),
       incomplete: field("incomplete") === true,
     },
-    rest: Object.fromEntries(Object.entries(output).filter(([key, value]) => !isSummary(key, value))),
+    rest: Object.fromEntries(
+      Object.entries(output).filter(
+        ([key, value]) => !isSummary(key, value) && !(key === "answer" && typeof value === "string"),
+      ),
+    ),
   };
 };
 

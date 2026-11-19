@@ -14,6 +14,13 @@ const FIELDS: FixtureOptions = { fixture: "SR-216/fields" };
 /** Word parts in title, text, a property and the type and status names (SR-221). */
 const WORD_PARTS: FixtureOptions = { fixture: "SR-221/word-parts" };
 
+/** Acceptance criteria with criterion keys, identifiers and the synonym "AK" (SR-222). */
+const CRITERIA: FixtureOptions = { fixture: "SR-222/criteria" };
+
+/** The short IDs of the hits of the first access, in their order; every access gave the same (compared before). */
+const order = (results: Readonly<Record<string, Result>>): string[] =>
+  ranked(results).map((hit) => hit.split(" ")[0] ?? "");
+
 /** The hits of the first access as `short ID score`; every access gave the same (compared before). */
 const ranked = (results: Readonly<Record<string, Result>>): string[] => {
   const [first] = Object.values(results);
@@ -218,6 +225,8 @@ scenariosOf("element.search", [
             field: "properties",
             property: "acceptance-criteria",
             propertyName: "Acceptance Criteria",
+            // The criterion without key by its number (SR-222 AK3).
+            criterion: { criterion: 2 },
             text: "Given a gust, then the alarm sounds.",
             marks: [{ start: 8, end: 12 }],
           },
@@ -581,6 +590,91 @@ scenariosOf("element.search", [
           .map((hit) => hit.split(" ")[0])
           .sort(),
       ).toEqual(["SR-0000e1", "SR-0000e3", "SR-0000e4", "SR-0000ea", "SR-0000eb"]);
+    },
+  },
+  {
+    tag: "[SR-222/AK-tdpp]",
+    name: "a criterion key in another case after AK- finds its criterion, exactly, beside the word itself",
+    fixture: CRITERIA,
+    input: { query: "AK-RQJP" },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d1"]);
+    },
+  },
+  {
+    tag: "[SR-222/AK-ttpn]",
+    name: "a criterion reference finds its requirement first, as an ID and in its criterion, and its words elsewhere",
+    fixture: CRITERIA,
+    input: { query: "[SR-036/AK-k7f3]" },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d1"]);
+    },
+  },
+  {
+    tag: "[SR-222/AK-h8py]",
+    name: "a hit in a criterion names its number and key, the key marked when only it was found, the number alone without key",
+    fixture: CRITERIA,
+    input: { query: "rqjp repeats" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toMatchObject({
+        "SR-0000d1": [
+          {
+            field: "properties",
+            property: "acceptance-criteria",
+            criterion: { criterion: 2, key: "rqjp", keyMarked: true },
+            text: "Given a gust, then the alarm sounds.",
+            marks: [],
+          },
+          undefined,
+        ],
+      });
+    },
+  },
+  {
+    tag: "[SR-222/AK-h8py]",
+    name: "a word in a criterion without key names its number only",
+    fixture: CRITERIA,
+    input: { query: "repeats" },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toMatchObject({
+        "SR-0000d1": [{ criterion: { criterion: 3 }, marks: [{ start: 30, end: 37 }] }, undefined],
+      });
+    },
+  },
+  {
+    tag: "[SR-216/AK-wf2k]",
+    name: "a criterion key found only in the chosen fields: in the acceptance criteria, not in the title and text",
+    fixture: CRITERIA,
+    input: { query: "rqjp", fields: ["title", "text"] },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d3"]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-wf2k]",
+    name: "a criterion reference in the acceptance criteria only, without IDs: found in its criterion",
+    fixture: CRITERIA,
+    input: { query: "[SR-036/AK-rqjp]", fields: ["acceptance-criteria"] },
+    expect: "output",
+    check: (results) => {
+      expect(order(results)).toEqual(["SR-0000d1"]);
+    },
+  },
+  {
+    tag: "[SR-216/AK-r9jg]",
+    name: "the acceptance criteria property is found by a criterion key, the IDs by a criterion reference",
+    fixture: CRITERIA,
+    input: { query: "[SR-036/AK-rqjp]", fields: ["acceptance-criteria"] },
+    expect: "output",
+    check: (results) => {
+      expect(snippets(results)).toMatchObject({
+        "SR-0000d1": [{ criterion: { criterion: 2, key: "rqjp", keyMarked: true } }, undefined],
+      });
     },
   },
 ]);

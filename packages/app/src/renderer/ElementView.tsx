@@ -30,125 +30,48 @@
 // evidence records (`EvidenceLines.tsx`), the line
 // and the elements of a package page (`PackageSummary.tsx`, `PackageMembers.tsx`) and a block "On disk"
 // (`OnDisk.tsx`).
-import { Prec } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import type { Command } from "@codemirror/view";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+// Its functions are in parts of their own, called once per render in the order they always ran: factories
+// without hooks for the input (`element-input.ts`), the focus and the keys (`element-navigation.ts`), the reads
+// and saves (`element-file.ts`), the commands (`element-commands.ts`) and the pointer (`element-pointer.ts`),
+// and hooks for the plugins of the text and the smaller helpers (`element-view-hooks.ts`) and for the controls it
+// gives the app (`element-controls.ts`).
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
-import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
+import type { BufferKeep } from "./buffer-memory.js";
 import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
-import type { ElementControls, Prompt, TextOptions } from "./action-types.js";
-import { findElements } from "./actions.js";
-import type { BufferAction, ElementBuffer, RenameAction, ResultBuffer } from "./buffers.js";
-import { filteredList, renameAction } from "./buffers.js";
-import type { Answer, Call } from "./call.js";
-import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf, modelineField } from "./copy.js";
+import type { ElementControls, Prompt } from "./action-types.js";
+import type { BufferAction, ElementBuffer, ResultBuffer } from "./buffers.js";
+import type { Call } from "./call.js";
+import { NOTHING, copyField, copyable, docOf, modelineField } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
-import {
-  TITLE_FIELD,
-  isReadOnly,
-  outdatedParent,
-  outdatedReferences,
-  shownElement,
-  undatedHints,
-  withHintDates,
-} from "./element-view.js";
+import { TITLE_FIELD, isReadOnly, outdatedParent, outdatedReferences, shownElement } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
-import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
-import type { ImageElement } from "./editor/image-preview.js";
-import { imagePreview } from "./editor/image-preview.js";
-import type { EditorPlugins } from "./editor/plugins.js";
-import { findMarks } from "./editor/find.js";
-import { formatKeys } from "./editor/format.js";
-import { pasteAsMarkdown } from "./editor/paste.js";
-import { mergePlugins } from "./editor/plugins.js";
-import { tableEditing } from "./editor/tables.js";
-import { goToHeading, headings as headingsOf, sectionFolding } from "./editor/folding.js";
-import { boxReference, referenceAt, references } from "./editor/references.js";
-import type { Reference } from "./editor/references.js";
-import { listDrag } from "./editor/list-drag.js";
-import { listKeys } from "./editor/lists.js";
-import { boxNavigation } from "./editor/box-navigation.js";
-import { dirty } from "./editor/save.js";
-import { referenceSearch } from "./editor/reference-search.js";
 import type { ReferenceTitles } from "./reference-titles.js";
-import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
-import type { ImageRequest } from "./editor/slash-menu.js";
-import { imagePrompt } from "./insert-image.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { DiskState } from "./disk-state.js";
-import {
-  DISK_START,
-  conflictEnded,
-  decided,
-  failure,
-  fileRead,
-  goneRead,
-  leaveSaves,
-  lockedNote as lockedNoteOf,
-  readFailed,
-  saveNote as saveNoteOf,
-  showsKept,
-  takeFileEdits,
-} from "./disk-state.js";
+import { DISK_START, leaveSaves } from "./disk-state.js";
 import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
-import { withShown } from "./drafts.js";
-import type { SaveMode, Said, SentWrite } from "./save-flow.js";
-import {
-  afterRefusal,
-  checkStep,
-  failedSpeech,
-  leftDraft,
-  saveStep,
-  savedLine,
-  savedSpeech,
-  staleRead,
-} from "./save-flow.js";
+import type { Said } from "./save-flow.js";
+import { staleRead } from "./save-flow.js";
 import type { BufferFields } from "./field-state.js";
-import {
-  NO_FIELDS,
-  boxDocs as boxDocsOf,
-  draftOf,
-  fileDocs as fileDocsOf,
-  firstLoad,
-  inputDocs as inputDocsOf,
-  propertyAdded,
-  reloaded,
-  restored as restoredOf,
-  settledFields,
-  valueDoc as valueDocOf,
-  valueSet,
-} from "./field-state.js";
+import { NO_FIELDS } from "./field-state.js";
 import { ElementText } from "./ElementText.js";
-import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
 import { shownDoc } from "./criterion-doc.js";
-import type { CriterionAt } from "./criterion-reference.js";
-import { NO_CRITERION, criterionAtPos, referenceToCopy } from "./criterion-reference.js";
-import { pressedCriterion } from "./field-menu.js";
 import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
 import { VariantLines } from "./VariantLines.js";
-import { hasStatus } from "./variant-lines.js";
 import { EvidenceLines } from "./EvidenceLines.js";
-import type { ConflictField, OutsideChange } from "./outside-change.js";
-import {
-  TEXT_FIELD,
-  changedOnDisk,
-  deletedOnDisk,
-  diskMark,
-  isGone,
-  outsideChange,
-  resolvePrompt,
-} from "./outside-change.js";
+import type { ConflictField } from "./outside-change.js";
+import { TEXT_FIELD, diskMark } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
+import { NO_CHANGES, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
 import { bufferMark, useHidden, useReveal, useWhole } from "./area-slot.js";
-import { ctrlStep, historyStep, isMac, isModClick, isPlainClick } from "./keys.js";
+import { isMac, isModClick, isPlainClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
@@ -158,85 +81,35 @@ import { memberAt, memberSelection, packageOf } from "./package-page.js";
 import {
   addableProperties,
   allBoxes,
-  changedBoxes,
-  changesReferences,
-  choiceKeys,
-  editsOf,
-  emptyBox,
-  fieldBoxes,
-  hintKeys,
   isLocked,
   isKeyedBox,
   isNumberedList,
   isValueBox,
   isValueKind,
   lockNote,
-  relationDoc,
-  relationTargets,
-  savedHint,
   shownBoxes,
-  storedDocs,
-  updateInput,
   withTitle,
 } from "./property-edit.js";
-import type { BoxEdit, EditableBox } from "./property-edit.js";
-import { addPropertyPrompt, choicePrompt, relationPrompt } from "./property-prompts.js";
-import { NO_HISTORY, record, redo, undo } from "./value-history.js";
-import type { ListableValue, Pointer } from "./value-list.js";
-import {
-  NO_POINTER,
-  clickedValue,
-  listableValues,
-  pointedValue,
-  valueKeyOf,
-  valueSignature,
-  valuesPrompt,
-} from "./value-list.js";
+import type { EditableBox } from "./property-edit.js";
+import type { Pointer } from "./value-list.js";
+import { NO_POINTER, listableValues, valueKeyOf } from "./value-list.js";
 import { shownId } from "./id-title.js";
-
-/** Folding of the sections under the headings of the text (SR-191): one extension for every element buffer. */
-const SECTION_FOLDING = { extensions: [sectionFolding()] };
-
-/**
- * The field whose value a click on `target` is in (SR-132 AK1): not the key of a box, and not the label of
- * a reference, which a press already follows.
- */
-const clickedBox = (target: Element): string | undefined => {
-  const field = target.closest<HTMLElement>("[data-field]");
-  const value = target.closest(".value");
-  return field !== null && value !== null && field.contains(value) && target.closest(".cm-lr-ref") === null
-    ? field.dataset["field"]
-    : undefined;
-};
-
-/** Whether text is selected in the value `target` is in: the click ended a drag that selected it. */
-const selectedIn = (target: Element): boolean => {
-  const value = target.closest(".value");
-  const selection = target.ownerDocument.getSelection();
-  return (
-    value !== null && selection !== null && !selection.isCollapsed && selection.containsNode(value, true)
-  );
-};
-
-/** What a click on `target` in the box `key` points at: a target link, a line of a text or choice box, else the box. */
-const clickedIn = (key: string, target: Element): Pointer => {
-  const link = target.closest<HTMLElement>('[role="link"][data-target-id]');
-  if (link !== null) {
-    return {
-      kind: "box",
-      key,
-      target: { id: link.dataset["targetId"] ?? "", repository: link.dataset["targetRepository"] ?? "" },
-    };
-  }
-  const editorLine = target.closest<HTMLElement>(".cm-line");
-  const editor = editorLine?.closest<HTMLElement>(".cm-editor");
-  const view = editor === null || editor === undefined ? null : EditorView.findFromDOM(editor);
-  if (editorLine !== null && view !== null) {
-    return { kind: "box", key, line: view.state.doc.lineAt(view.posAtDOM(editorLine)).text };
-  }
-  const line = target.closest(".line");
-  return line === null ? { kind: "box", key } : { kind: "box", key, line: line.textContent };
-};
+import type { ElementState } from "./element-input.js";
+import { elementInput } from "./element-input.js";
+import { elementCommands } from "./element-commands.js";
+import { useElementControls } from "./element-controls.js";
+import { elementLoads, elementSaves } from "./element-file.js";
+import { elementFocus, elementKeys } from "./element-navigation.js";
+import { elementPointer, useValueFacets } from "./element-pointer.js";
+import {
+  isVariantPage,
+  shownOnly,
+  useArea,
+  useHintDates,
+  useLinesAgain,
+  useTextPlugins,
+  useUndoMemory,
+} from "./element-view-hooks.js";
 
 export interface ElementViewProps {
   readonly call: Call;
@@ -315,125 +188,6 @@ export interface ElementViewProps {
    */
   readonly active?: boolean;
 }
-
-/** `value` for a shown view, nothing for one drawn hidden in advance (SR-212 AK5). */
-const shownOnly = <T,>(hidden: boolean, value: T): T | undefined => (hidden ? undefined : value);
-
-/** Whether the loaded element is of a type with the meaning `variant`. */
-const isVariantPage = (view: ElementLoad, variantTypes: ReadonlySet<string> | undefined): boolean =>
-  view.status === "ok" && variantTypes?.has(view.element.type) === true;
-
-/** The focused target link of a relation box or a relation group of the element buffer, if one has the focus. */
-const focusedTarget = (): HTMLElement | null =>
-  document.activeElement instanceof HTMLElement
-    ? document.activeElement.closest<HTMLElement>("[data-buffer] [data-target-id]")
-    : null;
-
-/**
- * An outdated reference shows the version it stores, as the date of that version (SR-110 AK2, D-013). The
- * element is read without dates, so opening it runs no git (SR-082 AK3); only an element with outdated
- * relations or references is asked for again, for the dates of these hints alone (`hintDates`: Git reads
- * the histories of their targets), and again only when these hints change (ThomasBirkmaier/ReqSeq-archive#702). The answer is the
- * element as the buffer shows it, with the dated hints in place of the undated ones (`withHintDates`).
- */
-const useHintDates = (
-  call: Call,
-  buffer: ElementBuffer,
-  view: ElementLoad,
-): ((element: DataExportElement) => DataExportElement) => {
-  const undatedKey = view.status === "ok" ? undatedHints(view.element) : "";
-  const [datedHints, setDatedHints] = useState<NonNullable<DataExportElement["problems"]>>([]);
-  useEffect(() => {
-    if (undatedKey === "") {
-      return;
-    }
-    let current = true;
-    void call("element.get", { ref: buffer.id, repository: buffer.repository, hintDates: true }).then(
-      (answer) => {
-        // A failed read leaves the hints without dates; the load of the element reports why.
-        if (current && answer.ok) {
-          setDatedHints(answer.output.element.problems ?? []);
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [call, buffer.id, buffer.repository, undatedKey]);
-  return useCallback((element: DataExportElement) => withHintDates(element, datedHints), [datedHints]);
-};
-
-/**
- * A change from outside that did not name the element can still change its variant lines (SR-046, SR-047): a
- * variant's exclusions, a replacing requirement, the records. A requirement or need (one with a
- * verification or validation status) is read again for the lines alone on each such change (`elsewhere` counts them), as the parents
- * line is on every change. Only the lines take the answer, so the fields, their highlights and the input
- * stay as they are.
- */
-const useLinesAgain = (
-  call: Call,
-  buffer: ElementBuffer,
-  elsewhere: number,
-  got: Pick<ElementGetOutput, "element" | "names" | "criterionReferences"> | undefined,
-  setGot: (output: Pick<ElementGetOutput, "element" | "names" | "criterionReferences">) => void,
-): void => {
-  const asked = got !== undefined && hasStatus(got.element);
-  useEffect(() => {
-    if (elsewhere === 0 || !asked) {
-      return;
-    }
-    let current = true;
-    void call("element.get", { ref: buffer.id, repository: buffer.repository }).then((answer) => {
-      // A failed read keeps the lines; the next read of the element says why.
-      if (current && answer.ok) {
-        setGot(answer.output);
-      }
-    });
-    return () => {
-      current = false;
-    };
-  }, [call, buffer.id, buffer.repository, elsewhere]);
-};
-
-/** The undo history of the buffer (SR-105 AK2): the app's, kept with the buffer, or else one of the view's own. */
-const useUndoMemory = (keep: BufferKeep | undefined): UndoMemory => {
-  const own = useRef<UndoMemory>({ editors: new Map(), values: new Map() });
-  return keep?.memory ?? own.current;
-};
-
-/**
- * Whether the view is in the active area (SR-115 AK3; without an area it is), and whether the elements of a
- * package page take the focus when they load: only when the page comes back (`returning`) in the active
- * area. When the other area becomes active the element is left, so its input is saved then (`flush`, SR-105
- * AK1); the view stays mounted, so the save of leaving (`keep.left`) does not run.
- */
-const useArea = (
-  inArea: boolean | undefined,
-  returning: boolean,
-  flush: () => Promise<boolean>,
-): { readonly active: boolean; readonly membersFocus: boolean } => {
-  const active = inArea !== false;
-  const wasActive = useRef(active);
-  useEffect(() => {
-    if (wasActive.current && !active) {
-      void flush();
-    }
-    wasActive.current = active;
-  }, [active]);
-  return { active, membersFocus: returning && active };
-};
-
-/**
- * The images of the text (SR-184), drawn relative to the element's file in its repository. Made once, so
- * the images that failed to load survive a reconfiguration; the file is read when the preview is built.
- */
-const useImagePreview = (view: ElementLoad, repository: string): EditorPlugins => {
-  const element = useRef<ImageElement>({ repository, file: "" });
-  if (view.status === "ok") {
-    element.current = { repository: view.element.repository, file: view.element.file };
-  }
-  return useMemo(() => imagePreview(() => element.current), []);
-};
 
 export const ElementView = ({
   call,
@@ -528,17 +282,6 @@ export const ElementView = ({
   const diskState = useRef<DiskState>(DISK_START);
   const [conflict, setConflict] = useState<readonly ConflictField[] | undefined>(undefined);
   const [deleted, setDeleted] = useState(false);
-  // The next disk state: the state that shows it is set only when it changed (by identity).
-  const setDiskState = (next: DiskState): void => {
-    const was = diskState.current;
-    diskState.current = next;
-    if (next.conflict !== was.conflict) {
-      setConflict(next.conflict);
-    }
-    if (next.deleted !== was.deleted) {
-      setDeleted(next.deleted);
-    }
-  };
   // The read asked for again after a read that found the file gone (SR-106 AK3).
   const askAgain = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(
@@ -740,105 +483,54 @@ export const ElementView = ({
     copyField(fields.current, label, now.current.onCopy);
   };
 
-  // What the boxes hold, by key: their editors, and the documents set in the minibuffer.
-  const editorDocs = (): Map<string, string> =>
-    boxDocsOf(
-      [...boxEditors.current].map(([key, editor]): [string, string] => [key, editor.doc()]),
-      onFile.current.values,
-    );
-  // What a copy of a box of a choice or relation gives when it has input: the keys or the labels, one per line.
-  const valueText = (key: string): string | undefined => {
-    const doc = onFile.current.values.get(key);
-    return doc === undefined || now.current.boxes.get(key)?.info.kind !== "relation"
-      ? doc
-      : relationTargets(doc)
-          .map((target) => target.label)
-          .join("\n");
+  // What the parts of the buffer read and set: its refs, its state setters and values of this render.
+  const state: ElementState = {
+    buffer,
+    dispatch,
+    onAsk,
+    article,
+    members,
+    boxKeys,
+    mark,
+    now,
+    onFile,
+    boxEditors,
+    diskState,
+    held,
+    shownFile,
+    autosave,
+    keptBoxes,
+    keptText,
+    titleFocus,
+    textEditor,
+    editAsked,
+    loadedOnce,
+    initialDraft,
+    hiddenNow,
+    saveOnReveal,
+    askAgain,
+    saving,
+    settled,
+    mounted,
+    said,
+    wrote,
+    fresh,
+    lastField,
+    pointed,
+    setView,
+    setGot,
+    setText,
+    setTouched,
+    setConflict,
+    setDeleted,
+    setNotSaved,
+    setAdded,
+    setTitleOpen,
+    setValues,
   };
-  // What a choice or relation box holds now: its input, else the stored document.
-  const valueDoc = (key: string): string => valueDocOf(onFile.current, key);
-  // The document of a choice or relation box is set (SR-104 AK3, AK4): the box shows it, the draft has it.
-  // The change can be undone (SR-105 AK2), unless it is a step of undo or redo itself (`recorded` false).
-  const setValue = (key: string, doc: string, recorded = true): void => {
-    if (recorded) {
-      const { values: histories } = now.current.memory;
-      histories.set(key, record(histories.get(key) ?? NO_HISTORY, valueDoc(key), doc));
-    }
-    onFile.current = valueSet(onFile.current, key, doc);
-    setValues(onFile.current.values);
-    changed();
-  };
-  // Undo or redo on a choice or relation box: one step through its value history. False when there is
-  // none to take.
-  const stepValue = (key: string, back: boolean): boolean => {
-    const { values: histories } = now.current.memory;
-    const history = histories.get(key) ?? NO_HISTORY;
-    const next = back ? undo(history, valueDoc(key)) : redo(history, valueDoc(key));
-    if (next === undefined) {
-      return false;
-    }
-    histories.set(key, next.history);
-    setValue(key, next.doc, false);
-    return true;
-  };
-  // The unsaved input of the buffer as the app keeps it: the text and every box whose editor differs from
-  // what is stored. `textDoc` is the document of the text editor when its change is the reason to ask.
-  const currentDraft = (
-    textDoc?: string,
-    base = onFile.current.baseline,
-    boxDocs = editorDocs(),
-  ): Draft | undefined =>
-    draftOf(
-      onFile.current,
-      { doc: textDoc ?? now.current.handle?.doc() ?? base, base },
-      boxDocs,
-      diskState.current.basis,
-    );
-  // The app keeps the draft of the buffer, with the element it shows. Without input nothing is unsaved.
-  const keepDraft = (kept: Draft | undefined): void => {
-    if (kept === undefined) {
-      setNotSaved(undefined);
-    }
-    now.current.onDraft(now.current.buffer.key, withShown(kept, shownFile.current));
-  };
-  // The boxes whose document differs from the stored one: what "Save element" sends besides the text.
-  const boxEdits = (): BoxEdit[] => changedBoxes(editsOf(now.current.boxes, editorDocs()));
-  // The fields with input and what they hold: the text when it was typed in (a text editor that is not
-  // there yet holds none), and every box whose document is not the stored one.
-  const inputDocs = (): Map<string, string> =>
-    inputDocsOf(onFile.current, now.current.handle?.doc(), editorDocs());
-  // What the file holds for each field, as last loaded or saved.
-  const fileDocs = (): Map<string, string> => fileDocsOf(onFile.current);
-  // What the outside change means for the buffer now (SR-106): a conflict stops saving, and says so once;
-  // without one, the input is on the file as it is.
-  const decide = (change: OutsideChange): void => {
-    const next = decided(diskState.current, change, held.current?.sha);
-    setDiskState(next.disk);
-    if (next.begins) {
-      now.current.onEcho(changedOnDisk(now.current.buffer.name));
-    }
-  };
-  // The input is on the file with the bytes `sha`: nothing to resolve.
-  const endConflict = (sha: string | undefined): void => {
-    setDiskState(conflictEnded(diskState.current, sha));
-  };
-  // Why the element cannot be changed now: it is read-only, or its file is gone (SR-106 AK3), or a read
-  // found it gone and the buffer asks again before it says so (nothing is written meanwhile).
-  const lockedNote = (): string | undefined =>
-    lockedNoteOf(diskState.current, now.current.readOnly, now.current.buffer.name);
-  // The input changed: during a conflict the blocks follow it, and input that is what the file holds ends it.
-  // Input (`typed`, not the file's text put into an editor) is saved one second later (SR-105 AK1).
-  const changed = (textDoc?: string, typed = true): void => {
-    if (diskState.current.conflict !== undefined) {
-      decide(
-        outsideChange(inputDocs(), diskState.current.basis, { sha: held.current?.sha, docs: fileDocs() }),
-      );
-    }
-    keepDraft(currentDraft(textDoc));
-    if (typed) {
-      autosave.current?.input();
-    }
-  };
+  const input = elementInput(state);
+  const { setDiskState, editorDocs, valueText, setValue, stepValue, currentDraft, keepDraft } = input;
+  const { boxEdits, inputDocs, fileDocs, decide, endConflict, lockedNote, changed } = input;
 
   // The inline references of the text: followed on a click, and the outdated ones marked (ThomasBirkmaier/ReqSeq-archive#424). The
   // editor is configured again only when the hints about the text change.
@@ -846,299 +538,28 @@ export const ElementView = ({
   const dated = useHintDates(call, buffer, view);
   const outdated = view.status === "ok" ? outdatedReferences(dated(view.element)) : undefined;
   const signature = JSON.stringify([...(outdated ?? [])]);
-  // The slash menu and the `[[` search (SR-066) are created once: they hold state (the `/` typed), which a
-  // reconfiguration would keep only for the same extensions.
-  const pick = useMemo(
-    () => ({
-      pickElement: (request: ReferenceRequest) => {
-        now.current.onPickElement(request);
-      },
-      repository: () => now.current.buffer.repository,
-      // "Image" (SR-097) and the action "Insert image" ask in the same prompt.
-      pickImage: (request: ImageRequest) => {
-        const { call: run, buffer: shown, onAsk: ask, onEcho: echo } = now.current;
-        ask(imagePrompt(run, shown.id, shown.repository, request, echo));
-      },
-    }),
-    [],
-  );
-  const images = useImagePreview(view, buffer.repository);
-  // Pasted and dropped images (SR-190 AK3) are copied as "Insert image" does, from their bytes.
-  const paste = useMemo(
-    () =>
-      pasteAsMarkdown(() => ({
-        attach: async ({ content, name }) => {
-          const { call: run, buffer: shown, onEcho: echo } = now.current;
-          const answer = await run("element.addAttachment", {
-            ref: shown.id,
-            repository: shown.repository,
-            content,
-            name,
-          });
-          if (answer.ok) {
-            return answer.output.markdown;
-          }
-          echo(answer.message);
-          return undefined;
-        },
-        echo: (message) => {
-          now.current.onEcho(message);
-        },
-      })),
-    [],
-  );
-  const slash = useMemo(() => slashMenu(pick), [pick]);
-  const brackets = useMemo(() => referenceSearch(pick), [pick]);
-  // The title of the target of a reference to another repository, when it is here (D-058): the preview of
-  // the text and of the Markdown boxes shows it in place of the short ID.
-  const title = titles.title;
-  // Following a reference, in the text and in the boxes. One function, so a box keeps its plugins.
-  const follow = useCallback((reference: Reference): void => {
-    now.current.onOpenTarget(reference.id, reference.repository);
-  }, []);
-  // The field with this label: "Text" has no tab stop of its own (its editor takes the focus).
-  const fieldOf = (label: string): HTMLElement | null | undefined =>
-    article?.querySelector<HTMLElement>(`[data-field="${CSS.escape(label)}"]`);
-  // The title can be edited now (ThomasBirkmaier/ReqSeq-archive#621): the type has a title, the stored one holds no line break, and the
-  // element is neither read-only nor gone.
-  const titleEditable = (): boolean => {
-    const title = now.current.boxes.get(TITLE_FIELD);
-    return title !== undefined && !title.lineBreak && !now.current.readOnly && !diskState.current.deleted;
-  };
-  // Puts the caret into the title: its editor when it is there, else the editor comes into the heading and
-  // takes the caret when it is made (two renders later).
-  const openTitle = (at: number | "start" | "end"): void => {
-    const editor = boxEditors.current.get(TITLE_FIELD);
-    if (editor === undefined) {
-      titleFocus.current = at;
-      setTitleOpen(true);
-    } else {
-      editor.focus(at);
-    }
-  };
-  // "Edit title": the caret at the end of the title, or why it cannot be edited.
-  const editTitle = (): void => {
-    const title = now.current.boxes.get(TITLE_FIELD);
-    const note =
-      lockedNote() ??
-      (title === undefined
-        ? `${now.current.buffer.name} has no title property: its type has none`
-        : title.lineBreak
-          ? lockNote(TITLE_FIELD, title)
-          : undefined);
-    if (note === undefined) {
-      openTitle("end");
-    } else {
-      now.current.onEcho(note);
-    }
-  };
-  // Puts the focus on a field: on the editor of a box (the text is the editor called "Text") at its start or
-  // end when `edit` is set, else on the field itself. A box without a usable editor takes the focus itself.
-  // False when there is nothing to take it.
-  const enter = (label: string, at: "start" | "end", edit = true): boolean => {
-    if (label === TITLE_FIELD && edit && titleEditable()) {
-      openTitle(at);
-      return true;
-    }
-    const editor = label === "Text" ? now.current.handle : boxEditors.current.get(label);
-    // The text has no tab stop but its editor, so its editor takes the focus either way.
-    if ((edit || label === "Text") && editor !== undefined && !editor.state().readOnly) {
-      editor.focus(at);
-      return true;
-    }
-    const field = fieldOf(label);
-    field?.focus();
-    return field?.hasAttribute("tabindex") === true;
-  };
-  // Moves to the next field in the order (`by` 1) or the one before, the first that can take the focus.
-  const move = (order: readonly string[], from: string, by: 1 | -1, edit = true): boolean => {
-    const rest =
-      by === 1 ? order.slice(order.indexOf(from) + 1) : order.slice(0, order.indexOf(from)).reverse();
-    return rest.some((label) => enter(label, by === 1 ? "start" : "end", edit));
-  };
-  // Down at the last line of an editor goes into the next field, Up at the first line into the one before:
-  // the text, then the boxes in the order they are shown (`editor/box-navigation.ts`). Down at the last line of
-  // the last field goes into the elements of a package page, as from a field (SR-155 AK4).
-  const step = (from: string, by: 1 | -1): boolean => {
-    if (move([TITLE_FIELD, "Text", ...now.current.boxKeys], from, by)) {
-      return true;
-    }
-    const list =
-      by === 1 && (members?.total ?? 0) > 0 ? article?.querySelector<HTMLElement>(".members .list") : null;
-    list?.focus();
-    return list !== null && list !== undefined;
-  };
-  const stepRef = useRef(step);
-  stepRef.current = step;
-  const plugins = useMemo(
-    () =>
-      mergePlugins(
-        references({ outdated: outdated ?? new Map(), follow, title }),
-        slash,
-        brackets,
-        formulasAndDiagrams,
-        images,
-        tableEditing,
-        // Tab, Shift+Tab and Alt+arrows in lists, and dragging items by their marks (SR-187).
-        { extensions: [listKeys(), listDrag()] },
-        formatKeys(true),
-        paste,
-        // The marks of "Find in element" (SR-189).
-        { extensions: [findMarks] },
-        SECTION_FOLDING,
-        {
-          // After the slash menu, which takes Down while it is open.
-          extensions: [
-            boxNavigation(
-              { down: () => stepRef.current("Text", 1), up: () => stepRef.current("Text", -1) },
-              Prec.high,
-            ),
-          ],
-        },
-      ),
-    [signature, slash, brackets, title, images, paste],
-  );
+  const { fieldOf, titleEditable, openTitle, editTitle, enter, move, step } = elementFocus(state, {
+    lockedNote,
+  });
+  const { pick, title, follow, plugins } = useTextPlugins({
+    now,
+    view,
+    buffer,
+    titles,
+    outdated,
+    signature,
+    step,
+  });
 
-  const setBaseline = (next: string): void => {
-    onFile.current = { ...onFile.current, baseline: next };
-    setText(next);
-  };
-
-  // The file was read again while the buffer is shown (SR-106): a field without input follows the file, a
-  // field whose input the file now holds has none any more, and input on other bytes than it was typed on
-  // is a conflict. A box with input whose property is no longer in the file stays as an added box, so no
-  // input is lost.
-  const reload = (loaded: string, docs: Map<string, string>, sha: string): void => {
-    const input = inputDocs();
-    // A box without input follows the file once this render is done, so the draft already has it so; a
-    // choice or relation box with input keeps it, one without follows the file at once.
-    const next = reloaded(onFile.current, loaded, docs, input, editorDocs());
-    onFile.current = next.fields;
-    setValues(next.fields.values);
-    if (next.addedChanged) {
-      setAdded(next.fields.added);
-    }
-    setText(loaded);
-    decide(outsideChange(input, diskState.current.basis, { sha, docs: fileDocs() }));
-    // The draft is on the new file text: a text that was not typed on is the new one (the editor
-    // follows it after this render), so boxes alone never keep the old text.
-    keepDraft(currentDraft(next.draftText, loaded, next.followed));
-  };
-  // The first answer for a buffer that comes back with a draft: the draft is compared with the file as it
-  // is now, as a reload compares the input (SR-106).
-  const restore = (kept: Draft, element: DataExportElement, docs: Map<string, string>, sha: string): void => {
-    const back = restoredOf(kept, element, docs, sha, now.current.properties);
-    keptBoxes.current = back.keptBoxes;
-    keptText.current = back.keptText;
-    // Title input comes back in the title's editor, which stays (ThomasBirkmaier/ReqSeq-archive#621).
-    if (back.titleOpens) {
-      setTitleOpen(true);
-    }
-    setDiskState({ ...diskState.current, basis: back.basis });
-    if (back.change.kind === "conflict") {
-      decide(back.change);
-    }
-    if (back.changed) {
-      keepDraft(back.draft);
-    }
-    // The boxes of the draft that were added come back (their base is the empty document), and the
-    // documents of the choices and relations set in the command prompt with them.
-    onFile.current = { ...onFile.current, added: back.added };
-    setAdded(back.added);
-    onFile.current = { ...onFile.current, values: back.values };
-    setValues(back.values);
-  };
-  // Names the buffers of the element as it was read or saved, when that is not the name of this buffer (#273).
-  const rename = (action: RenameAction): void => {
-    if (action.name !== now.current.buffer.name) {
-      now.current.dispatch(action);
-    }
-  };
-  // An answer of `element.get` for the shown element. A buffer shown read-only (SR-044 AK2) shows it as a
-  // read-only element: no editor takes input, and the modeline says `read-only`.
-  const apply = (answered: DataExportElement, sha: string, changedJustNow: boolean): void => {
-    const element = now.current.buffer.readOnly === true ? { ...answered, readOnly: true } : answered;
-    const loaded = element.text ?? "";
-    const docs = storedDocs(fieldBoxes(element, now.current.properties));
-    // A save that runs sets the baseline itself with its answer.
-    if (!saving.current) {
-      const fields = fieldTexts(element);
-      mark(marksOnRead(changedJustNow, held.current, sha, fields, () => inputDocs().keys()));
-      held.current = { sha, fields };
-      shownFile.current = { element, sha };
-      // The file is there (again): the buffer is editable as before, and input typed meanwhile is saved.
-      const { disk: read, back } = fileRead(diskState.current);
-      setDiskState(read);
-      if (!loadedOnce.current) {
-        setBaseline(loaded);
-        setDiskState({ ...diskState.current, basis: sha });
-        const kept = initialDraft.current;
-        if (kept !== undefined) {
-          restore(kept, element, docs, sha);
-        }
-        onFile.current = firstLoad(onFile.current, docs);
-      } else {
-        reload(loaded, docs, sha);
-      }
-      loadedOnce.current = true;
-      if (back && inputDocs().size > 0) {
-        // A hidden view saves nothing: its input is saved once it is shown.
-        if (hiddenNow.current) {
-          saveOnReveal.current = true;
-        } else {
-          autosave.current?.input();
-        }
-      }
-    }
-    setView({ status: "ok", element });
-    if (now.current.buffer.type !== element.type) {
-      now.current.onType?.(element);
-    }
-    // The buffers of the element take a title changed on disk (#273).
-    rename(renameAction(element));
-  };
-  // A read of the shown element failed. Before anything was shown the buffer says why; after, it keeps
-  // what it shows with its editors: a file that is gone leaves the content read-only with a hint (SR-106
-  // AK3), any other failure is only echoed. A buffer shown again with a draft after its file was deleted
-  // shows the element the draft was typed on, with the input, as the shown buffer does.
-  const failed = (answer: { readonly code: string; readonly message: string }): void => {
-    // Only reads that keep finding the file gone count towards its deletion.
-    setDiskState(readFailed(diskState.current, answer.code));
-    const kept = initialDraft.current?.shown;
-    if (showsKept(loadedOnce.current, answer.code, kept)) {
-      apply(kept.element, kept.sha, false);
-    }
-    // Read after `apply`, which may have loaded the kept element.
-    const then = failure(loadedOnce.current, answer.code, diskState.current.deleted);
-    if (then === "error") {
-      setView({ status: "error", message: answer.message });
-      now.current.onEcho(answer.message);
-      now.current.onDrawn?.(now.current.buffer.key);
-      // A buffer with a draft shows it above and is not here; it forgets the name through `gone()`.
-      if (isGone(answer.code)) {
-        now.current.onGone?.(now.current.buffer.key);
-      }
-    } else if (then === "echo") {
-      now.current.onEcho(answer.message);
-    } else if (then === "gone") {
-      gone();
-    }
-  };
-  // A read found the file gone: the first time the element is asked for again after a batch of the
-  // watcher, and only a file still gone then is deleted (a change that names the element asks at once).
-  const gone = (): void => {
-    const read = goneRead(diskState.current, Date.now());
-    setDiskState(read.disk);
-    if (read.kind === "wait") {
-      clearTimeout(askAgain.current);
-      askAgain.current = setTimeout(() => {
-        setTouched((count) => count + 1);
-      }, read.wait);
-      return;
-    }
-    now.current.onEcho(deletedOnDisk(now.current.buffer.name));
-    now.current.onGone?.(now.current.buffer.key);
-  };
+  const { rename, apply, failed } = elementLoads(state, {
+    setDiskState,
+    editorDocs,
+    inputDocs,
+    fileDocs,
+    decide,
+    keepDraft,
+    currentDraft,
+  });
   // The shown buffer is a new one (the app keys this component by buffer), so "loading" shows once; a
   // reload after a change of the workspace keeps the editors (focus, cursor and undo history).
   useEffect(() => {
@@ -1206,30 +627,7 @@ export const ElementView = ({
   });
   // The modeline shows the element when the buffer does: once its parents line has answered too.
   const loadedElement = shownElement(view, parents.answered);
-  // The values of the element that open a list (SR-132) are `element.facets` for it. They are asked when it
-  // is shown and again only when its type, status or properties changed, or something changed outside (the
-  // free-text rule counts the whole workspace); not after a save of the text alone (N-036).
-  const facetsAsked = useRef<
-    { readonly key: string; readonly answer: Promise<Answer<"element.facets">> } | undefined
-  >(undefined);
-  const outsideSeq = useRef(outside.seq);
-  outsideSeq.current = outside.seq;
-  const valueFacets = (element: DataExportElement): Promise<Answer<"element.facets">> => {
-    const key = `${valueSignature(element)}\n${String(outsideSeq.current)}`;
-    const asked = facetsAsked.current;
-    if (asked?.key === key) {
-      return asked.answer;
-    }
-    const answer = now.current.call("element.facets", { selection: { ids: [element.shortId] } });
-    facetsAsked.current = { key, answer };
-    // A failed answer is not kept: the next press asks again.
-    void answer.then((settled) => {
-      if (!settled.ok && facetsAsked.current?.answer === answer) {
-        facetsAsked.current = undefined;
-      }
-    });
-    return answer;
-  };
+  const { facetsAsked, valueFacets } = useValueFacets(outside, now);
 
   // Asked once the element is shown (with its parents line), so nothing comes before the first display.
   const valueKey = valueKeyOf(loadedElement);
@@ -1262,445 +660,22 @@ export const ElementView = ({
     }
   }, [loadedElement, disk, notSaved, members, isPackage, markedEntry]);
 
-  // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
-  // while the save ran stays as a draft. A box that the save emptied (its property left the file) and that
-  // was typed in meanwhile stays as an added box, so that input is not lost (ThomasBirkmaier/ReqSeq-archive#348).
-  const settle = (
-    output: {
-      readonly element: DataExportElement;
-      readonly fileSha256: string;
-      readonly problems?: readonly { message: string }[];
-      /** The number of directly affected elements (SR-024 AK2), said after the save. */
-      readonly affected?: number;
-    },
-    sent: SentWrite,
-    editor: EditorHandle,
-    mode: SaveMode,
-  ): void => {
-    const { onEcho: echo } = now.current;
-    const { element } = output;
-    settled.current += 1;
-    // The file as this save wrote it: the reload its `written` brings finds the same bytes, and what was
-    // typed while the save ran is on it.
-    held.current = { sha: output.fileSha256, fields: fieldTexts(element) };
-    shownFile.current = { element, sha: output.fileSha256 };
-    endConflict(output.fileSha256);
-    const docs = storedDocs(fieldBoxes(element, now.current.properties));
-    // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
-    // added or typed in while the save ran stays. Read with the editors as they are at the answer and the
-    // values from before the save: nothing that runs before the loop below writes to a box editor (a
-    // `replace` calls `changed` with `typed` false, which only keeps the draft; there is no conflict, it
-    // ended above), so each box still holds this document when the loop reaches it.
-    const result = settledFields(onFile.current, { text: element.text ?? "", docs }, sent, {
-      textDoc: editor.doc(),
-      boxDoc: (key) => boxEditors.current.get(key)?.doc(),
-    });
-    // Everything but the values first: the editors call back into `changed` while they are replaced, and
-    // read the values from before the save meanwhile.
-    onFile.current = { ...result.fields, values: onFile.current.values };
-    setAdded(result.fields.added);
-    setText(result.fields.baseline);
-    if (result.textReplace !== undefined) {
-      editor.replace(result.textReplace);
-    }
-    // The editors compare with what the file holds now, so input typed while the save ran (an undo back
-    // to the text before it too) stays when they get the saved text.
-    editor.rebase(result.fields.baseline);
-    // A box that still holds what was sent shows what the file holds now (an emptied one is gone with its
-    // property).
-    for (const step of result.boxes) {
-      const box = boxEditors.current.get(step.key);
-      if (step.replace !== undefined) {
-        box?.replace(step.replace);
-      }
-      if (step.rebase !== undefined) {
-        box?.rebase(step.rebase);
-      }
-    }
-    // A choice or relation box that still holds what was sent shows what the file holds now.
-    onFile.current = { ...onFile.current, values: result.values };
-    setValues(result.values);
-    keepDraft(currentDraft());
-    setView({ status: "ok", element });
-    setNotSaved(undefined);
-    // The buffers of the element take the title it was saved with (#273), and so does "Saved <name>".
-    const named = renameAction(element);
-    rename(named);
-    const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    wrote.current = output.affected ?? 0;
-    const speech = savedSpeech(said.current, mode, named.name, hint, output.affected);
-    if (speech.echo !== undefined) {
-      echo(speech.echo);
-    }
-    said.current = speech.said;
-    if (changesReferences(sent.edits)) {
-      readReferences();
-    }
-  };
-  // The references of the criteria after a save that changed them (SR-205 AK1): `element.get` works them out;
-  // the answer of `element.update` has none. Read in order with the saves of the buffer, and dropped when a
-  // later save answered first (`staleRead`): that save reads them again.
-  const readReferences = (): void => {
-    const job = async (): Promise<void> => {
-      const { buffer: shown, call: run } = now.current;
-      const writes = settled.current;
-      const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
-      if (mounted.current && answer.ok && !staleRead(writes, settled.current)) {
-        setGot(answer.output);
-      }
-    };
-    void (now.current.keep?.save(job) ?? job());
-  };
+  const { saveInput, save, resolve, inputGoing, flush } = elementSaves(state, {
+    endConflict,
+    keepDraft,
+    currentDraft,
+    inputDocs,
+    boxEdits,
+    setValue,
+    changed,
+    lockedNote,
+    rename,
+    apply,
+    failed,
+  });
 
-  // Why the input cannot be saved now, or nothing: the element is read-only or its file is gone or cannot
-  // be read (SR-106 AK3), or the file changed under the input (AK2: nothing is saved until the user chose).
-  const saveNote = (): string | undefined =>
-    saveNoteOf(diskState.current, now.current.readOnly, now.current.buffer.name);
-  // Writes the input that differs from the file, in order with the other saves of the buffer. True when no
-  // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
-  const saveInput = async (mode: SaveMode, afterSave = false): Promise<boolean> => {
-    const { handle: editor, onEcho: echo, buffer: shown } = now.current;
-    const afterWrite = afterSave
-      ? { name: shown.name, hint: said.current.hint, affected: wrote.current }
-      : undefined;
-    const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode, afterWrite });
-    if (step.kind === "done") {
-      if (step.echo !== undefined) {
-        echo(step.echo);
-      }
-      return step.result;
-    }
-    const job = (): Promise<boolean> => write(step.editor, mode);
-    return now.current.keep?.save(job) ?? job();
-  };
-  // "Save element" (Ctrl/Cmd+S): at once, after a save that runs. Asked while a save runs, it waits for that
-  // save and says "Saved" when it left no input (#563: it was dropped then, and said nothing).
-  const save = (): void => {
-    const afterSave = autosave.current?.running() === true || saving.current;
-    void autosave.current?.now(() => saveInput("asked", afterSave));
-  };
-  // A save that went wrong: the modeline says `not saved` with the reason while it holds (SR-105 AK5), and
-  // the command prompt the reason, once while it stays the same (autosave tries again on the next input, never in a loop).
-  const notWritten = (message: string, mode: SaveMode): void => {
-    setNotSaved(message);
-    const speech = failedSpeech(said.current, mode, message);
-    if (speech.echo !== undefined) {
-      now.current.onEcho(speech.echo);
-    }
-    said.current = speech.said;
-  };
-  // Writes the text and the boxes with input, on the bytes of the file the buffer shows (`expectedFileSha256`):
-  // core refuses the write when the file changed since (SR-106).
-  const write = async (editor: EditorHandle, mode: SaveMode, retried = false): Promise<boolean> => {
-    const { buffer: shown, call: run, properties: model } = now.current;
-    const doc = editor.doc();
-    const edits = boxEdits();
-    const textDirty = dirty(doc, onFile.current.baseline);
-    const sent: SentWrite = { doc, edits, added: onFile.current.added };
-    const expected = held.current?.sha;
-    saving.current = true;
-    const answer = await run("element.update", {
-      ...updateInput(shown.id, textDirty ? doc : undefined, edits),
-      ...(expected === undefined ? {} : { expectedFileSha256: expected }),
-    });
-    saving.current = false;
-    if (!mounted.current) {
-      // The buffer was left while the save ran: the app keeps its draft, and saves what is left of it.
-      if (!answer.ok) {
-        return false;
-      }
-      const { element, fileSha256: sha, affected } = answer.output;
-      // The command prompt stays: it names the element that was left with its directly affected elements
-      // (SR-024 AK2); 0 says nothing, as leaving says nothing.
-      if (affected > 0) {
-        now.current.onEcho(savedLine(renameAction(element).name, undefined, affected));
-      }
-      // Input typed while the save ran stays in the draft: then input is left unsaved.
-      let rest: Draft | undefined;
-      now.current.keep?.update((draft) => {
-        // The model read before the write, as the bytes and the input were.
-        rest = leftDraft(draft, { textDirty, doc, edits }, { element, sha }, model);
-        return rest;
-      });
-      return rest === undefined;
-    }
-    if (answer.ok) {
-      settle(answer.output, sent, editor, mode);
-      // Input typed while the save ran is left for the next save.
-      return inputDocs().size === 0;
-    }
-    if (afterRefusal(answer.code) === "check") {
-      return check(editor, expected, mode, retried ? answer.message : undefined);
-    }
-    // Nothing was written: the text and the boxes stay as typed.
-    notWritten(answer.message, mode);
-    return false;
-  };
-  // A write was refused because the file is not the one the buffer shows: one read says what holds now.
-  // When only core's store lagged behind the file (it has the bytes that were sent), the write goes again
-  // once, silently; a second refusal is said (`refused`). Other bytes follow the rule for a change from
-  // outside, and a file that is gone the rule for a deletion. True when no input is left unsaved.
-  const check = async (
-    editor: EditorHandle,
-    expected: string | undefined,
-    mode: SaveMode,
-    refused?: string,
-  ): Promise<boolean> => {
-    const { buffer: shown, call: run } = now.current;
-    const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
-    if (!answer.ok) {
-      failed(answer);
-      return false;
-    }
-    const next = checkStep(answer.output.fileSha256, expected, refused);
-    if (next.kind === "apply") {
-      // The lines show what the file holds, also when `apply` keeps input over a change on disk.
-      setGot(answer.output);
-      apply(answer.output.element, answer.output.fileSha256, false);
-      // Read after `apply`, which may have found a conflict or kept input.
-      return diskState.current.conflict === undefined && inputDocs().size === 0;
-    }
-    if (next.kind === "retry") {
-      return write(editor, mode, true);
-    }
-    notWritten(next.message, mode);
-    return false;
-  };
-  // "Resolve change on disk" (SR-106 AK2): which version holds. "Keep my input" writes the fields with input
-  // on the file as it is now, so the outside change of every other field stays; "Take the file" puts the
-  // file's values into the editors as an edit, which Ctrl/Cmd+Z takes back, so no input is lost.
-  const resolve = (): void => {
-    onAsk(resolvePrompt(keepInput, takeFile));
-  };
-  const keepInput = (): void => {
-    const { handle: editor, onEcho: echo } = now.current;
-    const note = lockedNote();
-    if (note !== undefined) {
-      echo(note);
-    } else if (editor !== undefined && !saving.current && diskState.current.conflict !== undefined) {
-      void autosave.current?.now(() => {
-        const job = (): Promise<boolean> => write(editor, "asked");
-        return now.current.keep?.save(job) ?? job();
-      });
-    }
-  };
-  const takeFile = (): void => {
-    const note = lockedNote();
-    if (note !== undefined) {
-      now.current.onEcho(note);
-      return;
-    }
-    const editorOf = (label: string): EditorHandle | undefined =>
-      label === TEXT_FIELD ? now.current.handle : boxEditors.current.get(label);
-    // Taken from the conflict as it is now: each step's edit may end it before the next one.
-    for (const edit of takeFileEdits(diskState.current.conflict, (label) => editorOf(label) !== undefined)) {
-      const editor = edit.via === "editor" ? editorOf(edit.label) : undefined;
-      if (editor === undefined) {
-        // A choice or relation box: it shows the file's value again, as a change Ctrl/Cmd+Z takes back.
-        setValue(edit.label, edit.doc);
-      } else {
-        editor.set(edit.doc);
-      }
-    }
-    changed();
-  };
-
-  // The prompt that sets the value of a choice or relation box (SR-104 AK3): only the choices of the metamodel,
-  // or the targets that are set and the elements `element.search` finds among the target types. When it ends,
-  // taken or escaped, the focus goes back to the box, not to the element.
-  const openValue = (box: EditableBox): void => {
-    const { key } = box;
-    const { searchCall: run, onEcho: echo } = now.current;
-    const note = lockedNote();
-    if (note !== undefined) {
-      echo(note);
-      return;
-    }
-    const doc = onFile.current.values.get(key) ?? box.doc;
-    const name = box.info.name ?? key;
-    const done = (): void => {
-      fieldOf(key)?.focus();
-    };
-    if (box.info.kind === "choice") {
-      onAsk(
-        choicePrompt(
-          name,
-          box.info,
-          choiceKeys(doc),
-          (keys) => {
-            setValue(key, keys.join("\n"));
-          },
-          done,
-        ),
-      );
-      return;
-    }
-    const types = box.info.targetTypes;
-    onAsk(
-      relationPrompt(
-        name,
-        box.info,
-        relationTargets(doc),
-        (targets) => {
-          setValue(key, relationDoc(targets));
-        },
-        types?.length === 0
-          ? undefined
-          : (take) =>
-              findElements(
-                { call: run, echo },
-                take,
-                types === undefined ? {} : { selection: { where: { type: [...types] } } },
-              ),
-        done,
-      ),
-    );
-  };
-  // "Add property" (SR-104 AK2): asks which of the properties the element lacks; the box comes empty.
-  const addProperty = (): void => {
-    const { addable, onEcho: echo } = now.current;
-    const note = lockedNote();
-    if (note !== undefined) {
-      echo(note);
-    } else if (addable.length === 0) {
-      echo("No property to add");
-    } else {
-      onAsk(
-        addPropertyPrompt(addable, ({ key, info }) => {
-          fresh.current = emptyBox(key, info);
-          onFile.current = propertyAdded(onFile.current, key);
-          setAdded(onFile.current.added);
-        }),
-      );
-    }
-  };
-  // "Insert image" (SR-097): the Markdown of the copied image goes to the caret of the text.
-  const insertImage = (): void => {
-    const { handle: editor, onEcho: echo } = now.current;
-    const note = lockedNote();
-    if (note !== undefined) {
-      echo(note);
-    } else if (editor === undefined) {
-      echo("The text is not ready yet: insert the image again in a moment");
-    } else {
-      pick.pickImage({
-        insert: (markdown) => {
-          editor.insert(markdown);
-        },
-        // The prompt gives the focus back to the element, as after any action.
-        cancel: () => undefined,
-      });
-    }
-  };
-  // A text action of the command prompt (`text-actions.ts`): the command edits the field with the cursor, or the
-  // one it was in last: a Markdown box, else the text. The title is plain text and takes none.
-  // The field a text action acts on, and its editor: the text, or a Markdown box (`inText`: always the text).
-  const textTarget = (
-    inText: boolean,
-  ): { readonly label: string | undefined; readonly editor: EditorHandle | undefined } => {
-    const label = inText ? "Text" : cursorField(document.activeElement, lastField.current);
-    if (label === undefined || label === "Text") {
-      return { label, editor: now.current.handle };
-    }
-    const markdownBox = now.current.boxes.get(label)?.info.markdown === true;
-    return { label, editor: markdownBox ? boxEditors.current.get(label) : undefined };
-  };
-  const textCommand = (command: Command, none: string, options: TextOptions = {}): void => {
-    const { onEcho: echo } = now.current;
-    const { label, editor } = textTarget(options.inText === true);
-    // A command that only reads and marks (find, SR-189 AK1) works in a read-only element too.
-    const note = options.read === true ? undefined : lockedNote();
-    if (note !== undefined) {
-      echo(note);
-    } else if (label === TITLE_FIELD || (editor === undefined && label !== undefined && label !== "Text")) {
-      echo(none);
-    } else if (editor === undefined) {
-      echo("The text is not ready yet: try again in a moment");
-    } else if (!editor.run(command, options.focus ?? true)) {
-      echo(none);
-    }
-  };
-  // An action on the headings (`heading-actions.ts`, SR-191): on the text, also when the element cannot be changed,
-  // since folding and the cursor change no text. "Fold section" and "Unfold section" act at the cursor of the text
-  // only; with the cursor in the title or a box they say `none`. "Go to heading" (`anywhere`) always moves into it.
-  const headingCommand = (command: Command, none: string, anywhere = false): void => {
-    const { handle: text, onEcho: echo } = now.current;
-    const label = cursorField(document.activeElement, lastField.current);
-    if (!anywhere && label !== undefined && label !== "Text") {
-      echo(none);
-    } else if (text === undefined) {
-      echo("The text is not ready yet: try again in a moment");
-    } else if (!text.run(command)) {
-      echo(none);
-    }
-  };
-  // The acceptance criterion with the cursor: the line of the criteria box the cursor is on, or was on last;
-  // from the context menu, the line pressed in that box (the press gave it the focus).
-  const criterionAt = (pressed?: Element): CriterionAt | undefined => {
-    const label = cursorField(document.activeElement, lastField.current);
-    const box = label === undefined ? undefined : now.current.boxes.get(label);
-    const editor = label === undefined ? undefined : boxEditors.current.get(label);
-    if (box === undefined || editor === undefined || !isKeyedBox(box)) {
-      return undefined;
-    }
-    if (pressed !== undefined) {
-      const found = pressedCriterion(pressed);
-      return found !== undefined && found.field === label ? found.at : undefined;
-    }
-    const state = editor.state();
-    return criterionAtPos(state, state.selection.main.head);
-  };
-  // "Copy criterion reference" (SR-205 AK4): the criterion is taken where the cursor is when the action starts
-  // (the prompt gives the focus back after it); then the input is saved, so a line typed just now has its key
-  // in the file, and core gives the reference (`element.get`), found by the key of the line.
-  const copyCriterionReference = async (pressed?: Element): Promise<void> => {
-    const at = criterionAt(pressed);
-    if (at === undefined) {
-      now.current.onEcho(NO_CRITERION);
-      return;
-    }
-    await flush();
-    const { onEcho: echo, onCopy: copied, buffer: shown, call: run } = now.current;
-    const writes = settled.current;
-    const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
-    if (!answer.ok) {
-      echo(answer.message);
-      return;
-    }
-    // A save that answered after this read reads the references again (`readReferences`).
-    if (mounted.current && !staleRead(writes, settled.current)) {
-      setGot(answer.output);
-    }
-    const found = referenceToCopy(answer.output.criterionReferences?.criteria, at);
-    if ("reference" in found) {
-      copied(found.reference, found.reference);
-    } else {
-      echo(found.message);
-    }
-  };
-  // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
-  // empty, until it is saved, and the property is removed from the file then.
-  const clearProperty = (): void => {
-    const { boxes: all, onEcho: echo } = now.current;
-    const label = cursorField(document.activeElement, lastField.current);
-    const box = label === undefined ? undefined : all.get(label);
-    const note = lockedNote();
-    if (label === undefined || !now.current.boxKeys.includes(label)) {
-      echo("Put the cursor in a property box to clear it");
-    } else if (note !== undefined) {
-      echo(note);
-    } else if (box === undefined) {
-      echo(`${label} cannot be edited here: edit it in the file`);
-    } else if (isLocked(box)) {
-      echo(lockNote(label, box));
-    } else if (isValueBox(box)) {
-      setValue(label, "");
-      fieldOf(label)?.focus();
-    } else {
-      boxEditors.current.get(label)?.set("");
-      fieldOf(label)?.focus();
-    }
-  };
+  const commands = elementCommands(state, { lockedNote, setValue, fieldOf, pick, flush });
+  const { openValue } = commands;
   // A box that was added takes the focus: the caret in a text box (when its editor is there), the box itself
   // and its prompt for a choice or relation.
   useEffect(() => {
@@ -1715,379 +690,33 @@ export const ElementView = ({
     }
   }, [added]);
 
-  // Down on the page of a package goes into its elements; Escape and Up on the first row come back.
-  const intoMembers = (root: HTMLElement): void => {
-    root.querySelector<HTMLElement>(".members .list")?.focus();
-  };
-  // Enter on a choice or relation box asks for the value in the command prompt (SR-104 AK3); on the title or a box
-  // with an editor it puts the caret at the end, else (a title or a box that is not edited) in the text.
-  const enterField = (label: string | undefined): void => {
-    if (label === TITLE_FIELD && titleEditable()) {
-      openTitle("end");
-      return;
-    }
-    const editable = label === undefined ? undefined : now.current.boxes.get(label);
-    const box = label === undefined ? undefined : boxEditors.current.get(label);
-    if (editable !== undefined && isValueKind(editable.info.kind)) {
-      if (editable.unmatched === true) {
-        now.current.onEcho(lockNote(editable.key, editable));
-      } else {
-        openValue(editable);
-      }
-    } else if (box !== undefined && !box.state().readOnly) {
-      box.focus("end");
-    } else if (textEditor.current === undefined) {
-      editAsked.current = true;
-    } else {
-      textEditor.current.focus("end");
-    }
-  };
-  // Up and Down on a field move to the field before and after, and Down on the last one into the elements of
-  // a package. Down on the element itself goes into the elements of a package, else to its first field, where
-  // the highlight shows (SR-155, #552).
-  const onArrow = (down: boolean, label: string | undefined, root: HTMLElement): void => {
-    const fields = [TITLE_FIELD, "Text", ...boxKeys];
-    const hasMembers = (members?.total ?? 0) > 0;
-    if (label === undefined && !hasMembers) {
-      fields.some((next) => enter(next, "start", false));
-    } else if ((label === undefined || !move(fields, label, down ? 1 : -1, false)) && down && hasMembers) {
-      intoMembers(root);
-    }
-  };
-  // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; the arrows
-  // move between the fields (`onArrow`).
-  const onField = (key: string, label: string | undefined, root: HTMLElement): void => {
-    if (key === "Enter") {
-      enterField(label);
-    } else if (key === "Escape") {
-      article?.focus();
-    } else {
-      onArrow(key === "ArrowDown", label, root);
-    }
-  };
-  // Ctrl+N on the page of a package selects its first element (SR-122 AK4); on any other element it goes to the
-  // first field, as Down does (SR-155, #552). Not from an editor or the list
-  // itself (they are not the buffer); Ctrl+P on the element itself is not the page's: it is the window's. On a
-  // field Ctrl+N and Ctrl+P are Down and Up, and Ctrl+P on the first field only moves, it is not "Go to" (SR-155 AK4).
-  const onCtrl = (step: 1 | -1, label: string | undefined, hasMembers: boolean, root: HTMLElement): void => {
-    if (label !== undefined) {
-      onArrow(step === 1, label, root);
-    } else if (hasMembers) {
-      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
-      intoMembers(root);
-    } else {
-      onArrow(true, undefined, root);
-    }
-  };
-  // Undo and redo on a choice or relation box step through its value history (SR-105 AK2). True when the
-  // key was one of them on such a box.
-  const valueHistoryKey = (event: React.KeyboardEvent<HTMLElement>, label: string | undefined): boolean => {
-    const value = label === undefined ? undefined : now.current.boxes.get(label);
-    const step = historyStep(event, isMac(navigator.platform));
-    if (step === undefined || value === undefined || !isValueBox(value)) {
-      return false;
-    }
-    event.preventDefault();
-    const note = lockedNote() ?? (isLocked(value) ? lockNote(value.key, value) : undefined);
-    if (note === undefined) {
-      stepValue(value.key, step === "undo");
-    } else {
-      now.current.onEcho(note);
-    }
-    return true;
-  };
-  // Enter with a modifier is a shortcut ("Follow reference") and goes on to the window. Keys of a control
-  // inside the buffer (the editor, the list of a package page) are not for the buffer. A field that has the
-  // focus itself (the title, a box: SR-128) is the buffer as well.
-  const onBufferKey = (event: React.KeyboardEvent<HTMLElement>): void => {
-    const { key, target, currentTarget } = event;
-    if (!forBuffer(target, currentTarget)) {
-      return;
-    }
-    // A later key on the buffer (Escape, an arrow) takes back an "Edit text" that still waits for the editor;
-    // a modifier pressed on its own (Shift for a capital letter) does not.
-    if (takesBackEdit(key)) {
-      editAsked.current = false;
-    }
-    const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
-    const label = fieldLabel(target, currentTarget);
-    const hasMembers = (members?.total ?? 0) > 0;
-    const ctrl = ctrlStep(event);
-    if (valueHistoryKey(event, label)) {
-      return;
-    }
-    if (plain && fieldKey(key, label)) {
-      event.preventDefault();
-      onField(key, label, currentTarget);
-    } else if (!event.defaultPrevented && ctrl !== undefined && (label !== undefined || ctrl === 1)) {
-      event.preventDefault();
-      onCtrl(ctrl, label, hasMembers, currentTarget);
-    }
-  };
-
-  // The row of a relation box that "Follow reference" opens when no target link has the focus: the first
-  // target; none when the box is no relation box, and the rows are not links when no target is available.
-  // In this element only: another one may stand beside it (SR-115 AK3).
-  const relationFollowed = (label: string): HTMLElement | undefined =>
-    article?.querySelector<HTMLElement>(`[data-field="${CSS.escape(label)}"] .relation [role="link"]`) ??
-    undefined;
-  // The box is a relation box: its targets are rows, not text.
-  const isRelationBox = (label: string): boolean =>
-    now.current.boxes.get(label)?.info.kind === "relation" ||
-    now.current.shown.some((box) => box.key === label && box.relations !== undefined);
-  // Input is still going on in an editor (SR-105): an input method composes, the slash menu is open, or
-  // "Reference to element" or `[[` (SR-066, also in a box, SR-127 AK2) waits for its element. Autosave waits for it.
-  const inputGoing = (): boolean =>
-    [now.current.handle, ...boxEditors.current.values()].some(
-      (editor) => editor !== undefined && (editor.busy() || awaitingReference(editor.state())),
-    );
-  // Saves the input now, quietly (a prompt opens, the buffer is closed, another workspace opens). True
-  // when no input is left unsaved.
-  const flush = (): Promise<boolean> =>
-    autosave.current?.now(() => saveInput("quiet")) ?? Promise.resolve(inputDocs().size === 0);
-  // What the cursor is on (SR-132): a box, the line with the caret in a text box, the focused target of a
-  // relation box. A prompt takes the focus, so what it was on before the prompt opened is kept (`pointed`).
-  const pointerNow = (): Pointer => {
-    const label = cursorField(document.activeElement, lastField.current);
-    if (label === undefined || !now.current.boxKeys.includes(label)) {
-      return NO_POINTER;
-    }
-    const editor = boxEditors.current.get(label);
-    if (editor?.hasFocus() === true) {
-      const state = editor.state();
-      return { kind: "box", key: label, line: state.doc.lineAt(state.selection.main.head).text };
-    }
-    const link = focusedTarget();
-    return link?.closest<HTMLElement>("[data-field]")?.dataset["field"] === label
-      ? {
-          kind: "box",
-          key: label,
-          target: { id: link.dataset["targetId"] ?? "", repository: link.dataset["targetRepository"] ?? "" },
-        }
-      : { kind: "box", key: label };
-  };
-  // What a click on `target` points at (SR-132 AK1): a value of a property box, or nothing.
-  // The property box whose value `target` is in, when it is one of the boxes shown.
-  const clickedLabel = (target: Element): string | undefined => {
-    const label = clickedBox(target);
-    return label !== undefined && now.current.boxKeys.includes(label) ? label : undefined;
-  };
-  const clickPointer = (target: Element): Pointer => {
-    const label = clickedLabel(target);
-    return label === undefined ? NO_POINTER : clickedIn(label, target);
-  };
-  // The list of the elements with the value the cursor is on, or the value `clicked` (SR-132): the input is
-  // saved first, so the value typed is the one listed (the list reads the files); then `element.facets` of
-  // the element says which values can be listed. One value opens its list, several ask in the minibuffer.
-  const listValue = async (clicked?: Pointer): Promise<void> => {
-    const pointer = clicked ?? (document.activeElement?.id === PROMPT_INPUT ? pointed.current : pointerNow());
-    // A save that did not happen (a change on disk, a read-only element) leaves the stored values, which
-    // are what the list reads; the modeline already says why it was not saved.
-    if (inputDocs().size > 0) {
-      await flush();
-    }
-    const element = shownFile.current?.element;
-    if (element === undefined) {
-      return;
-    }
-    const answer = await valueFacets(element);
-    if (!mounted.current) {
-      return;
-    }
-    if (!answer.ok) {
-      now.current.onEcho(answer.message);
-      return;
-    }
-    const open = (value: ListableValue): void => {
-      dispatch({ type: "open", buffer: filteredList([value.step]) });
-    };
-    const found = (clicked === undefined ? pointedValue : clickedValue)(
-      listableValues(answer.output, now.current.boxKeys),
-      pointer,
-      element.relations,
-    );
-    if (found.kind === "open") {
-      open(found.value);
-    } else if (found.kind === "ask") {
-      onAsk(valuesPrompt(found.values, open));
-    } else if (clicked?.kind === "box") {
-      now.current.onEcho(`No value of ${clicked.key} lists elements`);
-    } else {
-      now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
-    }
-  };
-  // A plain click on the value of a choice box opens the same prompt as Enter on the box (SR-156 AK1); a click
-  // on its copy symbol is outside the value.
-  // Text marked by dragging over the value is no click on it.
-  const clickChoice = (target: Element): void => {
-    const label = clickedLabel(target);
-    if (label !== undefined && now.current.boxes.get(label)?.info.kind === "choice" && !selectedIn(target)) {
-      enterField(label);
-    }
-  };
-  // The latest functions of this render, for the controls the app holds on to.
-  const api = useRef({
-    criterionAt,
-    copyCriterionReference,
-    editTitle,
-    addProperty,
-    clearProperty,
-    insertImage,
-    textCommand,
-    headingCommand,
-    relationFollowed,
-    isRelationBox,
-    resolve,
-    saveInput,
-    inputGoing,
-    flush,
-    pointerNow,
-    clickPointer,
-    clickChoice,
-    listValue,
+  const { enterField, onBufferKey } = elementKeys(state, {
+    lockedNote,
+    stepValue,
+    titleEditable,
+    openTitle,
+    enter,
+    move,
+    openValue,
   });
-  api.current = {
-    criterionAt,
-    copyCriterionReference,
+  const pointer = elementPointer(state, { inputDocs, flush, valueFacets, enterField });
+  const api = useElementControls(state, {
+    handle,
+    active,
+    register,
+    packageModel,
+    conflict,
+    save,
+    copy,
+    follow,
+    ...commands,
     editTitle,
-    addProperty,
-    clearProperty,
-    insertImage,
-    textCommand,
-    headingCommand,
-    relationFollowed,
-    isRelationBox,
     resolve,
     saveInput,
     inputGoing,
     flush,
-    pointerNow,
-    clickPointer,
-    clickChoice,
-    listValue,
-  };
-
-  // A layout effect, like the editor's: the app has the controls in the same task as the editor (the window's
-  // shortcuts of the element, such as "Copy field", read them), before any key can come.
-  // Only the view of the active area gives them (SR-115 AK3): the cleanups of a commit run before its
-  // setups, so the view that becomes active holds them after the one that became inactive gave them back.
-  useLayoutEffect(() => {
-    if (handle === undefined || !active) {
-      return undefined;
-    }
-    register({
-      save,
-      flush: () => api.current.flush(),
-      prompting: () => {
-        // What the cursor is on before the prompt takes the focus (SR-132); a prompt over a prompt keeps it.
-        if (document.activeElement?.id !== PROMPT_INPUT) {
-          pointed.current = api.current.pointerNow();
-        }
-        // A prompt opens: typing in the element has ended, so its input is saved now (binding review,
-        // point 6), unless the prompt is part of the input ("Reference to element").
-        if (!api.current.inputGoing()) {
-          void api.current.flush();
-        }
-      },
-      edit: () => {
-        handle.focus("end");
-      },
-      editTitle: () => {
-        api.current.editTitle();
-      },
-      members: packageModel !== undefined,
-      // Only while the file changed under the input (SR-106 AK2).
-      ...(conflict === undefined
-        ? {}
-        : {
-            resolve: () => {
-              api.current.resolve();
-            },
-          }),
-      copy: () => {
-        copy(cursorField(document.activeElement, lastField.current));
-      },
-      listValue: () => {
-        void api.current.listValue();
-      },
-      onCriterion: (pressed) => api.current.criterionAt(pressed) !== undefined,
-      copyCriterionReference: (pressed) => {
-        void api.current.copyCriterionReference(pressed);
-      },
-      addProperty: () => {
-        api.current.addProperty();
-      },
-      clearProperty: () => {
-        api.current.clearProperty();
-      },
-      insertImage: () => {
-        api.current.insertImage();
-      },
-      text: (command, none, options) => {
-        api.current.textCommand(command, none, options);
-      },
-      headings: {
-        list: () => {
-          const text = now.current.handle;
-          return text === undefined ? [] : headingsOf(text.state());
-        },
-        run: (command, none) => {
-          api.current.headingCommand(command, none);
-        },
-        goTo: (from) => {
-          api.current.headingCommand(goToHeading(from), "", true);
-        },
-      },
-      follow: () => {
-        // A focused target link, in a relation box or a relation group: that target (SR-132: the link
-        // leaves Ctrl/Cmd+Enter to the window, so "Follow reference" opens it).
-        const link = focusedTarget();
-        if (link !== null) {
-          link.click();
-          return;
-        }
-        // A box has the focus or was the last field: the reference at the caret of a Markdown box, or its first
-        // reference when it has no caret; a box that is not Markdown has none. Anywhere else it is the
-        // reference at the cursor of the text.
-        const label = cursorField(document.activeElement, lastField.current) ?? "";
-        // The title has no references (plain text): from it, the reference at the cursor of the text.
-        const box = label === TITLE_FIELD ? undefined : boxEditors.current.get(label);
-        if (api.current.isRelationBox(label)) {
-          const row = api.current.relationFollowed(label);
-          if (row === undefined) {
-            now.current.onEcho(`No element reference in ${label}`);
-          } else {
-            row.click();
-          }
-          return;
-        }
-        if (box !== undefined) {
-          const markdown = now.current.boxes.get(label)?.info.markdown === true;
-          const reference = boxReference(box, markdown);
-          if (reference === undefined) {
-            now.current.onEcho(
-              markdown && box.hasFocus()
-                ? "No element reference at the cursor"
-                : `No element reference in ${label}`,
-            );
-          } else {
-            follow(reference);
-          }
-          return;
-        }
-        const state = handle.state();
-        const reference = referenceAt(state, state.selection.main.head);
-        if (reference === undefined) {
-          now.current.onEcho("No element reference at the cursor");
-        } else {
-          now.current.onOpenTarget(reference.id, reference.repository);
-        }
-      },
-    });
-    return () => {
-      register(undefined);
-    };
-  }, [handle, register, packageModel !== undefined, conflict === undefined, active]);
+    ...pointer,
+  });
 
   // The editors take no input in a read-only element, and none while its file is gone (SR-106 AK3).
   const locked = readOnly || deleted;

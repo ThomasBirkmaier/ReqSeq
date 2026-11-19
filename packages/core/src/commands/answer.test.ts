@@ -44,9 +44,9 @@ const CALLS: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[
 const RELATIVE_TIME =
   /\b(now|today|yesterday|tomorrow|ago|recently|currently|just|soon|still|yet|anymore|meanwhile)\b/i;
 
-/** The answer of `command` for `output` and `input`, as `invoke` builds it. */
+/** The answer of `command` for `output` and `input`, as `invoke` builds it; types are named by their key. */
 const answerOf = (command: AnyCommand, output: unknown, input: unknown = {}): string =>
-  command.answer?.(output, input as never) ?? "";
+  command.answer?.(output, input as never, { type: (key) => key }) ?? "";
 
 describe("the answer of every command (SR-224 AK1)", () => {
   for (const [name, calls] of Object.entries(CALLS)) {

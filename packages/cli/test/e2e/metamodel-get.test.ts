@@ -90,10 +90,15 @@ describe("reqseq metamodel get (SR-130)", () => {
     expect(text.stdout).toContain("extends: requirement");
     expect(text.stdout).toContain("source-types: []");
     expect(text.stdout).toContain("content: true");
-    // Then the problems, here none.
-    const { problems, ...rest } = output;
+    // The answer first (SR-224 AK2), then the rest, then the problems, here none.
+    const { answer, problems, ...rest } = output;
     expect(problems).toEqual([]);
+    const [first, ...lines] = text.stdout.split("\n");
+    expect(first).toBe(answer);
+    expect(answer).toBe("The metamodel has 5 types, 5 properties, 8 relation kinds and 5 statuses.");
     expect(text.stdout.endsWith("\nNo problems.\n")).toBe(true);
-    expect(parse(text.stdout.slice(0, -"No problems.\n".length))).toEqual(JSON.parse(JSON.stringify(rest)));
+    expect(parse(lines.join("\n").slice(0, -"No problems.\n".length))).toEqual(
+      JSON.parse(JSON.stringify(rest)),
+    );
   });
 });
