@@ -182,3 +182,52 @@ test.describe("the hint list", () => {
     await expect(window.locator("article h1")).toHaveText("Show wind direction");
   });
 });
+
+test.describe("details and JSON of the hint list", () => {
+  let running: RunningApp;
+
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-223/AK-jgsd] Show details shows the technical values of each hint under its row; the layout stays", async () => {
+    running = await launchApp(FIXTURE, { colorScheme: "light" });
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await listHints(window);
+    await expect(heads(window)).toHaveText(HEADS);
+    const count = await rows(window).count();
+    await expect(window.locator(".hints .hint-details")).toHaveCount(0);
+    await window.keyboard.press("ControlOrMeta+K");
+    await window.keyboard.press("d");
+    // Each hint names its element by its UUID, as the CLI gives it; the groups and rows stay as they were.
+    const listed = await cliList(running);
+    const first = listed.hints[0] as Hint & { readonly elementId: string };
+    await expect(rows(window).first().locator(".hint-details")).toContainText(`Element: ${first.elementId}`);
+    await expect(heads(window)).toHaveText(HEADS);
+    await expect(rows(window)).toHaveCount(count);
+    await window.screenshot({ path: path.join(OUT, "sr-223-hint-list-details-light.png") });
+    await window.keyboard.press("ControlOrMeta+K");
+    await window.keyboard.press("d");
+    await expect(window.locator(".hints .hint-details")).toHaveCount(0);
+  });
+
+  test("[SR-223/AK-jbgp] Copy as JSON copies the hint list as the CLI gives it with --json", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const before = await running.app.evaluate(({ clipboard }) => clipboard.readText());
+    try {
+      await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+      await listHints(window);
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type("Copy as JSON");
+      await expect(names(window).first()).toHaveText("Copy as JSON");
+      await window.keyboard.press("Enter");
+      await expect(window.getByLabel("Modeline")).toContainText("Copied output as JSON");
+      const cli = await running.cli(["hint", "list"]);
+      expect(await running.app.evaluate(({ clipboard }) => clipboard.readText())).toBe(cli.stdout);
+    } finally {
+      await running.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), before);
+    }
+  });
+});

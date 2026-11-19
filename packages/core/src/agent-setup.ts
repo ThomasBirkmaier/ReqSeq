@@ -103,20 +103,23 @@ export const deliveryLauncher = (installation: Installation, platform: string): 
     : p.join(delivery.folder, "bin", LAUNCHER);
 };
 
-/** The program, arguments and environment that start the MCP server for the workspace (AK3). */
-export const serverOf = (facts: SetupFacts): Server => {
-  const { installation, platform, workspace } = facts;
-  const mcp = ["mcp", "--workspace", workspace];
+/** The program, arguments and environment that run the command line of this installation with `words`. */
+const invocationOf = (facts: SetupFacts, words: readonly string[]): Server => {
+  const { installation, platform } = facts;
   const launcher = deliveryLauncher(installation, platform);
   if (launcher !== undefined && facts.launcherExists) {
-    return { command: launcher, args: mcp, env: {} };
+    return { command: launcher, args: [...words], env: {} };
   }
   return {
     command: installation.runtime,
-    args: [installation.entry, ...mcp],
+    args: [installation.entry, ...words],
     env: installation.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {},
   };
 };
+
+/** The program, arguments and environment that start the MCP server for the workspace (AK3). */
+export const serverOf = (facts: SetupFacts): Server =>
+  invocationOf(facts, ["mcp", "--workspace", facts.workspace]);
 
 /** A token for a POSIX shell: as it is when it is plain, else in single quotes. */
 export const quoteSh = (token: string): string =>
@@ -230,6 +233,35 @@ const NEXT: Readonly<Record<Client, string>> = {
     "Add the entry to your client's MCP configuration; a client with another form takes the same command, args and env.",
 };
 
+/** The words of the command line's call that writes the skill file, before the workspace (SR-229 AK8). */
+const SKILL_WORDS = ["tool", "guide", "--skill", "--write", "--workspace"] as const;
+
+/**
+ * The call that writes the skill file into the workspace's repository (AK2, SR-229 AK8), for the shell of
+ * Claude Code's command: the program of this installation with absolute paths, as the setup starts it
+ * (AK3), so it needs no `reqseq` on the PATH and, on Windows, no `reqseq.cmd`, which cmd.exe would read.
+ */
+export const skillCall = (facts: SetupFacts): string => {
+  const windows = facts.platform === "win32";
+  const run = invocationOf(facts, [...SKILL_WORDS, facts.workspace]);
+  const literal: ReadonlySet<string> = new Set(SKILL_WORDS);
+  const quote = windows ? quotePowerShell : quoteSh;
+  const words = [run.command, ...run.args].map((token) => (literal.has(token) ? token : quote(token)));
+  const env = Object.entries(run.env);
+  if (!windows) {
+    return [...env.map(([name, value]) => `${name}=${quoteSh(value)}`), ...words].join(" ");
+  }
+  // PowerShell runs a quoted program only after `&`; a variable it sets stays for the session, so it is removed.
+  const call = `& ${words.join(" ")}`;
+  return env.length === 0
+    ? call
+    : [
+        ...env.map(([name, value]) => `$env:${name}=${quotePowerShell(value)}`),
+        call,
+        ...env.map(([name]) => `Remove-Item Env:${name}`),
+      ].join("; ");
+};
+
 /** The folder whose move ends the setup, as the `valid` sentence names it (AK3). */
 const validSentence = (facts: SetupFacts): string => {
   const delivery = deliveryOf(facts.installation, facts.platform);
@@ -296,6 +328,9 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
   const windows = facts.platform === "win32";
   return {
     ...common,
+    ...(client === "claude-code"
+      ? { next: `${NEXT[client]} To give Claude Code the skill file, run \`${skillCall(facts)}\`.` }
+      : {}),
     answer: `Run this command in ${windows ? "PowerShell" : "a terminal"} ${to}.`,
     setup: {
       form: "command",

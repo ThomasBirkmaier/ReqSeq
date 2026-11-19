@@ -946,7 +946,12 @@
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
             "reqif.source-model-unsaved",
-            "reqif.source-value-chosen"
+            "reqif.source-value-chosen",
+            "html.unsafe-content",
+            "html.image-not-copied",
+            "html.foreign-file",
+            "html.marker-entry-ignored",
+            "html.cleanup-failed"
           ],
           "x-technical": true
         },
@@ -3065,6 +3070,34 @@
         }
       }
     },
+    "html-export-marker": {
+      "title": "HTML export marker file",
+      "description": "The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export: it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into. ReqSeq writes it anew on every export; it is not meant to be edited.",
+      "type": "object",
+      "required": [
+        "reqseq-html-export",
+        "files"
+      ],
+      "properties": {
+        "reqseq-html-export": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "files": {
+          "description": "The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pending": {
+          "description": "Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it.",
+          "const": ".reqseq-export-staging"
+        }
+      },
+      "additionalProperties": false
+    },
     "metamodel": {
       "title": "Metamodel file",
       "description": "One YAML file of the metamodel. A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may. Built-in meanings are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error; several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation`. A type inherits the meaning of the type it extends unless it sets its own.",
@@ -5024,7 +5057,7 @@
             "title": "Next",
             "type": "string",
             "minLength": 1,
-            "description": "How to go on after pasting the setup. Only with a client."
+            "description": "How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client."
           }
         },
         "additionalProperties": false,
@@ -14584,6 +14617,82 @@
           "relations",
           "exportedElements",
           "elementsWithoutStatement"
+        ]
+      }
+    },
+    {
+      "name": "html_export",
+      "title": "Export HTML",
+      "description": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+            "$ref": "#/$defs/common/$defs/localPath"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "output"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "folder": {
+            "title": "Folder",
+            "$ref": "#/$defs/common/$defs/outputPath",
+            "description": "The written folder, relative to the workspace root when it lies inside, else absolute."
+          },
+          "pages": {
+            "title": "Element pages",
+            "x-elements": "exportedElements",
+            "description": "Pages of elements written: one for each element of `exportedElements`.",
+            "type": "integer",
+            "minimum": 0
+          },
+          "removed": {
+            "title": "Removed files",
+            "description": "Files of the earlier export that this export no longer writes and removed.",
+            "type": "integer",
+            "minimum": 0,
+            "x-normal": 0
+          },
+          "exportedElements": {
+            "title": "List of exported elements",
+            "type": "array",
+            "description": "The elements that got a page, in the order of the element store.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "folder",
+          "pages",
+          "exportedElements",
+          "removed",
+          "problems"
         ]
       }
     }
