@@ -247,8 +247,8 @@ test.describe("cascading list filters on a fixture workspace", () => {
     const label = window.getByLabel("Minibuffer").locator("label");
     await filterList(window, "Type");
     await answer(window, "Type", "Need");
-    // Escape goes back only once the type is in the mark: while the Enter still waits for the types ("searching…"),
-    // Escape goes back without taking it (SR-134 AK1), and the mark would be lost (#1800).
+    // Escape goes back only once the type is in the mark: an Enter that still waits for the types ("searching…",
+    // SR-119) is not taken when Escape goes back (SR-134 AK1), and the mark would be lost (#1800).
     await expect(marks(window)).toHaveText(["type: need×"]);
     await window.keyboard.press("Escape");
     await expect(label).toHaveText("Filter by");
@@ -259,6 +259,8 @@ test.describe("cascading list filters on a fixture workspace", () => {
     await answer(window, "Type", "Need");
     await expect(marks(window)).toHaveText(["type: need×"]);
     await window.keyboard.press("Escape");
+    await expect(label).toHaveText("Filter by");
+    await expect(marks(window)).toHaveText(["type: need×"]);
     await answer(window, "Filter by", "Status");
     await answer(window, "Status", "Draft");
     await expect(window.getByLabel("Modeline")).toContainText("status: draft");
