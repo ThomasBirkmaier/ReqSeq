@@ -121,10 +121,28 @@ describe("element page sections (SR-232 AK1, AK2)", () => {
     const criteria = { property: "ak", criteria: [{ criterion: 1, text: "Given." }] };
     const expected =
       '<section class="rq-criteria"><h2 id="acceptance-criteria">Acceptance criteria</h2><ol class="rq-criteria-list"><li><p class="rq-criterion rq-copyable"><strong>AK1</strong></p><p>md:Given.</p></li></ol></section>';
-    expect(await criteriaSection(context(), page({ element: element(), criteria }))).toBe(expected);
+    const markdown = context({
+      properties: [
+        { key: "ak", name: "AK", kind: "text", many: true, markdown: true },
+      ] as unknown as Metamodel["properties"],
+    });
+    expect(await criteriaSection(markdown, page({ element: element(), criteria }))).toBe(expected);
     expect(
-      await criteriaSection(context(), page({ element: element(), criteria, criterionStatuses: [] })),
+      await criteriaSection(markdown, page({ element: element(), criteria, criterionStatuses: [] })),
     ).toBe(expected);
+  });
+
+  it("[SR-232/AK-zr5v] shows a criterion as written when the property is no Markdown, and no section without criteria", async () => {
+    const plain = context({
+      properties: [{ key: "ak", name: "AK", kind: "text", many: true }] as unknown as Metamodel["properties"],
+    });
+    const criteria = { property: "ak", criteria: [{ criterion: 1, text: "Given *x* <b>." }] };
+    expect(await criteriaSection(plain, page({ element: element(), criteria }))).toContain(
+      "<strong>AK1</strong></p><p>Given *x* &lt;b&gt;.</p></li>",
+    );
+    expect(
+      await criteriaSection(plain, page({ element: element(), criteria: { property: "ak", criteria: [] } })),
+    ).toBe("");
   });
 });
 

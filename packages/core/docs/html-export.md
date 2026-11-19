@@ -39,7 +39,7 @@ The vendor files (`packages/core/vendor/html-export/`, git-ignored, in core's `f
 
 - `section-fields.ts` (SR-232 AK1): type, identifier, short ID, status ("–" without one), packages, the repository when there is more than one, the verification status in the core ("not in the core") and in each variant it applies in, the validation status; each row with a copy button.
 - the text;
-- `section-criteria.ts` (AK2): number, criterion key, text, the status (alone for the core only, else per view) and a copy button with the reference, none without one;
+- `section-criteria.ts` (AK2), none without criteria: number, criterion key, text (formatted when the property is Markdown, else as written), the status (alone for the core only, else per view) and a copy button with the reference, none without one;
 - `section-properties.ts` (AK1): every other filled property in file order, also unknown ones by key; Markdown formatted, each item of a list too; a relation property as links;
 - `section-relations.ts` (AK1): the outgoing relations by relation kind.
 

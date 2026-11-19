@@ -1,8 +1,9 @@
-// The acceptance criteria on a requirement's page (SR-232 AK2): each with its number, criterion key, text (formatted,
-// its references as SR-231 AK6 says) and verification status, with a button that copies the reference for test names
+// The acceptance criteria on a requirement's page (SR-232 AK2): each with its number, criterion key, text (formatted
+// when the metamodel marks the property Markdown, its references then as SR-231 AK6 says; else as written) and verification status, with a button that copies the reference for test names
 // (`[SR-036/AK-k7f3]`, SR-205 AK1); a criterion without reference has no button. The status is that of each view the
 // requirement applies in (`criterionStatusesByView`): the status alone when that is the core only, else each with
 // the name of its view.
+import { markdownKeysOf } from "../metamodel/index.js";
 import { copyButton } from "./copy-script.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { escapeHtml } from "./markdown.js";
@@ -19,12 +20,13 @@ const statusOf = (context: ElementPageContext, page: ElementPage, index: number)
   return text === "" ? "" : ` <span class="rq-criterion-status">${escapeHtml(text)}</span>`;
 };
 
-/** The section of acceptance criteria, or nothing for an element without them. */
+/** The section of acceptance criteria, or nothing for an element without one. */
 export const criteriaSection = async (context: ElementPageContext, page: ElementPage): Promise<string> => {
   const { criteria } = page.data;
-  if (criteria === undefined) {
+  if (criteria === undefined || criteria.criteria.length === 0) {
     return "";
   }
+  const markdown = markdownKeysOf(context.metamodel).has(criteria.property);
   const items: string[] = [];
   for (const [index, criterion] of criteria.criteria.entries()) {
     const label = `AK${String(criterion.criterion)}`;
@@ -33,7 +35,9 @@ export const criteriaSection = async (context: ElementPageContext, page: Element
       criterion.reference === undefined
         ? ""
         : copyButton(criterion.reference, `Copy criterion reference ${criterion.reference}`);
-    const text = await page.markdown(criterion.text, `Acceptance criterion ${String(criterion.criterion)}`);
+    const text = markdown
+      ? await page.markdown(criterion.text, `Acceptance criterion ${String(criterion.criterion)}`)
+      : `<p>${escapeHtml(criterion.text)}</p>`;
     items.push(
       `<li><p class="rq-criterion rq-copyable"><strong>${label}</strong>${key}${statusOf(context, page, index)}${copy}</p>${text}</li>`,
     );
