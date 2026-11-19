@@ -1,0 +1,78 @@
+/* The title bar on macOS (ADR-0010): the window has no native title bar ("hiddenInset"), so the traffic
+   lights lie on the sheet, and this strip of the sheet moves the window and names it, quietly. Nothing in
+   it is a control. */
+.shell:has(> .titlebar) {
+  grid-template-rows: var(--titlebar) minmax(0, 1fr) var(--modeline) var(--line);
+}
+
+.titlebar {
+  overflow: hidden;
+  padding: 0 5rem;
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: var(--titlebar);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+/* The modeline is one quiet, rounded bar of segments joined like a powerline, in the tones of the sheet:
+   the shown buffer and the workspace on the selection tone, the rest on the raised tone, each joint a
+   thin rounded edge. A display, not a control. */
+.modeline {
+  justify-content: space-between;
+  gap: 0;
+  margin: 0.2rem 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.modeline .parts,
+.modeline .workspace {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.modeline .segment {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  border-radius: 999px 0 0 999px;
+  background: var(--raised);
+  /* The text after the ID is a flex item of its own: its leading space stays. */
+  white-space: pre;
+}
+
+.modeline .segment + .segment {
+  margin-left: -0.5rem;
+  padding-left: 1.25rem;
+  box-shadow: -1px 0 0 var(--rule);
+}
+
+.modeline .parts .segment:first-child,
+.modeline .workspace .segment:first-child {
+  background: var(--select);
+  color: var(--text);
+}
+
+.modeline .parts .segment:first-child {
+  padding-left: 0.85rem;
+}
+
+.minibuffer {
+  position: relative;
+}
+
+.minibuffer .echo {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
