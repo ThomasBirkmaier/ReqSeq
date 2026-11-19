@@ -216,6 +216,15 @@ const idfOf = (total: number, matching: number): number =>
   Math.log(1 + (total - matching + 0.5) / (matching + 0.5));
 
 /**
+ * The score of a criterion key found in `matching` of the documents of `mini` (SR-222 AK1, AK2): as
+ * BM25 scores one occurrence of a word in a field of average length (field boost 1), so a rare key
+ * counts as a rare word does. A key is no word of the index, so its documents are counted by the
+ * caller.
+ */
+export const keyScoreOf = (mini: MiniSearch, matching: number): number =>
+  idfOf(internals(mini)._documentCount, matching) * (D + 1);
+
+/**
  * The number of documents a word part counts as found in, in the field `fieldId` (SR-221 AK2): the
  * documents of every word the term derives there added up, at most all of them. Never fewer than
  * those of an exact or prefix word of the same term, so a part's idf is never above theirs.

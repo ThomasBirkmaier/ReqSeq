@@ -63,6 +63,7 @@ import {
   titleKeyOf,
 } from "../model/index.js";
 import { identifierKeyOf } from "../model/identifier-index.js";
+import { criterionKeysOf } from "../model/criterion-references.js";
 import type { PhraseSpan, SearchPhrase } from "./phrase-text.js";
 import {
   QUOTE_MARKERS,
@@ -89,9 +90,20 @@ export type SearchSnippet =
       readonly property: string;
       /** Its name in the metamodel, the key when it has none. */
       readonly propertyName: string;
+      /** The acceptance criterion the value is (SR-222 AK3): its number and key, whether the key was found. */
+      readonly criterion?: SnippetCriterion;
       readonly text: string;
       readonly marks: readonly TextMark[];
     };
+
+/** The acceptance criterion of a snippet (SR-222 AK3). */
+export interface SnippetCriterion {
+  /** Its position in the current version, from 1. */
+  readonly criterion: number;
+  readonly key?: string;
+  /** Present when only its key was found in it (AK1, AK2): the location marks the key, the line has no marks. */
+  readonly keyMarked?: true;
+}
 
 /** The most code points of a snippet, `…` included (SR-174 AK1, AK2). */
 export const MAX = 120;
@@ -787,6 +799,8 @@ const markdownLine = (value: string, terms: Terms, phrases: readonly SearchPhras
 interface Value {
   readonly shown: string;
   readonly key?: string;
+  /** Of an acceptance criterion (SR-222 AK3): its number, and its key when it has one. */
+  readonly criterion?: { readonly criterion: number; readonly key?: string };
 }
 
 /** The values of the properties of `element` a snippet may come from, in reading order (see the file comment). */
@@ -797,9 +811,23 @@ const propertyValues = (
   const skipped = new Set(["id", "type", "status", titleKeyOf(metamodel), identifierKeyOf(metamodel)]);
   const typeKeys = metamodel.valid ? (findType(metamodel, element.type)?.properties ?? []) : [];
   const keys = [...new Set([...typeKeys.filter((key) => key in element.data), ...Object.keys(element.data)])];
+  const criteria = criterionKeysOf(metamodel, element.type, element.data);
   return keys
     .filter((key) => !skipped.has(key) && relationKey(metamodel, key) === undefined)
     .map((key) => {
+      if (key === criteria?.property) {
+        // One value per criterion, each its text (`criterionKeysOf`), with its number and key.
+        const values = criteria.items.map((item, at): Value => {
+          const texts: string[] = [];
+          valueTexts(item, texts);
+          const criterionKey = criteria.keys[at];
+          return {
+            shown: texts.join(""),
+            criterion: { criterion: at + 1, ...(criterionKey === undefined ? {} : { key: criterionKey }) },
+          };
+        });
+        return { key, values };
+      }
       const texts: string[] = [];
       valueTexts(element.data[key], texts);
       const defined = keyDefinition(metamodel, key);
@@ -841,21 +869,55 @@ const valueLine = (
   return windowOf(visible, whole, [whole]);
 };
 
-/** The snippet of the first value of `element` that matches `terms` or holds a phrase, of the properties `propertyKeys` (all when undefined). */
+/**
+ * The start of the visible text of a criterion whose key alone was found (SR-222 AK3): without marks;
+ * undefined for a criterion without a visible character.
+ */
+const startLine = (value: string, markdown: boolean): Line | undefined => {
+  const shown = markdown ? visibleText(value, "x") : value;
+  const visible = markdown ? visibleMarkdown(shown, shown.length) : visiblePlain(shown);
+  visible.text = visible.text.trim();
+  return visible.text === "" ? undefined : windowOf(visible, { start: 0, end: 0 }, []);
+};
+
+/**
+ * The snippet of the first value of `element` that matches `terms` or holds a phrase, of the
+ * properties `propertyKeys` (all when undefined); an acceptance criterion also when its key is in
+ * `found` (SR-222 AK3).
+ */
 const propertySnippet = (
   metamodel: Metamodel,
   element: ElementRecord,
-  terms: Terms,
-  phrases: readonly SearchPhrase[],
+  matching: {
+    readonly terms: Terms;
+    readonly phrases: readonly SearchPhrase[];
+    readonly found: ReadonlySet<string>;
+  },
   propertyKeys: readonly string[] | undefined,
 ): SearchSnippet | undefined => {
+  const { terms, phrases, found } = matching;
   const markdown = markdownKeysOf(metamodel);
   const chosen = propertyKeys === undefined ? undefined : new Set(propertyKeys);
   for (const { key, values } of propertyValues(element, metamodel)) {
     for (const value of chosen === undefined || chosen.has(key) ? values : []) {
-      const line = valueLine(value, markdown.has(key), terms, phrases);
+      const { criterion } = value;
+      const byWords = valueLine(value, markdown.has(key), terms, phrases);
+      // Only its key found (SR-222 AK3): the location marks the key, the line is the start of the text.
+      const byKey =
+        byWords === undefined && criterion?.key !== undefined && found.has(criterion.key)
+          ? startLine(value.shown, markdown.has(key))
+          : undefined;
+      const line = byWords ?? byKey;
       if (line !== undefined) {
-        return { field: "properties", property: key, propertyName: propertyName(metamodel, key), ...line };
+        return {
+          field: "properties",
+          property: key,
+          propertyName: propertyName(metamodel, key),
+          ...(criterion === undefined
+            ? {}
+            : { criterion: { ...criterion, ...(byKey === undefined ? {} : { keyMarked: true as const }) } }),
+          ...line,
+        };
       }
     }
   }
@@ -869,13 +931,18 @@ const propertySnippet = (
  */
 export const searchSnippet = (
   index: SearchIndex,
-  hit: Pick<SearchHit, "element" | "fields" | "terms" | "parts" | "phrases">,
+  hit: Pick<SearchHit, "element" | "fields" | "terms" | "parts" | "phrases"> &
+    Partial<Pick<SearchHit, "keys">>,
   propertyKeys?: readonly string[],
 ): SearchSnippet | undefined => {
   const fields = new Set<SearchField>(hit.fields);
   const terms = termsOf(hit.terms, hit.parts);
   const { phrases } = hit;
-  if ((terms.size === 0 && phrases.length === 0) || (!fields.has("text") && !fields.has("properties"))) {
+  const found = new Set(hit.keys);
+  if (
+    (terms.size === 0 && phrases.length === 0 && found.size === 0) ||
+    (!fields.has("text") && !fields.has("properties"))
+  ) {
     return undefined;
   }
   const { metamodel } = index;
@@ -892,7 +959,7 @@ export const searchSnippet = (
   if (!fields.has("properties")) {
     return undefined;
   }
-  return propertySnippet(metamodel, element, terms, phrases, propertyKeys);
+  return propertySnippet(metamodel, element, { terms, phrases, found }, propertyKeys);
 };
 
 /**

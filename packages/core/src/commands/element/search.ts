@@ -17,6 +17,8 @@
 //   (`query/search-fields.ts`), checked against the selection's metamodel before the index is
 //   awaited and against the index's after; the `[[` search of SR-066 asks for the title and the IDs.
 //   The snippet comes only from the chosen fields (SR-216 AK5): a chosen property, not an earlier one.
+// - A criterion key or criterion reference is found in its acceptance criterion (SR-222 AK1, AK2), and a
+//   snippet from an acceptance criterion names its number and key (`criterion`, AK3).
 // - Each hit of the page has its snippet (SR-174, `query/search-snippet.ts`): its file is read again,
 //   in the same turn, only when a word was found in its text; the title marks come from the title.
 //   So a page costs the search and the files of its hits (SR-098: measured for 50 and 500 hits in

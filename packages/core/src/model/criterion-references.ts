@@ -66,10 +66,59 @@ export const referenceNameOf = (context: CriterionReferenceContext, record: Elem
     : context.shortIds.of(record);
 };
 
+const requirementTypes = new WeakMap<Metamodel, ReadonlySet<string>>();
+
+/** The keys of the types with the meaning `requirement`, memoised per metamodel object (N-036). */
+export const requirementTypesOf = (metamodel: Metamodel): ReadonlySet<string> => {
+  let types = requirementTypes.get(metamodel);
+  if (types === undefined) {
+    types = new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key));
+    requirementTypes.set(metamodel, types);
+  }
+  return types;
+};
+
+/** The criteria of an element and their keys (`criterionKeysOf`). */
+export interface CriterionKeys {
+  /** The key of the property with the meaning `acceptance-criteria`. */
+  readonly property: string;
+  /** The items, each a text or a criterion mapping. */
+  readonly items: readonly unknown[];
+  /** Per item its criterion key in the form of SR-204 AK5, else undefined. */
+  readonly keys: readonly (string | undefined)[];
+}
+
+/**
+ * The criteria `properties` hold for an element of `type`, with their keys: undefined for an element
+ * whose type does not have the meaning `requirement`, without criteria, or with an item that is no
+ * text. A key in another form (`element.criterion-key-invalid`) counts as none: no test name can use
+ * it. What element.get gives (`criterionReferencesOf`) and the search finds (SR-222).
+ */
+export const criterionKeysOf = (
+  metamodel: Metamodel,
+  type: string,
+  properties: Readonly<Record<string, unknown>>,
+): CriterionKeys | undefined => {
+  const property = acceptanceCriteriaKeyOf(metamodel);
+  const items = criteriaItemsOf(properties, property);
+  if (
+    property === undefined ||
+    items.length === 0 ||
+    !requirementTypesOf(metamodel).has(type) ||
+    !items.every((item) => typeof criterionText(item) === "string")
+  ) {
+    return undefined;
+  }
+  const keys = items.map((item) => {
+    const key = criterionKey(item);
+    return isCriterionKey(key) ? key : undefined;
+  });
+  return { property, items, keys };
+};
+
 /**
  * The criteria `properties` hold for an element of `type` (`record` as the store holds it, for its
- * name), each with number, key, text and reference; undefined for an element whose type does not
- * have the meaning `requirement`, without criteria, or with an item that is no text.
+ * name), each with number, key, text and reference; undefined as for `criterionKeysOf`.
  */
 export const criterionReferencesOf = (
   context: CriterionReferenceContext,
@@ -77,21 +126,11 @@ export const criterionReferencesOf = (
   type: string,
   properties: Readonly<Record<string, unknown>>,
 ): CriterionReferences | undefined => {
-  const property = acceptanceCriteriaKeyOf(context.metamodel);
-  const items = criteriaItemsOf(properties, property);
-  if (
-    property === undefined ||
-    items.length === 0 ||
-    !typesWithMeaning(context.metamodel, "requirement").some((t) => t.key === type) ||
-    !items.every((item) => typeof criterionText(item) === "string")
-  ) {
+  const found = criterionKeysOf(context.metamodel, type, properties);
+  if (found === undefined) {
     return undefined;
   }
-  // A key in another form (`element.criterion-key-invalid`) is shown as none: no test name can use it.
-  const keys = items.map((item) => {
-    const key = criterionKey(item);
-    return isCriterionKey(key) ? key : undefined;
-  });
+  const { property, items, keys } = found;
   const name = referenceNameOf(context, record);
   return {
     property,

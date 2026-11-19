@@ -57,6 +57,7 @@ import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
+import { useConnectAgent } from "./use-connect-agent.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
 import { AboutLayer } from "./AboutWindow.js";
@@ -371,6 +372,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const catalog = useRef<readonly CommandListing[]>([]);
   // "New perspective" and "New saved filter" (SR-219): set below, where the command prompt it goes back to is.
   const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
+  // "Connect AI agent" (SR-227, SR-225 AK7): set below, where the command prompt it goes back to is.
+  const connector = useRef<(from: ActionContext) => void>(() => undefined);
   // The context of the actions (`app-context.ts`); what is declared further down is read when called.
   const context = actionContext({
     view,
@@ -406,6 +409,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     graphChoices,
     catalog,
     builder,
+    connector,
     follow,
     shownView,
     setShownView,
@@ -473,6 +477,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     revisionNow,
     builder,
   });
+  connector.current = useConnectAgent(
+    {
+      catalog: () => catalog.current,
+      catalogRead: () => catalogRead.current,
+      catalogContext: (from) => ({
+        ...from,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands(true));
+        },
+      }),
+      latest: () => latest.current,
+    },
+    context.workspace,
+  );
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
     mac: context.mac,

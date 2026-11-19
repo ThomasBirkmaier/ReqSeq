@@ -32,7 +32,9 @@ A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on
 
 ## App
 
-Run **Connect AI agent** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) and choose the client.
+Run **Connect AI agent** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) and choose the client. The app shows what to do, the command or JSON block, and how to go on. "Copy field" (Ctrl+Shift+C, ⌘⇧C on macOS) or the copy symbol at the block puts the block on the clipboard.
+
+Without an open workspace, it first asks for the workspace as "Open workspace" does, opens it, and then asks for the client.
 
 ## CLI
 
