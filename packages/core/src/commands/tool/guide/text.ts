@@ -296,7 +296,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
 export const GUIDE_TAIL: GuideSection = {
   heading: "In a pipeline",
   lines: (context) => [
-    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as pages with the HTML export: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
+    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as HTML pages: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
   ],
 };
 

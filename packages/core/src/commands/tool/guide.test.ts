@@ -108,8 +108,15 @@ describe("tool.guide", () => {
       expect(text).toContain(names === "cli" ? "--output 'x/<run>.xml'" : '"output":"x/<run>.xml"');
       variants.push(text);
     }
+    // Three locations of 40, 10 and 10 characters: the 40 characters also stand in the calls.
+    const three = await folder({
+      "reqseq-workspace.yaml": workspaceFile(
+        `evidence:\n${["a".repeat(40), "b".repeat(10), "c".repeat(10)].map((p) => `  - { repository: main, path: "${p}" }\n`).join("")}`,
+      ),
+      "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
+    });
     for (const names of NAMES) {
-      variants.push(await guide(await folder(), { names }));
+      variants.push(await guide(await folder(), { names }), await guide(three, { names }));
     }
     for (const text of variants) {
       expect(Array.from(text).length).toBeLessThanOrEqual(GUIDE_MAX_LENGTH);
@@ -404,7 +411,7 @@ describe("tool.guide", () => {
       for (const names of NAMES) {
         const body = section(await guide(root, { names }), "In a pipeline");
         expect(body).toContain(
-          "The pipeline can publish the elements as pages with the HTML export: `reqseq html export '<folder>'`.",
+          "The pipeline can publish the elements as HTML pages: `reqseq html export '<folder>'`.",
         );
         expect(body).not.toContain("html_export");
         expect(body).not.toMatch(/github|gitlab|netlify|vercel|pages\.dev|cloudflare|host/i);
