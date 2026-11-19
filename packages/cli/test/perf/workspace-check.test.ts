@@ -142,7 +142,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       problems: Problem[];
       checkedElements: number;
     };
-    expect(answer).toMatch(/^Checked 50000 elements /);
+    expect(answer.startsWith(`Checked ${String(ELEMENTS)} elements `)).toBe(true);
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(clean.problems)).toEqual([]);
     expect(noParentHints(clean.problems)).toHaveLength(orphans);
