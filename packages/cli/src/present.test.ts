@@ -693,6 +693,48 @@ describe("renderHuman: on a terminal (#988)", () => {
     );
   });
 
+  it("[SR-222/AK-h8py] names the number and key of the criterion a snippet stands in, the key strong when core marks it", () => {
+    const criterion = (tail: string, found: Record<string, unknown>) =>
+      element(tail, "Gust alarm", {
+        snippet: {
+          field: "properties",
+          property: "acceptance-criteria",
+          propertyName: "Acceptance Criteria",
+          text: "Given a gust, then the alarm sounds.",
+          marks: [],
+          ...found,
+        },
+      });
+    const output = {
+      hits: [
+        criterion("a1", { criterion: { criterion: 3, key: "rqjp", keyMarked: true } }),
+        criterion("a2", { criterion: { criterion: 2, key: "k7f3" } }),
+        criterion("a3", { criterion: { criterion: 1 } }),
+      ],
+      total: 3,
+    };
+    expect(renderHuman(output)).toBe(
+      lines(
+        "hits:",
+        "  SR-a1  draft  Gust alarm",
+        "    Acceptance Criteria AK3 (rqjp): Given a gust, then the alarm sounds.",
+        "  SR-a2  draft  Gust alarm",
+        "    Acceptance Criteria AK2 (k7f3): Given a gust, then the alarm sounds.",
+        "  SR-a3  draft  Gust alarm",
+        "    Acceptance Criteria AK1: Given a gust, then the alarm sounds.",
+        "total: 3",
+      ),
+    );
+    const styled = renderHuman(output, true, terminal);
+    expect(styled).toContain(
+      `${style("dim", "Acceptance Criteria AK3 (")}${style("bold", "rqjp")}${style("dim", "):")} Given`,
+    );
+    expect(styled).toContain(
+      `${style("dim", "Acceptance Criteria AK2 (")}${style("dim", "k7f3")}${style("dim", "):")} Given`,
+    );
+    expect(styled).toContain(`${style("dim", "Acceptance Criteria AK1:")} Given`);
+  });
+
   it("shows the snippet of a search hit below its line, the marks core gives strong (SR-174)", () => {
     const output = {
       hits: [

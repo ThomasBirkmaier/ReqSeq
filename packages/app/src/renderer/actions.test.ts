@@ -952,7 +952,7 @@ describe("save element and edit text", () => {
       }
     }
     // Each of the actions among them is shown somewhere ("Create element" is a catalog command,
-    // `catalog-commands.test.ts`).
+    // `catalog-commands-create.test.ts`).
     expect([...seen].sort()).toEqual(MOST_FREQUENT.filter((id) => !id.startsWith("command:")).sort());
     // Written out once: the letters of the list and the overview.
     const onList = commandPrompt(setup([list]).context).items;

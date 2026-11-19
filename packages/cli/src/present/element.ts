@@ -354,16 +354,42 @@ export const markedText = (line: string, marks: unknown, style: Style, room: num
 };
 
 /**
- * The snippet of a search hit (element.search, SR-174), below its line: where it was found (`text`, or
- * the property's name) and the line core gives, on a terminal cut to its width past `indent`
- * columns, the marked words strong.
+ * Where a snippet of a search hit stands (SR-174, SR-222 AK3): `text`, or the property's name, with the
+ * number and key of an acceptance criterion (`Acceptance Criteria AK3 (rqjp)`), the key strong when
+ * core marks it; and its width.
+ */
+const snippetWhere = (snippet: Rec, style: Style): { readonly shown: string; readonly width: number } => {
+  if (snippet["field"] === "text") {
+    return { shown: style.faint("text:"), width: widthOf("text:") };
+  }
+  const name = text(snippet["propertyName"]);
+  const criterion = snippet["criterion"];
+  if (!isRecord(criterion) || typeof criterion["criterion"] !== "number") {
+    return { shown: style.faint(`${name}:`), width: widthOf(`${name}:`) };
+  }
+  const number = `${name} ${criterionLabel({ criterion: criterion["criterion"] })}`;
+  const key = typeof criterion["key"] === "string" ? criterion["key"] : undefined;
+  if (key === undefined) {
+    return { shown: style.faint(`${number}:`), width: widthOf(`${number}:`) };
+  }
+  const shownKey = criterion["keyMarked"] === true ? style.strong(key) : style.faint(key);
+  return {
+    shown: `${style.faint(`${number} (`)}${shownKey}${style.faint("):")}`,
+    width: widthOf(`${number} (${key}):`),
+  };
+};
+
+/**
+ * The snippet of a search hit (element.search, SR-174), below its line: where it was found
+ * (`snippetWhere`) and the line core gives, on a terminal cut to its width past `indent` columns, the
+ * marked words strong.
  */
 export const snippetLines = (element: Rec, style: Style = PLAIN, indent = 0): string[] => {
   const snippet = element["snippet"];
   if (!isRecord(snippet) || typeof snippet["text"] !== "string") {
     return [];
   }
-  const where = `${snippet["field"] === "text" ? "text" : text(snippet["propertyName"])}:`;
-  const room = style.width - indent - widthOf(where) - 3;
-  return [`  ${style.faint(where)} ${markedText(snippet["text"], snippet["marks"], style, room)}`];
+  const where = snippetWhere(snippet, style);
+  const room = style.width - indent - where.width - 3;
+  return [`  ${where.shown} ${markedText(snippet["text"], snippet["marks"], style, room)}`];
 };

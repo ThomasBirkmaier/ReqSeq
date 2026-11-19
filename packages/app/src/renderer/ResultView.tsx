@@ -6,7 +6,8 @@
 // under the root row (`chain-lines.ts`, SR-033, #646). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (ThomasBirkmaier/ReqSeq-archive#85).
-// The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4).
+// The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4), and that of
+// `workspace.connectAgent` for a client the setup to copy (`ConnectAgentView.tsx`, SR-227 AK7).
 import { bufferMark, useHidden } from "./area-slot.js";
 import { useEffect, useMemo } from "react";
 import { useIdScope } from "./area-scope.js";
@@ -14,6 +15,8 @@ import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { isHintOutput } from "./hint-list.js";
 import { HintListView } from "./HintListView.js";
+import { agentSetupOf } from "./connect-agent.js";
+import { ConnectAgentView } from "./ConnectAgentView.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import { resultSummary } from "./result.js";
@@ -27,6 +30,8 @@ export interface ResultViewProps {
   readonly dispatch: (action: WindowAction) => void;
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** Puts a value on the clipboard, and the modeline confirms it (SR-128 AK2); absent: nothing is copied. */
+  readonly onCopy?: (label: string, text: string) => void;
 }
 
 export const ResultView = ({
@@ -36,6 +41,7 @@ export const ResultView = ({
   dispatch,
   onData,
   onEcho,
+  onCopy,
 }: ResultViewProps): React.JSX.Element => {
   const scope = useIdScope();
   // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
@@ -47,6 +53,7 @@ export const ResultView = ({
   );
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));
   const hints = buffer.command === "hint.list" && isHintOutput(buffer.output) ? buffer.output : undefined;
+  const setup = agentSetupOf(buffer);
 
   useEffect(() => {
     // The hint list says what it shows itself, with the message of its marked hint.
@@ -112,6 +119,10 @@ export const ResultView = ({
 
   if (hints !== undefined) {
     return <HintListView call={call} buffer={buffer} output={hints} dispatch={dispatch} onData={onData} />;
+  }
+
+  if (setup !== undefined) {
+    return <ConnectAgentView name={buffer.name} setup={setup} attributes={bufferAttribute} onCopy={onCopy} />;
   }
 
   return (

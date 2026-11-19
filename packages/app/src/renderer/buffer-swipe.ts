@@ -1,6 +1,6 @@
 // A horizontal swipe with two fingers on the trackpad, or the horizontal mouse wheel, switches to the previous or
 // next buffer as Alt+P and Alt+N do (SR-211). The app sees only wheel events, so this reads them: pure state over
-// the deltas and two pauses, with no DOM (ADR-0002 rule 3: no catalog command). The window (`App.tsx`) says what
+// the deltas and two pauses, with no DOM (ADR-0002 rule 3: no catalog command). The window (`use-swipe-switch.ts`) says what
 // is under the pointer (`SwipeHost.ignored`) and does the switch.
 //
 // The numbers come from a measurement of a macOS trackpad (#1612): between the events of one swipe the gaps are
