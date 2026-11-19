@@ -1,7 +1,7 @@
 name: Docs pages
 
-# ADR-0017: builds the user documentation of a release tag and deploys it to GitHub Pages. Only the latest release
-# is online (D-067), so a tag that is not the latest release is built but not deployed. Called by release.yml after it
+# ADR-0017: builds the user documentation of a release tag, adds the HTML export of ReqSeq's own spec under /spec/
+# (D-080), and deploys both to GitHub Pages. Only the latest release is online (D-067), so a tag that is not the latest release is built but not deployed. Called by release.yml after it
 # published a release (a release published with `github.token` starts no workflow of its own), or by hand for a tag.
 # Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` allowed in the environment
 # `github-pages`.
@@ -40,7 +40,8 @@ jobs:
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
-          # The release tags for the page "What's new" (#1259).
+          # The release tags for the page "What's new" (#1259), and the history the HTML export reads for the change of
+          # an element since a baseline.
           fetch-depth: 0
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -57,6 +58,10 @@ jobs:
       # Screenshots, content, install, audit and the build without network, as the release job docs-site does for
       # the offline build (.github/actions/docs-site). A tag from before the action cannot be rebuilt here.
       - uses: ./.github/actions/docs-site
+      # ReqSeq's own spec as an HTML export (D-080) under /spec/ of the site, from the CLI of this tag and without
+      # network, like the site build. A tag from before the command `html.export` cannot be rebuilt here.
+      - name: Export the spec as HTML without network (unshare -rn)
+        run: unshare -rn node packages/cli/dist/bin.js html export packages/docs/site/dist/spec --workspace spec
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: packages/docs/site/dist
