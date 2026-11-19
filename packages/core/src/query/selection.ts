@@ -28,6 +28,13 @@
 //   every function); the versions at the baseline are what baseline.get shows (SR-051). It is found by name, then by
 //   file name (`findBaseline`): none is `input.invalid`, a name two files share too, a text that
 //   names only a faulty file `file.faulty`. baseline.create refuses it before it gets here.
+// - `output` (SR-224 AK5, #1873): the elements of the field of a read command's output
+//   marked `x-elements: "answer"` over all pages (`CommandDefinition.outputElements`), run through
+//   `readOutputElements` of the command's context as `invoke` runs a command (runtime/invoke.ts,
+//   `outputElementsReader`). An element is matched by repository and UUID, and by its file when it names one
+//   (a record: only that copy of a UUID found twice, SR-088); one the store does not hold
+//   is not selected; the inner output's `incomplete` holds, which baseline.get sets for such an entry
+//   (assumption of #1932). baseline.create refuses it.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
@@ -41,14 +48,13 @@
 // compiled from its file on each call.
 import type { Baseline } from "../baselines/index.js";
 import { findBaseline, workspaceBaselines } from "../baselines/index.js";
-import type { CommandName } from "../catalog.js";
+import type { CommandContext, CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ElementSelection } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import { elementStoreState, resolveListRef, shortIdState } from "../model/index.js";
-import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import { resolveView, viewRuleOf } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -194,16 +200,51 @@ const savedParts = async (
   };
 };
 
+/** What a selection reads of the command's context: its workspace, and `readOutputElements` for `output`. */
+export type SelectionContext = Pick<CommandContext, "workspace" | "readOutputElements">;
+
+/** The key an element of an output is matched by: repository and UUID, and the file when it names one. */
+const keyOf = (element: {
+  readonly id: string;
+  readonly repository: string;
+  readonly file?: string;
+}): string =>
+  `${element.repository}\u0000${element.id}${element.file === undefined ? "" : `\u0000${element.file}`}`;
+
+/** The part `output` of `selection` (see the file comment): its test of an element, if given, and its `incomplete`. */
+const outputPart = async (
+  caller: SelectionContext,
+  selection: ElementSelection,
+): Promise<{ readonly tests: readonly Predicate[]; readonly incomplete: boolean }> => {
+  if (selection.output === undefined) {
+    return { tests: [], incomplete: false };
+  }
+  const { elements, incomplete } = await caller.readOutputElements(
+    selection.output.command,
+    selection.output.input,
+  );
+  const keys = new Set(elements.map(keyOf));
+  return {
+    tests: [
+      (element) =>
+        keys.has(keyOf(element)) || keys.has(keyOf({ id: element.id, repository: element.repository })),
+    ],
+    incomplete,
+  };
+};
+
 /**
- * The elements `selection` selects in `workspace` for `command`, with the perspective `stored` when
- * given (see the file comment). Errors name the fields of the input under `selection`.
+ * The elements `selection` selects in the workspace of `caller` for `command`, with the perspective
+ * `stored` when given (see the file comment). Errors name the fields of the input under `selection`.
  */
 export const resolveSelection = async (
-  workspace: Workspace,
+  caller: SelectionContext,
   selection: ElementSelection,
   command: CommandName,
   stored?: StoredSelection,
 ): Promise<Selected> => {
+  const { workspace } = caller;
+  const fromOutput = await outputPart(caller, selection);
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
@@ -228,6 +269,7 @@ export const resolveSelection = async (
   if (baseline !== undefined) {
     tests.push((element) => baseline.selects(element, store.byId));
   }
+  tests.push(...fromOutput.tests);
   if (selection.package !== undefined) {
     const compiled = await compileWhere(context, { package: selection.package }, "selection");
     tests.push(compiled.predicate);
@@ -249,7 +291,10 @@ export const resolveSelection = async (
   const elements = candidates.filter((e) => tests.every((test) => test(e)));
   return {
     elements,
-    incomplete: layout.repositories.some((r) => !r.available) || notes.some((n) => n.incomplete),
+    incomplete:
+      layout.repositories.some((r) => !r.available) ||
+      notes.some((n) => n.incomplete) ||
+      fromOutput.incomplete,
     layout,
     metamodel,
     store,

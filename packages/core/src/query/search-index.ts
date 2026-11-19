@@ -1191,6 +1191,16 @@ export const searchElements = (
 ): SearchResults => pageOf(foundBy(index, query, options) ?? [], options);
 
 /**
+ * The elements `searchElements` finds for `query`, all of them, without sorting or describing them: the
+ * elements of `element.search` over all pages (`answer`, SR-224 AK5).
+ */
+export const matchingElements = (
+  index: SearchIndex,
+  query: string,
+  options: Omit<SearchElementsOptions, "offset" | "limit">,
+): readonly ElementRecord[] => Array.from(foundBy(index, query, options) ?? [], (found) => found.element);
+
+/**
  * The keys (`recordKey`) of the elements `searchElements` finds for `query`, all of them, without
  * sorting or describing them: the condition `text` of a filter (SR-068, `condition.ts`).
  */

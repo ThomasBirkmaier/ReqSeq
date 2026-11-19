@@ -25,7 +25,7 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"element.bulkUpdate">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection, "element.bulkUpdate");
+    const selected = await resolveSelection(ctx, input.selection, "element.bulkUpdate");
     const result = await bulkUpdateElements(
       ctx.workspace,
       selected,

@@ -9,7 +9,7 @@ import { inSavedFilter, savedSort } from "./saved.js";
 import type { Selected } from "./selection.js";
 import type { ElementRecord } from "../model/index.js";
 import type { SortedElements } from "./sort.js";
-import { sortElements, sortGroups } from "./sort.js";
+import { checkSortKeys, sortElements, sortGroups } from "./sort.js";
 
 /**
  * `selected.elements` in the order of `sort` for `command`, with the derivation tree when `sort`
@@ -26,6 +26,13 @@ export const orderedSelection = (
   withSort(selected, sort, (keys, storedSort) =>
     sortElements({ ...selected, command, storedSort }, selected.elements, keys),
   );
+
+/** Checks the sort `orderedSelection` would use for the same input, without sorting (`checkSortKeys`). */
+export const checkedSort = (selected: Selected, command: CommandName, sort: SortKeys | undefined): void => {
+  withSort(selected, sort, (keys, storedSort) => {
+    checkSortKeys({ ...selected, command, storedSort }, keys);
+  });
+};
 
 /**
  * The groups of `selected` (`groupsOf` gives the groups of an element, of `count`), each in the

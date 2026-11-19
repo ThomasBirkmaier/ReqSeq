@@ -26,7 +26,7 @@ export default defineCommand({
     );
   },
   run: async (ctx, input): Promise<CommandOutput<"evidence.degree">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "evidence.degree");
+    const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.degree");
     const view = selected.views[0] ?? CORE;
     const degree = await selectionDegree(ctx.workspace, selected.elements, view);
     const read = await ctx.workspace.get(evidenceReadState);
