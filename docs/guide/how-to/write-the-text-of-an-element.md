@@ -51,7 +51,7 @@ reqseq element get SR-c67baa
 ```
 
 ```text title="Output"
-SR-c67baa is a System Requirement with status draft; 3 problems.
+SR-c67baa is of type System Requirement with status draft; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
   text: |

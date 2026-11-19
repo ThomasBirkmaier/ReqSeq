@@ -43,10 +43,10 @@ const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => 
   return ws;
 };
 
-/** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
 /** The answer of a check without findings (SR-224 AK1). */
 const NO_PROBLEM = (checked: number): string => `Checked ${String(checked)} elements and found no problem.`;
 
+/** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
 const checkBoth = async (
   cwd: string,
   args: readonly string[] = [],

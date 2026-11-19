@@ -19,7 +19,6 @@ import {
   problemsNote,
   sentence,
   viewNamed,
-  withArticle,
 } from "./answer.js";
 import elementList from "./element/list.js";
 import { commands } from "./index.js";
@@ -119,12 +118,6 @@ describe("the words of the answers", () => {
       "a",
       "a and b",
       "a, b and c",
-    ]);
-    expect(["System Requirement", "Use Case", "Interface", "element"].map(withArticle)).toEqual([
-      "a System Requirement",
-      "a Use Case",
-      "an Interface",
-      "an element",
     ]);
   });
 

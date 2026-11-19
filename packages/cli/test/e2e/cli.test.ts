@@ -224,7 +224,7 @@ describe("reqseq binary", () => {
     ]);
     const shown = await reqseq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(
-      /^SR-[0-9a-f]{6,} is a System Requirement with status draft; 3 problems\.\nSR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
+      /^SR-[0-9a-f]{6,} is of type System Requirement with status draft; 3 problems\.\nSR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
     );
   });
 
@@ -235,7 +235,7 @@ describe("reqseq binary", () => {
     const shown = await run("element", "get", "sr-036");
     expect([shown.code, shown.stderr]).toEqual([0, ""]);
     expect(shown.stdout.split("\n").slice(0, 2)).toEqual([
-      "SR-036 is a System Requirement with status draft.",
+      "SR-036 is of type System Requirement with status draft.",
       // SR-037 derives from it and has no record: the child that is missing (SR-034 AK2), named from `names`.
       "SR-0b0036 (SR-036)  draft  Accept identifiers as references  [verification: core open (missing SR-0b0037 (SR-037))]",
     ]);
@@ -287,7 +287,7 @@ describe("reqseq binary", () => {
       const lower = await run("element", "get", "n-D4E5F6");
       expect([lower.code, ...lower.stdout.split("\n").slice(0, 2)]).toEqual([
         0,
-        "N-d4e5f6 is a Need with status approved.",
+        "N-d4e5f6 is of type Need with status approved.",
         "N-d4e5f6  approved  See the wind  [validation: open]",
       ]);
       const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");

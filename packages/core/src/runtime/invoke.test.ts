@@ -489,5 +489,10 @@ describe("the names of an answer (SR-224 AK1)", () => {
     expect(await rt.invoke("test.paths", {}, { workspace: ws })).toEqual({
       answer: "System Requirement and no-such-type.",
     });
+    // A metamodel that failed meanwhile names the type by its key; the command still succeeds.
+    vi.spyOn(ws, "peek").mockReturnValue(Promise.reject(new Error("reset")));
+    expect(await rt.invoke("test.paths", {}, { workspace: ws })).toEqual({
+      answer: "system-requirement and no-such-type.",
+    });
   });
 });

@@ -69,7 +69,7 @@ reqseq element get N-7fe707
 ```
 
 ```text title="Output"
-N-7fe707 is a Need with status draft.
+N-7fe707 is of type Need with status draft.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
   file: ...need/N-d0e44b7fe707.md

@@ -66,8 +66,9 @@ const withHome = (
 
 /**
  * The names of an answer from the metamodel the command left (`AnswerNames`). Nothing is read: a
- * command whose answer names a type has read the metamodel; without it (not built, or reset by a
- * watcher meanwhile) a type is named by its key.
+ * command whose answer names a type has read the metamodel in `run`. Only a type the metamodel does
+ * not have, or a metamodel that is not built or failed (reset by a watcher meanwhile, or a command
+ * that does not read it), names a type by its key, so a successful command never fails for its answer.
  */
 const answerNames = (metamodel: Metamodel | undefined): AnswerNames => ({
   type: (key) => (metamodel === undefined ? undefined : findType(metamodel, key)?.name) ?? key,
@@ -90,7 +91,7 @@ const answered = async (
         answer: command.answer(
           output,
           input as never,
-          answerNames(await settledValue(workspace.peek(metamodelState))),
+          answerNames(await settledValue(workspace.peek(metamodelState)).catch(() => undefined)),
         ),
         ...(output as Readonly<Record<string, unknown>>),
       };

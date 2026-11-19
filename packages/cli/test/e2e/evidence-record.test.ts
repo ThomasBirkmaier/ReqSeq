@@ -40,7 +40,6 @@ const json = async (ws: FixtureWorkspace, args: readonly string[]): Promise<unkn
   return JSON.parse(result.stdout) as unknown;
 };
 
-/** The first line `reqseq element get <ref>` prints. */
 /** The line of the element in the text output of element get, after its answer (SR-224 AK2). */
 const elementLine = async (ws: FixtureWorkspace, ref: string): Promise<string> =>
   (await run(ws, ["element", "get", ref])).stdout.split("\n")[1] ?? "";

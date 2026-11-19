@@ -28,12 +28,6 @@ export const viewNamed = (
   return variant === undefined ? view : named(variant);
 };
 
-/**
- * `a System Requirement`, `an Interface`: a noun with its indefinite article, `an` before a, e, i or o.
- * A noun with u takes `a` (`a Use Case`), as most such names do.
- */
-export const withArticle = (noun: string): string => `${/^[aeio]/i.test(noun) ? "an" : "a"} ${noun}`;
-
 /** `a`, `a and b`, `a, b and c`; "" for none. */
 export const listed = (items: readonly string[]): string =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.slice(-1).join("")}`;
