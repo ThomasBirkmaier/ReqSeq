@@ -209,15 +209,24 @@ export const renderMarkdown = async (text: string, context: TextContext): Promis
   try {
     return await rendered(text, context);
   } catch (error) {
-    if (!(error instanceof RangeError)) {
+    if (!(error instanceof RangeError) || !/call stack/iu.test(error.message)) {
       throw error;
     }
     // The Markdown libraries recurse; a text nested too deeply for the stack is shown as written.
-    return { html: `<pre>${escapeHtml(text)}</pre>`, findings: [] };
+    return {
+      html: `<pre>${escapeHtml(text)}</pre>`,
+      findings: [
+        {
+          code: "html.unsafe-content",
+          message: "the text is nested too deeply to be checked; it is shown as written",
+          line: 1,
+        },
+      ],
+    };
   }
 };
 
-/** The parents of `tree`, outermost first, and the addresses of its definitions by identifier. */
+/** The parents of `tree` in the order of the text, each before its own, and the addresses of its definitions by identifier. */
 const walk = (tree: Root): { parents: Parent[]; definitions: Map<string, string> } => {
   const definitions = new Map<string, string>();
   const parents: Parent[] = [];
@@ -228,7 +237,8 @@ const walk = (tree: Root): { parents: Parent[]; definitions: Map<string, string>
     }
     if ("children" in node) {
       parents.push(node);
-      stack.push(...node.children);
+      // Reversed, so the walk meets the nodes in the order of the text.
+      stack.push(...[...node.children].reverse());
     }
   }
   return { parents, definitions };
@@ -262,13 +272,14 @@ const changesOf = (text: string, context: TextContext, definitions: ReadonlyMap<
     return shown(node);
   };
   const imageOutcome = (node: Nodes, url: string, alt: string): void => {
-    const scheme = schemeOf(url);
+    // A one-letter scheme is a drive of Windows: a path outside the repository.
+    const scheme = /^[a-z]$/u.test(schemeOf(url)) ? "drive" : schemeOf(url);
     const link = scheme === "" ? imageLink(context.elementFile, url, context.ignored) : undefined;
     if (link === undefined) {
       const where =
         scheme === "data"
           ? "a data: address"
-          : scheme === ""
+          : scheme === "" || scheme === "drive"
             ? "a path outside the element's repository"
             : "an address in the network";
       report(node, "html.unsafe-content", `an image with ${where} is shown as text`);

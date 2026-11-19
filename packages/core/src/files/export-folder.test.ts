@@ -80,7 +80,7 @@ describe("openExportFolder refuses (SR-235 AK1)", () => {
     const stat = fs.stat.bind(fs);
     vi.spyOn(fs, "stat").mockImplementation(async (p, o) => {
       if (String(p) === target) {
-        throw Object.assign(new Error("denied"), { code: "EACCES" });
+        throw Object.assign(new Error("denied"), { code: "EINVAL" });
       }
       return stat(p, o);
     });
@@ -128,7 +128,7 @@ describe("openExportFolder holds a lock in the target", () => {
       expect(await fs.readdir(target)).not.toContain(STAGING_FOLDER);
     });
     // An owner file without a start time: old.
-    await write(path.join(target, STAGING_FOLDER, "owner.json"), JSON.stringify({ pid: process.pid }));
+    await write(path.join(target, STAGING_FOLDER, "owner.json"), JSON.stringify({ pid: process.ppid }));
     await (await openExportFolder(target, SPEC)).abort();
     // No owner file: left behind once it is older than a minute.
     await write(path.join(target, STAGING_FOLDER, "x"), "");
@@ -149,6 +149,66 @@ describe("openExportFolder holds a lock in the target", () => {
     });
     expect((await refusal(openExportFolder(target, SPEC))).message).toContain("is running");
     expect(await fs.readFile(path.join(target, "index.html"), "utf8")).toBe("old");
+  });
+});
+
+describe("openExportFolder after a run of the same process", () => {
+  it("removes a staging folder that an ended run of this process left, and keeps one of a running run", async () => {
+    const target = await earlier({ "index.html": "old" });
+    const rm = fs.rm.bind(fs);
+    vi.spyOn(fs, "rm").mockImplementation(async (p, o) => {
+      if (String(p).endsWith(STAGING_FOLDER)) {
+        throw Object.assign(new Error("busy"), { code: "EBUSY" });
+      }
+      return rm(p, o);
+    });
+    const first = await openExportFolder(target, SPEC);
+    await first.write("index.html", "new");
+    expect((await first.commit()).cleanupFailed).toBe(true);
+    vi.restoreAllMocks();
+    expect(await fs.readdir(target)).toContain(STAGING_FOLDER);
+    const second = await openExportFolder(target, SPEC);
+    expect((await refusal(openExportFolder(target, SPEC))).message).toContain("is running");
+    await second.abort();
+    expect(await fs.readdir(target)).not.toContain(STAGING_FOLDER);
+  });
+
+  it("gives a staging folder back that another export took over since the check, and goes on when another removed it", async () => {
+    const target = await earlier({ "index.html": "old" });
+    const owner = path.join(target, STAGING_FOLDER, "owner.json");
+    await write(owner, JSON.stringify({ pid: 2 ** 31 - 1, started: 0 }));
+    const rename = fs.rename.bind(fs);
+    // Another export takes the folder over between the check and the rename.
+    vi.spyOn(fs, "rename").mockImplementationOnce(async (from, to) => {
+      await fs.writeFile(owner, JSON.stringify({ pid: process.ppid, started: Date.now(), run: "other" }));
+      return rename(from, to);
+    });
+    const other = await refusal(openExportFolder(target, SPEC));
+    expect(other.message).toContain("is running");
+    expect(JSON.parse(await fs.readFile(owner, "utf8"))).toMatchObject({ run: "other" });
+    // Another export removed it first.
+    await fs.writeFile(owner, JSON.stringify({ pid: 2 ** 31 - 1, started: 0 }));
+    vi.spyOn(fs, "rename").mockImplementationOnce(async (from) => {
+      await fs.rm(String(from), { recursive: true });
+      throw Object.assign(new Error("gone"), { code: "ENOENT" });
+    });
+    await (await openExportFolder(target, SPEC)).abort();
+    // Any other error is passed on.
+    await write(owner, JSON.stringify({ pid: 2 ** 31 - 1, started: 0 }));
+    vi.spyOn(fs, "rename").mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "EINVAL" }));
+    await expect(openExportFolder(target, SPEC)).rejects.toThrow("denied");
+  });
+
+  it("refuses a target that is a link leading nowhere, and removes its staging folder when the owner file cannot be written", async () => {
+    const root = await temp();
+    await fs.symlink(path.join(root, "nowhere"), path.join(root, "site"));
+    expect((await refusal(openExportFolder(path.join(root, "site"), SPEC))).code).toBe("file.not-regular");
+    vi.spyOn(fs, "mkdir").mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "EINVAL" }));
+    await expect(openExportFolder(path.join(root, "other"), SPEC)).rejects.toThrow("denied");
+    const target = await earlier({ "index.html": "old" });
+    vi.spyOn(fs, "writeFile").mockRejectedValueOnce(new Error("disk full"));
+    await expect(openExportFolder(target, SPEC)).rejects.toThrow("disk full");
+    expect(await fs.readdir(target)).not.toContain(STAGING_FOLDER);
   });
 });
 
@@ -182,6 +242,9 @@ describe("an export folder", () => {
     );
     expect((await refusal(folder.write("assets/x.css", "new"))).code).toBe("file.faulty");
     expect((await refusal(folder.write("a", "new"))).code).toBe("file.faulty");
+    // A file system that ignores case takes another spelling as the same name.
+    expect((await refusal(folder.write("Foreign.txt", "new"))).code).toBe("file.faulty");
+    expect((await refusal(folder.write("A/new.html", "new"))).code).toBe("file.faulty");
     await folder.write("x/y.html", "new");
     expect((await refusal(folder.write("x/y.html", "again"))).code).toBe("internal");
     expect((await refusal(folder.write("x/y.html/z", "under a file"))).code).toBe("internal");
@@ -211,7 +274,7 @@ describe("an export folder", () => {
       return rename(from, to);
     });
     expect((await refusal(folder.commit())).message).toBe(
-      `Not exported: the earlier export could not be put back; its files are in ${STAGING_FOLDER}/old of the export folder`,
+      `Not exported: the earlier export could not be put back; its files are in ${STAGING_FOLDER}/old of the export folder, so move them out before the next export removes that folder`,
     );
     vi.restoreAllMocks();
     expect(await fs.readFile(path.join(target, STAGING_FOLDER, "old/elements/a.html"), "utf8")).toBe("old");

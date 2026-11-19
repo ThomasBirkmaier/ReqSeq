@@ -19,6 +19,13 @@ describe("svgRisk", () => {
     ["a foreign object", "<foreignObject><div/></foreignObject>", "a script or embedded content"],
     ["an entity", '<!ENTITY x "y">', "a script or embedded content"],
     ["an event attribute", '<rect onload="f()"/>', "an event attribute"],
+    [
+      "an animation that sets an address",
+      '<a><animate attributeName="href" to="&#106;avascript:f()"/></a>',
+      "an animation or a character reference",
+    ],
+    ["a set element", '<a><set attributeName="href" to="#x"/></a>', "an animation or a character reference"],
+    ["a character reference", "<text>&#x41;</text>", "an animation or a character reference"],
     ["a script address", '<a href="javascript:f()"/>', "a script or data address"],
     ["a data address", '<image href="data:image/png;base64,AA"/>', "a script or data address"],
     ["an outside image", '<image href="https://example.org/x.png"/>', "a reference outside the file"],

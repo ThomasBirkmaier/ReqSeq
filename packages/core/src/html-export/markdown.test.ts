@@ -29,7 +29,7 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
       "",
       "[run](javascript:alert(4)) [file](file:///etc/passwd) <vbscript:x> [ok](https://example.org) [mail](mailto:a@b.c)",
       "",
-      "![net](https://example.org/x.png) ![data](data:image/png;base64,AAAA) ![up](../../../etc/x.png)",
+      "![net](https://example.org/x.png) ![data](data:image/png;base64,AAAA) ![up](../../../etc/x.png) ![drive](C:/pics/x.png)",
       "",
       "[ref]: javascript:alert(5)",
       "[go][ref]",
@@ -49,7 +49,7 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
     expect(html).toContain('<a href="https://example.org" rel="noopener noreferrer">ok</a>');
     expect(html).toContain('<a href="mailto:a@b.c" rel="noopener noreferrer">mail</a>');
     expect(html).toContain(
-      "![net](https://example.org/x.png) ![data](data:image/png;base64,AAAA) ![up](../../../etc/x.png)",
+      "![net](https://example.org/x.png) ![data](data:image/png;base64,AAAA) ![up](../../../etc/x.png) ![drive](C:/pics/x.png)",
     );
     expect(html).toContain("[go][ref]");
     expect(html).toContain('<pre><code class="language-mermaid">flowchart LR');
@@ -63,6 +63,7 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
       [5, "a link with the scheme vbscript is shown as text"],
       [7, "an image with an address in the network is shown as text"],
       [7, "an image with a data: address is shown as text"],
+      [7, "an image with a path outside the element's repository is shown as text"],
       [7, "an image with a path outside the element's repository is shown as text"],
       [10, "a link with the scheme javascript is shown as text"],
       [12, "a Mermaid diagram with a click action is shown as text"],
@@ -122,7 +123,10 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
 
   it("shows a text nested too deeply for the Markdown libraries as written", async () => {
     const deep = `${"> ".repeat(20000)}x <b>`;
-    const { html } = await render(deep);
+    const { html, findings } = await render(deep);
+    expect(findings.map((f) => f.message)).toEqual([
+      "the text is nested too deeply to be checked; it is shown as written",
+    ]);
     expect(html.startsWith("<pre>&gt; &gt; ")).toBe(true);
     expect(html.endsWith("x &lt;b&gt;</pre>")).toBe(true);
   });
@@ -185,6 +189,12 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
     await expect(
       renderMarkdown("![a](x.png)", { ...context(), image: () => Promise.reject(new Error("read failed")) }),
     ).rejects.toThrow("read failed");
+    await expect(
+      renderMarkdown("![a](x.png)", {
+        ...context(),
+        image: () => Promise.reject(new RangeError("Invalid array length")),
+      }),
+    ).rejects.toThrow("Invalid array length");
     const { html, findings } = await render(
       "```\nplain\n```\n\n```js\nx\n```\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n[go][nowhere] ![x][nothing]",
     );

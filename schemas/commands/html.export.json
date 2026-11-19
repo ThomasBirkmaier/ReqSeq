@@ -2,7 +2,7 @@
   "name": "html.export",
   "title": "Export HTML",
   "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
-  "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a finding. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a finding. On an error the earlier export stays as it was.",
+  "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a problem. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a problem. On an error the earlier export stays as it was.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",

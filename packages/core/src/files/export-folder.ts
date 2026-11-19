@@ -11,13 +11,15 @@
 //   `\`, `:` or control characters, no name Git takes, unique ignoring case, that the walk found as a
 //   file (so every folder on its way is a real folder). Others are left alone and reported.
 // - Lock and staging: `.reqseq-export-staging` is created with an exclusive `mkdir` and holds the
-//   process ID that owns it; a staging folder whose process no longer runs is removed. The marker
+//   process ID and run that own it; a staging folder whose process no longer runs, or of this process
+//   whose run has ended, is removed after it is renamed aside and checked again. The marker
 //   then names it (`pending`), so a crash leaves nothing unmarked. New files go to `staging/new`.
 // - Commit: the marker names old and new files; then from the top, a name that is wholly the old
 //   export's (or missing) is moved to `staging/old` and replaced by the new one in one rename, a
 //   folder that also holds other files is entered. Every folder is checked to be a real folder right
 //   before a rename in it. An error moves everything back and restores the marker (SR-235 AK6); once
 //   the marker with the new list is written, nothing is rolled back.
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
@@ -137,13 +139,20 @@ const markerText = (spec: MarkerSpec, files: Iterable<string>, pending: boolean)
   ].join("\n");
 };
 
+/** The runs of this process by their ID, which stay until their commit or abort ends. */
+const runs = new Set<string>();
+
 /** Whether the staging folder at `staging` was left by an export that no longer runs. */
 const leftBehind = async (staging: string): Promise<boolean> => {
   try {
     const owner = JSON.parse(await fs.readFile(path.join(staging, OWNER_FILE), "utf8")) as {
       pid?: unknown;
       started?: unknown;
+      run?: unknown;
     };
+    if (owner.pid === process.pid) {
+      return !runs.has(String(owner.run));
+    }
     const started = typeof owner.started === "number" ? owner.started : 0;
     return !processRuns(owner.pid) || Date.now() - started > STALE_OWNER_MS;
   } catch {
@@ -211,7 +220,14 @@ export const openExportFolder = async (target: string, spec: MarkerSpec): Promis
   }
   const created = stat === undefined;
   if (created) {
-    await fs.mkdir(target);
+    await fs.mkdir(target).catch((error: unknown) => {
+      // Taken since the check, or a link that leads nowhere.
+      throw errorCode(error) === "EEXIST"
+        ? new CommandError("file.not-regular", `Not exported: ${shownName} is no folder`, {
+            fields: ["output"],
+          })
+        : error;
+    });
   }
   const folder = await fs.realpath(target);
   const staging = path.join(folder, STAGING_FOLDER);
@@ -232,7 +248,7 @@ export const openExportFolder = async (target: string, spec: MarkerSpec): Promis
       if (!stagingStat.isDirectory() || !(await leftBehind(staging))) {
         throw refused(`another export into ${shownName} is running (${STAGING_FOLDER})`);
       }
-      await removeTree(staging);
+      await removeLeftBehind(staging, shownName);
     }
     try {
       await fs.mkdir(staging);
@@ -241,15 +257,56 @@ export const openExportFolder = async (target: string, spec: MarkerSpec): Promis
         ? refused(`another export into ${shownName} is running (${STAGING_FOLDER})`)
         : error;
     }
-    await fs.writeFile(
-      path.join(staging, OWNER_FILE),
-      JSON.stringify({ pid: process.pid, started: Date.now() }),
-    );
-    return await opened(folder, spec, kinds, marker, created);
+    const run = randomUUID();
+    runs.add(run);
+    try {
+      await fs.writeFile(
+        path.join(staging, OWNER_FILE),
+        JSON.stringify({ pid: process.pid, started: Date.now(), run }),
+      );
+      const opening = await opened(folder, spec, kinds, marker, created);
+      const ending =
+        <T>(end: () => Promise<T>) =>
+        async (): Promise<T> => {
+          try {
+            return await end();
+          } finally {
+            runs.delete(run);
+          }
+        };
+      return { ...opening, commit: ending(() => opening.commit()), abort: ending(() => opening.abort()) };
+    } catch (error) {
+      runs.delete(run);
+      await removeTree(staging);
+      throw error;
+    }
   } catch (error) {
     await undoCreate();
     throw error;
   }
+};
+
+/**
+ * Removes the staging folder `staging` that an export left behind. It is first renamed to a name of
+ * its own, so two exports cannot both remove it, and checked once more there: an export that took
+ * its place since the check gets it back, and this one is refused.
+ */
+const removeLeftBehind = async (staging: string, shownName: string): Promise<void> => {
+  const aside = `${staging}-${randomUUID()}`;
+  try {
+    await rename(staging, aside);
+  } catch (error) {
+    if (errorCode(error) !== "ENOENT") {
+      throw error;
+    }
+    // Another export removed it first.
+    return;
+  }
+  if (!(await leftBehind(aside))) {
+    await rename(aside, staging);
+    throw refused(`another export into ${shownName} is running (${STAGING_FOLDER})`);
+  }
+  await removeTree(aside);
 };
 
 /** The files the earlier export wrote by its marker entries, their folders, and the entries not used. */
@@ -347,20 +404,25 @@ const opened = async (
     throw error;
   }
 
-  const blocked = (relative: string): boolean => {
-    for (const a of ancestors(relative)) {
-      const kind = kinds.get(a);
-      if (kind === "opaque" || (kind === "file" && !old.has(a))) {
-        return true;
-      }
+  // Every spelling the walk found, by its lower case: a file system that ignores case takes them as one.
+  const spellings = new Map<string, string[]>();
+  for (const p of kinds.keys()) {
+    spellings.set(p.toLowerCase(), [...(spellings.get(p.toLowerCase()) ?? []), p]);
+  }
+  const oldPaths = new Set([...old, ...oldUnder]);
+  /** Whether `q`, found where `p` goes, belongs to another source; `inner` for a folder on the way. */
+  const takenBy = (p: string, q: string, inner: boolean): boolean => {
+    const kind = kinds.get(q);
+    if (q !== p) {
+      // Only what is wholly the earlier export's is moved aside before the other spelling comes in.
+      return !oldPaths.has(q) || mixed.has(q);
     }
-    const kind = kinds.get(relative);
-    return (
-      kind === "opaque" ||
-      (kind === "file" && !old.has(relative)) ||
-      (kind === "folder" && mixed.has(relative))
-    );
+    return kind === "opaque" || (kind === "file" && !old.has(q)) || (!inner && mixed.has(q));
   };
+  const blocked = (relative: string): boolean =>
+    [...ancestors(relative), relative].some((p) =>
+      (spellings.get(p.toLowerCase()) ?? []).some((q) => takenBy(p, q, p !== relative)),
+    );
 
   const write = async (relative: string, content: string | Uint8Array): Promise<void> => {
     if (entryProblem(relative, spec) !== undefined || written.has(relative)) {
@@ -411,7 +473,6 @@ const opened = async (
     }
     return names;
   };
-  const oldPaths = new Set([...old, ...oldUnder]);
   const swap = async (relative: string, newPaths: ReadonlySet<string>): Promise<void> => {
     await checkFolder(relative);
     const names = new Set([...childrenOf(oldPaths, relative), ...childrenOf(newPaths, relative)]);
@@ -446,7 +507,7 @@ const opened = async (
         }
       } catch {
         throw refused(
-          `the earlier export could not be put back; its files are in ${STAGING_FOLDER}/old of the export folder`,
+          `the earlier export could not be put back; its files are in ${STAGING_FOLDER}/old of the export folder, so move them out before the next export removes that folder`,
         );
       }
       await giveUp();
