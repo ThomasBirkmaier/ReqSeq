@@ -917,7 +917,8 @@
             "reqif.choice-unused",
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
-            "reqif.source-model-unsaved"
+            "reqif.source-model-unsaved",
+            "reqif.source-value-chosen"
           ],
           "x-technical": true
         },
@@ -12188,7 +12189,7 @@
     {
       "name": "reqif_export",
       "title": "Export ReqIF",
-      "description": "Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+      "description": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -12210,7 +12211,7 @@
             "type": "string"
           },
           "mapping": {
-            "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`.",
+            "description": "The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`.",
             "$ref": "#/$defs/common/$defs/localPath"
           },
           "omitProperties": {
@@ -12222,6 +12223,10 @@
           },
           "statements": {
             "description": "Export the elements of the mapping's source with their statements, back to that source; needs `mapping`.",
+            "type": "boolean"
+          },
+          "sourceModel": {
+            "description": "Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous.",
             "type": "boolean"
           }
         },
