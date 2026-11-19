@@ -572,8 +572,8 @@ describe("callTool", () => {
       marked.map((entry) => toolName(entry.name)).sort(),
     );
     expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
-    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at once.
-    // Only a subset: loadUpfront also marks commands the guide does not name, such as element_search.
+    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at
+    // once, and loadUpfront marks exactly those (#1926): the tools the guide names with a workspace, and tool_guide.
     await getCommandRuntime().invoke("workspace.init", { path: dir, name: "Station" }, { workspace });
     const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
     const tools = new Set(listed.tools.map((tool) => tool.name));
@@ -581,9 +581,8 @@ describe("callTool", () => {
       .map((match) => match[1] ?? "")
       .filter((name) => tools.has(name));
     expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
-    const upfrontNames = new Set(upfront.map((tool) => tool.name));
-    // Without a workspace the guide names tool_guide, to read it again.
-    expect([...named, "tool_guide"].filter((name) => !upfrontNames.has(name))).toEqual([]);
+    // Without a workspace the guide also names tool_guide, to read it again.
+    expect([...new Set([...named, "tool_guide"])].sort()).toEqual(upfront.map((tool) => tool.name).sort());
     expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
     // The other tools' stub points at the filter grammar in this tool, so a client must load it upfront (#1927).
     expect(upfront.map((tool) => tool.name)).toContain(FILTER_GRAMMAR_TOOL);
