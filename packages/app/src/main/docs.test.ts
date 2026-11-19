@@ -6,7 +6,7 @@ import type { DocsServer } from "@reqseq/api/docs-server";
 import { DOCS_CHANNEL } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
 import type { DocsElectron } from "./docs.js";
-import { MAX_DOCS_TOPIC, docs, docsFolder, docsPath, handleDocs } from "./docs.js";
+import { MAX_DOCS_TOPIC, cliEntry, docs, docsFolder, docsPath, handleDocs } from "./docs.js";
 
 let top: string;
 let site: string;
@@ -93,6 +93,16 @@ describe("docsPath", () => {
       expect(docsPath(topic), JSON.stringify(topic)).toBeUndefined();
     }
     expect(docsPath("x".repeat(MAX_DOCS_TOPIC))).toBeDefined();
+  });
+});
+
+describe("cliEntry", () => {
+  it("is the command line of the delivery in a delivery, else that of the checkout (SR-227 AK3)", () => {
+    const base = { resources: "/opt/ReqSeq/resources", app: "/src/packages/app" };
+    expect(cliEntry({ ...base, packaged: true })).toBe(
+      path.join("/opt/ReqSeq/resources", "cli", "dist", "bin.js"),
+    );
+    expect(cliEntry({ ...base, packaged: false })).toBe(path.join("/src/packages", "cli", "dist", "bin.js"));
   });
 });
 

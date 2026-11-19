@@ -3,6 +3,7 @@
   "title": "Show verification degree",
   "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 4,
   "implements": ["SR-037", "SR-042", "SR-101"],
   "arguments": [{ "field": "selection", "complete": "selection" }],

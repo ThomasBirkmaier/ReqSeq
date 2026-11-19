@@ -184,6 +184,9 @@ describe("error classes", () => {
       "file.faulty",
       "file.read-only",
       "file.not-regular",
+      "agent.app-translocated",
+      "agent.path-unsupported",
+      "agent.cli-missing",
     ]);
     expect(byClass("unavailable")).toEqual(["git.unavailable"]);
     expect(byClass("not-implemented")).toEqual(["command.not-implemented"]);

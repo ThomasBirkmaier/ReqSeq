@@ -10,7 +10,7 @@ acceptance-criteria:
   - key: dp8b
     text: Gegeben ein geöffneter Arbeitsbereich, wenn in der Befehlszeile der Befehl „Show metamodel“ gewählt wird, dann öffnet sich ein Buffer mit dem Metamodell als Graph.
   - key: s795
-    text: Gegeben der Graph des Metamodells, wenn er angezeigt wird, dann ist jeder Typ ein Knoten mit Anzeigename, Präfix und seinen Properties einschließlich der geerbten, jede Vererbung eine Kante vom Typ zum Eltern-Typ und jede Beziehungsart und jede Property mit Beziehungen eine beschriftete Kante zwischen den Typen, die sie als Quelle und Ziel erlaubt.
+    text: Gegeben der Graph des Metamodells, wenn er angezeigt wird, dann ist jeder Typ ein Knoten mit Anzeigename, Präfix, seinen Properties einschließlich der geerbten und seinen Statuswerten einschließlich der geerbten, Anfangsstatus und ungültige Statuswerte gekennzeichnet, jede Vererbung eine Kante vom Typ zum Eltern-Typ und jede Beziehungsart und jede Property mit Beziehungen eine beschriftete Kante zwischen den Typen, die sie als Quelle und Ziel erlaubt.
   - key: j585
     text: Gegeben eine Beziehungsart ohne Einschränkung der Quell- oder Zieltypen, wenn der Graph angezeigt wird, dann führt ihre Kante auf der offenen Seite zu einem Knoten „Any type“, den es nur dann gibt, einmal je Typ der eingeschränkten Seite und mit der offenen Seite in der Beschriftung; sind beide Seiten offen, ist sie eine Schleife an diesem Knoten mit der Beschriftung, dass Quelle und Ziel beliebig sind.
   - key: g9gk
@@ -19,6 +19,8 @@ acceptance-criteria:
     text: Gegeben das Metamodell als Text, wenn es angezeigt wird, dann nennt es zu jedem Typ Schlüssel, Anzeigename, Präfix, Eltern-Typ, ob er abstrakt ist, Properties mit Wertart, mehreren Werten mit Höchstzahl, Pflicht, erlaubten Ziel-Typen und der Angabe, ob sie zur Fassung zählen, und Statuswerte und zu jeder Beziehungsart die erlaubten Quell- und Zieltypen und ihre Mindest- und Höchstzahlen.
   - key: cmt2
     text: Gegeben dasselbe Metamodell, wenn es über App, Kommandozeile, API und MCP-Server abgefragt wird, dann liefern alle dieselben Typen, Vererbungen, Properties, Statuswerte und Beziehungsarten.
+  - key: wb12
+    text: Gegeben ein Befehl zum Ändern des Metamodells ist in der App gelungen (SR-236), wenn danach der Graph oder der Text des Metamodells angezeigt wird, dann ist jede Stelle markiert, an der eine geänderte oder neue Definition erscheint, bis zum nächsten solchen Befehl oder bis die App endet; nach einem Entfernen ist nichts markiert, und Änderungen über andere Zugänge oder von Hand markieren nichts.
 verification-method: test
 derives-from:
   - { id: 0a18e65d-e41b-4ed7-8662-8bc7e547d5ab, version: n1:48629460c434fb03, title: Metamodell des Projekts sehen }

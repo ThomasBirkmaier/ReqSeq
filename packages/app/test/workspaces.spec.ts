@@ -163,7 +163,7 @@ test.describe("Open workspace", () => {
     ({ window } = running);
     await expect(window.getByLabel("Modeline")).toHaveText("No workspace");
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await expect(names(window)).toHaveText(["Open workspace", "Open documentation"]);
+    await expect(names(window)).toHaveText(["Open workspace", "Connect AI agent", "Open documentation"]);
     await window.keyboard.press("Enter");
     await expect(names(window)).toHaveText([buoy.root, station]);
     await expect(options(window).locator(".hint")).toHaveCount(0);
