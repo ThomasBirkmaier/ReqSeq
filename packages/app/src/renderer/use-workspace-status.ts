@@ -112,6 +112,8 @@ export interface StatusParts extends Pick<
   readonly titlesRef: RefObject<ReferenceTitles>;
   readonly setShownView: Setter<ShownView | undefined>;
   readonly setAbout: Setter<AboutInfo | undefined>;
+  /** Ends a message's link to an output, and keeps the message (`use-echo-link.ts`). */
+  readonly endEchoLink: () => void;
 }
 
 export const useWorkspaceStatus = (parts: StatusParts): void => {
@@ -120,6 +122,7 @@ export const useWorkspaceStatus = (parts: StatusParts): void => {
   const { leaveSwitching, perspectiveUse, scope, recentNames, recentRef, setRecent, setRevision } = parts;
   const { writes, setTypeNames, setPackages, setVariantTypes, setProperties, setRelationModel } = parts;
   const { setStatuses, fresh, setOutside, stoppedRef, setStopped, titlesRef, setShownView, setAbout } = parts;
+  const { endEchoLink } = parts;
   useEffect(() => {
     let mounted = true;
     // If the metamodel cannot be read, the modeline shows the keys of the types.
@@ -241,7 +244,7 @@ export const useWorkspaceStatus = (parts: StatusParts): void => {
       if (reason === "opened" || reason === "restarted") {
         setEcho(MESSAGES[reason] ?? "");
       }
-      if (startsBuffers(reason, started)) {
+      if (startsBuffers(reason, started, result.ok)) {
         begin(result, reason === "opened" ? "opened" : undefined, asked);
       } else {
         followKey(sessionKey(result));
@@ -318,6 +321,8 @@ export const useWorkspaceStatus = (parts: StatusParts): void => {
           setPrompt(undefined);
           // "About ReqSeq" named the workspace that is gone.
           setAbout(undefined);
+          // A message that opens an output of the workspace left opens nothing now (SR-223 AK8).
+          endEchoLink();
           dispatch({ type: "reset" });
           leaveSwitching();
         }

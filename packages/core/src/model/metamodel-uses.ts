@@ -150,6 +150,33 @@ export const useOf = (
   return { kind, key, count: users.length, elements: users.slice(0, USES_NAMED) };
 };
 
+/**
+ * The use of the property `key` (SR-236 AK7): each element of a type that has it, own or inherited,
+ * whose file holds the key, also with an empty value.
+ */
+export const propertyUse = (
+  store: ElementStore,
+  shortIds: ShortIds,
+  metamodel: Metamodel,
+  key: string,
+): Use => {
+  const types = new Set(metamodel.effectiveTypes.filter((t) => t.properties.includes(key)).map((t) => t.key));
+  return useOf(store, shortIds, "property", key, (e) => types.has(e.type) && holdsKey(e, key));
+};
+
+/**
+ * The use of the fixed value `choice` of the property `property` (SR-236 AK7): each element whose
+ * value of the property is it or, for several values, holds it, whatever the element's type.
+ */
+export const valueUse = (store: ElementStore, shortIds: ShortIds, property: string, choice: string): Use =>
+  useOf(
+    store,
+    shortIds,
+    "value",
+    `${property}.${choice}`,
+    (e) => holdsKey(e, property) && choicesOf(e.data[property]).includes(choice),
+  );
+
 /** The keys of `type` and of every type that extends it, over any number of levels. */
 export const withSubtypes = (metamodel: Metamodel, type: string): ReadonlySet<string> =>
   new Set(
@@ -224,6 +251,23 @@ export const refuseMissingRepositories = (layout: WorkspaceLayout, command: stri
       "file.folder-missing",
       `${command} needs every element to count the uses, and the repository ${missing.join(", ")} is not on this machine; nothing is written`,
       { command, repository: missing[0], repositories: missing },
+    );
+  }
+};
+
+/**
+ * Refuses a change that needs a use count while the store cannot read an element file (an error at
+ * a file: faulty YAML, conflict markers, an invalid `id` or `type`, SR-008): the file may hold the
+ * definition (SR-236 AK7). `file.faulty` names the files, as `reqif.import` refuses (SR-053 AK3).
+ * Assumption of question #1990.
+ */
+export const refuseUnreadableFiles = (store: ElementStore, command: string): void => {
+  const unreadable = store.problems.filter((p) => p.severity === "error" && p.file !== undefined);
+  if (unreadable.length > 0) {
+    throw new CommandError(
+      "file.faulty",
+      `${command} needs every element to count the uses, and ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements; nothing is written. Fix them first.`,
+      { command, files: unreadable.map(({ repository, file }) => ({ repository, file })) },
     );
   }
 };

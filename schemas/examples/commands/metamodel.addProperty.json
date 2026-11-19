@@ -1,0 +1,7 @@
+{
+  "type": "decision",
+  "required": false,
+  "name": "Risk level",
+  "kind": "choice",
+  "choices": [{ "name": "Low" }, { "name": "High" }]
+}

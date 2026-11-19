@@ -37,12 +37,14 @@ describe("no save control (SR-105 AK3)", () => {
     });
     expect(found).toEqual([]);
     // The buttons the window has: the copy symbol of a field, Copy all of "About ReqSeq", "help" of the
-    // explanation line, and "No agent connected" and "Connect AI agent" in the modeline (SR-228 AK3).
+    // explanation line, "No agent connected" and "Connect AI agent" in the modeline (SR-228 AK3), and the answer
+    // of a write command in the command line, which opens its output (SR-223 AK8).
     const buttons = sources(SOURCE).filter((file) => readFileSync(file, "utf8").includes("<button"));
     expect(buttons.map((file) => path.relative(SOURCE, file)).sort()).toEqual(
       [
         ABOUT,
         path.join("renderer", "FieldBox.tsx"),
+        path.join("renderer", "Minibuffer.tsx"),
         path.join("renderer", "ModelineBar.tsx"),
         path.join("renderer", "PromptLine.tsx"),
       ].sort(),
