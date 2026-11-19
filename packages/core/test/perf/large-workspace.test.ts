@@ -18,6 +18,7 @@ import {
   noParentHints,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -115,10 +116,11 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         thresholdMs: 60_000,
       },
     );
-    // The generated requirements that got no derivation are hints (SR-022 AK6, #659); nothing else.
+    // The generated requirements that got no derivation are hints (SR-022 AK6, #659), and the gaps of
+    // verification are at the workspace file (SR-230 AK1, AK2); nothing else.
     expect(malformedNoParentHints(findings)).toEqual([]);
     expect(noParentHints(findings)).toHaveLength(withoutParent(tree.files));
-    expect(withoutNoParent(findings)).toEqual([]);
+    expect(withoutVerificationGaps(withoutNoParent(findings))).toEqual([]);
   }, 600_000);
 
   it("computes the current version of every element once per store and carries it over a save (ThomasBirkmaier/ReqSeq-archive#259)", async () => {
