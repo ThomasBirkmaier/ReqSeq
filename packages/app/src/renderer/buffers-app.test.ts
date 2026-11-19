@@ -9,6 +9,7 @@ import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { recentKey } from "./recent.js";
 import { NO_SUMMARY } from "./package-summary-test-data.js";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -255,14 +256,13 @@ describe("App, Go to a buffer or an element (SR-115 AK1)", () => {
     invoke.mockClear();
     await press(window, { key: "p", ctrlKey: true });
     expect(candidates()).toEqual(["Search: wind", "All elements", "Overview", "SR-000002 Title 2"]);
-    expect(invoke).not.toHaveBeenCalled();
+    expect(withoutAgentPoll(invoke)).toEqual([]);
     // A typed text with a typo goes to core's search; the hit opens.
     await type("Titel 3");
-    expect(invoke).toHaveBeenLastCalledWith("element.search", {
-      query: "Titel 3",
-      fields: ["id", "title"],
-      limit: 20,
-    });
+    expect(withoutAgentPoll(invoke).at(-1)).toEqual([
+      "element.search",
+      { query: "Titel 3", fields: ["id", "title"], limit: 20 },
+    ]);
     expect(candidates()).toEqual(["SR-000003 Title 3"]);
     await press(query("input"), { key: "Enter" });
     expect(shown()).toBe("SR-000003 Title 3");
@@ -286,7 +286,7 @@ describe("App, Go to after a restart (SR-115 AK1)", () => {
     invoke.mockClear();
     await press(window, { key: "p", ctrlKey: true });
     expect(candidates()).toEqual(["SR-000003 Title 3", "SR-000002 Title 2"]);
-    expect(invoke).not.toHaveBeenCalled();
+    expect(withoutAgentPoll(invoke)).toEqual([]);
     await press(query("input"), { key: "ArrowDown" });
     await press(query("input"), { key: "Enter" });
     expect(shown()).toBe("SR-000002 Title 2");

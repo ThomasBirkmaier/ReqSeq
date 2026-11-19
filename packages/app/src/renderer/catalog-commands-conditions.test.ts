@@ -1373,13 +1373,18 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
     "output",
   ];
   /**
-   * The arguments asked as JSON: the mapping of "Save ReqIF mapping", and the limits of a relation kind
-   * until the prompt builds them per target type (SR-236 AK11, #1954).
+   * The arguments asked as JSON: the mapping of "Save ReqIF mapping", the limits of a relation kind
+   * until the prompt builds them per target type, and the fixed values and the maximum entries (a
+   * number or empty) of a property until the prompt builds them (SR-236 AK11, #1954).
    */
   const AS_JSON = [
     "reqif.saveMapping mapping",
     "metamodel.addRelationKind limits",
     "metamodel.changeRelationKind limits",
+    "metamodel.changeProperty maxItems",
+    "metamodel.changeProperty addChoices",
+    "metamodel.changeProperty changeChoices",
+    "metamodel.addProperty choices",
   ];
 
   /** The commands the prompt offers by their own entry (not those an action covers), with a list shown. */
@@ -1401,7 +1406,7 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
       }),
     );
 
-  it("[SR-215/AK-qpq7] asks as free text only the classes of AK2 and numbers, and as JSON only the ReqIF mapping (and the relation kind limits until #1954)", () => {
+  it("[SR-215/AK-qpq7] asks as free text only the classes of AK2 and numbers, and as JSON only the ReqIF mapping (and the relation kind limits and property fields until #1954)", () => {
     const commands = prompted(CATALOG);
     // Each exception is still asked as JSON, so it goes once the prompt builds the value (#1954).
     expect(

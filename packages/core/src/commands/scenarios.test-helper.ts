@@ -283,6 +283,18 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", prefix: "SR" },
   ],
   "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
+  "metamodel.addProperty": [
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+  ],
+  "metamodel.changeProperty": [
+    { property: "rationale", name: "Reason" },
+    { property: "title", kind: "number" },
+  ],
+  "metamodel.removeProperty": [
+    { type: "decision", property: "rationale" },
+    { type: "system-requirement", property: "title" },
+  ],
   "metamodel.addRelationKind": [{ name: "Conflicts with" }, { name: "Conflicts with" }],
   "metamodel.changeRelationKind": [
     { kind: "refines", name: "Details" },
@@ -315,6 +327,8 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  // A non-empty folder without the marker file is refused (SR-235 AK1).
+  "html.export": [{ output: "site" }, { output: "requirements" }],
   // The status is exported for information only.
   "reqif.export": [{ output: "out.reqif" }, { output: "out.reqif", profile: "p" }],
   "reqif.analyze": [

@@ -252,8 +252,13 @@ test.describe("without a workspace", () => {
   test.beforeEach(async () => {
     running = await launchApp(undefined, { colorScheme: "light" });
   });
+  // Folders a test opened in the app: removed after the app has closed, as Windows keeps an open folder locked.
+  const folders: string[] = [];
   test.afterEach(async () => {
     await running.close();
+    for (const folder of folders.splice(0)) {
+      fs.rmSync(folder, { recursive: true, force: true, maxRetries: 10 });
+    }
   });
 
   test("says that none is open and which keys open one", async () => {
@@ -276,55 +281,57 @@ test.describe("without a workspace", () => {
 
   test("[SR-226/AK-sz63] [SR-229/AK-x7d8] a folder without a workspace, chosen in the folder dialog, says how to create one there, and Create workspace there shows the overview", async () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-empty-"));
-    try {
-      // The folder dialog of the operating system, answered here. Its menu item is clicked: a key sent through
-      // the page does not reach the menu's accelerator (`menu.test.ts` checks that it is Ctrl/Cmd+O).
-      await running.app.evaluate(({ dialog, Menu }, folder) => {
-        dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [folder] });
-        const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
-        file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
-      }, empty);
-      await expect(running.window.getByLabel("Minibuffer")).toHaveText(
-        `No reqseq-workspace.yaml in the workspace folder. To create one here, press ${
-          process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P"
-        } for Create workspace.`,
-      );
-      await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
-      await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
-      await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
-      // Create workspace in a sub-folder: the open folder still has no workspace, so the window stays and the
-      // command line keeps the answer, whose click opens the output (SR-223 AK8).
-      const minibuffer = running.window.getByLabel("Minibuffer");
-      await running.window.keyboard.type("Create workspace");
-      await running.window.keyboard.press("Enter");
-      await running.window.keyboard.type(path.join(empty, "sub"));
-      await running.window.keyboard.press("Enter");
-      await running.window.keyboard.type("Sub");
-      await running.window.keyboard.press("Enter");
-      await expect(minibuffer).toHaveText("Created workspace Sub; 4 files written.");
-      await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
-      await running.window.locator(".echo-open").click();
-      await expect(running.window.locator(".result")).toContainText("reqseq-workspace.yaml");
-      // The skill file is among them, though the prompt asked only the path and the name (SR-229 AK9).
-      await expect(running.window.locator(".result")).toContainText(
-        ".claude/skills/managing-requirements/SKILL.md",
-      );
-      // Create workspace in the folder itself: the overview of the new workspace and "Connect AI agent"
-      // (SR-226 AK2, SR-228 AK3), not the output; the command line says the answer.
-      await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
-      await running.window.keyboard.type("Create workspace");
-      await running.window.keyboard.press("Enter");
-      await running.window.keyboard.type(empty);
-      await running.window.keyboard.press("Enter");
-      await running.window.keyboard.type("Station");
-      await running.window.keyboard.press("Enter");
-      await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-      await expect(running.window.getByLabel("Modeline")).toContainText("Station");
-      await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
-      await expect(minibuffer).toHaveText("Created workspace Station; 4 files written.");
-      await expect(running.window.locator(".result")).toHaveCount(0);
-    } finally {
-      fs.rmSync(empty, { recursive: true, force: true });
-    }
+    folders.push(empty);
+    // The folder dialog of the operating system, answered here. Its menu item is clicked: a key sent through
+    // the page does not reach the menu's accelerator (`menu.test.ts` checks that it is Ctrl/Cmd+O).
+    await running.app.evaluate(({ dialog, Menu }, folder) => {
+      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [folder] });
+      const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
+      file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
+    }, empty);
+    await expect(running.window.getByLabel("Minibuffer")).toHaveText(
+      `No reqseq-workspace.yaml in the workspace folder. To create one here, press ${
+        process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P"
+      } for Create workspace.`,
+    );
+    await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
+    await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+    await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
+    // Create workspace in a sub-folder: the open folder still has no workspace, so the window stays and the
+    // command line keeps the answer, whose click opens the output (SR-223 AK8).
+    const minibuffer = running.window.getByLabel("Minibuffer");
+    await running.window.keyboard.type("Create workspace");
+    await running.window.keyboard.press("Enter");
+    await running.window.keyboard.type(path.join(empty, "sub"));
+    await running.window.keyboard.press("Enter");
+    await running.window.keyboard.type("Sub");
+    await running.window.keyboard.press("Enter");
+    await expect(minibuffer).toHaveText("Created workspace Sub; 4 files written.");
+    await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
+    await running.window.locator(".echo-open").click();
+    // The written file is a path, which "Show details" shows (SR-223 AK2); without a workspace from the
+    // command prompt, since no shortcut acts then.
+    await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+    await running.window.keyboard.type("Show details");
+    await running.window.keyboard.press("Enter");
+    await expect(running.window.locator(".result")).toContainText("reqseq-workspace.yaml");
+    // The skill file is among them, though the prompt asked only the path and the name (SR-229 AK9).
+    await expect(running.window.locator(".result")).toContainText(
+      ".claude/skills/managing-requirements/SKILL.md",
+    );
+    // Create workspace in the folder itself: the overview of the new workspace and "Connect AI agent"
+    // (SR-226 AK2, SR-228 AK3), not the output; the command line says the answer.
+    await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+    await running.window.keyboard.type("Create workspace");
+    await running.window.keyboard.press("Enter");
+    await running.window.keyboard.type(empty);
+    await running.window.keyboard.press("Enter");
+    await running.window.keyboard.type("Station");
+    await running.window.keyboard.press("Enter");
+    await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await expect(running.window.getByLabel("Modeline")).toContainText("Station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
+    await expect(minibuffer).toHaveText("Created workspace Station; 4 files written.");
+    await expect(running.window.locator(".result")).toHaveCount(0);
   });
 });

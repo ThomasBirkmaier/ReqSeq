@@ -94,12 +94,28 @@ const isSvg = (bytes: Uint8Array): boolean => {
   }
 };
 
+/** The extension of the image type `bytes` are by their content (`.png`), undefined when they are no image ReqSeq embeds. */
+export const imageExtension = (bytes: Uint8Array): string | undefined => {
+  if (startsWith(bytes, PNG)) {
+    return ".png";
+  }
+  if (startsWith(bytes, JPEG)) {
+    return ".jpg";
+  }
+  if (["GIF87a", "GIF89a"].includes(ascii(bytes, 0, 6))) {
+    return ".gif";
+  }
+  if (isBmp(bytes)) {
+    return ".bmp";
+  }
+  if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WEBP") {
+    return ".webp";
+  }
+  if (isAvif(bytes)) {
+    return ".avif";
+  }
+  return isSvg(bytes) ? ".svg" : undefined;
+};
+
 /** Whether `bytes` are an image of a type ReqSeq embeds, by their content. */
-export const isImage = (bytes: Uint8Array): boolean =>
-  startsWith(bytes, PNG) ||
-  startsWith(bytes, JPEG) ||
-  ["GIF87a", "GIF89a"].includes(ascii(bytes, 0, 6)) ||
-  isBmp(bytes) ||
-  (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WEBP") ||
-  isAvif(bytes) ||
-  isSvg(bytes);
+export const isImage = (bytes: Uint8Array): boolean => imageExtension(bytes) !== undefined;

@@ -156,6 +156,13 @@ describe("trace.neighbourhood (SR-107)", () => {
     expect(output.incomplete).toBe(false);
   });
 
+  it("names the root in `names` on every page, also one whose nodes do not hold it (#1874)", async () => {
+    const { workspace } = await open();
+    const later = await neighbourhood(workspace, { ref: ID.N1, direction: "down", offset: 1 });
+    expect(later.nodes.map((node) => node.id)).not.toContain(ID.N1);
+    expect(later.names?.map((name) => [name.id, name.shortId])).toEqual([[ID.N1, "N-a0000000001"]]);
+  });
+
   it("[SR-107/AK-bhct] gives the children level by level from the same root", async () => {
     const { workspace } = await open();
     const base = { ref: ID.N1, direction: "down", meanings: ["derivation"] };

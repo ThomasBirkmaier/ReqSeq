@@ -474,7 +474,12 @@ export type ProblemCode =
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
   | "reqif.source-model-unsaved"
-  | "reqif.source-value-chosen";
+  | "reqif.source-value-chosen"
+  | "html.unsafe-content"
+  | "html.image-not-copied"
+  | "html.foreign-file"
+  | "html.marker-entry-ignored"
+  | "html.cleanup-failed";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1415,6 +1420,19 @@ export interface FilterSortKeyWithDefaults {
 }
 
 /**
+ * The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export (SR-235): it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into (SR-235 AK1). ReqSeq writes it anew on every export; it is not meant to be edited.
+ * Schema: `schemas/html-export-marker.schema.json#`.
+ */
+export interface HtmlExportMarkerFile {
+  /** Version of this file format. */
+  readonly "reqseq-html-export": 1;
+  /** The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed (SR-235 AK2). */
+  readonly files: readonly string[];
+  /** Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it. */
+  readonly pending?: ".reqseq-export-staging";
+}
+
+/**
  * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (ThomasBirkmaier/ReqSeq-archive#141); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
  * Schema: `schemas/metamodel.schema.json#`.
  */
@@ -2201,7 +2219,7 @@ export interface WorkspaceCheckOutput {
     readonly below: "error" | "warning";
     /** Warnings left out. */
     readonly warning: number;
-    /** Infos left out. */
+    /** Info problems left out. */
     readonly info: number;
   };
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
@@ -2362,7 +2380,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup. Only with a client. */
+  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
   readonly next?: string;
 }
 
@@ -2642,6 +2660,200 @@ export interface MetamodelRemoveTypeOutput {
     /** Statuses whose definition was removed, as no other type has them. */
     readonly statuses: readonly Key[];
   };
+  /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.addProperty` as `run` gets it: validated, properties with a `default` filled in. Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.
+ * Schema: `schemas/commands/metamodel.addProperty.json input`.
+ */
+export interface MetamodelAddPropertyInput {
+  /** Key of the type that gets the property. */
+  readonly type: Key;
+  /** true: the property is required in the type (its key goes into the type's `required`); false: into its `properties`. */
+  readonly required: boolean;
+  /** Key of an existing property the type has neither itself nor inherited. Not with the fields of a new property. */
+  readonly property?: Key;
+  /** Display name of a new property; no other property may have it. */
+  readonly name?: string;
+  /** Fixed key of a new property (D-043), not that of another property or relation kind. Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Value kind of a new property. */
+  readonly kind?: "text" | "number" | "date" | "choice" | "relation";
+  /** Fixed values of a new property of kind `choice`, in this order. */
+  readonly choices?: readonly {
+    /** Display name of the fixed value; no other fixed value of the property may have it. */
+    readonly name: string;
+    /** Fixed key of the value (D-043). Left out: made from the name (SR-236 AK6). */
+    readonly key?: Key;
+  }[];
+  /** Allowed target types of a new property of kind `relation`; left out: every type. */
+  readonly targetTypes?: readonly Key[];
+  /** true: a new property holds a list of values. */
+  readonly many?: boolean;
+  /** At most this many entries in the list of a new property with `many` (SR-171); not for kind `relation`. */
+  readonly maxItems?: number;
+}
+
+/**
+ * Output of `metamodel.addProperty`. Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.
+ * Schema: `schemas/commands/metamodel.addProperty.json output`.
+ */
+export interface MetamodelAddPropertyOutput {
+  readonly answer: Answer;
+  /** Key of the type that has the property now. */
+  readonly type: Key;
+  /** The property's definition as written afterwards. */
+  readonly property: MetamodelProperty;
+  /** Whether the type requires the property afterwards. */
+  readonly required: boolean;
+  /** true when the property's definition was added to the metamodel. */
+  readonly defined: boolean;
+  /** Other types that list the key of the new property already, without a definition before; they have the property now too. */
+  readonly listedBy: readonly Key[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeProperty` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.
+ * Schema: `schemas/commands/metamodel.changeProperty.json input`.
+ */
+export interface MetamodelChangePropertyInput {
+  /** Key of the property to change. */
+  readonly property: Key;
+  /** New display name; no other property may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** New value kind; only while no element file of a type with the property holds its key. */
+  readonly kind?: "text" | "number" | "date" | "choice" | "relation";
+  /** true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key. */
+  readonly many?: boolean;
+  /** At most this many entries in the list (SR-171); null removes the limit. */
+  readonly maxItems?: number | null;
+  /** Allowed target types of a property of kind `relation`; null removes the list: every type. */
+  readonly targetTypes?: readonly Key[] | null;
+  /** true: values are Markdown like the text (only kind `text`); false removes the line. */
+  readonly markdown?: boolean;
+  /** true: part of the version (D-013, D-057); false removes the line. */
+  readonly content?: boolean;
+  /** New built-in meaning (D-012), one of `propertyMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?:
+    | "title"
+    | "validity"
+    | "packages"
+    | "emergent"
+    | "verification-method"
+    | "statement"
+    | "source"
+    | "source-identifier"
+    | "import-date"
+    | "delivery"
+    | "import-version"
+    | "identifier"
+    | "acceptance-criteria"
+    | "synonyms"
+    | "translation"
+    | null;
+  /** Key of a type that has the property, whose `required` changes; with `required`. */
+  readonly type?: Key;
+  /** Whether the property is required in `type`; with `type`. */
+  readonly required?: boolean;
+  /** Fixed values to add at the end of `choices`, in this order. */
+  readonly addChoices?: readonly {
+    /** Display name of the fixed value; no other fixed value of the property may have it. */
+    readonly name: string;
+    /** Fixed key of the value (D-043). Left out: made from the name (SR-236 AK6). */
+    readonly key?: Key;
+  }[];
+  /** Fixed values to change, by key. */
+  readonly changeChoices?: readonly {
+    /** Key of the fixed value to change. */
+    readonly choice: Key;
+    /** New display name; no other fixed value of the property may have it. */
+    readonly name?: string;
+    /** New description; null removes it. */
+    readonly description?: string | null;
+  }[];
+  /** Keys of fixed values to remove; only while no element has the value. */
+  readonly removeChoices?: readonly Key[];
+}
+
+/**
+ * Output of `metamodel.changeProperty`. Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.
+ * Schema: `schemas/commands/metamodel.changeProperty.json output`.
+ */
+export interface MetamodelChangePropertyOutput {
+  readonly answer: Answer;
+  /** The property's definition as written afterwards. */
+  readonly property: MetamodelProperty;
+  /** The fields removed because they do not belong to the new value kind, or maximum entries with `many: false` (SR-238 AK3). */
+  readonly dropped: readonly ("choices" | "target-types" | "max-items" | "markdown")[];
+  /** Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description (SR-236 AK7). The key alone counts, so a file that uses the same word for another property is listed too. */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeProperty` as `run` gets it: validated, properties with a `default` filled in. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Schema: `schemas/commands/metamodel.removeProperty.json input`.
+ */
+export interface MetamodelRemovePropertyInput {
+  /** Key of the type that has the property itself. */
+  readonly type: Key;
+  /** Key of the property to remove from the type. */
+  readonly property: Key;
+}
+
+/**
+ * Output of `metamodel.removeProperty`. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Schema: `schemas/commands/metamodel.removeProperty.json output`.
+ */
+export interface MetamodelRemovePropertyOutput {
+  readonly answer: Answer;
+  /** Key of the type. */
+  readonly type: Key;
+  /** Key of the removed property. */
+  readonly property: Key;
+  /** true when no type had the property any more, so its definition was removed (SR-238 AK5). */
+  readonly definitionRemoved: boolean;
+  /** The parent type the type still has the property from, when it listed the property as well; absent otherwise. */
+  readonly inheritedFrom?: Key;
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
@@ -3587,7 +3799,7 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen. */
   readonly incomplete: Incomplete;
-  /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
+  /** The root, then the variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title on every page (ThomasBirkmaier/ReqSeq-archive#588, #676, #1874). Left out for a variant in a repository that is not here. */
   readonly names?: readonly ElementName[];
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -3771,6 +3983,8 @@ export interface TraceNeighbourhoodOutput {
     readonly outdated: boolean;
   }[];
   readonly incomplete: Incomplete;
+  /** The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it (#1874). */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -5270,6 +5484,32 @@ export interface ReqifExportOutput {
   readonly problems?: readonly Problem[];
 }
 
+/**
+ * Input of `html.export` as `run` gets it: validated, properties with a `default` filled in. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json input`.
+ */
+export interface HtmlExportInput {
+  /** The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export. */
+  readonly output: LocalPath;
+}
+
+/**
+ * Output of `html.export`. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json output`.
+ */
+export interface HtmlExportOutput {
+  readonly answer: Answer;
+  /** The written folder, relative to the workspace root when it lies inside, else absolute. */
+  readonly folder: OutputPath;
+  /** Pages of elements written: one for each element of `exportedElements`. */
+  readonly pages: number;
+  /** Files of the earlier export that this export no longer writes and removed. */
+  readonly removed: number;
+  /** The elements that got a page, in the order of the element store. */
+  readonly exportedElements: readonly CountedElement[];
+  readonly problems: readonly Problem[];
+}
+
 /** Input and output type of every catalog command, by name (`defineCommand` in catalog.ts). */
 export interface CommandTypes {
   readonly "workspace.init": { readonly input: WorkspaceInitInput; readonly output: WorkspaceInitOutput };
@@ -5287,6 +5527,9 @@ export interface CommandTypes {
   readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
   readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
+  readonly "metamodel.addProperty": { readonly input: MetamodelAddPropertyInput; readonly output: MetamodelAddPropertyOutput };
+  readonly "metamodel.changeProperty": { readonly input: MetamodelChangePropertyInput; readonly output: MetamodelChangePropertyOutput };
+  readonly "metamodel.removeProperty": { readonly input: MetamodelRemovePropertyInput; readonly output: MetamodelRemovePropertyOutput };
   readonly "metamodel.addRelationKind": { readonly input: MetamodelAddRelationKindInput; readonly output: MetamodelAddRelationKindOutput };
   readonly "metamodel.changeRelationKind": { readonly input: MetamodelChangeRelationKindInput; readonly output: MetamodelChangeRelationKindOutput };
   readonly "metamodel.removeRelationKind": { readonly input: MetamodelRemoveRelationKindInput; readonly output: MetamodelRemoveRelationKindOutput };
@@ -5345,4 +5588,5 @@ export interface CommandTypes {
   readonly "reqif.import": { readonly input: ReqifImportInput; readonly output: ReqifImportOutput };
   readonly "reqif.saveMapping": { readonly input: ReqifSaveMappingInput; readonly output: ReqifSaveMappingOutput };
   readonly "reqif.export": { readonly input: ReqifExportInput; readonly output: ReqifExportOutput };
+  readonly "html.export": { readonly input: HtmlExportInput; readonly output: HtmlExportOutput };
 }

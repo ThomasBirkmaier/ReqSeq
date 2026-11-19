@@ -1,20 +1,57 @@
-// The lines a result buffer shows, and their text as "Copy result" puts it on the clipboard as one block
-// (SR-161 AK3, SR-128): one line per shown line, indented by its depth, the key or ID first. Layout only:
-// nothing here knows a command except the chain, which `chain-lines.ts` lays out (SR-033).
+// The lines a result buffer shows, and the output as "Copy as JSON" puts it on the clipboard (SR-223 AK9): the
+// text the command line gives with `--json`, `JSON.stringify` with two spaces and a line break (`jsonOutput` of
+// the CLI). Layout only: nothing here knows a command except the chain, which `chain-lines.ts` lays out (SR-033).
 import type { ResultBuffer } from "./buffers.js";
+import { NO_ROW } from "./buffers.js";
 import { chainLines } from "./chain-lines.js";
-import type { ResultLine } from "./result.js";
+import type { OutputField, ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
 
-/** The lines of the buffer's output, as its view shows them. */
-export const linesOf = (buffer: Pick<ResultBuffer, "command" | "output">): ResultLine[] =>
-  (buffer.command === "trace.chain" ? chainLines : resultLines)(buffer.output);
+/**
+ * The lines of the buffer's output, as its view shows them, under the titles of `fields` (`outputFields`), with
+ * the details while "Show details" is on for it (SR-223 AK2).
+ */
+export const linesOf = (
+  buffer: Pick<ResultBuffer, "command" | "output" | "details">,
+  fields: readonly OutputField[] = [],
+): ResultLine[] =>
+  (buffer.command === "trace.chain" ? chainLines : resultLines)(
+    buffer.output,
+    fields,
+    buffer.details === true,
+  );
 
-const lineText = (line: ResultLine): string => {
-  const head = line.kind === "text" && line.label !== "" ? `${line.label}:` : line.label;
-  const status = line.status === undefined ? "" : `  ${line.status}`;
-  return `${"  ".repeat(line.depth)}${[head, line.text].filter((part) => part !== "").join(" ")}${status}`.trimEnd();
+/** The whole output as the command line gives it with `--json` (`null` for none), with its line break. */
+export const outputJson = (output: unknown): string => `${JSON.stringify(output ?? null, null, 2)}\n`;
+
+/** What makes a line the same line with details on and off: all but its kind of a problem and its detail mark. */
+const identity = (line: ResultLine): string =>
+  JSON.stringify([
+    line.kind,
+    line.depth,
+    line.label,
+    line.text,
+    line.field,
+    line.open?.key,
+    line.beside?.key,
+  ]);
+
+/**
+ * The cursor in `after` on the line it is on in `before`, the same line by what it shows and as the same
+ * occurrence of it, so "Show details" leaves the selection where it was (SR-223 AK2); `NO_ROW` when the line
+ * is not in `after` (a detail that is hidden again) or none was selected.
+ */
+export const keptCursor = (
+  before: readonly ResultLine[],
+  after: readonly ResultLine[],
+  cursor: number,
+): number => {
+  const line = before[cursor];
+  if (line === undefined) {
+    return NO_ROW;
+  }
+  const key = identity(line);
+  const nth = before.slice(0, cursor).filter((each) => identity(each) === key).length;
+  const found = after.map((each, at) => [identity(each), at] as const).filter(([each]) => each === key)[nth];
+  return found === undefined ? NO_ROW : found[1];
 };
-
-/** The text of the lines, one per line. */
-export const resultText = (lines: readonly ResultLine[]): string => lines.map(lineText).join("\n");

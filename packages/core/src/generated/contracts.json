@@ -957,7 +957,12 @@
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
             "reqif.source-model-unsaved",
-            "reqif.source-value-chosen"
+            "reqif.source-value-chosen",
+            "html.unsafe-content",
+            "html.image-not-copied",
+            "html.foreign-file",
+            "html.marker-entry-ignored",
+            "html.cleanup-failed"
           ],
           "x-technical": true
         },
@@ -3083,6 +3088,36 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://reqseq.dev/schemas/html-export-marker.schema.json",
+      "title": "HTML export marker file",
+      "description": "The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export: it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into. ReqSeq writes it anew on every export; it is not meant to be edited.",
+      "type": "object",
+      "required": [
+        "reqseq-html-export",
+        "files"
+      ],
+      "properties": {
+        "reqseq-html-export": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "files": {
+          "description": "The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pending": {
+          "description": "Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it.",
+          "const": ".reqseq-export-staging"
+        }
+      },
+      "additionalProperties": false
     },
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5461,8 +5496,8 @@
                   "minimum": 0
                 },
                 "info": {
-                  "title": "Infos",
-                  "description": "Infos left out.",
+                  "title": "Info",
+                  "description": "Info problems left out.",
                   "type": "integer",
                   "minimum": 0
                 }
@@ -5682,7 +5717,7 @@
           },
           {
             "path": "hidden.info",
-            "title": "Infos"
+            "title": "Info"
           },
           {
             "path": "checkedElements",
@@ -6143,7 +6178,7 @@
         "name": "workspace.connectAgent",
         "title": "Connect AI agent",
         "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
-        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows), and for Claude Code `next` also names the call of `tool guide --skill --write` for the workspace, with the same program, which writes the skill file; Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
         "effect": "read",
         "stage": 6,
         "implements": [
@@ -6309,7 +6344,7 @@
               "title": "Next",
               "type": "string",
               "minLength": 1,
-              "description": "How to go on after pasting the setup. Only with a client."
+              "description": "How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client."
             }
           },
           "additionalProperties": false,
@@ -8750,6 +8785,1612 @@
           {
             "path": "removed.statuses",
             "title": "Statuses"
+          },
+          {
+            "path": "mentions",
+            "title": "Files naming a removed key",
+            "technical": true,
+            "normal": []
+          },
+          {
+            "path": "files",
+            "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "versionsChanged",
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "missingRequired",
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
+      },
+      {
+        "name": "metamodel.addProperty",
+        "title": "Add property to type",
+        "summary": "Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.",
+        "details": "The key goes at the end of the type's own `required` list when `required` is true, else of its own `properties` list, in the file the type is in (created after the definition's last line when missing); a key the list holds already without a definition is not added twice. Other types that list the key of a new property have it from then on, and `listedBy` names them. A new property is added at the end of `properties` in the first metamodel file by name that has the list, else at the end of the first file, where the list is created; it takes its name, key, value kind and the fields of the kind (fixed values, target types, several values, maximum entries); every other field is set with metamodel.changeProperty. Without `key`, the key is made from the name as metamodel.addType makes it, and so is the key of a fixed value without one. Every other line stays as it was, with its comment and line ending; no element file changes and nothing in Git. The metamodel afterwards is checked as a read would check it: an error refuses the command, warnings are in `problems`; elements that now miss a required property are counted in `missingRequired`. Errors: input.invalid with details.reason unknown when no type or no property has the key (details.type or details.property); input.invalid with details.reason has-property when the type has the property already, itself or inherited (details.type, details.property); input.invalid with details.reason property-or-new when the input gives both `property` and fields of a new property, or neither `property` nor `name` and `kind`; input.invalid with details.reason kind-field when a field does not belong to the value kind: fixed values without kind `choice`, target types without `relation`, maximum entries with `relation` (details.field, details.kind); input.invalid with details.reason single-value when `maxItems` is given without `many: true`; input.invalid with details.reason taken when another property has the name or the key, a relation kind has the key, or two fixed values have the same name or key (details.field, details.key); input.invalid with details.reason key-required when no key is given and the one made from the name is empty, does not start with a letter, is longer than 64 characters, or is taken (details.key); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error, also for the key `id`, `type` or `status`, which every element file holds itself; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a changed definition, or a node on the way to it, holds a YAML alias or anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
+        "stage": 6,
+        "implements": [
+          "SR-236",
+          "SR-238"
+        ],
+        "arguments": [
+          {
+            "field": "type",
+            "complete": "type"
+          },
+          {
+            "field": "required",
+            "complete": "boolean"
+          },
+          {
+            "field": "property",
+            "complete": "property"
+          },
+          {
+            "field": "name",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "key",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "kind",
+            "complete": "choice"
+          },
+          {
+            "field": "choices",
+            "complete": "json"
+          },
+          {
+            "field": "targetTypes",
+            "complete": "type"
+          },
+          {
+            "field": "many",
+            "complete": "boolean"
+          },
+          {
+            "field": "maxItems",
+            "complete": "number"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the type that gets the property."
+            },
+            "required": {
+              "type": "boolean",
+              "description": "true: the property is required in the type (its key goes into the type's `required`); false: into its `properties`."
+            },
+            "property": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of an existing property the type has neither itself nor inherited. Not with the fields of a new property."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Display name of a new property; no other property may have it."
+            },
+            "key": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Fixed key of a new property, not that of another property or relation kind. Left out: made from the name."
+            },
+            "kind": {
+              "enum": [
+                "text",
+                "number",
+                "date",
+                "choice",
+                "relation"
+              ],
+              "description": "Value kind of a new property."
+            },
+            "choices": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Display name of the fixed value; no other fixed value of the property may have it."
+                  },
+                  "key": {
+                    "$ref": "../common.schema.json#/$defs/key",
+                    "description": "Fixed key of the value. Left out: made from the name."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ]
+              },
+              "description": "Fixed values of a new property of kind `choice`, in this order."
+            },
+            "targetTypes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "../common.schema.json#/$defs/key"
+              },
+              "description": "Allowed target types of a new property of kind `relation`; left out: every type."
+            },
+            "many": {
+              "type": "boolean",
+              "description": "true: a new property holds a list of values."
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "At most this many entries in the list of a new property with `many`; not for kind `relation`."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "required"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "type": {
+              "title": "Type",
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the type that has the property now."
+            },
+            "property": {
+              "title": "Property",
+              "$ref": "../metamodel.schema.json#/$defs/property",
+              "description": "The property's definition as written afterwards."
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean",
+              "description": "Whether the type requires the property afterwards."
+            },
+            "defined": {
+              "title": "New definition",
+              "type": "boolean",
+              "description": "true when the property's definition was added to the metamodel."
+            },
+            "listedBy": {
+              "title": "Also listed by",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/key"
+              },
+              "description": "Other types that list the key of the new property already, without a definition before; they have the property now too.",
+              "x-normal": []
+            },
+            "files": {
+              "title": "Files",
+              "type": "array",
+              "description": "The metamodel files changed.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Written file, relative to the workspace root."
+              }
+            },
+            "versionsChanged": {
+              "title": "Versions changed",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
+            },
+            "missingRequired": {
+              "title": "Missing required properties",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The warnings of the metamodel afterwards.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "type",
+            "property",
+            "required",
+            "defined",
+            "listedBy",
+            "files",
+            "versionsChanged",
+            "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "type",
+            "title": "Type"
+          },
+          {
+            "path": "property",
+            "title": "Property"
+          },
+          {
+            "path": "property.kind",
+            "title": "Value kind"
+          },
+          {
+            "path": "property.many",
+            "title": "List of values"
+          },
+          {
+            "path": "property.choices",
+            "title": "Choices"
+          },
+          {
+            "path": "property.choices[].key",
+            "title": "Key"
+          },
+          {
+            "path": "property.choices[].name",
+            "title": "Name"
+          },
+          {
+            "path": "property.choices[].description",
+            "title": "Description"
+          },
+          {
+            "path": "property.target-types",
+            "title": "Target types"
+          },
+          {
+            "path": "property.content",
+            "title": "Part of the version"
+          },
+          {
+            "path": "property.markdown",
+            "title": "Markdown"
+          },
+          {
+            "path": "property.max-items",
+            "title": "Maximum entries"
+          },
+          {
+            "path": "property.meaning",
+            "title": "Meaning"
+          },
+          {
+            "path": "property.key",
+            "title": "Key"
+          },
+          {
+            "path": "property.name",
+            "title": "Name"
+          },
+          {
+            "path": "property.description",
+            "title": "Description"
+          },
+          {
+            "path": "required",
+            "title": "Required"
+          },
+          {
+            "path": "defined",
+            "title": "New definition"
+          },
+          {
+            "path": "listedBy",
+            "title": "Also listed by",
+            "normal": []
+          },
+          {
+            "path": "files",
+            "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "versionsChanged",
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "missingRequired",
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
+      },
+      {
+        "name": "metamodel.changeProperty",
+        "title": "Change property",
+        "summary": "Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.",
+        "details": "Each given field replaces the line of that field in the property's definition, in the file it is in; a missing field line is added after the definition's last line, and null removes it (`false` removes the line of `markdown`, `content` and `many`; a field that already has the value is left as it is). Every other line stays as it was; no element file changes and nothing in Git, and the key stays. Name, description, maximum entries, target types, Markdown, part of the version and meaning change at any time; values that no longer fit are hints of the workspace check. `type` with `required`: true adds the key to the type's own `required` list; false removes it from there and adds it to the type's own `properties` when the type would lose the property otherwise. A property the type does not have, and false for a property a parent type requires, are refused. `kind` and `many` change only while no element file of a type that has the property holds its key, also with an empty value; with a new kind, the fixed values, target types, maximum entries and Markdown that do not belong to it are removed, as maximum entries are with `many: false`, and `dropped` names them. Fixed values are added at the end of `choices` with a name and an optional key (made from the name), changed in name and description, and removed only while no element has the value; a removed fixed value takes its lines and the comment lines directly above it. Saved filters, perspectives and mapping files that name a removed fixed value are listed in `mentions` and not changed. The metamodel afterwards is checked as a read would check it: an error refuses the command, warnings are in `problems`. Errors: input.invalid with details.reason unknown when no property, type or fixed value has the key (details.property, details.type, details.choice); input.invalid with details.reason not-on-type when the type does not have the property; input.invalid with details.reason inherited when a parent type requires it (details.from); input.invalid with details.reason type-and-required when only one of `type` and `required` is given; input.invalid with details.reason kind-field when the input gives a field the value kind does not have: fixed values without kind `choice`, target types without `relation`, Markdown without `text`, maximum entries with `relation` (details.field, details.kind); input.invalid with details.reason single-value when `maxItems` is given for a property that holds a single value afterwards; input.invalid with details.reason change-and-remove when a fixed value is both in `changeChoices` and in `removeChoices` (details.property, details.choice); input.invalid with details.reason taken when another property or fixed value has the name, or a fixed value the key (details.field, details.key); input.invalid with details.reason key-required as metamodel.addProperty gives it for a fixed value; input.invalid with details.reason in-use when elements use what the change locks or removes (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.folder-missing when such a change needs the uses and a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a changed definition, or a node on the way to it, holds a YAML alias or anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
+        "stage": 6,
+        "implements": [
+          "SR-236",
+          "SR-238"
+        ],
+        "arguments": [
+          {
+            "field": "property",
+            "complete": "property"
+          },
+          {
+            "field": "name",
+            "complete": "text",
+            "class": "name"
+          },
+          {
+            "field": "description",
+            "complete": "text",
+            "class": "description"
+          },
+          {
+            "field": "kind",
+            "complete": "choice"
+          },
+          {
+            "field": "many",
+            "complete": "boolean"
+          },
+          {
+            "field": "maxItems",
+            "complete": "json"
+          },
+          {
+            "field": "targetTypes",
+            "complete": "type"
+          },
+          {
+            "field": "markdown",
+            "complete": "boolean"
+          },
+          {
+            "field": "content",
+            "complete": "boolean"
+          },
+          {
+            "field": "meaning",
+            "complete": "choice"
+          },
+          {
+            "field": "type",
+            "complete": "type"
+          },
+          {
+            "field": "required",
+            "complete": "boolean"
+          },
+          {
+            "field": "addChoices",
+            "complete": "json"
+          },
+          {
+            "field": "changeChoices",
+            "complete": "json"
+          },
+          {
+            "field": "removeChoices",
+            "complete": "value",
+            "of": "property"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "property": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the property to change."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "New display name; no other property may have it."
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "New description, for people; null removes it."
+            },
+            "kind": {
+              "enum": [
+                "text",
+                "number",
+                "date",
+                "choice",
+                "relation"
+              ],
+              "description": "New value kind; only while no element file of a type with the property holds its key."
+            },
+            "many": {
+              "type": "boolean",
+              "description": "true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key."
+            },
+            "maxItems": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "At most this many entries in the list; null removes the limit."
+            },
+            "targetTypes": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/key"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Allowed target types of a property of kind `relation`; null removes the list: every type."
+            },
+            "markdown": {
+              "type": "boolean",
+              "description": "true: values are Markdown like the text (only kind `text`); false removes the line."
+            },
+            "content": {
+              "type": "boolean",
+              "description": "true: part of the version; false removes the line."
+            },
+            "meaning": {
+              "enum": [
+                "title",
+                "validity",
+                "packages",
+                "emergent",
+                "verification-method",
+                "statement",
+                "source",
+                "source-identifier",
+                "import-date",
+                "delivery",
+                "import-version",
+                "identifier",
+                "acceptance-criteria",
+                "synonyms",
+                "translation",
+                null
+              ],
+              "description": "New built-in meaning, one of `propertyMeaning` of metamodel.schema.json; null removes it."
+            },
+            "type": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of a type that has the property, whose `required` changes; with `required`."
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether the property is required in `type`; with `type`."
+            },
+            "addChoices": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Display name of the fixed value; no other fixed value of the property may have it."
+                  },
+                  "key": {
+                    "$ref": "../common.schema.json#/$defs/key",
+                    "description": "Fixed key of the value. Left out: made from the name."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ]
+              },
+              "description": "Fixed values to add at the end of `choices`, in this order."
+            },
+            "changeChoices": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "choice": {
+                    "$ref": "../common.schema.json#/$defs/key",
+                    "description": "Key of the fixed value to change."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "New display name; no other fixed value of the property may have it."
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "New description; null removes it."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "choice"
+                ],
+                "minProperties": 2
+              },
+              "description": "Fixed values to change, by key."
+            },
+            "removeChoices": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "../common.schema.json#/$defs/key"
+              },
+              "description": "Keys of fixed values to remove; only while no element has the value."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "property"
+          ],
+          "minProperties": 2
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "property": {
+              "title": "Property",
+              "$ref": "../metamodel.schema.json#/$defs/property",
+              "description": "The property's definition as written afterwards."
+            },
+            "dropped": {
+              "title": "Removed fields",
+              "type": "array",
+              "items": {
+                "enum": [
+                  "choices",
+                  "target-types",
+                  "max-items",
+                  "markdown"
+                ]
+              },
+              "description": "The fields removed because they do not belong to the new value kind, or maximum entries with `many: false`.",
+              "x-normal": []
+            },
+            "mentions": {
+              "title": "Files naming a removed key",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+              },
+              "description": "Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description. The key alone counts, so a file that uses the same word for another property is listed too.",
+              "x-normal": []
+            },
+            "files": {
+              "title": "Files",
+              "type": "array",
+              "description": "The metamodel files changed.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Written file, relative to the workspace root."
+              }
+            },
+            "versionsChanged": {
+              "title": "Versions changed",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
+            },
+            "missingRequired": {
+              "title": "Missing required properties",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The warnings of the metamodel afterwards.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "property",
+            "dropped",
+            "mentions",
+            "files",
+            "versionsChanged",
+            "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "property",
+            "title": "Property"
+          },
+          {
+            "path": "property.kind",
+            "title": "Value kind"
+          },
+          {
+            "path": "property.many",
+            "title": "List of values"
+          },
+          {
+            "path": "property.choices",
+            "title": "Choices"
+          },
+          {
+            "path": "property.choices[].key",
+            "title": "Key"
+          },
+          {
+            "path": "property.choices[].name",
+            "title": "Name"
+          },
+          {
+            "path": "property.choices[].description",
+            "title": "Description"
+          },
+          {
+            "path": "property.target-types",
+            "title": "Target types"
+          },
+          {
+            "path": "property.content",
+            "title": "Part of the version"
+          },
+          {
+            "path": "property.markdown",
+            "title": "Markdown"
+          },
+          {
+            "path": "property.max-items",
+            "title": "Maximum entries"
+          },
+          {
+            "path": "property.meaning",
+            "title": "Meaning"
+          },
+          {
+            "path": "property.key",
+            "title": "Key"
+          },
+          {
+            "path": "property.name",
+            "title": "Name"
+          },
+          {
+            "path": "property.description",
+            "title": "Description"
+          },
+          {
+            "path": "dropped",
+            "title": "Removed fields",
+            "normal": []
+          },
+          {
+            "path": "mentions",
+            "title": "Files naming a removed key",
+            "technical": true,
+            "normal": []
+          },
+          {
+            "path": "files",
+            "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "versionsChanged",
+            "title": "Versions changed",
+            "elements": [
+              "versionsChangedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "missingRequired",
+            "title": "Missing required properties",
+            "elements": [
+              "missingRequiredElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "versionsChangedElements",
+            "title": "Elements with another version",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "versionsChangedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "versionsChangedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "versionsChangedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "missingRequiredElements",
+            "title": "Elements missing a required property",
+            "normal": [],
+            "elements": true
+          },
+          {
+            "path": "missingRequiredElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "missingRequiredElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "missingRequiredElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
+      },
+      {
+        "name": "metamodel.removeProperty",
+        "title": "Remove property from type",
+        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
+        "details": "The key is removed from the type's own `properties` and `required` lists, in the file the type is in; a list left without keys stays as `[]`. When no type has the property itself afterwards, its definition is removed from `properties` of the file it is in, with its lines and the comment lines directly above it. An inherited property is removed at the type it is inherited from; a type that lists a property its parent has as well loses its own entry and keeps the property, and `inheritedFrom` names that parent. No element file changes and nothing in Git; no element is deleted. Refused while an element file of the type, or of a type that extends it and loses the property, holds its key, also with an empty value, in any status. Saved filters, perspectives and mapping files that name the key of a removed definition are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type or property has the key (details.type, details.property); input.invalid with details.reason inherited when the type has the property from a parent (details.from); input.invalid with details.reason not-on-type when the type does not have it; input.invalid with details.reason in-use when elements use what the change locks or removes (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.faulty when an element file cannot be read, as it may hold the key (details.command, details.files: repository and file); file.folder-missing when such a change needs the uses and a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a changed definition, or a node on the way to it, holds a YAML alias or anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
+        "stage": 6,
+        "implements": [
+          "SR-236",
+          "SR-238"
+        ],
+        "arguments": [
+          {
+            "field": "type",
+            "complete": "type"
+          },
+          {
+            "field": "property",
+            "complete": "property"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the type that has the property itself."
+            },
+            "property": {
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the property to remove from the type."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "property"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "type": {
+              "title": "Type",
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the type."
+            },
+            "property": {
+              "title": "Property",
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Key of the removed property."
+            },
+            "definitionRemoved": {
+              "title": "Definition removed",
+              "type": "boolean",
+              "description": "true when no type had the property any more, so its definition was removed."
+            },
+            "inheritedFrom": {
+              "title": "Kept from",
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+            },
+            "mentions": {
+              "title": "Files naming a removed key",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+              },
+              "description": "Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description.",
+              "x-normal": []
+            },
+            "files": {
+              "title": "Files",
+              "type": "array",
+              "description": "The metamodel files changed.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath",
+                "description": "Written file, relative to the workspace root."
+              }
+            },
+            "versionsChanged": {
+              "title": "Versions changed",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+              "x-elements": "versionsChangedElements"
+            },
+            "missingRequired": {
+              "title": "Missing required properties",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+              "x-elements": "missingRequiredElements"
+            },
+            "versionsChangedElements": {
+              "title": "Elements with another version",
+              "type": "array",
+              "description": "The elements `versionsChanged` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "missingRequiredElements": {
+              "title": "Elements missing a required property",
+              "type": "array",
+              "description": "The elements `missingRequired` counts, in store order.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true,
+              "x-normal": []
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The warnings of the metamodel afterwards.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "type",
+            "property",
+            "definitionRemoved",
+            "mentions",
+            "files",
+            "versionsChanged",
+            "missingRequired",
+            "versionsChangedElements",
+            "missingRequiredElements",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "type",
+            "title": "Type"
+          },
+          {
+            "path": "property",
+            "title": "Property"
+          },
+          {
+            "path": "definitionRemoved",
+            "title": "Definition removed"
+          },
+          {
+            "path": "inheritedFrom",
+            "title": "Kept from"
           },
           {
             "path": "mentions",
@@ -18633,7 +20274,7 @@
             "names": {
               "title": "Named elements",
               "type": "array",
-              "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title. Left out when it names none, and for a variant in a repository that is not here.",
+              "description": "The root, then the variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title on every page. Left out for a variant in a repository that is not here.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementName"
               }
@@ -20699,6 +22340,14 @@
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
             }
           },
           "additionalProperties": false,
@@ -20837,6 +22486,31 @@
             "path": "incomplete",
             "title": "Incomplete",
             "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
           }
         ]
       },
@@ -34901,6 +36575,298 @@
             "technical": true
           }
         ]
+      },
+      {
+        "name": "html.export",
+        "title": "Export HTML",
+        "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
+        "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a problem. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a problem. On an error the earlier export stays as it was.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",
+        "stage": 6,
+        "implements": [
+          "SR-231",
+          "SR-235"
+        ],
+        "arguments": [
+          {
+            "field": "output",
+            "complete": "folder"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+              "$ref": "../common.schema.json#/$defs/localPath"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "output"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "folder": {
+              "title": "Folder",
+              "$ref": "../common.schema.json#/$defs/outputPath",
+              "description": "The written folder, relative to the workspace root when it lies inside, else absolute."
+            },
+            "pages": {
+              "title": "Element pages",
+              "x-elements": "exportedElements",
+              "description": "Pages of elements written: one for each element of `exportedElements`.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "title": "Removed files",
+              "description": "Files of the earlier export that this export no longer writes and removed.",
+              "type": "integer",
+              "minimum": 0,
+              "x-normal": 0
+            },
+            "exportedElements": {
+              "title": "List of exported elements",
+              "type": "array",
+              "description": "The elements that got a page, in the order of the element store.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "folder",
+            "pages",
+            "exportedElements",
+            "removed",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "folder",
+            "title": "Folder",
+            "technical": true
+          },
+          {
+            "path": "pages",
+            "title": "Element pages",
+            "elements": [
+              "exportedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "removed",
+            "title": "Removed files",
+            "normal": 0
+          },
+          {
+            "path": "exportedElements",
+            "title": "List of exported elements",
+            "elements": true
+          },
+          {
+            "path": "exportedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "exportedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "exportedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
       }
     ]
   },
@@ -34988,6 +36954,11 @@
     "reqif.edited-elsewhere": "Edited in another tool",
     "reqif.mapping-differs": "Different saved mapping",
     "reqif.source-model-unsaved": "Source model not saved",
-    "reqif.source-value-chosen": "First source value written"
+    "reqif.source-value-chosen": "First source value written",
+    "html.unsafe-content": "Content shown as text",
+    "html.image-not-copied": "Image not copied",
+    "html.foreign-file": "File not written by the export",
+    "html.marker-entry-ignored": "Marker file entry not used",
+    "html.cleanup-failed": "Staging folder left"
   }
 }

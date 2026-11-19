@@ -14,7 +14,7 @@
 // the records (ADR-0002).
 import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core";
 import { wholeReasonOf } from "./evidence-lines.js";
-import type { ResultLine } from "./result.js";
+import type { OutputField, ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
 import { reasonLine } from "./variant-lines.js";
 
@@ -99,10 +99,18 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
   ),
 ];
 
-/** The lines of an output of `trace.chain`; an output without a list `evidence` is laid out by shape alone. */
-export const chainLines = (output: unknown): ResultLine[] => {
+/**
+ * The lines of an output of `trace.chain`, its fields under their titles (`fields`, `result.ts`), its details
+ * with `details` ("Show details", SR-223 AK2); an output
+ * without a list `evidence` is laid out by shape alone.
+ */
+export const chainLines = (
+  output: unknown,
+  fields: readonly OutputField[] = [],
+  details = false,
+): ResultLine[] => {
   if (!isRecord(output) || !Array.isArray(output["evidence"])) {
-    return resultLines(output);
+    return resultLines(output, fields, details);
   }
   const { evidence, validationRecords, ...rest } = output;
   // The root's validation records (#646), as records under the root row, labelled "validation".
@@ -115,14 +123,14 @@ export const chainLines = (output: unknown): ResultLine[] => {
       byElement.set(keyOf(item.id, item.repository), item);
     }
   }
-  const lines = resultLines(rest);
+  const lines = resultLines(rest, fields, details);
   // The last row of each element among the nodes: the lines under the top-level key "nodes".
   const rowOf = new Map<string, number>();
   let rootRow: number | undefined;
   let inNodes = false;
   lines.forEach((line, at) => {
     if (line.depth === 0) {
-      inNodes = line.label === "nodes";
+      inNodes = line.field === "nodes";
     } else if (inNodes && line.open !== undefined) {
       rowOf.set(keyOf(line.open.id, line.open.repository), at);
       rootRow ??= line.open.id === output["root"] ? at : undefined;

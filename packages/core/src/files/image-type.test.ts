@@ -1,6 +1,6 @@
 // isImage (SR-207 AK3): an image of a type ReqSeq embeds, by its content.
 import { describe, expect, it } from "vitest";
-import { isImage } from "./image-type.js";
+import { imageExtension, isImage } from "./image-type.js";
 
 const bytes = (...parts: (string | readonly number[] | Uint8Array)[]): Uint8Array =>
   Buffer.concat(
@@ -61,5 +61,20 @@ describe("isImage", () => {
     const started = performance.now();
     expect(isImage(bytes("<!---->".repeat(5_000), "<?a?>".repeat(5_000), "x"))).toBe(false);
     expect(performance.now() - started).toBeLessThan(1_000);
+  });
+});
+
+describe("imageExtension", () => {
+  it.each([
+    [".png", bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+    [".jpg", bytes([0xff, 0xd8, 0xff, 0xe0])],
+    [".gif", bytes("GIF89a")],
+    [".bmp", bytes("BM", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0])],
+    [".webp", bytes("RIFF", [1, 0, 0, 0], "WEBPVP8 ")],
+    [".avif", ftyp(16, "avif")],
+    [".svg", bytes("<svg/>")],
+    [undefined, bytes("<html>")],
+  ])("names %s by the content", (extension, content) => {
+    expect(imageExtension(content)).toBe(extension);
   });
 });

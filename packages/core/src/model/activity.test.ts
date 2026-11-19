@@ -303,6 +303,9 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "metamodel.addType": "written element",
       "metamodel.changeType": "written element",
       "metamodel.removeType": "written element",
+      "metamodel.addProperty": "written element",
+      "metamodel.changeProperty": "written element",
+      "metamodel.removeProperty": "written element",
       "metamodel.addRelationKind": "written element",
       "metamodel.changeRelationKind": "written element",
       "metamodel.removeRelationKind": "written element",
@@ -364,6 +367,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "reqif.import": "written element",
       "reqif.saveMapping": "written element",
       "reqif.export": "written element",
+      "html.export": "written element",
     });
   });
 
