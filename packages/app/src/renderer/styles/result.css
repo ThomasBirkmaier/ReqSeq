@@ -33,6 +33,80 @@
   white-space: nowrap;
 }
 
+/* The output page (SR-223 AK1): the calm centre column of an element (SR-148), headed by the answer like an
+   element by its title, the line under it muted like the line under a package's title. Each line is a row of an
+   11rem column with its title or ID, the value, and at the right edge a status; a problem's kind stands under
+   its message, which wraps. A heading of a severity is small and muted like the heading of a group of a list.
+   Greys only: two levels of text, spacing instead of lines (D-062). */
+.buffer.result.output {
+  padding: 2rem 0.75rem 4rem;
+}
+
+.result.output .column {
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.result.output h1.answer {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.result.output .note {
+  margin: -0.5rem 0 1rem;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.result.output .line {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) auto;
+  row-gap: 0;
+  border-radius: 4px;
+}
+
+/* A line without a title or ID: its text in the column of the values. */
+.result.output .line > .text:first-child {
+  grid-column: 2;
+}
+
+.result.output .line > .label {
+  overflow-wrap: anywhere;
+}
+
+.result.output .line.heading {
+  display: block;
+  margin: 1.5rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.result.output .line.problem {
+  padding-block: 0.2rem;
+}
+
+.result.output .line.problem .text {
+  white-space: normal;
+}
+
+/* Each record of a list, such as a baseline of a list of baselines, starts after a small gap. */
+.result.output .line.item-start {
+  margin-top: 0.5rem;
+}
+
+/* The rest of the output keeps a distance to the problems above it. */
+.result.output .line.problem + .line:not(.problem, .heading) {
+  margin-top: 1.5rem;
+}
+
+.result.output .line.problem .status {
+  grid-column: 2;
+  margin-left: 0;
+}
+
 /* The setup of "Connect AI agent" (SR-227 AK7): a column like an element's, the answer, the block to copy as a
    field with its copy symbol at the right edge (SR-128), the next step, and the place it holds for, muted. */
 .result.agent-setup {

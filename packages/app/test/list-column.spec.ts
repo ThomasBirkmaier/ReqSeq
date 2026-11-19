@@ -1,6 +1,7 @@
-// Lists in the quiet column (SR-148, D-062) on the built app: the list of all elements, a filtered list,
-// search hits and the overview stand in the centred column of the open element, under a heading that says
-// what they show; a narrow buffer gives them its full width; the matrix and the graph keep the full width.
+// Lists and outputs in the quiet column (SR-148, D-062) on the built app: the list of all elements, a filtered
+// list, search hits, the overview and the output of a command stand in the centred column of the open element,
+// under a heading that says what they show; a narrow buffer gives them its full width; the matrix and the graph
+// keep the full width.
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -69,7 +70,7 @@ test.describe("lists in the quiet column", () => {
     await running.close();
   });
 
-  test("[SR-148/AK-q9x6] all elements, a filtered list, search hits and the overview stand in the column of the open element", async () => {
+  test("[SR-148/AK-q9x6] all elements, a filtered list, search hits, the overview and an output stand in the column of the open element", async () => {
     const { window } = running;
     await resize(running, 1400);
     // The overview, then the list of a type from it: the heading names the type as the metamodel does.
@@ -98,9 +99,13 @@ test.describe("lists in the quiet column", () => {
     await window.keyboard.press("Enter");
     await expect(shownBuffer(window).locator("h1")).toContainText("Search: wind");
     const hits = await column(window);
+    // The output of a command (SR-223 AK1), headed by its answer.
+    await command(window, "Show workspace status");
+    await expect(shownBuffer(window).locator("h1.answer")).toContainText("Workspace");
+    const output = await column(window);
     await goTo(window, ELEMENT);
     const element = await box(window.locator("article .column").first());
-    for (const shown of [overview, typed, all, filtered, hits]) {
+    for (const shown of [overview, typed, all, filtered, hits, output]) {
       expect(shown.column.width).toBeCloseTo(element.width, 0);
       expect(shown.column.x).toBeCloseTo(element.x, 0);
       // A free margin on both sides.
@@ -109,15 +114,22 @@ test.describe("lists in the quiet column", () => {
     }
   });
 
-  test("[SR-148/AK-chxm] in a buffer narrower than the column, a list takes its full width without scrolling sideways", async () => {
+  test("[SR-148/AK-chxm] in a buffer narrower than the column, a list or an output takes its full width without scrolling sideways", async () => {
     const { window } = running;
     await resize(running, 420);
     await listAll(window);
-    const { column: shown, buffer } = await column(window);
-    // The buffer's own padding is the only margin.
-    expect(shown.x - buffer.x).toBeLessThanOrEqual(16);
-    expect(buffer.x + buffer.width - (shown.x + shown.width)).toBeLessThanOrEqual(32);
-    expect(await noSideScroll(window)).toBe(true);
+    await expect(shownBuffer(window).locator("h1")).toHaveText("All elements 14");
+    const fits = async (): Promise<void> => {
+      const { column: shown, buffer } = await column(window);
+      // The buffer's own padding is the only margin.
+      expect(shown.x - buffer.x).toBeLessThanOrEqual(16);
+      expect(buffer.x + buffer.width - (shown.x + shown.width)).toBeLessThanOrEqual(32);
+      expect(await noSideScroll(window)).toBe(true);
+    };
+    await fits();
+    await command(window, "Show workspace status");
+    await expect(shownBuffer(window).locator("h1.answer")).toContainText("Workspace");
+    await fits();
   });
 
   test("[SR-148/AK-f1m4] the matrix and the graph take the full width of the buffer", async () => {

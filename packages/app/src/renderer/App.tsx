@@ -838,6 +838,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     packages,
     variantTypes,
     properties,
+    catalog,
   });
   const parts = modelineParts(current, loaded, drafts.current, typeNames, graphChoices);
   return (

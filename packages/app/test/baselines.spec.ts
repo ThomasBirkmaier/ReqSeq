@@ -239,10 +239,11 @@ test.describe("baselines in the app", () => {
     await window.keyboard.type("Release 3");
     await window.keyboard.press("Enter");
     const lines = await resultLines(window);
-    expect(lines).toContain("files 1");
+    // Each value under its title from the catalog (SR-223 AK1).
+    expect(lines).toContain("Files 1");
     expect(lines).toContain("  baselines/Release-3.yaml");
-    expect(lines).toContain("  name Release 3");
-    expect(lines).toContain("  elements 2");
+    expect(lines).toContain("  Baseline Release 3");
+    expect(lines).toContain("  Elements 2");
     // The file in the baselines folder: name, date, the commit of `system` and ID and version of b1, b2.
     const file = await fs.readFile(ws.path("system/baselines/Release-3.yaml"), "utf8");
     expect(file).toContain("name: Release 3\n");
@@ -281,7 +282,7 @@ test.describe("baselines in the app", () => {
     await runOnBaseline(running.window, "Show baseline", "Release 2");
     const lines = await resultLines(running.window);
     expect(fieldsOf(lines, "SR-0000b1 Show the wind speed")).toEqual(
-      expect.arrayContaining(["version n1:697a2ad17ed49170", `versionDate ${date}`]),
+      expect.arrayContaining(["Version in the baseline n1:697a2ad17ed49170", `Version date ${date}`]),
     );
     // No old content: Git shows it (D-033).
     await expect(shownLayer(running.window).locator(".result")).not.toContainText("then it shows the speed.");
@@ -297,10 +298,11 @@ test.describe("baselines in the app", () => {
     const { window } = running;
     await runOnBaseline(window, "Show baseline", "Release 2");
     const lines = await resultLines(window);
-    expect(lines).toContain("selectionKnown true");
-    expect(fieldsOf(lines, "SR-0000b1 Show the wind speed")).toContain("state changed");
-    expect(fieldsOf(lines, "SR-0000b2 Show the gusts")).toContain("state superseded");
-    expect(fieldsOf(lines, "SR-0000b3 Show the wind direction")).toContain("state added");
+    // A stored selection is the normal value: no line says it (SR-223 AK7).
+    expect(lines.filter((line) => line.startsWith("Selection stored"))).toEqual([]);
+    expect(fieldsOf(lines, "SR-0000b1 Show the wind speed")).toContain("State changed");
+    expect(fieldsOf(lines, "SR-0000b2 Show the gusts")).toContain("State superseded");
+    expect(fieldsOf(lines, "SR-0000b3 Show the wind direction")).toContain("State added");
     const shown = await cliGet(running, ["Release 2"]);
     expect(["b1", "b2", "b3"].map((tail) => entry(shown, tail)?.state)).toEqual([
       "changed",
@@ -310,11 +312,11 @@ test.describe("baselines in the app", () => {
     // Without a stored selection: nothing added, and the result says so.
     await runOnBaseline(window, "Show baseline", "Release 1");
     await expect(
-      shownLayer(window).locator(".result .line").filter({ hasText: "selectionKnown" }),
-    ).toHaveText("selectionKnownfalse");
+      shownLayer(window).locator(".result .line").filter({ hasText: "Selection stored" }),
+    ).toHaveText("Selection storedno");
     const without = await resultLines(window);
-    expect(without.filter((line) => line.trim() === "state added")).toEqual([]);
-    expect(without).toContain("  added 0");
+    expect(without.filter((line) => line.trim() === "State added")).toEqual([]);
+    expect(without).toContain("  Added 0");
     expect((await cliGet(running, ["release-1"])).selectionKnown).toBe(false);
   });
 
@@ -324,19 +326,19 @@ test.describe("baselines in the app", () => {
     const { window } = running;
     await runOnBaseline(window, "Show baseline", "Release 2");
     const a1 = fieldsOf(await resultLines(window), "N-0000a1 Know the wind");
-    expect(a1).toContain("state removed");
-    expect(a1).toContain("version n1:9d97d0ccf9b75591");
+    expect(a1).toContain("State removed");
+    expect(a1).toContain("Version in the baseline n1:9d97d0ccf9b75591");
     const cli = entry(await cliGet(running, ["Release 2"]), "a1");
     expect(cli).toMatchObject({ state: "removed", version: "n1:9d97d0ccf9b75591" });
     // The current version next to the one in the baseline.
-    expect(a1).toContain(`current ${String(cli?.current)}`);
+    expect(a1).toContain(`Current version ${String(cli?.current)}`);
     await runOnBaseline(window, "Show baseline", "Release 1");
     await expect(
-      shownLayer(window).locator(".result .line").filter({ hasText: "selectionKnown" }),
-    ).toHaveText("selectionKnownfalse");
+      shownLayer(window).locator(".result .line").filter({ hasText: "Selection stored" }),
+    ).toHaveText("Selection storedno");
     const without = await resultLines(window);
-    expect(without.filter((line) => line.trim() === "state removed")).toEqual([]);
-    expect(without).toContain("  removed 0");
+    expect(without.filter((line) => line.trim() === "State removed")).toEqual([]);
+    expect(without).toContain("  Removed 0");
   });
 
   test("[SR-051/AK-dcx7] baseline.compare gives both commits and the git command", async () => {
@@ -352,11 +354,11 @@ test.describe("baselines in the app", () => {
     const command = ["git", "-C", ".", "diff", first, second, "--", file];
     const lines = await resultLines(window);
     expect(lines).toEqual([
-      "repository system",
-      `from ${first}`,
-      `to ${second}`,
-      `file ${file}`,
-      `command ${String(command.length)}`,
+      "Repository system",
+      `From ${first}`,
+      `To ${second}`,
+      `Element file ${file}`,
+      `Command ${String(command.length)}`,
       ...command.map((part) => `  ${part}`),
     ]);
     const cli = await running.cli(["baseline", "compare", "Release 2", "SR-0000b1"]);
@@ -384,16 +386,16 @@ test.describe("baselines in the app", () => {
     await window.keyboard.press("Enter");
     await expect(candidates(window).first()).toHaveText("Run");
     await window.keyboard.press("Enter");
-    await expect(shownLayer(window).locator(".result")).toContainText("verification");
+    await expect(shownLayer(window).locator(".result")).toContainText("Verification status");
     const lines = await resultLines(window);
     /** The fields under the row of `shortId`, as "Show baseline" gives them. */
     const fields = (shortId: string): string[] =>
       fieldsOf(lines, lines.find((line) => line.trim().startsWith(`${shortId} `))?.trim() ?? shortId);
-    /** The status of each verification row under the row of `shortId`, in order (SR-094 AK4). */
+    /** The status of each verification row under the row of `shortId`, in order (SR-094 AK4); not the count of the rows. */
     const statuses = (shortId: string): string[] =>
       fields(shortId)
-        .filter((line) => line.startsWith("status "))
-        .map((line) => line.slice("status ".length));
+        .filter((line) => /^Verification status [a-z]/u.test(line))
+        .map((line) => line.slice("Verification status ".length));
     const tails = ["b1", "b2", "b3", "b5", "b6", "b7"];
     const app = tails.map((tail) => statuses(`SR-0000${tail}`));
     expect(app).toEqual([
@@ -412,8 +414,8 @@ test.describe("baselines in the app", () => {
     expect(statuses("N-0000a1")).toEqual([]);
     const validation = (shortId: string): string | undefined =>
       fields(shortId)
-        .find((line) => line.startsWith("validation "))
-        ?.slice("validation ".length);
+        .find((line) => line.startsWith("Validation status "))
+        ?.slice("Validation status ".length);
     expect([validation("N-0000a1"), validation("N-0000a2")]).toEqual(
       ["a1", "a2"].map((tail) => entry94(shown, tail)?.validation),
     );

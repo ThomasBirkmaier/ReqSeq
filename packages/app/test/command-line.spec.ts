@@ -398,7 +398,7 @@ test.describe("the command prompt", () => {
     expect(await card.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
     await window.keyboard.press("Enter");
     await expect(window.locator(".modeline")).toContainText("Confirm hints SR-b0000000001");
-    await expect(window.locator(".result")).toContainText("confirmed");
+    await expect(window.locator(".result")).toContainText("Confirmed hints");
     expect(await hints()).toEqual([]);
   });
 
@@ -677,7 +677,7 @@ test.describe("the command prompt", () => {
       await expect(marked).toHaveText("No");
       await window.keyboard.press("ControlOrMeta+Enter");
       await expect.poll(rationale).toBe(value);
-      await expect(window.locator(".result")).toContainText("applied");
+      await expect(window.locator(".result .line", { hasText: "Written" })).toHaveText("Writtenyes");
       // The same change again writes no element: the prompt asks nothing and says so.
       await toValue();
       await window.keyboard.type(value);
