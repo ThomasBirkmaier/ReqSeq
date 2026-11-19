@@ -568,3 +568,13 @@ export const removeListItem = (
     `removing ${[...at, index].join(".")}`,
   );
 };
+
+/**
+ * Refuses the definition at `at` in `yaml` (read from `file`, named in errors) when it, or a node on
+ * the way to it, is an alias or holds an anchor anywhere (SR-236 AK5), as `setMapValue` refuses
+ * the mapping it changes; for a change that edits only a part of the definition, such as one list.
+ */
+export const refuseShared = (yaml: EditableYaml, file: string, at: YamlPath): void => {
+  const parsed = parsedOf(yaml, file);
+  refuseSharedWithin(parsed, file, nodeAt(parsed, file, at), at.join("."));
+};
