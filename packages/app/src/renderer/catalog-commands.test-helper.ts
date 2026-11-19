@@ -45,6 +45,8 @@ export interface Setup {
   readonly context: CatalogContext;
   readonly asked: Prompt[];
   readonly echoed: string[];
+  /** The messages `report` said (also in `echoed`), with what a click on each opens (SR-223 AK8). */
+  readonly reported: { readonly message: string; readonly open: () => void }[];
   readonly dispatched: BufferAction[];
   readonly call: Mock<(name: string, input: Record<string, unknown>) => Promise<unknown>>;
   readonly reopened: () => number;
@@ -58,6 +60,7 @@ export const setup = (
 ): Setup => {
   const asked: Prompt[] = [];
   const echoed: string[] = [];
+  const reported: { readonly message: string; readonly open: () => void }[] = [];
   const dispatched: BufferAction[] = [];
   let reopened = 0;
   let revision = 3;
@@ -86,6 +89,10 @@ export const setup = (
     dispatch: (action) => dispatched.push(action),
     ask: (prompt) => asked.push(prompt),
     echo: (message) => echoed.push(message),
+    report: (message, open) => {
+      echoed.push(message);
+      reported.push({ message, open });
+    },
     modified: false,
     closeArmed: () => false,
     armClose: () => undefined,
@@ -103,6 +110,7 @@ export const setup = (
     context,
     asked,
     echoed,
+    reported,
     dispatched,
     call,
     reopened: () => reopened,
