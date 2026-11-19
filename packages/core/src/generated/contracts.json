@@ -25024,7 +25024,7 @@
             },
             "target": {
               "$ref": "../common.schema.json#/$defs/elementRef",
-              "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+              "description": "Confirm the open confirmable hints on relations and inline references that point at this element."
             },
             "all": {
               "type": "boolean",
@@ -25033,7 +25033,7 @@
             },
             "kind": {
               "type": "array",
-              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problemCode"
               }
