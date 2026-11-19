@@ -342,8 +342,8 @@ beforeAll(async () => {
   await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
-// Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
-// than the default hook timeout of 30 s (#304).
+// Removes the templates and the copies the tests left (runAll removes its own as it goes, #1862). With all
+// copies left to this hook, about 1,900 Git work trees, it ran past 120 s on Windows (#304, #1862).
 afterAll(async () => {
   await Promise.all([...templates.values()].map((f) => f.cleanup()));
   templates.clear();
@@ -371,6 +371,24 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   await fs.cp(template.root, top, { recursive: true });
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
+
+/** Removes a copy made by `copy` now, instead of in the `afterAll` hook. */
+const release = async ({ top }: Copy): Promise<void> => {
+  const base = path.dirname(top);
+  const index = copies.indexOf(base);
+  if (index >= 0) {
+    copies.splice(index, 1);
+  }
+  await fs.rm(base, { recursive: true, force: true, maxRetries: 3 });
+};
+
+/** The folders of a copy except Git's, as paths relative to the copy: an empty one is no file of `filesOf`. */
+const foldersOf = async (top: string): Promise<string[]> =>
+  (await fs.readdir(top, { recursive: true, withFileTypes: true }))
+    .filter((e) => e.isDirectory())
+    .map((e) => path.relative(top, path.join(e.parentPath, e.name)))
+    .filter((relative) => !relative.split(path.sep).includes(".git"))
+    .sort();
 
 /**
  * A test runs one command through all four accesses. A write command gets four copies. Each access may
@@ -441,6 +459,23 @@ const withoutDate = (access: string, result: Result, start: number, end: number)
   return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
 };
 
+/** The outcome of `entry` with `input` on the workspace at `root` through `access`. */
+const via = (
+  access: (typeof ACCESSES)[number],
+  root: string,
+  entry: CatalogEntry,
+  input: Record<string, unknown>,
+): Promise<Outcome> =>
+  access === "core"
+    ? viaCore(root, entry, input)
+    : access === "cli"
+      ? viaCli(root, entry, input)
+      : access === "api"
+        ? viaApi(root, entry, input, cache)
+        : access === "mcp"
+          ? viaMcp(root, entry, input)
+          : viaApp(root, entry, input);
+
 /** A fresh copy of the scenario's fixture, prepared. */
 const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
   const made = await copy(scenario);
@@ -450,8 +485,10 @@ const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
 
 /**
  * Run a scenario through all five accesses. A write command gets a fresh copy per access, so each one starts
- * from the same files. A read command, and a command without an implementation (it cannot write), share one
- * copy. Either way, the files of the copy are compared after each access.
+ * from the same files; an access that left its copy as it found it (an error, mostly) hands it to the next
+ * one, when the scenario has no `prepare` (it may not be repeatable on the same copy). A read command, and a
+ * command without an implementation (it cannot write), share one copy. Either way, the files of the copy
+ * are compared after each access. Each copy is removed once no access needs it (#1862).
  */
 const runAll = async (
   entry: CatalogEntry,
@@ -463,22 +500,26 @@ const runAll = async (
   // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
-  for (const access of accesses) {
-    const { top, root } = shared ?? (await copy(scenario));
+  let unchanged: Copy | undefined;
+  try {
+    for (const access of accesses) {
+      results[access] = await runAccess(access);
+    }
+  } finally {
+    await Promise.all([shared, unchanged].flatMap((each) => (each === undefined ? [] : [release(each)])));
+  }
+  return results;
+
+  async function runAccess(access: (typeof ACCESSES)[number]): Promise<Result> {
+    const made = shared ?? unchanged ?? (await copy(scenario));
+    unchanged = undefined;
+    const { top, root } = made;
     await scenario.prepare?.({ top, root });
     const before = await filesOf(top);
+    const foldersBefore = shared === undefined ? await foldersOf(top) : [];
     const input = { ...scenario.input };
     const start = Date.now();
-    const called =
-      access === "core"
-        ? await viaCore(root, entry, input)
-        : access === "cli"
-          ? await viaCli(root, entry, input)
-          : access === "api"
-            ? await viaApi(root, entry, input, cache)
-            : access === "mcp"
-              ? await viaMcp(root, entry, input)
-              : await viaApp(root, entry, input);
+    const called = await via(access, root, entry, input);
     const end = Date.now();
     const outcome = comparable(access, entry.name, called, start, end);
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
@@ -488,12 +529,22 @@ const runAll = async (
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }
+    if (shared === undefined) {
+      const same =
+        scenario.prepare === undefined &&
+        JSON.stringify(files) === JSON.stringify(before) &&
+        JSON.stringify(await foldersOf(top)) === JSON.stringify(foldersBefore);
+      if (same) {
+        unchanged = made;
+      } else {
+        await release(made);
+      }
+    }
     const masked = masks(result, scenario.masks ?? []);
     const named = scenario.newElement === true ? maskNewElement(masked) : masked;
     // Sorted again: the order of new files followed their random UUIDs before the mask.
-    results[access] = { ...named, changed: [...named.changed].sort() };
+    return { ...named, changed: [...named.changed].sort() };
   }
-  return results;
 };
 
 /** `result` with each match of `patterns` replaced by `<masked>` (see `Scenario.masks`). */
