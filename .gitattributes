@@ -1,6 +1,9 @@
 * text=auto eol=lf
 schemas/generated/** linguist-generated=true -diff
 packages/core/src/generated/** linguist-generated=true -diff
+# The look of the docs and the licence notices of the HTML export, written by `pnpm docs:export-theme` and
+# `node scripts/licenses/html-export.mjs` (SR-231).
+packages/core/src/html-export/*.generated.ts linguist-generated=true -diff
 # Architecture pictures, written by `pnpm docs:diagrams` (packages/docs/src/diagrams.ts).
 docs/architecture/*.svg linguist-generated=true
 pnpm-lock.yaml linguist-generated=true

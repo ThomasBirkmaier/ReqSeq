@@ -3,6 +3,7 @@
 // nodes, never from HTML, and with `trust: false` the commands that could link, load or style anything
 // (`\href`, `\url`, `\includegraphics`, `\htmlClass`, `\htmlId`, `\htmlStyle`, `\htmlData`) are drawn as
 // their source text (ADR-0010: nothing from a file is interpreted as HTML).
+import { KATEX_OPTIONS } from "@reqseq/core/render-options";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 
@@ -10,17 +11,10 @@ export type FormulaResult =
   { readonly ok: true; readonly node: HTMLElement } | { readonly ok: false; readonly message: string };
 
 const OPTIONS = {
-  throwOnError: true,
-  trust: false,
-  // KaTeX's warnings about LaTeX it accepts anyway (Unicode text in math mode) are no errors of the text.
-  strict: "ignore",
+  // Shared with the HTML export (`@reqseq/core/render-options`, SR-231 AK5).
+  ...KATEX_OPTIONS,
   // A command KaTeX does not run (an untrusted one) is drawn in grey, not red: colour only for meaning (D-062).
   errorColor: "var(--muted)",
-  // Bounds against a formula that would take the editor down: no box above 20em, no macro bomb.
-  maxSize: 20,
-  maxExpand: 1000,
-  // The MathML part carries the source for assistive technology and copying.
-  output: "htmlAndMathml",
 } as const;
 
 /** How many set formulas are kept; a text with more of them sets the ones beyond again on each change. */

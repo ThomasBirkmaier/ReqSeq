@@ -490,6 +490,7 @@ export type ProblemCode =
   | "reqif.source-value-chosen"
   | "html.unsafe-content"
   | "html.image-not-copied"
+  | "html.formula-error"
   | "html.foreign-file"
   | "html.marker-entry-ignored"
   | "html.cleanup-failed";
@@ -4318,7 +4319,7 @@ export interface HintConfirmInput {
   readonly hintIds?: readonly string[];
   /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. A variant with open `variant.core-changed-since-baseline` or `variant.core-new-since-baseline` hints, without `kind`, gives `hint.not-confirmable` for them, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly ref?: ElementRef;
-  /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
+  /** Confirm the open confirmable hints on relations and inline references that point at this element. */
   readonly target?: ElementRef;
   /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;

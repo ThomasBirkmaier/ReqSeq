@@ -1,12 +1,16 @@
 // The check the tests of the HTML export run on written HTML (SR-235 AK4): every tag on the writer's
-// list, no event attribute, and no address outside the export. It reads the HTML independently of the writer.
+// list or of an error the export writes (`span`), no event attribute, and no address outside the export. It reads the HTML independently of the writer.
 import { expect } from "vitest";
 
 const TAGS = new Set(
-  "p h1 h2 h3 h4 h5 h6 em strong del code pre blockquote ul ol li table thead tbody tr th td a img br hr input sup section".split(
+  "p h1 h2 h3 h4 h5 h6 em strong del code pre blockquote ul ol li table thead tbody tr th td a img br hr input sup section aside div span".split(
     " ",
   ),
 );
+
+/** The content of a written page: what its content slot holds (`page.ts`), without the docs' frame. */
+export const contentOf = (page: string): string =>
+  page.slice(page.indexOf('<div class="sl-markdown-content">') + 33, page.indexOf("</div><footer"));
 
 /** Fails unless every tag of `html` is on the list, with no event attribute and no address outside the export. */
 export const expectSafe = (html: string): void => {
