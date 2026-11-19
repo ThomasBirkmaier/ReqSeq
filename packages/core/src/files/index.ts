@@ -66,6 +66,8 @@ export type { JsonLinesSpec } from "./json-lines.js";
 export { DATA_HEAD_BYTES, isJsonlDataFile } from "./jsonl-data.js";
 export { editElementFile, zip } from "./edit.js";
 export { editYamlDocument, renderYamlDocument } from "./yaml-document.js";
+export { appendListItem, removeListItem, setMapValue } from "./yaml-list.js";
+export type { YamlPath } from "./yaml-list.js";
 export { yamlPointerLine } from "./yaml-pointer.js";
 export { listFolderFiles } from "./list-folder.js";
 export type { FolderListing } from "./list-folder.js";

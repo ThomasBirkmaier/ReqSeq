@@ -214,6 +214,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       [2, 5],
     ] as const) {
       expect(await list(workspace, { ref: "SR-0000b1", offset, limit })).toEqual({
+        answer: `Found ${String(all.hints.slice(offset, offset + limit).length)} of 2 open hints.`,
         kinds: [{ code: "relation.outdated", count: 2 }],
         hints: all.hints.slice(offset, offset + limit),
         total: 2,

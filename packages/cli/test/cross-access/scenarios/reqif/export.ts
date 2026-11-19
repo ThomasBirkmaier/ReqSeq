@@ -16,6 +16,34 @@ const SUPPLIER: FixtureOptions = { ...REQIF_EXPORT, files: { "reqif/zulieferer.y
 const STATEMENTS: FixtureOptions = { fixture: "SR-058/statements", git: true };
 /** The export time and the header IDENTIFIER of a ReqIF file ReqSeq writes. */
 const EXPORT_MASKS: readonly RegExp[] = [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g, /_hd-[0-9a-f-]{36}/g];
+/** FIRST_IMPORT with the source model its import stores in the mapping (SR-158). */
+const SOURCE_MODEL = [
+  "source-model:",
+  "  datatypes:",
+  "    - { identifier: dt-string, kind: string, max-length: '1000' }",
+  "    - { identifier: dt-xhtml, kind: xhtml }",
+  "    - identifier: dt-priority",
+  "      kind: enumeration",
+  "      values:",
+  "        - { identifier: ev-high, long-name: High, key: '1', other-content: '' }",
+  "        - { identifier: ev-low, long-name: Low, key: '2', other-content: '' }",
+  "  types:",
+  "    - identifier: ot-req",
+  "      long-name: Customer Requirement",
+  "      attributes:",
+  "        - { identifier: ad-name, long-name: ReqIF.Name, datatype: dt-string }",
+  "        - { identifier: ad-text, long-name: ReqIF.Text, datatype: dt-xhtml }",
+  "        - { identifier: ad-priority, long-name: Priority, datatype: dt-priority }",
+  "        - { identifier: ad-comment, long-name: Internal Comment, datatype: dt-string }",
+  "",
+].join("\n");
+const IMPORTED_MODEL: FixtureOptions = {
+  ...FIRST_IMPORT,
+  files: {
+    ...FIRST_IMPORT.files,
+    "reqif/kunde-a.yaml": `${String(DELIVERY.files?.["reqif/kunde-a.yaml"])}${SOURCE_MODEL}`,
+  },
+};
 /** A JUnit result at the output of an export (SR-207 AK1). */
 const JUNIT =
   '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites><testsuite name="s" tests="0"/></testsuites>\n';
@@ -36,6 +64,23 @@ scenariosOf("reqif.export", [
     input: { output: "back.reqif", mapping: "reqif/kunde-a.yaml", statements: true },
     expect: "output",
     masks: EXPORT_MASKS,
+  },
+  {
+    tag: "[SR-158/AK-kz13]",
+    name: "the elements of the source in the source's model: its types, attributes, IDENTIFIERs and enumeration values",
+    fixture: IMPORTED_MODEL,
+    input: { output: "kunde-a.reqif", mapping: "reqif/kunde-a.yaml", sourceModel: true },
+    expect: "output",
+    masks: EXPORT_MASKS,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const file = String(files["kunde-a.reqif"]);
+        expect(file).toContain("<REQ-IF-TOOL-ID>reqseq-source-model</REQ-IF-TOOL-ID>");
+        expect(file).toContain('<SPEC-OBJECT IDENTIFIER="REQ-1"');
+        expect(file).toContain("<ENUM-VALUE-REF>ev-high</ENUM-VALUE-REF>");
+        expect(file).not.toContain("SPEC-RELATION ");
+      }
+    },
   },
   {
     tag: "[SR-207/AK-gbbc]",

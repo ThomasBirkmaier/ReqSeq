@@ -208,6 +208,12 @@ describe("result lines", () => {
     ).toEqual(["view", "kind", "total", "constructor"]);
   });
 
+  it("leaves the answer out of the lines, and keeps a field of that name with another shape (SR-224 AK1, #1874)", () => {
+    const output = { answer: "Listed 1 element.", elements: [element(1)], total: 1 };
+    expect(resultLines(output).map((line) => line.label)).toEqual(["elements", "SR-000001"]);
+    expect(resultLines({ answer: { text: "a" } }).map((line) => line.label)).toEqual(["answer", "text"]);
+  });
+
   it("ends an element row with the status its record gives, as a list row shows it (#276)", () => {
     expect(resultLines({ elements: [{ ...element(1), status: "draft" }] })[1]?.status).toBe("draft");
     // A record without a status, or with one that is no text, has none.

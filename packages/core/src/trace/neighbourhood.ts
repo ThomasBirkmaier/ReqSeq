@@ -342,7 +342,7 @@ export const neighbourhoodOutput = async (
   context: NeighbourhoodOutputContext,
   page: ChainPage,
   versionsOf: VersionsOf,
-): Promise<TraceNeighbourhoodOutput> => {
+): Promise<Omit<TraceNeighbourhoodOutput, "answer">> => {
   const { shortIds, metamodel } = context;
   const node = chainNode(shortIds, titles(metamodel));
   const rootOnPage = page.offset === 0;

@@ -26,6 +26,10 @@
 //   are left out of the file; with `mapping`, the input is added to the mapping, which is checked
 //   unchanged before the output is written and saved after it (`files` lists it last). A target
 //   outside the export is a stub (SR-059 AK2, reqif/export.ts).
+// - Source model (SR-158): with `sourceModel` and `mapping`, the same elements of the source as for
+//   statements, refused the same way, written in the source's model (reqif/source-export.ts), with
+//   or without statements; no images. Refused before anything is written: no `mapping`, a mapping
+//   without `source-model` (`input.invalid`). `omitProperties` is saved in the mapping as above.
 // - Not yet: `profile` (SR-101 profiles of a mapping); `omitProperties` with `statements`, which carry
 //   no properties. Each refuses with `input.invalid` naming itself.
 import { randomUUID } from "node:crypto";
@@ -41,12 +45,12 @@ import {
   sha256,
   writeFileAtomic,
 } from "../../files/index.js";
-import type { MetamodelProperty } from "../../generated/types.js";
-import type { Workspace } from "../../runtime/workspace.js";
+import type { MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, TargetItem } from "../../model/index.js";
 import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
+import type { SelectionContext } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
@@ -61,8 +65,10 @@ import {
 import type { ReqifWritable } from "../../reqif/index.js";
 import type { StatementsPlan } from "../../reqif/statements.js";
 import { planStatements } from "../../reqif/statements.js";
+import { planSourceExport } from "../../reqif/source-export.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { refuseGitAt, workspaceLayoutState } from "../../workspace/index.js";
+import { counted, problemsNote, sentence } from "../answer.js";
 
 /** An image copy: its source file and SHA-256 when it was read, and its path relative to the output folder. */
 interface ImageCopy {
@@ -205,20 +211,15 @@ const originKey = (
   return found.key;
 };
 
-/**
- * The statements of the elements of the source of the mapping at `mappingPath` (see the file
- * comment), planned.
- */
-const statementsOf = async (
-  workspace: Workspace,
-  layout: WorkspaceLayout,
-  input: CommandInput<"reqif.export">,
+type Statement = NonNullable<ReqifMappingFile["statement"]>;
+
+/** The `statement` of `mapping` (at `mappingPath`), which a statements export needs (see the file comment). */
+const statementOf = (
+  mapping: ReqifMappingFile,
   mappingPath: string,
-): Promise<StatementsPlan> => {
+  metamodel: Parameters<typeof propertyWithMeaning>[0],
+): Statement => {
   const command = "reqif.export";
-  const selected = await resolveSelection(workspace, input.selection ?? {}, command);
-  const { metamodel } = selected;
-  const { mapping } = await readMappingFile(layout, metamodel, workspace.root, mappingPath, command);
   const { statement } = mapping;
   if (statement === undefined) {
     throw new CommandError(
@@ -228,14 +229,38 @@ const statementsOf = async (
     );
   }
   // checkMapping found the property in the metamodel.
-  const definition = metamodel.properties.find((p) => p.key === statement.property);
-  if (definition?.kind === "relation") {
+  if (metamodel.properties.find((p) => p.key === statement.property)?.kind === "relation") {
     throw new CommandError(
       "input.invalid",
       `mapping: statement.property ${statement.property} holds relations, which have no statement text; name a text or choice property`,
       { command, fields: ["mapping"] },
     );
   }
+  return statement;
+};
+
+/** The elements of the source of a mapping, each with its source IDENTIFIER (see the file comment). */
+interface SourceRecords {
+  readonly selected: Awaited<ReturnType<typeof resolveSelection>>;
+  readonly mapping: ReqifMappingFile;
+  readonly records: readonly ElementRecord[];
+  readonly identifierKey: string;
+}
+
+/**
+ * The elements of the selection whose source is that of the mapping at `mappingPath`, in the order
+ * of the list (see the file comment).
+ */
+const sourceRecords = async (
+  ctx: SelectionContext,
+  layout: WorkspaceLayout,
+  input: CommandInput<"reqif.export">,
+  mappingPath: string,
+): Promise<SourceRecords> => {
+  const command = "reqif.export";
+  const selected = await resolveSelection(ctx, input.selection ?? {}, command);
+  const { metamodel } = selected;
+  const { mapping } = await readMappingFile(layout, metamodel, ctx.workspace.root, mappingPath, command);
   const sourceKey = originKey("source", metamodel);
   const identifierKey = originKey("source-identifier", metamodel);
   const source = mapping.source.name;
@@ -263,6 +288,34 @@ const statementsOf = async (
     }
     byIdentifier.set(identifier, record);
   }
+  return { selected, mapping, records, identifierKey };
+};
+
+/** Refuses two `records` with one UUID (`ref.ambiguous`, SR-088): the file would name one IDENTIFIER twice. */
+const refuseSharedUuids = (records: readonly ElementRecord[], command: string): void => {
+  const ids = new Set<string>();
+  for (const record of records) {
+    if (ids.has(record.id)) {
+      throw new CommandError(
+        "ref.ambiguous",
+        `Not exported: ${record.id} is the UUID of several selected element files (element.duplicate-id); give the copy a new UUID`,
+        { command, id: record.id },
+      );
+    }
+    ids.add(record.id);
+  }
+};
+
+/** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
+const statementsOf = async (
+  ctx: SelectionContext,
+  layout: WorkspaceLayout,
+  input: CommandInput<"reqif.export">,
+  mappingPath: string,
+): Promise<StatementsPlan> => {
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const statement = statementOf(mapping, mappingPath, selected.metamodel);
+  const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
   return planStatements({
     title: layout.name,
     time: exportTime(new Date()),
@@ -270,15 +323,104 @@ const statementsOf = async (
     sourceToolId: `ReqSeq ${PRODUCT_VERSION}`,
     attribute: statement.attribute,
     datatype: statement.datatype ?? "string",
-    elements: records.map((record) => {
-      const value = record.data[statement.property];
-      return {
-        id: record.id,
-        identifier: String(record.data[identifierKey]),
-        statement: statementText(definition, value),
-      };
-    }),
+    elements: records.map((record) => ({
+      id: record.id,
+      identifier: String(record.data[identifierKey]),
+      statement: statementText(definition, record.data[statement.property]),
+    })),
   });
+};
+
+/** The text of `record` as read with it, with its repository; `file.changed-on-disk` when it changed since. */
+const textsOf = async (
+  layout: WorkspaceLayout,
+  record: ElementRecord,
+  command: string,
+): Promise<{ repository: RepositoryLocation; text: string }[]> => {
+  const found = [];
+  // A selected element lies in exactly one available repository.
+  for (const repository of layout.repositories.filter((r) => r.name === record.repository)) {
+    const text = await readElementText(repository.folder, record.file, record.snapshot);
+    if (text === undefined) {
+      throw new CommandError(
+        "file.changed-on-disk",
+        `Not exported: ${record.file} in repository ${record.repository} changed since it was read; run the export again`,
+        { command, file: record.file, repository: record.repository },
+      );
+    }
+    found.push({ repository, text });
+  }
+  return found;
+};
+
+/**
+ * The export in the source's model (SR-158, reqif/source-export.ts) of the elements of the source
+ * of the mapping at `mappingPath`, with or without statements, written to `absolute`.
+ */
+const sourceModelExport = async (
+  ctx: SelectionContext,
+  layout: WorkspaceLayout,
+  input: CommandInput<"reqif.export">,
+  mappingPath: string,
+  absolute: string,
+): Promise<CommandOutput<"reqif.export">> => {
+  const command = "reqif.export";
+  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const model = mapping["source-model"];
+  if (model === undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `mapping: ${mappingPath} holds no source model; import a delivery of the source through this mapping first`,
+      { command, fields: ["mapping"] },
+    );
+  }
+  const omissions = await exportOmissions(
+    layout,
+    selected.metamodel,
+    ctx.workspace.root,
+    mappingPath,
+    input.omitProperties,
+    command,
+  );
+  refuseSharedUuids(records, command);
+  const statement =
+    input.statements === true ? statementOf(mapping, mappingPath, selected.metamodel) : undefined;
+  const elements = [];
+  for (const record of records) {
+    // With statements the text is not written.
+    const texts = statement === undefined ? await textsOf(layout, record, command) : [{ text: "" }];
+    elements.push(
+      ...texts.map(({ text }) => ({
+        record,
+        text,
+        identifier: String(record.data[identifierKey]),
+        shortId: selected.shortIds.of(record),
+      })),
+    );
+  }
+  const plan = planSourceExport({
+    metamodel: selected.metamodel,
+    mapping,
+    model,
+    title: layout.name,
+    time: exportTime(new Date()),
+    header: randomUUID(),
+    sourceToolId: `ReqSeq ${PRODUCT_VERSION}`,
+    elements,
+    omit: omissions.keys,
+    statement,
+  });
+  await checkOmissions(omissions, command);
+  await writeOutput(absolute, plan.file, [], command);
+  const saved = await saveOmissions(layout, omissions);
+  return {
+    file: shown(ctx.workspace.root, absolute),
+    elements: elements.length,
+    relations: 0,
+    ...(input.statements === true ? { withoutStatement: plan.withoutStatement } : {}),
+    files: saved,
+    problems: [...plan.problems],
+  };
 };
 
 /**
@@ -346,6 +488,14 @@ const writeOutput = async (
 
 export default defineCommand({
   name: "reqif.export",
+  answer: (output) =>
+    sentence(
+      `Exported ${counted(output.elements, "element")} and ${counted(output.relations, "relation")} to ${output.file}`,
+      output.withoutStatement === undefined || output.withoutStatement === 0
+        ? ""
+        : `${counted(output.withoutStatement, "element")} without a statement`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"reqif.export">> => {
     const command = "reqif.export";
     const given = notYet(input);
@@ -359,6 +509,16 @@ export default defineCommand({
     const { workspace } = ctx;
     const layout = await workspace.get(workspaceLayoutState);
     const absolute = path.resolve(workspace.root, input.output);
+    if (input.sourceModel === true) {
+      if (input.mapping === undefined) {
+        throw new CommandError(
+          "input.invalid",
+          "mapping: the source's model is stored in the mapping of that source; name its mapping file",
+          { command, fields: ["mapping"] },
+        );
+      }
+      return sourceModelExport(ctx, layout, input, input.mapping, absolute);
+    }
     if (input.statements === true) {
       if (input.mapping === undefined) {
         throw new CommandError(
@@ -367,7 +527,7 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const plan = await statementsOf(workspace, layout, input, input.mapping);
+      const plan = await statementsOf(ctx, layout, input, input.mapping);
       await writeOutput(absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
@@ -378,7 +538,7 @@ export default defineCommand({
         problems: [],
       };
     }
-    const selected = await resolveSelection(workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const { elements } = orderedSelection(selected, command, undefined);
     const omissions = await exportOmissions(
       layout,
@@ -388,33 +548,14 @@ export default defineCommand({
       input.omitProperties,
       command,
     );
-    const ids = new Set<string>();
-    for (const record of elements) {
-      if (ids.has(record.id)) {
-        throw new CommandError(
-          "ref.ambiguous",
-          `Not exported: ${record.id} is the UUID of several selected element files (element.duplicate-id); give the copy a new UUID`,
-          { command, id: record.id },
-        );
-      }
-      ids.add(record.id);
-    }
+    refuseSharedUuids(elements, command);
     const outputFolder = path.dirname(absolute);
     const name = path.basename(absolute);
     const imagesFolder = `${path.basename(name, path.extname(name))}-images`;
     const copies: ImageCopy[] = [];
     const read: ExportedElement[] = [];
     for (const record of elements) {
-      // A selected element lies in exactly one available repository.
-      for (const repository of layout.repositories.filter((r) => r.name === record.repository)) {
-        const text = await readElementText(repository.folder, record.file, record.snapshot);
-        if (text === undefined) {
-          throw new CommandError(
-            "file.changed-on-disk",
-            `Not exported: ${record.file} in repository ${record.repository} changed since it was read; run the export again`,
-            { command, file: record.file, repository: record.repository },
-          );
-        }
+      for (const { repository, text } of await textsOf(layout, record, command)) {
         const images = await imageCopies(layout, repository, record, text, imagesFolder, copies);
         read.push({ record, text, images });
       }

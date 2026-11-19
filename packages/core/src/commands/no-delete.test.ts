@@ -22,6 +22,8 @@ const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard
  */
 const NOT_AN_ELEMENT_DELETE: Readonly<Record<string, string>> = {
   "relation.remove": "removes a relation entry from the source file; the element and its file stay",
+  "metamodel.removeType":
+    "removes a type from the metamodel files, refused while any element has it (SR-236 AK7); no element file changes",
   "filter.delete": "deletes the file of a saved filter, which is no element (D-056, SR-217 AK5)",
   "perspective.delete": "deletes the file of a perspective, which is no element (D-056, SR-217 AK5)",
 };
@@ -38,6 +40,10 @@ type Scenario = Readonly<Record<string, unknown>>;
 /** A variant, in the fixture of variant.exclude only. */
 const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
 const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "metamodel.removeType": {
+    "metamodel/zz-scratch.yaml":
+      "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n",
+  },
   "reqif.import": {
     "in/lieferung.reqif": fs.readFileSync(
       new URL("../../../../fixtures/SR-053/delivery/lieferung.reqif", import.meta.url),
@@ -153,6 +159,18 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "drafts", where: { status: ["draft", "obsolete"] } },
     { name: "Unknown package", where: { package: "SR-ffffff" } },
   ],
+  // Adding a type changes one metamodel file in place; the second call is refused (name taken).
+  "metamodel.addType": [
+    { name: "Risk", prefix: "RI" },
+    { name: "Risk", prefix: "RX" },
+  ],
+  // Changing a type changes its lines in place; the second call is refused (prefix taken).
+  "metamodel.changeType": [
+    { type: "decision", name: "Design decision" },
+    { type: "decision", prefix: "SR" },
+  ],
+  // Removing an unused type removes its lines; the second call is refused (a type with elements).
+  "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
   // Renaming gives the file the new name (SR-217 AK2): the move check below allows exactly the
   // renamed files the output names; perspectives that name the filter change in place.
   "filter.rename": [

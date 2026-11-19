@@ -486,6 +486,7 @@ describe("baseline.list in a repository that is not here", () => {
     );
     await rm(ws.path("sensor"), { recursive: true });
     expect(await call(ws, "baseline.list", {})).toEqual({
+      answer: "Found 0 baselines; incomplete, as a repository is not available.",
       baselines: [],
       location: { repository: "sensor", path: "baselines" },
       incomplete: true,
@@ -498,6 +499,8 @@ describe("baseline.compare", () => {
     const { ws, first, second } = await made();
     const file = "requirements/SR-0000000000b1.md";
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" })).toEqual({
+      answer:
+        "The Git command of this output shows how requirements/SR-0000000000b1.md in system changed from commit be3a664c1ea9 to commit 29b78339451d.",
       repository: "system",
       from: first,
       to: second,
@@ -549,6 +552,8 @@ describe("baseline.compare", () => {
     });
     await ws.git(["rm", "-q", "needs/N-0000000000a1.md"], "system");
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}A1` })).toEqual({
+      answer:
+        "The Git command of this output shows how needs/N-0000000000a1.md in system changed from commit be3a664c1ea9 to the working copy.",
       repository: "system",
       from: first,
       to: null,

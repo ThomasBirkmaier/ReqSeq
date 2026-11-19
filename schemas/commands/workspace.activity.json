@@ -14,6 +14,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "activity": {
         "title": "Last agent access",
         "anyOf": [{ "$ref": "../activity.schema.json#/$defs/access" }, { "type": "null" }],
@@ -21,6 +22,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["activity"]
+    "required": ["answer", "activity"]
   }
 }

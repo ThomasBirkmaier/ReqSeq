@@ -45,6 +45,7 @@
     "type": "object",
     "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "name": {
         "title": "Baseline",
         "description": "Name of the baseline.",
@@ -270,6 +271,7 @@
     },
     "additionalProperties": false,
     "required": [
+      "answer",
       "name",
       "file",
       "repository",

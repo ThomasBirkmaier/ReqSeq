@@ -33,6 +33,7 @@ import {
   writeSaved,
 } from "../../query/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { filesNote, problemsNote, sentence } from "../answer.js";
 
 /** The keys of a perspective file, in the order a new file has them. */
 const KEYS = ["reqseq-perspective", "name", "description", "filter", "where", "group", "sort"] as const;
@@ -42,6 +43,8 @@ const KEYS_KEEPING_DESCRIPTION = KEYS.filter((key) => key !== "description");
 
 export default defineCommand({
   name: "perspective.save",
+  answer: (output, input) =>
+    sentence(`Saved perspective ${input.name}`, filesNote(output.files), problemsNote(output.problems)),
   run: async (ctx, input): Promise<CommandOutput<"perspective.save">> => {
     const command = "perspective.save";
     const { workspace } = ctx;

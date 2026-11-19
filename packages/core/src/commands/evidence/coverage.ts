@@ -13,15 +13,28 @@ import { resolveSelection } from "../../query/index.js";
 import { derivationGraph, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
 import { viewsInclude } from "../../variants/index.js";
+import { counted, incompleteNote, listed, sentence } from "../answer.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 
 export default defineCommand({
   name: "evidence.coverage",
+  answer: (output, _input, names) =>
+    sentence(
+      output.levels.length === 0
+        ? "The selection has no need or requirement"
+        : `Coverage: ${listed(
+            output.levels.map(
+              (level) =>
+                `${String(level.withChildren)} of ${counted(level.total, `${names.type(level.type)} element`)} with children${level.withEvidence === undefined ? "" : ` and ${String(level.withEvidence)} with evidence`}`,
+            ),
+          )}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"evidence.coverage">> => {
     const command = "evidence.coverage";
     const graph = derivationGraph(await traceContext(ctx.workspace), command);
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
+    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
     const index = await ctx.workspace.get(evidenceIndexState);
     const read = await ctx.workspace.get(evidenceReadState);
     const [first = CORE, ...more] = selected.views;

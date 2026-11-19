@@ -85,6 +85,36 @@ const CROSS_REPOSITORY_TITLE: FixtureOptions = {
 
 scenariosOf("workspace.check", [
   {
+    name: "a workspace with requirements and no evidence location gets one warning at the workspace file (#1921)",
+    fixture: { fixture: "SR-001/two-elements" },
+    input: {},
+    tag: "[SR-230/AK-qymg]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      expect(
+        problems.filter((p) => p["code"] === "evidence.no-location").map((p) => [p["severity"], p["file"]]),
+      ).toEqual([["warning", "reqseq-workspace.yaml"]]);
+    },
+  },
+  {
+    name: "the requirements with method test whose verification status is open in the core, counted in one info (#1921)",
+    fixture: { fixture: "SR-126/matrix" },
+    input: {},
+    tag: "[SR-230/AK-k09q]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      expect(
+        problems
+          .filter((p) => p["code"] === "evidence.open-requirements")
+          .map((p) => [p["severity"], p["file"], String(p["message"]).split(" ")[0]]),
+      ).toEqual([["info", "reqseq-workspace.yaml", "2"]]);
+    },
+  },
+  {
     name: "a title on a relation into another repository is a warning with file and line, also from an obsolete source",
     fixture: CROSS_REPOSITORY_TITLE,
     root: "system",

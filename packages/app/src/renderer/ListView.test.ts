@@ -1338,6 +1338,48 @@ describe("ListView, a search", () => {
     expect(described?.getAttribute("title")).toBe("Checks: The dial warns before a hurricane arrives.");
   });
 
+  it("[SR-222/AK-h8py] names the criterion a snippet stands in by number and key, the key marked when only it was found", async () => {
+    const call = fakeCall({
+      "element.search": () => ({
+        hits: [
+          hit(1, {
+            fields: ["properties"],
+            terms: [],
+            snippet: {
+              field: "properties",
+              property: "acceptance-criteria",
+              propertyName: "Acceptance Criteria",
+              criterion: { criterion: 3, key: "rqjp", keyMarked: true },
+              text: "Given a gust, then the dial warns.",
+              marks: [],
+            },
+          }),
+          hit(2, {
+            fields: ["properties"],
+            terms: ["gust"],
+            snippet: {
+              field: "properties",
+              property: "acceptance-criteria",
+              propertyName: "Acceptance Criteria",
+              criterion: { criterion: 1 },
+              text: "Given a gust, then the dial warns.",
+              marks: [{ start: 8, end: 12 }],
+            },
+          }),
+        ],
+        total: 2,
+        incomplete: false,
+      }),
+    });
+    await listHarness(asCall(call), searchBuffer("rqjp"));
+    expect(texts(".row .snippet .where")).toEqual([
+      "Acceptance Criteria AK3 (rqjp):",
+      "Acceptance Criteria AK1:",
+    ]);
+    expect(texts(".row .snippet .where mark")).toEqual(["rqjp"]);
+    expect(texts(".row .snippet > mark")).toEqual(["gust"]);
+  });
+
   it("[SR-174/AK-jtqc] shows no snippet for a hit in the title or an ID only, and marks the title where core says", async () => {
     const call = fakeCall({
       "element.search": () => ({

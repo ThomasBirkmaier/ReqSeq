@@ -57,6 +57,7 @@ import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
+import { useConnectAgent } from "./use-connect-agent.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
 import { AboutLayer } from "./AboutWindow.js";
@@ -83,6 +84,8 @@ import { useCommandPrompt } from "./use-command-prompt.js";
 import { useDropped, useSlides } from "./use-slides.js";
 import { useSwipeObjects, useSwipeSwitch } from "./use-swipe-switch.js";
 import { useMetamodelModel, useWorkspaceStatus } from "./use-workspace-status.js";
+import { useAgentStatus } from "./use-agent-status.js";
+import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
@@ -371,6 +374,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const catalog = useRef<readonly CommandListing[]>([]);
   // "New perspective" and "New saved filter" (SR-219): set below, where the command prompt it goes back to is.
   const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
+  // "Connect AI agent" (SR-227, SR-225 AK7): set below, where the command prompt it goes back to is.
+  const connector = useRef<(from: ActionContext) => void>(() => undefined);
   // The context of the actions (`app-context.ts`); what is declared further down is read when called.
   const context = actionContext({
     view,
@@ -406,6 +411,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     graphChoices,
     catalog,
     builder,
+    connector,
     follow,
     shownView,
     setShownView,
@@ -454,7 +460,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     leaveSwitching,
   });
   // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
-  // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
+  // opened, gets the catalog's commands ("Create workspace", the minibuffer's hint) when they are there (#1413).
   const catalogRead = useRef<Promise<void> | undefined>(undefined);
   // What a view that shows several elements reads again on: any change of the workspace, also from outside.
   const seen = revision + outside.seq;
@@ -473,6 +479,34 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     revisionNow,
     builder,
   });
+  connector.current = useConnectAgent(
+    {
+      catalog: () => catalog.current,
+      catalogRead: () => catalogRead.current,
+      catalogContext: (from) => ({
+        ...from,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands(true));
+        },
+      }),
+      latest: () => latest.current,
+    },
+    context.workspace,
+  );
+  // The connected agent at the right of the modeline, while a workspace is open (SR-228, `use-agent-status.ts`).
+  const agent = useAgentStatus(bridge, view?.name !== undefined && !stopped);
+  // A click on "No agent connected" or "Connect AI agent" (SR-228 AK3) runs the entry of the command prompt, as a
+  // choice in the context menu does; not while another workspace opens.
+  const connectFromModeline = (): void => {
+    if (switchingNow.current) {
+      return;
+    }
+    beforeCommand();
+    commands(false)
+      .items.find((item) => item.id === CONNECT_AGENT_ACTION)
+      ?.run();
+  };
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({
     mac: context.mac,
@@ -835,6 +869,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         head={headOf(shownElement(current, loaded), typeNames)}
         onCopy={copy}
         notice={notice}
+        agent={agent}
+        onConnectAgent={connectFromModeline}
       />
       <Minibuffer
         echo={echoLine(echo, view)}

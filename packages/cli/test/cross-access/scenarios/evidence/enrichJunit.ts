@@ -82,17 +82,31 @@ const NEED_JUNIT: FixtureOptions = {
   },
 };
 
-/** The output of evidence.enrichJunit through core. */
-const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined =>
-  (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
+const OUTSIDE = "evidence.outside-location";
+
+/** The problems of evidence.enrichJunit through core. */
+const enrichProblems = (results: Readonly<Record<string, Result>>): { code: string; message: string }[] =>
+  (results["core"]?.outcome as { output?: { problems?: { code: string; message: string }[] } }).output
+    ?.problems ?? [];
+
+/**
+ * The output of evidence.enrichJunit through core, without `evidence.outside-location`: most scenarios
+ * enrich a file of `results/`, which lies in no evidence location (SR-230 AK3, its own scenarios).
+ */
+const enrichOutput = (results: Readonly<Record<string, Result>>): Record<string, unknown> | undefined => {
+  const output = (results["core"]?.outcome as { output?: Record<string, unknown> }).output;
+  return output === undefined
+    ? undefined
+    : { ...output, problems: enrichProblems(results).filter((p) => p.code !== OUTSIDE) };
+};
 
 const VARIANT_C1 = "43043043-0000-4000-8000-0000000000c1";
 const VARIANT_C2 = "43043043-0000-4000-8000-0000000000c2";
 /** The problem messages of evidence.enrichJunit through core (SR-029 AK8, AK9). */
 const enrichMessages = (results: Readonly<Record<string, Result>>): string[] =>
-  (
-    (results["core"]?.outcome as { output?: { problems?: { message: string }[] } }).output?.problems ?? []
-  ).map((p) => p.message);
+  enrichProblems(results)
+    .filter((p) => p.code !== OUTSIDE)
+    .map((p) => p.message);
 
 /**
  * The example of SR-043 with a JUnit file of variant runs (SR-029 AK6 to AK9): SR-0000a3 (core) and
@@ -186,7 +200,32 @@ scenariosOf("evidence.enrichJunit", [
       date: "2026-10-27T10:00:00Z",
       output: "evidence/ci/raw.xml",
     },
+    tag: "[SR-230/AK-z4yt]",
     expect: "output",
+    check: (results) => {
+      // In an evidence location: no warning.
+      expect(enrichProblems(results).map((p) => p.code)).not.toContain(OUTSIDE);
+    },
+  },
+  {
+    name: "a JUnit file enriched outside every evidence location is written, with a warning",
+    fixture: RAW_JUNIT,
+    input: { file: "results/raw.xml", item: "build-513", date: "2026-10-27T10:00:00Z" },
+    tag: "[SR-230/AK-z4yt]",
+    expect: "output",
+    check: (results) => {
+      expect(enrichOutput(results)).toMatchObject({ testCases: 1, files: ["results/raw.xml"] });
+      expect(enrichProblems(results).filter((p) => p.code === OUTSIDE)).toEqual([
+        {
+          code: OUTSIDE,
+          severity: "warning",
+          file: "results/raw.xml",
+          message:
+            "results/raw.xml lies in no evidence location, so its results do not count until it lies in one: move it into a folder under evidence of the workspace file, or enrich with an output there",
+        },
+      ]);
+      expect(results["core"]?.files["results/raw.xml"]).toContain('name="reqseq:item" value="build-513"');
+    },
   },
   {
     name: "an enriched file is kept as it is (D-026)",

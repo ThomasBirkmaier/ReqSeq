@@ -24,10 +24,17 @@
 //   index of all records, built once per state of the records (N-036).
 // - Both read the files on disk: a repository whose HEAD is not the baseline's commit is a
 //   `baseline.repository-commit-differs` warning first (`commitDifferences`, #668).
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { Baseline, ShowRequest } from "../../baselines/index.js";
-import { commitDifferences, copyOf, countsFor, namedBaseline, showBaseline } from "../../baselines/index.js";
+import {
+  baselineElements,
+  commitDifferences,
+  copyOf,
+  countsFor,
+  namedBaseline,
+  showBaseline,
+} from "../../baselines/index.js";
 import type {
   BaselineStoredRef,
   BaselineStoredSelection,
@@ -40,12 +47,13 @@ import type { Metamodel } from "../../metamodel/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { ElementRecord } from "../../model/index.js";
 import { elementStoreState, isUuid, resolveRef, shortIdState } from "../../model/index.js";
-import type { Selected } from "../../query/index.js";
+import type { Selected, SelectionContext } from "../../query/index.js";
 import { resolveSelection } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, listed, problemsNote, sentence } from "../answer.js";
 
 const command = "baseline.get";
 
@@ -54,7 +62,7 @@ const refOf = (stored: BaselineStoredRef): string => (typeof stored === "string"
 
 /** What the stored selection of `baseline` selects now (see the file comment). */
 const selectedNow = async (
-  workspace: Workspace,
+  ctx: SelectionContext,
   baseline: Baseline,
   stored: BaselineStoredSelection,
 ): Promise<Pick<Selected, "elements" | "views" | "incomplete" | "store">> => {
@@ -64,7 +72,7 @@ const selectedNow = async (
     ...(inPackage === undefined ? {} : { package: refOf(inPackage) }),
     ...(view === undefined ? {} : { view: refOf(view) }),
   };
-  const selected = await resolveSelection(workspace, selection, command);
+  const selected = await resolveSelection(ctx, selection, command);
   if (ids === undefined) {
     return selected;
   }
@@ -155,31 +163,74 @@ const evidenceOf = async (
   return { evidence: baselineEvidence(status, rows, countsFor(baseline.data.date)) };
 };
 
+/** The baseline of `input` and what its stored selection selects now, with a warning when it cannot be resolved (see the file comment). */
+const baselineOf = async (
+  ctx: CommandContext,
+  input: CommandInput<typeof command>,
+): Promise<{
+  readonly baseline: Baseline;
+  readonly problems: Problem[];
+  readonly selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
+}> => {
+  const { workspace } = ctx;
+  const baseline = await namedBaseline(workspace, input.baseline, command);
+  const problems: Problem[] = [];
+  let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
+  if (baseline.data.selection !== undefined) {
+    try {
+      selected = await selectedNow(ctx, baseline, baseline.data.selection);
+    } catch (error) {
+      if (!(error instanceof CommandError)) {
+        throw error;
+      }
+      problems.push({
+        code: "baseline.invalid",
+        severity: "warning",
+        repository: baseline.repository,
+        file: baseline.file,
+        message: `The stored selection of ${baseline.file} cannot be resolved now (${error.message}); nothing is marked added or removed`,
+      });
+    }
+  }
+  return { baseline, problems, selected };
+};
+
+/** Whether the output is incomplete (SR-006 AK2): a repository is not here, or the stored selection says so. */
+const incompleteOf = async (
+  workspace: Workspace,
+  selected: Pick<Selected, "incomplete"> | undefined,
+): Promise<boolean> =>
+  (await workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available) ||
+  selected?.incomplete === true;
+
 export default defineCommand({
   name: command,
-  run: async ({ workspace }, input): Promise<CommandOutput<typeof command>> => {
-    const baseline = await namedBaseline(workspace, input.baseline, command);
-    const layout = await workspace.get(workspaceLayoutState);
+  answer: (output) => {
+    const { counts } = output;
+    const states = [
+      [counts.changed, "changed"],
+      [counts.superseded, "superseded"],
+      [counts.removed, "removed"],
+      [counts.added, "added"],
+      [counts.missing, "missing"],
+      [counts.inaccessible, "inaccessible"],
+    ] as const;
+    const differ = states.filter(([count]) => count > 0).map(([count, state]) => `${String(count)} ${state}`);
+    return sentence(
+      `Baseline ${output.name} has ${counted(output.total, "element")}, ${differ.length === 0 ? "all unchanged since it was created" : `${listed(differ)} since it was created`}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    );
+  },
+  run: async (ctx, input): Promise<CommandOutput<typeof command>> => {
+    const { workspace } = ctx;
+    const { baseline, problems: unresolved, selected } = await baselineOf(ctx, input);
+    // The files on disk are read, not the baseline's commits (#668): these warnings come first.
+    const problems: Problem[] = [
+      ...(await commitDifferences(await workspace.get(workspaceLayoutState), baseline)),
+      ...unresolved,
+    ];
     const metamodel = await workspace.get(metamodelState);
-    // The files on disk are read, not the baseline's commits (#668).
-    const problems: Problem[] = await commitDifferences(layout, baseline);
-    let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
-    if (baseline.data.selection !== undefined) {
-      try {
-        selected = await selectedNow(workspace, baseline, baseline.data.selection);
-      } catch (error) {
-        if (!(error instanceof CommandError)) {
-          throw error;
-        }
-        problems.push({
-          code: "baseline.invalid",
-          severity: "warning",
-          repository: baseline.repository,
-          file: baseline.file,
-          message: `The stored selection of ${baseline.file} cannot be resolved now (${error.message}); nothing is marked added or removed`,
-        });
-      }
-    }
     const [view] = selected?.views ?? [];
     return showBaseline(workspace, {
       baseline,
@@ -187,7 +238,7 @@ export default defineCommand({
       store: selected?.store ?? (await workspace.get(elementStoreState)),
       selected: selected?.elements,
       view: view?.kind === "variant" ? view.variant.id : undefined,
-      incomplete: layout.repositories.some((r) => !r.available) || selected?.incomplete === true,
+      incomplete: await incompleteOf(workspace, selected),
       problems,
       limit: input.limit,
       offset: input.offset,
@@ -195,5 +246,15 @@ export default defineCommand({
         ? await evidenceOf(workspace, metamodel, baseline, selected?.views, problems)
         : {}),
     });
+  },
+  outputElements: async (ctx, input) => {
+    const { baseline, selected } = await baselineOf(ctx, input);
+    const { elements, absent } = baselineElements({
+      baseline,
+      store: selected?.store ?? (await ctx.workspace.get(elementStoreState)),
+      selected: selected?.elements,
+    });
+    // An entry without an element in the workspace is no row of a list: the list says it is incomplete (#1932).
+    return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
   },
 });

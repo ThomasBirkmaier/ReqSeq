@@ -169,7 +169,7 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
-  it("without a workspace the command prompt opens and offers Open workspace and Open documentation only", async () => {
+  it("without a workspace the command prompt opens and offers Open workspace, Open documentation and Connect AI agent only", async () => {
     const { bridge, recentWorkspaces, openWorkspace } = fakeBridge({
       "workspace.status": () => NO_WORKSPACE,
     });
@@ -191,14 +191,23 @@ describe("App", () => {
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
     // At most ten commands: all of them, by name, without "All commands…" (SR-133 AK1).
-    expect(texts('[role="option"] .name')).toEqual(["Open documentation", "Open workspace"]);
+    expect(texts('[role="option"] .name')).toEqual([
+      "Connect AI agent",
+      "Open documentation",
+      "Open workspace",
+    ]);
     await keyDown(query("input"), "Escape");
     // A click whose press did not begin on the idle line (a hit taken by its press) asks nothing.
     await click(query(".echo"));
     expect(document.querySelector("input")).toBeNull();
     // A click on the idle line asks for a command too.
     await clickLine();
-    expect(texts('[role="option"] .name')).toEqual(["Open documentation", "Open workspace"]);
+    expect(texts('[role="option"] .name')).toEqual([
+      "Connect AI agent",
+      "Open documentation",
+      "Open workspace",
+    ]);
+    await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
     expect(query("label").textContent).toBe("Workspace");

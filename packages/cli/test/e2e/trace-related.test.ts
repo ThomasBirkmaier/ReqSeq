@@ -56,7 +56,9 @@ describe("reqseq trace related (SR-023)", () => {
     const human = await run(["trace", "related", "parents", "--refs", "SR-0000b1"], { cwd: ws.root });
     expect(human.code).toBe(0);
     // One line per element (ThomasBirkmaier/ReqSeq-archive#310).
-    expect(human.stdout).toBe("elements:\n  N-0000a1  approved  See the wind\ntotal: 1\n");
+    expect(human.stdout).toBe(
+      "Found 1 parent of SR-0000b1.\nelements:\n  N-0000a1  approved  See the wind\ntotal: 1\n",
+    );
   });
 
   it("ends with exit code 2 and the error for an unknown reference", async () => {

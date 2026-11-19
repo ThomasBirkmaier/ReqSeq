@@ -16,6 +16,7 @@ import type { Workspace } from "../../runtime/workspace.js";
 import type { ElementGraph, TraceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
 import { variantIndependentOf } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 const CORE: View = { kind: "core" };
 
@@ -79,6 +80,13 @@ const evidenceOf = async (
 
 export default defineCommand({
   name: "trace.graph",
+  answer: (output, input) =>
+    sentence(
+      `The graph of ${input.ref} has ${counted(output.nodes.length, "element")} and ${counted(output.edges.length, "relation")}`,
+      output.truncated ? "cut by limit" : "",
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.graph">> => {
     const { withEvidence, ...asked } = input;
     const { output, base, graph, view, maxDepth } = await elementGraphOf(ctx.workspace, asked, "trace.graph");

@@ -26,8 +26,10 @@ import {
   measure,
   noParentHints,
   thresholdMessage,
+  withEvidenceRecords,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -129,12 +131,14 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     );
     expect(run.stderr).toBe("");
     expect(run.code).toBe(0);
-    // The generated requirements that got no derivation are hints (SR-022 AK6); nothing else is reported.
+    // The generated requirements that got no derivation are hints (SR-022 AK6), and the workspace file
+    // names no evidence location (SR-230 AK1); nothing else is reported.
     const clean = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(clean.problems)).toEqual([]);
     expect(noParentHints(clean.problems)).toHaveLength(orphans);
-    expect({ ...clean, problems: withoutNoParent(clean.problems) }).toEqual({
+    expect(clean.problems.filter((p) => p.code === "evidence.no-location")).toHaveLength(1);
+    expect({ ...clean, problems: withoutVerificationGaps(withoutNoParent(clean.problems)) }).toEqual({
       ok: true,
       problems: [],
       checkedElements: ELEMENTS,
@@ -165,7 +169,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       // Besides the generated requirements that got no derivation (SR-022 AK6).
       expect(malformedNoParentHints(out.problems)).toEqual([]);
       expect(noParentHints(out.problems)).toHaveLength(withoutParent(tree.files));
-      const outdatedProblems = withoutNoParent(out.problems);
+      const outdatedProblems = withoutVerificationGaps(withoutNoParent(out.problems));
       expect(outdatedProblems).toHaveLength(storedVersions(tree.files));
       expect(outdatedProblems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual(
         [],
@@ -173,6 +177,40 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
     } finally {
       await outdated.cleanup();
+      await fs.rm(own, { recursive: true, force: true });
+    }
+  }, 900_000);
+
+  // SR-230 AK2 on the same workspace with the evidence records of a project of its size (E4,
+  // `withEvidenceRecords`: JUnit runs and Markdown records): the full check computes the verification
+  // status of every requirement for its one info, so this is the check's worst case for that finding.
+  it("[SR-020/AK-srb3] checks the workspace with its evidence records in at most 60 s (SR-230 AK2)", async () => {
+    const version = versionOf(await standardModel());
+    const evidence = withEvidenceRecords(
+      generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS }),
+    );
+    const recorded = await writeLargeWorkspace(evidence.workspace);
+    const own = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-230-cache-"));
+    try {
+      const env = { XDG_CACHE_HOME: own, LOCALAPPDATA: own };
+      const { result: run, measurement } = await measure(
+        "reqseq workspace check --json, with evidence records (new CLI process, no cache)",
+        () => reqseq(["workspace", "check", "--json"], { cwd: recorded.workspaceRoot, env }),
+        {
+          basis: "SR-020 AK1 with the info of SR-230 AK2 (command line, from process start to exit)",
+          thresholdMs: THRESHOLD_MS,
+        },
+      );
+      expect(run.stderr).toBe("");
+      expect(run.code).toBe(0);
+      const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+      expect(out.checkedElements).toBe(ELEMENTS);
+      const open = out.problems.filter((p) => p.code === "evidence.open-requirements");
+      expect(open).toHaveLength(1);
+      expect(Number(open[0]?.message.split(" ")[0])).toBeGreaterThan(0);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
+    } finally {
+      await recorded.cleanup();
       await fs.rm(own, { recursive: true, force: true });
     }
   }, 900_000);

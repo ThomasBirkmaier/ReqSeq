@@ -77,6 +77,23 @@ describe("command registry", () => {
     }
   });
 
+  it('gives outputElements for every command whose output marks a field x-elements "answer" (selection.output, #1873)', async () => {
+    const marked = contracts.commands
+      .filter((entry) => entry.outputFields?.some((field) => field.elements === "answer") === true)
+      .map((entry) => entry.name);
+    expect(marked.length).toBeGreaterThan(5);
+    const without: string[] = [];
+    for (const name of marked) {
+      const command = commands.find((c) => c.name === name);
+      const module =
+        command !== undefined && isLazy(command) ? ((await command.load()) as AnyCommand) : command;
+      if (module?.outputElements === undefined) {
+        without.push(name);
+      }
+    }
+    expect(without).toEqual([]);
+  });
+
   it("only lists stages that exist in the catalog", () => {
     const stages = new Set(contracts.commands.map((c) => c.stage));
     expect(COMPLETED_STAGES.filter((s) => !stages.has(s))).toEqual([]);

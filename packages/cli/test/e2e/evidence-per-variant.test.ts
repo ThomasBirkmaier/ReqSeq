@@ -145,7 +145,8 @@ describe("reqseq element create and update name the views by short ID (#1216)", 
     const line = async (args: string[]): Promise<string | undefined> => {
       const run = await reqseq(args, { cwd: ws.root });
       expect([run.code, run.stderr]).toEqual([0, ""]);
-      return run.stdout.split("\n")[0];
+      // The line of the element, after the answer (SR-224 AK2).
+      return run.stdout.split("\n")[1];
     };
     const shown = await reqseq(["element", "get", "SR-0000a3", "--json"], { cwd: ws.root });
     const { fileSha256 } = JSON.parse(shown.stdout) as { fileSha256: string };

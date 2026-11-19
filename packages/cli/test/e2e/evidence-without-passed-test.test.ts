@@ -50,6 +50,7 @@ describe("reqseq evidence without-passed-test (SR-120)", () => {
       0,
       "",
       [
+        "5 requirements have no passed test in view core.",
         "elements:",
         "  SR-126b02  draft  Log wind speed  [verification: core failed]",
         "  SR-126b04  draft  Show gusts  [verification: core open]",

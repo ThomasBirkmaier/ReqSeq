@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";
@@ -102,8 +102,11 @@ const members = (problems: readonly Problem[]): (readonly [string | undefined, s
 const check = async (
   workspace: Workspace,
   input: Readonly<Record<string, unknown>> = {},
-): Promise<CommandOutput<"workspace.check">> =>
-  (await invoke("workspace.check", input, { workspace })) as CommandOutput<"workspace.check">;
+): Promise<CommandOutput<"workspace.check">> => {
+  // Without the gaps of verification (SR-230 AK1, AK2).
+  const out = (await invoke("workspace.check", input, { workspace })) as CommandOutput<"workspace.check">;
+  return { ...out, problems: withoutVerificationGaps(out.problems) };
+};
 
 describe("cycles in the derivations (SR-090)", () => {
   it("[SR-090/AK-pm0f] reports the cycle of A, B and C with every element of it, and no element outside it", async () => {

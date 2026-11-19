@@ -209,7 +209,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
       },
     ]) {
       const output = await matrix(await open(options), {});
-      expect(Object.keys(output)).toEqual(["columns", "rows", "total", "incomplete"]);
+      expect(Object.keys(output)).toEqual(["answer", "columns", "rows", "total", "incomplete"]);
       expect(output.rows.filter((r) => "testCases" in r || "verification" in r)).toEqual([]);
     }
   });
@@ -426,7 +426,7 @@ describe("trace.matrix verification degree (SR-126 AK4)", () => {
       const output = await matrix(workspace, { selection: SR, ...page });
       expect(output.evidence).toEqual({ view: "core", degree: ALL_SR_DEGREE });
       // Above the rows, as the readable output prints the keys in order.
-      expect(Object.keys(output).slice(0, 3)).toEqual(["columns", "evidence", "rows"]);
+      expect(Object.keys(output).slice(0, 4)).toEqual(["answer", "columns", "evidence", "rows"]);
     }
   });
 

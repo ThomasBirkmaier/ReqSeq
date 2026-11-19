@@ -7,9 +7,11 @@ import {
   SEARCH_MAX,
   SEARCH_PAGE,
   firstLimit,
+  labelMarks,
   listRows,
   rowName,
   searchRows,
+  snippetOf,
 } from "./rows.js";
 
 const element = (n: number, extra: object = {}) => ({
@@ -28,6 +30,7 @@ const element = (n: number, extra: object = {}) => ({
 describe("listRows", () => {
   it("[SR-084/AK-c2s2] shows the short ID with the identifier in brackets, else the short ID, with title and status as given", () => {
     const output: ElementListOutput = {
+      answer: "Listed 2 elements.",
       elements: [element(1, { identifier: "SR-036" }), element(2, { status: undefined })] as never,
       total: 2,
     };
@@ -130,5 +133,51 @@ describe("firstLimit", () => {
   it("asks for one page while no row is selected (SR-122)", () => {
     expect(firstLimit(NO_ROW, LIST_PAGE, LIST_MAX)).toBe(200);
     expect(firstLimit(NO_ROW, SEARCH_PAGE, SEARCH_MAX)).toBe(50);
+  });
+});
+
+describe("snippetOf, a snippet in an acceptance criterion (SR-222)", () => {
+  const snippet = (criterion: { criterion: number; key?: string; keyMarked?: true }) => ({
+    field: "properties" as const,
+    property: "acceptance-criteria",
+    propertyName: "Acceptance Criteria",
+    criterion,
+    text: "Given a gust.",
+    marks: [],
+  });
+
+  it("[SR-222/AK-h8py] names the number and key, marks the key only when only it was found, and the number alone without a key", () => {
+    expect(snippetOf(snippet({ criterion: 3, key: "rqjp", keyMarked: true }))).toEqual({
+      where: "Acceptance Criteria AK3 (rqjp)",
+      whereMarks: [[25, 29]],
+      text: "Given a gust.",
+      marks: [],
+    });
+    expect(snippetOf(snippet({ criterion: 3, key: "rqjp" }))).toEqual({
+      where: "Acceptance Criteria AK3 (rqjp)",
+      text: "Given a gust.",
+      marks: [],
+    });
+    expect(snippetOf(snippet({ criterion: 2 }))).toEqual({
+      where: "Acceptance Criteria AK2",
+      text: "Given a gust.",
+      marks: [],
+    });
+  });
+});
+
+describe("labelMarks", () => {
+  const row = { shortId: "SR-000001", identifier: "SR-036", markLabel: true };
+
+  it("[SR-222/AK-ttpn] marks the identifier or short ID a criterion reference names, whole", () => {
+    // `SR-000001 (SR-036)`: the identifier starts after the bracket.
+    expect(labelMarks(row, "[SR-036/AK-k7f3]")).toEqual([[11, 17]]);
+    expect(labelMarks(row, '"sr-036/ak-k7f3" wind')).toEqual([[11, 17]]);
+    expect(labelMarks(row, "[SR-000001/AK-k7f3]")).toEqual([[0, 9]]);
+    // A reference names an ID whole: one that begins the identifier names another element.
+    expect(labelMarks(row, "[SR-03/AK-k7f3]")).toEqual([[0, 9]]);
+    // Without a key it is no criterion reference: the word stands for itself.
+    expect(labelMarks(row, "SR-03")).toEqual([[11, 17]]);
+    expect(labelMarks({ ...row, markLabel: false }, "[SR-036/AK-k7f3]")).toEqual([]);
   });
 });

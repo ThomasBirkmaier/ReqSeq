@@ -574,6 +574,14 @@ const planOf = (context: SortContext, keys: readonly FilterSortKeyWithDefaults[]
   return { hierarchy: keys.some((key) => key.by === "hierarchy"), cellsOf };
 };
 
+/**
+ * Checks `keys` for `context.command` as `sortElements` does, without sorting: the same errors, under
+ * `sort` (for `selection.output`, which gives the elements of every page and needs no order).
+ */
+export const checkSortKeys = (context: SortContext, keys: readonly FilterSortKeyWithDefaults[]): void => {
+  planOf(context, keys);
+};
+
 const treeElements = (tree: readonly TreePlace[]): SortedElements => ({
   elements: tree.map((place) => place.element),
   tree,

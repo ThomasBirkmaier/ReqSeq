@@ -56,6 +56,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "elements": {
         "title": "Related elements",
         "type": "array",
@@ -75,6 +76,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["elements", "total"]
+    "required": ["answer", "elements", "total"]
   }
 }

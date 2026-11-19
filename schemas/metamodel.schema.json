@@ -79,22 +79,27 @@
         "name": true,
         "description": true,
         "prefix": {
+          "title": "Prefix",
           "$ref": "#/$defs/prefix",
           "description": "Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (ThomasBirkmaier/ReqSeq-archive#154)."
         },
         "extends": {
+          "title": "Extends",
           "$ref": "#/$defs/key",
           "description": "Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error."
         },
         "abstract": {
+          "title": "Abstract",
           "type": "boolean",
           "default": false,
           "description": "No elements of this type can be created; only for inheritance."
         },
         "meaning": {
+          "title": "Meaning",
           "$ref": "#/$defs/typeMeaning"
         },
         "properties": {
+          "title": "Properties",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -102,6 +107,7 @@
           "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c)."
         },
         "required": {
+          "title": "Required properties",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
@@ -109,6 +115,7 @@
           "description": "Mandatory property keys, in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (ThomasBirkmaier/ReqSeq-archive#141 c). Empty values are allowed but give a hint (SR-064)."
         },
         "statuses": {
+          "title": "Statuses",
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"

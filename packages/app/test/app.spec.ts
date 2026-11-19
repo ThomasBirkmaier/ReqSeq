@@ -264,10 +264,11 @@ test.describe("without a workspace", () => {
       ok: false,
       error: { code: "workspace.not-found", message: NO_WORKSPACE_MESSAGE },
     });
-    // The key it names opens the command prompt with "Open workspace" (and "Open documentation", SR-141), by
-    // name and without "All commands…" (SR-133 AK1).
+    // The key it names opens the command prompt with "Open workspace" (and "Open documentation", SR-141, and
+    // "Connect AI agent", SR-225 AK7), by name and without "All commands…" (SR-133 AK1).
     await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
     await expect(running.window.locator('[role="option"] .name')).toHaveText([
+      "Connect AI agent",
       "Open documentation",
       "Open workspace",
     ]);
@@ -286,11 +287,11 @@ test.describe("without a workspace", () => {
       await expect(running.window.getByLabel("Minibuffer")).toHaveText(
         `No reqseq-workspace.yaml in the workspace folder. To create one here, press ${
           process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P"
-        } for Initialise workspace.`,
+        } for Create workspace.`,
       );
       await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
       await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
-      await expect(running.window.locator('[role="option"] .name')).toContainText(["Initialise workspace"]);
+      await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }

@@ -1,6 +1,7 @@
 // Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the length of
-// summaries (#1252), the argument sources of the command prompt (SR-108) and the JSON Lines form
-// (`jsonLines`, #319). Returns the error lines; `validate-schemas.mjs` prints them.
+// summaries (#1252), the argument sources of the command prompt (SR-108), the JSON Lines form
+// (`jsonLines`, #319) and the answer of every output (SR-224 AK1). Returns the error lines;
+// `validate-schemas.mjs` prints them.
 
 /** Sources that give elements: what `of` of an element source names. */
 const ELEMENTS = ["element", "relationTarget"];
@@ -63,6 +64,16 @@ function checkSummary(cmd) {
 /** Groups whose `deletes` entries delete a file that is no element (D-056, SR-217 AK5). */
 const DELETING_GROUPS = new Set(["perspective", "filter"]);
 
+/**
+ * Whether `cmd` removes a definition from the metamodel files (ADR-0002 rule 5): `metamodel.remove<Name>`,
+ * a `write-files` command of the frame SR-236, whose refusal while any element uses the definition
+ * (SR-236 AK7) keeps every element and its file (D-045). It may say remove, never delete.
+ */
+export const removesDefinition = (cmd) =>
+  /^metamodel\.remove[A-Z][A-Za-z]*$/.test(cmd.name) &&
+  cmd.effect === "write-files" &&
+  (cmd.implements ?? []).includes("SR-236");
+
 /** Titles: unique, and D-045: no access offers deleting an element; a `deletes` entry may say delete. */
 function checkTitle(cmd, titles) {
   const errors = [];
@@ -70,7 +81,13 @@ function checkTitle(cmd, titles) {
     errors.push(`title "${cmd.title}" is also the title of ${titles.get(cmd.title)}`);
   }
   titles.set(cmd.title, cmd.name);
-  if (/delete|remove/i.test(cmd.title) && !cmd.name.startsWith("relation.") && cmd.deletes === undefined) {
+  const definition = removesDefinition(cmd) && /^Remove [a-z ]+$/.test(cmd.title);
+  if (
+    /delete|remove/i.test(cmd.title) &&
+    !cmd.name.startsWith("relation.") &&
+    cmd.deletes === undefined &&
+    !definition
+  ) {
     errors.push(`title "${cmd.title}": elements are superseded, never deleted (D-045)`);
   }
   return errors;
@@ -448,6 +465,25 @@ function checkTextOutput(cmd, schemas) {
     : [`textOutput: "${field}" is not a required top-level string of the output`];
 }
 
+/** The definition every output names under `answer` (SR-224 AK1). */
+const ANSWER = "common.schema.json#/$defs/answer";
+
+/**
+ * `answer` (SR-224 AK1): every output requires a top-level `answer` that is a plain `$ref` to the answer
+ * definition, beside a `$ref` of the output too (`data.export`), so no command is without its sentence.
+ */
+function checkAnswer(cmd, schemas) {
+  if (cmd.output === undefined) {
+    // The meta-schema refuses an entry without `output`; these checks run on the entries it accepts.
+    return [];
+  }
+  const property = propertiesOf(cmd.output, "commands/", schemas).get("answer");
+  const named = typeof property?.$ref === "string" && property.$ref.replace(/^(\.\.\/)+/, "") === ANSWER;
+  return named && (cmd.output.required ?? []).includes("answer")
+    ? []
+    : [`output: no required top-level "answer" that is a $ref to ${ANSWER} (SR-224 AK1)`];
+}
+
 /**
  * @param {{ commands: any[] }} catalog
  * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines` and `choice`
@@ -462,6 +498,7 @@ export function checkCatalog(catalog, schemas = {}) {
       ...checkArguments(cmd, schemas),
       ...checkJsonLines(cmd, schemas),
       ...checkTextOutput(cmd, schemas),
+      ...checkAnswer(cmd, schemas),
     ].map((e) => `schemas/commands/${cmd.name}.json: ${e}`),
   );
 }

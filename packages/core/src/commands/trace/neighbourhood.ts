@@ -17,9 +17,15 @@ import {
   traceNeighbourhood,
 } from "../../trace/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
+import { counted, incompleteNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.neighbourhood",
+  answer: (output, input) =>
+    sentence(
+      `The neighbourhood of ${input.ref} has ${counted(output.total, "element")}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.neighbourhood">> => {
     const base = await traceContext(ctx.workspace);
     const { metamodel, store } = base;

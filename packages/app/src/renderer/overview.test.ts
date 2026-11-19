@@ -82,7 +82,12 @@ describe("the perspectives of the overview", () => {
   });
 
   it("[SR-118/AK-h5f7] counts the elements of the selection, each once, as element.list gives its total", () => {
-    expect(perspectiveCount({ ok: true, output: { total: 12, partial: [], rows: 14 } })).toEqual({
+    expect(
+      perspectiveCount({
+        ok: true,
+        output: { answer: "Listed 0 of 12 elements.", total: 12, partial: [], rows: 14 },
+      }),
+    ).toEqual({
       count: 12,
     });
     expect(perspectiveLine({ name: "Drafts", counted: { count: 12 } })).toBe("Drafts 12");
