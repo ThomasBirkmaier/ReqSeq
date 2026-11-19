@@ -1,11 +1,13 @@
 // The key and the prefix of a new definition made from its name (SR-236 AK6, D-043), without a file or a
 // workspace, so the command prompt of the app shows them as it asks (`@reqseq/core/suggested-key`).
 //
-// The key: letters in lower case, digits as they are, ä, ö, ü and ß as ae, oe, ue and ss, every run of
-// other characters one hyphen, none at the start or end. A letter is one of a–z (#1958: other letters such
-// as é count as other characters, since a key holds only a–z, 0–9 and hyphens). The name is taken in
-// Unicode normal form NFC first, so an umlaut written as a base letter and a combining mark counts as the
-// umlaut. The prefix: the first character of each word of the name in upper case.
+// The key: letters in lower case, digits as they are, ä, ö, ü and ß as ae, oe, ue and ss, other letters
+// with a diacritic as the letter without it (é as e, ç as c), every run of other characters one hyphen,
+// none at the start or end. The name is taken in Unicode normal form NFC first, so an umlaut written as a
+// base letter and a combining mark counts as the umlaut; after the umlauts, the name is decomposed (NFD)
+// and its combining marks dropped. A letter that has no such decomposition (ø, ł, đ) counts as another
+// character, since a key holds only a–z, 0–9 and hyphens. The prefix: the first character of each word of
+// the name in upper case.
 
 /** A key as the schema takes it: only such a key names its definition in a message (#840 review). */
 const NAMING_KEY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -26,8 +28,9 @@ export const keyFromName = (name: string): { readonly key: string; readonly usab
     .replace(/[Öö]/g, "oe")
     .replace(/[Üü]/g, "ue")
     .replace(/[ßẞ]/g, "ss")
-    // Only A–Z and a–z are letters here: a letter outside them that lower-cases to one (İ) is
-    // another character too (#1958).
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    // A letter still outside A–Z and a–z (ø, ł, đ have no decomposition) is another character.
     .replace(/[^A-Za-z0-9]+/g, "-")
     .toLowerCase()
     .replace(/^-+|-+$/g, "");

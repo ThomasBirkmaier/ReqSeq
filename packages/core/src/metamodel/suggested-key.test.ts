@@ -15,6 +15,10 @@ describe("the key and the prefix the app suggests for a new definition", () => {
 
   it("[SR-236/AK-n13v] makes the key from the name as the commands make it", () => {
     expect(keyFromName("Größe der Ä-Klasse")).toEqual({ key: "groesse-der-ae-klasse", usable: true });
+    // Other letters with a diacritic lose it; ø has no decomposition and stays another character.
+    expect(keyFromName("Café Order")).toEqual({ key: "cafe-order", usable: true });
+    expect(keyFromName("Façade ÉTAT").key).toBe("facade-etat");
+    expect(keyFromName("Søren").key).toBe("s-ren");
     expect(keyFromName("2 Wege").usable).toBe(false);
     expect(isKeyForm("a".repeat(65))).toBe(false);
   });
