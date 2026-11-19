@@ -111,8 +111,8 @@ describe("appendListItem", () => {
   });
 
   it("adds a flow item to a flow list, also an empty, a multi-line one and one with a trailing comma", () => {
-    expect(append("types: []  # none yet\n", TYPE)).toBe(
-      "types: [{key: risk, name: Risk, prefix: RI, required: [title]}]  # none yet\n",
+    expect(append("types: []\n", TYPE)).toBe(
+      "types: [{key: risk, name: Risk, prefix: RI, required: [title]}]\n",
     );
     expect(append("types: [ {key: a}, ]\n", { key: "b" })).toBe("types: [ {key: a}, {key: b}, ]\n");
     expect(append("types: [\n  {key: a},\n  {key: c}\n]\n", { key: "b" })).toBe(
@@ -267,18 +267,14 @@ describe("setMapValue", () => {
   });
 
   it("changes only the entry of a flow mapping", () => {
-    const text = "values:\n  - { key: a, name: A }   # first\n  - {}\n";
-    expect(set(text, ["values", 0], "name", "B C")).toBe(
-      "values:\n  - { key: a, name: B C }   # first\n  - {}\n",
-    );
+    const text = "values:\n  - { key: a, name: A }\n  - {}\n";
+    expect(set(text, ["values", 0], "name", "B C")).toBe("values:\n  - { key: a, name: B C }\n  - {}\n");
     expect(set(text, ["values", 0], "description", "d")).toBe(
-      "values:\n  - { key: a, name: A, description: d }   # first\n  - {}\n",
+      "values:\n  - { key: a, name: A, description: d }\n  - {}\n",
     );
-    expect(set(text, ["values", 1], "key", "b")).toBe(
-      "values:\n  - { key: a, name: A }   # first\n  - { key: b }\n",
-    );
-    expect(set(text, ["values", 0], "key", undefined)).toBe("values:\n  - { name: A }   # first\n  - {}\n");
-    expect(set(text, ["values", 0], "name", undefined)).toBe("values:\n  - { key: a }   # first\n  - {}\n");
+    expect(set(text, ["values", 1], "key", "b")).toBe("values:\n  - { key: a, name: A }\n  - { key: b }\n");
+    expect(set(text, ["values", 0], "key", undefined)).toBe("values:\n  - { name: A }\n  - {}\n");
+    expect(set(text, ["values", 0], "name", undefined)).toBe("values:\n  - { key: a }\n  - {}\n");
     expect(set("values:\n  - { key: a }\n", ["values", 0], "key", undefined)).toBe("values:\n  - {  }\n");
     expect(set(text, ["values", 0], "other", undefined)).toBe(text);
     // A key without a value in a flow mapping.
@@ -370,8 +366,8 @@ describe("removeListItem", () => {
   });
 
   it("leaves an empty flow list when the last item goes", () => {
-    expect(remove("types: # all\n  # the one\n  - key: a\nstatuses: []\n", ["types"], 0)).toBe(
-      "types: [] # all\nstatuses: []\n",
+    expect(remove("types:\n  # the one\n  - key: a\nstatuses: []\n", ["types"], 0)).toBe(
+      "types: []\nstatuses: []\n",
     );
     expect(remove("t:\n  types:\n    - key: a\n", ["t", "types"], 0)).toBe("t:\n  types: []\n");
   });
@@ -388,6 +384,68 @@ describe("removeListItem", () => {
     expect(errorOf(() => remove(anchored, ["types"], 1)).details).toEqual({ file: "m.yaml", line: 4 });
     expect(errorOf(() => remove("types: []\n", ["types"], 0)).code).toBe("file.faulty");
     expect(errorOf(() => remove("types: x\n", ["types"], 0)).code).toBe("file.faulty");
+  });
+});
+
+describe("a comment at the end of a line changed within the line (SR-236 AK3, #1988)", () => {
+  it("[SR-236/AK-k2s3] drops it when an item is added to a flow list, and keeps every other line", () => {
+    expect(append("statuses: [draft, noted] # comment\nx: 1 # stays\n", "open", ["statuses"])).toBe(
+      "statuses: [draft, noted, open]\nx: 1 # stays\n",
+    );
+    expect(append("statuses: []   #c\n", "open", ["statuses"])).toBe("statuses: [open]\n");
+    expect(append("statuses: [ # stays\n  draft,\n  noted # goes\n] # stays\n", "open", ["statuses"])).toBe(
+      "statuses: [ # stays\n  draft,\n  noted, open\n] # stays\n",
+    );
+    // CRLF: the line keeps its line ending.
+    expect(append("statuses: [a] # c\r\nx: 1\r\n", "b", ["statuses"])).toBe("statuses: [a, b]\r\nx: 1\r\n");
+  });
+
+  it("[SR-236/AK-k2s3] drops it when an entry of a flow mapping is changed, added or removed", () => {
+    const text =
+      "statuses:\n  - { key: draft, name: Draft, initial: true }  # first\n  - { key: open, name: Open }   # c\n";
+    const first = "statuses:\n  - { key: draft, name: Draft, initial: true }  # first\n";
+    expect(set(text, ["statuses", 1], "name", "Opened")).toBe(`${first}  - { key: open, name: Opened }\n`);
+    expect(set(text, ["statuses", 1], "description", "d")).toBe(
+      `${first}  - { key: open, name: Open, description: d }\n`,
+    );
+    expect(set(text, ["statuses", 1], "key", undefined)).toBe(`${first}  - { name: Open }\n`);
+    expect(set(text, ["statuses", 1], "name", undefined)).toBe(`${first}  - { key: open }\n`);
+    expect(set("s:\n  - { key: a } #c\n", ["s", 0], "key", undefined)).toBe("s:\n  - {  }\n");
+    expect(set("s:\n  - {} #c\n", ["s", 0], "key", "a")).toBe("s:\n  - { key: a }\n");
+    // A new list of a flow mapping (appendListItem) goes the same way.
+    expect(append("types:\n  - { key: a } # c\n", "x", ["types", 0, "required"])).toBe(
+      "types:\n  - { key: a, required: [x] }\n",
+    );
+  });
+
+  it("[SR-236/AK-k2s3] drops it when an item of a flow list is removed, and keeps a line that reads as before", () => {
+    expect(remove("statuses: [a, b]   # c\n", ["statuses"], 1)).toBe("statuses: [a]\n");
+    expect(remove("statuses: [a, b] #c\n", ["statuses"], 0)).toBe("statuses: [b]\n");
+    expect(remove("statuses: [a] # c\n", ["statuses"], 0)).toBe("statuses: []\n");
+    // The removed item had a line of its own: the next line reads as before and keeps its comment.
+    expect(remove("s: [\n  a,\n  b, # stays\n  c\n]\n", ["s"], 0)).toBe("s: [\n  b, # stays\n  c\n]\n");
+    // The only item on a line of its own: the line goes, with or without its comment.
+    expect(remove("k: [\n  a # x\n]\n", ["k"], 0)).toBe("k: [\n]\n");
+    expect(remove("k: [\n  a\n]\n", ["k"], 0)).toBe("k: [\n]\n");
+    expect(set("s:\n  - {\n      key: a # x\n    }\n", ["s", 0], "key", undefined)).toBe(
+      "s:\n  - {\n    }\n",
+    );
+    // The key line of a block list that loses its only item changes to `[]`.
+    expect(remove("types: # all\n  - key: a\nx: 1 # stays\n", ["types"], 0)).toBe(
+      "types: []\nx: 1 # stays\n",
+    );
+  });
+
+  it("[SR-236/AK-k2s3] does not take a # in a value for a comment, and keeps the comment of a line that does not change", () => {
+    expect(set('s:\n  - { key: a, name: "A #1", note: n }  # c\n', ["s", 0], "note", "m")).toBe(
+      's:\n  - { key: a, name: "A #1", note: m }\n',
+    );
+    expect(set("s:\n  - { key: a, name: 'it''s #2', note: n }\n", ["s", 0], "note", "m")).toBe(
+      "s:\n  - { key: a, name: 'it''s #2', note: m }\n",
+    );
+    expect(append("s: [a#b, 'c #d']\n", "e", ["s"])).toBe("s: [a#b, 'c #d', e]\n");
+    // The same value again: the line reads as before.
+    expect(set("s:\n  - { key: a } # c\n", ["s", 0], "key", "a")).toBe("s:\n  - { key: a } # c\n");
   });
 });
 
