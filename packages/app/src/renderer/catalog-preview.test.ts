@@ -56,5 +56,9 @@ describe("the output of a write command (SR-223 AK8)", () => {
     show(context, entry("relation.add"), {}, { files: [] }, 3);
     expect(echoed).toEqual([ANSWER, "Create relation"]);
     expect(dispatched).toEqual([]);
+    // With a workspace open, Create workspace keeps the shown buffer like any other write command.
+    show(context, entry("workspace.init"), {}, { answer: "Created workspace B." }, 3);
+    expect(echoed.at(-1)).toBe("Created workspace B.");
+    expect(dispatched).toEqual([]);
   });
 });

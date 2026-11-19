@@ -151,15 +151,17 @@ describe("the catalog the API gives", () => {
         .filter((entry) => entry.showsOutput === true)
         .map((entry) => entry.name)
         .sort(),
-    ).toEqual([
-      "element.bulkUpdate",
-      "evidence.enrichJunit",
-      "reqif.export",
-      "reqif.import",
+    ).toEqual(["element.bulkUpdate", "evidence.enrichJunit", "reqif.export", "reqif.import"]);
+    // A command that names only its files, problems and the element it wrote does not show its output, and
+    // neither does workspace.init: the app shows the overview after it (SR-226 AK2).
+    for (const name of [
       "workspace.init",
-    ]);
-    // A command that names only its files, problems and the element it wrote does not show its output.
-    for (const name of ["element.create", "element.update", "relation.add", "filter.save", "hint.confirm"]) {
+      "element.create",
+      "element.update",
+      "relation.add",
+      "filter.save",
+      "hint.confirm",
+    ]) {
       expect(writes.find((entry) => entry.name === name)?.showsOutput, name).toBeUndefined();
     }
     expect(commands.filter((entry) => entry.effect === "read" && entry.showsOutput !== undefined)).toEqual(

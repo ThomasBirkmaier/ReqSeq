@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActionContext, Prompt } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
-import { elementBuffer, listBuffer } from "./buffers.js";
+import { elementBuffer, listBuffer, overviewBuffer } from "./buffers.js";
 import type { CatalogContext } from "./catalog-arguments.js";
 import { askable, fits } from "./catalog-arguments.js";
 import { catalogItems, startBuilder } from "./catalog-commands.js";
@@ -81,9 +81,13 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
-  it("offers only Create workspace while a folder without a workspace is open, and asks its path and name", async () => {
-    const { context, asked, call, dispatched } = setup([], {
-      "workspace.init": () => ({ root: "/station", files: ["reqseq-workspace.yaml"] }),
+  it("offers only Create workspace while a folder without a workspace is open, asks its path and name, and opens no output buffer", async () => {
+    const { context, asked, call, dispatched, echoed, reported } = setup([], {
+      "workspace.init": () => ({
+        answer: "Created workspace Station; 1 file written.",
+        root: "/station",
+        files: ["reqseq-workspace.yaml"],
+      }),
     });
     const bare = { ...context, workspace: false };
     expect(titles(bare)).toEqual(["Create workspace"]);
@@ -94,7 +98,15 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     name.text?.("Station");
     await flush();
     expect(call).toHaveBeenLastCalledWith("workspace.init", { path: ".", name: "Station" });
-    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { written: true } });
+    // No output buffer: the app shows the new workspace's overview (SR-226 AK2), and the command line the answer,
+    // whose click opens the output (SR-223 AK8).
+    expect(dispatched).toEqual([{ type: "open", buffer: overviewBuffer() }]);
+    expect(echoed).toEqual(["Created workspace Station; 1 file written."]);
+    reported[0]?.open();
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { command: "workspace.init", written: true },
+    });
   });
 
   it("saves a filter by its name, with its condition built from hits (#1645)", async () => {

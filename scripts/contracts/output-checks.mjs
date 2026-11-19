@@ -35,7 +35,6 @@ export const SHOWS_OUTPUT = new Set([
   "evidence.enrichJunit",
   "reqif.import",
   "reqif.export",
-  "workspace.init",
 ]);
 
 const POSITION = "a position or size, not a number of elements";

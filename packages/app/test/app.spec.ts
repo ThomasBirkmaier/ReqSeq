@@ -274,7 +274,7 @@ test.describe("without a workspace", () => {
     ]);
   });
 
-  test("a folder without a workspace, chosen in the folder dialog, says how to create one there", async () => {
+  test("[SR-226/AK-sz63] a folder without a workspace, chosen in the folder dialog, says how to create one there, and Create workspace there shows the overview", async () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-empty-"));
     try {
       // The folder dialog of the operating system, answered here. Its menu item is clicked: a key sent through
@@ -292,6 +292,20 @@ test.describe("without a workspace", () => {
       await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
       await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
       await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
+      // Create workspace there: the app shows the overview of the new workspace and "Connect AI agent"
+      // (SR-226 AK2, SR-228 AK3), not the output, and the command line says the answer (SR-223 AK8).
+      await running.window.keyboard.type("Create workspace");
+      await running.window.keyboard.press("Enter");
+      await running.window.keyboard.type(empty);
+      await running.window.keyboard.press("Enter");
+      await running.window.keyboard.type("Station");
+      await running.window.keyboard.press("Enter");
+      await expect(running.window.getByLabel("Minibuffer")).toHaveText(
+        "Created workspace Station; 3 files written.",
+      );
+      await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+      await expect(running.window.locator(".result")).toHaveCount(0);
+      await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }
