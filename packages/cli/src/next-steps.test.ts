@@ -87,6 +87,10 @@ describe("next steps on the command line (SR-226)", () => {
     const other = await folder();
     const away = await run(["workspace", "init", other.path("x"), "Away"], ws.root);
     expect(away.stdout).toContain(`--workspace ${shown(other.path("x"))}`);
+    // The new workspace as the workspace of the call, from another folder: the calls still name it.
+    const named = other.path("y");
+    const given = await run(["workspace", "init", named, "Named", "--workspace", named], ws.root);
+    expect(given.stdout).toContain(`reqseq element create <type> <title> --workspace ${shown(named)}`);
   });
 
   it("[SR-226/AK-whxq] gives the same steps with --json as core gives every access", async () => {
@@ -133,5 +137,6 @@ describe("quoted", () => {
     expect(quoted("~/x", "linux")).toBe("'~/x'");
     expect(quoted("C:\\Users\\RUNNER~1\\x", "win32")).toBe("C:\\Users\\RUNNER~1\\x");
     expect(quoted("C:\\my dir\\it's", "win32")).toBe("'C:\\my dir\\it''s'");
+    expect(quoted("C:\\a,b", "win32")).toBe("'C:\\a,b'");
   });
 });

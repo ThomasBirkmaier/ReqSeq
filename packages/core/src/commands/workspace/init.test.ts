@@ -35,20 +35,19 @@ const listFiles = async (root: string): Promise<string[]> =>
     .map((e) => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
     .sort();
 
-/** The next steps of a workspace created in the folder of the call (SR-226 AK2). */
-const NEXT_HERE = [
-  { command: "workspace.connectAgent", input: {}, open: ["client"] },
-  { command: "element.create", input: {}, open: ["type", "title"] },
+/** The next steps of a workspace created in `root` (SR-226 AK2). */
+const nextIn = (root: string): unknown[] => [
+  { command: "workspace.connectAgent", input: {}, open: ["client"], workspace: root },
+  { command: "element.create", input: {}, open: ["type", "title"], workspace: root },
 ];
 
 describe("workspace.init", () => {
-  it("[SR-226/AK-sz63] names connecting an AI agent and creating an element as the next steps, with the new workspace when it is another folder", async () => {
+  it("[SR-226/AK-sz63] names connecting an AI agent and creating an element in the new workspace as the next steps", async () => {
     const ws = await emptyFolder();
     const here = await init(open(ws.root), { path: ws.root, name: "W" });
-    expect(here.next).toEqual(NEXT_HERE);
+    expect(here.next).toEqual(nextIn(ws.root));
     const other = await init(open(ws.root), { path: "sub", name: "W" });
-    const sub = path.join(ws.root, "sub");
-    expect(other.next).toEqual(NEXT_HERE.map((step) => ({ ...step, workspace: sub })));
+    expect(other.next).toEqual(nextIn(path.join(ws.root, "sub")));
   });
 
   it("[SR-014/AK-yh7s] creates the standard model as metamodel files in an empty folder", async () => {
@@ -56,7 +55,7 @@ describe("workspace.init", () => {
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
       files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
-      next: NEXT_HERE,
+      next: nextIn(ws.root),
       problems: [],
     });
     expect(await listFiles(ws.root)).toEqual([".gitignore", "metamodel/standard-model.yaml", WORKSPACE_FILE]);
@@ -171,7 +170,7 @@ describe("workspace.init", () => {
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
     expect(out).toEqual({
       files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
-      next: NEXT_HERE,
+      next: nextIn(ws.root),
       problems: [],
     });
 
@@ -179,7 +178,7 @@ describe("workspace.init", () => {
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
     expect(atRoot).toEqual({
       files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
-      next: NEXT_HERE,
+      next: nextIn(root.root),
       problems: [],
     });
   });

@@ -45,8 +45,8 @@ export const nextStepsIn = (
  */
 export const quoted = (token: string, platform: NodeJS.Platform): string => {
   if (platform === "win32") {
-    // A path of Windows keeps its `\` and the `~` of a short name plain.
-    return /^[\w%+=:,./\\~-]+$/.test(token) ? token : `'${token.replaceAll("'", "''")}'`;
+    // A path of Windows keeps its `\` and the `~` of a short name plain; a `,` would split it into an array.
+    return /^[\w%+=:./\\~-]+$/.test(token) ? token : `'${token.replaceAll("'", "''")}'`;
   }
   return /^[\w%+=:,./-]+$/.test(token) ? token : `'${token.replaceAll("'", "'\\''")}'`;
 };

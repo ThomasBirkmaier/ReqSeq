@@ -35,8 +35,8 @@ export default defineCommand({
       const metamodel = await created.get(metamodelState);
       return {
         files: [...files],
-        // The next steps run in the new workspace (SR-226 AK2); named when the call's workspace is another one.
-        next: afterInitSteps(own ? undefined : root),
+        // The next steps run in the new workspace (SR-226 AK2), named by its absolute path.
+        next: afterInitSteps(root),
         problems: [...layout.problems, ...metamodel.problems],
       };
     } finally {

@@ -11,19 +11,17 @@ export const createWorkspaceStep = (folder: string): NextStep => ({
 });
 
 /**
- * The next steps after a workspace was created (AK2): connect an AI agent, the client still to give, then
- * create an element. `workspace`: the new workspace, when it is not the workspace of the call.
+ * The next steps after a workspace was created (AK2) in `workspace`: connect an AI agent, the client still to
+ * give, then create an element.
  */
-export const afterInitSteps = (workspace?: string): NextStep[] => {
-  const at = workspace === undefined ? {} : { workspace };
-  return [
-    { command: "workspace.connectAgent", input: {}, open: ["client"], ...at },
-    { command: "element.create", input: {}, open: ["type", "title"], ...at },
-  ];
-};
+export const afterInitSteps = (workspace: string): NextStep[] => [
+  { command: "workspace.connectAgent", input: {}, open: ["client"], workspace },
+  { command: "element.create", input: {}, open: ["type", "title"], workspace },
+];
 
 /** How to begin (AK3: the section "Get started" of the command line's help): create, connect, create an element. */
 export const GET_STARTED: readonly NextStep[] = [
   { command: "workspace.init", input: {}, open: ["path", "name"] },
-  ...afterInitSteps(),
+  { command: "workspace.connectAgent", input: {}, open: ["client"] },
+  { command: "element.create", input: {}, open: ["type", "title"] },
 ];

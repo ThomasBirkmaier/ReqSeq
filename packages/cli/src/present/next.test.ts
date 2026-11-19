@@ -2,7 +2,7 @@ import path from "node:path";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { CallSite } from "./next.js";
-import { callOf, isNextSteps, nextLines, nextPart } from "./next.js";
+import { callOf, isNextSteps, nextLines, nextPart, quoted } from "./next.js";
 
 const cwd = path.resolve("/work/here");
 const site: CallSite = { commands: getCommandRuntime().contracts.commands, cwd, platform: "linux" };
@@ -27,7 +27,7 @@ describe("next steps as calls (SR-226)", () => {
     ).toBe("reqseq element create <type> <title>");
     const away = path.resolve("/elsewhere");
     expect(callOf({ command: "element.create", input: {}, open: ["type"], workspace: away }, site)).toBe(
-      `reqseq element create <type> --workspace ${away}`,
+      `reqseq element create <type> --workspace ${quoted(away, "linux")}`,
     );
   });
 

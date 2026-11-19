@@ -659,7 +659,7 @@ export interface NextStep {
   readonly input: Readonly<Record<string, unknown>>;
   /** The input fields still to give, in the order of the command's arguments. */
   readonly open: readonly string[];
-  /** Absolute path of the workspace the step runs in. Only when it is not the workspace of the call (`workspace.init` in another folder). */
+  /** Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`). */
   readonly workspace?: OutputPath;
 }
 

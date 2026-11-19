@@ -17331,7 +17331,7 @@
               "workspace": {
                 "$ref": "#/components/schemas/common/$defs/outputPath",
                 "title": "Workspace",
-                "description": "Absolute path of the workspace the step runs in. Only when it is not the workspace of the call (`workspace.init` in another folder)."
+                "description": "Absolute path of the workspace the step runs in, when the step names one (the new workspace after `workspace.init`)."
               }
             },
             "additionalProperties": false,
