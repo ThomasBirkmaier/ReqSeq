@@ -751,6 +751,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
                   },
                 ],
           find: withTypedReference(
+            context,
             findElements(
               context,
               (row) => {
