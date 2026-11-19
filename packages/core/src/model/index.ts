@@ -174,6 +174,7 @@ export {
   carryCurrentVersions,
   checkImages,
   currentVersions,
+  embedsOf,
   currentVersionsIfBuilt,
   currentVersionsOf,
   currentVersionsState,

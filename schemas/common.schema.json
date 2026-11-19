@@ -504,6 +504,7 @@
         "reqif.source-value-chosen",
         "html.unsafe-content",
         "html.image-not-copied",
+        "html.formula-error",
         "html.foreign-file",
         "html.marker-entry-ignored",
         "html.cleanup-failed"

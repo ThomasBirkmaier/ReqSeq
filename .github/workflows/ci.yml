@@ -249,7 +249,8 @@ jobs:
           unshare -rn node packages/docs/site/run.mjs build
       # The variant a delivery ships (release job `docs-site`): its maps must name only the packages the licence step
       # above checks, and its files must match the allow-list (`stage.mjs --docs-site`), so a new client package fails
-      # here and not only in the release. A few seconds; it replaces the Pages build in dist/.
+      # here and not only in the release. A few seconds; it replaces the Pages build in dist/. The docs theme of the
+      # HTML export (`docs-theme.generated.ts`, SR-231 AK4) must be what this build gives.
       - name: Docs - check the offline site a delivery ships
         if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
         env:
@@ -259,6 +260,7 @@ jobs:
           pnpm docs:generate
           unshare -rn node packages/docs/site/run.mjs build
           node scripts/package/stage.mjs --docs-site
+          pnpm docs:export-theme --check
 
       # The status model properties (epic #1389) again with a random seed and more runs, in the nightly run only; pull
       # requests keep the fixed seeds. The seed is printed first, so a red run replays with it. The dot reporter leaves

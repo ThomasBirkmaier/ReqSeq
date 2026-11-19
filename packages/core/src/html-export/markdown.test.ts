@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import type { ImageLink } from "../model/index.js";
 import type { ImageOutcome, TextContext } from "./markdown.js";
-import { escapeHtml, mermaidRisk, renderMarkdown, writeHast } from "./markdown.js";
+import { escapeHtml, madeToHast, mermaidRisk, renderMarkdown, writeHast } from "./markdown.js";
+import { MAX_STATEMENTS } from "./render-options.js";
 import { expectSafe } from "./safe-html.test-helper.js";
 
 const context = (
@@ -12,6 +13,7 @@ const context = (
   elementFile: "requirements/SR-1.md",
   ignored: () => false,
   image: (link) => Promise.resolve(image(link)),
+  reference: () => ({ text: true }),
 });
 
 const render = async (text: string, ctx = context()) => {
@@ -52,7 +54,8 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
       "![net](https://example.org/x.png) ![data](data:image/png;base64,AAAA) ![up](../../../etc/x.png) ![drive](C:/pics/x.png)",
     );
     expect(html).toContain("[go][ref]");
-    expect(html).toContain('<pre><code class="language-mermaid">flowchart LR');
+    // A risky diagram stays code without its language, so the page script never draws it.
+    expect(html).toContain("<pre><code>flowchart LR");
     expect(findings.map((f) => [f.line, f.message])).toEqual([
       [1, "raw HTML is shown as text"],
       [1, "raw HTML is shown as text"],
@@ -200,7 +203,45 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
     );
     expect(findings).toEqual([]);
     expect(html).toContain("<pre><code>plain\n</code></pre>");
-    expect(html).toContain('<pre><code class="language-mermaid">flowchart LR');
+    expect(html).toContain(
+      '<pre class="rq-diagram" data-rq-diagram><code class="language-mermaid">flowchart LR',
+    );
     expect(html).toContain("<p>[go][nowhere] ![x][nothing]</p>");
+  });
+
+  it("shows a reference to no element as its text, a block formula error under its source and a too large diagram as its error", async () => {
+    const big = `flowchart LR\n%% ${"x".repeat(50_001)}`;
+    const { html, findings, formulas, diagrams } = await render(
+      `[x](reqseq:D-031)\n\n$$\n\\frac{1\n$$\n\n\`\`\`mermaid\n${big}\n\`\`\``,
+    );
+    expect(html).toContain("<p>x</p>");
+    expect(html).toContain('<pre><code>\\frac{1</code></pre><div class="rq-render-error">');
+    expect(html).toContain("Diagram too large: ");
+    const many = await render(`\`\`\`mermaid\nflowchart LR\n${"A --> B;".repeat(MAX_STATEMENTS)}\n\`\`\``);
+    expect(many.html).toContain(`statements, at most ${String(MAX_STATEMENTS)}.`);
+    expect([formulas, diagrams]).toEqual([false, false]);
+    expect(findings.map((f) => f.code)).toEqual(["html.formula-error"]);
+  });
+
+  it("keeps a quote that is no callout, and a callout of only its marker or with more on its first line", async () => {
+    const quote = async (text: string) => (await render(text)).html;
+    expect(await quote("> - item")).toBe("<blockquote>\n<ul>\n<li>item</li>\n</ul>\n</blockquote>");
+    expect(await quote("> **[!NOTE]**")).toContain("<blockquote>");
+    expect(await quote("> [!NOTE]")).toMatch(
+      /^<aside aria-label="Note" class="starlight-aside starlight-aside--note">/u,
+    );
+    const mixed = await quote("> [!TIP]\n> **b** c");
+    expect(mixed).toContain("starlight-aside--tip");
+    expect(mixed).toContain("<strong>b</strong> c");
+  });
+
+  it("passes no node of an unknown type to the tree", () => {
+    const handle = madeToHast(
+      { raw: new WeakSet(), asides: new WeakMap() },
+      { raw: new WeakSet(), elements: new WeakMap() },
+    );
+    expect(handle({} as never, { type: "rqRaw", value: "<b>" })).toBeUndefined();
+    expect(handle({} as never, { type: "rqAside" })).toBeUndefined();
+    expect(handle({} as never, { type: "other" })).toBeUndefined();
   });
 });
