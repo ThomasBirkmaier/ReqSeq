@@ -163,7 +163,7 @@ test.describe("the hint at a replacement when its core requirement changed (SR-0
     await window.keyboard.press("Enter");
     // The answer in the command line opens the output (SR-223 AK8).
     await window.locator(".echo-open").click();
-    await expect(shownLayer(window).locator(".result")).toContainText("confirmed");
+    await expect(shownLayer(window).locator(".result")).toContainText("Confirmed hints");
     await open(window, "Response time at most 20 ms");
     await expect(shownLayer(window).locator("article .relation .outdated")).toHaveCount(0);
     expect(await elementHints(running, "SR-0000b1", [CORE_CHANGED, "relation.outdated"])).toEqual([]);

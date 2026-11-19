@@ -351,7 +351,7 @@ test.describe("the line under the title of a package page", () => {
     const rows = shownLayer(window).locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
     const count = shownLayer(window).locator(".result .line", {
-      has: window.locator(".label", { hasText: /^withoutEvidence$/ }),
+      has: window.locator(".label", { hasText: /^Without evidence$/ }),
     });
     await expect(count.locator(".text")).toHaveText(["10"]);
     // A row opens its requirement.

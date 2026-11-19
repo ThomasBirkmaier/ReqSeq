@@ -1024,8 +1024,8 @@
                           "minimum": 0
                         },
                         "info": {
-                          "title": "Infos",
-                          "description": "Infos left out.",
+                          "title": "Info",
+                          "description": "Info problems left out.",
                           "type": "integer",
                           "minimum": 0
                         }
@@ -10466,7 +10466,7 @@
                     "names": {
                       "title": "Named elements",
                       "type": "array",
-                      "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title. Left out when it names none, and for a variant in a repository that is not here.",
+                      "description": "The root, then the variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title on every page. Left out for a variant in a repository that is not here.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/elementName"
                       }
@@ -11423,6 +11423,14 @@
                     },
                     "incomplete": {
                       "$ref": "#/components/schemas/common/$defs/incomplete"
+                    },
+                    "names": {
+                      "title": "Named elements",
+                      "type": "array",
+                      "description": "The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/elementName"
+                      }
                     }
                   },
                   "additionalProperties": false,

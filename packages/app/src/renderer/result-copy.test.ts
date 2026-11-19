@@ -20,7 +20,7 @@ describe("resultText", () => {
   it("lays out a chain as its view does", () => {
     expect(linesOf({ command: "trace.chain", output: undefined })).toEqual([]);
     expect(linesOf({ command: "tool.info", output: { a: "b" } })).toEqual([
-      { kind: "text", depth: 0, label: "a", text: "b" },
+      { kind: "text", depth: 0, label: "a", text: "b", field: "a" },
     ]);
   });
 });
