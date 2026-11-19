@@ -42,6 +42,8 @@ export const LoadingView = ({
   readonly buffer: LoadingBuffer;
   /** Also the window's actions: a pair line of a result opens two elements side by side (SR-044 AK2). */
   readonly dispatch: (action: WindowAction) => void;
+  /** Copies a value of a result, such as the setup of "Connect AI agent" (SR-227 AK7). */
+  readonly onCopy?: (label: string, text: string) => void;
 }): React.JSX.Element => {
   const shared = {
     call: props.call,
@@ -49,6 +51,7 @@ export const LoadingView = ({
     dispatch: props.dispatch,
     onData: props.onData,
     onEcho: props.onEcho,
+    ...(props.onCopy === undefined ? {} : { onCopy: props.onCopy }),
   };
   const drawn = props.onDrawn === undefined ? {} : { onDrawn: props.onDrawn };
   // The rows that changed outside are highlighted (SR-116).
@@ -83,6 +86,8 @@ export interface AreaViews {
   readonly dispatch: (action: WindowAction) => void;
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** Puts a value on the clipboard, and the modeline confirms it (SR-128 AK2). */
+  readonly onCopy: (label: string, text: string) => void;
   /** A view cannot draw its buffer: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
   readonly onDrawn: (key: string) => void;
   /** The names of the types by their key, from the metamodel. */
@@ -212,6 +217,7 @@ const BufferView = ({
       onData={onData}
       onEcho={onEcho}
       onDrawn={onDrawn}
+      onCopy={views.onCopy}
     />
   );
 };

@@ -35,6 +35,7 @@ import { isElement, hasWorkspace, isOverview, shownResult, hasElementText } from
 import { GRAPH_ACTIONS } from "./graph-actions.js";
 import { BUFFER_ACTIONS } from "./buffer-actions.js";
 import { APP_ACTIONS } from "./app-actions.js";
+import { SETUP_FIELD, shownSetup } from "./connect-agent.js";
 
 /**
  * Ctrl/Cmd+Alt+A (macOS ⌥⌘A) adds a property to the shown element (SR-104 AK2). Not Cmd+Shift+A: with
@@ -435,9 +436,16 @@ export const ACTIONS: readonly Action[] = [
     title: "Copy field",
     description: "Copy the value of the field at the cursor to the clipboard.",
     shortcut: { mod: true, shift: true, key: "c" },
-    available: hasElementText,
+    // Also the setup of "Connect AI agent", the one field of its buffer (SR-227 AK7).
+    available: (context: ActionContext): boolean =>
+      hasElementText(context) || shownSetup(context) !== undefined,
     run: (context: ActionContext): void => {
-      context.element?.copy();
+      const setup = shownSetup(context);
+      if (setup === undefined) {
+        context.element?.copy();
+      } else {
+        context.copy?.(SETUP_FIELD, setup.text);
+      }
     },
   },
   {
