@@ -17,6 +17,7 @@ import {
   GUIDE_RULES,
   GUIDE_SECTIONS,
   GUIDE_TAIL,
+  GUIDE_WRITING_RULES,
   agentGuide,
   guideValue,
 } from "./guide/text.js";
@@ -71,7 +72,7 @@ const namedCommands = (text: string): string[] => {
 };
 
 describe("tool.guide", () => {
-  it("[SR-229/AK-p4y6] gives the guide as Markdown, CLI calls or MCP tool names by `names`, the pipeline always as CLI calls, at most 6,000 characters", async () => {
+  it("[SR-229/AK-p4y6] gives the guide as Markdown, CLI calls or MCP tool names by `names`, the pipeline always as CLI calls, at most 9,000 characters", async () => {
     const root = await standard();
     const cli = await guide(root, { names: "cli" });
     const mcp = await guide(root, { names: "mcp" });
@@ -99,7 +100,7 @@ describe("tool.guide", () => {
     for (const text of variants) {
       expect(Array.from(text).length).toBeLessThanOrEqual(GUIDE_MAX_LENGTH);
     }
-    expect(GUIDE_MAX_LENGTH).toBe(6000);
+    expect(GUIDE_MAX_LENGTH).toBe(9000);
   });
 
   it("[SR-229/AK-hyqj] without a workspace names the reason and the call that creates one, without metamodel facts", async () => {
@@ -132,7 +133,7 @@ describe("tool.guide", () => {
     expect(reason).not.toContain("workspace init");
   });
 
-  it("[SR-229/AK-qk2t] has the steps in their order, each with its command, and says what a test run and the item under test are", async () => {
+  it("[SR-229/AK-qk2t] has the steps in their order, each with its command, says what a test run and the item under test are, who records a validation and what a change of a requirement asks for", async () => {
     const text = await guide(await standard());
     expect(sections(text).map((s) => s.heading)).toEqual(
       [...GUIDE_SECTIONS, GUIDE_TAIL].map((s) => s.heading),
@@ -147,9 +148,10 @@ describe("tool.guide", () => {
       "7. Workspace check",
     ];
     const headings = sections(text).map((s) => s.heading);
-    expect(steps.map((step) => headings.indexOf(step))).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    const at = steps.map((step) => headings.indexOf(step));
+    expect(at.every((index, i) => index > 0 && (i === 0 || index > (at[i - 1] ?? 0)))).toBe(true);
     const commands = (heading: string): string[] => namedCommands(section(text, heading));
-    expect(commands("1. Need")).toEqual(["element.create"]);
+    expect(commands("1. Need")).toEqual(["element.create", "evidence.record"]);
     expect(commands("2. Requirement with acceptance criteria and verification method")).toEqual([
       "element.create",
       "relation.add",
@@ -160,6 +162,79 @@ describe("tool.guide", () => {
     expect(commands("7. Workspace check")).toEqual(["workspace.check"]);
     expect(section(text, "4. Evidence location")).toContain("Every test run gets a file of its own there");
     expect(section(text, "5. Enrich test results")).toContain("The item under test is what was tested");
+    const need = section(text, "1. Need");
+    expect(need).toContain(
+      "Where its type has a property for them, give the need validation criteria, by which a person checks whether the system fulfils it.",
+    );
+    expect(need).toContain(
+      "A person records the validation as an evidence record, not the AI agent: `reqseq evidence record '<need>' validation passed`.",
+    );
+    expect(section(text, "5. Enrich test results")).toContain(
+      "After a change to the content of a requirement, its evidence records of the old version no longer count, and its verification status and validation status are outdated. The AI agent adapts the tests to the change, runs them again and enriches their results into a new file in an evidence location; another verification method than test, and the validation, need a new check.",
+    );
+  });
+
+  it("[SR-229/AK-mx5x] has the impact check before the need, with the commands that read, query and search what a change touches", async () => {
+    for (const root of [await standard(), await folder()]) {
+      for (const names of NAMES) {
+        const text = await guide(root, { names });
+        const headings = sections(text).map((s) => s.heading);
+        expect(headings.indexOf("Impact check")).toBe(headings.indexOf("1. Need") - 1);
+        const impact = section(text, "Impact check");
+        expect(namedCommands(impact)).toEqual([
+          "element.get",
+          "hint.list",
+          "trace.affected",
+          "element.search",
+          "evidence.list",
+        ]);
+        for (const part of [
+          "Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references",
+          "and its open hints",
+          "queries its affected elements",
+          "searches the elements that name each new or changed term or the identifier of the element",
+          "for a new element it queries the affected elements of the elements it will point to.",
+          "It then reads what it found against the change, the directly affected elements first, along with the evidence records of the element and of the affected requirements",
+          "and the tests that carry their reference in their name.",
+          "It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete.",
+          "For a contradiction, the rules below apply.",
+        ]) {
+          expect(impact).toContain(part);
+        }
+      }
+    }
+    expect(GUIDE_RULES).toContainEqual(
+      expect.stringMatching(/^If a requirement is unclear or incomplete or contradicts another element/),
+    );
+  });
+
+  it("[SR-229/AK-fjcs] has the writing rules after the requirement step, numbered and word for word from the list", async () => {
+    for (const root of [await standard(), await folder()]) {
+      for (const names of NAMES) {
+        const text = await guide(root, { names });
+        const headings = sections(text).map((s) => s.heading);
+        expect(headings.indexOf("Writing requirements")).toBe(
+          headings.indexOf("2. Requirement with acceptance criteria and verification method") + 1,
+        );
+        expect(section(text, "Writing requirements").trim().split("\n")).toEqual([
+          "These rules hold for the requirements the AI agent creates or changes; it does not rewrite existing ones for their sake without asking (see Rules).",
+          "",
+          ...GUIDE_WRITING_RULES.map((rule, index) => `${String(index + 1)}. ${rule}`),
+        ]);
+      }
+    }
+    expect(GUIDE_WRITING_RULES).toEqual([
+      "A requirement holds exactly one binding obligation, names who or what must fulfil it, and can be understood without other requirements; several obligations become several requirements.",
+      "It says what the system or a named part must achieve, not how it is built; a rule on how it is built is a constraint with a rationale.",
+      "Every quantity has a value, a unit and a condition.",
+      'It contains no vague word such as "fast", "easy" or "etc." and no exception without a named case such as "as a rule" or "if possible".',
+      'The acceptance criterion fits the kind of requirement: a behaviour as "Given …, when …, then …"; a measurable characteristic with quantity, unit, limit and measuring condition; an interface with input and expected response; a constraint as a condition that an inspection finds met or not met.',
+      "An acceptance criterion names the conditions under which it is checked and does not repeat the requirement.",
+      "The verification method fits the acceptance criteria of the requirement: test where a test can show them, else analysis, inspection or demonstration.",
+      "It names its rationale where its type has a property for it; the AI agent does not invent a rationale that nobody gave.",
+      "A term always stands for the same thing; where the workspace has a glossary, it stands as it is defined there.",
+      "The AI agent does not invent a value that nobody gave it; it asks and marks the value in the text as open until someone replies.",
+    ]);
   });
 
   it("[SR-229/AK-zp64] names the types, statuses, derivation kinds, test name and evidence locations of the standard model", async () => {
@@ -243,6 +318,13 @@ describe("tool.guide", () => {
       "The AI agent reads and changes elements through the commands, not through their files.",
       "Project rules take precedence over the agent guide.",
       "Before finishing a piece of work, the AI agent checks the workspace and the verification degree and names the problems and gaps.",
+      "If a requirement is unclear or incomplete or contradicts another element, the AI agent asks a person and names its assumption; it does not resolve it silently in the implementation.",
+      "If the implementation does not fit a requirement, the AI agent does not change the requirement on its own to make it fit; it names the deviation and asks.",
+      "The AI agent confirms a hint about an outdated relation or an outdated reference only if a project rule allows it, and only after it has read the source against the changed target; otherwise it proposes the confirmation to a person. If the source contradicts the target, it does not confirm and changes the source by the rule for changes to the content, or asks.",
+      "The AI agent switches off no test and removes no file from an evidence location to make a verification status or the verification degree look better; it gives no test the reference of an acceptance criterion the test does not check, and records no evidence record for a check that did not take place.",
+      "The AI agent adds a relation only if its relation kind holds in substance between the two elements, not to remove a hint or a problem.",
+      "If, after the change, a requirement whose status is not the initial status of its type demands something other than before, the AI agent names both ways when it asks: to change it, or to supersede it and create a successor; it does not choose itself.",
+      "Without a reply, the AI agent works on only the steps that can be undone, and names the assumption they rest on.",
     ]);
   });
 
