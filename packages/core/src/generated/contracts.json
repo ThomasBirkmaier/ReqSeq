@@ -991,6 +991,7 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
@@ -25252,7 +25253,7 @@
             },
             "kind": {
               "type": "array",
-              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problemCode"
               }
@@ -37155,6 +37156,7 @@
     "workspace.metamodel-mismatch": "Different metamodel in a repository",
     "workspace.invalid": "Invalid workspace file",
     "workspace.not-watched": "Folder not watched",
+    "workspace.skill-older-version": "Skill file of an older ReqSeq version",
     "git.unavailable": "Git cannot read the repository",
     "git.revision-missing": "Missing commit",
     "reqif.replaces-local": "Import replaces local content",

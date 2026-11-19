@@ -981,6 +981,7 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
@@ -11339,7 +11340,7 @@
           },
           "kind": {
             "type": "array",
-            "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+            "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
             "items": {
               "$ref": "#/$defs/common/$defs/problemCode"
             }
