@@ -33,6 +33,7 @@ import type {
 import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
 import { limitProblems, maxItemsProblems } from "./limits.js";
+import { isKeyForm } from "./suggested-key.js";
 import type { MeaningAssignment } from "./meanings.js";
 import {
   assignMeanings,
@@ -118,13 +119,7 @@ const lineAt = (yaml: ParsedYaml, segments: readonly string[]): number | undefin
   return undefined;
 };
 
-/** A key as the schema takes it: only such a key names its definition in a message (#840 review). */
-const NAMING_KEY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-const MAX_KEY_LENGTH = 64;
-
-/** Whether `key` has the form of a metamodel key (`common.schema.json#/$defs/key`). */
-export const isKeyForm = (key: unknown): key is string =>
-  typeof key === "string" && key.length <= MAX_KEY_LENGTH && NAMING_KEY.test(key);
+export { isKeyForm };
 
 /**
  * The message of a violation with the definition it is in named by its key (#151): `types[0].prefix is

@@ -66,6 +66,10 @@
     "./fold": {
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
+    },
+    "./new-key": {
+      "types": "./dist/metamodel/suggested-key.d.ts",
+      "default": "./dist/metamodel/suggested-key.js"
     }
   },
   "scripts": {
