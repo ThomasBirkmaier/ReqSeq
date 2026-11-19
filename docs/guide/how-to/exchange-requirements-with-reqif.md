@@ -250,6 +250,7 @@ reqseq reqif export customer.reqif --mapping reqif/customer.yaml --source-model
 ```
 
 ```text title="Output"
+Exported 3 elements and 0 relations to customer.reqif.
 file: customer.reqif
 elements: 3
 relations: 0
