@@ -26,6 +26,7 @@ import {
   noParentHints,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -198,7 +199,10 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
   /** The model cache of the copy: next to `api.json` in its cache folder; set by the first start. */
   let modelCache = "";
 
-  /** The store is complete: the check finds only the hints of the requirements without a parent (SR-022 AK6). */
+  /**
+   * The store is complete: the check finds only the hints of the requirements without a parent (SR-022 AK6)
+   * and the gaps of verification at the workspace file (SR-230 AK1, AK2).
+   */
   const expectComplete = (body: unknown): void => {
     const { ok, problems } = body as {
       ok: boolean;
@@ -207,7 +211,7 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     expect(ok).toBe(true);
     expect(malformedNoParentHints(problems)).toEqual([]);
     expect(noParentHints(problems)).toHaveLength(orphans);
-    expect(withoutNoParent(problems)).toEqual([]);
+    expect(withoutVerificationGaps(withoutNoParent(problems))).toEqual([]);
   };
 
   /**

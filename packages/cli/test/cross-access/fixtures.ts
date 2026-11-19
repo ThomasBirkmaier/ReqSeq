@@ -30,6 +30,40 @@ export const NEW_CRITERION_KEYS: readonly RegExp[] = [
 ];
 
 export const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
+/**
+ * SR-004/one-repository with a small model in place of the standard model: note alone has the
+ * property remark and the status noted, and an element of hazard holds both, so their definitions
+ * stay when note loses them (SR-237 AK5, SR-238 AK5, SR-240 AK3). The system requirement of the
+ * fixture is of a type this model does not have.
+ */
+export const KEPT_DEFINITIONS: FixtureOptions = {
+  ...ONE_REPOSITORY,
+  files: {
+    "metamodel/standard-model.yaml": [
+      "reqseq-metamodel: 1",
+      "types:",
+      "  - { key: hazard, name: Hazard, prefix: HZ, properties: [title], required: [title], statuses: [draft] }",
+      "  - { key: note, name: Note, prefix: NO, properties: [title, remark], statuses: [draft, noted] }",
+      "properties:",
+      "  - { key: title, name: Title, kind: text, meaning: title }",
+      "  - { key: remark, name: Remark, kind: text }",
+      "statuses:",
+      "  - { key: draft, name: Draft, initial: true }",
+      "  - { key: noted, name: Noted }",
+      "",
+    ].join("\n"),
+    "elements/HZ-000000000001.md": [
+      "---",
+      "id: 0b7c6e1a-1111-4222-8333-000000000001",
+      "type: hazard",
+      "status: noted",
+      "title: Stray note",
+      "remark: kept",
+      "---",
+      "",
+    ].join("\n"),
+  },
+};
 /** SR-004/one-repository with the delivery and the saved mapping of fixtures/SR-053/delivery (SR-053). */
 export const DELIVERY: FixtureOptions = {
   ...ONE_REPOSITORY,
