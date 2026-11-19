@@ -1,6 +1,6 @@
 // The commands that change the metamodel in the command prompt, on the built app (SR-236 AK6, AK8, AK11):
 // "Add relation kind" asks its values in steps, the key prefilled from the name, the types as a mark with
-// "Any type", the target types for limits as a mark, and a minimum and maximum per marked type, and writes the metamodel file; "Change property"
+// "Any type", the target types for limits as a mark, and a minimum and maximum per marked type, and writes the metamodel file; "Change property definition"
 // shows the value kind of a property that elements hold as locked with their number. The light screenshots go
 // to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
@@ -86,9 +86,9 @@ test.describe("the metamodel commands in the command prompt (SR-236)", () => {
     const { window } = running;
     await fsp.mkdir(SHOTS, { recursive: true });
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    await pick(window, "Change property", "Change property");
+    await pick(window, "Change property definition", "Change property definition");
     await pick(window, "Requirement Type", "Requirement Type");
-    await expect(label(window)).toHaveText("Change property Requirement Type · Change:");
+    await expect(label(window)).toHaveText("Change property definition Requirement Type · Change:");
     const kind = window.locator(".candidates [role=option]").filter({ hasText: "Value kind" });
     await expect(kind.locator(".hint")).toHaveText(/^locked: \d+ elements?$/u);
     await window.screenshot({ path: path.join(SHOTS, "sr-236-locked-light.png") });
@@ -96,6 +96,6 @@ test.describe("the metamodel commands in the command prompt (SR-236)", () => {
     await expect(kind).toHaveAttribute("aria-disabled", "true");
     await window.keyboard.type("Value kind");
     await window.keyboard.press("Enter");
-    await expect(label(window)).toHaveText("Change property Requirement Type · Change:");
+    await expect(label(window)).toHaveText("Change property definition Requirement Type · Change:");
   });
 });

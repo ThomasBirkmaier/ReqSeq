@@ -51,6 +51,8 @@ import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
+import type { MetamodelChange } from "./metamodel-changes.js";
+import { NO_CHANGE } from "./metamodel-changes.js";
 import { commandPromptKey } from "./command-entry.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import type { OpenedMenu } from "./context-menu.js";
@@ -193,7 +195,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
   // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
   // what is still to be restored.
+  // The last change of the metamodel made in the app, marked until the next one (SR-130 AK7); another
+  // workspace starts without one.
+  const [metamodelChange, setMetamodelChange] = useState<MetamodelChange>(NO_CHANGE);
   const [session, setSession] = useState<string | undefined>(undefined);
+  // A change of the metamodel marks only in the workspace it was made in (SR-130 AK7).
+  useEffect(() => {
+    setMetamodelChange(NO_CHANGE);
+  }, [session]);
   // What was stored last (the key and the text), so that a change of a selected row alone writes nothing.
   const sessionStored = useRef<string | undefined>(undefined);
 
@@ -425,6 +434,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     perspectiveUse,
     foldChoice,
     setFoldChoice,
+    setMetamodelChange,
   });
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
@@ -828,6 +838,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     switchSaves,
     typeNames,
     kindNames,
+    metamodelChange,
     overview,
     recent,
     latest,

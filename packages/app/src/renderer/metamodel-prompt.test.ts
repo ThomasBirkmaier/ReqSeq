@@ -73,10 +73,10 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     const { context, asked, call } = ready({ "metamodel.changeType": () => OK });
     start(context, "metamodel.changeType");
     await flush();
-    expect((await last(asked)).label).toBe("Change type · Type:");
+    expect((await last(asked)).label).toBe("Change type definition · Type:");
     await choose(asked, "Decision");
     const what = await last(asked);
-    expect(what.label).toBe("Change type Decision · Change:");
+    expect(what.label).toBe("Change type definition Decision · Change:");
     expect(what.items.map((hit) => hit.name)).toEqual([
       "Name",
       "Description",
@@ -97,7 +97,7 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
       { field: "type", value: "decision", label: "Decision" },
     ]);
     await flush();
-    expect((await last(given.asked)).label).toBe("Change type Decision · Change:");
+    expect((await last(given.asked)).label).toBe("Change type definition Decision · Change:");
     await choose(given.asked, "Parent type");
     await choose(given.asked, "No parent type");
     expect(ranWith(given.call, "metamodel.changeType")).toEqual({ type: "decision", extends: null });
@@ -307,7 +307,7 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await type(asked, "motor");
     (await last(asked)).back?.();
     await flush();
-    expect((await last(asked)).label).toBe("Change property Component · Change:");
+    expect((await last(asked)).label).toBe("Change property definition Component · Change:");
     await choose(asked, "Add fixed values");
     const marked = await last(asked);
     expect(marked.marks?.map((mark) => mark.label)).toEqual(["Motor · motor"]);
@@ -577,14 +577,18 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await type(asked, "Motor");
     (await last(asked)).back?.();
     await flush();
-    expect((await last(asked)).label).toBe("Change property Component Add fixed values · Fixed value:");
+    expect((await last(asked)).label).toBe(
+      "Change property definition Component Add fixed values · Fixed value:",
+    );
     await type(asked, "Motor");
     await type(asked, "motor");
     (await last(asked)).marks?.[0]?.remove();
     await flush();
     // Without a mark, Enter on an empty input asks again: a change without a fixed value changes nothing.
     await enter(asked);
-    expect((await last(asked)).label).toBe("Change property Component Add fixed values · Fixed value:");
+    expect((await last(asked)).label).toBe(
+      "Change property definition Component Add fixed values · Fixed value:",
+    );
     await type(asked, "Motor");
     await type(asked, "motor");
     await enter(asked);
@@ -609,10 +613,12 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await choose(asked, "Add fixed values");
     await type(asked, "Motor");
     await enter(asked);
-    expect((await last(asked)).label).toBe("Change property Component Add fixed values · Fixed value:");
+    expect((await last(asked)).label).toBe(
+      "Change property definition Component Add fixed values · Fixed value:",
+    );
     (await last(asked)).back?.();
     await flush();
-    expect((await last(asked)).label).toBe("Change property Component · Change:");
+    expect((await last(asked)).label).toBe("Change property definition Component · Change:");
     (await last(asked)).back?.();
     await flush();
     (await last(asked)).back?.();
@@ -625,7 +631,7 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await choose(asked, "Target types");
     (await last(asked)).back?.();
     await flush();
-    expect((await last(asked)).label).toBe("Change property Package · Change:");
+    expect((await last(asked)).label).toBe("Change property definition Package · Change:");
     // An empty name is asked again.
     start(context, "metamodel.addType");
     await flush();
@@ -807,7 +813,9 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     });
     const { context, asked, echoed } = ready({ "metamodel.removeStatus": () => refused });
     const offered = catalogItems(context, CATALOG, ACTIONS).map((hit) => hit.name);
-    expect(offered).toEqual(expect.arrayContaining(["Add type", "Change property", "Remove relation kind"]));
+    expect(offered).toEqual(
+      expect.arrayContaining(["Add type", "Change property definition", "Remove relation kind"]),
+    );
     start(context, "metamodel.removeStatus");
     await flush();
     await choose(asked, "Decision");
@@ -821,5 +829,69 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     );
     expect(names).not.toContain("Add type");
     expect(names).not.toContain("Remove status");
+  });
+
+  it("[SR-199/AK-gh1p] [SR-199/AK-xd26] asks only what the context menu does not give: the source type of a new relation kind, the type of a property", async () => {
+    const { context, asked, call } = ready({
+      "metamodel.addRelationKind": () => OK,
+      "metamodel.changeProperty": () => OK,
+    });
+    startCommand(context, command("metamodel.addRelationKind"), false, [
+      { field: "sourceTypes", value: ["decision"], label: "Decision" },
+    ]);
+    await flush();
+    expect((await last(asked)).label).toBe("Add relation kind Decision · Name:");
+    await type(asked, "Touches");
+    await type(asked, "touches");
+    await enter(asked);
+    // The source types are given: the next step is the target types.
+    expect((await last(asked)).label).toBe("Add relation kind Decision Touches touches · Target types:");
+    await choose(asked, "Any type");
+    await choose(asked, "No limits");
+    expect(ranWith(call, "metamodel.addRelationKind")).toEqual({
+      name: "Touches",
+      key: "touches",
+      sourceTypes: ["decision"],
+    });
+    // A property with the type that has it: "Required in a type" asks no type.
+    startCommand(context, command("metamodel.changeProperty"), false, [
+      { field: "property", value: "rationale", label: "Rationale" },
+      { field: "type", value: "requirement", label: "System Requirement" },
+    ]);
+    await flush();
+    expect((await last(asked)).label).toBe(
+      "Change property definition Rationale System Requirement · Change:",
+    );
+    await choose(asked, "Required in a type");
+    await choose(asked, "yes");
+    expect(ranWith(call, "metamodel.changeProperty")).toEqual({
+      property: "rationale",
+      type: "requirement",
+      required: true,
+    });
+    // Another field leaves the given type out of the input.
+    startCommand(context, command("metamodel.changeProperty"), false, [
+      { field: "property", value: "rationale", label: "Rationale" },
+      { field: "type", value: "requirement", label: "System Requirement" },
+    ]);
+    await flush();
+    await choose(asked, "Name");
+    await type(asked, "Reason");
+    expect(ranWith(call, "metamodel.changeProperty")).toEqual({ property: "rationale", name: "Reason" });
+  });
+
+  it("[SR-130/AK-wb12] reports a metamodel command that succeeded with its output, for the marks of the last change", async () => {
+    const { context, call } = ready({ "metamodel.removeType": () => OK });
+    const changed: [string, unknown][] = [];
+    const reporting: CatalogContext = {
+      ...context,
+      metamodelChanged: (name, output) => changed.push([name, output]),
+    };
+    startCommand(reporting, command("metamodel.removeType"), false, [
+      { field: "type", value: "decision", label: "Decision" },
+    ]);
+    await flush();
+    expect(call.mock.calls.some(([name]) => name === "metamodel.removeType")).toBe(true);
+    expect(changed).toEqual([["metamodel.removeType", OK]]);
   });
 });

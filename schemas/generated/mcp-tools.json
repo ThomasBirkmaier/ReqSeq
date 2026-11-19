@@ -5751,7 +5751,7 @@
     },
     {
       "name": "metamodel_changeType",
-      "title": "Change type",
+      "title": "Change type definition",
       "description": "Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.",
       "annotations": {
         "readOnlyHint": false,
@@ -6232,7 +6232,7 @@
     },
     {
       "name": "metamodel_changeProperty",
-      "title": "Change property",
+      "title": "Change property definition",
       "description": "Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.",
       "annotations": {
         "readOnlyHint": false,

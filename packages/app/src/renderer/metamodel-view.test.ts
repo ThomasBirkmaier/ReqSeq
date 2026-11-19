@@ -10,6 +10,11 @@ import type { Call } from "./call.js";
 import * as layoutModule from "./metamodel-layout.js";
 import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-test-data.js";
 import { MetamodelView } from "./MetamodelView.js";
+import type { MetamodelChange } from "./metamodel-changes.js";
+import { NO_CHANGE } from "./metamodel-changes.js";
+import { menuEntries, placeAt } from "./context-menu.js";
+import type { MenuPlace } from "./context-menu.js";
+import { metamodelGiven } from "./metamodel-menu.js";
 import type { BufferData } from "./modeline.js";
 
 vi.mock("./metamodel-layout.js", { spy: true });
@@ -68,7 +73,11 @@ const fakeCall = (answer: () => MetamodelGetOutput | Error = () => FIXTURE_METAM
 const asCall = (call: ReturnType<typeof fakeCall>): Call => call as unknown as Call;
 
 /** The metamodel buffer in a real buffer state, and what happened to it. */
-const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) => {
+const mount = async (
+  call: Call,
+  initial: MetamodelBuffer = metamodelBuffer(),
+  changed: MetamodelChange = NO_CHANGE,
+) => {
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
@@ -92,6 +101,7 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
       onData: (bufferKey, loaded) => data.push([bufferKey, loaded]),
       onEcho: (message) => echoed.push(message),
       onDrawn: (bufferKey) => drawn.push(bufferKey),
+      changed,
     });
   };
   const show = async (revision: number): Promise<void> => {
@@ -119,7 +129,7 @@ const selected = (): string | undefined => {
 };
 
 describe("MetamodelView", () => {
-  it("[SR-130/AK-s795] shows each type with name, prefix and properties, inherited ones muted, and each curve with its label", async () => {
+  it("[SR-130/AK-s795] shows each type with name, prefix, properties and statuses, inherited properties muted, the initial and invalid statuses marked, and each curve with its label", async () => {
     const call = fakeCall();
     const { data } = await mount(asCall(call));
     expect(call).toHaveBeenCalledWith("metamodel.get", {});
@@ -146,8 +156,20 @@ describe("MetamodelView", () => {
       ["package", ["mm-name:Package", "mm-prefix:PKG"], ["Title"]],
       ["any", ["mm-name:Any type"], []],
     ]);
-    expect(query('[data-type="item"]').getAttribute("title")).toBe("Item · ITM · abstract\nTitle");
-    expect(query('[data-type="item"]').getAttribute("aria-label")).toBe("Item · ITM · abstract, Title");
+    expect(query('[data-type="item"]').getAttribute("title")).toBe(
+      "Item · ITM · abstract\nTitle\nStatuses: Draft (initial status), Approved, Retired (invalid)",
+    );
+    expect(query('[data-type="item"]').getAttribute("aria-label")).toBe(
+      "Item · ITM · abstract, Title, Statuses: Draft (initial status), Approved, Retired (invalid)",
+    );
+    const statuses = (type: string): string[] =>
+      [...query(`[data-type="${type}"]`).querySelectorAll<HTMLElement>(".mm-status")].map(
+        (tag) => `${tag.textContent}${tag.className.replace("mm-status", "")}`,
+      );
+    // The inherited statuses too; a type without statuses has no row of them.
+    expect(statuses("software-requirement")).toEqual(["Draft initial", "Approved", "Retired invalid"]);
+    expect(statuses("decision")).toEqual(["Open", "Decided"]);
+    expect(query('[data-type="package"]').querySelector(".mm-statuses")).toBeNull();
     expect(query("[data-any]").className).toBe("mm-type any");
     const labels = [...container.querySelectorAll<HTMLElement>(".mm-label")]
       .map((label) => {
@@ -470,5 +492,199 @@ describe("MetamodelView as text", () => {
     await show(3);
     expect(selectedRow()).toBe("type:item");
     expect(container.querySelector(".mm-problem")).toBeNull();
+  });
+});
+
+describe("MetamodelView's context menus (SR-199)", () => {
+  /** The place of a press on `selector`, and the arguments its menu gives, as "command: field=value (label)". */
+  const menuAt = (selector: string): { place: MenuPlace | undefined; given: string[] } => {
+    const target = query(selector);
+    // The view is inside an area of the sheet in the window.
+    container.setAttribute("data-area", "left");
+    const place = placeAt(target);
+    const given = place === undefined ? undefined : metamodelGiven(place, target);
+    return {
+      place,
+      given: Object.entries(given ?? {}).map(
+        ([command, values]) =>
+          `${command}: ${values.map((value) => `${value.field}=${JSON.stringify(value.value)} (${value.label})`).join(", ")}`,
+      ),
+    };
+  };
+  const ids = (place: MenuPlace): string[] =>
+    menuEntries(
+      { place, target: container, point: { x: 0, y: 0 } },
+      [
+        "command:metamodel.addType",
+        "command:metamodel.addRelationKind",
+        "metamodel-text",
+        "copy-mermaid",
+        "command:metamodel.addProperty",
+        "command:metamodel.addStatus",
+        "command:metamodel.changeType",
+        "command:metamodel.removeType",
+        "command:metamodel.changeProperty",
+        "command:metamodel.removeProperty",
+        "command:metamodel.changeStatus",
+        "command:metamodel.removeStatus",
+        "command:metamodel.changeRelationKind",
+        "command:metamodel.removeRelationKind",
+      ].map((id) => ({ id, name: id, run: () => undefined })),
+    ).map((entry) => entry.id);
+
+  it("[SR-199/AK-w4jd] gives the sheet's menu outside the boxes and labels, on an inheritance curve or line and on Any type", async () => {
+    await mount(asCall(fakeCall()));
+    for (const selector of [
+      ".metamodel",
+      "[data-any]",
+      "[data-any] .mm-head",
+      '.mm-edge[data-source="type:requirement"][data-target="type:item"]',
+      ".mm-line[data-extends]",
+    ]) {
+      expect(menuAt(selector), selector).toEqual({ place: "metamodel-graph", given: [] });
+    }
+    expect(ids("metamodel-graph")).toEqual([
+      "command:metamodel.addType",
+      "command:metamodel.addRelationKind",
+      "metamodel-text",
+      "copy-mermaid",
+    ]);
+    // A curve of relation kinds only, and a box outside its definitions: the buffer's menu (SR-194 AK6).
+    expect(menuAt('.mm-edge[data-source="type:requirement"][data-target="type:requirement"]').place).toBe(
+      "buffer",
+    );
+    expect(menuAt('[data-type="item"]').place).toBe("buffer");
+  });
+
+  it("[SR-199/AK-gh1p] gives the type's commands on its name or prefix, the type given, as the source type of a new relation kind", async () => {
+    await mount(asCall(fakeCall()));
+    for (const selector of ['[data-type="decision"] .mm-name', '[data-type="decision"] .mm-prefix']) {
+      expect(menuAt(selector), selector).toEqual({
+        place: "metamodel-type",
+        given: [
+          'metamodel.addProperty: type="decision" (Decision)',
+          'metamodel.addStatus: type="decision" (Decision)',
+          'metamodel.changeType: type="decision" (Decision)',
+          'metamodel.addRelationKind: sourceTypes=["decision"] (Decision)',
+          'metamodel.removeType: type="decision" (Decision)',
+        ],
+      });
+    }
+    expect(ids("metamodel-type")).toEqual([
+      "command:metamodel.addProperty",
+      "command:metamodel.addStatus",
+      "command:metamodel.changeType",
+      "command:metamodel.addRelationKind",
+      "command:metamodel.removeType",
+    ]);
+  });
+
+  it("[SR-199/AK-xd26] gives a property's commands with the type that has it itself, and a status's with its type", async () => {
+    await mount(asCall(fakeCall()));
+    // Rationale is inherited by Software Requirement from System Requirement.
+    expect(menuAt('[data-type="software-requirement"] [data-property="rationale"]')).toEqual({
+      place: "metamodel-property",
+      given: [
+        'metamodel.changeProperty: property="rationale" (Rationale), type="requirement" (System Requirement)',
+        'metamodel.removeProperty: type="requirement" (System Requirement), property="rationale" (Rationale)',
+      ],
+    });
+    // The label line of the relation property Package, from the type that has it.
+    expect(menuAt('.mm-line[data-property="packages"]').given).toEqual([
+      'metamodel.changeProperty: property="packages" (Package), type="requirement" (System Requirement)',
+      'metamodel.removeProperty: type="requirement" (System Requirement), property="packages" (Package)',
+    ]);
+    expect(menuAt('[data-type="software-requirement"] [data-status="retired"]')).toEqual({
+      place: "metamodel-status",
+      given: [
+        'metamodel.changeStatus: status="retired" (Retired)',
+        'metamodel.removeStatus: type="software-requirement" (Software Requirement), status="retired" (Retired)',
+      ],
+    });
+    expect(ids("metamodel-property")).toEqual([
+      "command:metamodel.changeProperty",
+      "command:metamodel.removeProperty",
+    ]);
+    expect(ids("metamodel-status")).toEqual([
+      "command:metamodel.changeStatus",
+      "command:metamodel.removeStatus",
+    ]);
+  });
+
+  it("[SR-199/AK-r1q0] gives a relation kind's commands on its label line, the kind given", async () => {
+    await mount(asCall(fakeCall()));
+    expect(menuAt('.mm-line[data-kind="delegates-to"]')).toEqual({
+      place: "metamodel-kind",
+      given: [
+        'metamodel.changeRelationKind: kind="delegates-to" (Delegates to)',
+        'metamodel.removeRelationKind: kind="delegates-to" (Delegates to)',
+      ],
+    });
+    expect(ids("metamodel-kind")).toEqual([
+      "command:metamodel.changeRelationKind",
+      "command:metamodel.removeRelationKind",
+    ]);
+  });
+
+  it("gives nothing on a place without its definitions, or outside the graph's places", async () => {
+    await mount(asCall(fakeCall()));
+    const bare = document.createElement("div");
+    for (const place of [
+      "metamodel-type",
+      "metamodel-property",
+      "metamodel-status",
+      "metamodel-kind",
+    ] as const) {
+      bare.setAttribute("data-menu", place);
+      expect(metamodelGiven(place, bare)).toBeUndefined();
+    }
+    expect(metamodelGiven("metamodel-type", undefined)).toBeUndefined();
+    expect(metamodelGiven("buffer", query(".metamodel"))).toBeUndefined();
+    // A name left out is the key.
+    bare.setAttribute("data-menu", "metamodel-kind");
+    bare.setAttribute("data-given-kind", "k");
+    expect(metamodelGiven("metamodel-kind", bare)?.["metamodel.removeRelationKind"]).toEqual([
+      { field: "kind", value: "k", label: "k" },
+    ]);
+  });
+});
+
+describe("MetamodelView's last change (SR-130 AK7)", () => {
+  const changedIn = (selector: string): string[] =>
+    [...container.querySelectorAll<HTMLElement>(`${selector}.changed`)].map(
+      (place) =>
+        `${place.closest<HTMLElement>("[data-type]")?.dataset["type"] ?? place.closest<HTMLElement>("[data-row]")?.dataset["row"] ?? ""}:${place.textContent}`,
+    );
+
+  it("[SR-130/AK-wb12] marks every place of a changed or new definition in the graph and the text, and nothing without a change", async () => {
+    const change: MetamodelChange = {
+      types: ["decision"],
+      properties: [{ key: "rationale", type: "requirement" }],
+      statuses: [{ key: "retired" }],
+      kinds: ["delegates-to"],
+    };
+    await mount(asCall(fakeCall()), metamodelBuffer(), change);
+    expect(changedIn(".mm-head")).toEqual(["decision:DecisionD"]);
+    // The property in the type that got it and in the type that inherits it from there.
+    expect(changedIn(".mm-property")).toEqual(["requirement:Rationale", "software-requirement:Rationale"]);
+    expect(changedIn(".mm-status")).toEqual([
+      "item:Retired",
+      "requirement:Retired",
+      "software-requirement:Retired",
+    ]);
+    expect(changedIn(".mm-line")).toEqual([":Delegates to"]);
+    root.unmount();
+    root = createRoot(container);
+    await mount(asCall(fakeCall()), metamodelBuffer("text"), change);
+    expect(changedIn(".mm-text-head")).toEqual([
+      "type:decision:DecisionDdecision",
+      "relation:delegates-to:Delegates todelegates-toSystem Requirement → Software Requirement",
+    ]);
+    expect(changedIn(".mm-text-property").length).toBe(2);
+    expect(changedIn(".mm-text-status").length).toBe(3);
+    root.unmount();
+    root = createRoot(container);
+    await mount(asCall(fakeCall()));
+    expect(container.querySelectorAll(".changed")).toHaveLength(0);
   });
 });
