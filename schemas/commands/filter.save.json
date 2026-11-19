@@ -46,6 +46,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "files": {
         "title": "Files",
         "type": "array",
@@ -64,6 +65,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["files"]
+    "required": ["answer", "files"]
   }
 }

@@ -90,6 +90,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
     const ws = await open();
     // excludes goes only from a variant.
     expect(await options(ws, { ref: "SR-0000b1" })).toEqual({
+      answer: "SR-0000b1 can get 5 relation kinds.",
       kinds: [REFINES, DERIVES, BASED_ON, SUPERSEDES, REPLACES],
     });
   });
@@ -97,18 +98,29 @@ describe("relation.options offers only the relation kinds the metamodel allows f
   it("[SR-067/AK-tfcb] offers a subtype the kinds of its supertype, and a need and a variant only theirs", async () => {
     const ws = await open();
     expect(await options(ws, { ref: "swr-0000F1" })).toEqual({
+      answer: "swr-0000F1 can get 5 relation kinds.",
       kinds: [REFINES, DERIVES, BASED_ON, SUPERSEDES, REPLACES],
     });
-    expect(await options(ws, { ref: "N-0000a1" })).toEqual({ kinds: [REFINES, BASED_ON, SUPERSEDES] });
+    expect(await options(ws, { ref: "N-0000a1" })).toEqual({
+      answer: "N-0000a1 can get 3 relation kinds.",
+      kinds: [REFINES, BASED_ON, SUPERSEDES],
+    });
     expect(await options(ws, { ref: "VAR-0000c1" })).toEqual({
+      answer: "VAR-0000c1 can get 4 relation kinds.",
       kinds: [REFINES, BASED_ON, SUPERSEDES, EXCLUDES],
     });
   });
 
   it("[SR-067/AK-tfcb] with a kind offers only that one, and none when the type does not allow it", async () => {
     const ws = await open();
-    expect(await options(ws, { ref: "SR-0000b1", kind: "derives-from" })).toEqual({ kinds: [DERIVES] });
-    expect(await options(ws, { ref: "N-0000a1", kind: "derives-from" })).toEqual({ kinds: [] });
+    expect(await options(ws, { ref: "SR-0000b1", kind: "derives-from" })).toEqual({
+      answer: "SR-0000b1 can get 1 relation kind.",
+      kinds: [DERIVES],
+    });
+    expect(await options(ws, { ref: "N-0000a1", kind: "derives-from" })).toEqual({
+      answer: "N-0000a1 can get 0 relation kinds.",
+      kinds: [],
+    });
   });
 
   it("[SR-067/AK-tfcb] refuses a key that is no relation kind, as relation.add does", async () => {
@@ -143,6 +155,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
       },
     });
     expect(await options(ws, { ref: "N-0000a1" })).toEqual({
+      answer: "N-0000a1 can get 4 relation kinds.",
       // more.yaml comes first.
       kinds: [
         { kind: "refines-software", name: "Refines software", targetTypes: ["software-requirement"] },
@@ -151,12 +164,18 @@ describe("relation.options offers only the relation kinds the metamodel allows f
         SUPERSEDES,
       ],
     });
-    expect(await options(ws, { ref: "N-0000a1", kind: "blocks" })).toEqual({ kinds: [] });
+    expect(await options(ws, { ref: "N-0000a1", kind: "blocks" })).toEqual({
+      answer: "N-0000a1 can get 0 relation kinds.",
+      kinds: [],
+    });
   });
 
   it("[SR-067/AK-tfcb] offers no kind for an element whose type the metamodel does not know (SR-016 AK3)", async () => {
     const ws = await open({ ...FILTER, files: { "requirements/X-0000000000ee.md": GADGET } });
-    expect(await options(ws, { ref: GADGET_ID })).toEqual({ kinds: [] });
+    expect(await options(ws, { ref: GADGET_ID })).toEqual({
+      answer: "69069069-0000-4000-8000-0000000000ee can get 0 relation kinds.",
+      kinds: [],
+    });
     const error = await optionsError(ws, { ref: GADGET_ID, kind: "nope" });
     expect([error.code, error.message]).toEqual([
       "input.invalid",

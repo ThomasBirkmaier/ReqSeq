@@ -5,13 +5,15 @@
 // connection (AK6, D-068).
 import { realpath, stat } from "node:fs/promises";
 import os from "node:os";
-import type { CommandOutput } from "../../catalog.js";
+import type { InvokedOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { sentence } from "../answer.js";
 import { CHOOSE_CLIENT, CLIENTS, deliveryLauncher, setupOf } from "../../agent-setup.js";
 import { currentInstallation } from "../../installation.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
-type Output = CommandOutput<"workspace.connectAgent">;
+/** The output with its answer: `run` builds the sentence, as it names the workspace, which the output does not hold. */
+type Output = InvokedOutput<"workspace.connectAgent">;
 
 /** The real path of a file; undefined when there is none. */
 const realFile = async (file: string): Promise<string | undefined> => {
@@ -31,6 +33,8 @@ const CLI_MISSING =
 
 export default defineCommand({
   name: "workspace.connectAgent",
+  // The sentence `run` built, kept first by `invoke` (SR-224 AK1); it is the same through every access.
+  answer: (output) => (output as Partial<Output>).answer ?? CHOOSE_CLIENT,
   run: async (ctx, input): Promise<Output> => {
     const { client } = input;
     if (client === undefined) {
@@ -60,7 +64,8 @@ export default defineCommand({
       throw new CommandError(result.code, result.message);
     }
     return {
-      answer: result.answer,
+      // One line also for a workspace name with a line break (SR-224 AK1).
+      answer: sentence(result.answer.replace(/\.$/, "")),
       client,
       server: { ...result.server, args: [...result.server.args] },
       setup: result.setup,

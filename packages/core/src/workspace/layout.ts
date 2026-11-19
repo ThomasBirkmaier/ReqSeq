@@ -309,8 +309,8 @@ const unknownLocationRepositories = (
 
 /**
  * A warning per folder of the workspace file that ReqSeq writes into and that meets Git inside its
- * repository (`gitPlaceOf`): filters, perspectives, baselines and mappings, configured or by default, and each
- * evidence location. ReqSeq never writes there (D-036), so saving there is refused.
+ * repository (`gitPlaceOf`): filters, perspectives, baselines and mappings, configured or by default, each
+ * evidence location, and the metamodel folder, which the metamodel commands write (SR-236). ReqSeq never writes there (D-036), so saving there is refused.
  */
 const gitFolderLocations = async (
   file: CheckedWorkspaceFile,
@@ -319,6 +319,7 @@ const gitFolderLocations = async (
 ): Promise<Problem[]> => {
   const problems: Problem[] = [];
   const locations = [
+    ["metamodel", file.metamodel] as const,
     ...(file.evidence ?? []).map((e) => ["evidence", e] as const),
     ...(Object.keys(DEFAULT_FOLDERS) as (keyof typeof DEFAULT_FOLDERS)[]).map(
       (setting) => [setting, settingLocation({ file, main }, setting)] as const,

@@ -61,7 +61,7 @@ const storedDatatype = (d: ReqifDatatype): SourceDatatype => ({
 });
 
 /** The `types` entry of the mapping that matches `t` by IDENTIFIER or LONG-NAME, as the import matches it; -1 for none. */
-const entryOf = (
+export const entryOf = (
   mapping: AnyMapping,
   t: { readonly identifier: string; readonly "long-name"?: string },
 ): number => (mapping.types ?? []).findIndex((e) => e.source === t.identifier || e.source === t["long-name"]);

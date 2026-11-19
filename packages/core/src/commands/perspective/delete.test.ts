@@ -65,7 +65,12 @@ describe("perspective.delete (SR-217)", () => {
       file: named.file,
       expectedFileSha256: named.fileSha256,
     });
-    expect(out).toEqual({ ...named, deleted: true, files: ["perspectives/drafts.yaml"] });
+    expect(out).toEqual({
+      ...named,
+      answer: "Deleted perspective Drafts; 1 file written.",
+      deleted: true,
+      files: ["perspectives/drafts.yaml"],
+    });
     // The last file is gone; its folder stays.
     expect(await listed(fixture)).toEqual([]);
     expect((await failure(workspace, { name: "Drafts" })).details).toEqual({

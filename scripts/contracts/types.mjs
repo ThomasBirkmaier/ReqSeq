@@ -406,6 +406,14 @@ export function generateTypes({ schemas, meta, catalog }, { renames = RENAMES } 
     );
   }
 
+  /**
+   * Only `required` (a oneOf branch next to `properties`, or `type: object` next to a `$ref`, as the
+   * output of data.export has it): a constraint on the object it is combined with, so no index
+   * signature of its own.
+   */
+  const constraintOnly = (s) =>
+    (!("type" in s) || "$ref" in s) && !("properties" in s) && s.additionalProperties === undefined;
+
   /** props: [name, schema, ctx] so merged properties keep the file they came from. */
   function objectNode(s, ctx, props, required = []) {
     const req = new Set(required);
@@ -428,11 +436,8 @@ export function generateTypes({ schemas, meta, catalog }, { renames = RENAMES } 
         nodes.push({ name, doc: undefined, type: other, optional: false });
       }
     }
-    // Only `required` (a oneOf branch next to `properties`): a constraint on the object it is
-    // combined with, so no index signature of its own.
-    const constraintOnly = !("type" in s) && !("properties" in s) && ap === undefined;
     let index;
-    if (!closed && !constraintOnly) {
+    if (!closed && !constraintOnly(s)) {
       index = other;
       if (nodes.length > 0) {
         index = union([index, ...nodes.map((p) => p.type)]);

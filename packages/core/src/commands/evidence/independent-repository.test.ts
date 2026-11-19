@@ -147,7 +147,10 @@ describe("variant-independent repositories (SR-173)", () => {
           { file: "results/run.xml", item: "build-1", variant: ["core"] },
           { workspace },
         )) as CommandOutput<"evidence.enrichJunit">
-      ).problems.map((p) => p.message);
+      ).problems
+        // `results/` is no evidence location (SR-230 AK3, enrichJunit.test.ts).
+        .filter((p) => p.code !== "evidence.outside-location")
+        .map((p) => p.message);
     // S3 applies in A only; marked, its record without variant counts in A (SR-173 AK1).
     const marked = await open(true, junit);
     expect(await noView(marked)).toEqual([]);

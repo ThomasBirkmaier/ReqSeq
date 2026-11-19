@@ -2,7 +2,7 @@
 // will use it after the migration) names elements besides UUID and short ID, outputs show it next
 // to the short ID, and a duplicate within a type is a finding.
 import { readFile, rm, writeFile } from "node:fs/promises";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, Problem } from "../catalog.js";
@@ -64,7 +64,9 @@ const decision = (id: string, specId: string): string =>
   `---\nid: ${id}\ntype: decision\nstatus: draft\ntitle: Another decision\nspec-id: ${specId}\n---\n`;
 
 const problemsOf = async (opened: Opened): Promise<readonly Problem[]> =>
-  ((await run(opened, "workspace.check", {})) as { problems: readonly Problem[] }).problems;
+  withoutVerificationGaps(
+    ((await run(opened, "workspace.check", {})) as { problems: readonly Problem[] }).problems,
+  );
 
 describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)", () => {
   it("[SR-060/AK-sct7] names an element by its identifier in element.get and element.resolve, in any case", async () => {

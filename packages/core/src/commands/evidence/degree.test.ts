@@ -8,7 +8,7 @@ import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { createFixtureWorkspace, defaultFixturesDir } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandOutput, InvokedOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
 import { evidenceRecordsState, verificationState } from "../../evidence/index.js";
 import type { VerificationStatus } from "../../generated/types.js";
@@ -50,7 +50,8 @@ const counts = (open: number, verified: number, indirect: number, failed: number
 });
 
 /** P1 of the fixture, and P3 (AK3): R01–R10. */
-const P1_DEGREE: Output = {
+const P1_DEGREE: InvokedOutput<"evidence.degree"> = {
+  answer: "6 of 10 requirements in view core are verified or indirectly verified (60 %).",
   degree: { share: 0.6, total: 10, counts: counts(2, 6, 0, 1, 1) },
   view: "core",
   incomplete: false,
@@ -148,6 +149,7 @@ describe("evidence.degree (SR-037)", () => {
 
   it("[SR-037/AK-jrkd] evidence.degree counts an indirectly verified requirement as verified and apart", async () => {
     expect(await degree(await open(), { selection: { package: "PKG-00d002" } })).toEqual({
+      answer: "3 of 5 requirements in view core are verified or indirectly verified (60 %).",
       degree: { share: 0.6, total: 5, counts: counts(1, 2, 1, 1, 0) },
       view: "core",
       incomplete: false,
@@ -171,6 +173,7 @@ describe("evidence.degree (SR-037)", () => {
     const selection = { ids: [R01, R09, RV] };
     // No variant: RV is left out, R09 is open in the core although it is verified in Pro.
     expect(await degree(workspace, { selection })).toEqual({
+      answer: "1 of 2 requirements in view core is verified or indirectly verified (50 %).",
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: "core",
       incomplete: false,
@@ -184,7 +187,12 @@ describe("evidence.degree (SR-037)", () => {
   });
 
   it("gives 9 of 14 for the whole workspace", async () => {
-    expect(await degree(await open())).toEqual({ degree: WHOLE, view: "core", incomplete: false });
+    expect(await degree(await open())).toEqual({
+      answer: "9 of 14 requirements in view core are verified or indirectly verified (64.2 %).",
+      degree: WHOLE,
+      view: "core",
+      incomplete: false,
+    });
   });
 
   it("counts in the view of the selection, else of its saved filter; without a view in the core (ThomasBirkmaier/ReqSeq-archive#592 Q1)", async () => {
@@ -194,6 +202,7 @@ describe("evidence.degree (SR-037)", () => {
     // the variant of the view for readers (ThomasBirkmaier/ReqSeq-archive#588).
     const pro = { id: V, repository: "system", shortId: "VAR-00c001", title: "Pro" };
     expect(await degree(workspace, { selection: { ids: [R01, RV], view: "VAR-00c001" } })).toEqual({
+      answer: "1 of 2 requirements in view VAR-00c001 is verified or indirectly verified (50 %).",
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: V,
       incomplete: false,
@@ -201,6 +210,7 @@ describe("evidence.degree (SR-037)", () => {
     });
     // Without a view: the core, where RV has no status.
     expect(await degree(workspace, { selection: { ids: [R01, RV] } })).toEqual({
+      answer: "1 of 1 requirement in view core is verified or indirectly verified (100 %).",
       degree: { share: 1, total: 1, counts: counts(0, 1, 0, 0, 0) },
       view: "core",
       incomplete: false,
@@ -226,7 +236,12 @@ describe("evidence.degree (SR-037)", () => {
     const out = await degree(await open({ ...DEGREE, files: { "reqseq-workspace.yaml": file } }), {
       selection: { package: "PKG-00d001" },
     });
-    expect(out).toEqual({ ...P1_DEGREE, incomplete: true });
+    expect(out).toEqual({
+      ...P1_DEGREE,
+      answer:
+        "6 of 10 requirements in view core are verified or indirectly verified (60 %); incomplete, as a repository is not available.",
+      incomplete: true,
+    });
   });
 
   it("marks the degree incomplete when an evidence location lies in a repository that is not available", async () => {
@@ -239,7 +254,13 @@ describe("evidence.degree (SR-037)", () => {
       'main: true }\n  - { name: vault, url: "git@git.example.com:ws/vault.git" }',
     );
     const out = await degree(await open({ ...DEGREE, files: { "reqseq-workspace.yaml": vault } }));
-    expect(out).toEqual({ degree: WHOLE, view: "core", incomplete: true });
+    expect(out).toEqual({
+      answer:
+        "9 of 14 requirements in view core are verified or indirectly verified (64.2 %); incomplete, as a repository is not available.",
+      degree: WHOLE,
+      view: "core",
+      incomplete: true,
+    });
   });
 
   it("follows a changed record: the state is built anew", async () => {

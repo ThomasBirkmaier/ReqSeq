@@ -5,6 +5,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { CommandCatalog } from "../../generated/types.js";
 import { contractsBundle } from "../../runtime/contracts.js";
+import { sentence } from "../answer.js";
 import { readGuideFacts } from "./guide/facts.js";
 import { agentGuide } from "./guide/text.js";
 
@@ -13,6 +14,10 @@ const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
 
 export default defineCommand({
   name: "tool.guide",
+  answer: (_output, input) =>
+    sentence(
+      `Wrote the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
+    ),
   run: async (ctx, input): Promise<CommandOutput<"tool.guide">> => ({
     guide: agentGuide(await readGuideFacts(ctx.workspace), input.names, ENTRIES),
   }),

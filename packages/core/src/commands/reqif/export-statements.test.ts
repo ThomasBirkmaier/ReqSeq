@@ -67,6 +67,7 @@ describe("reqif.export with statements (SR-058)", () => {
       statements: true,
     });
     expect(out).toEqual({
+      answer: "Exported 3 elements and 0 relations to back.reqif; 1 element without a statement.",
       file: "back.reqif",
       elements: 3,
       relations: 0,

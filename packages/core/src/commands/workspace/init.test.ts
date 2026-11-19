@@ -54,6 +54,7 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
+      answer: "Created workspace Weather station; 3 files written.",
       files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
       next: nextIn(ws.root),
       problems: [],
@@ -169,6 +170,7 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
     expect(out).toEqual({
+      answer: "Created workspace W; 3 files written.",
       files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
       next: nextIn(ws.root),
       problems: [],
@@ -177,6 +179,7 @@ describe("workspace.init", () => {
     const root = await emptyFolder();
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
     expect(atRoot).toEqual({
+      answer: "Created workspace W; 3 files written.",
       files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
       next: nextIn(root.root),
       problems: [],

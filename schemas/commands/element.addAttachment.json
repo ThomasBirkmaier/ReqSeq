@@ -81,6 +81,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "file": {
         "title": "Image file",
         "$ref": "../common.schema.json#/$defs/outputPath",
@@ -93,6 +94,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["file", "markdown"]
+    "required": ["answer", "file", "markdown"]
   }
 }

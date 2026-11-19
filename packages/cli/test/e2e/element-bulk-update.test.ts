@@ -46,7 +46,9 @@ describe("reqseq element bulk-update (SR-071)", () => {
     const before = await fs.readFile(ws.path(B1), "utf8");
     const preview = await run(["element", "bulk-update", "topic", "set", "--input", INPUT], { cwd: ws.root });
     expect([preview.code, preview.stderr]).toEqual([0, ""]);
-    expect(preview.stdout).toMatch(/^applied: false\ncount: 7\n/);
+    expect(preview.stdout).toMatch(
+      /^Preview: the change of property topic would change 7 elements, nothing written; 1 element left out\.\napplied: false\ncount: 7\n/,
+    );
     expect(preview.stdout).toContain("reason: not-a-property");
     expect(preview.stdout).toContain("files: none");
     expect(await fs.readFile(ws.path(B1), "utf8")).toBe(before);

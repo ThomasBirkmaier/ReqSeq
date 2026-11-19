@@ -285,6 +285,7 @@ describe("element.resolve", () => {
     };
     expect(given.element).toEqual(shown.element);
     expect(await resolve(opened, { ref: "SR-4a5b6c", versionDate: false })).toEqual({
+      answer: "The reference names SR-4a5b6c.",
       element: shown.element,
       current: null,
     });

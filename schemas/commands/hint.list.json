@@ -63,6 +63,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "kinds": {
         "title": "Hints per kind",
         "type": "array",
@@ -105,6 +106,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["kinds", "hints", "total", "incomplete"]
+    "required": ["answer", "kinds", "hints", "total", "incomplete"]
   }
 }

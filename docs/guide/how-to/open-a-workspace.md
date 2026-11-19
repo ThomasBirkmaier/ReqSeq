@@ -36,6 +36,7 @@ reqseq workspace status --workspace spec
 ```
 
 ```text title="Output"
+Workspace Weather station has 1 repository, 1 available.
 name: Weather station
 ...
 No problems.

@@ -33,6 +33,7 @@ reqseq element create system-requirement "Show the temperature"
 ```
 
 ```text title="Output"
+Created System Requirement SR-a3e1d0; 1 file written; 3 problems.
 SR-a3e1d0  draft  Show the temperature  [verification: core open]
 ...
 ```
@@ -43,6 +44,7 @@ reqseq element create variant "Coastal station"
 ```
 
 ```text title="Output"
+Created Variant VAR-f23826; 1 file written.
 VAR-f23826  draft  Coastal station
 ...
 ```
@@ -52,6 +54,7 @@ reqseq element list --where-type system-requirement --where-type variant --sort 
 ```
 
 ```text title="Output"
+Listed 4 elements.
 elements:
   VAR-f23826  draft  Coastal station
   VAR-5c7b92  draft  Mountain station
@@ -68,6 +71,7 @@ reqseq variant exclude VAR-5c7b92 --refs SR-a3e1d0
 ```
 
 ```text title="Output"
+Variant VAR-5c7b92 excludes SR-a3e1d0; 1 file written.
 files:
   variant/VAR-cf5b215c7b92.md
 No problems.
@@ -80,6 +84,7 @@ reqseq element list --view VAR-f23826 --where-type system-requirement --sort tit
 ```
 
 ```text title="Output"
+Listed 2 elements.
 elements:
   SR-a3e1d0  draft  Show the temperature
   SR-6d2406  draft  Show the wind speed in Beaufort
@@ -91,6 +96,7 @@ reqseq variant diff VAR-f23826
 ```
 
 ```text title="Output"
+Variant VAR-f23826 adds 0 requirements, replaces 1 and excludes 0.
 added: none
 replaced:
   - core: SR-c67baa  Show the wind speed
@@ -106,6 +112,7 @@ reqseq hint list --variant VAR-f23826 --kind variant.core-changed
 ```
 
 ```text title="Output"
+Found 1 open hint.
 kinds:
   - code: variant.core-changed
     count: 1

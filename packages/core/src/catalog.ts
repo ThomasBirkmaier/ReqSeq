@@ -19,8 +19,22 @@ export type CommandName = keyof CommandTypes;
 /** Input of a catalog command as `run` gets it: validated, with `default` values filled in. */
 export type CommandInput<N extends CommandName> = CommandTypes[N]["input"];
 
-/** Output of a catalog command, checked against the catalog in tests and debug builds. */
-export type CommandOutput<N extends CommandName> = CommandTypes[N]["output"];
+/**
+ * `T` without `answer`, for each member of a union (the outputs of `oneOf`); unlike `Omit`, it keeps the
+ * named properties of a type with an index signature (`data.export`, whose output is a `$ref`).
+ */
+type WithoutAnswer<T> = T extends unknown
+  ? { [K in keyof T as K extends "answer" ? never : K]: T[K] }
+  : never;
+
+/**
+ * Output of a catalog command as its `run` gives it: without `answer`, which `invoke` adds from the
+ * command's `answer` (SR-224 AK1).
+ */
+export type CommandOutput<N extends CommandName> = WithoutAnswer<CommandTypes[N]["output"]>;
+
+/** Output of a catalog command as `invoke` gives it to every access, checked against the catalog in tests and debug builds. */
+export type InvokedOutput<N extends CommandName> = CommandTypes[N]["output"];
 
 /** Code of a command error (`common.schema.json#/$defs/error`). */
 export type CommandErrorCode = CommandErrorObject["code"];
@@ -39,6 +53,25 @@ export interface CommandDefinition<In, Out> {
   readonly name: string;
   /** Gets input that already passed the catalog input schema, with defaults applied. */
   readonly run: (ctx: CommandContext, input: In) => Promise<Out>;
+  /**
+   * The answer of an output (SR-224 AK1): one English sentence on what the command found,
+   * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
+   * is the same through every access; no time relative to reading it. `invoke` puts it first in the
+   * output as `answer`. `names` names what the metamodel defines as people read it. Every product
+   * command has one (`CatalogCommand`). It is optional only for the commands of a test-only catalog
+   * (`defineTestCommand`), whose output schemas need no `answer`: without it `invoke` gives the output as
+   * `run` returns it, which the output schemas of the product catalog, all requiring `answer`, refuse.
+   */
+  answer?(output: Out, input: In, names: AnswerNames): string;
+}
+
+/**
+ * How an answer names what the metamodel defines (SR-224 AK1): by the name people read, as problem
+ * messages do (`System Requirement SR-0000b1`), never by its key.
+ */
+export interface AnswerNames {
+  /** The name of the type `key` in the metamodel; the key itself for a type it does not have. */
+  type(key: string): string;
 }
 
 /** Implementation of the catalog command `N`, typed from its catalog schemas. */
@@ -47,6 +80,7 @@ export interface CatalogCommand<N extends CommandName> extends CommandDefinition
   CommandOutput<N>
 > {
   readonly name: N;
+  answer(output: CommandOutput<N>, input: CommandInput<N>, names: AnswerNames): string;
 }
 
 /** Any command, whatever its input and output types (what the registry stores). */
@@ -202,9 +236,13 @@ export const lazyCommand = <N extends CommandName>(
   importModule: () => Promise<{ readonly default: CatalogCommand<N> }>,
 ): LazyCommand<N> => {
   let loading: Promise<CatalogCommand<N>> | undefined;
+  let loaded: CatalogCommand<N> | undefined;
   const load = (): Promise<CatalogCommand<N>> => {
     loading ??= importModule().then(
-      (module) => module.default,
+      (module) => {
+        loaded = module.default;
+        return module.default;
+      },
       (error: unknown) => {
         loading = undefined;
         throw error;
@@ -212,7 +250,18 @@ export const lazyCommand = <N extends CommandName>(
     );
     return loading;
   };
-  return { name, load, run: async (ctx, input) => (await load()).run(ctx, input) };
+  return {
+    name,
+    load,
+    run: async (ctx, input) => (await load()).run(ctx, input),
+    // `invoke` asks for the answer only after `run`, which loaded the module.
+    answer: (output, input, names) => {
+      if (loaded === undefined) {
+        throw new Error(`command ${name} is asked for its answer before it ran`);
+      }
+      return loaded.answer(output, input, names);
+    },
+  };
 };
 
 /**

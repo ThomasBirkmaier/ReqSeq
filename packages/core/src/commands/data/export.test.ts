@@ -284,6 +284,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     const out = await exportOf(open(ws));
     expect(out.incomplete).toBe(false);
     expect(Object.keys(out)).toEqual([
+      "answer",
       "reqseq-data",
       "commit",
       "dirty",
@@ -421,6 +422,6 @@ describe("data.export: the documented schema (SR-061 AK3)", () => {
       commit: example.commit,
       generated: example.generated,
       repositories: example.repositories,
-    }).toEqual(example);
+    }).toEqual({ answer: "Exported 2 elements of workspace Weather station.", ...example });
   });
 });

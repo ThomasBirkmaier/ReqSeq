@@ -12,6 +12,7 @@ import { readBuildInfo } from "../../build-info.js";
 import { elementStoreState } from "../../model/index.js";
 import { PRODUCT_LICENSE, PRODUCT_VERSION } from "../../product.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, sentence } from "../answer.js";
 
 type Output = CommandOutput<"tool.info">;
 
@@ -57,6 +58,10 @@ export const toolFacts = (facts: ProcessFacts, build: BuildInfo | undefined): Om
 
 export default defineCommand({
   name: "tool.info",
+  answer: (output) =>
+    sentence(
+      `ReqSeq ${output.versions.app} with workspace ${output.workspace.name}: ${counted(output.workspace.repositories.length, "repository", "repositories")} and ${counted(output.workspace.elements, "element")}`,
+    ),
   run: async (ctx): Promise<Output> => {
     const [layout, store, build] = await Promise.all([
       ctx.workspace.get(workspaceLayoutState),

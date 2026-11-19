@@ -11,6 +11,7 @@ import type {
   CommandInput,
   CommandName,
   CommandOutput,
+  InvokedOutput,
 } from "./catalog.js";
 import {
   COMMAND_ERROR_CLASSES,
@@ -53,6 +54,7 @@ describe("command definitions", () => {
   it("returns the definition unchanged, typed from the catalog entry its name picks", () => {
     const status = defineCommand({
       name: "workspace.status",
+      answer: (output) => `Workspace ${output.name}.`,
       run: (_ctx, input) => {
         expectTypeOf(input).toEqualTypeOf<CommandInput<"workspace.status">>();
         return Promise.resolve({
@@ -66,8 +68,12 @@ describe("command definitions", () => {
       },
     });
     expectTypeOf(status).toEqualTypeOf<CatalogCommand<"workspace.status">>();
-    expectTypeOf(status.run).returns.toEqualTypeOf<Promise<WorkspaceStatusOutput>>();
-    const def: CatalogCommand<"workspace.status"> = { name: "workspace.status", run: status.run };
+    expectTypeOf(status.run).returns.toEqualTypeOf<Promise<CommandOutput<"workspace.status">>>();
+    const def: CatalogCommand<"workspace.status"> = {
+      name: "workspace.status",
+      run: status.run,
+      answer: (output, input, names) => status.answer(output, input, names),
+    };
     expect(defineCommand(def)).toBe(def);
   });
 
@@ -81,7 +87,9 @@ describe("command definitions", () => {
     // Also through $ref: filter.schema.json#/$defs/sortKey has `order` with a default.
     expectTypeOf<NonNullable<ElementListInput["sort"]>[number]["order"]>().toEqualTypeOf<"asc" | "desc">();
     expectTypeOf<ElementListInput>().pick<"withText">().toEqualTypeOf<{ readonly withText?: boolean }>();
-    expectTypeOf<CommandOutput<"workspace.status">>().toEqualTypeOf<WorkspaceStatusOutput>();
+    // `run` gives the output without `answer`, which `invoke` adds (SR-224 AK1).
+    expectTypeOf<InvokedOutput<"workspace.status">>().toEqualTypeOf<WorkspaceStatusOutput>();
+    expectTypeOf<CommandOutput<"workspace.status">>().toEqualTypeOf<Omit<WorkspaceStatusOutput, "answer">>();
     expectTypeOf<CommandEffect>().toEqualTypeOf<"read" | "write-files">();
     expectTypeOf<Parameters<CatalogCommand<"element.list">["run"]>>().toEqualTypeOf<
       [CommandContext, ElementListInput]
@@ -198,6 +206,7 @@ describe("lazyCommand", () => {
   const status = defineCommand({
     name: "workspace.status",
     run: (_ctx, input) => Promise.resolve({ input } as never),
+    answer: (output, _input, names) => `Answer to ${JSON.stringify(output)} for ${names.type("need")}.`,
   });
   // `run` only passes the context on, so any object stands for it here.
   const ctx = {} as CommandContext;
@@ -213,6 +222,18 @@ describe("lazyCommand", () => {
     expect(second).toEqual({ input });
     expect(await command.load()).toBe(status);
     expect(importModule).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the answer of the loaded module, and refuses before the module ran (SR-224 AK1)", async () => {
+    const command = lazyCommand("workspace.status", () => Promise.resolve({ default: status }));
+    const output = { name: "w" } as CommandOutput<"workspace.status">;
+    const input = {} as CommandInput<"workspace.status">;
+    const names = { type: (key: string) => `${key} by name` };
+    expect(() => command.answer(output, input, names)).toThrow(
+      "command workspace.status is asked for its answer before it ran",
+    );
+    await command.run(ctx, input);
+    expect(command.answer(output, input, names)).toBe('Answer to {"name":"w"} for need by name.');
   });
 
   it("tries the import again after it failed", async () => {

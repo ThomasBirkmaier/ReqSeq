@@ -191,6 +191,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       const current = (await criteriaHints(workspace)).find((h) => h.hintId === at(2))?.currentVersion;
       expect(current).toMatch(WRITTEN_VERSION);
       expect(await confirm(workspace, [at(2)])).toEqual({
+        answer: "Confirmed 1 hint; 1 file written.",
         confirmed: [at(2)],
         files: [A_FILE],
         problems: [],

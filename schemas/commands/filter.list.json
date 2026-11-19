@@ -14,6 +14,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "filters": {
         "title": "Saved filters",
         "type": "array",
@@ -69,6 +70,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["filters"]
+    "required": ["answer", "filters"]
   }
 }

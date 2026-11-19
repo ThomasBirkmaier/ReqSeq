@@ -434,6 +434,7 @@ describe("workspace.agents", () => {
     const cache = await tempFolder();
     const workspace = open((await fixture()).root, cache);
     expect(await invoke("workspace.agents", {}, { workspace })).toEqual({
+      answer: "0 agents connected to this copy; no connection has ended.",
       recorded: true,
       connected: [],
       last: null,
@@ -444,11 +445,13 @@ describe("workspace.agents", () => {
       Date.now(),
     );
     expect(await invoke("workspace.agents", {}, { workspace })).toEqual({
+      answer: "1 agent connected to this copy; no connection has ended.",
       recorded: true,
       connected: [{ client: "agent", since: "2026-11-18T09:00:00.000Z" }],
       last: null,
     });
     expect(await invoke("workspace.agents", {}, { workspace: open(workspace.root, undefined) })).toEqual({
+      answer: "This copy has no cache folder that records agent connections.",
       recorded: false,
       connected: [],
       last: null,

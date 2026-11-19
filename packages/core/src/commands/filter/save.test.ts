@@ -58,7 +58,11 @@ describe("filter.save (SR-070)", () => {
       where: { all: [{ type: ["system-requirement"] }, { status: ["draft"] }] },
       sort: [{ by: "title" }],
     });
-    expect(out).toEqual({ files: ["filters/draft-requirements.yaml"], problems: [] });
+    expect(out).toEqual({
+      answer: "Saved filter Draft requirements; 1 file written.",
+      files: ["filters/draft-requirements.yaml"],
+      problems: [],
+    });
     const text = await read(fixture, "filters/draft-requirements.yaml");
     expect(text).toBe(
       [
@@ -149,6 +153,7 @@ describe("filter.save (SR-070)", () => {
       files: { "filters/check.yaml": hand },
     });
     expect(await save(workspace, { name: decomposed, where: { status: ["draft"] } })).toEqual({
+      answer: "Saved filter Prüfung; 1 file written.",
       files: ["filters/check.yaml"],
       problems: [],
     });
@@ -176,6 +181,7 @@ describe("filter.save (SR-070)", () => {
     expect(
       await save(workspace, { name: "Drafts", where: { status: ["draft"] }, sort: [{ by: "title" }] }),
     ).toEqual({
+      answer: "Saved filter Drafts; no file written.",
       files: [],
       problems: [],
     });
@@ -184,6 +190,7 @@ describe("filter.save (SR-070)", () => {
     expect(
       await save(workspace, { name: "drafts", where: { status: ["draft"] }, sort: [{ by: "title" }] }),
     ).toEqual({
+      answer: "Saved filter drafts; 1 file written.",
       files: ["filters/mine.yaml"],
       problems: [],
     });
@@ -214,6 +221,7 @@ describe("filter.save (SR-070)", () => {
     );
     // What the input leaves out is removed from the file; the file stays, nothing else is written.
     expect(await save(workspace, { name: "DRAFTS", where: { status: ["draft", "obsolete"] } })).toEqual({
+      answer: "Saved filter DRAFTS; 1 file written.",
       files: ["filters/mine.yaml"],
       problems: [],
     });
@@ -270,6 +278,7 @@ describe("filter.save (SR-070)", () => {
   it("[SR-035/AK-k81y] saves the condition emergent, and running the saved filter gives what the condition gives", async () => {
     const { fixture, workspace } = await open();
     expect(await save(workspace, { name: "Emergent", where: { emergent: true } })).toEqual({
+      answer: "Saved filter Emergent; 1 file written.",
       files: ["filters/emergent.yaml"],
       problems: [],
     });
@@ -344,7 +353,12 @@ describe("filter.save (SR-070)", () => {
     });
     const error = await failure(workspace, { name: "All", where: { all: [] } });
     expect([error.code, error.details]).toEqual(["file.folder-missing", { repository: "vault" }]);
-    expect(await listed(workspace)).toEqual({ filters: [], problems: [], incomplete: true });
+    expect(await listed(workspace)).toEqual({
+      answer: "Found 0 saved filters; incomplete, as a repository is not available.",
+      filters: [],
+      problems: [],
+      incomplete: true,
+    });
   });
 
   it("[SR-083/AK-s4q9] writes no filter below .git, also when the workspace file places the filters folder there", async () => {

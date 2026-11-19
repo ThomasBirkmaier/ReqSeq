@@ -3,8 +3,10 @@
 // element.update; from then on the image counts to the version (D-057). See model/attachment.ts.
 import { defineCommand } from "../../catalog.js";
 import { addAttachment } from "../../model/index.js";
+import { sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.addAttachment",
+  answer: (output) => sentence(`Copied the image to ${output.file}`),
   run: (ctx, input) => addAttachment(ctx.workspace, input),
 });

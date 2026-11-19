@@ -9,6 +9,7 @@ import { defineCommand } from "../../catalog.js";
 import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT, metamodelState } from "../../metamodel/index.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
+import { filesNote, problemsNote, sentence } from "../answer.js";
 import { afterInitSteps } from "../../next-steps.js";
 
 /** The path with links resolved, so two spellings of one folder compare equal; the path itself when it does not exist. */
@@ -16,6 +17,12 @@ const realPath = async (folder: string): Promise<string> => fs.realpath(folder).
 
 export default defineCommand({
   name: "workspace.init",
+  answer: (output, input) =>
+    sentence(
+      output.files.length === 0 ? `Created no workspace ${input.name}` : `Created workspace ${input.name}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"workspace.init">> => {
     // `localPath`: the CLI passes it absolute, API and MCP relative to the workspace root.
     const root = path.resolve(ctx.workspace.root, input.path);

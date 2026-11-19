@@ -6,6 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandContext } from "../catalog.js";
 import { CommandError, defineTestCommand } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
+import { metamodelState } from "../metamodel/index.js";
 import { loadContracts } from "./contracts.js";
 import type { CommandRuntimeOptions } from "./invoke.js";
 import { configureCommandRuntime, createCommandRuntime, getCommandRuntime, invoke } from "./invoke.js";
@@ -464,5 +465,34 @@ describe("local paths by access (SR-142)", () => {
     ]);
     // The caller's object stays as it was.
     expect(input.file).toBe("~/out.reqif");
+  });
+});
+
+describe("the names of an answer (SR-224 AK1)", () => {
+  it("names a type by its name in the metamodel the command left, else by its key", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements" });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    const named = defineTestCommand<Record<string, never>, Record<string, never>>({
+      name: "test.paths",
+      answer: (_output, _input, names) =>
+        `${names.type("system-requirement")} and ${names.type("no-such-type")}.`,
+      run: () => Promise.resolve({}),
+    });
+    const rt = runtime({ commands: [named] });
+    // No command read the metamodel yet: nothing is read for the answer.
+    expect(await rt.invoke("test.paths", {}, { workspace: ws })).toEqual({
+      answer: "system-requirement and no-such-type.",
+    });
+    await ws.get(metamodelState);
+    expect(await rt.invoke("test.paths", {}, { workspace: ws })).toEqual({
+      answer: "System Requirement and no-such-type.",
+    });
+    // A metamodel that failed meanwhile names the type by its key; the command still succeeds.
+    vi.spyOn(ws, "peek").mockReturnValue(Promise.reject(new Error("reset")));
+    expect(await rt.invoke("test.paths", {}, { workspace: ws })).toEqual({
+      answer: "system-requirement and no-such-type.",
+    });
   });
 });

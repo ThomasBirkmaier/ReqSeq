@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-`workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations and evidence files. In a pipeline it decides by its exit code whether the step passes.
+`workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence files and gaps of verification. In a pipeline it decides by its exit code whether the step passes.
 
 ## App
 
@@ -23,6 +23,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -34,6 +35,7 @@ reqseq workspace check --fail-on warning
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -58,6 +60,7 @@ reqseq workspace check --changed-files need/N-d0e44b7fe707.md
 ```
 
 ```text title="Output"
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
 No problems.
@@ -79,7 +82,7 @@ jobs:
 
 ### Gate on verification
 
-`workspace check` does not fail on missing verification. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
+The [info on open requirements](#gaps-of-verification) counts only `open`. To let a pipeline fail while a requirement is not verified at its current version, list the requirements whose verification status is `open`, `failed` or `outdated`, leaving out the obsolete ones, and fail when `total` is not 0:
 
 ```sh
 reqseq element create system-requirement "Show the wind speed" --text "The station shows the wind speed."
@@ -87,6 +90,7 @@ reqseq element list --input '{"selection":{"where":{"all":[{"not":{"status":["ob
 ```
 
 ```text title="Output"
+Listed 1 element.
 elements:
   SR-9d35ce  draft  Show the wind speed
 total: 1
@@ -96,6 +100,62 @@ The status counts the newest record of the current version, so a passed test of 
 
 ```yaml
 - run: test "$(reqseq element list --json --input '{"selection":{"where":{"all":[{"not":{"status":["obsolete"]}},{"verification":["open","failed","outdated"]}]}}}' | jq .total)" = 0
+```
+
+### Gaps of verification
+
+Only a full check reports a gap, at the workspace file. Without an evidence location no test result counts, so once there is a requirement a warning names the entry to add:
+
+```sh
+reqseq workspace check
+```
+
+```text title="Output"
+Checked 2 elements and found 4 warnings.
+ok: true
+...
+warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: ..., path: evidence }]  reqseq-workspace.yaml
+```
+
+With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. It names the call that lists them; `--fail-on info` fails the step while any is left:
+
+```yaml title="reqseq-workspace.yaml"
+reqseq-workspace: 1
+name: Weather station
+repositories:
+  - name: system
+    url: ""
+    main: true
+metamodel:
+  repository: system
+  path: metamodel
+evidence:
+  - { repository: system, path: evidence }
+```
+
+```text title="evidence/.gitkeep"
+```
+
+```sh
+reqseq workspace check
+```
+
+```text title="Output"
+Checked 2 elements and found 3 warnings and 1 info.
+ok: true
+...
+info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core; reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}' lists them  reqseq-workspace.yaml
+```
+
+```sh
+reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}'
+```
+
+```text title="Output"
+Listed 1 element.
+elements:
+  SR-9d35ce  draft  Show the wind speed
+total: 1
 ```
 
 ## API

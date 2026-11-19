@@ -195,13 +195,32 @@ const selfContained = (schema: JsonSchema, defs: Readonly<Record<string, JsonSch
     : { ...schema, $defs: Object.fromEntries(used.map((name) => [name, defs[name]])) };
 };
 
+/** The one tool whose input schema carries the whole filter grammar, under `selection.where` (#1927, ADR-0009). */
+export const FILTER_GRAMMAR_TOOL = "element_search";
+
+/** The filter condition, and the short form that stands for it in every other tool (`filter.schema.json`). */
+const CONDITION = "filter.condition";
+const CONDITION_STUB = "filter.conditionStub";
+
+/**
+ * `defs` with the filter condition replaced by its short form, as a new map. The grammar was two fifths of the
+ * list, copied into every tool with a condition, since MCP has no `$defs` shared across tools (#1927). With the
+ * stub, `usedDefinitions` no longer reaches the relation and property conditions. Core still validates every
+ * call against the whole grammar, so a wrong condition gives the same `input.invalid` on every access.
+ */
+const withConditionStub = (defs: Readonly<Record<string, JsonSchema>>): Record<string, JsonSchema> =>
+  // The stub is a definition of filter.schema.json, so it is among `defs` with every product catalog.
+  ({ ...defs, [CONDITION]: defs[CONDITION_STUB] }) as Record<string, JsonSchema>;
+
 /**
  * The tools the server lists: the implemented catalog commands, with self-contained input schemas that
- * carry only the definitions they use. Commands without an implementation are not listed; a call to one still reaches
- * `invoke` and gives `command.not-implemented`, as on every access (server.ts).
+ * carry only the definitions they use, the filter grammar in `FILTER_GRAMMAR_TOOL` only. Commands without an
+ * implementation are not listed; a call to one still reaches `invoke` and gives `command.not-implemented`, as on
+ * every access (server.ts).
  */
 export function serverTools(runtime: CommandRuntime): ServerTool[] {
   const defs = withoutDisplayMarks(flatDefinitions(runtime.contracts)) as Record<string, JsonSchema>;
+  const stubbed = withConditionStub(defs);
   return runtime.contracts.commands
     .filter((entry) => runtime.commands.has(entry.name))
     .map((entry) => {
@@ -209,7 +228,10 @@ export function serverTools(runtime: CommandRuntime): ServerTool[] {
       return {
         ...plain,
         command: entry.name,
-        inputSchema: selfContained(withoutDisplayMarks(flat(plain.inputSchema)) as JsonSchema, defs),
+        inputSchema: selfContained(
+          withoutDisplayMarks(flat(plain.inputSchema)) as JsonSchema,
+          plain.name === FILTER_GRAMMAR_TOOL ? defs : stubbed,
+        ),
         ...(entry.loadUpfront === true ? { _meta: { [ALWAYS_LOAD]: true } as const } : {}),
       };
     });

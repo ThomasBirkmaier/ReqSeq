@@ -93,6 +93,10 @@ export type {
   StoreUpdate,
   WrittenFile,
 } from "./store.js";
+export { metamodelEffects } from "./metamodel-effects.js";
+export type { MetamodelEffects } from "./metamodel-effects.js";
+export { writeMetamodel } from "./metamodel-write.js";
+export type { MetamodelWrite } from "./metamodel-write.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";
 export type { RequiredFinding } from "./required.js";
 export { allStatusFindings, statusFindings, statusProblemsState } from "./status-findings.js";

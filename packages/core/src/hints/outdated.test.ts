@@ -3,7 +3,7 @@
 // ADR-0004) and references N in its text; requirement B refines A. Every stored version is current.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -76,8 +76,14 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
-  (await invoke("workspace.check", input, { workspace })) as Output;
+/** `workspace.check` without the gaps of verification (SR-230 AK1, AK2), which most fixtures here have. */
+const check = async (
+  workspace: Workspace,
+  input: Readonly<Record<string, unknown>> = {},
+): Promise<Output> => {
+  const out = (await invoke("workspace.check", input, { workspace })) as Output;
+  return { ...out, problems: withoutVerificationGaps(out.problems) };
+};
 
 /** The committer date of HEAD as ADR-0005 writes a version date. */
 const headDate = async (ws: FixtureWorkspace): Promise<string> =>
@@ -205,7 +211,12 @@ describe("outdated relations and references (SR-025)", () => {
     // The fixture stores the n1 versions of the unchanged targets; the tool writes n2 (ADR-0005).
     expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
     expect(NORMAL_FORM).toBe("n2");
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-rvw7] reports nothing when every relation and reference stores the current version in normal form 2 (ADR-0005)", async () => {
@@ -219,7 +230,12 @@ describe("outdated relations and references (SR-025)", () => {
     const a = await formsOf(A);
     const b = await readFile(path.join(FIXTURE_FOLDER, B_FILE), "utf8");
     await ws.write(B_FILE, b.replace(A_VERSION, a.n2));
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("reports a stored version of normal form 2 that is not the current one, with the current version confirm writes (ADR-0005)", async () => {
@@ -236,7 +252,12 @@ describe("outdated relations and references (SR-025)", () => {
 
   it("[SR-025/AK-rvw7] reports nothing without Git either", async () => {
     const ws = await fixture();
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-zmvt] names source, target and the dates of the stored and the current version, and is not ok", async () => {
@@ -673,7 +694,8 @@ describe("outdated relations and references (SR-025)", () => {
     // Not ok for the warnings with failOn warning, though the filter leaves them out; counted as hidden.
     expect(out.ok).toBe(false);
     expect(out.problems).toEqual([]);
-    expect(out.hidden).toEqual({ below: "error", warning: 3, info: 0 });
+    // The three outdated relations and the missing evidence location (SR-230 AK1).
+    expect(out.hidden).toEqual({ below: "error", warning: 4, info: 0 });
   });
 
   it("does not report a target whose current version is unknown (its file no longer holds it)", async () => {
