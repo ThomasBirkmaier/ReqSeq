@@ -71,11 +71,13 @@ export const snippetOf = (snippet: NonNullable<Hit["snippet"]>): Snippet => {
     return { where: snippet.propertyName, ...shown };
   }
   const where = `${snippet.propertyName} ${criterionLabel(criterion)}`;
-  // The label ends in `(<key>)`.
   const { key } = criterion;
-  return criterion.keyMarked === true && key !== undefined
-    ? { where, whereMarks: [[where.length - key.length - 1, where.length - 1]], ...shown }
-    : { where, ...shown };
+  if (criterion.keyMarked !== true || key === undefined) {
+    return { where, ...shown };
+  }
+  // The label ends in `(<key>)`.
+  const at = where.lastIndexOf(key);
+  return { where, whereMarks: [[at, at + key.length]], ...shown };
 };
 
 export const rowOf = (

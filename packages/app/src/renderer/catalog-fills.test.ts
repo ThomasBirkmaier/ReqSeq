@@ -64,12 +64,16 @@ describe("withTypedReference", () => {
     }
   });
 
-  it("asks element.resolve nothing for other text, nor for an argument that takes no reference", async () => {
+  it("asks element.resolve nothing for other text, a reference by number, or an argument that takes no reference", async () => {
     const { context, call } = contextOf({ output: resolved });
     expect(await withTypedReference(context, () => Promise.resolve(hits), vi.fn())("wind")).toEqual(hits);
     expect(
       await withTypedReference(context, () => Promise.resolve(hits), undefined)("[SR-036/AK-k7f3]"),
     ).toEqual(hits);
+    expect(call).not.toHaveBeenCalled();
+    // A reference by number is taken as typed, and core refuses it when it runs.
+    const byNumber = await withTypedReference(context, () => Promise.resolve(hits), vi.fn())("[SR-036/AK2]");
+    expect(byNumber.map((entry) => entry.name)).toEqual(["Use [SR-036/AK2]", ...hits.map((hit) => hit.name)]);
     expect(call).not.toHaveBeenCalled();
   });
 });

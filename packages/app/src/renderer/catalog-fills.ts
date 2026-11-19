@@ -46,11 +46,16 @@ export const withTypedReference =
   ) =>
   async (query: string): Promise<readonly Choice[]> => {
     const text = query.trim();
-    if (take === undefined || criterionReferenceOf(text)?.criterion === undefined) {
+    const criterion = criterionReferenceOf(text)?.criterion;
+    if (take === undefined || criterion === undefined) {
       return find(query);
     }
-    const [found, answer] = await Promise.all([find(query), context.call("element.resolve", { ref: text })]);
-    const entry = answer.ok ? criterionEntry(answer.output) : undefined;
+    // Only a key resolves: a number (`[SR-036/AK2]`) is refused when it runs, so it asks core nothing per key.
+    const [found, answer] = await Promise.all([
+      find(query),
+      typeof criterion === "string" ? context.call("element.resolve", { ref: text }) : undefined,
+    ]);
+    const entry = answer?.ok === true ? criterionEntry(answer.output) : undefined;
     return [
       {
         id: `reference:${text}`,
