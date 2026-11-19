@@ -1,7 +1,7 @@
-// The outdated skill file a full workspace check reports (SR-229 AK10, #1920): ReqSeq's own skill file at the
+// The skill file of an older ReqSeq version a full workspace check reports (SR-229 AK10, #1920): ReqSeq's own skill file at the
 // place of D-079 (`readSkillFile`) whose version is older than this version of the tool (`compareVersions`) and
 // whose content differs from what this version writes apart from that version (`sameContent`), so a file that
-// differs only in its version line is not reported. One `workspace.skill-outdated` info at the file, with the
+// differs only in its version line is not reported. One `workspace.skill-older-version` info at the file, with the
 // command-line call that renews it: `tool.guide` with `skill` and `write`, plus `replace` when the file was
 // changed since ReqSeq wrote it (AK8 replaces such a file only on request). The command line, since it writes
 // at every place of D-079, while the API and the MCP server refuse one outside the repositories (AK8).
@@ -9,8 +9,10 @@
 // Not reported: a newer or the same version, a version that is no version (`compareVersions` undefined), a
 // missing file or one ReqSeq did not write, a place that cannot be looked at or read (the refusals of
 // `readSkillFile`), and a check restricted to changed elements (SR-092), since the file is no element.
-// The file is read on every call (its place is outside the files the workspace states keep): one `lstat`
-// and at most 64 KiB, with no input path, so the result is the same in every access (SR-080 AK2).
+// The file is read on every call (its place is outside the files the workspace states keep), with no input
+// path, so the result is the same in every access (SR-080 AK2): the place of D-079 is fixed and only read,
+// also when it lies in a Git root above the workspace folder, where API and MCP do not write (AK8).
+// Assumption of question #2001: a file that differs only in its version line has the same content.
 import type { Problem } from "../../../catalog.js";
 import { CommandError } from "../../../catalog.js";
 import type { CommandCatalog } from "../../../generated/types.js";
@@ -39,7 +41,7 @@ const lookedAt = async (
 };
 
 /** The info of AK10, or none (see the file comment). */
-export const outdatedSkillProblems = async (
+export const olderSkillProblems = async (
   workspace: Workspace,
   context: {
     /** The check is restricted to changed elements (SR-092): nothing is reported. */
@@ -70,7 +72,7 @@ export const outdatedSkillProblems = async (
     : `it was changed since, so ${call} renews it and drops those changes`;
   return [
     {
-      code: "workspace.skill-outdated",
+      code: "workspace.skill-older-version",
       severity: "info",
       file: found.path,
       message: `The skill file ${found.path} was written by ReqSeq ${found.version}, and ReqSeq ${PRODUCT_VERSION} writes another; ${renew}`,

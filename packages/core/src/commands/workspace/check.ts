@@ -48,7 +48,7 @@
 // - The gaps of verification (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location while a
 //   requirement exists (a warning), else the count of the requirements with method test whose status
 //   is open in the core (one info); computed per call after SR-103, only in a full check.
-// - The outdated skill file (SR-229 AK10, `tool/guide/skill-check.ts`): ReqSeq's own skill file at the place
+// - The skill file of an older ReqSeq version (SR-229 AK10, `tool/guide/skill-check.ts`): ReqSeq's own skill file at the place
 //   of D-079 with an older version and other content than this version writes (one info); read per call
 //   after the gaps, only in a full check.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
@@ -99,7 +99,7 @@ import {
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { counted, listed, sentence } from "../answer.js";
-import { outdatedSkillProblems } from "../tool/guide/skill-check.js";
+import { olderSkillProblems } from "../tool/guide/skill-check.js";
 
 type Severity = Problem["severity"];
 
@@ -232,7 +232,7 @@ export default defineCommand({
         restricted: changed !== undefined,
       })),
       // SR-229 AK10: only in a full check, at the skill file.
-      ...(await outdatedSkillProblems(ctx.workspace, { restricted: changed !== undefined })),
+      ...(await olderSkillProblems(ctx.workspace, { restricted: changed !== undefined })),
     ];
     for (const problem of perCall.filter(keeps)) {
       findings.push(problem);

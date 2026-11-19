@@ -118,7 +118,7 @@ scenariosOf("workspace.check", [
         .output;
       expect(
         problems
-          .filter((p) => p["code"] === "workspace.skill-outdated")
+          .filter((p) => p["code"] === "workspace.skill-older-version")
           .map((p) => [p["severity"], p["file"], String(p["message"]).split("; ")[1]]),
       ).toEqual([
         [

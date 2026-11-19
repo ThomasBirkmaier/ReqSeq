@@ -303,9 +303,9 @@ problems:
     title: Folder not watched
     cause: ReqSeq cannot watch a folder for changes, for example because the system's limit of watched folders is reached.
     remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
-  workspace.skill-outdated:
-    title: Outdated skill file
-    cause: The skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older version of ReqSeq, and its content differs from what this version writes. A file that differs only in its version, one written by a newer version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.
+  workspace.skill-older-version:
+    title: Skill file of an older ReqSeq version
+    cause: The skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older ReqSeq version, and its content differs from what this ReqSeq version writes. A file that differs only in its ReqSeq version, one written by a newer ReqSeq version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.
     remedy: Run the call the message gives (`reqseq tool guide --skill --write`). It adds `--replace` when the file was changed since ReqSeq wrote it, which drops those changes.
   git.unavailable:
     title: Git cannot read the repository
