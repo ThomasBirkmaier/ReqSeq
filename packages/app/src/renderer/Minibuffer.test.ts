@@ -1479,8 +1479,8 @@ describe("Minibuffer", () => {
         const { prompt, back } = confirmation();
         let ask: (serial: number) => void = () => undefined;
         // Presses Escape in the commit that puts the step on the page, after the layout effects of the prompt
-        // and before any passive effect: as a key that comes after the frame showing the step and before React
-        // ran the passive effects of that commit.
+        // and before any passive effect: as a key that comes once the step is on the page, before React ran the
+        // passive effects of that commit, which can run after the frame that paints it (#1982).
         const Presser = ({ serial }: { readonly serial: number }): null => {
           useLayoutEffect(() => {
             if (serial === 2) {
