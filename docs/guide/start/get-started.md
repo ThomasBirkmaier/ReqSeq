@@ -28,11 +28,14 @@ files:
   reqseq-workspace.yaml
   .gitignore
 No problems.
+next:
+  reqseq workspace connect-agent --client <client>  Connect AI agent
+  reqseq element create <type> <title>              Create element
 ```
 
 ReqSeq never commits: put the folder under Git yourself.
 
-In the app: Ctrl+O and choose the folder, then run **Initialise workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
+In the app: Ctrl+O and choose the folder, then run **Create workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 
