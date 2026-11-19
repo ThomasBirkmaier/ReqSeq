@@ -1,0 +1,6 @@
+{
+  "name": "Conflicts with",
+  "inverseName": "Conflicts with",
+  "sourceTypes": ["system-requirement"],
+  "targetTypes": ["system-requirement"]
+}

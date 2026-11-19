@@ -61,9 +61,11 @@ export const FILES: Readonly<Record<string, string>> = {
   "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
-  // A type no element has and nothing names, so metamodel.removeType writes.
+  // A type and a relation kind no element has and nothing names, so metamodel.removeType and
+  // metamodel.removeRelationKind write.
   "metamodel/zz-scratch.yaml":
-    "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n",
+    "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n" +
+    "relations:\n  - { key: scratch-link, name: Scratch link }\n",
   "new/layout.png": "an image",
   "filters/wind.yaml": "reqseq-filter: 1\nname: Wind\nwhere: { status: [draft] }\n",
   "filters/gusts.yaml": "reqseq-filter: 1\nname: Gusts\nwhere: { status: [approved] }\n",
@@ -281,6 +283,12 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", prefix: "SR" },
   ],
   "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
+  "metamodel.addRelationKind": [{ name: "Conflicts with" }, { name: "Conflicts with" }],
+  "metamodel.changeRelationKind": [
+    { kind: "refines", name: "Details" },
+    { kind: "refines", name: "Replaces" },
+  ],
+  "metamodel.removeRelationKind": [{ kind: "scratch-link" }, { kind: "derives-from" }],
   "metamodel.get": [{}, { extra: true }],
   "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [

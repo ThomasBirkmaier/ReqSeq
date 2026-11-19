@@ -1372,8 +1372,15 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
     "path",
     "output",
   ];
-  /** The only argument asked as JSON: the mapping of "Save ReqIF mapping". */
-  const AS_JSON = ["reqif.saveMapping mapping"];
+  /**
+   * The arguments asked as JSON: the mapping of "Save ReqIF mapping", and the limits of a relation kind
+   * until the prompt builds them per target type (SR-236 AK11, #1954).
+   */
+  const AS_JSON = [
+    "reqif.saveMapping mapping",
+    "metamodel.addRelationKind limits",
+    "metamodel.changeRelationKind limits",
+  ];
 
   /** The commands the prompt offers by their own entry (not those an action covers), with a list shown. */
   const prompted = (catalog: readonly CommandListing[]): CommandListing[] => {
