@@ -373,6 +373,9 @@ errors:
   baseline.exists:
     cause: A baseline with this name exists, ignoring case and Unicode normal form; the error names its file and nothing was written.
     remedy: Choose another name. ReqSeq never replaces a baseline.
+  file.exists:
+    cause: A file is at the place the command writes to that ReqSeq did not write, or that was changed since ReqSeq wrote it (`details.reason`, `foreign` or `changed`); nothing was written. Raised by `tool.guide` with `write` for the skill file.
+    remedy: Keep the file, or replace it with `replace` (`reqseq tool guide --skill --write --replace`).
   reqif.invalid:
     cause: The ReqIF file cannot be read or does not match the ReqIF format.
     remedy: Check the file, or export it again from the source tool. A packed delivery (`.reqifz`, a ZIP archive) is not read; unpack it and use the `.reqif` file inside.
