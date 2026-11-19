@@ -102,7 +102,7 @@ describe("trace.chain (SR-022)", () => {
       { id: TURNS, repository: "system", kind: "no-evidence" },
       { id: STALL, repository: "system", kind: "no-evidence" },
     ]);
-    expect(full.names?.map((n) => n.id)).toEqual([AIRFIELD]);
+    expect(full.names?.map((n) => n.id)).toEqual([SEE_WIND, AIRFIELD]);
     expect((await chain(workspace, { ref: RAIN })).gaps).toEqual([
       { id: RAIN, repository: "system", kind: "no-child" },
     ]);
@@ -655,11 +655,13 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
     expect(evidenceOf(all)).toEqual([
       [SHOW, 1, [["test_speed[SR-33b001]", true, ["build-512", "coast-7"]]], ["Coast sample"]],
     ]);
-    // `names` names the variant once (#676); a chain without variant records has none.
-    expect(all.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
-      [COAST, "VAR-33d001", "Coast edition"],
+    // `names` names the root (#1874), then the variant once (#676); a chain without variant records only the root.
+    expect(all.names?.map((n) => [n.id, n.shortId])).toEqual([
+      [SHOW, "SR-33b001"],
+      [COAST, "VAR-33d001"],
     ]);
-    expect((await chain(workspace, { ref: SHOW, view: "core" })).names).toBeUndefined();
+    expect(all.names?.[1]?.title).toBe("Coast edition");
+    expect((await chain(workspace, { ref: SHOW, view: "core" })).names?.map((n) => n.id)).toEqual([SHOW]);
   });
 
   it("without a view shows a variant's records and still marks the no-evidence gap in the core (ThomasBirkmaier/ReqSeq-archive#527 Q4)", async () => {
