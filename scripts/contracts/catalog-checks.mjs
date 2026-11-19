@@ -64,6 +64,16 @@ function checkSummary(cmd) {
 /** Groups whose `deletes` entries delete a file that is no element (D-056, SR-217 AK5). */
 const DELETING_GROUPS = new Set(["perspective", "filter"]);
 
+/**
+ * Whether `cmd` removes a definition from the metamodel files (ADR-0002 rule 5): `metamodel.remove<Name>`,
+ * a `write-files` command of the frame SR-236, whose refusal while any element uses the definition
+ * (SR-236 AK7) keeps every element and its file (D-045). It may say remove, never delete.
+ */
+export const removesDefinition = (cmd) =>
+  /^metamodel\.remove[A-Z][A-Za-z]*$/.test(cmd.name) &&
+  cmd.effect === "write-files" &&
+  (cmd.implements ?? []).includes("SR-236");
+
 /** Titles: unique, and D-045: no access offers deleting an element; a `deletes` entry may say delete. */
 function checkTitle(cmd, titles) {
   const errors = [];
@@ -71,7 +81,13 @@ function checkTitle(cmd, titles) {
     errors.push(`title "${cmd.title}" is also the title of ${titles.get(cmd.title)}`);
   }
   titles.set(cmd.title, cmd.name);
-  if (/delete|remove/i.test(cmd.title) && !cmd.name.startsWith("relation.") && cmd.deletes === undefined) {
+  const definition = removesDefinition(cmd) && /^Remove [a-z ]+$/.test(cmd.title);
+  if (
+    /delete|remove/i.test(cmd.title) &&
+    !cmd.name.startsWith("relation.") &&
+    cmd.deletes === undefined &&
+    !definition
+  ) {
     errors.push(`title "${cmd.title}": elements are superseded, never deleted (D-045)`);
   }
   return errors;

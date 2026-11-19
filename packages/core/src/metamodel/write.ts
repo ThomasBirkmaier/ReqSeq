@@ -20,7 +20,7 @@
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
-import type { FileSnapshot, YamlFile } from "../files/index.js";
+import type { EditableYaml, FileSnapshot, YamlEditResult, YamlFile } from "../files/index.js";
 import { checkReplaceable, parseYamlFileBytes, readYamlFile, writeFileAtomic } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
@@ -44,7 +44,72 @@ export interface MetamodelSource {
 export interface MetamodelPlan<T> {
   readonly bytes: ReadonlyMap<string, Uint8Array>;
   readonly result: T;
+  /**
+   * Called with the metamodel the planned bytes give, once it has no error and before anything is
+   * written; it refuses by throwing (a use that a change of inheritance would lose, SR-237 AK4).
+   */
+  readonly check?: (after: Metamodel) => void;
 }
+
+/** The lists of definitions of a metamodel file. */
+export type DefinitionList = "types" | "properties" | "relations" | "statuses";
+
+/** Where a definition is written: its file and its position in the file's list. */
+export interface DefinitionPlace {
+  readonly file: YamlFile;
+  readonly index: number;
+}
+
+/** Every definition of `list` among `files`, with its key, in file order, then in list order. */
+export const definitionsOf = (
+  files: readonly YamlFile[],
+  list: DefinitionList,
+): readonly (DefinitionPlace & { readonly key: unknown })[] =>
+  files.flatMap((file) => {
+    const items = (file.data as Partial<Record<DefinitionList, unknown>>)[list];
+    // A valid metamodel file holds a mapping per definition.
+    return (Array.isArray(items) ? (items as readonly { readonly key?: unknown }[]) : []).map(
+      (item, index) => ({
+        key: item.key,
+        file,
+        index,
+      }),
+    );
+  });
+
+/**
+ * The file and position of the definition `key` of `list` among `files` (SR-236 AK4: a changed or
+ * removed definition is changed in the file it is in); undefined when no file defines it.
+ */
+export const definitionAt = (
+  files: readonly YamlFile[],
+  list: DefinitionList,
+  key: string,
+): DefinitionPlace | undefined => {
+  const found = definitionsOf(files, list).find((place) => place.key === key);
+  return found === undefined ? undefined : { file: found.file, index: found.index };
+};
+
+/** One line edit of a file's text (`setMapValue`, `removeListItem` or `appendListItem` with its arguments). */
+export type LineEdit = (yaml: EditableYaml) => YamlEditResult;
+
+/**
+ * The bytes of each file after its edits, applied in the given order, each to the text the one
+ * before gave; by the file's path relative to the metamodel repository, for `MetamodelPlan.bytes`.
+ */
+export const editedFiles = (
+  edits: readonly { readonly file: YamlFile; readonly edit: LineEdit }[],
+): ReadonlyMap<string, Uint8Array> => {
+  const current = new Map<string, EditableYaml>();
+  const bytes = new Map<string, Uint8Array>();
+  for (const { file, edit } of edits) {
+    const result = edit(current.get(file.path) ?? file);
+    const text = new TextDecoder("utf-8", { ignoreBOM: true }).decode(result.bytes);
+    current.set(file.path, { text: file.bom ? text.slice(1) : text, bom: file.bom });
+    bytes.set(file.path, result.bytes);
+  }
+  return bytes;
+};
 
 export interface MetamodelChange<T> {
   /** What the plan gave back. */
@@ -209,7 +274,7 @@ export const changeMetamodel = async <T>(
     );
   }
   const files: readonly [YamlFile, ...YamlFile[]] = [first, ...others];
-  const { bytes: planned, result } = checkedPlan(plan, { metamodel: before, files }, name);
+  const { bytes: planned, result, check } = checkedPlan(plan, { metamodel: before, files }, name);
   const planning: MetamodelReader = async (root, file) => {
     const bytes = planned.get(file);
     if (bytes === undefined) {
@@ -228,6 +293,7 @@ export const changeMetamodel = async <T>(
       { reason: "metamodel-invalid", problems: errors },
     );
   }
+  check?.(after);
   const writes = files.flatMap((yaml): Write[] => {
     const bytes = planned.get(yaml.path);
     const shown = path

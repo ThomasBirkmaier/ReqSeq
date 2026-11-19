@@ -57,5 +57,12 @@ export {
 export { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
 export { keyFromName } from "./new-key.js";
 export { metamodelState } from "./state.js";
-export { changeMetamodel } from "./write.js";
-export type { MetamodelChange, MetamodelPlan, MetamodelSource } from "./write.js";
+export { changeMetamodel, definitionAt, definitionsOf, editedFiles } from "./write.js";
+export type {
+  DefinitionList,
+  DefinitionPlace,
+  LineEdit,
+  MetamodelChange,
+  MetamodelPlan,
+  MetamodelSource,
+} from "./write.js";

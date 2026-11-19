@@ -5,7 +5,7 @@
   "effect": "read",
   "loadUpfront": true,
   "stage": 1,
-  "implements": ["SR-012", "SR-013"],
+  "implements": ["SR-012", "SR-013", "SR-236"],
   "arguments": [],
   "input": {
     "type": "object",
@@ -80,17 +80,24 @@
       "relationKinds": {
         "title": "Relation kinds by type",
         "type": "object",
-        "propertyNames": { "$ref": "../common.schema.json#/$defs/key" },
+        "propertyNames": {
+          "$ref": "../common.schema.json#/$defs/key"
+        },
         "additionalProperties": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "kind": { "title": "Relation kind", "$ref": "../common.schema.json#/$defs/key" },
+              "kind": {
+                "title": "Relation kind",
+                "$ref": "../common.schema.json#/$defs/key"
+              },
               "targetTypes": {
                 "title": "Target types",
                 "type": "array",
-                "items": { "$ref": "../common.schema.json#/$defs/key" },
+                "items": {
+                  "$ref": "../common.schema.json#/$defs/key"
+                },
                 "description": "Every type of the metamodel a target may have, subtypes included, in metamodel order."
               }
             },
@@ -115,6 +122,63 @@
           "$ref": "../common.schema.json#/$defs/problem"
         },
         "x-normal": []
+      },
+      "uses": {
+        "title": "Uses",
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "title": "Types",
+            "description": "Type key -> elements of the type."
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "title": "Properties",
+            "description": "Property key -> elements of a type that has the property whose file holds its key, also with an empty value."
+          },
+          "values": {
+            "title": "Fixed values",
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "description": "Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it."
+          },
+          "relations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "title": "Relation kinds",
+            "description": "Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list."
+          },
+          "statuses": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "title": "Statuses",
+            "description": "Status key -> elements with the status."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["types", "properties", "values", "relations", "statuses"],
+        "description": "The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine."
       }
     },
     "additionalProperties": false,
@@ -126,7 +190,8 @@
       "statuses",
       "meanings",
       "relationKinds",
-      "files"
+      "files",
+      "uses"
     ]
   }
 }

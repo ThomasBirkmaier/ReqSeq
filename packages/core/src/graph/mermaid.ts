@@ -117,7 +117,7 @@ const boxLines = (box: MetamodelNode): string[] =>
  * The flowchart of the metamodel (AK2): one node per box of `metamodelGraph`, "Any type" only when it has
  * one, and one edge per ordered pair with one label line per link, as the app's graph shows them.
  */
-export const metamodelMermaid = (output: CommandOutput<"metamodel.get">): string => {
+export const metamodelMermaid = (output: Omit<CommandOutput<"metamodel.get">, "uses">): string => {
   const graph = metamodelGraph(output);
   const ids = new Map(
     graph.nodes.map((box, index) => [box.key, box.key === ANY_KEY ? "any" : `m${String(index)}`]),

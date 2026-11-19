@@ -2484,6 +2484,19 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
+  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine. */
+  readonly uses: {
+    /** Type key -> elements of the type. */
+    readonly types: Readonly<Record<string, number>>;
+    /** Property key -> elements of a type that has the property whose file holds its key, also with an empty value. */
+    readonly properties: Readonly<Record<string, number>>;
+    /** Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it. */
+    readonly values: Readonly<Record<string, Readonly<Record<string, number>>>>;
+    /** Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list. */
+    readonly relations: Readonly<Record<string, number>>;
+    /** Status key -> elements with the status. */
+    readonly statuses: Readonly<Record<string, number>>;
+  };
 }
 
 /**
@@ -2529,6 +2542,89 @@ export interface MetamodelAddTypeOutput {
   readonly answer: Answer;
   /** The definition as written to the file. */
   readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeType` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeType.json input`.
+ */
+export interface MetamodelChangeTypeInput {
+  /** Key of the type to change. */
+  readonly type: Key;
+  /** New display name; no other type may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** New prefix of the short IDs of its elements (D-017); no other type may have it. Only while no element has the type. */
+  readonly prefix?: MetamodelPrefix;
+  /** Key of the new parent type; null removes the parent. Refused while an element uses a property or status the type or a type that extends it loses. */
+  readonly extends?: Key | null;
+  /** true: no elements of the type can be created (SR-012 AK4), only while no element has the type; false removes the mark. */
+  readonly abstract?: boolean;
+  /** New built-in meaning of the type (D-012), one of `typeMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?: "requirement" | "need" | "variant" | "package" | null;
+}
+
+/**
+ * Output of `metamodel.changeType`. Change the name, description, meaning, prefix, parent type or the abstract mark of a type; only the metamodel file that has it changes, line by line.
+ * Schema: `schemas/commands/metamodel.changeType.json output`.
+ */
+export interface MetamodelChangeTypeOutput {
+  readonly answer: Answer;
+  /** The definition as it is written afterwards. */
+  readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeType` as `run` gets it: validated, properties with a `default` filled in. Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeType.json input`.
+ */
+export interface MetamodelRemoveTypeInput {
+  /** Key of the type to remove. */
+  readonly type: Key;
+}
+
+/**
+ * Output of `metamodel.removeType`. Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.
+ * Schema: `schemas/commands/metamodel.removeType.json output`.
+ */
+export interface MetamodelRemoveTypeOutput {
+  readonly answer: Answer;
+  /** Key of the removed type. */
+  readonly type: Key;
+  /** The definitions removed with the type: its properties and statuses that no other type has (SR-238 AK5, SR-240 AK3). */
+  readonly removed: {
+    /** Properties whose definition was removed, as no other type has them. */
+    readonly properties: readonly Key[];
+    /** Statuses whose definition was removed, as no other type has them. */
+    readonly statuses: readonly Key[];
+  };
+  /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
   /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
@@ -4916,6 +5012,8 @@ export interface CommandTypes {
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
   readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
+  readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
+  readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };

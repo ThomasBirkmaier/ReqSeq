@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { checkCatalog, contextOf, SUMMARY_WORDS } from "./catalog-checks.mjs";
+import { checkCatalog, removesDefinition, contextOf, SUMMARY_WORDS } from "./catalog-checks.mjs";
 
 const input = {
   type: "object",
@@ -70,6 +70,36 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
       'schemas/commands/test.one.json: title "Remove it": elements are superseded, never deleted (D-045)',
     ]);
     expect(check(command("relation.one", "Remove relation"))).toEqual([]);
+  });
+
+  it("a metamodel.remove* write command of SR-236 may say remove, never delete (ADR-0002 rule 5)", () => {
+    const remover = (name, title, more = {}) => ({
+      ...command(name, title),
+      effect: "write-files",
+      implements: ["SR-236", "SR-237"],
+      ...more,
+    });
+    expect(removesDefinition(remover("metamodel.removeType", "Remove type"))).toBe(true);
+    expect(check(remover("metamodel.removeType", "Remove type"))).toEqual([]);
+    const refused = (name, title) =>
+      `schemas/commands/${name}.json: title "${title}": elements are superseded, never deleted (D-045)`;
+    expect(check(remover("metamodel.removeType", "Delete type"))).toEqual([
+      refused("metamodel.removeType", "Delete type"),
+    ]);
+    expect(check(remover("metamodel.removeType", "Remove type and elements!"))).toEqual([
+      refused("metamodel.removeType", "Remove type and elements!"),
+    ]);
+    expect(check(remover("element.removeType", "Remove type"))).toEqual([
+      refused("element.removeType", "Remove type"),
+    ]);
+    expect(removesDefinition(remover("metamodel.deleteType", "Remove type"))).toBe(false);
+    expect(removesDefinition(remover("metamodel.removeType", "Remove type", { effect: "read" }))).toBe(false);
+    expect(
+      removesDefinition(remover("metamodel.removeType", "Remove type", { implements: ["SR-237"] })),
+    ).toBe(false);
+    expect(
+      removesDefinition({ ...remover("metamodel.removeType", "Remove type"), implements: undefined }),
+    ).toBe(false);
   });
 
   it("a deletes entry may say delete, only as a write command of perspective or filter with confirm false by default (SR-217 AK5)", () => {
