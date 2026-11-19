@@ -95,6 +95,7 @@ describe("filter.rename (SR-217)", () => {
     const { fixture, workspace } = await open();
     const out = await rename(workspace, "Sensors", "Sensor package");
     expect(out).toEqual({
+      answer: "Renamed saved filter Sensors to Sensor package; 3 perspectives changed; 4 files written.",
       files: [
         "perspectives/by-status.yaml",
         "perspectives/drafts.yaml",
@@ -147,6 +148,7 @@ describe("filter.rename (SR-217)", () => {
       { command: "filter.rename", fields: ["newName"], reason: "name-taken", files: ["filters/flow.yaml"] },
     ]);
     expect(await rename(workspace, "Sensors", "Sensors")).toEqual({
+      answer: "Renamed saved filter Sensors to Sensors; no file written.",
       files: [],
       renamed: [],
       perspectives: [],
@@ -261,6 +263,7 @@ describe("filter.rename (SR-217)", () => {
     });
     await expect(fs.access(fixture.path("baselines"))).rejects.toThrow();
     expect(await rename(workspace, "Sensors", "Sensor package")).toEqual({
+      answer: "Renamed saved filter Sensors to Sensor package; 1 file written.",
       files: ["filters/sensor-package.yaml"],
       renamed: [{ from: "filters/sensors.yaml", to: "filters/sensor-package.yaml" }],
       perspectives: [],

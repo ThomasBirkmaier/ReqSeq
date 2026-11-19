@@ -13,14 +13,14 @@ const folderKey = (mac: boolean): string =>
 
 /**
  * What the command prompt says while no workspace is open: the folder dialog, which also opens a folder without a
- * workspace for "Initialise workspace", and the action of the command prompt for the workspaces opened last.
+ * workspace for "Create workspace", and the action of the command prompt for the workspaces opened last.
  */
 export const noWorkspaceMessage = (mac: boolean): string =>
   `No workspace is open. Press ${folderKey(mac)} to choose a folder, or ` +
   `${shortcutLabel(COMMAND_SHORTCUT, mac)} for ${OPEN_WORKSPACE_ACTION}.`;
 
 /** The title of the catalog command `workspace.init`, which the command prompt offers in a folder without a workspace. */
-export const INIT_WORKSPACE_COMMAND = "Initialise workspace";
+export const INIT_WORKSPACE_COMMAND = "Create workspace";
 
 /** What follows the message of a folder without a workspace, chosen in the folder dialog. */
 export const initHint = (mac: boolean): string =>

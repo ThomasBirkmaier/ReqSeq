@@ -95,6 +95,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE, "--json"]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
     expect(inside(run.stdout)).toEqual({
+      answer: "Enriched 3 test cases; 5 test cases without an element; 1 file written; 1 problem.",
       testCases: 3,
       withoutReference: 5,
       notInView: 0,
@@ -322,6 +323,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     ]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
     expect(inside(run.stdout)).toEqual({
+      answer: "Enriched 2 test cases; 2 test cases without an element; 1 file written; 1 problem.",
       testCases: 2,
       withoutReference: 2,
       notInView: 0,

@@ -18,9 +18,16 @@ import type { ElementHints } from "../../model/index.js";
 import { getElement } from "../../model/index.js";
 import { shownWithNames } from "../../data/index.js";
 import { elementHints } from "../../hints/index.js";
+import { incompleteNote, named, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.get",
+  answer: (output, _input, names) =>
+    sentence(
+      `${named(output.element)} is of type ${names.type(output.element.type)}${output.element.status === undefined ? " without status" : ` with status ${output.element.status}`}`,
+      problemsNote(output.element.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.get">> => {
     if (input.view !== undefined) {
       throw new CommandError(

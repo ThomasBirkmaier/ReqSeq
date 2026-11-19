@@ -133,6 +133,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
     expect([viaB.ok, viaB.checkedElements]).toEqual([false, 2]);
     // V has no relations and nothing of it is outdated.
     expect(await check(workspace, { changedFiles: [V_FILE] })).toEqual({
+      answer: "Checked 1 element and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 1,
@@ -214,6 +215,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
     const out = await check(workspace, { changedSince: "HEAD", severity: "error" });
     // The two outdated relations of A to N are warnings: hidden, and ok by default (ThomasBirkmaier/ReqSeq-archive#304).
     expect(out).toEqual({
+      answer: "Checked 1 element and found 2 warnings.",
       ok: true,
       problems: [],
       hidden: { below: "error", warning: 2, info: 0 },
@@ -290,6 +292,7 @@ describe("deleted elements and repositories without Git (SR-092)", () => {
     }
     const workspace = open(ws.root);
     expect(await check(workspace, { changedSince: "HEAD" })).toEqual({
+      answer: "Checked 0 elements and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 0,
@@ -310,6 +313,7 @@ describe("deleted elements and repositories without Git (SR-092)", () => {
     const workspace = open(ws.root);
     // Nothing changed: no finding.
     expect(await check(workspace, { changedSince: "HEAD" })).toEqual({
+      answer: "Checked 0 elements and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 0,
@@ -393,6 +397,7 @@ describe("a workspace in a subfolder of a Git repository (ThomasBirkmaier/ReqSeq
     await outer.commit();
     await outer.write("docs/readme.md", "changed outside\n");
     expect(await check(open(ws.root), { changedSince: "HEAD" })).toEqual({
+      answer: "Checked 0 elements and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 0,

@@ -185,7 +185,12 @@ describe("recording a connection (SR-228 AK5, AK6)", () => {
 describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
   it("[SR-228/AK-sggn] gives each connection with its client and start, and the one connected last, as the same object through the CLI, the API and MCP", async () => {
     await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
-    expect(await agentsViaCli()).toEqual({ recorded: true, connected: [], last: null });
+    expect(await agentsViaCli()).toEqual({
+      answer: "0 agents connected to this copy; no connection has ended.",
+      recorded: true,
+      connected: [],
+      last: null,
+    });
 
     const first = await mcpSession("first agent");
     await vi.waitFor(async () => {
@@ -201,6 +206,7 @@ describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
         return output;
       });
       expect(viaCli).toEqual({
+        answer: "1 agent connected to this copy; the connection that ended last was first agent.",
         recorded: true,
         connected: [{ client: "second agent", since: expect.any(String) as unknown }],
         last: { client: "first agent", at: expect.any(String) as unknown },
@@ -211,6 +217,28 @@ describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
       expect([viaApi, viaMcp]).toEqual([viaCli, viaCli]);
     } finally {
       await second.close();
+    }
+  });
+
+  it("[SR-224/AK-cw40] gives the same answer through the CLI, the API and MCP", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    const session = await mcpSession("answering agent");
+    try {
+      const viaCli = await vi.waitFor(async () => {
+        const output = (await agentsViaCli()) as { answer: string; connected: unknown[] };
+        expect(output.connected).toHaveLength(1);
+        return output;
+      });
+      const viaApi = (await withApi((call) => call("workspace.agents"))) as { answer: string };
+      const viaMcp = (await session.client.callTool({ name: "workspace_agents", arguments: {} }))
+        .structuredContent as { answer: string };
+      expect([viaCli.answer, viaApi.answer, viaMcp.answer]).toEqual([
+        "1 agent connected to this copy; no connection has ended.",
+        "1 agent connected to this copy; no connection has ended.",
+        "1 agent connected to this copy; no connection has ended.",
+      ]);
+    } finally {
+      await session.close();
     }
   });
 
@@ -230,6 +258,7 @@ describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
     const beat = new Date(Math.floor((Date.now() - AGENT_LIVE_MS) / 1000) * 1000 - 1000);
     await fs.utimes(file, beat, beat);
     expect(await agentsViaCli()).toEqual({
+      answer: "0 agents connected to this copy; the connection that ended last was crashed.",
       recorded: true,
       connected: [],
       last: { client: "crashed", at: beat.toISOString() },

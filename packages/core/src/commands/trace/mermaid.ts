@@ -2,9 +2,17 @@
 // as a Mermaid flowchart (`graph/mermaid.ts`), with the names of the types and kinds of its metamodel.
 import { defineCommand } from "../../catalog.js";
 import { elementGraphOf, elementMermaid, relationNames } from "../../graph/index.js";
+import { incompleteNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.mermaid",
+  answer: (output, input) =>
+    sentence(
+      `Drew the graph of ${input.ref} as a Mermaid flowchart`,
+      output.truncated ? "cut by limit" : "",
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input) => {
     const { output, base } = await elementGraphOf(ctx.workspace, input, "trace.mermaid");
     const { metamodel } = base;

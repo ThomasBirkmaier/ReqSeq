@@ -16,6 +16,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "mermaid": {
         "title": "Mermaid",
         "type": "string",
@@ -32,6 +33,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["mermaid", "problems"]
+    "required": ["answer", "mermaid", "problems"]
   }
 }

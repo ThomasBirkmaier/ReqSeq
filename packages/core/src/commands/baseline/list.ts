@@ -7,9 +7,16 @@ import { workspaceBaselines } from "../../baselines/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState, shortIdState } from "../../model/index.js";
 import { resolveView } from "../../variants/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "baseline.list",
+  answer: (output) =>
+    sentence(
+      `Found ${counted(output.baselines.length, "baseline")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async ({ workspace }): Promise<CommandOutput<"baseline.list">> => {
     const found = await workspaceBaselines(workspace);
     /**

@@ -4,6 +4,7 @@
 import type { MetamodelGetOutput } from "@reqseq/core";
 
 export const FIXTURE_METAMODEL: MetamodelGetOutput = {
+  answer: "The metamodel.",
   types: [
     {
       key: "item",
@@ -271,6 +272,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
 export const metamodelOutput = (
   parts: Partial<Pick<MetamodelGetOutput, "types" | "properties" | "relations">>,
 ): MetamodelGetOutput => ({
+  answer: "The metamodel.",
   types: [],
   properties: [],
   relations: [],

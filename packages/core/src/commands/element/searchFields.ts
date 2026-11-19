@@ -9,9 +9,11 @@ import { defineCommand } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState } from "../../model/index.js";
 import { searchFieldChoices } from "../../query/search-fields.js";
+import { counted, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.searchFields",
+  answer: (output) => sentence(`A search can be restricted to ${counted(output.fields.length, "field")}`),
   run: async (ctx): Promise<CommandOutput<"element.searchFields">> => {
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);

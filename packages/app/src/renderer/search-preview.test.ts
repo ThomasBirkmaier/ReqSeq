@@ -40,7 +40,12 @@ const hit = (n: number, extra: Partial<Hit> = {}, snippet = true): Hit => ({
   ...extra,
 });
 
-const output = (hits: Hit[]): ElementSearchOutput => ({ hits, total: hits.length, incomplete: false });
+const output = (hits: Hit[]): ElementSearchOutput => ({
+  answer: "Found hits.",
+  hits,
+  total: hits.length,
+  incomplete: false,
+});
 
 /** The search prompt over a call that answers `element.search` with `answer` (an Error fails it). */
 const searchPrompt = (answer: (input: Record<string, unknown>) => ElementSearchOutput | Error) => {

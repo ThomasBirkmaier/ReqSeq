@@ -8,7 +8,7 @@ import { foldPrompt } from "./fold-actions.js";
 import { workspacePrompt } from "./workspaces.js";
 import type { Choice, Prompt, PromptFill, ActionContext, ViewControls, Action } from "./action-types.js";
 import { hasWorkspace } from "./action-conditions.js";
-import { CONNECT_AGENT } from "./connect-agent.js";
+import { CONNECT_AGENT, CONNECT_AGENT_ACTION, CONNECT_AI_AGENT } from "./connect-agent.js";
 
 /**
  * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
@@ -90,8 +90,8 @@ export const APP_ACTIONS: readonly Action[] = [
   {
     // The catalog command of the same title (SR-227), which it covers; also without a workspace, which it
     // then asks first (SR-225 AK7).
-    id: "connect-agent",
-    title: "Connect AI agent",
+    id: CONNECT_AGENT_ACTION,
+    title: CONNECT_AI_AGENT,
     covers: [CONNECT_AGENT],
     available: (context: ActionContext): boolean => context.connectAgent !== undefined,
     run: (context: ActionContext): void => {

@@ -577,13 +577,16 @@ describe("loadWorkspaceLayout", () => {
     expect((await loadWorkspaceLayout(ws.path("main"))).metamodel.exists).toBe(false);
   });
 
-  it("fails with workspace.not-found when there is no workspace file", async () => {
+  it("[SR-226/AK-mjh8] fails with workspace.not-found when there is no workspace file, naming the creation of one in that folder as the next step", async () => {
     const ws = await setup(undefined);
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.toJSON()).toEqual({
       code: "workspace.not-found",
       message: `No ${WORKSPACE_FILE} in the workspace folder`,
-      details: { file: WORKSPACE_FILE },
+      details: {
+        file: WORKSPACE_FILE,
+        next: [{ command: "workspace.init", input: { path: path.resolve(ws.path("main")) }, open: ["name"] }],
+      },
     });
   });
 
@@ -604,10 +607,19 @@ describe("loadWorkspaceLayout", () => {
     });
   });
 
-  it("fails with workspace.not-found when the folder does not exist", async () => {
+  it("fails with workspace.not-found when the folder does not exist, naming init only where it can create the folder", async () => {
     const ws = await setup(undefined);
     const error = await failure(loadWorkspaceLayout(ws.path("nowhere")));
     expect(error.code).toBe("workspace.not-found");
+    // init creates only a missing last folder (#637).
+    expect(error.details?.["next"]).toEqual([
+      { command: "workspace.init", input: { path: path.resolve(ws.path("nowhere")) }, open: ["name"] },
+    ]);
+    const deeper = await failure(loadWorkspaceLayout(ws.path("nowhere/deeper")));
+    expect(deeper.details).toEqual({ file: WORKSPACE_FILE });
+    await fs.writeFile(ws.path("a-file"), "");
+    const file = await failure(loadWorkspaceLayout(ws.path("a-file")));
+    expect(file.details).toEqual({ file: WORKSPACE_FILE });
   });
 
   it("fails with file.faulty for a workspace file with invalid YAML", async () => {

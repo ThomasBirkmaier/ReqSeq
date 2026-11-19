@@ -35,12 +35,28 @@ const listFiles = async (root: string): Promise<string[]> =>
     .map((e) => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
     .sort();
 
+/** The next steps of a workspace created in `root` (SR-226 AK2). */
+const nextIn = (root: string): unknown[] => [
+  { command: "workspace.connectAgent", input: {}, open: ["client"], workspace: root },
+  { command: "element.create", input: {}, open: ["type", "title"], workspace: root },
+];
+
 describe("workspace.init", () => {
+  it("[SR-226/AK-sz63] names connecting an AI agent and creating an element in the new workspace as the next steps", async () => {
+    const ws = await emptyFolder();
+    const here = await init(open(ws.root), { path: ws.root, name: "W" });
+    expect(here.next).toEqual(nextIn(ws.root));
+    const other = await init(open(ws.root), { path: "sub", name: "W" });
+    expect(other.next).toEqual(nextIn(path.join(ws.root, "sub")));
+  });
+
   it("[SR-014/AK-yh7s] creates the standard model as metamodel files in an empty folder", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
+      answer: "Created workspace Weather station; 3 files written.",
       files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      next: nextIn(ws.root),
       problems: [],
     });
     expect(await listFiles(ws.root)).toEqual([".gitignore", "metamodel/standard-model.yaml", WORKSPACE_FILE]);
@@ -154,13 +170,20 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
     expect(out).toEqual({
+      answer: "Created workspace W; 3 files written.",
       files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      next: nextIn(ws.root),
       problems: [],
     });
 
     const root = await emptyFolder();
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
-    expect(atRoot).toEqual({ files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"], problems: [] });
+    expect(atRoot).toEqual({
+      answer: "Created workspace W; 3 files written.",
+      files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      next: nextIn(root.root),
+      problems: [],
+    });
   });
 
   it("lists an own metamodel repository and writes nothing into it (SR-018)", async () => {

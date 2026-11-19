@@ -27,6 +27,7 @@ reqseq element create need "See the wind speed"
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -36,6 +37,7 @@ reqseq element create system-requirement "Show the wind speed" --relations deriv
 ```
 
 ```text title="Output"
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -45,6 +47,7 @@ reqseq element create system-requirement "Warn of gusts" --relations derives-fro
 ```
 
 ```text title="Output"
+Created System Requirement SR-5e1d0a; 1 file written; 2 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -56,6 +59,7 @@ reqseq element bulk-update verification-method set --where-type system-requireme
 ```
 
 ```text title="Output"
+Preview: the change of property verification-method would change 2 elements, nothing written.
 applied: false
 count: 2
 ...
@@ -68,6 +72,7 @@ reqseq element bulk-update verification-method set --where-type system-requireme
 ```
 
 ```text title="Output"
+Changed property verification-method of 2 elements; 2 files written.
 applied: true
 count: 2
 ...
@@ -80,6 +85,7 @@ reqseq element set-status approved --refs N-7fe707 --refs SR-c67baa --refs SR-5e
 ```
 
 ```text title="Output"
+Set the status of 3 elements to approved.
 files:
 ...
 No problems.
@@ -92,6 +98,7 @@ reqseq trace affected N-7fe707
 ```
 
 ```text title="Output"
+2 elements are affected by a change of N-7fe707.
 affected:
   1  ...  [via derives-from]
   1  ...  [via derives-from]
@@ -107,6 +114,7 @@ reqseq hint list --kind relation.outdated
 ```
 
 ```text title="Output"
+Found 2 open hints.
 kinds:
   - code: relation.outdated
     count: 2
@@ -123,6 +131,7 @@ reqseq hint confirm --target N-7fe707
 ```
 
 ```text title="Output"
+Confirmed 2 hints; 2 files written.
 confirmed:
 ...
 No problems.
@@ -135,6 +144,7 @@ reqseq element create system-requirement "Warn of gusts and squalls" --relations
 ```
 
 ```text title="Output"
+Created System Requirement SR-62fb87; 1 file written; 2 problems.
 SR-62fb87  draft  Warn of gusts and squalls  [verification: core open]
 ...
 ```

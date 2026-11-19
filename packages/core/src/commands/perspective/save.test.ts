@@ -66,7 +66,11 @@ describe("perspective.save (SR-213)", () => {
       group: "package",
       sort: [{ by: "title" }],
     });
-    expect(out).toEqual({ files: ["perspectives/draft-requirements-by-package.yaml"], problems: [] });
+    expect(out).toEqual({
+      answer: "Saved perspective Draft requirements by package; 1 file written.",
+      files: ["perspectives/draft-requirements-by-package.yaml"],
+      problems: [],
+    });
     const text = await read(fixture, "perspectives/draft-requirements-by-package.yaml");
     expect(text).toBe(
       [
@@ -147,11 +151,16 @@ describe("perspective.save (SR-213)", () => {
     });
     // The same perspective without a description: nothing to write, the description stays.
     const same = { where: { status: ["draft"] }, group: "status", sort: [{ by: "title" }] };
-    expect(await save(workspace, { name: composed, ...same })).toEqual({ files: [], problems: [] });
+    expect(await save(workspace, { name: composed, ...same })).toEqual({
+      answer: "Saved perspective Prüfungen; no file written.",
+      files: [],
+      problems: [],
+    });
     expect(await read(fixture, "perspectives/mine.yaml")).toBe(hand);
     // The name in another normal form and case is the same perspective; only its line changes.
     const renamed = decomposed.toUpperCase();
     expect(await save(workspace, { name: renamed, ...same })).toEqual({
+      answer: "Saved perspective PRÜFUNGEN; 1 file written.",
       files: ["perspectives/mine.yaml"],
       problems: [],
     });
@@ -261,7 +270,12 @@ describe("perspective.save (SR-213)", () => {
     const error = await failure(workspace, { name: "All", where: { all: [] } });
     expect([error.code, error.details]).toEqual(["file.folder-missing", { repository: "vault" }]);
     expect(error.message).toContain("the perspectives folder is in repository vault");
-    expect(await listed(workspace)).toEqual({ perspectives: [], problems: [], incomplete: true });
+    expect(await listed(workspace)).toEqual({
+      answer: "Found 0 perspectives; incomplete, as a repository is not available.",
+      perspectives: [],
+      problems: [],
+      incomplete: true,
+    });
   });
 
   it("[SR-083/AK-s4q9] writes no perspective below .git, also when the workspace file places the perspectives folder there", async () => {

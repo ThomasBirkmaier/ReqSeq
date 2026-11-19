@@ -21,6 +21,7 @@ reqseq element create need --input '{"title":"See the wind speed","text":"From t
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md

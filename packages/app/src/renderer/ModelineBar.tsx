@@ -1,7 +1,11 @@
 // The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace, each
 // part a segment of one rounded bar (ThomasBirkmaier/ReqSeq-archive#490). Two
 // things are not just display (SR-128): the ID of an element carries the copy symbol of a field, and the
-// confirmation of a copy shows briefly after the parts.
+// confirmation of a copy shows briefly after the parts. At the right end the connected agent (SR-228): a green
+// dot and "Agent connected", a grey dot and "No agent connected", or a quiet "Connect AI agent"; a click on
+// either of the last two starts "Connect AI agent" (AK3).
+import type { AgentStatus } from "./agent-status.js";
+import { AGENT_CONNECTED, CONNECT_AI_AGENT, NO_AGENT } from "./agent-status.js";
 import { STATUS_FIELD } from "./copy.js";
 import { CopySymbol } from "./FieldBox.js";
 import type { ElementHead, WorkspaceView } from "./modeline.js";
@@ -15,6 +19,8 @@ export const ModelineBar = ({
   head,
   onCopy,
   notice,
+  agent,
+  onConnectAgent,
 }: {
   /** What the shown buffer is and has (`bufferView`). */
   readonly parts: readonly string[];
@@ -35,6 +41,10 @@ export const ModelineBar = ({
   readonly onCopy: (label: string, text: string) => void;
   /** The confirmation of a copy; empty when there is none. */
   readonly notice: string;
+  /** The connected agent (SR-228); undefined while it is not known or the cache folder records none (AK4). */
+  readonly agent?: AgentStatus | undefined;
+  /** Starts "Connect AI agent" (SR-227), as the command prompt does (SR-228 AK3). */
+  readonly onConnectAgent?: () => void;
 }): React.JSX.Element => {
   return (
     <footer className="modeline" aria-label="Modeline">
@@ -94,9 +104,51 @@ export const ModelineBar = ({
                 {mark}
               </span>
             ))}
+            <AgentPart agent={agent} onConnect={onConnectAgent} />
           </span>
         </>
       )}
     </footer>
+  );
+};
+
+/** The agent's part of the modeline (SR-228): a display while connected, else a quiet button. */
+const AgentPart = ({
+  agent,
+  onConnect,
+}: {
+  readonly agent: AgentStatus | undefined;
+  readonly onConnect: (() => void) | undefined;
+}): React.JSX.Element | null => {
+  if (agent === undefined) {
+    return null;
+  }
+  if (agent.kind === "connected") {
+    return (
+      <span className="segment agent" data-agent="connected" title={agent.hover}>
+        <span className="agent-dot" aria-hidden="true" />
+        {AGENT_CONNECTED}
+      </span>
+    );
+  }
+  // Out of the tab order, as the rest of the modeline; the click starts the action, which opens its prompt.
+  return (
+    <button
+      type="button"
+      className="segment agent"
+      data-agent={agent.kind}
+      tabIndex={-1}
+      {...(agent.kind === "ended" ? { title: agent.hover } : {})}
+      onClick={() => onConnect?.()}
+    >
+      {agent.kind === "ended" ? (
+        <>
+          <span className="agent-dot" aria-hidden="true" />
+          {NO_AGENT}
+        </>
+      ) : (
+        CONNECT_AI_AGENT
+      )}
+    </button>
   );
 };

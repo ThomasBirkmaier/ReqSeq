@@ -19,7 +19,7 @@
 // longer be chosen (`groupUnavailable`) gives the list without groups and the warning
 // `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped
 // is the error of `groupingOf`, naming the perspective and its file.
-import type { CommandName, CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandName, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { yamlPointerLine } from "../../files/index.js";
 import type {
@@ -34,6 +34,7 @@ import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { Grouping, Selected, StoredSelection, TreePlace } from "../../query/index.js";
 import {
+  checkedSort,
   FACET_MAX_VALUES,
   groupUnavailable,
   groupingOf,
@@ -47,6 +48,7 @@ import {
 } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { incompleteNote, paged, problemsNote, sentence } from "../answer.js";
 
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
@@ -212,13 +214,29 @@ const groupOf = (
   return { grouping: inPerspective(perspective, () => groupingOf(selected, command, by)), problems: [] };
 };
 
+/** The elements of the list of `input` in store order: its selection and its perspective (see the file comment). */
+const selectedOf = async (ctx: CommandContext, input: ElementListInput): Promise<Selected> => {
+  const command = "element.list";
+  const stored =
+    input.perspective === undefined ? undefined : await storedOf(ctx.workspace, input.perspective, command);
+  return resolveSelection(ctx, input.selection ?? {}, command, stored);
+};
+
 export default defineCommand({
   name: "element.list",
+  answer: (output) => {
+    const shown = (output.elements ?? output.partial ?? []).length;
+    return sentence(
+      // A grouped list pages over its rows, an element once per group (SR-149).
+      `Listed ${output.rows === undefined ? paged(shown, output.total, "element") : paged(shown, output.rows, "row")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    );
+  },
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
-    const stored =
-      input.perspective === undefined ? undefined : await storedOf(ctx.workspace, input.perspective, command);
-    const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command, stored);
+    const selected = await selectedOf(ctx, input);
+    const { stored } = selected;
     const { grouping, problems } = groupOf(selected, command, input);
     const withProblems = stored === undefined ? {} : { problems };
     if (grouping !== undefined) {
@@ -236,5 +254,13 @@ export default defineCommand({
       incomplete: selected.incomplete,
       ...withProblems,
     };
+  },
+  // The rows of every page, each element once: grouping and sorting change neither, but a group or
+  // sort that `run` refuses is refused here too.
+  outputElements: async (ctx, input) => {
+    const selected = await selectedOf(ctx, input);
+    groupOf(selected, "element.list", input);
+    checkedSort(selected, "element.list", input.sort);
+    return { elements: selected.elements, incomplete: selected.incomplete };
   },
 });

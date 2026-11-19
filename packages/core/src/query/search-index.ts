@@ -81,19 +81,17 @@
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
 // the documents of the changed files are replaced in the same MiniSearch object (see
 // `carrySearchIndex`), so a save costs the files it wrote, not a build.
+//
+// The code is in three modules: building and carrying the index (`search-build.ts`), finding the
+// documents a query finds (this module), and the result, its order and its hits
+// (`search-results.ts`). This module is the entry point and exports the API of all three.
 import { acceptanceCriteriaKeyOf } from "../model/acceptance-criteria.js";
-import { isCriterionMapping } from "../model/criterion-items.js";
-import { setTimeout as delay, setImmediate as nextTurn } from "node:timers/promises";
-import MiniSearch from "minisearch";
-import type { Options, Query, SearchOptions, SearchResult } from "minisearch";
-import { readElementBodySync } from "../files/index.js";
+import type { Query, SearchOptions } from "minisearch";
 import type { Metamodel } from "../metamodel/index.js";
-import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, RepositoryContents } from "../model/index.js";
-import { classifyFile, criterionKeysOf, relationKey, titleKeyOf } from "../model/index.js";
-import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
-import { PatchedMap } from "../model/patched-map.js";
-import type { StoreUpdate } from "../model/store.js";
+import { UNKNOWN_TYPE_PREFIX, findType, markdownKeysOf } from "../metamodel/index.js";
+import type { ElementRecord } from "../model/index.js";
+import { criterionKeysOf, titleKeyOf } from "../model/index.js";
+import { identifierMatch } from "../model/identifier-index.js";
 import type { ParsedQuery, QueryPhrase, SearchPhrase } from "./phrase-text.js";
 import {
   WORD_SEPARATOR,
@@ -104,23 +102,12 @@ import {
   visibleText,
   wordsOf,
 } from "./phrase-text.js";
-import type {
-  DesignationRun,
-  DesignationTable,
-  QueryPart,
-  QueryRuns,
-  QueryWord,
-} from "./search-designations.js";
-import { designationRuns, designationTable } from "./search-designations.js";
-import { buildVocabulary, carryVocabulary, newWords, vocabularyOf } from "./search-vocabulary.js";
-import type { KeyedRecords } from "./search-criteria.js";
-import { carryKeyed, keyedRecords, queryKeyOf, queryReferenceOf } from "./search-criteria.js";
-import type { Scored, ScoringOptions } from "./search-scoring.js";
+import type { DesignationRun, QueryPart, QueryRuns, QueryWord } from "./search-designations.js";
+import { designationRuns } from "./search-designations.js";
+import { queryKeyOf, queryReferenceOf } from "./search-criteria.js";
+import type { ScoringOptions } from "./search-scoring.js";
 import {
-  carryLengths,
-  documentKeys,
   keyScoreOf,
-  lengthsOf,
   nextShortId,
   phraseCandidates,
   scoreDocuments,
@@ -128,634 +115,60 @@ import {
   searchOptionsOf,
   shortIdOfDocument,
 } from "./search-scoring.js";
-import type { WorkspaceLayout } from "../workspace/index.js";
+import type { SearchDocument, SearchField, SearchIndex } from "./search-build.js";
+import {
+  NAMED,
+  NAMED_FIELDS,
+  PROPERTY_FIELD,
+  SEARCH_FIELDS,
+  WORD_FIELDS,
+  designationsIn,
+  documentsOf,
+  identifiedIn,
+  keyTexts,
+  keyedIn,
+  placeIn,
+  propertyField,
+  recordKey,
+} from "./search-build.js";
+import type { Found, RankedHit, SearchElementsOptions, SearchResults, WordsMatch } from "./search-results.js";
+import { order, pageOf, roundScore } from "./search-results.js";
 
-/** What a hit was found in. */
-export type SearchField = "title" | "text" | "properties" | "id";
-
-/** Every field, in the order hits name them. */
-export const SEARCH_FIELDS: readonly SearchField[] = ["title", "text", "properties", "id"];
-
-/** The fields MiniSearch indexes (words); `id` is compared with the records. */
-export type WordField = Exclude<SearchField, "id">;
-export const WORD_FIELDS: readonly WordField[] = ["title", "text", "properties"];
-
-/**
- * One MiniSearch document: an element record, keyed by `docKey`. `parts` holds the texts of the
- * `properties` field per key, flat: `[key1, text1, key2, text2, ...]` in frontmatter order, a key
- * only when it has a text; the fields are taken from it (`extractField`).
- */
-export interface SearchDocument {
-  readonly key: string;
-  readonly title: string;
-  readonly text: string;
-  readonly parts: readonly string[];
-}
-
-/** The prefix of the field of a single property (`propertyField`). */
-const PROPERTY_FIELD = "property:";
-
-/** The MiniSearch field of the property `key` (see the file comment). */
-const propertyField = (key: string): string => `${PROPERTY_FIELD}${key}`;
-
-/** The MiniSearch fields of the type and status names (see the file comment), after every other one. */
-const NAMED_FIELDS: readonly string[] = ["type", "status"];
-
-/** `properties` holds the names of `NAMED_FIELDS` among its other texts (`ScoringOptions.named`). */
-const NAMED = { in: "properties", fields: NAMED_FIELDS } as const;
-
-/**
- * Keys that never get a field of their own: those of the fixed fields, which always mean the fixed
- * field, and type and status, which are found in `properties` by their names.
- */
-const FIXED_KEYS: ReadonlySet<string> = new Set([...SEARCH_FIELDS, "type", "status"]);
-
-const propertyKeysCache = new WeakMap<Metamodel, readonly string[]>();
-
-/**
- * The keys of the properties a search can be restricted to one by one (SR-216 AK2), in metamodel
- * order: every property that holds no relations and is not the title, without the keys of
- * `FIXED_KEYS`. Each has the field `propertyField(key)`.
- */
-export const searchPropertyKeys = (metamodel: Metamodel): readonly string[] => {
-  let keys = propertyKeysCache.get(metamodel);
-  if (keys === undefined) {
-    const titleKey = titleKeyOf(metamodel);
-    keys = metamodel.properties
-      .filter(
-        ({ key, kind }) =>
-          kind !== "relation" &&
-          key !== titleKey &&
-          !FIXED_KEYS.has(key) &&
-          relationKey(metamodel, key) === undefined,
-      )
-      .map(({ key }) => key);
-    propertyKeysCache.set(metamodel, keys);
-  }
-  return keys;
-};
-
-/** The text of the `properties` field of a document: the texts of its parts, one per line. */
-const propertiesOf = (parts: readonly string[]): string => {
-  let out = "";
-  for (let at = 1; at < parts.length; at += 2) {
-    out += at === 1 ? String(parts[at]) : `\n${String(parts[at])}`;
-  }
-  return out;
-};
-
-/** The text of the key `key` in `parts`; empty when the document has none (see the file comment). */
-const partOf = (parts: readonly string[], key: string): string => {
-  for (let at = 0; at < parts.length; at += 2) {
-    if (parts[at] === key) {
-      return String(parts[at + 1]);
-    }
-  }
-  return "";
-};
-
-/** The value of `field` of `document`, as MiniSearch reads it (`Options.extractField`). */
-const extractField = (document: SearchDocument, field: string): string => {
-  switch (field) {
-    case "key":
-      return document.key;
-    case "title":
-      return document.title;
-    case "text":
-      return document.text;
-    case "properties":
-      return propertiesOf(document.parts);
-    case "type":
-    case "status":
-      return partOf(document.parts, field);
-    default:
-      return partOf(document.parts, field.slice(PROPERTY_FIELD.length));
-  }
-};
+export type {
+  BuildControl,
+  BuiltSearchIndex,
+  ElementNow,
+  SearchDocument,
+  SearchEngine,
+  SearchField,
+  SearchIndex,
+  WordField,
+} from "./search-build.js";
+export {
+  PAUSE_MS,
+  SEARCH_FIELDS,
+  SLICE_MS,
+  SearchBuildCancelled,
+  WORD_FIELDS,
+  buildSearchIndex,
+  carrySearchIndex,
+  docKey,
+  documentOf,
+  documentWithText,
+  elementNow,
+  engineOptions,
+  engineOptionsFor,
+  prepareSearchIndex,
+  propertiesText,
+  recordKey,
+  searchIndexOf,
+  searchPropertyKeys,
+  valueTexts,
+} from "./search-build.js";
+export type { RankedHit, SearchElementsOptions, SearchHit, SearchResults } from "./search-results.js";
+export { describeHit } from "./search-results.js";
 
 export { WORD_SEPARATOR, normalizeWord, visibleText };
-
-const words = (text: string): string[] => text.split(WORD_SEPARATOR);
-
-/**
- * The options of a MiniSearch object with the fields of the properties `propertyKeys` besides
- * `WORD_FIELDS` (see the file comment): the tokenizer, the term processing and `extractField`.
- * Vacuuming is off and never started: MiniSearch 7.2.0 walks its term tree in batches with a pause
- * between them, and a document added or a search made in a pause (a search cleans up the words of
- * discarded documents it meets) can change the nodes the walk stands on, which then throws in its
- * timer. A carry removes the documents it replaces instead (`carrySearchIndex`), so nothing is left
- * to vacuum.
- */
-export const engineOptionsFor = (propertyKeys: readonly string[]): Options<SearchDocument> => ({
-  idField: "key",
-  fields: [...WORD_FIELDS, ...propertyKeys.map(propertyField), ...NAMED_FIELDS],
-  extractField,
-  tokenize: words,
-  processTerm: normalizeWord,
-  autoVacuum: false,
-});
-
-const engineOptionsCache = new WeakMap<Metamodel, Options<SearchDocument>>();
-
-/**
- * The options of every MiniSearch object of an index built with `metamodel`, also of one loaded from
- * the cache (`search-cache.ts`): `engineOptionsFor` its `searchPropertyKeys`.
- */
-export const engineOptions = (metamodel: Metamodel): Options<SearchDocument> => {
-  let options = engineOptionsCache.get(metamodel);
-  if (options === undefined) {
-    options = engineOptionsFor(searchPropertyKeys(metamodel));
-    engineOptionsCache.set(metamodel, options);
-  }
-  return options;
-};
-
-/** The MiniSearch object of an index, shared by the indexes carried from it (see `carrySearchIndex`). */
-export interface SearchEngine {
-  readonly mini: MiniSearch<SearchDocument>;
-  /**
-   * The documents in `mini` by key, as they were added: a carry removes them exactly
-   * (`MiniSearch.remove`), and a phrase is looked for in their texts (SR-068 AK4). An object loaded
-   * from the cache has them too (`search-cache.ts`).
-   */
-  readonly documents: Map<string, SearchDocument>;
-  /** Counts the changes of `mini`; a save of the cache is skipped when it changed meanwhile. */
-  generation: number;
-}
-
-/** The search index of one element store. */
-export interface SearchIndex {
-  /** The store it was built from or carried over to. */
-  readonly store: ElementStore;
-  /** The layout the texts were read with (the repository folders). */
-  readonly layout: WorkspaceLayout;
-  /** The metamodel it was built with: title key, relation keys, choice names, type prefixes. */
-  readonly metamodel: Metamodel;
-  /** Every element record of `store` by `docKey`. */
-  readonly records: ReadonlyMap<string, ElementRecord>;
-  readonly engine: SearchEngine;
-}
-
-/** The key of the document of the element in `file` of `repository`. A path never holds NUL. */
-export const docKey = (repository: string, file: string): string => `${repository}\0${file}`;
-
-/** The key of the document of `record`. */
-export const recordKey = (record: Pick<ElementRecord, "repository" | "file">): string =>
-  docKey(record.repository, record.file);
-
-/**
- * The texts of a frontmatter value: text, numbers and booleans, a date (`!!timestamp`) as ISO text,
- * also inside lists, mappings, ordered maps and sets (`!!omap`, `!!set`); binary data (`!!binary`)
- * has none, and an acceptance criterion with its key only its text.
- */
-export const valueTexts = (value: unknown, out: string[]): void => {
-  if (isCriterionMapping(value)) {
-    // An acceptance criterion with its key: its text only, the key is no word (SR-204).
-    out.push(value.text);
-  } else if (typeof value === "string") {
-    out.push(value);
-  } else if (typeof value === "number" || typeof value === "boolean") {
-    out.push(String(value));
-  } else if (value instanceof Date) {
-    // An invalid date has no text.
-    if (!Number.isNaN(value.getTime())) {
-      out.push(value.toISOString());
-    }
-  } else if (Array.isArray(value) || value instanceof Map || value instanceof Set) {
-    for (const item of value.values()) {
-      valueTexts(item, out);
-    }
-  } else if (
-    typeof value === "object" &&
-    value !== null &&
-    Object.getPrototypeOf(value) === Object.prototype
-  ) {
-    for (const item of Object.values(value)) {
-      valueTexts(item, out);
-    }
-  }
-};
-
-/**
- * The name the tool shows for the type or status `value` (`key`), when the metamodel defines it (see
- * the file comment).
- */
-const structuralName = (metamodel: Metamodel, key: string, value: unknown): string | undefined =>
-  key === "type"
-    ? findType(metamodel, String(value))?.name
-    : metamodel.statuses.find((status) => status.key === value)?.name;
-
-/** The names of the choices of the property `key` that `value` holds; none for another property. */
-const choiceNames = (metamodel: Metamodel, key: string, value: unknown): readonly string[] => {
-  const defined = keyDefinition(metamodel, key);
-  const choices = defined?.kind === "property" ? defined.definition.choices : undefined;
-  if (choices === undefined) {
-    return [];
-  }
-  const chosen = new Set<unknown>(Array.isArray(value) ? value : [value]);
-  return choices.filter((choice) => chosen.has(choice.key)).map((choice) => choice.name);
-};
-
-/**
- * The texts the `properties` field holds of the key `key` with `value` (see the file comment), one
- * per value; none for the title, `id` and the keys that hold relations.
- */
-const keyTexts = (
-  metamodel: Metamodel,
-  titleKey: string | undefined,
-  key: string,
-  value: unknown,
-): string[] => {
-  const out: string[] = [];
-  if (key === titleKey || key === "id" || relationKey(metamodel, key) !== undefined) {
-    return out;
-  }
-  if (key === "type" || key === "status") {
-    valueTexts(structuralName(metamodel, key, value) ?? value, out);
-  } else {
-    valueTexts(value, out);
-    out.push(...choiceNames(metamodel, key, value));
-  }
-  return out;
-};
-
-/**
- * The parts of the `properties` field of `record` (`SearchDocument.parts`, see the file comment):
- * per key its texts, one per line; a key without a text adds none, so the field is the texts of
- * every key one per line, as before it had parts.
- */
-const propertyParts = (
-  record: ElementRecord,
-  metamodel: Metamodel,
-  titleKey: string | undefined,
-): string[] => {
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(record.data)) {
-    const out = keyTexts(metamodel, titleKey, key, value);
-    if (out.length > 0) {
-      parts.push(key, out.join("\n"));
-    }
-  }
-  return parts;
-};
-
-/** The text of the `properties` field of `document` (see the file comment). */
-export const propertiesText = (document: SearchDocument): string => propertiesOf(document.parts);
-
-/**
- * The document of `record` whose text is `text` as the document holds it (`visibleText`): the cache
- * keeps only that text (`search-cache.ts`).
- */
-export const documentWithText = (
-  record: ElementRecord,
-  text: string,
-  metamodel: Metamodel,
-): SearchDocument => {
-  const titleKey = titleKeyOf(metamodel);
-  const title = titleKey === undefined ? undefined : record.data[titleKey];
-  return {
-    key: recordKey(record),
-    title: typeof title === "string" ? title : "",
-    text,
-    parts: propertyParts(record, metamodel, titleKey),
-  };
-};
-
-/** The document of `record` with the Markdown text `text`. */
-export const documentOf = (record: ElementRecord, text: string, metamodel: Metamodel): SearchDocument =>
-  documentWithText(record, visibleText(text), metamodel);
-
-/** An element as its file holds it now, with its Markdown text (`elementNow`). */
-export interface ElementNow {
-  /** The record itself when the file is unchanged, else the element the file holds now. */
-  readonly element: ElementRecord;
-  readonly body: string;
-}
-
-/**
- * The element of `record` as its file holds it now (in `layout`, by repository and file, SR-088):
- * the record with the text of the bytes the store read, or, when the file changed since, the
- * element the file holds now when it still has the record's UUID (as the current versions read it,
- * ADR-0008); undefined otherwise. Blocking reads, so a caller can use it in the turn it searches in.
- */
-export const elementNow = (layout: WorkspaceLayout, record: ElementRecord): ElementNow | undefined => {
-  const repository = layout.repositories.find((r) => r.name === record.repository);
-  if (repository === undefined) {
-    return undefined;
-  }
-  const read = readElementBodySync(repository.folder, record.file, record.snapshot);
-  if (read.kind === "same") {
-    return { element: record, body: read.body };
-  }
-  if (read.read.kind === "parsed") {
-    const now = classifyFile(record.repository, read.read.file);
-    if (now.kind === "element" && now.element.id === record.id) {
-      return { element: now.element, body: read.read.file.body };
-    }
-  }
-  return undefined;
-};
-
-/**
- * The document of `record` as its file holds it now (`elementNow`), else the record without a text.
- * `exact` tells whether it is the record with the text of its snapshot.
- */
-const documentNow = (
-  layout: WorkspaceLayout,
-  record: ElementRecord,
-  metamodel: Metamodel,
-): { readonly document: SearchDocument; readonly exact: boolean } => {
-  const now = elementNow(layout, record);
-  if (now === undefined) {
-    return { document: documentOf(record, "", metamodel), exact: false };
-  }
-  return {
-    document: { ...documentOf(now.element, now.body, metamodel), key: recordKey(record) },
-    exact: now.element === record,
-  };
-};
-
-/**
- * Blocking work before the event loop gets a turn, in ms. A server builds the index in the
- * background (`warmSearchIndex`); a command that starts meanwhile waits for at most the slice that
- * runs, then the build pauses until no command runs (`BuildControl.paused`). A turn costs the build
- * microseconds.
- */
-export const SLICE_MS = 5;
-
-/** Files read at most before the event loop gets a turn. */
-const CHUNK = 500;
-
-/** How long a paused build waits before it asks again, in ms (`BuildControl.paused`). */
-export const PAUSE_MS = 10;
-
-/** Rejects a build that nobody waits for any more (`buildSearchIndex`). */
-export class SearchBuildCancelled extends Error {
-  constructor() {
-    super("the search index is no longer needed: its workspace was closed or its state reset");
-    this.name = "SearchBuildCancelled";
-  }
-}
-
-/** What a build or a carry asks at every turn of the event loop (`search-state.ts` gives it). */
-export interface BuildControl {
-  /** True: nobody waits for the result any more, and it stops with `SearchBuildCancelled`. */
-  readonly cancelled?: () => boolean;
-  /** True: it waits (`PAUSE_MS`, then asks again), so that a command that runs now is not slowed. */
-  readonly paused?: () => boolean;
-}
-
-/** Waits at a turn of the event loop while `control` pauses; throws once it is cancelled. */
-const turn = async (control: BuildControl): Promise<void> => {
-  await nextTurn();
-  for (;;) {
-    if (control.cancelled?.() === true) {
-      throw new SearchBuildCancelled();
-    }
-    if (control.paused?.() !== true) {
-      return;
-    }
-    await delay(PAUSE_MS);
-  }
-};
-
-/**
- * Reads the documents of `records` in slices of at most `SLICE_MS` and `CHUNK` files with a turn of
- * the event loop between them (`turn`: paused and cancelled by `control`), and gives each to
- * `take`. Resolves with whether every document is exact (`documentNow`).
- */
-const readDocuments = async (
-  layout: WorkspaceLayout,
-  metamodel: Metamodel,
-  records: Iterable<ElementRecord>,
-  take: (document: SearchDocument) => void,
-  control: BuildControl,
-): Promise<boolean> => {
-  let exact = true;
-  let read = 0;
-  let since = performance.now();
-  for (const record of records) {
-    const now = documentNow(layout, record, metamodel);
-    exact &&= now.exact;
-    take(now.document);
-    read += 1;
-    if (read >= CHUNK || performance.now() - since >= SLICE_MS) {
-      await turn(control);
-      read = 0;
-      since = performance.now();
-    }
-  }
-  return exact;
-};
-
-/** A search index built (`buildSearchIndex`), and whether every text in it is that of its record's snapshot. */
-export interface BuiltSearchIndex {
-  readonly index: SearchIndex;
-  /** False when a file changed since the store read it: the index must not be cached for the store. */
-  readonly exact: boolean;
-}
-
-/**
- * The index of `store` around `mini`, a MiniSearch object that holds exactly `documents`, by key as
- * they were added (see `SearchEngine.documents`).
- */
-export const searchIndexOf = (
-  store: ElementStore,
-  layout: WorkspaceLayout,
-  metamodel: Metamodel,
-  mini: MiniSearch<SearchDocument>,
-  documents: Map<string, SearchDocument>,
-): SearchIndex => ({
-  store,
-  layout,
-  metamodel,
-  records: new Map(store.elements.map((record) => [recordKey(record), record])),
-  engine: { mini, documents, generation: 0 },
-});
-
-/**
- * The search index of `store`: every element file is read again for its text (see the file
- * comment), in slices. `control` is asked at every turn (`BuildControl`): a build waits while a
- * command runs and stops when nobody needs it any more (`searchIndexState`).
- */
-export const buildSearchIndex = async (
-  store: ElementStore,
-  layout: WorkspaceLayout,
-  metamodel: Metamodel,
-  control: BuildControl = {},
-): Promise<BuiltSearchIndex> => {
-  const mini = new MiniSearch<SearchDocument>(engineOptions(metamodel));
-  const documents = new Map<string, SearchDocument>();
-  const add = (document: SearchDocument): void => {
-    mini.add(document);
-    documents.set(document.key, document);
-  };
-  const exact = await readDocuments(layout, metamodel, store.elements, add, control);
-  // The words for word parts (SR-221), in slices as the documents were read.
-  await buildVocabulary(mini, 0, SLICE_MS, () => turn(control));
-  return { index: searchIndexOf(store, layout, metamodel, mini, documents), exact };
-};
-
-/** The element record in `file` of `repository` in `repositories`, if the file holds one. */
-const recordIn = (
-  repositories: ReadonlyMap<string, RepositoryContents>,
-  repository: string,
-  file: string,
-): ElementRecord | undefined => {
-  const contribution = repositories.get(repository)?.files.get(file);
-  return contribution?.kind === "element" ? contribution.element : undefined;
-};
-
-/**
- * The search index of `update.to`, carried over from `index`, the index of `update.from` (a save or
- * a watcher batch, ThomasBirkmaier/ReqSeq-archive#184): the documents of the changed files (`StoreUpdate.files`) are removed and
- * the files that hold an element now are read again (in slices) and their documents added.
- *
- * Unlike the other carried states, the MiniSearch object is changed, not copied (a copy costs about
- * as much as a build): the index of `update.from` shares it, so a command that still holds that
- * index finds the new documents in it, while its hits name only records of its own store
- * (`searchElements`). The documents of the new files are read before the object is changed, and it
- * is changed in one synchronous step, so a search sees it before or after the change, never in
- * between; carries of one workspace run one after the other (`searchIndexState`).
- *
- * The old documents are removed exactly (`MiniSearch.remove`, with the documents the engine kept,
- * also one loaded from the cache), so hits, fields, words and scores are those of a fresh build.
- * `control` pauses and cancels the reading as for a build.
- */
-export const carrySearchIndex = async (
-  index: SearchIndex,
-  update: StoreUpdate,
-  control: BuildControl = {},
-): Promise<SearchIndex> => {
-  const repositories = new Map(update.repositories.map((contents) => [contents.repository, contents]));
-  const changes = new Map<string, ElementRecord | undefined>();
-  const gone: string[] = [];
-  const now: ElementRecord[] = [];
-  for (const [repository, files] of update.files) {
-    for (const file of files) {
-      const key = docKey(repository, file);
-      gone.push(key);
-      const record = recordIn(repositories, repository, file);
-      changes.set(key, record);
-      if (record !== undefined) {
-        now.push(record);
-      }
-    }
-  }
-  // A patch of the records before (`PatchedMap`, #215), not a copy of 50,000 keys.
-  const records = PatchedMap.patch(index.records, changes);
-  const documents: SearchDocument[] = [];
-  await readDocuments(
-    index.layout,
-    index.metamodel,
-    now,
-    (document) => {
-      documents.push(document);
-    },
-    control,
-  );
-  const { engine } = index;
-  const { mini, documents: kept } = engine;
-  // MiniSearch's short IDs of the documents removed and added, for the arrays (`carryArrays`).
-  const removed: number[] = [];
-  // The words the tree does not hold yet, before the old documents leave it (SR-221, `carryVocabulary`).
-  const words = newWords(mini, documents);
-  try {
-    for (const key of gone) {
-      const old = kept.get(key);
-      if (old !== undefined) {
-        removed.push(Number(shortIdOfDocument(mini, key)));
-        mini.remove(old);
-        kept.delete(key);
-      }
-    }
-    mini.addAll(documents);
-    for (const document of documents) {
-      kept.set(document.key, document);
-    }
-  } finally {
-    // Also after a throw halfway: the caches of the arrays (`documentsOf`, `lengthsOf`) must not
-    // be taken for the object as it now is.
-    engine.generation += 1;
-  }
-  carryVocabulary(mini, engine.generation, words);
-  const carried: SearchIndex = { ...index, store: update.to, records };
-  const added = documents.map((document) => Number(shortIdOfDocument(mini, document.key)));
-  carryArrays(index, carried, removed, added);
-  carryIdentified(index, carried, gone, now);
-  carryKeys(index, carried, gone, now);
-  return prepareSearchIndex(carried);
-};
-
-/** How to search (`searchElements`). */
-export interface SearchElementsOptions {
-  /**
-   * Only these fields, and the properties of `propertyKeys`; default every field (`SEARCH_FIELDS`),
-   * or none besides those properties when `propertyKeys` is given.
-   */
-  readonly fields?: readonly SearchField[];
-  /**
-   * Also, or only, these single properties (SR-216 AK2): keys of `searchPropertyKeys` of the index's
-   * metamodel. Not beside `properties` in `fields`, which holds them all (their words would count
-   * twice); `searchFieldsOf` leaves them out then.
-   */
-  readonly propertyKeys?: readonly string[];
-  /**
-   * Only these element records, by repository and file (the selection of a view or filter, SR-068
-   * AK3: `Selected.elements`; two files with one UUID are two records, SR-088); default all.
-   */
-  readonly within?: Iterable<Pick<ElementRecord, "repository" | "file">>;
-  /** Whether every word of the query must match (`and`, the default) or one is enough (`or`). */
-  readonly combineWith?: "and" | "or";
-  /**
-   * Edits tolerated in a word of at least `MIN_FUZZY` letters, as a share of its length
-   * (MiniSearch's `fuzzy`, rounded); default 0.2, 0 for none.
-   */
-  readonly fuzzy?: number;
-  /** Whether a word of at least `MIN_PREFIX` letters also finds the words it begins (as-you-type, the default). */
-  readonly prefix?: boolean;
-  /** Hits skipped before the page (default 0) and the most on the page (default all). */
-  readonly offset?: number;
-  readonly limit?: number;
-}
-
-/** One element found. */
-export interface SearchHit {
-  /** The record of the index's store. */
-  readonly element: ElementRecord;
-  /**
-   * MiniSearch's relevance of the words (BM25, title counted twice), rounded to 6 significant digits
-   * (`roundScore`); 0 for a match of the ID only.
-   */
-  readonly score: number;
-  /** The fields a word of the query was found in, in the order of `SEARCH_FIELDS`. */
-  readonly fields: readonly SearchField[];
-  /**
-   * The words of the element that matched words of the query outside quotes (lower case, NFC), for
-   * highlighting; none for an ID.
-   */
-  readonly terms: readonly string[];
-  /**
-   * The words of `terms` that words of the query outside quotes found only as a word start (SR-068
-   * AK2) or a word part (SR-221 AK1), each with those query words (processed as the index processes
-   * them): their marks cover only that part (SR-221 AK3). A word also found as it is, with a typo,
-   * as a phrase or as another designation is not among them, and is marked whole.
-   */
-  readonly parts: ReadonlyMap<string, readonly string[]>;
-  /** The phrases of the query found in the element (SR-068 AK4), to mark them whole (SR-174 AK6). */
-  readonly phrases: readonly SearchPhrase[];
-  /**
-   * The criterion keys found in its acceptance criteria (SR-222 AK1, AK2), each once, in lower case:
-   * by a key word or a criterion reference, only when the acceptance criteria property is searched.
-   */
-  readonly keys: readonly string[];
-}
-
-/** The hits of a query: how many there are, and one page of them (`offset`, `limit`). */
-export interface SearchResults {
-  readonly total: number;
-  readonly hits: readonly SearchHit[];
-}
 
 /** Letters a word needs for fuzzy search: in a shorter one an edit would find most words. */
 export const MIN_FUZZY = 4;
@@ -824,121 +237,6 @@ const shortIdMatcher = (
     return undefined;
   }
   return (record) => record.id.startsWith(lower) || endsWithDigits(record.id, hex);
-};
-
-/** The records of every index with an identifier, by its `identifierMatch`, built on first use. */
-const identified = new WeakMap<SearchIndex, ReadonlyMap<string, ReadonlySet<ElementRecord>>>();
-
-const identifiedIn = (index: SearchIndex): ReadonlyMap<string, ReadonlySet<ElementRecord>> => {
-  let known = identified.get(index);
-  if (known === undefined) {
-    const key = identifierKeyOf(index.metamodel);
-    const built = new Map<string, Set<ElementRecord>>();
-    for (const record of key === undefined ? [] : index.store.elements) {
-      const value = identifierValue(record, key);
-      if (value !== undefined) {
-        const match = identifierMatch(value);
-        const records = built.get(match) ?? new Set();
-        records.add(record);
-        built.set(match, records);
-      }
-    }
-    identified.set(index, built);
-    known = built;
-  }
-  return known;
-};
-
-/**
- * The records by identifier of `carried`, from those of `index` when they were built (#215): only
- * the identifiers of the records of the changed files (the documents `gone` before, the records
- * `now` after) are looked at; a patch of the map, whose sets of other identifiers stay the same
- * objects. Otherwise they are built in full at the end of the carry (`prepareSearchIndex`).
- */
-const carryIdentified = (
-  index: SearchIndex,
-  carried: SearchIndex,
-  gone: readonly string[],
-  now: readonly ElementRecord[],
-): void => {
-  const known = identified.get(index);
-  const key = identifierKeyOf(index.metamodel);
-  if (known === undefined || key === undefined) {
-    return;
-  }
-  const changes = new Map<string, Set<ElementRecord> | undefined>();
-  const setOf = (match: string): Set<ElementRecord> => {
-    let set = changes.get(match);
-    if (set === undefined) {
-      set = new Set(known.get(match));
-      changes.set(match, set);
-    }
-    return set;
-  };
-  for (const record of gone.flatMap((at) => index.records.get(at) ?? [])) {
-    const value = identifierValue(record, key);
-    if (value !== undefined) {
-      setOf(identifierMatch(value)).delete(record);
-    }
-  }
-  for (const record of now) {
-    const value = identifierValue(record, key);
-    if (value !== undefined) {
-      setOf(identifierMatch(value)).add(record);
-    }
-  }
-  for (const [match, set] of changes) {
-    if (set?.size === 0) {
-      changes.set(match, undefined);
-    }
-  }
-  identified.set(carried, PatchedMap.patch(known, changes));
-};
-
-/** The table of other designations of every index (SR-220), built on first use; null for none. */
-const designationTables = new WeakMap<SearchIndex, DesignationTable | null>();
-
-/**
- * The table of other designations of `index` (`designationTable` of `search-designations.ts`): of the
- * records of its store, so a carried index, which has the store after a save or a watcher batch,
- * has its own (SR-220 AK4); undefined when its metamodel maps no designations or none has another.
- */
-const designationsIn = (index: SearchIndex): DesignationTable | undefined => {
-  let table = designationTables.get(index);
-  if (table === undefined) {
-    table = designationTable(index.store.elements, index.metamodel) ?? null;
-    designationTables.set(index, table);
-  }
-  return table ?? undefined;
-};
-
-/** The records of every index by criterion key (SR-222, `keyedRecords`), built on first use. */
-const keyedIndexes = new WeakMap<SearchIndex, KeyedRecords>();
-
-const keyedIn = (index: SearchIndex): KeyedRecords => {
-  let known = keyedIndexes.get(index);
-  if (known === undefined) {
-    known = keyedRecords(index.store, index.metamodel, recordKey);
-    keyedIndexes.set(index, known);
-  }
-  return known;
-};
-
-/**
- * The records by criterion key of `carried`, from those of `index` when they were built, as
- * `carryIdentified` carries the identifiers; otherwise built at the end of the carry.
- */
-const carryKeys = (
-  index: SearchIndex,
-  carried: SearchIndex,
-  gone: readonly string[],
-  now: readonly ElementRecord[],
-): void => {
-  const known = keyedIndexes.get(index);
-  if (known !== undefined) {
-    const before = gone.flatMap((at) => index.records.get(at) ?? []);
-    keyedIndexes.set(carried, carryKeyed(known, index.metamodel, before, now, recordKey));
-  }
 };
 
 /** No criterion key found (`Found.keys`). */
@@ -1032,66 +330,6 @@ const keyFit = (index: SearchIndex, word: string): CriteriaMatch | undefined => 
   return key === undefined || records === undefined ? undefined : { key, records, count: records.length };
 };
 
-/**
- * The place of each repository of the workspace file in store order (the store is ordered by
- * repository in that order, then by file path), per layout: hits of equal score are ordered by
- * repository and path (`before`), which needs no position of every record, so a carry builds none
- * (#215).
- */
-const repositoryPlaces = new WeakMap<WorkspaceLayout, ReadonlyMap<string, number>>();
-
-const placesOf = (layout: WorkspaceLayout): ReadonlyMap<string, number> => {
-  let places = repositoryPlaces.get(layout);
-  if (places === undefined) {
-    places = new Map(layout.repositories.map((repository, at) => [repository.name, at]));
-    repositoryPlaces.set(layout, places);
-  }
-  return places;
-};
-
-/** The place of the repository of a record in `layout` (`placesOf`); after every other one when it lists none. */
-const placeIn = (layout: WorkspaceLayout): ((record: Pick<ElementRecord, "repository">) => number) => {
-  const places = placesOf(layout);
-  return (record) => places.get(record.repository) ?? places.size;
-};
-
-/** What found the words of a document: a result of MiniSearch, or a document of a scoring (`scoreWords`). */
-type WordsMatch = Pick<SearchResult, "match"> | { readonly scored: Scored; readonly doc: number };
-
-/** A phrase of a query found in a document, and the fields (MiniSearch's) it stands in, in the order searched. */
-interface PhraseFound {
-  readonly phrase: SearchPhrase;
-  readonly fields: string[];
-}
-
-/** A document found: its record, the score of its words, what found it and whether it comes late. */
-interface Found {
-  /** Its `recordKey`. */
-  readonly key: string;
-  readonly element: ElementRecord;
-  /** The place of its record's repository in the store (`placesOf`); then its path orders it. */
-  readonly place: number;
-  score: number;
-  /** What found its words; none for an ID only. Described for the page only (`hitOf`). */
-  readonly matches: readonly WordsMatch[];
-  /** The phrases found in it (`phraseFound`). */
-  readonly phrases: readonly PhraseFound[];
-  /** Words of the query that matched the ID. */
-  ids: number;
-  /** The criterion keys found in its criteria (`SearchHit.keys`), maybe more than once. */
-  keys: readonly string[];
-  /**
-   * Whether a word or phrase of the query found it only through the name of its type or status
-   * (SR-068 AK5): it comes after the hits without (`before`). Each source of a match sets it.
-   */
-  late: boolean;
-  /**
-   * Whether a part of the query found it only through another designation (SR-220 AK2,
-   * `withOthers`): it comes after the hits found by every word itself, before the late ones.
-   */
-  readonly other: boolean;
-}
-
 /** One search: the index, which records count, and MiniSearch's options. */
 interface Search {
   readonly index: SearchIndex;
@@ -1135,113 +373,6 @@ const searchOf = (
     options: searchOptionsOf(scoring),
     placeOf: placeIn(index.layout),
   };
-};
-
-/** The records, keys and repository places (`placesOf`) of the documents of an index, by MiniSearch's short ID. */
-interface Documents {
-  readonly generation: number;
-  readonly records: readonly (ElementRecord | undefined)[];
-  readonly keys: readonly (string | undefined)[];
-  readonly places: Int32Array;
-  /** The documents the engine keeps (`SearchEngine.documents`), for a phrase (`phraseFound`). */
-  readonly documents: readonly (SearchDocument | undefined)[];
-}
-
-const documentsCache = new WeakMap<SearchIndex, Documents>();
-
-/**
- * The `Documents` of `index` as its MiniSearch object is now (`SearchEngine.generation`): built
- * once per index and change, so that a search looks a document up in arrays, not in maps of
- * 50,000 keys (SR-098). A document whose record is not in the index's store has none.
- */
-const documentsOf = (index: SearchIndex): Documents => {
-  const { mini, generation } = index.engine;
-  const known = documentsCache.get(index);
-  if (known?.generation === generation) {
-    return known;
-  }
-  const placeOf = placeIn(index.layout);
-  const records: (ElementRecord | undefined)[] = [];
-  const keys: (string | undefined)[] = [];
-  const documents: (SearchDocument | undefined)[] = [];
-  const places = new Int32Array(nextShortId(mini));
-  for (const [doc, key] of documentKeys(mini)) {
-    const record = index.records.get(String(key));
-    if (record !== undefined) {
-      records[doc] = record;
-      keys[doc] = String(key);
-      places[doc] = placeOf(record);
-      documents[doc] = index.engine.documents.get(String(key));
-    }
-  }
-  const built = { generation, records, keys, places, documents };
-  documentsCache.set(index, built);
-  return built;
-};
-
-/**
- * The arrays of `carried` (its `Documents` and the field lengths of its MiniSearch object) after a
- * carry from `index` that removed the documents `removed` and added `added` (MiniSearch's short
- * IDs), derived from those of `index` when they were built for the change before (#215): copies
- * with only these documents changed. Otherwise they are built in full at the end of the carry
- * (`prepareSearchIndex`).
- */
-const carryArrays = (
-  index: SearchIndex,
-  carried: SearchIndex,
-  removed: readonly number[],
-  added: readonly number[],
-): void => {
-  const { mini, generation } = carried.engine;
-  carryLengths(mini, generation, removed, added);
-  const known = documentsCache.get(index);
-  if (known?.generation !== generation - 1) {
-    return;
-  }
-  const records = [...known.records];
-  const keys = [...known.keys];
-  const documents = [...known.documents];
-  const places = new Int32Array(nextShortId(mini));
-  places.set(known.places);
-  const placeOf = placeIn(carried.layout);
-  // No search reads a removed short ID (MiniSearch's words no longer name it); cleared anyway, so
-  // the arrays hold no record that left the store. They grow by one slot per added document, as
-  // MiniSearch's short IDs do (`nextShortId`), and so did a fresh `documentsOf`.
-  for (const doc of removed) {
-    records[doc] = undefined;
-    keys[doc] = undefined;
-    documents[doc] = undefined;
-  }
-  for (const doc of added) {
-    const key = String(documentKeys(mini).get(doc));
-    const record = carried.records.get(key);
-    records[doc] = record;
-    keys[doc] = key;
-    documents[doc] = carried.engine.documents.get(key);
-    /* v8 ignore else -- an added document holds the record of its key (`carrySearchIndex`). */
-    if (record !== undefined) {
-      places[doc] = placeOf(record);
-    }
-  }
-  documentsCache.set(carried, { generation, records, keys, places, documents });
-};
-
-/**
- * Builds what the first search of `index` builds otherwise: the arrays of its documents
- * (`documentsOf`, `lengthsOf`), the records by identifier (`identifiedIn`), the table of other
- * designations (`designationsIn`) and the words for word parts (`vocabularyOf`, SR-221: built with
- * the index and carried, so walked here only when a carry outgrew it), so that it costs no
- * more than the next ones (SR-098: 165 to 320 ms instead of 45 ms at N-036). A server does it at the
- * end of its background build (`warmSearchIndex`), a carry at its end; returns `index`.
- */
-export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
-  identifiedIn(index);
-  keyedIn(index);
-  designationsIn(index);
-  documentsOf(index);
-  lengthsOf(index.engine.mini, index.engine.generation);
-  vocabularyOf(index.engine.mini, index.engine.generation);
-  return index;
 };
 
 /**
@@ -1428,149 +559,6 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
   return out;
 };
 
-/** The field of a hit that the MiniSearch field `field` is (`SearchHit.fields`). */
-const hitField = (field: string): string => (field.startsWith(PROPERTY_FIELD) ? "properties" : field);
-
-/** The fields a hit was found in by its IDs and criterion keys (SR-222: a key in `properties`). */
-const fieldsBesideWords = (ids: number, keys: readonly string[]): string[] => [
-  ...(ids > 0 ? ["id"] : []),
-  ...(keys.length > 0 ? ["properties"] : []),
-];
-
-/**
- * The hit of one document: fields in the order of `SEARCH_FIELDS` (of a phrase only those it
- * stands in, SR-174 AK6), the words that matched, the phrases found.
- */
-const hitOf = ({ element, score, matches, phrases, ids, keys }: Found): SearchHit => {
-  const fields = new Set<string>(fieldsBesideWords(ids, keys));
-  const terms = new Set<string>();
-  // Each word with a query word that found it only in part (`word\0query`), and the words found whole.
-  const partial = new Set<string>();
-  const whole = new Set<string>();
-  for (const words of matches) {
-    const match = "match" in words ? words.match : words.scored.matchOf(words.doc);
-    const parts = "match" in words ? undefined : words.scored.partsOf(words.doc);
-    for (const [term, found] of Object.entries(match)) {
-      terms.add(term);
-      for (const field of found) {
-        fields.add(hitField(field));
-      }
-      const queried = parts?.get(term);
-      if (queried === undefined) {
-        whole.add(term);
-      } else {
-        for (const one of queried) {
-          partial.add(`${term}\0${one}`);
-        }
-      }
-    }
-  }
-  const parts = new Map<string, readonly string[]>();
-  for (const pair of partial) {
-    const at = pair.indexOf("\0");
-    const term = pair.slice(0, at);
-    const queried = pair.slice(at + 1);
-    if (!whole.has(term)) {
-      parts.set(term, [...(parts.get(term) ?? []), queried]);
-    }
-  }
-  for (const found of phrases) {
-    for (const field of found.fields) {
-      fields.add(hitField(field));
-    }
-  }
-  return {
-    element,
-    score,
-    fields: SEARCH_FIELDS.filter((field) => fields.has(field)),
-    terms: [...terms],
-    parts,
-    phrases: [...new Set(phrases.map((found) => found.phrase))],
-    keys: [...new Set(keys)],
-  };
-};
-
-/**
- * A score rounded to 6 significant digits, as hits give it and are sorted by: MiniSearch's scores of
- * equal documents may differ in the last bits between a fresh build, a cached one and one carried
- * many times (its average field lengths are kept incrementally), and every access must give the
- * same hits in the same order (SR-080).
- */
-const roundScore = (score: number): number => Number(score.toPrecision(SCORE_DIGITS));
-
-const SCORE_DIGITS = 6;
-
-/**
- * Whether `a` comes before `b` on the pages: more words matched its ID, else it is not late and `b`
- * is (a word found only through the name of the type or status, SR-068 AK5), else it was found by
- * every word itself and `b` was not (`Found.other`, SR-220 AK2), else a higher score,
- * else it comes first in the store (by repository, then path: no position of every record is
- * needed, #215). A strict total order (no two hits share a repository and file), so any way of
- * finding the first hits gives the same page.
- */
-const before = (a: Found, b: Found): boolean =>
-  a.ids !== b.ids
-    ? a.ids > b.ids
-    : a.late !== b.late
-      ? b.late
-      : a.other !== b.other
-        ? b.other
-        : a.score !== b.score
-          ? a.score > b.score
-          : a.place !== b.place
-            ? a.place < b.place
-            : a.element.file < b.element.file;
-
-const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
-
-/**
- * The first `size` of `hits` in page order (`before`), without sorting the rest: the first ones so
- * far are kept in order, so a hit after the last of them (most hits, when 50 of 50,000 are asked
- * for, SR-098) costs one comparison, and one before it a binary search.
- */
-const firstOf = (hits: Iterable<Found>, size: number): Found[] => {
-  const first: Found[] = [];
-  for (const hit of hits) {
-    const last = first.at(-1);
-    if (first.length < size || (last !== undefined && before(hit, last))) {
-      let low = 0;
-      let high = first.length;
-      while (low < high) {
-        const middle = (low + high) >>> 1;
-        const kept = first[middle];
-        if (kept !== undefined && before(kept, hit)) {
-          low = middle + 1;
-        } else {
-          high = middle;
-        }
-      }
-      first.splice(low, 0, hit);
-      if (first.length > size) {
-        first.pop();
-      }
-    }
-  }
-  return first;
-};
-
-/** The most hits `firstOf` finds; more are sorted (a binary search and a move per hit would cost more). */
-const MAX_FIRST = 1000;
-
-/** The page of `found`, the best first (see `searchElements`). */
-const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchResults => {
-  const all = Array.from(found, (one) => {
-    one.score = roundScore(one.score);
-    return one;
-  });
-  const offset = options.offset ?? 0;
-  const end = options.limit === undefined ? all.length : offset + options.limit;
-  const first = end <= MAX_FIRST && end < all.length ? firstOf(all, end) : all.sort(order);
-  return { total: all.length, hits: first.slice(offset, end).map(hitOf) };
-};
-
-/** One hit of `rankedHits`, as the search found it; `describeHit` gives it as `searchElements` does. */
-export type RankedHit = Readonly<Found>;
-
 /**
  * Every hit of `query` in the order of `searchElements` (ID matches, then hits not found only through
  * a type or status name, then those found by every word itself, then score, then store order), the
@@ -1586,9 +574,6 @@ export const rankedHits = (
     one.score = roundScore(one.score);
     return one;
   }).sort(order);
-
-/** A hit of `rankedHits` with its score, fields and terms, as `searchElements` gives it. */
-export const describeHit = (hit: RankedHit): SearchHit => hitOf(hit);
 
 /** The fixed fields a search of `options` searches, and its MiniSearch fields of words (`propertyField`s included). */
 const fieldsOf = (
@@ -2204,6 +1189,16 @@ export const searchElements = (
   query: string,
   options: SearchElementsOptions = {},
 ): SearchResults => pageOf(foundBy(index, query, options) ?? [], options);
+
+/**
+ * The elements `searchElements` finds for `query`, all of them, without sorting or describing them: the
+ * elements of `element.search` over all pages (`answer`, SR-224 AK5).
+ */
+export const matchingElements = (
+  index: SearchIndex,
+  query: string,
+  options: Omit<SearchElementsOptions, "offset" | "limit">,
+): readonly ElementRecord[] => Array.from(foundBy(index, query, options) ?? [], (found) => found.element);
 
 /**
  * The keys (`recordKey`) of the elements `searchElements` finds for `query`, all of them, without

@@ -28,6 +28,7 @@ const degree = async (input: unknown, args: readonly string[] = []): Promise<Run
 
 /** The readable output of P1 (AK1), and of P3 (AK3). */
 const P1 = [
+  "6 of 10 requirements in view core are verified or indirectly verified (60 %).",
   "degree:",
   "  share: 60 %",
   "  total: 10",
@@ -51,6 +52,7 @@ describe("reqseq evidence degree (SR-037)", () => {
     const result = await degree({ selection: { package: "PKG-00d002" } }, ["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
+      answer: "3 of 5 requirements in view core are verified or indirectly verified (60 %).",
       degree: { share: 0.6, total: 5, counts: { open: 1, verified: 2, indirect: 1, failed: 1, outdated: 0 } },
       view: "core",
       incomplete: false,

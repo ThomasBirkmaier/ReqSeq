@@ -6,11 +6,23 @@ import { defineCommand } from "../../catalog.js";
 import { assignCriterionKeys } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
+import { counted, filesNote, incompleteNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.assignCriterionKeys",
+  answer: (output) =>
+    sentence(
+      `Assigned criterion keys to ${counted(
+        output.changed.reduce((sum, element) => sum + element.assigned, 0),
+        "acceptance criterion",
+        "acceptance criteria",
+      )} of ${counted(output.count, "element")}`,
+      output.skipped.length === 0 ? "" : `${counted(output.skipped.length, "element")} left out`,
+      filesNote(output.files),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.assignCriterionKeys">> => {
-    const selected = await resolveSelection(ctx.workspace, input.selection, "element.assignCriterionKeys");
+    const selected = await resolveSelection(ctx, input.selection, "element.assignCriterionKeys");
     const result = await assignCriterionKeys(
       ctx.workspace,
       selected,

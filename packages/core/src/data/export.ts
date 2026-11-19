@@ -49,7 +49,6 @@
 import type {
   DataExportElement,
   DataExportFile,
-  DataExportOutput,
   DataExportRelation,
   ElementSelection,
 } from "../generated/types.js";
@@ -297,7 +296,7 @@ interface StatedRepository {
 
 /** What `data.store` needs beyond the data (SR-062). */
 export interface ExportWithProblems {
-  readonly data: DataExportOutput;
+  readonly data: DataExportFile;
   /** `git.unavailable` warnings, and the missing repositories when the data is incomplete. */
   readonly problems: readonly Problem[];
   /** Every available repository has a known commit and is known clean. */
@@ -392,4 +391,4 @@ export const exportData = async (
   selected: Selected,
   selection: ElementSelection | undefined,
   options: ExportOptions = {},
-): Promise<DataExportOutput> => (await exportDataWithProblems(workspace, selected, selection, options)).data;
+): Promise<DataExportFile> => (await exportDataWithProblems(workspace, selected, selection, options)).data;

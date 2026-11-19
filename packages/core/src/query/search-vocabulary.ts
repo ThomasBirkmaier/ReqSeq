@@ -16,7 +16,7 @@
 //   `search-scoring.ts`), and when it comes back it is appended again, so a scan may give a word
 //   twice (the caller takes each once). When the appended words outgrow the words of the walk, the
 //   next walk replaces them (`carryVocabulary` returns false, and `prepareSearchIndex` of
-//   `search-index.ts` or the next search walks the tree at once, `vocabularyOf`).
+//   `search-build.ts` or the next search walks the tree at once, `vocabularyOf`).
 import type MiniSearch from "minisearch";
 
 /** The words as one string, and how much of it the last walk of the tree gave. */

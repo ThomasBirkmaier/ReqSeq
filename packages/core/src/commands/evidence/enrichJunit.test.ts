@@ -107,6 +107,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const { fixture, workspace } = await open();
     const pytest = await enrich(workspace, { file: "results/pytest.xml" });
     expect(pytest).toEqual({
+      answer: "Enriched 3 test cases; 5 test cases without an element; 1 file written; 1 problem.",
       testCases: 3,
       withoutReference: 5,
       notInView: 0,
@@ -127,6 +128,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     ]);
     const vitest = await enrich(workspace, { file: "results/vitest.xml" });
     expect(vitest).toEqual({
+      answer: "Enriched 2 test cases; 3 test cases without an element; 1 file written; 1 problem.",
       testCases: 2,
       withoutReference: 3,
       notInView: 0,
@@ -180,6 +182,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const before = await bytesOf(fixture, "results/two.xml");
     const output = await enrich(workspace, { file: "results/two.xml", output: "evidence/ci/two.xml" });
     expect(output).toEqual({
+      answer: "Enriched 3 test cases; 1 file written.",
       testCases: 3,
       withoutReference: 0,
       notInView: 0,
@@ -231,6 +234,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       namePattern: "{prefix}_{id}_ak_{ak}",
     });
     expect(output).toEqual({
+      answer: "Enriched 2 test cases; 2 test cases without an element; 1 file written; 1 problem.",
       testCases: 2,
       withoutReference: 2,
       notInView: 0,
@@ -425,6 +429,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const { mtimeMs } = await fs.stat(fixture.path("results/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", item: "build-513" });
     expect(again).toEqual({
+      answer: "Enriched 2 test cases; 3 test cases without an element; no file written; 1 problem.",
       testCases: 2,
       withoutReference: 3,
       notInView: 0,
@@ -479,6 +484,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(await workspace.get(evidenceRecordsState)).toEqual([]);
     const again = await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
     expect(again).toEqual({
+      answer: "Enriched 2 test cases; 3 test cases without an element; 1 file written.",
       testCases: 2,
       withoutReference: 3,
       notInView: 0,
@@ -490,6 +496,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect((await workspace.get(evidenceRecordsState)).map((r) => r.element)).toEqual([LOGIN, SPEC]);
     const plain = await enrich(workspace, { file: "results/plain.xml", output: "evidence/ci/plain.xml" });
     expect(plain).toEqual({
+      answer: "Enriched 0 test cases; 1 test case without an element; 1 file written.",
       testCases: 0,
       withoutReference: 1,
       notInView: 0,
@@ -508,6 +515,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const { mtimeMs } = await fs.stat(fixture.path("evidence/ci/vitest.xml"));
     const again = await enrich(workspace, { file: "results/vitest.xml", output: "evidence/ci/vitest.xml" });
     expect(again).toEqual({
+      answer: "Enriched 2 test cases; 3 test cases without an element; no file written.",
       testCases: 2,
       withoutReference: 3,
       notInView: 0,
@@ -652,6 +660,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       );
       const output = await enrich(workspace, { file: "results/run.xml", variant: [variant] });
       expect(output).toEqual({
+        answer: "Enriched 2 test cases; 1 test case without an element; 1 file written; 1 problem.",
         testCases: 2,
         withoutReference: 1,
         notInView: 0,
@@ -725,6 +734,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       skipNotInView: true,
     });
     expect(output).toEqual({
+      answer: "Enriched 2 test cases; 1 file written; 1 problem.",
       testCases: 2,
       withoutReference: 0,
       notInView: 2,

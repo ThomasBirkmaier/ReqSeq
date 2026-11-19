@@ -92,6 +92,7 @@ describe("unknown types before a ReqIF import (SR-055)", () => {
     const before = await snapshot(fixture);
     const analysis = await analyze(workspace, { file: IMPORT.file, mapping: IMPORT.mapping });
     expect(analysis).toEqual({
+      answer: "The import would give 0 new elements, 0 changed, 0 conflicts, 0 dropped and 6 unmapped.",
       unmapped: UNMAPPED,
       new: [],
       changed: [],

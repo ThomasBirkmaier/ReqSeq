@@ -15,6 +15,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "types": {
         "title": "Types",
         "type": "array",
@@ -117,6 +118,15 @@
       }
     },
     "additionalProperties": false,
-    "required": ["types", "properties", "relations", "statuses", "meanings", "relationKinds", "files"]
+    "required": [
+      "answer",
+      "types",
+      "properties",
+      "relations",
+      "statuses",
+      "meanings",
+      "relationKinds",
+      "files"
+    ]
   }
 }

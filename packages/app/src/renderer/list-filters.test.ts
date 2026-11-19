@@ -11,6 +11,7 @@ import {
 } from "./list-filters.js";
 
 const facets: ElementFacetsOutput = {
+  answer: "The selection has 5 elements.",
   total: 5,
   types: [{ key: "system-requirement", name: "System Requirement", count: 5 }],
   statuses: [

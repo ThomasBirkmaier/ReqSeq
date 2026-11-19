@@ -21,6 +21,7 @@ import { buildInput } from "./input.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
+import type { CallSite } from "./present/next.js";
 import type { Terminal } from "./style.js";
 import {
   jsonOutput,
@@ -151,6 +152,13 @@ export interface RunCliOptions {
 const workspaceRoot = async (option: string | undefined, cwd: string): Promise<string> =>
   option === undefined ? ((await findWorkspaceRoot(cwd)) ?? cwd) : path.resolve(cwd, option);
 
+/** Where the calls of next steps are typed: this catalog, the current folder and the system (SR-226). */
+const callSite = (options: RunCliOptions, runtime: CommandRuntime): CallSite => ({
+  commands: runtime.contracts.commands,
+  cwd: options.cwd,
+  platform: process.platform,
+});
+
 /** `error`, or the `internal` error for it with its cause named without absolute paths (#1794). */
 const asCommandError = (error: unknown): CommandError =>
   error instanceof CommandError ? error : internalError("Internal error in the command line", error);
@@ -194,7 +202,12 @@ async function call(
  * What stdout gets of a successful call: `--json`, `--jsonl`, `--yaml`, the text of an entry with
  * `textOutput` (whose problems go to stderr, ADR-0009), or the readable output.
  */
-function outputPieces(invocation: Invocation, output: unknown, options: RunCliOptions): Iterable<string> {
+function outputPieces(
+  invocation: Invocation,
+  output: unknown,
+  options: RunCliOptions,
+  site: CallSite,
+): Iterable<string> {
   const { entry } = invocation;
   if (invocation.json) {
     return jsonOutput(output);
@@ -212,7 +225,7 @@ function outputPieces(invocation: Invocation, output: unknown, options: RunCliOp
     }
     return [plain.text];
   }
-  return [renderHuman(output, entry.effect === "read", options.terminal)];
+  return [renderHuman(output, entry.effect === "read", options.terminal, site)];
 }
 
 async function execute(
@@ -220,6 +233,7 @@ async function execute(
   options: RunCliOptions,
   runtime: CommandRuntime,
 ): Promise<ExitCode> {
+  const site = callSite(options, runtime);
   let output: unknown;
   try {
     output = await call(invocation, options, runtime);
@@ -232,11 +246,16 @@ async function execute(
       ),
     );
     options.stderr.write(
-      renderError(error, invocation.json || invocation.jsonl, spelledMessage(error, invocation.entry, given)),
+      renderError(
+        error,
+        invocation.json || invocation.jsonl,
+        spelledMessage(error, invocation.entry, given),
+        site,
+      ),
     );
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
-  await writePieces(options.stdout, outputPieces(invocation, output, options), options.signal);
+  await writePieces(options.stdout, outputPieces(invocation, output, options, site), options.signal);
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }
 

@@ -3,6 +3,7 @@
 // layer of the metamodel commands (`changeMetamodel`), which reads, checks and writes.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 import { appendListItem } from "../../files/index.js";
 import type { MetamodelType } from "../../generated/types.js";
 import type { Metamodel } from "../../metamodel/index.js";
@@ -53,6 +54,18 @@ const refuseTaken = (metamodel: Metamodel, name: string, prefix: string): void =
 
 export default defineCommand({
   name: COMMAND,
+  answer: (output, input) =>
+    sentence(
+      `Added the type ${input.name} with prefix ${input.prefix}`,
+      filesNote(output.files),
+      output.versionsChanged === 0
+        ? ""
+        : `${counted(output.versionsChanged, "element")} with another version`,
+      output.missingRequired === 0
+        ? ""
+        : `${counted(output.missingRequired, "element")} now missing a required property`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"metamodel.addType">> => {
     const change = await writeMetamodel(ctx.workspace, COMMAND, ({ metamodel, files }) => {
       refuseTaken(metamodel, input.name, input.prefix);

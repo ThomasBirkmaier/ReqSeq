@@ -17,6 +17,7 @@ import type { Selected } from "../../query/index.js";
 import { facetsOf, matchingKeys, recordKey, resolveSelection, searchIndex } from "../../query/index.js";
 import { searchFieldsOf } from "../../query/search-fields.js";
 import type { Workspace } from "../../runtime/workspace.js";
+import { counted, incompleteNote, sentence } from "../answer.js";
 
 /** `selected` with only the elements `search` finds (see the file comment). */
 const searched = async (
@@ -36,8 +37,13 @@ const searched = async (
 
 export default defineCommand({
   name: "element.facets",
+  answer: (output) =>
+    sentence(
+      `The selection has ${counted(output.total, "element")} of ${counted(output.types.length, "type")} and ${counted(output.statuses.length, "status", "statuses")}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.facets">> => {
-    const resolved = await resolveSelection(ctx.workspace, input.selection ?? {}, "element.facets");
+    const resolved = await resolveSelection(ctx, input.selection ?? {}, "element.facets");
     const selected =
       input.search === undefined ? resolved : await searched(ctx.workspace, resolved, input.search);
     return {

@@ -42,6 +42,7 @@ import {
 import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 /**
  * Whether the view of `holder` is `asked`; when none is asked, every view but that of a variant
@@ -56,6 +57,12 @@ const shownView = ({ view: holder, invalid }: ViewHolder, asked: View | undefine
 
 export default defineCommand({
   name: "evidence.list",
+  answer: (output, input) =>
+    sentence(
+      `Found ${counted(output.records.length, "evidence record")} and ${counted(output.testCases.length, "test case")} of ${input.ref}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"evidence.list">> => {
     const store = await ctx.workspace.get(elementStoreState);
     const shortIds = await ctx.workspace.get(shortIdState);

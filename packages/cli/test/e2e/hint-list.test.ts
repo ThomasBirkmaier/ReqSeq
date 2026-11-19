@@ -73,13 +73,18 @@ describe("reqseq hint list (SR-026)", () => {
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const human = await reqseq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    // The counts per kind first (SR-026 AK6), then one line per hint: element → target with their
+    // The answer first (SR-224 AK2), then the counts per kind (SR-026 AK6), then one line per hint: element → target with their
     // titles (#172, #252, SR-026 AK6), kind, reason, and the hint ID of a hint that can be confirmed
     // (ThomasBirkmaier/ReqSeq-archive#310).
     const lines = human.stdout.split("\n");
-    expect(lines.slice(0, 3)).toEqual(["kinds:", "  - code: element.missing-required", "    count: 1"]);
+    expect(lines.slice(0, 4)).toEqual([
+      "Found 8 open hints.",
+      "kinds:",
+      "  - code: element.missing-required",
+      "    count: 1",
+    ]);
     const hintsAt = lines.indexOf("hints:");
-    expect(hintsAt).toBe(1 + 2 * output.kinds.length);
+    expect(hintsAt).toBe(2 + 2 * output.kinds.length);
     expect(lines).toContain(
       "  SR-0000b3  Show wind direction → VAR-0000c3  Old basic  variant.superseded-in-validity  Property Validity (validity) of System Requirement SR-0000b3 lists Variant VAR-0000c3, which is superseded (status Obsolete)",
     );
