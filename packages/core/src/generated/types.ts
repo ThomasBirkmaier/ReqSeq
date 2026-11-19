@@ -209,6 +209,20 @@ export interface CountedElement {
 }
 
 /**
+ * A property or status definition that no type has any more and that stays, as elements of any type, also of a type the metamodel does not know, hold it (SR-238 AK5, SR-240 AK3).
+ * Schema: `schemas/common.schema.json#/$defs/keptDefinition`.
+ */
+export interface KeptDefinition {
+  /** property, or status. */
+  readonly kind: "property" | "status";
+  readonly key: Key;
+  /** The elements that have the status, or whose file holds the property key, also with an empty value; those of `elements`. */
+  readonly count: number;
+  /** The elements `count` counts, in store order. */
+  readonly elements: readonly CountedElement[];
+}
+
+/**
  * How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.
  * Schema: `schemas/common.schema.json#/$defs/elementName`.
  */
@@ -2634,11 +2648,13 @@ export interface MetamodelRemoveTypeOutput {
   readonly type: Key;
   /** The definitions removed with the type: its properties and statuses that no other type has (SR-238 AK5, SR-240 AK3). */
   readonly removed: {
-    /** Properties whose definition was removed, as no other type has them. */
+    /** Properties whose definition was removed, as no other type has them and no element holds them. */
     readonly properties: readonly Key[];
-    /** Statuses whose definition was removed, as no other type has them. */
+    /** Statuses whose definition was removed, as no other type has them and no element has them. */
     readonly statuses: readonly Key[];
   };
+  /** Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them (SR-237 AK5), properties first, in metamodel order. */
+  readonly kept: readonly KeptDefinition[];
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
@@ -2829,10 +2845,12 @@ export interface MetamodelRemovePropertyOutput {
   readonly type: Key;
   /** Key of the removed property. */
   readonly property: Key;
-  /** true when no type had the property any more, so its definition was removed (SR-238 AK5). */
+  /** true when no type had the property any more and no element held its key, so its definition was removed (SR-238 AK5). */
   readonly definitionRemoved: boolean;
   /** The parent type the type still has the property from, when it listed the property as well; absent otherwise. */
   readonly inheritedFrom?: Key;
+  /** The property when no type has it any more and its definition stays, as the files of elements of any type hold its key (SR-238 AK5); empty otherwise. */
+  readonly kept: readonly KeptDefinition[];
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
@@ -3085,8 +3103,10 @@ export interface MetamodelRemoveStatusOutput {
   readonly type: Key;
   /** Key of the removed status. */
   readonly status: Key;
-  /** true when no type has the status any more and its definition was removed (SR-240 AK3). */
+  /** true when no type and no element has the status any more and its definition was removed (SR-240 AK3). */
   readonly removed: boolean;
+  /** The status when no type has it any more and its definition stays, as elements of any type have it (SR-240 AK3); empty otherwise. */
+  readonly kept: readonly KeptDefinition[];
   /** Saved filters, perspectives and mapping files that name the removed definition as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
