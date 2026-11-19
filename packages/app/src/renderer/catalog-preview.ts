@@ -5,7 +5,7 @@
 import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
-import { bufferName, elementBufferOf, overviewBuffer, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import { CREATE_COMMAND, createdEcho } from "./create-element.js";
 import type { Entry } from "./catalog-entry.js";
 import { lineOf } from "./catalog-entry.js";
@@ -13,9 +13,6 @@ import { unsavedBefore } from "./unsaved-before.js";
 import { confirmationPrompt } from "./confirmation.js";
 import type { CatalogContext, Input, Preview } from "./catalog-arguments.js";
 import { isWrite, PREVIEWED, titleOf } from "./catalog-arguments.js";
-
-/** The command that creates a workspace (SR-226). */
-const INIT_COMMAND = "workspace.init";
 
 /** One argument back from the confirmation: the value given last is asked again. */
 type Back = (context: CatalogContext, entry: Entry) => void;
@@ -141,8 +138,7 @@ export const notSaved = async (context: CatalogContext, entry: Entry): Promise<b
 };
 
 /**
- * Shows the output of a command: a new element in its element buffer (SR-064), the overview after "Create
- * workspace" in a folder without one (SR-226 AK2), "About ReqSeq" in its own
+ * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
  * window (SR-161, D-062), the output of a write command without `showsOutput` as a message (`reported`, SR-223
  * AK8), any other output in a result buffer (of a write command, one that is not asked again).
  */
@@ -164,11 +160,6 @@ export const show = (
     const created = output as CommandTypes[typeof CREATE_COMMAND]["output"];
     context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
     context.echo(createdEcho(created));
-  } else if (name === INIT_COMMAND && !context.workspace) {
-    // Created in the folder open without a workspace: its overview, with "Connect AI agent" in the modeline
-    // (SR-226 AK2, SR-228 AK3); the command line says the answer, whose click opens the output (SR-223 AK8).
-    context.dispatch({ type: "open", buffer: overviewBuffer() });
-    reported(context, entry, output, open);
   } else if (name === ABOUT_COMMAND && context.about !== undefined) {
     context.about(output as AboutInfo);
   } else if (isWrite(entry.command) && entry.command.showsOutput !== true) {

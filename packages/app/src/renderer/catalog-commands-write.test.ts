@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ActionContext, Prompt } from "./action-types.js";
 import { ACTIONS } from "./actions.js";
-import { elementBuffer, listBuffer, overviewBuffer } from "./buffers.js";
+import { elementBuffer, listBuffer } from "./buffers.js";
 import type { CatalogContext } from "./catalog-arguments.js";
 import { askable, fits } from "./catalog-arguments.js";
 import { catalogItems, startBuilder } from "./catalog-commands.js";
@@ -98,15 +98,14 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     name.text?.("Station");
     await flush();
     expect(call).toHaveBeenLastCalledWith("workspace.init", { path: ".", name: "Station" });
-    // No output buffer: the app shows the new workspace's overview (SR-226 AK2), and the command line the answer,
-    // whose click opens the output (SR-223 AK8).
-    expect(dispatched).toEqual([{ type: "open", buffer: overviewBuffer() }]);
+    // No output buffer: the command line says the answer, whose click opens the output (SR-223 AK8); the
+    // overview of the new workspace comes with its status (`use-workspace-status.ts`, SR-226 AK2).
+    expect(dispatched).toEqual([]);
     expect(echoed).toEqual(["Created workspace Station; 1 file written."]);
     reported[0]?.open();
-    expect(dispatched.at(-1)).toMatchObject({
-      type: "open",
-      buffer: { command: "workspace.init", written: true },
-    });
+    expect(dispatched).toMatchObject([
+      { type: "open", buffer: { command: "workspace.init", written: true } },
+    ]);
   });
 
   it("saves a filter by its name, with its condition built from hits (#1645)", async () => {

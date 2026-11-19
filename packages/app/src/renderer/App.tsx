@@ -273,6 +273,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     titlesRef,
     setShownView,
     setAbout,
+    endEchoLink: echoLink.end,
   });
 
   // What the shown element buffer lets the app do, at once (a prompt that opens saves its input first).

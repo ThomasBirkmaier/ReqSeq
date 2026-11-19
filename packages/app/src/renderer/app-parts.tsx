@@ -34,10 +34,18 @@ export const windowStorage = (): DraftStorage => window.sessionStorage;
 
 /**
  * Whether a status after `reason` starts the buffers of its workspace: the first one of a page, another
- * workspace, or a restarted core before any workspace started in the page.
+ * workspace, a restarted core before any workspace started in the page, or a workspace (`ok`) that a write
+ * created in the folder open without one ("Create workspace": its overview, SR-226 AK2).
  */
-export const startsBuffers = (reason: WorkspaceChangeReason | undefined, started: boolean): boolean =>
-  reason === undefined || reason === "opened" || (reason === "restarted" && !started);
+export const startsBuffers = (
+  reason: WorkspaceChangeReason | undefined,
+  started: boolean,
+  ok: boolean,
+): boolean =>
+  reason === undefined ||
+  reason === "opened" ||
+  (reason === "restarted" && !started) ||
+  (reason === "written" && !started && ok);
 
 /** The minibuffer's line when a page loaded again got drafts back (#270). */
 export const draftsBack = (count: number): string =>

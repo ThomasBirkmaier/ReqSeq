@@ -292,20 +292,33 @@ test.describe("without a workspace", () => {
       await running.window.screenshot({ path: path.join(SHOTS, "empty-folder-light.png") });
       await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
       await expect(running.window.locator('[role="option"] .name')).toContainText(["Create workspace"]);
-      // Create workspace there: the app shows the overview of the new workspace and "Connect AI agent"
-      // (SR-226 AK2, SR-228 AK3), not the output, and the command line says the answer (SR-223 AK8).
+      // Create workspace in a sub-folder: the open folder still has no workspace, so the window stays and the
+      // command line keeps the answer, whose click opens the output (SR-223 AK8).
+      const minibuffer = running.window.getByLabel("Minibuffer");
+      await running.window.keyboard.type("Create workspace");
+      await running.window.keyboard.press("Enter");
+      await running.window.keyboard.type(path.join(empty, "sub"));
+      await running.window.keyboard.press("Enter");
+      await running.window.keyboard.type("Sub");
+      await running.window.keyboard.press("Enter");
+      await expect(minibuffer).toHaveText("Created workspace Sub; 3 files written.");
+      await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
+      await running.window.locator(".echo-open").click();
+      await expect(running.window.locator(".result")).toContainText("reqseq-workspace.yaml");
+      // Create workspace in the folder itself: the overview of the new workspace and "Connect AI agent"
+      // (SR-226 AK2, SR-228 AK3), not the output; the command line says the answer.
+      await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
       await running.window.keyboard.type("Create workspace");
       await running.window.keyboard.press("Enter");
       await running.window.keyboard.type(empty);
       await running.window.keyboard.press("Enter");
       await running.window.keyboard.type("Station");
       await running.window.keyboard.press("Enter");
-      await expect(running.window.getByLabel("Minibuffer")).toHaveText(
-        "Created workspace Station; 3 files written.",
-      );
       await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-      await expect(running.window.locator(".result")).toHaveCount(0);
+      await expect(running.window.getByLabel("Modeline")).toContainText("Station");
       await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
+      await expect(minibuffer).toHaveText("Created workspace Station; 3 files written.");
+      await expect(running.window.locator(".result")).toHaveCount(0);
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }
