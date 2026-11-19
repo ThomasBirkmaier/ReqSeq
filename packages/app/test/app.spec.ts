@@ -274,7 +274,7 @@ test.describe("without a workspace", () => {
     ]);
   });
 
-  test("[SR-226/AK-sz63] a folder without a workspace, chosen in the folder dialog, says how to create one there, and Create workspace there shows the overview", async () => {
+  test("[SR-226/AK-sz63] [SR-229/AK-x7d8] a folder without a workspace, chosen in the folder dialog, says how to create one there, and Create workspace there shows the overview", async () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-empty-"));
     try {
       // The folder dialog of the operating system, answered here. Its menu item is clicked: a key sent through
@@ -301,10 +301,14 @@ test.describe("without a workspace", () => {
       await running.window.keyboard.press("Enter");
       await running.window.keyboard.type("Sub");
       await running.window.keyboard.press("Enter");
-      await expect(minibuffer).toHaveText("Created workspace Sub; 3 files written.");
+      await expect(minibuffer).toHaveText("Created workspace Sub; 4 files written.");
       await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
       await running.window.locator(".echo-open").click();
       await expect(running.window.locator(".result")).toContainText("reqseq-workspace.yaml");
+      // The skill file is among them, though the prompt asked only the path and the name (SR-229 AK9).
+      await expect(running.window.locator(".result")).toContainText(
+        ".claude/skills/managing-requirements/SKILL.md",
+      );
       // Create workspace in the folder itself: the overview of the new workspace and "Connect AI agent"
       // (SR-226 AK2, SR-228 AK3), not the output; the command line says the answer.
       await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
@@ -317,7 +321,7 @@ test.describe("without a workspace", () => {
       await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
       await expect(running.window.getByLabel("Modeline")).toContainText("Station");
       await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
-      await expect(minibuffer).toHaveText("Created workspace Station; 3 files written.");
+      await expect(minibuffer).toHaveText("Created workspace Station; 4 files written.");
       await expect(running.window.locator(".result")).toHaveCount(0);
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
