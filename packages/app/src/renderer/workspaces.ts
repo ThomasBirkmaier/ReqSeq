@@ -30,6 +30,10 @@ export interface WorkspaceControls {
 export interface WorkspacePromptContext {
   readonly workspaces: WorkspaceControls;
   readonly echo: (message: string) => void;
+  /** The label while no workspace was opened before; absent: "Workspace (none opened yet)". */
+  readonly none?: string;
+  /** Main is asked to open a workspace (true), and did not open it (false): "Connect AI agent" goes on after it. */
+  readonly opening?: (on: boolean) => void;
 }
 
 /** What stays open when nothing opens. */
@@ -68,13 +72,24 @@ const refusal = (
 
 /** Asks main to open `path`; the window learns a switch as `workspace-changed` (`opened`). */
 const openThrough = (context: WorkspacePromptContext, path: string, typed: boolean): void => {
-  const { workspaces, echo } = context;
-  void workspaces.open(path, ...(typed ? [{ typed }] : [])).then((result) => {
-    const message = result.ok ? undefined : refusal(path, result, workspaces.name);
-    if (message !== undefined) {
-      echo(message);
-    }
-  });
+  const { workspaces, echo, opening } = context;
+  opening?.(true);
+  void workspaces.open(path, ...(typed ? [{ typed }] : [])).then(
+    (result) => {
+      if (!result.ok) {
+        opening?.(false);
+      }
+      const message = result.ok ? undefined : refusal(path, result, workspaces.name);
+      if (message !== undefined) {
+        echo(message);
+      }
+    },
+    () => {
+      // The bridge failed: nothing opens, and nothing follows a later open.
+      opening?.(false);
+      echo(`${path} could not be opened`);
+    },
+  );
 };
 
 const choose = (context: WorkspacePromptContext, { root, state }: RecentWorkspaceEntry): void => {
@@ -159,7 +174,7 @@ export const workspacePrompt = (context: WorkspacePromptContext): Prompt => ({
   literal: (query) => typedChoice(context, query),
   ...seekOf(context.workspaces.listFolder),
   fill: context.workspaces.list().then((entries) => ({
-    ...(entries.length === 0 ? { label: "Workspace (none opened yet)" } : {}),
+    ...(entries.length === 0 ? { label: context.none ?? "Workspace (none opened yet)" } : {}),
     items: entries.map((entry) => workspaceChoice(context, entry)),
   })),
 });
