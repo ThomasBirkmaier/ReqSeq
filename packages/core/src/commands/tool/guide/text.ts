@@ -139,7 +139,7 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
     ...statusLines([...workspace.needs, ...workspace.requirements]),
     ...(kinds.length === 0 ? [] : [`- Derivation: ${kinds.join(", ")}.`]),
     workspace.evidence.length === 0
-      ? "- Evidence locations: none yet. Add one to `reqseq-workspace.yaml`, for example `evidence: [{ repository: <repository>, path: <folder> }]`."
+      ? "- Evidence locations: none yet; add one to `reqseq-workspace.yaml`: `evidence: [{ repository: <repository>, path: <folder> }]`."
       : `- Evidence locations: ${workspace.evidence.map((folder) => (isPlainPath(folder) ? `\`${folder}\`` : guideValue(folder))).join(", ")}.`,
   ];
 };
@@ -221,27 +221,23 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "Impact check",
     lines: (context) => [
-      `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches the elements that name each new or changed term and those that name the identifier of the element (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
-      `It then reads what it found against the change, the directly affected elements first, along with the evidence records of the element and of the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests that carry their reference in their name. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
+      `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches for each new or changed term and for its identifier (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
+      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
     ],
   },
   {
     heading: "1. Need",
     lines: (context) => [
-      `Write down what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: createInput(context.workspace?.needs[0], "<need type>", "<text>") })}.`,
+      `Record what a stakeholder needs, in their words: ${context.call({ command: "element.create", input: createInput(context.workspace?.needs[0], "<need type>", "<text>") })}.`,
       `Where its type has a property for them, give the need validation criteria, by which a person checks whether the system fulfils it. A person records the validation as an evidence record, not the AI agent: ${context.call({ command: "evidence.record", input: { ref: "<need>", kind: "validation", result: "passed" } })}.`,
     ],
   },
   {
     heading: "2. Requirement with acceptance criteria and verification method",
     lines: (context: GuideContext): readonly string[] => {
-      const method = context.workspace?.verificationMethod;
       const kind = derivationKind(context);
       return [
         `Create the requirement: ${context.call(requirementCall(context))}.`,
-        ...(method === undefined || method.choices.length === 0
-          ? []
-          : [`Verification methods: ${method.choices.map((choice) => `\`${choice}\``).join(", ")}.`]),
         `Then relate it to what it derives from: ${context.call({ command: "relation.add", input: { source: "<requirement>", kind, target: "<need>" } })}.`,
       ];
     },
@@ -257,19 +253,19 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "3. One test per acceptance criterion",
     lines: (context) => [
-      `Name each test case with the reference of its acceptance criterion, \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier or short ID of the requirement and the criterion key, never the number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion.`,
+      `Name each test case with \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier or short ID of the requirement and the key of the acceptance criterion, never its number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion; ${context.call({ command: "element.resolve", input: { ref: "<reference>" } })} resolves an identifier, short ID or test name.`,
     ],
   },
   {
     heading: "4. Evidence location",
     lines: () => [
-      "Test results count only in an evidence location of the workspace. Every test run gets a file of its own there; never overwrite the file of an earlier run.",
+      "Test results count only in an evidence location. Every test run gets a file of its own there; never overwrite an earlier one.",
     ],
   },
   {
     heading: "5. Enrich test results",
     lines: (context) => [
-      `Run the tests with JUnit XML output, then enrich the result into a new file in an evidence location: ${context.call(enrichCall(context))}. The item under test is what was tested, for example the build or the commit of the software.`,
+      `Run the tests with JUnit XML output, then enrich the result into a new file in an evidence location: ${context.call(enrichCall(context))}. The item under test is what was tested, such as the build or commit.`,
       `For an acceptance criterion with another verification method than test, record the check: ${context.call({ command: "evidence.record", input: { ref: "<requirement>", kind: "verification", result: "passed", method: "inspection" } })}.`,
       "After a change to the content of a requirement, its evidence records of the old version no longer count, and its verification status and validation status are outdated. The AI agent adapts the tests to the change, runs them again and enriches their results into a new file in an evidence location; another verification method than test, and the validation, need a new check.",
     ],
@@ -283,10 +279,17 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "7. Workspace check",
     lines: (context) => [
-      `${context.call({ command: "workspace.check" })} lists every problem of the workspace with how to fix it.`,
+      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories, ${context.call({ command: "metamodel.get" })} its metamodel.`,
     ],
   },
-  { heading: "Rules", lines: () => GUIDE_RULES.map((rule) => `- ${rule}`) },
+  {
+    heading: "Rules",
+    lines: (context) => [
+      `Change an element with ${context.call({ command: "element.update", input: { ref: "<element>" } })}, its status with ${context.call({ command: "element.setStatus", input: { refs: ["<element>"], status: "<status>" } })}, and supersede it with ${context.call({ command: "element.supersede", input: { ref: "<element>", status: "<status>" } })}.`,
+      "",
+      ...GUIDE_RULES.map((rule) => `- ${rule}`),
+    ],
+  },
 ];
 
 /** The last section, after every section of the list (SR-229 AK11). */
@@ -298,7 +301,7 @@ export const GUIDE_TAIL: GuideSection = {
 };
 
 const INTRODUCTION =
-  "ReqSeq keeps needs, requirements, relations and evidence as Markdown files in Git repositories. Each step names its command; the command line, the local API and the MCP server offer the same commands with the same results.";
+  "ReqSeq keeps needs, requirements, relations and evidence as Markdown files in Git. Each step names its command.";
 
 /** The agent guide as Markdown (SR-229 AK1), LF line endings and a final newline. */
 export const agentGuide = (

@@ -177,10 +177,10 @@ describe("tool.guide", () => {
       "element.create",
       "relation.add",
     ]);
-    expect(commands("3. One test per acceptance criterion")).toEqual(["element.get"]);
+    expect(commands("3. One test per acceptance criterion")).toEqual(["element.get", "element.resolve"]);
     expect(commands("5. Enrich test results")).toEqual(["evidence.enrichJunit", "evidence.record"]);
     expect(commands("6. Verification degree")).toEqual(["evidence.degree", "evidence.withoutPassedTest"]);
-    expect(commands("7. Workspace check")).toEqual(["workspace.check"]);
+    expect(commands("7. Workspace check")).toEqual(["workspace.check", "workspace.status", "metamodel.get"]);
     expect(section(text, "4. Evidence location")).toContain("Every test run gets a file of its own there");
     expect(section(text, "5. Enrich test results")).toContain("The item under test is what was tested");
     const need = section(text, "1. Need");
@@ -213,10 +213,10 @@ describe("tool.guide", () => {
           "Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references",
           "and its open hints",
           "queries its affected elements",
-          "searches the elements that name each new or changed term and those that name the identifier of the element",
+          "searches for each new or changed term and for its identifier",
           "for a new element it queries the affected elements of the elements it will point to.",
-          "It then reads what it found against the change, the directly affected elements first, along with the evidence records of the element and of the affected requirements",
-          "and the tests that carry their reference in their name.",
+          "It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements",
+          "and the tests whose names carry their reference.",
           "It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete.",
           "For a contradiction, the rules below apply.",
         ]) {
@@ -309,7 +309,7 @@ describe("tool.guide", () => {
         "",
         "- Requirements: Story (`story`, prefix `ST`).",
         "- Statuses of Story: Open (`open`, initial), Done (`done`).",
-        "- Evidence locations: none yet. Add one to `reqseq-workspace.yaml`, for example `evidence: [{ repository: <repository>, path: <folder> }]`.",
+        "- Evidence locations: none yet; add one to `reqseq-workspace.yaml`: `evidence: [{ repository: <repository>, path: <folder> }]`.",
         "",
         "",
       ].join("\n"),
@@ -329,7 +329,13 @@ describe("tool.guide", () => {
     for (const root of roots) {
       for (const names of NAMES) {
         const rules = section(await guide(root, { names }), "Rules");
-        expect(rules.trim().split("\n")).toEqual(GUIDE_RULES.map((rule) => `- ${rule}`));
+        const lines = rules.trim().split("\n");
+        expect(lines.filter((line) => line.startsWith("- "))).toEqual(GUIDE_RULES.map((rule) => `- ${rule}`));
+        expect(namedCommands(lines[0] ?? "")).toEqual([
+          "element.update",
+          "element.setStatus",
+          "element.supersede",
+        ]);
       }
     }
     expect(GUIDE_RULES).toEqual([
