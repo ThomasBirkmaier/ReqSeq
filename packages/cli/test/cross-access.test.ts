@@ -342,9 +342,10 @@ beforeAll(async () => {
   await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
-// Removes the templates and the copies the tests left (runAll removes its own as it goes, #1862). With all
+// Removes the templates and the copies the tests left, after the removals `release` started. With all
 // copies left to this hook, about 1,900 Git work trees, it ran past 120 s on Windows (#304, #1862).
 afterAll(async () => {
+  await Promise.all(releasing.splice(0));
   await Promise.all([...templates.values()].map((f) => f.cleanup()));
   templates.clear();
   await Promise.all(
@@ -372,14 +373,27 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
 
-/** Removes a copy made by `copy` now, instead of in the `afterAll` hook. */
-const release = async ({ top }: Copy): Promise<void> => {
+/** The removals `release` started; `afterAll` waits for them. */
+const releasing: Promise<void>[] = [];
+
+/**
+ * Starts removing a copy made by `copy` that no access needs any more, while the tests go on, so neither a
+ * test nor the `afterAll` hook waits for it (#1862). A removal that fails (EBUSY or EPERM on Windows) leaves
+ * the copy to `afterAll`.
+ */
+const release = ({ top }: Copy): void => {
   const base = path.dirname(top);
-  const index = copies.indexOf(base);
-  if (index >= 0) {
-    copies.splice(index, 1);
-  }
-  await fs.rm(base, { recursive: true, force: true, maxRetries: 3 });
+  releasing.push(
+    fs.rm(base, { recursive: true, force: true, maxRetries: 3 }).then(
+      () => {
+        const index = copies.indexOf(base);
+        if (index >= 0) {
+          copies.splice(index, 1);
+        }
+      },
+      () => undefined,
+    ),
+  );
 };
 
 /** The folders of a copy except Git's, as paths relative to the copy: an empty one is no file of `filesOf`. */
@@ -391,7 +405,7 @@ const foldersOf = async (top: string): Promise<string[]> =>
     .sort();
 
 /**
- * A test runs one command through all four accesses. A write command gets four copies. Each access may
+ * A test runs one command through all five accesses. A write command gets up to five copies. Each access may
  * read Git through a child process. On Linux and macOS a test takes well under a second. Process starts on
  * Windows runners vary from 0.1 s to more than 1 s, so the default limit of 5 s is too tight there. This
  * limit only catches a hang. On the Windows runner of CI it is 60 s, as for every other test there
@@ -500,18 +514,25 @@ const runAll = async (
   // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
+  // The copy of the running access, and one the last access left unchanged; both released at the end.
+  let current: Copy | undefined;
   let unchanged: Copy | undefined;
   try {
     for (const access of accesses) {
       results[access] = await runAccess(access);
     }
   } finally {
-    await Promise.all([shared, unchanged].flatMap((each) => (each === undefined ? [] : [release(each)])));
+    for (const each of new Set([shared, current, unchanged])) {
+      if (each !== undefined) {
+        release(each);
+      }
+    }
   }
   return results;
 
   async function runAccess(access: (typeof ACCESSES)[number]): Promise<Result> {
     const made = shared ?? unchanged ?? (await copy(scenario));
+    current = shared === undefined ? made : undefined;
     unchanged = undefined;
     const { top, root } = made;
     await scenario.prepare?.({ top, root });
@@ -534,10 +555,11 @@ const runAll = async (
         scenario.prepare === undefined &&
         JSON.stringify(files) === JSON.stringify(before) &&
         JSON.stringify(await foldersOf(top)) === JSON.stringify(foldersBefore);
+      current = undefined;
       if (same) {
         unchanged = made;
       } else {
-        await release(made);
+        release(made);
       }
     }
     const masked = masks(result, scenario.masks ?? []);
