@@ -257,6 +257,7 @@ describe("shortcutReference", () => {
       "Filter list",
       "Sort list",
       "Close buffer",
+      "Show details",
     ]);
     expect(prefix[0]).toEqual({ keys: ["Ctrl+K E"], mac: ["⌘K E"], does: "Create element" });
     const element = sections[7]?.rows ?? [];

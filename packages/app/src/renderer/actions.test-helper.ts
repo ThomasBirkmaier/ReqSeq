@@ -12,6 +12,7 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  resultBuffer,
   withMatrix,
 } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -158,6 +159,8 @@ export const everyContext = (): ActionContext[] => {
     setup([metamodelBuffer()]).context,
     setup([metamodelBuffer("text")]).context,
     setup([], {}, true).context,
+    // A command output: "Show details" (SR-223 AK2) and "Copy as JSON".
+    setup([resultBuffer("tool.info", {}, "About ReqSeq", { versions: {} }, 0)]).context,
     // Two buffers: Alt+N and Alt+P switch between them (SR-115 AK5).
     setup([element, list]).context,
     // A split window: Alt+O to the other area (SR-150 AK7).

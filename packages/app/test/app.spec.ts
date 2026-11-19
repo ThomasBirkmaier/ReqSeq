@@ -309,6 +309,11 @@ test.describe("without a workspace", () => {
     await expect(minibuffer).toHaveText("Created workspace Sub; 3 files written.");
     await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
     await running.window.locator(".echo-open").click();
+    // The written file is a path, which "Show details" shows (SR-223 AK2); without a workspace from the
+    // command prompt, since no shortcut acts then.
+    await running.window.keyboard.press(process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P");
+    await running.window.keyboard.type("Show details");
+    await running.window.keyboard.press("Enter");
     await expect(running.window.locator(".result")).toContainText("reqseq-workspace.yaml");
     // Create workspace in the folder itself: the overview of the new workspace and "Connect AI agent"
     // (SR-226 AK2, SR-228 AK3), not the output; the command line says the answer.
