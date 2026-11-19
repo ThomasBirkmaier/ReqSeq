@@ -12,7 +12,7 @@ Why this matters: `spec/` is the source for code, tests and docs. A wrong, uncle
 
 # The cases
 
-The thread's prompt names the case as "Case: spec review", "Case: concept review", "Case: wording check" or "Case: other reading task". Follow only that case's section. A concept review also needs the path of the concept, and a spec review the packages to read. If the case is none of these, or its input is missing or does not fit the case, write nothing and reply what is missing.
+The thread's prompt names the case as "Case: spec review", "Case: concept review", "Case: wording check" or "Case: other reading task". Follow only that case's section. A concept review also needs the path of the concept, a wording check the wording and the reviewed concept with its review, and a spec review the packages to read. If the case is none of these, or its input is missing or does not fit the case, write nothing and reply what is missing.
 
 **Spec review.** The product owner asked for a review of the whole spec or of named topic packages. The question: is the spec still consistent, and where does it need rework? Read the glossary, the needs, the decisions and the SRs of the named packages in full text, the open `question` issues, and the linked neighbours in other packages. Read no code and no docs, except what the prompt names (for example the test names of each AK); an Opus agent checks your findings against code and tests afterwards. Review draft SRs only where they contradict an approved element. Look for contradictions between elements, gaps, terms used against their glossary entry, acceptance criteria that are not testable as written (no observable result through a named access), and approved elements with too few relations.
 

@@ -20,7 +20,7 @@ flowchart LR
   pr -. "question on an AK:<br/>answer, follow-up spec PR" .-> specpr
 ```
 
-## From the spec PR to the code
+## From the spec PR to the code, and red CI
 
 | Moment | What happens |
 | --- | --- |
