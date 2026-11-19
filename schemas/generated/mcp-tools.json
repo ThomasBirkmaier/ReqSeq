@@ -5805,6 +5805,345 @@
       }
     },
     {
+      "name": "metamodel_addStatus",
+      "title": "Add status to type",
+      "description": "Give a type a status, an existing one or a new one; only the metamodel files that have them change, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that gets the status."
+          },
+          "status": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of an existing status the type does not have. Left out: `name` describes a new status."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name of a new status; no other status may have it."
+          },
+          "key": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Fixed key of the new status. Left out: made from the name."
+          },
+          "invalid": {
+            "type": "boolean",
+            "description": "The new status is marked invalid: elements with it do not count for coverage and indirect verification, but stay visible in chains."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that got the status."
+          },
+          "status": {
+            "title": "Status",
+            "$ref": "#/$defs/metamodel/$defs/status",
+            "description": "The definition of the status, as written."
+          },
+          "created": {
+            "title": "New status",
+            "type": "boolean",
+            "description": "true when the status is new to the metamodel."
+          },
+          "statuses": {
+            "title": "Statuses of the type",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "The statuses of the type afterwards, own and inherited, in the order of the metamodel's statuses."
+          },
+          "alsoTypes": {
+            "title": "Other types with it",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "The other types without a list of statuses, their own or an ancestor's, which have every status and so the new one too.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "status",
+          "created",
+          "statuses",
+          "alsoTypes",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_changeStatus",
+      "title": "Change status definition",
+      "description": "Change the name, description, invalid mark or initial mark of a status; only the metamodel files that have them change, line by line, and no element changes its status.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the status to change."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "New display name; no other status may have it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description, for people; null removes it."
+          },
+          "invalid": {
+            "type": "boolean",
+            "description": "true: elements with the status do not count for coverage and indirect verification, but stay visible in chains; false removes the mark."
+          },
+          "initial": {
+            "type": "boolean",
+            "description": "true: new elements get the status, and the status that had the mark loses it; false removes the mark, which leaves no initial status and is refused."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "minProperties": 2
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "status": {
+            "title": "Status",
+            "$ref": "#/$defs/metamodel/$defs/status",
+            "description": "The definition as it is written afterwards."
+          },
+          "previousInitial": {
+            "title": "Previous initial status",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the status that lost the initial mark; only when the status became initial."
+          },
+          "elements": {
+            "title": "Elements with the status",
+            "type": "integer",
+            "minimum": 0,
+            "description": "The elements that have the status, of any type; only when the invalid mark changed."
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "status",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_removeStatus",
+      "title": "Remove status from type",
+      "description": "Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that loses the status."
+          },
+          "status": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the status to remove from the type."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "status"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that lost the status."
+          },
+          "status": {
+            "title": "Status",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the removed status."
+          },
+          "removed": {
+            "title": "Definition removed",
+            "type": "boolean",
+            "description": "true when no type has the status any more and its definition was removed.",
+            "x-normal": false
+          },
+          "mentions": {
+            "title": "Files naming a removed key",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+            },
+            "description": "Saved filters, perspectives and mapping files that name the removed definition as a mapping key or text value, except their own name and description.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "status",
+          "removed",
+          "mentions",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "problems"
+        ]
+      }
+    },
+    {
       "name": "element_create",
       "title": "Create element",
       "description": "Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint.",
