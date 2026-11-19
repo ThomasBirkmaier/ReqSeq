@@ -2,9 +2,11 @@
 // fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-025, SR-085,
 // SR-086, SR-088, SR-089 and SR-090 handed over to this command (ThomasBirkmaier/ReqSeq-archive#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
+import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, defaultFixturesDir, withoutVerificationGaps } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Run } from "../support/reqseq.js";
 import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
@@ -37,8 +39,42 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
 });
 
-const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => {
-  const ws = await createFixtureWorkspace(git ? { fixture: name, git: true } : { fixture: name });
+/**
+ * The workspace file of fixture `name` (in its root or in `system/`) with an evidence location in its main
+ * repository `system`, and that folder: the tests here are about other findings, so the workspace has no
+ * `evidence.no-location` warning (SR-230 AK1, `check-gaps.test.ts`), which would change their exit codes.
+ */
+const withEvidenceLocation = (name: string): Record<string, string> => {
+  const folder = ["", "system/"].find((f) =>
+    existsSync(path.join(defaultFixturesDir, name, f, "reqseq-workspace.yaml")),
+  );
+  const file = `${folder ?? ""}reqseq-workspace.yaml`;
+  return {
+    [file]: `${readFileSync(path.join(defaultFixturesDir, name, file), "utf8")}evidence:\n  - { repository: system, path: evidence }\n`,
+    [`${folder ?? ""}evidence/.keep`]: "",
+  };
+};
+
+/**
+ * Fixture `name` with an evidence location (`withEvidenceLocation`); the requirement files `inspected` get
+ * the verification method inspection, which counts to no version, so they are no open requirement of
+ * SR-230 AK2 either and the workspace can have no finding at all.
+ */
+const fixture = async (
+  name: string,
+  git = false,
+  inspected: readonly string[] = [],
+): Promise<FixtureWorkspace> => {
+  const files = withEvidenceLocation(name);
+  for (const file of inspected) {
+    files[file] = readFileSync(path.join(defaultFixturesDir, name, file), "utf8").replace(
+      "\nrequirement-type: functional\n",
+      "\nrequirement-type: functional\nverification-method: inspection\n",
+    );
+  }
+  const ws = await createFixtureWorkspace(
+    git ? { fixture: name, git: true, files } : { fixture: name, files },
+  );
   fixtures.push(ws);
   return ws;
 };
@@ -46,14 +82,19 @@ const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => 
 /** The answer of a check without findings (SR-224 AK1). */
 const NO_PROBLEM = (checked: number): string => `Checked ${String(checked)} elements and found no problem.`;
 
+/** `run` without the info of SR-230 AK2 about open requirements, in the lines and in the JSON. */
+const GAP_LINE = /^info {2}evidence\.open-requirements .*\n/gm;
+const withoutGaps = (result: Run): Run => ({ ...result, stdout: result.stdout.replace(GAP_LINE, "") });
+
 /** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
 const checkBoth = async (
   cwd: string,
   args: readonly string[] = [],
 ): Promise<{ human: Run; json: Run; output: Output }> => {
-  const human = await reqseq(["workspace", "check", ...args], cwd);
+  const human = withoutGaps(await reqseq(["workspace", "check", ...args], cwd));
   const json = await reqseq(["workspace", "check", ...args, "--json"], cwd);
-  return { human, json, output: JSON.parse(json.stdout) as Output };
+  const output = JSON.parse(json.stdout) as Output;
+  return { human, json, output: { ...output, problems: withoutVerificationGaps(output.problems) } };
 };
 
 /**
@@ -65,7 +106,7 @@ const FAIL_ON_WARNING = ["--fail-on", "warning"] as const;
 
 /** Kind, file and element of each problem (SR-019 AK2). */
 const kinds = (output: Output): (readonly [string, string | undefined, string | undefined])[] =>
-  output.problems.map((p) => [p.code, p.file, p.elementId] as const);
+  withoutVerificationGaps(output.problems).map((p) => [p.code, p.file, p.elementId] as const);
 
 beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
@@ -78,7 +119,11 @@ const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
 
 describe("reqseq workspace check (SR-019)", () => {
   it("[SR-019/AK-v7nq] ends with exit code 0 for a workspace without findings", async () => {
-    const ws = await fixture("SR-072/supersede");
+    const ws = await fixture("SR-072/supersede", false, [
+      "requirements/SR-c3d4e5f6a7b8.md",
+      "requirements/SR-d4e5f6a7b8c9.md",
+      "requirements/SR-e5f6a7b8c9d0.md",
+    ]);
     // Its one requirement without a parent gets one (SR-022 AK6).
     const successor = ws.path("requirements/SR-d4e5f6a7b8c9.md");
     const derived = (await fs.readFile(successor, "utf8")).replace(
@@ -205,14 +250,15 @@ describe("reqseq workspace check (SR-019)", () => {
       answer: "Checked 4 elements and found 5 warnings.",
       ok: false,
       problems: [],
-      hidden: { below: "error", warning: 5, info: 0 },
+      // The info is the count of open requirements (SR-230 AK2).
+      hidden: { below: "error", warning: 5, info: 1 },
       checkedElements: 4,
     });
     const human = await reqseq(args, ws.path("system"));
     expect(human).toEqual({
       code: 1,
       stdout:
-        "Checked 4 elements and found 5 warnings.\nok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+        "Checked 4 elements and found 5 warnings and 1 info.\nok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings and 1 info not shown.\n",
       stderr: "",
     });
   });
@@ -338,7 +384,10 @@ const headDate = async (ws: FixtureWorkspace): Promise<string> =>
 
 describe("outdated relations in workspace check (SR-025)", () => {
   it("[SR-025/AK-rvw7] reports nothing and ends with exit code 0 when every relation is current", async () => {
-    const ws = await fixture("SR-025/outdated", true);
+    const ws = await fixture("SR-025/outdated", true, [
+      "requirements/SR-0b0000000001.md",
+      "requirements/SR-0b0000000002.md",
+    ]);
     const { human, json, output } = await checkBoth(ws.root);
     expect(human).toEqual({
       code: 0,
@@ -403,7 +452,10 @@ describe("outdated relations in workspace check (SR-025)", () => {
   });
 
   it("[SR-019/AK-x4q3] [SR-025/AK-b8r6] reports a confirmed hint no more, and ends with exit code 0 when nothing else is left", async () => {
-    const ws = await fixture("SR-025/outdated", true);
+    const ws = await fixture("SR-025/outdated", true, [
+      "requirements/SR-0b0000000001.md",
+      "requirements/SR-0b0000000002.md",
+    ]);
     // The need gets a new text after A's derivation and reference to it were set.
     const need = "needs/N-0a0000000001.md";
     await fs.writeFile(ws.path(need), `${await fs.readFile(ws.path(need), "utf8")}Changed.\n`);
@@ -411,7 +463,8 @@ describe("outdated relations in workspace check (SR-025)", () => {
     const first = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([first.human.code, first.json.code]).toEqual([1, 1]);
     const [derives, link] = first.output.problems;
-    expect([derives?.line, link?.line]).toEqual([12, 15]);
+    // One line below the fixture's: the requirement has a verification method (`fixture`).
+    expect([derives?.line, link?.line]).toEqual([13, 16]);
     // Confirm the derivation: the check reports only the reference.
     const confirmed = await reqseq(
       ["hint", "confirm", "--hint-ids", derives?.hintId ?? "", "--json"],
@@ -421,8 +474,8 @@ describe("outdated relations in workspace check (SR-025)", () => {
     const second = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([second.human.code, second.json.code]).toEqual([1, 1]);
     expect(second.output.problems.map((p) => p.hintId)).toEqual([link?.hintId]);
-    expect(second.human.stdout).not.toContain("SR-0b0000000001.md:12");
-    expect(second.human.stdout).toContain("SR-0b0000000001.md:15");
+    expect(second.human.stdout).not.toContain("SR-0b0000000001.md:13");
+    expect(second.human.stdout).toContain("SR-0b0000000001.md:16");
     // Confirm the reference too: A's text changes, so B's refinement of A is outdated now (ADR-0004).
     await reqseq(["hint", "confirm", "--hint-ids", link?.hintId ?? ""], ws.root);
     const third = await checkBoth(ws.root, FAIL_ON_WARNING);
@@ -477,16 +530,18 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     expect(human).toEqual({
       code: 0,
       stdout:
-        "Checked 4 elements and found 5 warnings.\nok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+        "Checked 4 elements and found 5 warnings and 1 info.\nok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings and 1 info not shown.\n",
       stderr: "",
     });
     const yaml = await reqseq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
-    expect(yaml.stdout.endsWith("No problems at or above error; 5 warnings not shown.\n")).toBe(true);
+    expect(yaml.stdout.endsWith("No problems at or above error; 5 warnings and 1 info not shown.\n")).toBe(
+      true,
+    );
     // After shown errors, the warnings left out are counted as well.
     const findings = await fixture("SR-019/findings");
     const errors = await reqseq(["workspace", "check", "--severity", "error"], findings.root);
     expect(errors.code).toBe(1);
-    expect(errors.stdout.endsWith("\n6 warnings below error not shown.\n")).toBe(true);
+    expect(errors.stdout).toMatch(/\n6 warnings and 1 info below error not shown\.\n$/);
   });
 
   it("[SR-072/AK-y5gr] ends with exit code 0 after a supersede with a successor, whose own relation gets no hint", async () => {
@@ -583,5 +638,40 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     const json = await reqseq(["workspace", "check", "--changed-since", "no-such-branch", "--json"], ws.root);
     expect(json.code).toBe(4);
     expect(JSON.parse(json.stderr)).toMatchObject({ code: "git.commit-not-found" });
+  });
+});
+
+describe("the gaps of verification in workspace check (SR-230)", () => {
+  it("[SR-230/AK-k09q] names the call that lists exactly the open requirements, and the call runs as given", async () => {
+    // fixtures/SR-126/matrix has an evidence location; b04 (skipped test) and b06 (no evidence) are open.
+    const ws = await createFixtureWorkspace({ fixture: "SR-126/matrix" });
+    fixtures.push(ws);
+    const check = await reqseq(["workspace", "check"], ws.root);
+    expect(check.code).toBe(0);
+    const line =
+      /^info {2}evidence\.open-requirements {2}(\d+) .*; reqseq (element list) --where '(.*)' lists them {2}reqseq-workspace\.yaml$/m.exec(
+        check.stdout,
+      );
+    expect(line?.[1]).toBe("2");
+    const listed = await reqseq([...(line?.[2] ?? "").split(" "), "--where", line?.[3] ?? ""], ws.root);
+    expect(listed).toEqual({
+      code: 0,
+      stdout:
+        "elements:\n  SR-126b04  draft  Show gusts\n  SR-126b06  draft  Warn of strong wind\ntotal: 2\n",
+      stderr: "",
+    });
+    expect((await reqseq(["workspace", "check", "--fail-on", "info"], ws.root)).code).toBe(1);
+  });
+
+  it("[SR-230/AK-qymg] warns at the workspace file without an evidence location, and only in a full check", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-001/two-elements", git: true });
+    fixtures.push(ws);
+    const full = await reqseq(["workspace", "check", "--fail-on", "warning"], ws.root);
+    expect(full.code).toBe(1);
+    expect(full.stdout).toContain(
+      "warning  evidence.no-location  The workspace file names no evidence location, so no test result counts: add an entry under evidence, such as evidence: [{ repository: system, path: evidence }]  reqseq-workspace.yaml\n",
+    );
+    const restricted = await reqseq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
+    expect(restricted.stdout).not.toContain("evidence.no-location");
   });
 });

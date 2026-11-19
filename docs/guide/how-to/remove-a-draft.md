@@ -91,9 +91,10 @@ Checked 2 elements and found 3 warnings.
 ok: true
 ...
 warning  trace.no-parent  SR-c67baa  ...
+warning  evidence.no-location  ...
 ```
 
-No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way.
+No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last warning says that the workspace file names no evidence location yet, so no test result counts ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 
 ## API
 

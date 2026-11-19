@@ -437,6 +437,8 @@ export type ProblemCode =
   | "evidence.unknown-criterion"
   | "evidence.invalid-criterion-name"
   | "evidence.counts-in-no-view"
+  | "evidence.no-location"
+  | "evidence.open-requirements"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -1284,6 +1286,12 @@ export type FilterCondition =
   }
   | FilterPropertyCondition
   | FilterRelationCondition;
+
+/**
+ * Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`.
+ * Schema: `schemas/filter.schema.json#/$defs/conditionStub`.
+ */
+export type FilterConditionStub = Readonly<Record<string, unknown>>;
 
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];

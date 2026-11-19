@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
@@ -23,8 +23,17 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
-  (await invoke("workspace.check", input, { workspace })) as Output;
+/**
+ * `workspace.check` without the gaps of verification of SR-230 AK1 and AK2 among the problems shown
+ * (`check-gaps.test.ts`), which most fixtures here have; `ok` and `hidden` count them.
+ */
+const check = async (
+  workspace: Workspace,
+  input: Readonly<Record<string, unknown>> = {},
+): Promise<Output> => {
+  const out = (await invoke("workspace.check", input, { workspace })) as Output;
+  return { ...out, problems: withoutVerificationGaps(out.problems) };
+};
 
 /** Kind, file and element of each problem, as SR-019 AK2 asks. */
 const kinds = (out: Output): (readonly [string, string | undefined, string | undefined])[] =>
@@ -33,19 +42,30 @@ const kinds = (out: Output): (readonly [string, string | undefined, string | und
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
 
-/** A requirement file of fixtures/SR-072/supersede with its one acceptance criterion under `key` (SR-204 AK10). */
+/**
+ * A requirement file of fixtures/SR-072/supersede with its one acceptance criterion under `key` (SR-204
+ * AK10) and the verification method inspection, which does not count to the version.
+ */
 const keyed = (file: string, key: string): string =>
   fs
     .readFileSync(new URL(`../../../../../fixtures/SR-072/supersede/${file}`, import.meta.url), "utf8")
-    .replace(/^acceptance-criteria:\n {2}- (.*)$/m, `acceptance-criteria:\n  - key: ${key}\n    text: $1`);
+    .replace(/^acceptance-criteria:\n {2}- (.*)$/m, `acceptance-criteria:\n  - key: ${key}\n    text: $1`)
+    .replace(
+      /^requirement-type: functional$/m,
+      "requirement-type: functional\nverification-method: inspection",
+    );
 
 /**
- * fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6) and a
- * criterion key for each acceptance criterion (SR-204 AK10): a workspace without findings.
+ * fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6), a
+ * criterion key for each acceptance criterion (SR-204 AK10), and an evidence location while every
+ * requirement is verified by inspection (SR-230 AK1, AK2): a workspace without findings.
  */
 const CLEAN = {
   fixture: "SR-072/supersede",
   files: {
+    "reqseq-workspace.yaml":
+      'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n',
+    "evidence/.keep": "",
     "requirements/SR-e5f6a7b8c9d0.md": keyed("requirements/SR-e5f6a7b8c9d0.md", "bwnd"),
     "requirements/SR-c3d4e5f6a7b8.md": keyed("requirements/SR-c3d4e5f6a7b8.md", "cwnd"),
     "requirements/SR-d4e5f6a7b8c9.md": [
@@ -55,6 +75,7 @@ const CLEAN = {
       "status: draft",
       "title: Show wind speed and gusts",
       "requirement-type: functional",
+      "verification-method: inspection",
       "acceptance-criteria:",
       "  - key: dwnd",
       "    text: Given wind, when it is measured, then the display shows it with its gusts.",
@@ -165,9 +186,10 @@ describe("workspace.check", () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const errors = await check(workspace, { severity: "error" });
-    // Five errors shown; the six warnings of FINDINGS left out and counted.
+    // Five errors shown; the six warnings of FINDINGS and the missing evidence location (SR-230 AK1)
+    // left out and counted.
     expect(errors.problems.every((p) => p.severity === "error")).toBe(true);
-    expect(errors.hidden).toEqual({ below: "error", warning: 6, info: 0 });
+    expect(errors.hidden).toEqual({ below: "error", warning: 7, info: 0 });
     // Nothing left out: no hidden.
     expect((await check(workspace)).hidden).toBeUndefined();
     expect((await check(workspace, { severity: "warning" })).hidden).toBeUndefined();
@@ -213,12 +235,12 @@ describe("workspace.check", () => {
     expect(kinds(await check(workspace, { severity: "warning" }))).toEqual(FINDINGS);
     const values = await fixture({ fixture: "SR-085/value-kinds" });
     // Only warnings, none shown: with failOn warning still not ok, since the workspace has findings
-    // (exit code 1); they are counted as hidden.
+    // (exit code 1); they are counted as hidden, with the missing evidence location (SR-230 AK1).
     expect(await check(open(values.path("system")), { severity: "error", failOn: "warning" })).toEqual({
       answer: "Checked 4 elements and found 5 warnings.",
       ok: false,
       problems: [],
-      hidden: { below: "error", warning: 5, info: 0 },
+      hidden: { below: "error", warning: 6, info: 0 },
       checkedElements: 4,
     });
     const missing = await fixture({ fixture: "SR-089/missing-targets" });
@@ -226,8 +248,18 @@ describe("workspace.check", () => {
   });
 
   it("[SR-019/AK-x4q3] reports a hint about a relation no more once it is confirmed, and is ok when nothing else is left", async () => {
-    // fixtures/SR-025/outdated: requirement A derives from need N; B refines A. N gets a new text.
-    const ws = await fixture({ fixture: "SR-025/outdated" });
+    // fixtures/SR-025/outdated: requirement A derives from need N; B refines A. N gets a new text. An
+    // evidence location, so the only warnings are the hints (SR-230 AK1); the open requirements are info.
+    const ws = await fixture({
+      fixture: "SR-025/outdated",
+      files: {
+        "reqseq-workspace.yaml": `${fs.readFileSync(
+          new URL("../../../../../fixtures/SR-025/outdated/reqseq-workspace.yaml", import.meta.url),
+          "utf8",
+        )}evidence:\n  - { repository: system, path: evidence }\n`,
+        "evidence/.keep": "",
+      },
+    });
     const need = "needs/N-0a0000000001.md";
     await ws.write(need, `${fs.readFileSync(ws.path(need), "utf8")}Changed.\n`);
     const workspace = open(ws.root);

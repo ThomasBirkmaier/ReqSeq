@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -504,7 +504,7 @@ describe("hint.confirm (SR-027)", () => {
     expect(before.problems.map((p) => p.hintId)).toContain(DERIVES);
     await confirm(workspace, [DERIVES]);
     const after = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(after.problems.map((p) => p.hintId)).toEqual([VALIDITY, LINK]);
+    expect(withoutVerificationGaps(after.problems).map((p) => p.hintId)).toEqual([VALIDITY, LINK]);
     expect(tree(ws.path(".git"))).toEqual(git);
     // A normal change of the working tree: one line out, one line in, nothing staged.
     expect(await ws.git(["status", "--porcelain"])).toBe(` M ${A_FILE}\n`);

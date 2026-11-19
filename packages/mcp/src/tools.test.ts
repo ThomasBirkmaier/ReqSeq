@@ -2,9 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import type { JsonSchema } from "@reqseq/core";
 import { createCommandRuntime, defineTestCommand, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
-import { catalogTools, serverTools, toolName, withoutDisplayMarks } from "./tools.js";
+import type { ServerTool } from "./tools.js";
+import { FILTER_GRAMMAR_TOOL, catalogTools, serverTools, toolName, withoutDisplayMarks } from "./tools.js";
 
 const generated = path.join(import.meta.dirname, "..", "..", "..", "schemas", "generated", "mcp-tools.json");
 
@@ -229,6 +231,7 @@ const dereference = (schema: unknown, root: unknown, stack: readonly string[] = 
 describe("serverTools on the whole catalog", () => {
   it("gives for every catalog command the schema of mcp-tools.json, once all $refs are resolved", async () => {
     const file = JSON.parse(await fs.readFile(generated, "utf8")) as {
+      $defs: Record<string, JsonSchema> & { filter: JsonSchema & { $defs: Record<string, JsonSchema> } };
       tools: { name: string; inputSchema: unknown }[];
     };
     const contracts = loadContracts();
@@ -241,19 +244,60 @@ describe("serverTools on the whole catalog", () => {
     });
     const tools = serverTools(all);
     expect(tools.map((t) => t.name)).toEqual(file.tools.map((t) => t.name));
+    // Outside the carrier of the filter grammar, the server sends the short form of the condition (#1927).
+    const filter = file.$defs.filter;
+    const stubbed = {
+      ...file,
+      $defs: {
+        ...file.$defs,
+        filter: { ...filter, $defs: { ...filter.$defs, condition: filter.$defs["conditionStub"] } },
+      },
+    };
     for (const [index, tool] of tools.entries()) {
       const full = file.tools[index]?.inputSchema;
+      const root = tool.name === FILTER_GRAMMAR_TOOL ? file : stubbed;
       expect([tool.name, dereference(tool.inputSchema, tool.inputSchema)]).toEqual([
         tool.name,
         // The server sends no titles or marks of fields (`withoutDisplayMarks`); the file keeps them.
-        withoutDisplayMarks(dereference(full, file)),
+        withoutDisplayMarks(dereference(full, root)),
       ]);
     }
-    // The recursive filter condition is among them and ends in a cycle marker on both sides.
-    const list = tools.find((t) => t.command === "element.list");
-    expect(JSON.stringify(dereference(list?.inputSchema, list?.inputSchema))).toContain(
+    // The recursive filter condition is in the carrier and ends in a cycle marker on both sides.
+    const carrier = tools.find((t) => t.name === FILTER_GRAMMAR_TOOL);
+    expect(JSON.stringify(dereference(carrier?.inputSchema, carrier?.inputSchema))).toContain(
       '{"$cycle":"filter.condition"}',
     );
+  });
+
+  it("carries the filter grammar in one tool only; every other tool names that tool in a stub (#1927)", () => {
+    const tools = serverTools(getCommandRuntime());
+    const defsOf = (tool: ServerTool | undefined): Record<string, JsonSchema> =>
+      (tool?.inputSchema["$defs"] ?? {}) as Record<string, JsonSchema>;
+    const carrier = tools.find((t) => t.name === FILTER_GRAMMAR_TOOL);
+    // The carrier takes the condition as `selection.where` and holds the whole grammar.
+    expect(carrier?.inputSchema["properties"]).toMatchObject({
+      selection: { $ref: "#/$defs/common.selection" },
+    });
+    expect(defsOf(carrier)["common.selection"]?.["properties"]).toMatchObject({
+      where: { $ref: "#/$defs/filter.condition" },
+    });
+    expect(defsOf(carrier)["filter.condition"]?.["oneOf"]).toBeDefined();
+    expect(Object.keys(defsOf(carrier))).toEqual(
+      expect.arrayContaining(["filter.relationCondition", "filter.propertyCondition"]),
+    );
+    const others = tools.filter((t) => t.name !== FILTER_GRAMMAR_TOOL && "filter.condition" in defsOf(t));
+    expect(others.map((t) => t.name)).toEqual(
+      expect.arrayContaining(["element_list", "element_bulkUpdate", "filter_save", "perspective_save"]),
+    );
+    for (const tool of others) {
+      const condition = defsOf(tool)["filter.condition"];
+      expect(condition?.["oneOf"], tool.name).toBeUndefined();
+      expect(condition?.["description"], tool.name).toContain(
+        `input schema of \`${FILTER_GRAMMAR_TOOL}\`, under \`selection.where\``,
+      );
+      expect(Object.keys(defsOf(tool)), tool.name).not.toContain("filter.relationCondition");
+      expect(Object.keys(defsOf(tool)), tool.name).not.toContain("filter.propertyCondition");
+    }
   });
 });
 
