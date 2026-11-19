@@ -57,6 +57,8 @@
 //   (ADR-0007 pattern): a difference is `internal`, and nothing is written.
 // - Writing (ADR-0002 rule 5): the input in place, or `output`; an existing `output` only when it is a
 //   JUnit file; never below a `.git` folder (D-036); through `writeFileAtomic` with the `xml` guard.
+// - When it ends, also without a write, an enriched file the evidence walk does not read gives
+//   `evidence.outside-location` (warning, SR-230 AK3, `enrich-location.ts`): its results do not count yet.
 //
 // This file puts the plans of a file together, enriches its bytes and writes it. The parts: the
 // options, results and plans (`enrich-model.ts`), the plan of one test case (`enrich-plan.ts`), its
@@ -88,6 +90,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import { refuseGit, shownPath, variantIndependentOf, workspaceLayoutState } from "../workspace/index.js";
 import type { JunitTestCase } from "./junit-model.js";
 import { junitTestCases } from "./junit-model.js";
+import { outsideLocationProblems } from "./enrich-location.js";
 import { nameMatcher, parseNamePattern } from "./name-pattern.js";
 import { recordViewContext } from "./in-variant.js";
 import { evidenceReadState } from "./state.js";
@@ -537,8 +540,8 @@ export const enrichJunitFile = async (
   const sourceFolder = await realFolder(source);
   const targetFolder = await realFolder(target);
   refuseGit(targetFolder, target);
-  const inPlace =
-    path.join(targetFolder, path.basename(target)) === path.join(sourceFolder, path.basename(source));
+  const realTarget = path.join(targetFolder, path.basename(target));
+  const inPlace = realTarget === path.join(sourceFolder, path.basename(source));
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const metamodel = await workspace.get(metamodelState);
@@ -585,21 +588,24 @@ export const enrichJunitFile = async (
     // Asked only for an element `resolve` found, which `resolverOf` put into `found`.
     criteriaOf: (id) => criteriaItemsOf(found.get(id)?.data, acceptanceCriteriaKeyOf(metamodel)),
   });
-  const output = {
+  const shownTarget = shownPath(layout, main, targetFolder, target);
+  // SR-230 AK3: asked once the file is there, so a new output is looked for after it is written.
+  const ended = async (files: string[]): Promise<EvidenceEnrichJunitOutput> => ({
     testCases: result.testCases,
     withoutReference: result.withoutReference,
     notInView: result.notInView,
     unknown: [...result.unknown],
-    problems: [...result.problems],
-  };
+    problems: [...result.problems, ...(await outsideLocationProblems(layout, realTarget, shownTarget))],
+    files,
+  });
   // Nothing to change: the input is not rewritten, but a given output is still written (it is the file
   // the caller asked for), unless it holds these bytes already.
   if (inPlace && !result.changed) {
-    return { ...output, files: [] };
+    return ended([]);
   }
   const existing = inPlace ? { snapshot, bytes } : await outputSnapshot(target);
   if (!inPlace && existing !== null && Buffer.from(existing.bytes).equals(result.bytes)) {
-    return { ...output, files: [] };
+    return ended([]);
   }
   const written = await writeFileAtomic(
     path.dirname(target),
@@ -615,5 +621,5 @@ export const enrichJunitFile = async (
   // for the file while it holds these bytes (#785).
   ownEvidenceWrite(workspace, target, written.sha256);
   await workspace.reset(evidenceReadState);
-  return { ...output, files: [shownPath(layout, main, targetFolder, target)] };
+  return ended([shownTarget]);
 };

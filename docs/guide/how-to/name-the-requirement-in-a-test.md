@@ -60,7 +60,7 @@ For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pat
 fn sr_c67baa_ak_k7f3_shows_the_wind_speed_in_knots() { /* … */ }
 ```
 
-`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak_{ak}"` then records the test for SR-c67baa and its acceptance criterion with the key `k7f3`, as `[SR-c67baa/AK-k7f3]` would.
+`reqseq evidence enrich-junit results.xml build-1 --name-pattern "{prefix}_{id}_ak_{ak}"` then enriches the test case for SR-c67baa and its acceptance criterion with the key `k7f3`, as `[SR-c67baa/AK-k7f3]` would.
 
 ## API
 

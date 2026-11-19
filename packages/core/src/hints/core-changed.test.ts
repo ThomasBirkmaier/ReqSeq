@@ -3,7 +3,7 @@
 // (SR-041 AK6). Both store K's current version, so the fixture has no hint until a test changes K.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
@@ -35,9 +35,9 @@ const open = async (
 
 /** The findings of workspace.check but the fixture's requirements without a parent (SR-022 AK6), which this file does not test. */
 const check = async (workspace: Workspace): Promise<readonly Problem[]> =>
-  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems.filter(
-    (p) => p.code !== "trace.no-parent",
-  );
+  withoutVerificationGaps(
+    ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems,
+  ).filter((p) => p.code !== "trace.no-parent");
 
 const listed = async (workspace: Workspace, input: Record<string, unknown>): Promise<readonly Problem[]> =>
   ((await invoke("hint.list", input, { workspace })) as CommandOutput<"hint.list">).hints;

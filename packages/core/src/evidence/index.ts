@@ -27,6 +27,7 @@ export type { ListedRecords, RecordNamer } from "./criterion-names.js";
 export { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
 export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
+export { openRequirementsWhere, verificationGapProblems } from "./gaps.js";
 export type {
   EnrichOptions,
   EnrichResult,

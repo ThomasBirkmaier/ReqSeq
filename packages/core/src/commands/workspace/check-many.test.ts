@@ -36,10 +36,10 @@ describe("workspace.check with many findings", () => {
       { workspace },
     )) as CommandOutput<"workspace.check">;
     expect(out.ok).toBe(false);
-    // Besides them, the fixture's one requirement without a parent (SR-022 AK6) and its three
-    // requirements without criterion keys (SR-204 AK10).
+    // Besides them, the fixture's one requirement without a parent (SR-022 AK6), its three
+    // requirements without criterion keys (SR-204 AK10) and its missing evidence location (SR-230 AK1).
     const many = out.problems.filter((p) => p.code === "variant.superseded-in-validity");
-    expect(out.problems.length - many.length).toBe(4);
+    expect(out.problems.length - many.length).toBe(5);
     expect(many).toHaveLength(MANY);
     expect(many.at(-1)?.message).toBe(`finding ${String(MANY - 1)}`);
   });

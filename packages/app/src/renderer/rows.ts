@@ -3,6 +3,7 @@
 import type { ElementListOutput, ElementSearchOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
+import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
 import { shownId, shownIdTitle } from "./id-title.js";
 
 /** Rows of a list page (the command's default); the next page is asked for when the end is reached. */
@@ -40,8 +41,13 @@ export interface Row {
 export type Range = readonly [number, number];
 
 export interface Snippet {
-  /** Where it was found: `text`, or the name of the property. */
+  /**
+   * Where it was found: `text`, or the name of the property, for an acceptance criterion with its number and
+   * criterion key (`Acceptance Criteria AK3 (rqjp)`, SR-222 AK3).
+   */
   readonly where: string;
+  /** The key in `where` when only it was found in the criterion (SR-222 AK3); none otherwise. */
+  readonly whereMarks?: readonly Range[];
   readonly text: string;
   readonly marks: readonly Range[];
 }
@@ -51,12 +57,28 @@ type Hit = ElementSearchOutput["hits"][number];
 const ranges = (marks: readonly { readonly start: number; readonly end: number }[] | undefined): Range[] =>
   (marks ?? []).map(({ start, end }) => [start, end]);
 
-/** The snippet of a hit as the row shows it: the field named as the CLI names it. */
-const snippetOf = (snippet: NonNullable<Hit["snippet"]>): Snippet => ({
-  where: snippet.field === "text" ? "text" : snippet.propertyName,
-  text: snippet.text,
-  marks: ranges(snippet.marks),
-});
+/**
+ * The snippet of a hit as the row shows it: the field named as the CLI names it, an acceptance criterion
+ * with its number and key, the key marked when only it was found there (SR-222 AK3).
+ */
+export const snippetOf = (snippet: NonNullable<Hit["snippet"]>): Snippet => {
+  const shown = { text: snippet.text, marks: ranges(snippet.marks) };
+  if (snippet.field === "text") {
+    return { where: "text", ...shown };
+  }
+  const { criterion } = snippet;
+  if (criterion === undefined) {
+    return { where: snippet.propertyName, ...shown };
+  }
+  const where = `${snippet.propertyName} ${criterionLabel(criterion)}`;
+  const { key } = criterion;
+  if (criterion.keyMarked !== true || key === undefined) {
+    return { where, ...shown };
+  }
+  // The label ends in `(<key>)`.
+  const at = where.lastIndexOf(key);
+  return { where, whereMarks: [[at, at + key.length]], ...shown };
+};
 
 export const rowOf = (
   element: {
@@ -120,8 +142,9 @@ export const rowName = (row: Pick<Row, "shortId" | "identifier" | "title">): str
 
 /**
  * Where the ID that matched stands in the row's label (SR-183 AK3): the identifier when a word of the query
- * is in it, else the short ID; no mark when the ID did not match. Core says only that the ID matched
- * (`fields` has "id"), not which, so the words of the query tell.
+ * is in it, or a criterion reference of the query names it (`[SR-036/AK-k7f3]`, SR-222 AK2), else the short
+ * ID; no mark when the ID did not match. Core says only that the ID matched (`fields` has "id"), not which,
+ * so the words of the query tell.
  */
 export const labelMarks = (
   row: Pick<Row, "shortId" | "identifier" | "markLabel">,
@@ -137,7 +160,16 @@ export const labelMarks = (
     .replace(/["„“”]/gu, " ")
     .split(/\s+/u)
     .filter((word) => word !== "");
-  const inIdentifier = identifier !== "" && words.some((word) => identifier.toLowerCase().includes(word));
+  const named = identifier.toLowerCase();
+  const inIdentifier =
+    identifier !== "" &&
+    words.some((word) => {
+      // A criterion reference names the identifier or the short ID whole, never a part of it.
+      const reference = criterionReferenceOf(word);
+      return typeof reference?.criterion === "string"
+        ? reference.ref.toLowerCase() === named
+        : named.includes(word);
+    });
   // The label is `<short ID> (<identifier>)` (`shownId`): the identifier starts after the bracket.
   return [
     inIdentifier

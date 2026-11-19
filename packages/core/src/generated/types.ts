@@ -437,6 +437,9 @@ export type ProblemCode =
   | "evidence.unknown-criterion"
   | "evidence.invalid-criterion-name"
   | "evidence.counts-in-no-view"
+  | "evidence.outside-location"
+  | "evidence.no-location"
+  | "evidence.open-requirements"
   | "baseline.invalid"
   | "baseline.repository-commit-differs"
   | "filter.invalid"
@@ -458,7 +461,8 @@ export type ProblemCode =
   | "reqif.choice-unused"
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
-  | "reqif.source-model-unsaved";
+  | "reqif.source-model-unsaved"
+  | "reqif.source-value-chosen";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1275,6 +1279,12 @@ export type FilterCondition =
   }
   | FilterPropertyCondition
   | FilterRelationCondition;
+
+/**
+ * Only in MCP tools other than `element_search`, never in a saved filter file: a filter condition (`condition`); its grammar is in the input schema of `element_search`, under `selection.where`.
+ * Schema: `schemas/filter.schema.json#/$defs/conditionStub`.
+ */
+export type FilterConditionStub = Readonly<Record<string, unknown>>;
 
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];
@@ -2418,6 +2428,40 @@ export interface MetamodelMermaidOutput {
   /** The Mermaid flowchart, bottom to top, LF line endings and a final newline, escaped as in `trace.mermaid`. */
   readonly mermaid: string;
   /** The problems of the metamodel, as `metamodel.get` gives them. */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.addType` as `run` gets it: validated, properties with a `default` filled in. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json input`.
+ */
+export interface MetamodelAddTypeInput {
+  /** Display name of the type; no other type may have it. */
+  readonly name: string;
+  /** Prefix of the short IDs of its elements, e.g. SR (D-017); no other type may have it. */
+  readonly prefix: MetamodelPrefix;
+  /** Fixed key of the type (D-043). Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Key of the type it extends; its properties, required properties and statuses are inherited (SR-012 AK2). */
+  readonly extends?: Key;
+  /** No elements of the type can be created; it is only extended (SR-012 AK4). */
+  readonly abstract: boolean;
+}
+
+/**
+ * Output of `metamodel.addType`. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json output`.
+ */
+export interface MetamodelAddTypeOutput {
+  /** The definition as written to the file. */
+  readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  readonly missingRequired: number;
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
 
@@ -4679,7 +4723,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -4689,16 +4733,18 @@ export interface ReqifExportInput {
   readonly selection?: ElementSelection;
   /** Name of a saved export profile of the mapping. Not taken yet: it gives `input.invalid`. */
   readonly profile?: string;
-  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements`. */
+  /** The mapping file of the source the export goes to: the properties it omits are left out of the file. Needed with `statements` or `sourceModel`. */
   readonly mapping?: LocalPath;
   /** Added to the omitted properties of the mapping and the profile; with mapping, saved in it for later deliveries. */
   readonly omitProperties?: readonly Key[];
   /** Export the elements of the mapping's source with their statements, back to that source; needs `mapping`. */
   readonly statements?: boolean;
+  /** Write the elements of the mapping's source in the source's own types, attributes and IDENTIFIERs, which imports stored in the mapping (`source-model`); needs `mapping`. Refused, writing nothing, when a value does not fit or the mapping is ambiguous. */
+  readonly sourceModel?: boolean;
 }
 
 /**
- * Output of `reqif.export`. Export a selection or a saved export profile, or with statements the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID (the source IDENTIFIER for statements), text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {
@@ -4728,6 +4774,7 @@ export interface CommandTypes {
   readonly "tool.guide": { readonly input: ToolGuideInput; readonly output: ToolGuideOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
+  readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };

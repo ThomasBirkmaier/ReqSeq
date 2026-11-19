@@ -1,34 +1,65 @@
 // Typed text in an argument of the command prompt (`catalog-commands.ts`): a reference to an acceptance
-// criterion (`withTypedReference`), a folder below an offered value (`typedFill`), and a path completed from
+// criterion (`withTypedReference`, also named so in "Go to", `criterionEntry`), a folder below an offered value (`typedFill`), and a path completed from
 // its folder (`pathFill`, SR-143 AK2).
 
 import type { ActionContext, Choice, PromptFill } from "./action-types.js";
-import { criterionReferenceOf } from "@reqseq/core/criterion-items";
+import type { ElementResolveOutput } from "@reqseq/core";
+import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
+import { elementBufferOf } from "./buffers.js";
+import type { ElementBuffer } from "./buffers.js";
 import { isWindows } from "./keys.js";
 import { pathSeeker } from "./path-completion.js";
 import type { Value } from "./catalog-entry.js";
 
 /**
+ * The entry of a criterion reference `element.resolve` resolved (SR-205 AK5): the requirement's buffer, and
+ * its name with the criterion's number and text (SR-222 AK4). None without a criterion.
+ */
+export const criterionEntry = (
+  output: Pick<ElementResolveOutput, "element" | "criterion">,
+): { readonly buffer: ElementBuffer; readonly name: string } | undefined => {
+  const { element, criterion } = output;
+  if (criterion === undefined) {
+    return undefined;
+  }
+  const buffer = elementBufferOf(element);
+  return { buffer, name: `${buffer.name} · ${criterionLabel(criterion)} · ${criterion.text}` };
+};
+
+/** The hits without the one of `buffer`: its requirement stands only as the criterion's entry (SR-222 AK4). */
+export const withoutHitOf = (found: readonly Choice[], buffer: ElementBuffer): Choice[] =>
+  found.filter((choice) => choice.id !== buffer.key);
+
+/**
  * `find` with the typed text itself first when it is a reference to an acceptance criterion as a test
- * name writes it (`[SR-036/AK-k7f3]`, `criterionReferenceOf` of core), which no search finds: "Resolve
- * reference" takes it so (SR-205 AK5), and core says what is wrong with it. `take` gives the text;
- * without it (a relation target, or an argument of another command than element.resolve) nothing is added.
+ * name writes it (`[SR-036/AK-k7f3]`, `criterionReferenceOf` of core): "Resolve reference" takes it so
+ * (SR-205 AK5). When `element.resolve` resolves it, the entry names the requirement with the criterion's
+ * number and text, and the requirement's search hit is left out (SR-222 AK4); else it is "Use <text>",
+ * and core says what is wrong with it when it runs. `take` gives the text; without it (a relation target,
+ * or an argument of another command than element.resolve, which take no reference) nothing is added.
  */
 export const withTypedReference =
   (
+    context: Pick<ActionContext, "call">,
     find: (query: string) => Promise<readonly Choice[]>,
     take: ((text: string, more: boolean) => void) | undefined,
   ) =>
   async (query: string): Promise<readonly Choice[]> => {
-    const found = await find(query);
     const text = query.trim();
-    if (take === undefined || criterionReferenceOf(text)?.criterion === undefined) {
-      return found;
+    const criterion = criterionReferenceOf(text)?.criterion;
+    if (take === undefined || criterion === undefined) {
+      return find(query);
     }
+    // Only a key resolves: a number (`[SR-036/AK2]`) is refused when it runs, so it asks core nothing per key.
+    const [found, answer] = await Promise.all([
+      find(query),
+      typeof criterion === "string" ? context.call("element.resolve", { ref: text }) : undefined,
+    ]);
+    const entry = answer?.ok === true ? criterionEntry(answer.output) : undefined;
     return [
       {
         id: `reference:${text}`,
-        name: `Use ${text}`,
+        name: entry?.name ?? `Use ${text}`,
         run: () => {
           take(text, false);
         },
@@ -36,7 +67,7 @@ export const withTypedReference =
           take(text, true);
         },
       },
-      ...found,
+      ...(entry === undefined ? found : withoutHitOf(found, entry.buffer)),
     ];
   };
 

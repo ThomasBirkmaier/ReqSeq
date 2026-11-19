@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
@@ -40,12 +40,24 @@ const open = async (
   return { fixture, workspace };
 };
 
-const enrich = (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
+const OUTSIDE = "evidence.outside-location";
+
+/** The call, as invoke gives it (`enrich` leaves out the warning of SR-230 AK3). */
+const enrichAll = (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
   invoke(
     "evidence.enrichJunit",
     { item: "build-512", date: DATE, ...input },
     { workspace },
   ) as Promise<Output>;
+
+/**
+ * The call without `evidence.outside-location`: most tests enrich a file of `results/` in place, which
+ * lies in no evidence location (SR-230 AK3, its own tests below).
+ */
+const enrich = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> => {
+  const out = await enrichAll(workspace, input);
+  return { ...out, problems: out.problems.filter((p) => p.code !== OUTSIDE) };
+};
 
 const failure = async (workspace: Workspace, input: Record<string, unknown>): Promise<CommandError> => {
   try {
@@ -798,7 +810,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       ["reqseq:not-in-view=core", `reqseq:not-in-view=${MOUNTAIN}`],
     ]);
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
-    expect(check.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+    expect(withoutVerificationGaps(check.problems).filter((p) => p.code.startsWith("evidence."))).toEqual([]);
     // A re-run with the same views leaves the file as it is.
     const again = { file: "evidence/ci/run.xml", variant: input.variant, skipNotInView: true };
     expect(await enrich(workspace, again)).toMatchObject({ files: [], notInView: 1, problems: [] });
@@ -978,5 +990,79 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     );
     const broken = { ...views, shortIds: throwing } as typeof views;
     expect(() => variantResolverOf(broken, new Map())("VAR-0000c1")).toThrow("broken short IDs");
+  });
+});
+
+/** The workspace file of fixtures/SR-029/enrich with other evidence locations and `ignore` globs. */
+const workspaceFile = (locations: string[], ignore: string[]): string =>
+  "reqseq-workspace: 1\nname: Enrich JUnit\nrepositories:\n" +
+  '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+  '  - { name: absent, url: "git@git.example.com:ws/absent.git" }\n' +
+  "metamodel: { repository: system, path: metamodel }\nevidence:\n" +
+  locations.map((l) => `  - ${l}\n`).join("") +
+  `ignore: [${ignore.map((g) => `'${g}'`).join(", ")}]\n`;
+
+describe("evidence.enrichJunit and the evidence locations (SR-230 AK3)", () => {
+  it("[SR-230/AK-z4yt] warns about a file enriched in place outside every evidence location, and still enriches it", async () => {
+    const { fixture, workspace } = await open();
+    const out = await enrichAll(workspace, { file: "results/pytest.xml" });
+    expect(out).toMatchObject({ testCases: 3, files: ["results/pytest.xml"] });
+    expect(out.problems).toEqual([
+      {
+        code: OUTSIDE,
+        severity: "warning",
+        file: "results/pytest.xml",
+        message:
+          "results/pytest.xml lies in no evidence location, so its results do not count until it lies in one: move it into a folder under evidence of the workspace file, or enrich with an output there",
+      },
+    ]);
+    expect(enrichedNames(await bytesOf(fixture, "results/pytest.xml"))).toHaveLength(3);
+    // A second call changes nothing and writes nothing; the file still lies outside.
+    const again = await enrichAll(workspace, { file: "results/pytest.xml" });
+    expect(again.files).toEqual([]);
+    expect(again.problems.map((p) => p.code)).toEqual([OUTSIDE]);
+  });
+
+  it("[SR-230/AK-z4yt] gives no warning for an output in an evidence location, a new one or one there already", async () => {
+    const { workspace } = await open();
+    const out = await enrichAll(workspace, { file: "results/pytest.xml", output: "evidence/ci/pytest.xml" });
+    expect(out).toMatchObject({ files: ["evidence/ci/pytest.xml"], problems: [] });
+    const again = await enrichAll(workspace, { file: "evidence/ci/pytest.xml" });
+    expect(again).toMatchObject({ files: [], problems: [] });
+  });
+
+  it("[SR-230/AK-z4yt] warns about a file in an evidence location whose extension the walk does not read", async () => {
+    const { workspace } = await open();
+    // The walk reads only `.xml` in lower case (file.skipped otherwise).
+    const upper = await enrichAll(workspace, {
+      file: "results/vitest.xml",
+      output: "evidence/ci/VITEST.XML",
+    });
+    expect(upper.files).toEqual(["evidence/ci/VITEST.XML"]);
+    expect(upper.problems.map((p) => [p.code, p.file])).toEqual([[OUTSIDE, "evidence/ci/VITEST.XML"]]);
+  });
+
+  it("[SR-230/AK-z4yt] warns about a file below an evidence location that the walk does not read, also when a file there has its name", async () => {
+    const { fixture, workspace } = await open({
+      "reqseq-workspace.yaml": workspaceFile(
+        [
+          "{ repository: absent, path: evidence }",
+          "{ repository: system, path: missing }",
+          "{ repository: system, path: evidence }",
+        ],
+        ["evidence/drafts/**"],
+      ),
+      "evidence/drafts/.gitkeep": "",
+    });
+    await fs.copyFile(fixture.path("results/pytest.xml"), fixture.path("evidence/ci/pytest.xml"));
+    const drafts = await enrichAll(workspace, {
+      file: "results/pytest.xml",
+      output: "evidence/drafts/pytest.xml",
+    });
+    expect(drafts.files).toEqual(["evidence/drafts/pytest.xml"]);
+    expect(drafts.problems.map((p) => [p.code, p.file])).toEqual([[OUTSIDE, "evidence/drafts/pytest.xml"]]);
+    expect(enrichedNames(await bytesOf(fixture, "evidence/drafts/pytest.xml"))).toHaveLength(3);
+    const read = await enrichAll(workspace, { file: "evidence/ci/pytest.xml" });
+    expect(read).toMatchObject({ files: ["evidence/ci/pytest.xml"], problems: [] });
   });
 });
