@@ -150,6 +150,7 @@
         "x-elements": "answer"
       },
       "total": {
+        "x-elements": "affected",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

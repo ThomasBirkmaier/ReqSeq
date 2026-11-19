@@ -161,16 +161,20 @@ const exists = (fixture: FixtureWorkspace, name: string): Promise<boolean> =>
 
 describe("reqif.export with sourceModel (SR-158)", () => {
   it("[SR-158/AK-rpq1] writes the source's types, attributes and datatypes with their IDENTIFIER and LONG-NAME, and each requirement with its source IDENTIFIER", async () => {
-    const { fixture, workspace } = await open();
+    const { fixture, workspace, short } = await open();
     const out = await run(workspace, {});
     expect(out).toEqual({
       answer: "Exported 2 elements and 0 relations to back.reqif.",
       file: "back.reqif",
       elements: 2,
       relations: 0,
+      exportedElements: expect.any(Array) as unknown,
+      elementsWithoutStatement: [],
       files: [],
       problems: [],
     });
+    // The number names its elements (SR-224 AK4).
+    expect(out.exportedElements.map((e) => e.shortId).sort()).toEqual(Object.values(short).sort());
     const file = await parsed(fixture);
     expect(file.header.toolId).toBe("reqseq-source-model");
     expect(
@@ -249,6 +253,7 @@ describe("reqif.export with sourceModel (SR-158)", () => {
     });
     const out = await run(workspace, { statements: true });
     expect([out.elements, out.withoutStatement]).toEqual([2, 1]);
+    expect(out.elementsWithoutStatement.map((e) => e.id)).toEqual([ids["REQ-2"]]);
     // STRING by the source's datatype, not XHTML as `statement.datatype` says, the plain text as
     // written; an empty one for REQ-2.
     expect(objects(await parsed(fixture)).sort()).toEqual([

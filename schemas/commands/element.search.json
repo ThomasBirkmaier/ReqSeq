@@ -209,6 +209,7 @@
         "x-elements": "answer"
       },
       "groups": {
+        "x-key": ["value"],
         "title": "Groups",
         "type": "array",
         "description": "Only with `group`: every group of all the hits in order, also those on other pages; a group without hits is not given. `offset` and `rows` follow from the counts.",
@@ -227,12 +228,14 @@
         "description": "Only with `group`: the rows of the grouped hits, the sum of the counts of `groups`; `offset` and `limit` page over these rows. At least `total`, more when hits are in several groups."
       },
       "rowVerification": {
+        "x-key": ["id", "repository", "file"],
         "title": "Verification per row",
         "type": "array",
         "description": "Only with `withVerification`: for each row of `hits`, in the same order, the verification status of a requirement and the progress ring of a requirement or need, as a node of trace.graph carries them (SR-137 AK1, AK3).",
         "items": { "$ref": "../data-export.schema.json#/$defs/rowVerification" }
       },
       "total": {
+        "x-elements": "hits",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

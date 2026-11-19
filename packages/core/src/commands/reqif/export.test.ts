@@ -165,6 +165,12 @@ describe("reqif.export (SR-052)", () => {
       file: "s6.reqif",
       elements: 2,
       relations: 8,
+      exportedElements: ["a1", "a2"].map((tail) => ({
+        id: `52052052-0000-4000-8000-0000000052${tail}`,
+        shortId: `SR-0052${tail}`,
+        repository: "system",
+      })),
+      elementsWithoutStatement: [],
       files: ["s6-images/SR-0000000052a1/anemometer.png"],
       problems: [],
     });

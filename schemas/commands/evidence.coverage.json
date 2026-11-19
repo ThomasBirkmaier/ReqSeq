@@ -21,6 +21,7 @@
     "properties": {
       "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "levels": {
+        "x-key": ["type"],
         "title": "Levels",
         "type": "array",
         "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level.",

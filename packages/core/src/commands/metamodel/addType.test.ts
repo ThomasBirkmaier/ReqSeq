@@ -82,6 +82,8 @@ describe("metamodel.addType adds a type (SR-237 AK1)", () => {
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     const created = (await invoke(
@@ -306,6 +308,14 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
     // The first two now miss acceptance-criteria (the second its title too); the first and the third
     // have a value that counts to the version.
     expect([added.versionsChanged, added.missingRequired]).toEqual([2, 2]);
+    // Each number names its elements, by the short IDs of the new type (SR-224 AK4).
+    const named = (list: readonly { readonly id: string; readonly shortId: string }[]): string[] =>
+      list.map((e) => `${e.id.slice(-1)} ${e.shortId.slice(0, 3)}`);
+    expect([named(added.versionsChangedElements), named(added.missingRequiredElements)]).toEqual([
+      ["1 RI-", "3 RI-"],
+      ["1 RI-", "2 RI-"],
+    ]);
+    expect(added.versionsChangedElements[0]?.repository).toBe(added.missingRequiredElements[0]?.repository);
     const meta = (await invoke("metamodel.get", {}, { workspace })) as CommandOutput<"metamodel.get">;
     expect(meta.types.map((t) => t.key)).toContain("risk");
     const got = (await invoke(

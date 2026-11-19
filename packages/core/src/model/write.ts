@@ -56,7 +56,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { acceptanceCriteriaKeyOf, carriedCriteria, withCriterionKeys } from "./acceptance-criteria.js";
-import { directlyAffectedCount } from "./affected.js";
+import { directlyAffected } from "./affected.js";
 import { criterionKey } from "./criterion-items.js";
 import { itemsEmptied, propertiesEmptied, textEmptied } from "./emptied.js";
 import type { NewFileRule } from "./discover.js";
@@ -104,11 +104,13 @@ export interface ElementWriteResult {
 export interface UpdateElementResult extends ElementWriteResult {
   /**
    * The number of directly affected elements when the save changed the version (SR-024 AK2,
-   * `directlyAffectedCount`); 0 when it did not: a title, a property that does not count to the
+   * `directlyAffected`); 0 when it did not: a title, a property that does not count to the
    * version, or no change at all (AK3, D-013). Also for an element without a version (a value
    * that counts has no normal form): what the version is computed from is compared (ThomasBirkmaier/ReqSeq-archive#276).
    */
   readonly affected: number;
+  /** The elements `affected` counts, each once (SR-224 AK4); empty when it is 0. */
+  readonly affectedElements: readonly ElementRecord[];
   /** The SHA-256 of the element file as written, or as read when nothing changed (SR-106). */
   readonly fileSha256: string;
 }
@@ -599,7 +601,7 @@ const finish = async (
   written: ReadElement,
   context: Context,
   options: FinishOptions,
-): Promise<ElementWriteResult & { readonly affected?: number }> => {
+): Promise<ElementWriteResult & { readonly affected?: readonly ElementRecord[] }> => {
   const { shortIds, titleKey, files, extraFindings, replaced, before } = options;
   const repository = targetRepository(context.layout, written.record.repository);
   const images = await embeddedImages(
@@ -632,11 +634,8 @@ const finish = async (
           affected:
             before.content !== undefined &&
             before.content === elementContent(written.record, written.file.body, context.metamodel, images)
-              ? 0
-              : directlyAffectedCount(
-                  incomingFor(workspace, context.store, context.metamodel),
-                  before.record,
-                ),
+              ? []
+              : directlyAffected(incomingFor(workspace, context.store, context.metamodel), before.record),
         };
   if (files.length > 0) {
     await recordWrites(workspace, context.layout, [
@@ -1424,7 +1423,7 @@ export const updateElement = async (
     ...(text === undefined ? {} : { body: bodyForText(current.file.body, text) }),
     keyOrder: type.properties,
   });
-  let result: ElementWriteResult & { readonly affected?: number };
+  let result: ElementWriteResult & { readonly affected?: readonly ElementRecord[] };
   let fileSha256 = current.file.snapshot.sha256;
   let versionsAdded: readonly Problem[] = [];
   let emptied: readonly Problem[] = [];
@@ -1478,7 +1477,8 @@ export const updateElement = async (
   return {
     ...result,
     problems: [...relations.problems, ...versionsAdded, ...emptied, ...result.problems],
-    affected: result.affected ?? 0,
+    affected: result.affected?.length ?? 0,
+    affectedElements: result.affected ?? [],
     fileSha256,
   };
 };

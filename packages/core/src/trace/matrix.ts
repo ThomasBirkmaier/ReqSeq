@@ -283,28 +283,61 @@ const hasOutgoing = (context: MatrixContext, record: ElementRecord, key: MatrixK
   return false;
 };
 
+/** Which numbers of the columns of one key a row counts in (`rowMarks`). */
+interface RowMarks {
+  readonly key: MatrixKey;
+  out: boolean;
+  in: boolean;
+  expected: boolean;
+  met: boolean;
+}
+
 /**
- * Counts for `record`, once per key, the relations in `links` (all point at `record`) that the
- * matrix shows. The ambiguity of `record` is looked up only when some relation is shown.
+ * Marks for `record` the keys of the relations in `links` (all point at `record`) that the matrix shows.
+ * The ambiguity of `record` is looked up only when some relation is shown.
  */
-const countIncoming = (
+const markIncoming = (
   context: MatrixContext,
   record: ElementRecord,
   links: readonly IncomingRelation[],
-  byKey: ReadonlyMap<string, Tally>,
+  byKey: ReadonlyMap<string, RowMarks>,
 ): void => {
-  const counted: Tally[] = [];
+  const counted: RowMarks[] = [];
   for (const link of links) {
-    const tally = byKey.get(link.key);
-    if (tally !== undefined && !counted.includes(tally) && showsIncoming(context, record, link)) {
-      counted.push(tally);
+    const marks = byKey.get(link.key);
+    if (marks !== undefined && !counted.includes(marks) && showsIncoming(context, record, link)) {
+      counted.push(marks);
     }
   }
   if (counted.length > 0 && !sharesUuid(context, record)) {
-    for (const tally of counted) {
-      tally.in += 1;
+    for (const marks of counted) {
+      marks.in = true;
     }
   }
+};
+
+/**
+ * The numbers of the columns `record` counts in, one entry per key of `context.keys` (see the file
+ * comment): the one rule of the counts of `matrixColumns` and of the rows behind them (`columnElements`,
+ * SR-224 AK4).
+ */
+const rowMarks = (context: MatrixContext, record: ElementRecord): readonly RowMarks[] => {
+  const minima = minimaOfRow(context, record);
+  const marks = context.keys.map((key): RowMarks => {
+    const limits = key.property ? undefined : minima?.get(key.key);
+    return {
+      key,
+      out: hasOutgoing(context, record, key),
+      in: false,
+      expected: limits !== undefined,
+      met: limits !== undefined && minimumGaps(context, record, limits).met,
+    };
+  });
+  const links = context.incoming.relationsById.get(record.id);
+  if (links !== undefined) {
+    markIncoming(context, record, links, new Map(marks.map((mark) => [mark.key.key, mark])));
+  }
+  return marks;
 };
 
 /**
@@ -314,28 +347,19 @@ const countIncoming = (
  * index (see the file comment).
  */
 export const matrixColumns = (context: MatrixContext, records: readonly ElementRecord[]): MatrixColumn[] => {
-  const tallies: Tally[] = context.keys.map((key) => ({ key, out: 0, in: 0, expected: 0, met: 0 }));
-  const byKey = new Map(tallies.map((tally) => [tally.key.key, tally]));
+  // By key, in the order of `context.keys`, as each row gives one mark per key.
+  const tallies = new Map<MatrixKey, Tally>();
   for (const record of records) {
-    const minima = minimaOfRow(context, record);
-    for (const tally of tallies) {
-      if (hasOutgoing(context, record, tally.key)) {
-        tally.out += 1;
-      }
-      const limits = tally.key.property ? undefined : minima?.get(tally.key.key);
-      if (limits !== undefined) {
-        tally.expected += 1;
-        if (minimumGaps(context, record, limits).met) {
-          tally.met += 1;
-        }
-      }
-    }
-    const links = context.incoming.relationsById.get(record.id);
-    if (links !== undefined) {
-      countIncoming(context, record, links, byKey);
+    for (const marks of rowMarks(context, record)) {
+      const tally = tallies.get(marks.key) ?? { key: marks.key, out: 0, in: 0, expected: 0, met: 0 };
+      tallies.set(marks.key, tally);
+      tally.out += Number(marks.out);
+      tally.in += Number(marks.in);
+      tally.expected += Number(marks.expected);
+      tally.met += Number(marks.met);
     }
   }
-  return tallies.flatMap(({ key, out, in: into, expected, met }) =>
+  return [...tallies.values()].flatMap(({ key, out, in: into, expected, met }) =>
     [
       { key, direction: "out" as const, count: out, expected, met },
       { key, direction: "in" as const, count: into, expected: 0, met: 0 },
@@ -359,6 +383,35 @@ export const columnOutput = ({ key, direction, count, expected, met }: MatrixCol
   count,
   ...(expected === 0 ? {} : { expected, met, share: met / expected }),
 });
+
+/**
+ * The rows of `records` behind the number `field` (`count`, `expected`, `met`) of the column of `key`
+ * (`kind`, `direction`, `property`), counted as `matrixColumns` counts them (SR-224 AK4); none for a column
+ * the matrix does not have.
+ */
+export const columnElements = (
+  context: MatrixContext,
+  records: readonly ElementRecord[],
+  key: Readonly<Record<string, unknown>>,
+  field: "count" | "expected" | "met",
+): ElementRecord[] => {
+  const column = context.keys.find(
+    (k) => k.key === key["kind"] && (k.property ? true : undefined) === key["property"],
+  );
+  const direction = key["direction"];
+  if (
+    column === undefined ||
+    (direction !== "out" && direction !== "in") ||
+    (direction === "in" && field !== "count")
+  ) {
+    return [];
+  }
+  return records.filter((record) =>
+    rowMarks(context, record).some(
+      (marks) => marks.key === column && (field === "count" ? marks[direction] : marks[field]),
+    ),
+  );
+};
 
 /** The gaps of a row (SR-153 AK1): one per minimum of an `out` column that its cell undershoots. */
 const rowGaps = (

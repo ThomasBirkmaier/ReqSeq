@@ -204,12 +204,18 @@
                   "description": "The normal value: a shown value equal to it appears only with Show details (SR-223 AK7)."
                 },
                 "elements": {
-                  "description": "`answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4).",
+                  "description": "`answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4).",
                   "anyOf": [
                     { "const": true },
                     { "const": "answer" },
+                    { "const": "selection" },
                     { "type": "array", "items": { "type": "string" } }
                   ]
+                },
+                "keys": {
+                  "type": "array",
+                  "description": "Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object.",
+                  "items": { "type": "array", "items": { "type": "string" } }
                 }
               },
               "additionalProperties": false

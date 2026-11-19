@@ -25,7 +25,7 @@ export type { ElementCriteria, OlderCriteria } from "./criteria.js";
 export { recordNamer, withNamedExecutions } from "./criterion-names.js";
 export type { ListedRecords, RecordNamer } from "./criterion-names.js";
 export { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-criteria.js";
-export { coverageOf, coverageRules } from "./coverage.js";
+export { coverageOf, coverageRecordsOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export { openRequirementsWhere, verificationGapProblems } from "./gaps.js";
 export type {
@@ -35,12 +35,20 @@ export type {
   UnknownRef,
   VersionLookup,
 } from "./enrich-model.js";
-export type { CoverageLevel, CoverageRules } from "./coverage.js";
-export { countedIn, degreeOf, selectionDegree, viewIdOf } from "./degree.js";
-export { graphVerification, rowsVerification, shownCriteria } from "./graph-status.js";
+export type { CoverageLevel, CoverageRecordLevel, CoverageRules } from "./coverage.js";
+export {
+  countedIn,
+  degreeElements,
+  degreeFieldElements,
+  degreeOf,
+  selectionDegree,
+  selectionDegreeElements,
+  viewIdOf,
+} from "./degree.js";
+export { graphVerification, needDegreeElements, rowsVerification, shownCriteria } from "./graph-status.js";
 export type { NodeVerification } from "./graph-status.js";
 export { isPassedTest, withoutPassedTest } from "./without-passed-test.js";
-export type { VerificationDegree } from "./degree.js";
+export type { DegreeElements, VerificationDegree } from "./degree.js";
 export { EVIDENCE_FILES, evidenceFiles, isReadEvidenceLocation } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";
 export { JUNIT_READER, readJunitRecords } from "./junit.js";

@@ -83,4 +83,9 @@ export default defineCommand({
       documentation: facts.documentation,
     };
   },
+  // The elements `workspace.elements` counts (SR-224 AK4): every element of the store, in no view.
+  countedElements: async (ctx) => ({
+    elements: (await ctx.workspace.get(elementStoreState)).elements,
+    incomplete: false,
+  }),
 });

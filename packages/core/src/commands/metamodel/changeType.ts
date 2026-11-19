@@ -153,6 +153,8 @@ export default defineCommand({
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,
+      versionsChangedElements: [...change.versionsChangedElements],
+      missingRequiredElements: [...change.missingRequiredElements],
       problems: change.warnings,
     };
   },

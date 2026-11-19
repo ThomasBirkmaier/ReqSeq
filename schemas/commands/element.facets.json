@@ -48,12 +48,14 @@
     "properties": {
       "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "total": {
+        "x-elements": "selection",
         "title": "Total",
         "type": "integer",
         "minimum": 0,
         "description": "Elements in the selection."
       },
       "types": {
+        "x-key": ["key"],
         "title": "Types",
         "type": "array",
         "description": "The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118).",
@@ -72,6 +74,7 @@
               "type": "string"
             },
             "count": {
+              "x-elements": "selection",
               "title": "Elements",
               "description": "Selected elements of exactly this type.",
               "type": "integer",
@@ -83,6 +86,7 @@
         }
       },
       "statuses": {
+        "x-key": ["key"],
         "title": "Statuses",
         "type": "array",
         "description": "The statuses of the selected elements as written in the files, with the number of elements: statuses of the metamodel in metamodel order, then other values in store order. Elements without status are not counted.",
@@ -95,6 +99,7 @@
               "type": "string"
             },
             "count": {
+              "x-elements": "selection",
               "title": "Elements",
               "description": "Selected elements with this status.",
               "type": "integer",
@@ -106,6 +111,7 @@
         }
       },
       "properties": {
+        "x-key": ["key"],
         "title": "Properties",
         "type": "array",
         "description": "Every property that a type of a selected element has, in the order of the property definitions of the metamodel. Keys no type has (SR-016) are not listed. The counts and values are those of all selected elements, as the filter conditions read them (any type, SR-069): an element whose type lacks the property counts by the value its file holds (usually none).",
@@ -120,12 +126,14 @@
               "enum": ["text", "number", "date", "choice", "relation"]
             },
             "count": {
+              "x-elements": "selection",
               "title": "Elements with a value",
               "type": "integer",
               "minimum": 0,
               "description": "Selected elements that have some value."
             },
             "missing": {
+              "x-elements": "selection",
               "title": "Elements without a value",
               "type": "integer",
               "minimum": 0,
@@ -143,6 +151,7 @@
               "description": "Only for free text: there are more distinct values than maxValues, and `distinct` stopped counting at maxValues + 1."
             },
             "values": {
+              "x-key": ["value"],
               "title": "Values",
               "type": "array",
               "description": "Left out for free text (see maxValues). Choices: in metamodel order, then other values as written. Relation targets: by title ignoring case, then short ID. Others: numbers ascending, then texts ignoring case, then booleans. Each value is what a property condition takes with op eq and selects exactly the elements counted: for a relation target its short ID; a choice stored under a name the condition would map to another key, or one that names several choices, is not given. Targets that are not available are left out (a condition cannot name them).",
@@ -155,6 +164,7 @@
                     "type": ["string", "number", "boolean"]
                   },
                   "count": {
+                    "x-elements": "selection",
                     "title": "Elements",
                     "type": "integer",
                     "minimum": 1,

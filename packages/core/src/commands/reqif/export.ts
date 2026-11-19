@@ -45,9 +45,9 @@ import {
   sha256,
   writeFileAtomic,
 } from "../../files/index.js";
-import type { MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
+import type { CountedElement, MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
-import type { ElementRecord, TargetItem } from "../../model/index.js";
+import type { ElementRecord, ShortIds, TargetItem } from "../../model/index.js";
 import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
 import type { SelectionContext } from "../../query/index.js";
@@ -306,30 +306,49 @@ const refuseSharedUuids = (records: readonly ElementRecord[], command: string): 
   }
 };
 
+/** A planned statements export with the elements it exports and those of them without a statement (SR-224 AK4). */
+interface PlannedStatements {
+  readonly plan: StatementsPlan;
+  readonly exported: readonly ElementRecord[];
+  readonly without: readonly ElementRecord[];
+  readonly shortIds: ShortIds;
+}
+
 /** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
 const statementsOf = async (
   ctx: SelectionContext,
   layout: WorkspaceLayout,
   input: CommandInput<"reqif.export">,
   mappingPath: string,
-): Promise<StatementsPlan> => {
+): Promise<PlannedStatements> => {
   const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
   const statement = statementOf(mapping, mappingPath, selected.metamodel);
   const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
-  return planStatements({
+  const elements = records.map((record) => ({
+    id: record.id,
+    identifier: String(record.data[identifierKey]),
+    statement: statementText(definition, record.data[statement.property]),
+  }));
+  const plan = planStatements({
     title: layout.name,
     time: exportTime(new Date()),
     header: randomUUID(),
     sourceToolId: `ReqSeq ${PRODUCT_VERSION}`,
     attribute: statement.attribute,
     datatype: statement.datatype ?? "string",
-    elements: records.map((record) => ({
-      id: record.id,
-      identifier: String(record.data[identifierKey]),
-      statement: statementText(definition, record.data[statement.property]),
-    })),
+    elements,
   });
+  return {
+    plan,
+    exported: records,
+    without: records.filter((_, index) => elements[index]?.statement === undefined),
+    shortIds: selected.shortIds,
+  };
 };
+
+/** The elements of a list of the output (SR-224 AK4). */
+const listedElements = (shortIds: ShortIds, records: readonly ElementRecord[]): CountedElement[] =>
+  records.map((record) => ({ id: record.id, shortId: shortIds.of(record), repository: record.repository }));
 
 /** The text of `record` as read with it, with its repository; `file.changed-on-disk` when it changed since. */
 const textsOf = async (
@@ -417,7 +436,12 @@ const sourceModelExport = async (
     file: shown(ctx.workspace.root, absolute),
     elements: elements.length,
     relations: 0,
-    ...(input.statements === true ? { withoutStatement: plan.withoutStatement } : {}),
+    ...(input.statements === true ? { withoutStatement: plan.withoutStatement.length } : {}),
+    exportedElements: listedElements(
+      selected.shortIds,
+      elements.map(({ record }) => record),
+    ),
+    elementsWithoutStatement: listedElements(selected.shortIds, plan.withoutStatement),
     files: saved,
     problems: [...plan.problems],
   };
@@ -527,13 +551,15 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const plan = await statementsOf(ctx, layout, input, input.mapping);
+      const { plan, exported, without, shortIds } = await statementsOf(ctx, layout, input, input.mapping);
       await writeOutput(absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
         elements: plan.file.specObjects.length,
         relations: 0,
         withoutStatement: plan.withoutStatement,
+        exportedElements: listedElements(shortIds, exported),
+        elementsWithoutStatement: listedElements(shortIds, without),
         files: [],
         problems: [],
       };
@@ -589,6 +615,11 @@ export default defineCommand({
       file: shown(workspace.root, absolute),
       elements: read.length,
       relations: plan.relations,
+      exportedElements: listedElements(
+        selected.shortIds,
+        read.map(({ record }) => record),
+      ),
+      elementsWithoutStatement: [],
       files: [...copies.map((copy) => shown(workspace.root, path.join(outputFolder, copy.target))), ...saved],
       problems: [],
     };
