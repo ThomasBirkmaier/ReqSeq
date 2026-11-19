@@ -161,10 +161,18 @@ const runOnBaseline = async (window: Page, title: string, name: string, more = f
   await window.keyboard.press(more ? "ControlOrMeta+Enter" : "Enter");
 };
 
-/** The lines of the result buffer as "<label> <text>", indented by two spaces per level. */
-const resultLines = async (window: Page): Promise<string[]> => {
+/**
+ * The lines of the result buffer as "<label> <text>", indented by two spaces per level; with `details`, after
+ * "Show details" (Ctrl+K D, SR-223 AK2) has shown its technical values, such as versions and commits.
+ */
+const resultLines = async (window: Page, details = false): Promise<string[]> => {
   const lines = shownLayer(window).locator(".result .line");
   await expect(lines.first()).toBeVisible();
+  if (details) {
+    await window.keyboard.press("ControlOrMeta+K");
+    await window.keyboard.press("d");
+    await expect(lines.and(shownLayer(window).locator(".line.detail")).first()).toBeVisible();
+  }
   return lines.evaluateAll((all) =>
     all.map((line) => {
       const depth = Number((line as HTMLElement).dataset["depth"]);
@@ -241,8 +249,8 @@ test.describe("baselines in the app", () => {
     // The page stays; the answer in the command line opens the output (SR-223 AK8).
     await expect(shownLayer(window).locator("article h1")).toHaveText("Display");
     await window.locator(".echo-open").click();
-    const lines = await resultLines(window);
-    // Each value under its title from the catalog (SR-223 AK1).
+    const lines = await resultLines(window, true);
+    // Each value under its title from the catalog (SR-223 AK1); the file and the commits are technical.
     expect(lines).toContain("Files 1");
     expect(lines).toContain("  baselines/Release-3.yaml");
     expect(lines).toContain("  Baseline Release 3");
@@ -283,7 +291,7 @@ test.describe("baselines in the app", () => {
     const seconds = Number((await ws.git(["log", "-1", "--format=%ct", first], "system")).trim());
     const date = `${new Date(seconds * 1000).toISOString().slice(0, 19)}Z`;
     await runOnBaseline(running.window, "Show baseline", "Release 2");
-    const lines = await resultLines(running.window);
+    const lines = await resultLines(running.window, true);
     expect(fieldsOf(lines, "SR-0000b1 Show the wind speed")).toEqual(
       expect.arrayContaining(["Version in the baseline n1:697a2ad17ed49170", `Version date ${date}`]),
     );
@@ -328,7 +336,7 @@ test.describe("baselines in the app", () => {
     running = await launchIn(ws, "system");
     const { window } = running;
     await runOnBaseline(window, "Show baseline", "Release 2");
-    const a1 = fieldsOf(await resultLines(window), "N-0000a1 Know the wind");
+    const a1 = fieldsOf(await resultLines(window, true), "N-0000a1 Know the wind");
     expect(a1).toContain("State removed");
     expect(a1).toContain("Version in the baseline n1:9d97d0ccf9b75591");
     const cli = entry(await cliGet(running, ["Release 2"]), "a1");
@@ -355,7 +363,7 @@ test.describe("baselines in the app", () => {
     await window.keyboard.press("Enter");
     const file = "requirements/SR-0000000000b1.md";
     const command = ["git", "-C", ".", "diff", first, second, "--", file];
-    const lines = await resultLines(window);
+    const lines = await resultLines(window, true);
     expect(lines).toEqual([
       "Repository system",
       `From ${first}`,
