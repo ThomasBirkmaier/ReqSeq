@@ -2,7 +2,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { CacheEnvironment } from "./cache.js";
 import { lockCacheFile } from "./cache.js";
@@ -239,6 +239,30 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
       expect(await rememberWorkspace(a, { environment, key })).toBe(false);
     }
     expect(await roots()).toEqual([a]);
+  });
+
+  it("skips while Windows refuses a lock file that is still listed, and rejects when none is (#1944)", async () => {
+    const a = await folder("a");
+    const lockFile = `${listFile()}.lock`;
+    const open = fs.open.bind(fs);
+    const spy = vi
+      .spyOn(fs, "open")
+      .mockImplementation(async (...args: Parameters<typeof fs.open>) =>
+        args[0] === lockFile
+          ? Promise.reject(Object.assign(new Error("EPERM"), { code: "EPERM" }))
+          : open(...args),
+      );
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    // No lock file listed: the folder takes no file, and the record rejects.
+    await expect(rememberWorkspace(a, { environment })).rejects.toThrow("EPERM");
+    // A lock file that is pending deletion: held, so the record waits once and skips.
+    await fs.writeFile(lockFile, "");
+    expect(await rememberWorkspace(a, { environment })).toBe(false);
+    spy.mockRestore();
+    await fs.rm(lockFile);
+    expect(await rememberWorkspace(a, { environment })).toBe(true);
   });
 });
 
