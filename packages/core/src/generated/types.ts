@@ -2674,6 +2674,200 @@ export interface MetamodelRemoveTypeOutput {
 }
 
 /**
+ * Input of `metamodel.addProperty` as `run` gets it: validated, properties with a `default` filled in. Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.
+ * Schema: `schemas/commands/metamodel.addProperty.json input`.
+ */
+export interface MetamodelAddPropertyInput {
+  /** Key of the type that gets the property. */
+  readonly type: Key;
+  /** true: the property is required in the type (its key goes into the type's `required`); false: into its `properties`. */
+  readonly required: boolean;
+  /** Key of an existing property the type has neither itself nor inherited. Not with the fields of a new property. */
+  readonly property?: Key;
+  /** Display name of a new property; no other property may have it. */
+  readonly name?: string;
+  /** Fixed key of a new property (D-043), not that of another property or relation kind. Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Value kind of a new property. */
+  readonly kind?: "text" | "number" | "date" | "choice" | "relation";
+  /** Fixed values of a new property of kind `choice`, in this order. */
+  readonly choices?: readonly {
+    /** Display name of the fixed value; no other fixed value of the property may have it. */
+    readonly name: string;
+    /** Fixed key of the value (D-043). Left out: made from the name (SR-236 AK6). */
+    readonly key?: Key;
+  }[];
+  /** Allowed target types of a new property of kind `relation`; left out: every type. */
+  readonly targetTypes?: readonly Key[];
+  /** true: a new property holds a list of values. */
+  readonly many?: boolean;
+  /** At most this many entries in the list of a new property with `many` (SR-171); not for kind `relation`. */
+  readonly maxItems?: number;
+}
+
+/**
+ * Output of `metamodel.addProperty`. Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.
+ * Schema: `schemas/commands/metamodel.addProperty.json output`.
+ */
+export interface MetamodelAddPropertyOutput {
+  readonly answer: Answer;
+  /** Key of the type that has the property now. */
+  readonly type: Key;
+  /** The property's definition as written afterwards. */
+  readonly property: MetamodelProperty;
+  /** Whether the type requires the property afterwards. */
+  readonly required: boolean;
+  /** true when the property's definition was added to the metamodel. */
+  readonly defined: boolean;
+  /** Other types that list the key of the new property already, without a definition before; they have the property now too. */
+  readonly listedBy: readonly Key[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.changeProperty` as `run` gets it: validated, properties with a `default` filled in. Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.
+ * Schema: `schemas/commands/metamodel.changeProperty.json input`.
+ */
+export interface MetamodelChangePropertyInput {
+  /** Key of the property to change. */
+  readonly property: Key;
+  /** New display name; no other property may have it. */
+  readonly name?: string;
+  /** New description, for people; null removes it. */
+  readonly description?: string | null;
+  /** New value kind; only while no element file of a type with the property holds its key. */
+  readonly kind?: "text" | "number" | "date" | "choice" | "relation";
+  /** true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key. */
+  readonly many?: boolean;
+  /** At most this many entries in the list (SR-171); null removes the limit. */
+  readonly maxItems?: number | null;
+  /** Allowed target types of a property of kind `relation`; null removes the list: every type. */
+  readonly targetTypes?: readonly Key[] | null;
+  /** true: values are Markdown like the text (only kind `text`); false removes the line. */
+  readonly markdown?: boolean;
+  /** true: part of the version (D-013, D-057); false removes the line. */
+  readonly content?: boolean;
+  /** New built-in meaning (D-012), one of `propertyMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?:
+    | "title"
+    | "validity"
+    | "packages"
+    | "emergent"
+    | "verification-method"
+    | "statement"
+    | "source"
+    | "source-identifier"
+    | "import-date"
+    | "delivery"
+    | "import-version"
+    | "identifier"
+    | "acceptance-criteria"
+    | "synonyms"
+    | "translation"
+    | null;
+  /** Key of a type that has the property, whose `required` changes; with `required`. */
+  readonly type?: Key;
+  /** Whether the property is required in `type`; with `type`. */
+  readonly required?: boolean;
+  /** Fixed values to add at the end of `choices`, in this order. */
+  readonly addChoices?: readonly {
+    /** Display name of the fixed value; no other fixed value of the property may have it. */
+    readonly name: string;
+    /** Fixed key of the value (D-043). Left out: made from the name (SR-236 AK6). */
+    readonly key?: Key;
+  }[];
+  /** Fixed values to change, by key. */
+  readonly changeChoices?: readonly {
+    /** Key of the fixed value to change. */
+    readonly choice: Key;
+    /** New display name; no other fixed value of the property may have it. */
+    readonly name?: string;
+    /** New description; null removes it. */
+    readonly description?: string | null;
+  }[];
+  /** Keys of fixed values to remove; only while no element has the value. */
+  readonly removeChoices?: readonly Key[];
+}
+
+/**
+ * Output of `metamodel.changeProperty`. Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.
+ * Schema: `schemas/commands/metamodel.changeProperty.json output`.
+ */
+export interface MetamodelChangePropertyOutput {
+  readonly answer: Answer;
+  /** The property's definition as written afterwards. */
+  readonly property: MetamodelProperty;
+  /** The fields removed because they do not belong to the new value kind, or maximum entries with `many: false` (SR-238 AK3). */
+  readonly dropped: readonly ("choices" | "target-types" | "max-items" | "markdown")[];
+  /** Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description (SR-236 AK7). The key alone counts, so a file that uses the same word for another property is listed too. */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
+ * Input of `metamodel.removeProperty` as `run` gets it: validated, properties with a `default` filled in. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Schema: `schemas/commands/metamodel.removeProperty.json input`.
+ */
+export interface MetamodelRemovePropertyInput {
+  /** Key of the type that has the property itself. */
+  readonly type: Key;
+  /** Key of the property to remove from the type. */
+  readonly property: Key;
+}
+
+/**
+ * Output of `metamodel.removeProperty`. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Schema: `schemas/commands/metamodel.removeProperty.json output`.
+ */
+export interface MetamodelRemovePropertyOutput {
+  readonly answer: Answer;
+  /** Key of the type. */
+  readonly type: Key;
+  /** Key of the removed property. */
+  readonly property: Key;
+  /** true when no type had the property any more, so its definition was removed (SR-238 AK5). */
+  readonly definitionRemoved: boolean;
+  /** The parent type the type still has the property from, when it listed the property as well; absent otherwise. */
+  readonly inheritedFrom?: Key;
+  /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  readonly mentions: readonly OutputPath[];
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
+  readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
  * Input of `metamodel.addRelationKind` as `run` gets it: validated, properties with a `default` filled in. Add a relation kind to the metamodel; only the metamodel file that gets it changes, line by line.
  * Schema: `schemas/commands/metamodel.addRelationKind.json input`.
  */
@@ -5328,6 +5522,9 @@ export interface CommandTypes {
   readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "metamodel.changeType": { readonly input: MetamodelChangeTypeInput; readonly output: MetamodelChangeTypeOutput };
   readonly "metamodel.removeType": { readonly input: MetamodelRemoveTypeInput; readonly output: MetamodelRemoveTypeOutput };
+  readonly "metamodel.addProperty": { readonly input: MetamodelAddPropertyInput; readonly output: MetamodelAddPropertyOutput };
+  readonly "metamodel.changeProperty": { readonly input: MetamodelChangePropertyInput; readonly output: MetamodelChangePropertyOutput };
+  readonly "metamodel.removeProperty": { readonly input: MetamodelRemovePropertyInput; readonly output: MetamodelRemovePropertyOutput };
   readonly "metamodel.addRelationKind": { readonly input: MetamodelAddRelationKindInput; readonly output: MetamodelAddRelationKindOutput };
   readonly "metamodel.changeRelationKind": { readonly input: MetamodelChangeRelationKindInput; readonly output: MetamodelChangeRelationKindOutput };
   readonly "metamodel.removeRelationKind": { readonly input: MetamodelRemoveRelationKindInput; readonly output: MetamodelRemoveRelationKindOutput };

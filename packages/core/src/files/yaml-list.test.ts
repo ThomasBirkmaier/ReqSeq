@@ -155,7 +155,6 @@ describe("appendListItem", () => {
       ["- a\n", ["types"]],
       ["{types: []}\n", ["types"]],
       ["types: 1\n", ["types"]],
-      ["types:\n  - {key: a}\n", ["types", 0, "required"]],
       ["types:\n  - key: a\n", ["types", 3, "required"]],
       ["", ["types", 0, "required"]],
     ] as const) {
@@ -165,6 +164,22 @@ describe("appendListItem", () => {
     expect(errorOf(() => appendListItem({ text: "a: [\n", bom: false }, "m.yaml", ["a"], "x")).code).toBe(
       "file.faulty",
     );
+  });
+
+  it("adds a missing list to a flow mapping as its last entry, on its line, whose end comment goes (SR-236 AK3)", () => {
+    const added = (text: string): string =>
+      decode(appendListItem(fileOf(text), "m.yaml", ["types", 0, "required"], "x").bytes);
+    expect(added("types:\n  - {key: a}   # goes\n# stays\n")).toBe(
+      "types:\n  - {key: a, required: [x]}\n# stays\n",
+    );
+    expect(added("types:\n  - {key: a, }\n")).toBe("types:\n  - {key: a, required: [x], }\n");
+    // Over several lines: the line of the last entry changes, the others keep their comments.
+    expect(added("types:\n  - {   # stays\n      key: a,   # goes\n    }\n")).toBe(
+      "types:\n  - {   # stays\n      key: a, required: [x],\n    }\n",
+    );
+    expect(added("types:\n  - {}   # goes\n")).toBe("types:\n  - { required: [x] }\n");
+    // The last entry is a key without a value.
+    expect(added("types:\n  - {key: a, b}   # goes\n")).toBe("types:\n  - {key: a, b, required: [x]}\n");
   });
 
   it("refuses with internal when the result would not hold exactly the intended data", () => {

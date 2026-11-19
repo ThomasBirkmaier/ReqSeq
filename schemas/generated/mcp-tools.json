@@ -6035,6 +6035,624 @@
       }
     },
     {
+      "name": "metamodel_addProperty",
+      "title": "Add property to type",
+      "description": "Give a type an existing property or a new one, required or not; only the metamodel files that have the type and the new definition change, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that gets the property."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "true: the property is required in the type (its key goes into the type's `required`); false: into its `properties`."
+          },
+          "property": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of an existing property the type has neither itself nor inherited. Not with the fields of a new property."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name of a new property; no other property may have it."
+          },
+          "key": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Fixed key of a new property, not that of another property or relation kind. Left out: made from the name."
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "number",
+              "date",
+              "choice",
+              "relation"
+            ],
+            "description": "Value kind of a new property."
+          },
+          "choices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Display name of the fixed value; no other fixed value of the property may have it."
+                },
+                "key": {
+                  "$ref": "#/$defs/common/$defs/key",
+                  "description": "Fixed key of the value. Left out: made from the name."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ]
+            },
+            "description": "Fixed values of a new property of kind `choice`, in this order."
+          },
+          "targetTypes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "Allowed target types of a new property of kind `relation`; left out: every type."
+          },
+          "many": {
+            "type": "boolean",
+            "description": "true: a new property holds a list of values."
+          },
+          "maxItems": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "At most this many entries in the list of a new property with `many`; not for kind `relation`."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "required"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that has the property now."
+          },
+          "property": {
+            "title": "Property",
+            "$ref": "#/$defs/metamodel/$defs/property",
+            "description": "The property's definition as written afterwards."
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean",
+            "description": "Whether the type requires the property afterwards."
+          },
+          "defined": {
+            "title": "New definition",
+            "type": "boolean",
+            "description": "true when the property's definition was added to the metamodel."
+          },
+          "listedBy": {
+            "title": "Also listed by",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "Other types that list the key of the new property already, without a definition before; they have the property now too.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+            "x-elements": "versionsChangedElements"
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+            "x-elements": "missingRequiredElements"
+          },
+          "versionsChangedElements": {
+            "title": "Elements with another version",
+            "type": "array",
+            "description": "The elements `versionsChanged` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "missingRequiredElements": {
+            "title": "Elements missing a required property",
+            "type": "array",
+            "description": "The elements `missingRequired` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "property",
+          "required",
+          "defined",
+          "listedBy",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "versionsChangedElements",
+          "missingRequiredElements",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_changeProperty",
+      "title": "Change property",
+      "description": "Change the name, description, value kind, fixed values or another field of a property, or whether a type requires it; only the metamodel files that have the definitions change, line by line.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "property": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the property to change."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "New display name; no other property may have it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description, for people; null removes it."
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "number",
+              "date",
+              "choice",
+              "relation"
+            ],
+            "description": "New value kind; only while no element file of a type with the property holds its key."
+          },
+          "many": {
+            "type": "boolean",
+            "description": "true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key."
+          },
+          "maxItems": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "At most this many entries in the list; null removes the limit."
+          },
+          "targetTypes": {
+            "anyOf": [
+              {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/common/$defs/key"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allowed target types of a property of kind `relation`; null removes the list: every type."
+          },
+          "markdown": {
+            "type": "boolean",
+            "description": "true: values are Markdown like the text (only kind `text`); false removes the line."
+          },
+          "content": {
+            "type": "boolean",
+            "description": "true: part of the version; false removes the line."
+          },
+          "meaning": {
+            "enum": [
+              "title",
+              "validity",
+              "packages",
+              "emergent",
+              "verification-method",
+              "statement",
+              "source",
+              "source-identifier",
+              "import-date",
+              "delivery",
+              "import-version",
+              "identifier",
+              "acceptance-criteria",
+              "synonyms",
+              "translation",
+              null
+            ],
+            "description": "New built-in meaning, one of `propertyMeaning` of metamodel.schema.json; null removes it."
+          },
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of a type that has the property, whose `required` changes; with `required`."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the property is required in `type`; with `type`."
+          },
+          "addChoices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Display name of the fixed value; no other fixed value of the property may have it."
+                },
+                "key": {
+                  "$ref": "#/$defs/common/$defs/key",
+                  "description": "Fixed key of the value. Left out: made from the name."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ]
+            },
+            "description": "Fixed values to add at the end of `choices`, in this order."
+          },
+          "changeChoices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "choice": {
+                  "$ref": "#/$defs/common/$defs/key",
+                  "description": "Key of the fixed value to change."
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "New display name; no other fixed value of the property may have it."
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "New description; null removes it."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "choice"
+              ],
+              "minProperties": 2
+            },
+            "description": "Fixed values to change, by key."
+          },
+          "removeChoices": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "Keys of fixed values to remove; only while no element has the value."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "property"
+        ],
+        "minProperties": 2
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "property": {
+            "title": "Property",
+            "$ref": "#/$defs/metamodel/$defs/property",
+            "description": "The property's definition as written afterwards."
+          },
+          "dropped": {
+            "title": "Removed fields",
+            "type": "array",
+            "items": {
+              "enum": [
+                "choices",
+                "target-types",
+                "max-items",
+                "markdown"
+              ]
+            },
+            "description": "The fields removed because they do not belong to the new value kind, or maximum entries with `many: false`.",
+            "x-normal": []
+          },
+          "mentions": {
+            "title": "Files naming a removed key",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+            },
+            "description": "Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description. The key alone counts, so a file that uses the same word for another property is listed too.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+            "x-elements": "versionsChangedElements"
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+            "x-elements": "missingRequiredElements"
+          },
+          "versionsChangedElements": {
+            "title": "Elements with another version",
+            "type": "array",
+            "description": "The elements `versionsChanged` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "missingRequiredElements": {
+            "title": "Elements missing a required property",
+            "type": "array",
+            "description": "The elements `missingRequired` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "property",
+          "dropped",
+          "mentions",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "versionsChangedElements",
+          "missingRequiredElements",
+          "problems"
+        ]
+      }
+    },
+    {
+      "name": "metamodel_removeProperty",
+      "title": "Remove property from type",
+      "description": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type that has the property itself."
+          },
+          "property": {
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the property to remove from the type."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "property"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "type": {
+            "title": "Type",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the type."
+          },
+          "property": {
+            "title": "Property",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "Key of the removed property."
+          },
+          "definitionRemoved": {
+            "title": "Definition removed",
+            "type": "boolean",
+            "description": "true when no type had the property any more, so its definition was removed."
+          },
+          "inheritedFrom": {
+            "title": "Kept from",
+            "$ref": "#/$defs/common/$defs/key",
+            "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+          },
+          "mentions": {
+            "title": "Files naming a removed key",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
+            },
+            "description": "Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description.",
+            "x-normal": []
+          },
+          "files": {
+            "title": "Files",
+            "type": "array",
+            "description": "The metamodel files changed.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "versionsChanged": {
+            "title": "Versions changed",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+            "x-elements": "versionsChangedElements"
+          },
+          "missingRequired": {
+            "title": "Missing required properties",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+            "x-elements": "missingRequiredElements"
+          },
+          "versionsChangedElements": {
+            "title": "Elements with another version",
+            "type": "array",
+            "description": "The elements `versionsChanged` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "missingRequiredElements": {
+            "title": "Elements missing a required property",
+            "type": "array",
+            "description": "The elements `missingRequired` counts, in store order.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true,
+            "x-normal": []
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The warnings of the metamodel afterwards.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "type",
+          "property",
+          "definitionRemoved",
+          "mentions",
+          "files",
+          "versionsChanged",
+          "missingRequired",
+          "versionsChangedElements",
+          "missingRequiredElements",
+          "problems"
+        ]
+      }
+    },
+    {
       "name": "metamodel_addRelationKind",
       "title": "Add relation kind",
       "description": "Add a relation kind to the metamodel; only the metamodel file that gets it changes, line by line.",

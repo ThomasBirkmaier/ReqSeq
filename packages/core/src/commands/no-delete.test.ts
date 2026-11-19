@@ -24,6 +24,8 @@ const NOT_AN_ELEMENT_DELETE: Readonly<Record<string, string>> = {
   "relation.remove": "removes a relation entry from the source file; the element and its file stay",
   "metamodel.removeType":
     "removes a type from the metamodel files, refused while any element has it (SR-236 AK7); no element file changes",
+  "metamodel.removeProperty":
+    "removes a property from a type in the metamodel files, refused while any element holds it (SR-236 AK7); no element file changes",
   "metamodel.removeRelationKind":
     "removes a relation kind from the metamodel files, refused while any element file holds its key (SR-236 AK7); no element file changes",
   "metamodel.removeStatus":
@@ -179,6 +181,21 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   // Removing an unused type removes its lines; the second call is refused (a type with elements).
   "metamodel.removeType": [{ type: "scratch" }, { type: "system-requirement" }],
+  // Adding a property changes the metamodel file in place; the second call is refused (name taken).
+  "metamodel.addProperty": [
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+    { type: "decision", required: false, name: "Risk level", kind: "text" },
+  ],
+  // Changing a property changes its lines in place; the second call is refused (a kind in use).
+  "metamodel.changeProperty": [
+    { property: "rationale", name: "Reason" },
+    { property: "title", kind: "number" },
+  ],
+  // Removing a property from a type removes its key; the second call is refused (elements hold it).
+  "metamodel.removeProperty": [
+    { type: "decision", property: "rationale" },
+    { type: "system-requirement", property: "title" },
+  ],
   // Adding a relation kind changes one metamodel file in place; the second call is refused (name taken).
   "metamodel.addRelationKind": [{ name: "Conflicts with" }, { name: "Conflicts with" }],
   // Changing a relation kind changes its lines in place; the second call is refused (name taken).
