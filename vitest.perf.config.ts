@@ -12,6 +12,8 @@ export default defineConfig({
   },
   test: {
     include: ["packages/*/test/perf/**/*.test.ts"],
+    // The vendor files of the HTML export, built when missing (scripts/test-support/html-export-vendor.mjs).
+    globalSetup: ["./scripts/test-support/html-export-vendor.mjs"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
     // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
     // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types

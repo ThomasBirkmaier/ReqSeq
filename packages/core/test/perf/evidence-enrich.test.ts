@@ -31,6 +31,12 @@ import { standardModel, versionOf } from "./core-version.js";
 /** The size of the JUnit file (stage 4 plan, E4: "enrich of one 50 MB JUnit file"). */
 const BYTES = 50_000_000;
 
+/**
+ * The one finding of each call: the JUnit files lie next to the workspace, in no evidence location
+ * (SR-230 AK3). The generated workspace names none, so that the call reads no records.
+ */
+const OUTSIDE = "evidence.outside-location";
+
 /** Test cases of the name pattern run (N-036). */
 const PATTERN_CASES = 50_000;
 
@@ -127,7 +133,7 @@ describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4
       { basis },
     );
     expect(peak.result.unknown).toEqual([]);
-    expect(peak.result.problems).toEqual([]);
+    expect(peak.result.problems.map((p) => p.code)).toEqual([OUTSIDE]);
     expect(peak.result.testCases).toBe(testCases);
   });
 
@@ -154,7 +160,7 @@ describe("SR-029: enrich of one 50 MB JUnit file with 50,000 elements (N-036, E4
     );
     await recordValue(`SR-029: enrich through a name pattern: ${memoryIncrease(peak)}`, 0, { basis });
     expect(peak.result.unknown).toEqual([]);
-    expect(peak.result.problems).toEqual([]);
+    expect(peak.result.problems.map((p) => p.code)).toEqual([OUTSIDE]);
     expect([peak.result.testCases, peak.result.withoutReference]).toEqual([PATTERN_CASES, 2]);
   });
 });
