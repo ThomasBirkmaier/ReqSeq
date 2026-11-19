@@ -167,7 +167,7 @@ const resultLines = async (window: Page): Promise<string[]> => {
   await expect(lines.first()).toBeVisible();
   return lines.evaluateAll((all) =>
     all.map((line) => {
-      const depth = (Number.parseFloat((line as HTMLElement).style.paddingLeft) - 0.75) / 1.25;
+      const depth = Number((line as HTMLElement).dataset["depth"]);
       const parts = [...line.querySelectorAll(".label, .text")].map((part) => part.textContent);
       return `${"  ".repeat(Math.round(depth))}${parts.join(" ").trim()}`;
     }),

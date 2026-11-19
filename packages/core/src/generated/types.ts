@@ -3314,7 +3314,7 @@ export interface TraceChainOutput {
   }[];
   /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or an evidence location does: evidence and validation records there are not seen. */
   readonly incomplete: Incomplete;
-  /** The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588, #676). Left out when it names none, and for a variant in a repository that is not here. */
+  /** The root, then the variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title on every page (ThomasBirkmaier/ReqSeq-archive#588, #676, #1874). Left out for a variant in a repository that is not here. */
   readonly names?: readonly ElementName[];
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3; upward only `requirement`). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -3498,6 +3498,8 @@ export interface TraceNeighbourhoodOutput {
     readonly outdated: boolean;
   }[];
   readonly incomplete: Incomplete;
+  /** The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it (#1874). */
+  readonly names?: readonly ElementName[];
 }
 
 /**

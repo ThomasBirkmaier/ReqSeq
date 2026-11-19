@@ -16,8 +16,9 @@ export const named = (element: { readonly shortId: string; readonly identifier?:
   element.identifier ?? element.shortId;
 
 /**
- * The root of an output as a sentence names it (`named`): by its node among `nodes`, so a UUID and a short ID
- * as `ref` give the same sentence; `ref` as given when the page of `nodes` does not hold the root.
+ * The root of an output as a sentence names it (`named`): by its entry among `elements` (the nodes, and the
+ * `names` that name the root on every page), so a UUID and a short ID as `ref` give the same sentence on every
+ * page; `ref` as given only when none names it.
  */
 export const rootNamed = (
   root: string,

@@ -157,6 +157,14 @@ describe("answers of single commands", () => {
     expect(answerOf(traceNeighbourhood, { root: "uuid-1", nodes: [root], total: 1 }, { ref: "uuid-1" })).toBe(
       "The neighbourhood of SR-073 has 1 element.",
     );
+    // A later page names the root by `names`, as the first page does.
+    const later = { root: "uuid-1", nodes: [], names: [root] };
+    expect(answerOf(traceChain, { ...later, total: 5, gaps: [], unresolved: [] }, { ref: "uuid-1" })).toBe(
+      "The chain of SR-073 has 5 elements.",
+    );
+    expect(answerOf(traceNeighbourhood, { ...later, total: 3 }, { ref: "uuid-1" })).toBe(
+      "The neighbourhood of SR-073 has 3 elements.",
+    );
   });
 
   it("element.list counts the rows of `partial` as of `elements`", () => {

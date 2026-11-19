@@ -118,7 +118,7 @@ export default defineCommand({
   name: "trace.chain",
   answer: (output, input) =>
     sentence(
-      `The chain of ${rootNamed(output.root, output.nodes, input.ref)} has ${counted(output.total, "element")}`,
+      `The chain of ${rootNamed(output.root, [...output.nodes, ...(output.names ?? [])], input.ref)} has ${counted(output.total, "element")}`,
       output.gaps.length === 0
         ? ""
         : `${counted(output.gaps.length, "gap")}${output.nodes.length < output.total ? " on this page" : ""}`,
@@ -195,6 +195,7 @@ export default defineCommand({
       evidence,
       ...namesField(
         namesOf({ metamodel, store, shortIds }, [
+          root.id,
           ...variantsOf(output.evidence),
           ...output.gaps.flatMap((gap) => (gap.views ?? []).filter((id) => id !== "core")),
         ]),

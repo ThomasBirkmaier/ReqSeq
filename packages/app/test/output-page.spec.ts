@@ -76,9 +76,8 @@ test.describe("the output page", () => {
     await run(window, "Show verification degree");
     const page = shownLayer(window).locator(".result.output");
     await expect(page.locator("h1")).toHaveText(await cliAnswer(running, ["evidence", "degree"]));
-    await expect(page.locator("h1 + .note")).toHaveText(
-      "Incomplete: a repository of the workspace is not on this machine.",
-    );
+    // The answer says why; the line under it marks the output, without saying it again (SR-006 AK2).
+    await expect(page.locator("h1 + .note")).toHaveText("Incomplete");
     // The degree's fields under their titles; `failed` is 0 and stays, since the catalog names no normal value.
     await expect(page.locator(".line .label")).toHaveText([
       "Verification degree",

@@ -254,6 +254,10 @@ describe("result lines", () => {
       ["b", undefined],
       ["a", true],
     ]);
+    // A map at the top: its values are `.*`, as the generator writes them.
+    expect(
+      resultLines({ draft: 3 }, [{ path: ".*", title: "Status" }]).map((line) => [line.label, line.field]),
+    ).toEqual([["draft", ".*"]]);
     // A pair line names the second element by the title of its field.
     const pair = resultLines(
       { replaced: [{ core: "uuid-1", replacement: "uuid-2" }], names: [element(1), element(2)] },
@@ -463,7 +467,7 @@ describe("result view", () => {
       "SR-000001Title 1",
       "SR-000002Title 2approved",
     ]);
-    const listbox = container.querySelector('[role="listbox"]');
+    const listbox = container.querySelector(".buffer.result");
     expect(listbox?.getAttribute("aria-activedescendant")).toBeNull();
     // No line is selected at first (SR-122).
     expect(container.querySelector("[data-cursor]")).toBeNull();

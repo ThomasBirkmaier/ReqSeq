@@ -60,6 +60,9 @@
   font-size: 13px;
 }
 
+/* One column of values for every depth, like a list of titles and values: only the title or ID is indented
+   (`--indent`, 1.25rem per level). A line without one, such as an item of a list, stands in the column of the
+   values, set in by one level when it is below another line. */
 .result.output .line {
   display: grid;
   grid-template-columns: 11rem minmax(0, 1fr) auto;
@@ -67,12 +70,13 @@
   border-radius: 4px;
 }
 
-/* A line without a title or ID: its text in the column of the values. */
 .result.output .line > .text:first-child {
   grid-column: 2;
+  padding-left: min(var(--indent, 0rem), 1.25rem);
 }
 
 .result.output .line > .label {
+  padding-left: var(--indent, 0rem);
   overflow-wrap: anywhere;
 }
 

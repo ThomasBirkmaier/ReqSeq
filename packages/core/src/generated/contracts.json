@@ -15919,7 +15919,7 @@
             "names": {
               "title": "Named elements",
               "type": "array",
-              "description": "The variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title. Left out when it names none, and for a variant in a repository that is not here.",
+              "description": "The root, then the variants that the records of `evidence` name by UUID only (`variant`), then those the `views` of `gaps` name, each once in the order first named, so a reader names them by short ID, identifier and title on every page. Left out for a variant in a repository that is not here.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/elementName"
               }
@@ -17985,6 +17985,14 @@
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
             }
           },
           "additionalProperties": false,
@@ -18123,6 +18131,31 @@
             "path": "incomplete",
             "title": "Incomplete",
             "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
           }
         ]
       },

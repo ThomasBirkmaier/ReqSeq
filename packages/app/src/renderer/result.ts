@@ -188,7 +188,8 @@ const childOf = (
   if (field !== undefined) {
     return { path: named, label: field.title ?? key };
   }
-  const map = path === "" ? "*" : `${path}.*`;
+  // A map at the top is `.*`, as the generator writes the path of its values (`outputFieldsOf`).
+  const map = `${path}.*`;
   return fields.has(map) ? { path: map, label: key } : { path: named, label: key };
 };
 

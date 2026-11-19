@@ -39,8 +39,11 @@ export interface ResultViewProps {
   readonly fields?: readonly OutputField[];
 }
 
-/** What the line under the answer says of an incomplete output (SR-006 AK2). */
-export const INCOMPLETE_NOTE = "Incomplete: a repository of the workspace is not on this machine.";
+/**
+ * What the line under the answer says of an incomplete output (SR-223 AK1, SR-006 AK2): only the mark, since the
+ * answer already says why (`incompleteNote` of core) and the output names no repository.
+ */
+export const INCOMPLETE_NOTE = "Incomplete";
 
 export const ResultView = ({
   call,
@@ -137,9 +140,10 @@ export const ResultView = ({
   }
 
   return (
+    // The buffer takes the focus and the keys; the answer and the note stand above the listbox of the lines.
     <div
       className="buffer result output"
-      role="listbox"
+      role="group"
       aria-label={buffer.name}
       aria-activedescendant={
         lines[cursor]?.open === undefined ? undefined : `${scope}result-${String(cursor)}`
@@ -152,26 +156,30 @@ export const ResultView = ({
         {answer === undefined ? null : <h1 className="answer">{answer}</h1>}
         {incomplete ? <p className="note">{INCOMPLETE_NOTE}</p> : null}
         {buffer.error === undefined ? null : <p className="quiet">{buffer.error}</p>}
-        {lines.map((line, at) => (
-          <div
-            key={at}
-            id={`${scope}result-${String(at)}`}
-            className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}`}
-            title={line.title}
-            // Only a line that opens an element is an option; a text line is shown, not chosen.
-            {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
-            data-cursor={at === cursor ? "" : undefined}
-            style={{ paddingLeft: `${String(0.75 + line.depth * 1.25)}rem` }}
-            onClick={() => {
-              dispatch({ type: "cursor", key: buffer.key, cursor: at });
-              open(at);
-            }}
-          >
-            {line.label === "" ? null : <span className="label">{line.label}</span>}
-            <span className="text">{line.text}</span>
-            {line.status === undefined ? null : <span className="status">{line.status}</span>}
-          </div>
-        ))}
+        <div className="lines" role="listbox" aria-label={answer ?? buffer.name}>
+          {lines.map((line, at) => (
+            <div
+              key={at}
+              id={`${scope}result-${String(at)}`}
+              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}`}
+              title={line.title}
+              // Only a line that opens an element is an option; a text line is shown, not chosen.
+              {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
+              data-cursor={at === cursor ? "" : undefined}
+              data-depth={line.depth}
+              // Only the title is indented, so the values of all depths stand in one column (`result.css`).
+              style={{ "--indent": `${String(line.depth * 1.25)}rem` } as React.CSSProperties}
+              onClick={() => {
+                dispatch({ type: "cursor", key: buffer.key, cursor: at });
+                open(at);
+              }}
+            >
+              {line.label === "" ? null : <span className="label">{line.label}</span>}
+              <span className="text">{line.text}</span>
+              {line.status === undefined ? null : <span className="status">{line.status}</span>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
