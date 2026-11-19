@@ -11,11 +11,11 @@ acceptance-criteria:
   - key: fncy
     text: Gegeben eine Auswahl mit 10 gültigen Requirements, davon 6 nachgewiesen, 1 nicht bestanden, 1 veraltet und 2 offen, und 3 Requirements ihrer Sicht ohne bestandenen Test, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen dieselben Zahlen je Nachweisstatus wie `evidence.degree` (SR-037) und die Zahl ohne bestandenen Test wie `evidence.withoutPassedTest` für diese Sicht (SR-120) mit dem Namen der Sicht, jede als Zahl von Elementen gekennzeichnet (SR-224 AK4).
   - key: hss7
-    text: Gegeben eine neueste Baseline nach der Regel von SR-241 AK1, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe ihren Namen und je Kennzeichnung dieselbe Zahl wie `baseline.get` für sie; ohne Baseline fehlt diese Angabe.
+    text: Gegeben eine neueste Baseline nach der Regel von SR-241 AK1, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen ihren Namen und je Kennzeichnung (geändert, abgelöst, hinzugefügt, entfernt, fehlend, nicht zugänglich) dieselbe Zahl wie `baseline.get` für sie; ohne Baseline fehlt diese Angabe.
   - key: rqjf
-    text: Gegeben Fehler in der Prüfung des Bestands, solange das Tool Schreibbefehle nicht ablehnt (SR-011 AK3), wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen trotzdem „Create baseline“ als nächsten Schritt mit der Auswahl, die „Prepare baseline“ erhielt, ohne Angabe mit der Auswahl des ganzen Arbeitsbereichs; offen ist nur der Name. Daneben nennt sie „Show changes since baseline“, wenn es eine Baseline gibt.
+    text: Gegeben ein Arbeitsbereich mit oder ohne Fehler in der Prüfung des Bestands, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen „Create baseline“ als nächsten Schritt mit der Auswahl, die „Prepare baseline“ erhielt, ohne Angabe mit der Auswahl des ganzen Arbeitsbereichs; offen ist nur der Name. Daneben nennt sie „Show changes since baseline“, wenn es eine Baseline gibt. Ist die Auswahl eine Baseline oder die Ausgabe eines Befehls, die `baseline.create` als Auswahl ablehnt, fehlt „Create baseline“; ein Schritt mit einem Schreibbefehl, den das Tool dann ablehnt, fehlt nach SR-226 AK5.
   - key: tsww
-    text: Gegeben eine Baseline als Auswahl, wenn „Prepare baseline“ aufgerufen wird, dann lehnt das Tool das ab wie `baseline.create`.
+    text: Gegeben `workspace.check`, `evidence.degree`, `evidence.withoutPassedTest` oder `baseline.get` kennzeichnet seine Ausgabe als unvollständig (SR-006 AK2), wenn „Prepare baseline“ aufgerufen wird, dann trägt die Ausgabe in allen Zugängen dasselbe Kennzeichen.
 packages:
   - { id: 2990bac4-d226-4a31-bb4f-64425f53e055, version: n2:a139a91857d617ad, title: Pakete und Baselines }
 verification-method: test
@@ -25,7 +25,7 @@ derives-from:
 refines:
   - { id: 6adc6c49-e383-41ed-ac99-941741a85262, version: n2:94718d1b8a2e216c, title: Nachweisgrad einer Auswahl berechnen }
   - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
-  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:ed6ae1f0a7b4a03c, title: Den nächsten Schritt nennen }
+  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:0240e09b69606881, title: Den nächsten Schritt nennen }
 based-on:
   - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
   - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }
