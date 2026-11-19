@@ -28,7 +28,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
-Created need N-7fe707; 1 file written.
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -38,7 +38,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 2 problems.
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -48,7 +48,7 @@ reqseq element create system-requirement "Warn of gusts" --text "The station mus
 ```
 
 ```text title="Output"
-Created system-requirement SR-5e1d0a; 1 file written; 2 problems.
+Created System Requirement SR-5e1d0a; 1 file written; 2 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -58,7 +58,7 @@ reqseq element create system-requirement "Show the temperature" --text "The stat
 ```
 
 ```text title="Output"
-Created system-requirement SR-41c165; 1 file written; 3 problems.
+Created System Requirement SR-41c165; 1 file written; 3 problems.
 SR-41c165  draft  Show the temperature  [verification: core open]
 ...
 ```

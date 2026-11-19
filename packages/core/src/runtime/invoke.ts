@@ -4,16 +4,18 @@
 // ID of the element each problem of the output names (`withElementShortIds`, ThomasBirkmaier/ReqSeq-archive#315). Records the
 // element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117). Refuses the
 // local paths of an API or MCP call outside the repositories of the workspace (SR-142).
-import type { AnyCommand, LocalPaths } from "../catalog.js";
+import type { AnswerNames, AnyCommand, LocalPaths } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
-import { assertWritable } from "../metamodel/index.js";
+import type { Metamodel } from "../metamodel/index.js";
+import { assertWritable, findType, metamodelState } from "../metamodel/index.js";
 import type { AccessCall, AccessName, NotedAccess } from "../model/activity.js";
 import { FOLLOWED_ACCESSES, accessSubject, noteAccess, recordAccess } from "../model/activity.js";
 import type { Contracts } from "./contracts.js";
 import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
+import { settledValue } from "./settled.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import { internalError, learnWorkspaceRoots } from "./internal-cause.js";
 import type { LocalPathField } from "./local-path-fields.js";
@@ -63,14 +65,33 @@ const withHome = (
   home === undefined ? input : replaceLocalPaths(input, fields, (value) => expandHome(value, home));
 
 /**
- * `output` with the answer of `command` first (SR-224 AK1), or as it is for a command without
- * one (a test command). Outputs of catalog commands are objects (catalog.meta.schema.json).
+ * The names of an answer from the metamodel the command left (`AnswerNames`). Nothing is read: a
+ * command whose answer names a type has read the metamodel; without it (not built, or reset by a
+ * watcher meanwhile) a type is named by its key.
  */
-const answered = (command: AnyCommand, output: unknown, input: unknown): unknown =>
+const answerNames = (metamodel: Metamodel | undefined): AnswerNames => ({
+  type: (key) => (metamodel === undefined ? undefined : findType(metamodel, key)?.name) ?? key,
+});
+
+/**
+ * `output` with the answer of `command` first (SR-224 AK1), or as it is for a command without
+ * one (a command of a test-only catalog, `CommandDefinition.answer`). Outputs of catalog commands are
+ * objects (catalog.meta.schema.json).
+ */
+const answered = async (
+  command: AnyCommand,
+  output: unknown,
+  input: unknown,
+  workspace: Workspace,
+): Promise<unknown> =>
   command.answer === undefined
     ? output
     : {
-        answer: command.answer(output, input as never),
+        answer: command.answer(
+          output,
+          input as never,
+          answerNames(await settledValue(workspace.peek(metamodelState))),
+        ),
         ...(output as Readonly<Record<string, unknown>>),
       };
 
@@ -245,7 +266,12 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
           );
           // Every problem that names an element names its short ID too (ThomasBirkmaier/ReqSeq-archive#315),
           // and the output starts with its answer, built in core for every access (SR-224 AK1).
-          const shown = answered(command, await withElementShortIds(ctx.workspace, locator, result), checked);
+          const shown = await answered(
+            command,
+            await withElementShortIds(ctx.workspace, locator, result),
+            checked,
+            ctx.workspace,
+          );
           if (call !== undefined) {
             // The states the command left, taken now; nothing waits for it (SR-117). Inputs and
             // outputs of catalog commands are objects (catalog.meta.schema.json).

@@ -250,7 +250,7 @@ reqseq element create package "Sensor"
 ```
 
 ```text title="Output"
-Created package PKG-65ba20; 1 file written.
+Created Package PKG-65ba20; 1 file written.
 PKG-65ba20  draft  Sensor
 ...
 ```

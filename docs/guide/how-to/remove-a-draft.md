@@ -30,7 +30,7 @@ reqseq element create need "See the wind speed"
 ```
 
 ```text title="Output"
-Created need N-7fe707; 1 file written.
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -42,7 +42,7 @@ reqseq element create system-requirement "Show the wind speed" --relations deriv
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 2 problems.
+Created System Requirement SR-c67baa; 1 file written; 2 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -69,7 +69,7 @@ reqseq element get N-7fe707
 ```
 
 ```text title="Output"
-N-7fe707 is a need with status draft.
+N-7fe707 is a Need with status draft.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
   file: ...need/N-d0e44b7fe707.md

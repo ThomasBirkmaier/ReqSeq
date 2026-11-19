@@ -33,7 +33,7 @@ reqseq element create system-requirement "Show the temperature"
 ```
 
 ```text title="Output"
-Created system-requirement SR-a3e1d0; 1 file written; 3 problems.
+Created System Requirement SR-a3e1d0; 1 file written; 3 problems.
 SR-a3e1d0  draft  Show the temperature  [verification: core open]
 ...
 ```
@@ -44,7 +44,7 @@ reqseq element create variant "Coastal station"
 ```
 
 ```text title="Output"
-Created variant VAR-f23826; 1 file written.
+Created Variant VAR-f23826; 1 file written.
 VAR-f23826  draft  Coastal station
 ...
 ```

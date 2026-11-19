@@ -94,7 +94,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     const result = await reqseq(["element", "get", "SR-00b130"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout.split("\n").slice(0, 2)).toEqual([
-      "SR-00b130 is a system-requirement with status approved.",
+      "SR-00b130 is a System Requirement with status approved.",
       "SR-00b130  approved  Show the rain  [verification: core indirect]",
     ]);
     const json = await reqseq(["element", "get", "SR-00b130", "--json"]);

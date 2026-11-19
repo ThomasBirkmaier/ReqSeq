@@ -18,13 +18,13 @@ import type { ElementHints } from "../../model/index.js";
 import { getElement } from "../../model/index.js";
 import { shownWithNames } from "../../data/index.js";
 import { elementHints } from "../../hints/index.js";
-import { incompleteNote, named, problemsNote, sentence } from "../answer.js";
+import { incompleteNote, named, problemsNote, sentence, withArticle } from "../answer.js";
 
 export default defineCommand({
   name: "element.get",
-  answer: (output) =>
+  answer: (output, _input, names) =>
     sentence(
-      `${named(output.element)} is a ${output.element.type}${output.element.status === undefined ? " without status" : ` with status ${output.element.status}`}`,
+      `${named(output.element)} is ${withArticle(names.type(output.element.type))}${output.element.status === undefined ? " without status" : ` with status ${output.element.status}`}`,
       problemsNote(output.element.problems),
       incompleteNote(output.incomplete),
     ),

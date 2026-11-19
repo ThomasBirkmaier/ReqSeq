@@ -72,7 +72,7 @@ describe("command definitions", () => {
     const def: CatalogCommand<"workspace.status"> = {
       name: "workspace.status",
       run: status.run,
-      answer: (output, input) => status.answer(output, input),
+      answer: (output, input, names) => status.answer(output, input, names),
     };
     expect(defineCommand(def)).toBe(def);
   });
@@ -206,7 +206,7 @@ describe("lazyCommand", () => {
   const status = defineCommand({
     name: "workspace.status",
     run: (_ctx, input) => Promise.resolve({ input } as never),
-    answer: (output) => `Answer to ${JSON.stringify(output)}.`,
+    answer: (output, _input, names) => `Answer to ${JSON.stringify(output)} for ${names.type("need")}.`,
   });
   // `run` only passes the context on, so any object stands for it here.
   const ctx = {} as CommandContext;
@@ -228,11 +228,12 @@ describe("lazyCommand", () => {
     const command = lazyCommand("workspace.status", () => Promise.resolve({ default: status }));
     const output = { name: "w" } as CommandOutput<"workspace.status">;
     const input = {} as CommandInput<"workspace.status">;
-    expect(() => command.answer(output, input)).toThrow(
+    const names = { type: (key: string) => `${key} by name` };
+    expect(() => command.answer(output, input, names)).toThrow(
       "command workspace.status is asked for its answer before it ran",
     );
     await command.run(ctx, input);
-    expect(command.answer(output, input)).toBe('Answer to {"name":"w"}.');
+    expect(command.answer(output, input, names)).toBe('Answer to {"name":"w"} for need by name.');
   });
 
   it("tries the import again after it failed", async () => {

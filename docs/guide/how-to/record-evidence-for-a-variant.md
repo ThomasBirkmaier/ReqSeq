@@ -35,7 +35,7 @@ reqseq element create system-requirement "Show the wind speed"
 ```
 
 ```text title="Output"
-Created system-requirement SR-c67baa; 1 file written; 3 problems.
+Created System Requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -45,7 +45,7 @@ reqseq element create variant "Coastal station"
 ```
 
 ```text title="Output"
-Created variant VAR-f23826; 1 file written.
+Created Variant VAR-f23826; 1 file written.
 VAR-f23826  draft  Coastal station
 ...
 ```

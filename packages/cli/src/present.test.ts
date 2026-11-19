@@ -6,15 +6,15 @@ import { lines } from "./present.test-helper.js";
 describe("renderHuman: the answer (SR-224 AK2)", () => {
   it("[SR-224/AK-tjmm] prints the answer of core as the first line, before every other line, on a terminal too", () => {
     const output = {
-      answer: "Created need N-7fe707; 1 file written.",
+      answer: "Created Need N-7fe707; 1 file written.",
       files: ["need/N-0000007fe707.md"],
       problems: [],
     };
     expect(renderHuman(output, false)).toBe(
-      lines("Created need N-7fe707; 1 file written.", "files:", "  need/N-0000007fe707.md", "No problems."),
+      lines("Created Need N-7fe707; 1 file written.", "files:", "  need/N-0000007fe707.md", "No problems."),
     );
     const styled = renderHuman(output, false, { columns: 80, colors: true });
-    expect(stripVTControlCharacters(styled).split("\n")[0]).toBe("Created need N-7fe707; 1 file written.");
+    expect(stripVTControlCharacters(styled).split("\n")[0]).toBe("Created Need N-7fe707; 1 file written.");
   });
 });
 

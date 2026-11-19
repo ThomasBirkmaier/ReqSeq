@@ -19,14 +19,14 @@ const CORE: View = Object.freeze({ kind: "core" });
 
 export default defineCommand({
   name: "evidence.coverage",
-  answer: (output) =>
+  answer: (output, _input, names) =>
     sentence(
       output.levels.length === 0
         ? "The selection has no need or requirement"
         : `Coverage: ${listed(
             output.levels.map(
               (level) =>
-                `${String(level.withChildren)} of ${counted(level.total, `${level.type} element`)} with children${level.withEvidence === undefined ? "" : ` and ${String(level.withEvidence)} with evidence`}`,
+                `${String(level.withChildren)} of ${counted(level.total, `${names.type(level.type)} element`)} with children${level.withEvidence === undefined ? "" : ` and ${String(level.withEvidence)} with evidence`}`,
             ),
           )}`,
       incompleteNote(output.incomplete),
