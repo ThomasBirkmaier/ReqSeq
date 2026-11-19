@@ -39,7 +39,7 @@
     },
     {
       "field": "limits",
-      "complete": "json"
+      "complete": "limits"
     },
     {
       "field": "meaning",
