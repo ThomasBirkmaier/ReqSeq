@@ -222,7 +222,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     heading: "Impact check",
     lines: (context) => [
       `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches for each new or changed term and for its identifier (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
-      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
+      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, see Rules.`,
     ],
   },
   {
@@ -292,11 +292,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   },
 ];
 
-/** The last section, after every section of the list (SR-229 AK11). */
+/** The last section, after every section of the list (SR-229 AK11), with the HTML export as a step (AK14). */
 export const GUIDE_TAIL: GuideSection = {
   heading: "In a pipeline",
   lines: (context) => [
-    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline does not replace the check before finishing a piece of work.`,
+    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. It can publish the elements as pages with the HTML export: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
   ],
 };
 

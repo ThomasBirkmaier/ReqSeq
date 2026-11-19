@@ -218,7 +218,7 @@ describe("tool.guide", () => {
           "It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements",
           "and the tests whose names carry their reference.",
           "It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete.",
-          "For a contradiction, the rules below apply.",
+          "For a contradiction, see Rules.",
         ]) {
           expect(impact).toContain(part);
         }
@@ -394,6 +394,20 @@ describe("tool.guide", () => {
         expect(body).not.toMatch(
           /github|gitlab|jenkins|azure|bitbucket|circleci|\.ya?ml|\$\{?[A-Z_]+|\bCI_/i,
         );
+      }
+    }
+  });
+
+  it("[SR-229/AK-q8kq] names the HTML export as a pipeline step that publishes the elements as pages, as a command-line call", async () => {
+    const roots = [await standard(), await folder()];
+    for (const root of roots) {
+      for (const names of NAMES) {
+        const body = section(await guide(root, { names }), "In a pipeline");
+        expect(body).toContain(
+          "It can publish the elements as pages with the HTML export: `reqseq html export '<folder>'`.",
+        );
+        expect(body).not.toContain("html_export");
+        expect(body).not.toMatch(/github|gitlab|netlify|vercel|pages\.dev|cloudflare|host/i);
       }
     }
   });
