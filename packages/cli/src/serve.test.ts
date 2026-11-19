@@ -1,6 +1,7 @@
 // `reqseq serve api` and `reqseq mcp` in-process (ADR-0009); the built binaries are in test/e2e/servers.test.ts.
 import fs from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
 import type { CommandRuntime } from "@reqseq/core";
@@ -17,7 +18,7 @@ import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
 import { DOCS_FOLDER, EXIT, runCli } from "./main.js";
 
@@ -45,6 +46,8 @@ const runtimeFor = (names: readonly string[]): CommandRuntime =>
     validateOutput: true,
     commands: [
       defineTestCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
+      // The MCP server sends the output of tool.guide as its instructions (SR-229 AK1).
+      defineTestCommand({ name: "tool.guide", run: () => Promise.resolve({ guide: "Test guide" }) }),
       defineTestCommand({
         name: "test.closeFails",
         run: (ctx) => Promise.resolve({ state: ctx.workspace.get(failingState) }),
@@ -52,7 +55,7 @@ const runtimeFor = (names: readonly string[]): CommandRuntime =>
     ].filter((c) => names.includes(c.name)),
   });
 
-const runtime = runtimeFor(["test.root", "test.closeFails"]);
+const runtime = runtimeFor(["test.root", "test.closeFails", "tool.guide"]);
 
 class Sink {
   text = "";
@@ -330,6 +333,30 @@ describe("reqseq mcp", () => {
     expect(await exit).toBe(EXIT.ok);
     expect(stderr.text).toBe("");
     await client.close();
+  });
+
+  it("[SR-229/AK-hyqj] starts in a folder without a workspace, with the guide that names the reason as its instructions", async () => {
+    // Outside the fixture, whose workspace file the command line would find above the folder.
+    const empty = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-empty-"));
+    onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
+    const product = getCommandRuntime();
+    const toServer = new PassThrough();
+    const toClient = new PassThrough();
+    const opts = options(["mcp"], {
+      cwd: empty,
+      stdin: toServer,
+      stdout: { write: (text: string) => toClient.write(text) },
+      runtime: product,
+    });
+    const exit = runCli(opts);
+    const client = new Client({ name: "test", version: "1" });
+    await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
+    const instructions = client.getInstructions() ?? "";
+    toServer.end();
+    expect(await exit).toBe(EXIT.ok);
+    await client.close();
+    expect(instructions).toContain("Reason: No reqseq-workspace.yaml in the workspace folder.");
+    expect(instructions).toContain("`workspace_init`");
   });
 
   it("stops at the signal", async () => {

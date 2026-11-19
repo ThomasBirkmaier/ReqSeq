@@ -2355,6 +2355,24 @@ export interface ToolInfoOutput {
 }
 
 /**
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Schema: `schemas/commands/tool.guide.json input`.
+ */
+export interface ToolGuideInput {
+  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. */
+  readonly names: "cli" | "mcp";
+}
+
+/**
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.
+ * Schema: `schemas/commands/tool.guide.json output`.
+ */
+export interface ToolGuideOutput {
+  /** The agent guide as Markdown, LF line endings and a final newline. */
+  readonly guide: string;
+}
+
+/**
  * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.
  * Schema: `schemas/commands/metamodel.get.json input`.
  */
@@ -4707,6 +4725,7 @@ export interface CommandTypes {
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
   readonly "workspace.connectAgent": { readonly input: WorkspaceConnectAgentInput; readonly output: WorkspaceConnectAgentOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
+  readonly "tool.guide": { readonly input: ToolGuideInput; readonly output: ToolGuideOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
