@@ -395,7 +395,8 @@ const Marked = ({ parts }: { readonly parts: readonly Part[] }): React.JSX.Eleme
 const LEADS = [60, 40, 24, 12, 0];
 
 /**
- * The snippet of a search hit (SR-174): where it was found and core's line, its marked words heavier. Core
+ * The snippet of a search hit (SR-174): where it was found, an acceptance criterion with its number and key, the
+ * key heavier when only it was found there (SR-222 AK3), and core's line, its marked words heavier. Core
  * gives up to 120 characters, more than the column holds: while the line hides its first marked word, the
  * words before it are left out, so the match stays in view (`trimLead`); the whole line is its tooltip.
  */
@@ -412,7 +413,8 @@ export const SnippetLine = ({
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
     const box = line.current?.getBoundingClientRect();
-    const mark = line.current?.querySelector("mark")?.getBoundingClientRect();
+    // A marked word of the line, not the key marked in where it was found (SR-222 AK3).
+    const mark = line.current?.querySelector(":scope > mark")?.getBoundingClientRect();
     const next = lead === undefined ? 0 : lead + 1;
     if (box !== undefined && mark !== undefined && mark.right > box.right + 0.5 && next < LEADS.length) {
       setLead(next);
@@ -436,7 +438,9 @@ export const SnippetLine = ({
       : trimLead(snippet.text, snippet.marks, keep);
   return (
     <span ref={line} id={id} className="snippet" title={`${snippet.where}: ${snippet.text}`}>
-      <span className="where">{snippet.where}:</span>{" "}
+      <span className="where">
+        <Marked parts={highlightRanges(snippet.where, snippet.whereMarks ?? [])} />:
+      </span>{" "}
       <Marked parts={highlightRanges(shown.text, shown.ranges)} />
     </span>
   );

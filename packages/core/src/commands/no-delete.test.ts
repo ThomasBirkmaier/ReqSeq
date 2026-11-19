@@ -153,6 +153,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { name: "drafts", where: { status: ["draft", "obsolete"] } },
     { name: "Unknown package", where: { package: "SR-ffffff" } },
   ],
+  // Adding a type changes one metamodel file in place; the second call is refused (name taken).
+  "metamodel.addType": [
+    { name: "Risk", prefix: "RI" },
+    { name: "Risk", prefix: "RX" },
+  ],
   // Renaming gives the file the new name (SR-217 AK2): the move check below allows exactly the
   // renamed files the output names; perspectives that name the filter change in place.
   "filter.rename": [

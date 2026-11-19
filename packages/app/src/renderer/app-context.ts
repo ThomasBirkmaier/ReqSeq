@@ -71,6 +71,7 @@ export interface ContextParts {
   readonly graphChoices: readonly GraphFilterChoice[];
   readonly catalog: RefObject<readonly CommandListing[]>;
   readonly builder: RefObject<(command: BuiltCommand, from: ActionContext) => void>;
+  readonly connector: RefObject<(from: ActionContext) => void>;
   readonly follow: Follow;
   readonly shownView: ShownView | undefined;
   readonly setShownView: Setter<ShownView | undefined>;
@@ -84,7 +85,17 @@ export const actionContext = (parts: ContextParts): ActionContext => {
   const { view, buffers, walk, releasedAt, slides, layout, revisionNow, leavesClean, mac, theme } = parts;
   const { call, viewCall, dispatch, ask, setEcho, setAbout, copy, bridge, notify, recentRef } = parts;
   const { recentNames, elementControls, row, marked, current, loaded, drafts, armed, onDraft } = parts;
-  const { saveKept, graphChoices, catalog, builder, follow, shownView, setShownView, setRevision } = parts;
+  const {
+    saveKept,
+    graphChoices,
+    catalog,
+    builder,
+    connector,
+    follow,
+    shownView,
+    setShownView,
+    setRevision,
+  } = parts;
   const { perspectiveUse, foldChoice, setFoldChoice } = parts;
   return {
     workspace: view?.name !== undefined,
@@ -176,6 +187,9 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     catalog: () => catalog.current,
     build: (command, from) => {
       builder.current(command, from);
+    },
+    connectAgent: (from) => {
+      connector.current(from);
     },
     follow: follow.controls,
     // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
@@ -286,6 +300,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
     dispatch,
     onData,
     onEcho: setEcho,
+    onCopy: copy,
     onDrawn,
     gate,
     ready,

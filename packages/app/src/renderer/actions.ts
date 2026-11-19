@@ -12,7 +12,7 @@
 // where they are available is in `action-conditions.ts`.
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
 import type { SearchField } from "./buffers.js";
-import { bufferName, elementBufferOf, overviewBuffer, fieldsInput, searchBuffer } from "./buffers.js";
+import { bufferName, overviewBuffer, fieldsInput, searchBuffer } from "./buffers.js";
 import { SEARCH_COMMAND, searchFieldsPrompt, summaryOf } from "./search-fields.js";
 import { PREFIX_BINDINGS, bindingLabel } from "./bindings.js";
 import { ALL_COMMANDS, ALL_COMMANDS_DESCRIPTION } from "./prompt-keys.js";
@@ -22,7 +22,8 @@ import { linesOf, resultText } from "./result-copy.js";
 import type { KeyPress, Shortcut } from "./keys.js";
 import { SAVE_SHORTCUT, shortcutLabel } from "./keys.js";
 import type { SwipeDirection } from "../shared/protocol.js";
-import { criterionLabel, criterionReferenceOf } from "@reqseq/core/criterion-items";
+import { criterionReferenceOf } from "@reqseq/core/criterion-items";
+import { criterionEntry, withoutHitOf } from "./catalog-fills.js";
 import { TEXT_ACTIONS } from "./text-actions.js";
 import { ENTRY_ACTIONS } from "./entry-menu.js";
 import { FIND_ACTIONS } from "./find-actions.js";
@@ -35,6 +36,7 @@ import { isElement, hasWorkspace, isOverview, shownResult, hasElementText } from
 import { GRAPH_ACTIONS } from "./graph-actions.js";
 import { BUFFER_ACTIONS } from "./buffer-actions.js";
 import { APP_ACTIONS } from "./app-actions.js";
+import { SETUP_FIELD, shownSetup } from "./connect-agent.js";
 
 /**
  * Ctrl/Cmd+Alt+A (macOS ⌥⌘A) adds a property to the shown element (SR-104 AK2). Not Cmd+Shift+A: with
@@ -166,25 +168,43 @@ export const jumpPrompt = (context: ActionContext): Prompt => {
     ],
     find: async (query) => {
       const [criterion, found] = await Promise.all([
-        criterionChoices(context, query),
+        criterionEntryOf(context, query),
         findElements(context, (row) => {
           context.dispatch({ type: "open", buffer: row.open });
         })(query),
       ]);
-      return [...criterion, ...found];
+      if (criterion === undefined) {
+        return found;
+      }
+      // The requirement stands once, as the criterion's entry (SR-222 AK4).
+      const { buffer, name } = criterion;
+      return [
+        {
+          id: `criterion:${buffer.key}`,
+          name,
+          run: () => {
+            context.dispatch({ type: "open", buffer });
+          },
+        },
+        ...withoutHitOf(found, buffer),
+      ];
     },
   };
 };
 
 /**
- * The choice "Go to" offers for a typed reference to an acceptance criterion, `[SR-036/AK-k7f3]` from a
- * failing test (SR-205 AK5): `element.resolve` names the requirement and the criterion's number and
- * text, and choosing it opens the requirement. None for other text (`criterionReferenceOf` of core reads
- * it as enrich-junit does); a refused reference in brackets says why in the echo area.
+ * The requirement and criterion "Go to" offers for a typed reference to an acceptance criterion,
+ * `[SR-036/AK-k7f3]` from a failing test (SR-205 AK5): `element.resolve` names the requirement and the
+ * criterion's number and text (`criterionEntry`), and choosing it opens the requirement. None for other
+ * text (`criterionReferenceOf` of core reads it as enrich-junit does); a refused reference in brackets says
+ * why in the echo area.
  */
-export const criterionChoices = async (context: ActionContext, query: string): Promise<readonly Choice[]> => {
+export const criterionEntryOf = async (
+  context: ActionContext,
+  query: string,
+): Promise<ReturnType<typeof criterionEntry>> => {
   if (typeof criterionReferenceOf(query)?.criterion !== "string") {
-    return [];
+    return undefined;
   }
   const answer = await context.call("element.resolve", { ref: query.trim() });
   if (!answer.ok) {
@@ -192,22 +212,9 @@ export const criterionChoices = async (context: ActionContext, query: string): P
     if (query.trim().startsWith("[")) {
       context.echo(answer.message);
     }
-    return [];
+    return undefined;
   }
-  const { element, criterion } = answer.output;
-  if (criterion === undefined) {
-    return [];
-  }
-  const buffer = elementBufferOf(element);
-  return [
-    {
-      id: `criterion:${buffer.key}:${criterion.key ?? String(criterion.criterion)}`,
-      name: `${buffer.name} · ${criterionLabel(criterion)} · ${criterion.text}`,
-      run: () => {
-        context.dispatch({ type: "open", buffer });
-      },
-    },
-  ];
+  return criterionEntry(answer.output);
 };
 
 /** The prompt of the slash menu's "Reference to element" (SR-129): an element is picked, the editor writes the reference. */
@@ -435,9 +442,16 @@ export const ACTIONS: readonly Action[] = [
     title: "Copy field",
     description: "Copy the value of the field at the cursor to the clipboard.",
     shortcut: { mod: true, shift: true, key: "c" },
-    available: hasElementText,
+    // Also the setup of "Connect AI agent", the one field of its buffer (SR-227 AK7).
+    available: (context: ActionContext): boolean =>
+      hasElementText(context) || shownSetup(context) !== undefined,
     run: (context: ActionContext): void => {
-      context.element?.copy();
+      const setup = shownSetup(context);
+      if (setup === undefined) {
+        context.element?.copy();
+      } else {
+        context.copy?.(SETUP_FIELD, setup.text);
+      }
     },
   },
   {
