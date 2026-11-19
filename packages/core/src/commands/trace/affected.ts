@@ -15,6 +15,7 @@ import type { ElementRecord, ShortIds } from "../../model/index.js";
 import { currentVersionsOf, resolveRef, shortIdState } from "../../model/index.js";
 import type { AffectedOptions, DerivationGraph } from "../../trace/index.js";
 import { affectedOutput, derivationGraph, traceAffected, traceContext } from "../../trace/index.js";
+import { counted, incompleteNote, sentence } from "../answer.js";
 
 /** The derivation graph, the short IDs and the element of `input`. */
 const startOf = async (
@@ -36,6 +37,14 @@ const startOf = async (
 
 export default defineCommand({
   name: "trace.affected",
+  answer: (output, input) =>
+    sentence(
+      `${output.total === 1 ? "1 element is" : `${String(output.total)} elements are`} affected by a change of ${input.ref}`,
+      output.records.length === 0
+        ? ""
+        : `${counted(output.records.length, "evidence record")} of an older version`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.affected">> => {
     const { graph, shortIds, element } = await startOf(ctx, input);
     const records = (await ctx.workspace.get(evidenceIndexState)).byElement.get(element.id) ?? [];

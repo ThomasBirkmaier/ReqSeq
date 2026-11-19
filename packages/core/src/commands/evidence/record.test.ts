@@ -179,6 +179,7 @@ describe("evidence.record (SR-030)", () => {
     ).toEqual({ records: [intended] });
     // The answer names where the evidence is (#821); the file holds no such field.
     expect(output).toEqual({
+      answer: "Recorded a verification with result passed for SR-00c002; 1 file written.",
       files: [file],
       record: { ...intended, evidenceSource: "photos/unit-7.jpg" },
       problems: [],

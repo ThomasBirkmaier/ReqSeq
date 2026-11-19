@@ -19,6 +19,8 @@ import { guardContents, secureSession, webPreferences } from "./security.js";
 import { workspaceArgument } from "./args.js";
 import { SHEET } from "../shared/theme.js";
 import { HELP_CHANNEL } from "../shared/protocol.js";
+import type { Installation } from "@reqseq/core/installation";
+import { installationArgument } from "@reqseq/core/installation";
 
 /** The parts of the `electron` module the main process uses. */
 export type ShellElectron = Pick<
@@ -51,6 +53,8 @@ export interface ShellOptions {
     readonly core: string;
     readonly docs: string;
   };
+  /** The installation the core process stands for (SR-227 AK3): this binary and the command line of the delivery or checkout. */
+  readonly installation: Installation;
   /** Local log lines (standard error); never content of elements. */
   readonly log: (line: string) => void;
 }
@@ -170,10 +174,14 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
     fork: () => {
       // The core process writes its output through the app's own streams: an inherited stream does not reach
       // a pipe the app was started with on Windows (#142, delivery test of the read workers).
-      const child = electron.utilityProcess.fork(options.paths.core, [], {
-        serviceName: "ReqSeq core",
-        stdio: "pipe",
-      });
+      const child = electron.utilityProcess.fork(
+        options.paths.core,
+        [installationArgument(options.installation)],
+        {
+          serviceName: "ReqSeq core",
+          stdio: "pipe",
+        },
+      );
       child.stdout?.on("data", (chunk: Buffer) => process.stdout.write(chunk));
       child.stderr?.on("data", (chunk: Buffer) => process.stderr.write(chunk));
       return child;

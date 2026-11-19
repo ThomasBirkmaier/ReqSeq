@@ -36,6 +36,7 @@ reqseq workspace status --workspace spec
 ```
 
 ```text title="Output"
+Workspace Weather station has 1 repository, 1 available.
 name: Weather station
 ...
 No problems.
@@ -71,7 +72,7 @@ POST /v1/commands/workspace.init
 
 ## MCP
 
-An MCP client starts `reqseq mcp` with `--workspace` and the absolute path of the workspace in its configuration, as [Install ReqSeq](/how-to/install-reqseq/#mcp) shows. For another workspace, configure a second server with its own `--workspace`; no tool switches it.
+An MCP client starts `reqseq mcp` with `--workspace` and the absolute path of the workspace in its configuration, as [Connect an AI agent](/how-to/connect-an-ai-agent/) shows. For another workspace, configure a second server with its own `--workspace`; no tool switches it.
 
 ```json
 { "name": "workspace_recent", "arguments": {} }

@@ -6,9 +6,15 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { storeData } from "../../data/index.js";
 import { resolveSelection } from "../../query/index.js";
+import { listed, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "data.store",
+  answer: (output) =>
+    sentence(
+      output.files.length === 0 ? "Stored no data" : `Stored the data in ${listed(output.files)}`,
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"data.store">> => {
     const selected = await resolveSelection(ctx, input.selection ?? {}, "data.store");
     return storeData(ctx.workspace, selected, input);

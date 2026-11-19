@@ -11,6 +11,7 @@ import { evidenceFolder, isReadEvidenceLocation } from "../../evidence/index.js"
 import { repositoryCommit, watcherProblems } from "../../model/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../../workspace/index.js";
+import { counted, problemsNote, sentence } from "../answer.js";
 
 type RepositoryStatus = CommandOutput<"workspace.status">["repositories"][number];
 
@@ -68,6 +69,12 @@ const evidenceLocations = (layout: WorkspaceLayout): Promise<CommandOutput<"work
 
 export default defineCommand({
   name: "workspace.status",
+  answer: (output) =>
+    sentence(
+      `Workspace ${output.name} has ${counted(output.repositories.length, "repository", "repositories")}, ${String(output.repositories.filter((r) => r.available).length)} available`,
+      output.readOnly ? "it opens read-only" : "",
+      problemsNote(output.problems),
+    ),
   run: async (ctx): Promise<CommandOutput<"workspace.status">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const metamodel = await ctx.workspace.get(metamodelState);

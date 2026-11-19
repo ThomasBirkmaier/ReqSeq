@@ -3,6 +3,7 @@
   "title": "Search elements",
   "summary": "Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 3,
   "implements": ["SR-066", "SR-068", "SR-098", "SR-137", "SR-149", "SR-174", "SR-216", "SR-220", "SR-221"],
   "arguments": [
@@ -61,6 +62,7 @@
     "type": "object",
     "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet (SR-174).",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "hits": {
         "title": "Hits",
         "type": "array",
@@ -205,6 +207,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["hits", "total", "incomplete"]
+    "required": ["answer", "hits", "total", "incomplete"]
   }
 }

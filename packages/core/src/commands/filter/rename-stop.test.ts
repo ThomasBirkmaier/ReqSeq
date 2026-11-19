@@ -95,6 +95,7 @@ describe("filter.rename that stops part-way (SR-217)", () => {
 
     fail.write = undefined;
     expect(await rename(workspace)).toEqual({
+      answer: "Renamed saved filter Sensors to Sensor package; 1 file written.",
       files: ["filters/sensor-package.yaml"],
       renamed: [{ from: "filters/sensors.yaml", to: "filters/sensor-package.yaml" }],
       perspectives: [],

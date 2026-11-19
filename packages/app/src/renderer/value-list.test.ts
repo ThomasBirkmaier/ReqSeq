@@ -14,6 +14,7 @@ import {
 
 /** The facets of one element (`element.facets` with its ID), as core gives them. */
 const facets: ElementFacetsOutput = {
+  answer: "The selection has 1 element.",
   total: 1,
   types: [{ key: "system-requirement", name: "System Requirement", count: 1 }],
   statuses: [{ key: "approved", count: 1 }],

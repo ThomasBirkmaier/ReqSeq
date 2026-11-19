@@ -58,6 +58,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "confirmed": {
         "title": "Confirmed hints",
         "description": "The IDs of the confirmed hints, each once.",
@@ -80,6 +81,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["confirmed", "files"]
+    "required": ["answer", "confirmed", "files"]
   }
 }

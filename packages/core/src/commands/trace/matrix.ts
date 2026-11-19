@@ -43,6 +43,7 @@ import {
 import type { View } from "../../variants/index.js";
 import { viewsInclude } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, paged, sentence } from "../answer.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 
@@ -81,6 +82,11 @@ const evidenceOf = async (workspace: Workspace, selected: Selected): Promise<Mat
 
 export default defineCommand({
   name: "trace.matrix",
+  answer: (output) =>
+    sentence(
+      `The traceability matrix has ${paged(output.rows.length, output.total, "row")} and ${counted(output.columns.length, "column")}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.matrix">> => {
     const command = "trace.matrix";
     const base = await traceContext(ctx.workspace);

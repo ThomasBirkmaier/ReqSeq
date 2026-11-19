@@ -97,6 +97,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "elements": {
         "title": "Elements",
         "type": "array",
@@ -201,7 +202,7 @@
       }
     },
     "additionalProperties": false,
-    "required": ["total"],
+    "required": ["answer", "total"],
     "oneOf": [{ "required": ["elements"] }, { "required": ["partial"] }]
   }
 }

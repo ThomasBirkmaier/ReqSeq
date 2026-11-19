@@ -80,6 +80,7 @@ const evidence = (view: string, n: number): Hint => ({
 
 /** The output of `hint.list`: one outdated relation, one count, two evidence records of a page of 4 of 6. */
 const OUTPUT: HintListOutput = {
+  answer: "Found 4 of 6 open hints.",
   kinds: [
     { code: "relation.outdated", count: 1 },
     { code: "relation.too-few", count: 1 },
@@ -164,6 +165,7 @@ describe("hint list layout", () => {
     // A hint about no element opens nothing; one with a kind of no heading of its own is headed by its code.
     const bare = hintList(
       {
+        answer: "Found 1 open hint.",
         kinds: [{ code: "file.faulty", count: 1 }],
         hints: [{ code: "file.faulty", severity: "warning", message: "m", file: "a.md" }],
         total: 1,

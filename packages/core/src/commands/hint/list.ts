@@ -4,8 +4,14 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { listHints } from "../../hints/index.js";
+import { incompleteNote, paged, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "hint.list",
+  answer: (output) =>
+    sentence(
+      `Found ${paged(output.hints.length, output.total, "open hint")}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"hint.list">> => listHints(ctx.workspace, input),
 });

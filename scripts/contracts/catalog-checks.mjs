@@ -1,6 +1,7 @@
 // Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the length of
-// summaries (#1252), the argument sources of the command prompt (SR-108) and the JSON Lines form
-// (`jsonLines`, #319). Returns the error lines; `validate-schemas.mjs` prints them.
+// summaries (#1252), the argument sources of the command prompt (SR-108), the JSON Lines form
+// (`jsonLines`, #319) and the answer of every output (SR-224 AK1). Returns the error lines;
+// `validate-schemas.mjs` prints them.
 
 /** Sources that give elements: what `of` of an element source names. */
 const ELEMENTS = ["element", "relationTarget"];
@@ -448,6 +449,25 @@ function checkTextOutput(cmd, schemas) {
     : [`textOutput: "${field}" is not a required top-level string of the output`];
 }
 
+/** The definition every output names under `answer` (SR-224 AK1). */
+const ANSWER = "common.schema.json#/$defs/answer";
+
+/**
+ * `answer` (SR-224 AK1): every output requires a top-level `answer` that is a plain `$ref` to the answer
+ * definition, beside a `$ref` of the output too (`data.export`), so no command is without its sentence.
+ */
+function checkAnswer(cmd, schemas) {
+  if (cmd.output === undefined) {
+    // The meta-schema refuses an entry without `output`; these checks run on the entries it accepts.
+    return [];
+  }
+  const property = propertiesOf(cmd.output, "commands/", schemas).get("answer");
+  const named = typeof property?.$ref === "string" && property.$ref.replace(/^(\.\.\/)+/, "") === ANSWER;
+  return named && (cmd.output.required ?? []).includes("answer")
+    ? []
+    : [`output: no required top-level "answer" that is a $ref to ${ANSWER} (SR-224 AK1)`];
+}
+
 /**
  * @param {{ commands: any[] }} catalog
  * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines` and `choice`
@@ -462,6 +482,7 @@ export function checkCatalog(catalog, schemas = {}) {
       ...checkArguments(cmd, schemas),
       ...checkJsonLines(cmd, schemas),
       ...checkTextOutput(cmd, schemas),
+      ...checkAnswer(cmd, schemas),
     ].map((e) => `schemas/commands/${cmd.name}.json: ${e}`),
   );
 }

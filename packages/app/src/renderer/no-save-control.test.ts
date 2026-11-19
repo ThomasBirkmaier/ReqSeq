@@ -40,7 +40,7 @@ describe("no save control (SR-105 AK3)", () => {
     // explanation line.
     const buttons = sources(SOURCE).filter((file) => readFileSync(file, "utf8").includes("<button"));
     expect(buttons.map((file) => path.relative(SOURCE, file)).sort()).toEqual(
-      [ABOUT, path.join("renderer", "FieldBox.tsx"), path.join("renderer", "Minibuffer.tsx")].sort(),
+      [ABOUT, path.join("renderer", "FieldBox.tsx"), path.join("renderer", "PromptLine.tsx")].sort(),
     );
   });
 });

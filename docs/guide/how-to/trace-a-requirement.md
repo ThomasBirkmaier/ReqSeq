@@ -31,6 +31,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 ...
 ```
@@ -40,6 +41,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
+Created system-requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 ...
 ```
@@ -49,6 +51,7 @@ reqseq element create system-requirement "Warn of gusts" --text "The station mus
 ```
 
 ```text title="Output"
+Created system-requirement SR-5e1d0a; 1 file written; 3 problems.
 SR-5e1d0a  draft  Warn of gusts  [verification: core open]
 ...
 ```
@@ -60,6 +63,7 @@ reqseq trace chain N-7fe707
 ```
 
 ```text title="Output"
+The chain of N-7fe707 has 3 elements; 2 gaps.
 N-7fe707  draft  See the wind speed
 children:
   1  ...  [gap: no evidence]
@@ -75,6 +79,7 @@ reqseq trace related parents --refs SR-5e1d0a
 ```
 
 ```text title="Output"
+Found 1 parent of SR-5e1d0a.
 elements:
   N-7fe707  draft  See the wind speed
 total: 1
@@ -85,6 +90,7 @@ reqseq trace matrix
 ```
 
 ```text title="Output"
+The traceability matrix has 3 rows and 2 columns.
 columns:
   1:  Derives from  (derives-from, out)  2
 ...
@@ -115,6 +121,7 @@ reqseq element create system-requirement "Log the wind" --text "The station must
 ```
 
 ```text title="Output"
+Created system-requirement SR-62fb87; 1 file written; 3 problems.
 SR-62fb87  draft  Log the wind  [verification: core open]
 ...
 warning  trace.no-parent  ...
@@ -125,6 +132,7 @@ reqseq trace chain SR-62fb87
 ```
 
 ```text title="Output"
+The chain of SR-62fb87 has 1 element; 2 gaps.
 SR-62fb87  draft  Log the wind  [gap: no parent]  [gap: no evidence]
 total: 1
 No problems.
@@ -135,6 +143,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 5 elements and found 9 warnings.
 ok: true
 ...
 warning  trace.no-parent  SR-62fb87  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  ...

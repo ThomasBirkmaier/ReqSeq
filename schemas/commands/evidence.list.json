@@ -3,6 +3,7 @@
   "title": "List evidence",
   "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 4,
   "implements": ["SR-028", "SR-032", "SR-033", "SR-093", "SR-205"],
   "arguments": [
@@ -45,6 +46,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "records": {
         "title": "Evidence records",
         "type": "array",
@@ -257,6 +259,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["records", "bearing", "display", "testCases", "problems", "incomplete"]
+    "required": ["answer", "records", "bearing", "display", "testCases", "problems", "incomplete"]
   }
 }

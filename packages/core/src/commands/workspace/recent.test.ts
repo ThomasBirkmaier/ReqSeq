@@ -69,6 +69,7 @@ describe("workspace.recent (SR-131)", () => {
     await rememberWorkspace(wind, { now: at(4) });
 
     expect(await recent(rain)).toEqual({
+      answer: "The list of workspaces the app opened holds 3 workspaces.",
       workspaces: [
         { root: wind, opened: at(4).toISOString(), exists: true },
         { root: rain, opened: at(3).toISOString(), exists: true },
@@ -82,13 +83,19 @@ describe("workspace.recent (SR-131)", () => {
     await rememberWorkspace(wind, { now: at(2) });
     const elsewhere = await folder("elsewhere", false);
 
-    const expected = { workspaces: [{ root: wind, opened: at(2).toISOString(), exists: true }] };
+    const expected = {
+      answer: "The list of workspaces the app opened holds 1 workspace.",
+      workspaces: [{ root: wind, opened: at(2).toISOString(), exists: true }],
+    };
     expect(await recent(elsewhere)).toEqual(expected);
     expect(await recent(path.join(top, "not-there"))).toEqual(expected);
   });
 
   it("is the empty list when the app recorded none", async () => {
-    expect(await recent(await folder("wind"))).toEqual({ workspaces: [] });
+    expect(await recent(await folder("wind"))).toEqual({
+      answer: "The list of workspaces the app opened holds 0 workspaces.",
+      workspaces: [],
+    });
   });
 
   it("writes nothing: neither the list nor the workspace changes", async () => {

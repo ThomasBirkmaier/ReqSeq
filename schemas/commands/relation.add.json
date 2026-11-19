@@ -3,6 +3,7 @@
   "title": "Create relation",
   "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
   "effect": "write-files",
+  "loadUpfront": true,
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
   "stage": 2,
@@ -34,6 +35,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "files": {
         "title": "Files",
         "description": "Written files, relative to the workspace root.",
@@ -50,6 +52,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["files"]
+    "required": ["answer", "files"]
   }
 }

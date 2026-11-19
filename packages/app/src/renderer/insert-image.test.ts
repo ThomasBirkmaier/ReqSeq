@@ -18,7 +18,7 @@ const setup = (answer: Answer<"element.addAttachment">) => {
 
 const COPIED: Answer<"element.addAttachment"> = {
   ok: true,
-  output: { file: "needs/N-1/wind.png", markdown: "![wind](N-1/wind.png)" },
+  output: { answer: "Copied the image.", file: "needs/N-1/wind.png", markdown: "![wind](N-1/wind.png)" },
 };
 
 describe("the prompt Insert image", () => {

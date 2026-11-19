@@ -47,6 +47,7 @@ import {
 } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { incompleteNote, paged, problemsNote, sentence } from "../answer.js";
 
 type Field = NonNullable<ElementListInput["fields"]>[number];
 
@@ -222,6 +223,15 @@ const selectedOf = async (ctx: CommandContext, input: ElementListInput): Promise
 
 export default defineCommand({
   name: "element.list",
+  answer: (output) => {
+    const shown = (output.elements ?? output.partial ?? []).length;
+    return sentence(
+      // A grouped list pages over its rows, an element once per group (SR-149).
+      `Listed ${output.rows === undefined ? paged(shown, output.total, "element") : paged(shown, output.rows, "row")}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    );
+  },
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
     const selected = await selectedOf(ctx, input);

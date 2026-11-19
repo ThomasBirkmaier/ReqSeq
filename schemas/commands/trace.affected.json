@@ -3,6 +3,7 @@
   "title": "Show affected elements",
   "summary": "Elements affected by a change of one element, with path and distance.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 2,
   "implements": ["SR-006", "SR-024", "SR-205"],
   "arguments": [
@@ -55,6 +56,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "affected": {
         "title": "Affected elements",
         "type": "array",
@@ -167,6 +169,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["affected", "total", "records", "incomplete"]
+    "required": ["answer", "affected", "total", "records", "incomplete"]
   }
 }

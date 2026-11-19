@@ -21,6 +21,7 @@ reqseq element create need --input '{"title":"See the wind speed","text":"From t
 ```
 
 ```text title="Output"
+Created need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -61,7 +62,7 @@ The answer is the output, as with `--json`, with status 200, also when it report
 { "mcpServers": { "reqseq": { "command": "/path/to/reqseq", "args": ["mcp", "--workspace", "/path/to/workspace"] } } }
 ```
 
-Give the absolute path of the launcher, since a client often lacks your shell's path; on Windows, the app's runtime: see [Install ReqSeq](/how-to/install-reqseq/#mcp). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
+Give absolute paths, since a client often lacks your shell's path: [Connect an AI agent](/how-to/connect-an-ai-agent/). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
 
 ## Paths through the API and MCP
 

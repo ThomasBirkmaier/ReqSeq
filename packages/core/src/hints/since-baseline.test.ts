@@ -269,6 +269,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       { workspace },
     )) as CommandOutput<"hint.confirm">;
     expect(confirmed).toEqual({
+      answer: "Confirmed 0 hints; no file written; 1 problem.",
       confirmed: [],
       files: [],
       problems: [

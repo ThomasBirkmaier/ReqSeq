@@ -53,6 +53,7 @@ import type { Workspace } from "../../runtime/workspace.js";
 import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, incompleteNote, listed, problemsNote, sentence } from "../answer.js";
 
 const command = "baseline.get";
 
@@ -204,6 +205,23 @@ const incompleteOf = async (
 
 export default defineCommand({
   name: command,
+  answer: (output) => {
+    const { counts } = output;
+    const states = [
+      [counts.changed, "changed"],
+      [counts.superseded, "superseded"],
+      [counts.removed, "removed"],
+      [counts.added, "added"],
+      [counts.missing, "missing"],
+      [counts.inaccessible, "inaccessible"],
+    ] as const;
+    const differ = states.filter(([count]) => count > 0).map(([count, state]) => `${String(count)} ${state}`);
+    return sentence(
+      `Baseline ${output.name} has ${counted(output.total, "element")}, ${differ.length === 0 ? "all unchanged since it was created" : `${listed(differ)} since it was created`}`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    );
+  },
   run: async (ctx, input): Promise<CommandOutput<typeof command>> => {
     const { workspace } = ctx;
     const { baseline, problems: unresolved, selected } = await baselineOf(ctx, input);

@@ -6,9 +6,15 @@ import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { exportData } from "../../data/index.js";
 import { resolveSelection } from "../../query/index.js";
+import { counted, incompleteNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "data.export",
+  answer: (output) =>
+    sentence(
+      `Exported ${counted(output.elements.length, "element")} of workspace ${output.workspace}`,
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"data.export">> => {
     const selected = await resolveSelection(ctx, input.selection ?? {}, "data.export");
     return exportData(ctx.workspace, selected, input.selection);

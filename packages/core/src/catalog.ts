@@ -19,8 +19,22 @@ export type CommandName = keyof CommandTypes;
 /** Input of a catalog command as `run` gets it: validated, with `default` values filled in. */
 export type CommandInput<N extends CommandName> = CommandTypes[N]["input"];
 
-/** Output of a catalog command, checked against the catalog in tests and debug builds. */
-export type CommandOutput<N extends CommandName> = CommandTypes[N]["output"];
+/**
+ * `T` without `answer`, for each member of a union (the outputs of `oneOf`); unlike `Omit`, it keeps the
+ * named properties of a type with an index signature (`data.export`, whose output is a `$ref`).
+ */
+type WithoutAnswer<T> = T extends unknown
+  ? { [K in keyof T as K extends "answer" ? never : K]: T[K] }
+  : never;
+
+/**
+ * Output of a catalog command as its `run` gives it: without `answer`, which `invoke` adds from the
+ * command's `answer` (SR-224 AK1).
+ */
+export type CommandOutput<N extends CommandName> = WithoutAnswer<CommandTypes[N]["output"]>;
+
+/** Output of a catalog command as `invoke` gives it to every access, checked against the catalog in tests and debug builds. */
+export type InvokedOutput<N extends CommandName> = CommandTypes[N]["output"];
 
 /** Code of a command error (`common.schema.json#/$defs/error`). */
 export type CommandErrorCode = CommandErrorObject["code"];
@@ -45,6 +59,14 @@ export interface CommandDefinition<In, Out> {
    * `outputElements` share the step that finds the elements, so a page never holds an element it lacks.
    */
   readonly outputElements?: (ctx: CommandContext, input: In) => Promise<OutputElements>;
+  /**
+   * The answer of an output (SR-224 AK1): one English sentence on what the command found,
+   * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
+   * is the same through every access; no time relative to reading it. `invoke` puts it first in the
+   * output as `answer`. Every product command has one (`CatalogCommand`); a test command without it
+   * gives its output as `run` returns it.
+   */
+  answer?(output: Out, input: In): string;
 }
 
 /** What `outputElements` gives: the elements, each once, in any order, and whether the output is `incomplete` (SR-006 AK2). */
@@ -67,6 +89,7 @@ export interface CatalogCommand<N extends CommandName> extends CommandDefinition
   CommandOutput<N>
 > {
   readonly name: N;
+  answer(output: CommandOutput<N>, input: CommandInput<N>): string;
 }
 
 /** Any command, whatever its input and output types (what the registry stores). */
@@ -150,6 +173,9 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "file.read-only": "conflict",
   "file.not-regular": "conflict",
   "file.folder-missing": "not-found",
+  "agent.app-translocated": "conflict",
+  "agent.path-unsupported": "conflict",
+  "agent.cli-missing": "conflict",
   "command.not-implemented": "not-implemented",
   internal: "internal",
 };
@@ -221,9 +247,13 @@ export const lazyCommand = <N extends CommandName>(
   importModule: () => Promise<{ readonly default: CatalogCommand<N> }>,
 ): LazyCommand<N> => {
   let loading: Promise<CatalogCommand<N>> | undefined;
+  let loaded: CatalogCommand<N> | undefined;
   const load = (): Promise<CatalogCommand<N>> => {
     loading ??= importModule().then(
-      (module) => module.default,
+      (module) => {
+        loaded = module.default;
+        return module.default;
+      },
       (error: unknown) => {
         loading = undefined;
         throw error;
@@ -241,6 +271,13 @@ export const lazyCommand = <N extends CommandName>(
         throw new Error(`command ${name} gives no output elements`);
       }
       return outputElements(ctx, input);
+    },
+    // `invoke` asks for the answer only after `run`, which loaded the module.
+    answer: (output, input) => {
+      if (loaded === undefined) {
+        throw new Error(`command ${name} is asked for its answer before it ran`);
+      }
+      return loaded.answer(output, input);
     },
   };
 };

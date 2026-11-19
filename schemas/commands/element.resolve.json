@@ -3,6 +3,7 @@
   "title": "Resolve reference",
   "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 2,
   "implements": ["SR-060", "SR-205"],
   "arguments": [
@@ -51,6 +52,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "element": {
         "title": "Element",
         "$ref": "../data-export.schema.json#/$defs/element",
@@ -83,6 +85,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["element", "current"]
+    "required": ["answer", "element", "current"]
   }
 }

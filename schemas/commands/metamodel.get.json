@@ -3,6 +3,7 @@
   "title": "Show metamodel",
   "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 1,
   "implements": ["SR-012", "SR-013"],
   "arguments": [],
@@ -14,6 +15,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "types": {
         "title": "Types",
         "type": "array",
@@ -116,6 +118,15 @@
       }
     },
     "additionalProperties": false,
-    "required": ["types", "properties", "relations", "statuses", "meanings", "relationKinds", "files"]
+    "required": [
+      "answer",
+      "types",
+      "properties",
+      "relations",
+      "statuses",
+      "meanings",
+      "relationKinds",
+      "files"
+    ]
   }
 }

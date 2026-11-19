@@ -964,6 +964,9 @@
                 "file.read-only",
                 "file.not-regular",
                 "file.folder-missing",
+                "agent.app-translocated",
+                "agent.path-unsupported",
+                "agent.cli-missing",
                 "command.not-implemented",
                 "internal"
               ]
@@ -978,6 +981,12 @@
             }
           },
           "additionalProperties": false
+        },
+        "answer": {
+          "title": "Answer",
+          "description": "One English sentence on what the command found, counted or did, such as `Checked 4 elements and found 1 warning.`. ReqSeq builds it from the output and the input, so it is the same through every access, and it names no time relative to reading it. The command line prints it as the first line of its text output, except for an output that is a format such as Mermaid.",
+          "type": "string",
+          "minLength": 1
         },
         "incomplete": {
           "description": "True when a result is incomplete because targets are in repositories that are not available locally.",
@@ -1307,6 +1316,10 @@
         "elements"
       ],
       "properties": {
+        "answer": {
+          "$ref": "common.schema.json#/$defs/answer",
+          "description": "The answer of `data.export`, which its output always has; not in the file that `data.store` writes nor in the JSON Lines form."
+        },
         "reqseq-data": {
           "title": "Format version",
           "const": 5,
@@ -4167,6 +4180,10 @@
               "const": "saved-file",
               "description": "The command deletes a file, the file of a perspective or saved filter, which is no element: only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint`."
             },
+            "loadUpfront": {
+              "const": true,
+              "description": "The command is on the everyday path of an agent: the MCP server marks its tool with `_meta[\"anthropic/alwaysLoad\"]: true`, so a client that defers tools loads this one with its schema at once. Left out on every other command; other accesses ignore it."
+            },
             "stage": {
               "type": "integer",
               "minimum": 1,
@@ -4500,6 +4517,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -4519,10 +4539,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -4699,6 +4724,7 @@
         "title": "Show workspace status",
         "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-004",
@@ -4716,6 +4742,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "name": {
               "title": "Workspace name",
               "description": "Name of the workspace, from reqseq-workspace.yaml.",
@@ -4854,6 +4883,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "name",
             "repositories",
             "metamodel",
@@ -4862,6 +4892,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "name",
             "title": "Workspace name"
@@ -5121,6 +5155,7 @@
         "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
         "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -5200,6 +5235,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "ok": {
               "title": "Passed",
               "type": "boolean",
@@ -5261,11 +5299,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "ok",
             "problems"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "ok",
             "title": "Passed",
@@ -5480,6 +5523,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "activity": {
               "title": "Last agent access",
               "anyOf": [
@@ -5495,10 +5541,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "activity"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "activity",
             "title": "Last agent access"
@@ -5552,20 +5603,27 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "recorded": {
+              "title": "Recorded",
               "type": "boolean",
               "description": "Whether the copy has a usable cache folder whose connections could be read. false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
             },
             "connected": {
+              "title": "Connected agents",
               "type": "array",
               "description": "Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count.",
               "items": {
                 "type": "object",
                 "properties": {
                   "client": {
+                    "title": "Client",
                     "$ref": "../agent-connection.schema.json#/$defs/client"
                   },
                   "since": {
+                    "title": "Connected since",
                     "$ref": "../common.schema.json#/$defs/dateTime",
                     "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
                   }
@@ -5578,15 +5636,18 @@
               }
             },
             "last": {
+              "title": "Last connected",
               "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
               "anyOf": [
                 {
                   "type": "object",
                   "properties": {
                     "client": {
+                      "title": "Client",
                       "$ref": "../agent-connection.schema.json#/$defs/client"
                     },
                     "at": {
+                      "title": "Last connected at",
                       "$ref": "../common.schema.json#/$defs/dateTime",
                       "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
                     }
@@ -5604,6 +5665,7 @@
             }
           },
           "required": [
+            "answer",
             "recorded",
             "connected",
             "last"
@@ -5612,25 +5674,36 @@
         },
         "outputFields": [
           {
-            "path": "recorded"
+            "path": "answer",
+            "title": "Answer"
           },
           {
-            "path": "connected"
+            "path": "recorded",
+            "title": "Recorded"
           },
           {
-            "path": "connected[].client"
+            "path": "connected",
+            "title": "Connected agents"
           },
           {
-            "path": "connected[].since"
+            "path": "connected[].client",
+            "title": "Client"
           },
           {
-            "path": "last"
+            "path": "connected[].since",
+            "title": "Connected since"
           },
           {
-            "path": "last.client"
+            "path": "last",
+            "title": "Last connected"
           },
           {
-            "path": "last.at"
+            "path": "last.client",
+            "title": "Client"
+          },
+          {
+            "path": "last.at",
+            "title": "Last connected at"
           }
         ]
       },
@@ -5652,6 +5725,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "workspaces": {
               "title": "Workspaces",
               "type": "array",
@@ -5688,10 +5764,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "workspaces"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "workspaces",
             "title": "Workspaces"
@@ -5764,6 +5845,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "folder": {
               "title": "Folder",
               "$ref": "../common.schema.json#/$defs/outputPath",
@@ -5822,11 +5906,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "name",
             "entries"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "folder",
             "title": "Folder",
@@ -5859,6 +5948,251 @@
         ]
       },
       {
+        "name": "workspace.connectAgent",
+        "title": "Connect AI agent",
+        "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "effect": "read",
+        "stage": 6,
+        "implements": [
+          "SR-227"
+        ],
+        "arguments": [
+          {
+            "field": "client",
+            "complete": "choice"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The client of the agent. Left out, the output lists the clients."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer",
+              "description": "What to do with the setup, in one sentence; without a client, which clients there are."
+            },
+            "clients": {
+              "title": "Clients",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "title": "Value",
+                    "enum": [
+                      "claude-code",
+                      "claude-desktop",
+                      "cursor",
+                      "vscode",
+                      "codex-cli",
+                      "other"
+                    ],
+                    "description": "The value of `client`."
+                  },
+                  "title": {
+                    "title": "Client",
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The name of the client."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "title"
+                ]
+              },
+              "description": "The clients to choose from, in this order. Only without a client."
+            },
+            "client": {
+              "title": "Client",
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The chosen client."
+            },
+            "server": {
+              "title": "Server",
+              "type": "object",
+              "properties": {
+                "command": {
+                  "title": "Program",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+                },
+                "args": {
+                  "title": "Arguments",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace."
+                },
+                "env": {
+                  "title": "Environment",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "command",
+                "args",
+                "env"
+              ],
+              "description": "The program, arguments and environment the setup gives the client. Only with a client."
+            },
+            "setup": {
+              "title": "Setup",
+              "type": "object",
+              "properties": {
+                "form": {
+                  "title": "Form",
+                  "enum": [
+                    "command",
+                    "json"
+                  ],
+                  "description": "`command`: a command for the terminal; `json`: a JSON block for a configuration file."
+                },
+                "shell": {
+                  "title": "Shell",
+                  "enum": [
+                    "sh",
+                    "powershell"
+                  ],
+                  "description": "The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`."
+                },
+                "text": {
+                  "title": "Setup",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The command or the JSON block to paste, with the paths filled in."
+                },
+                "file": {
+                  "title": "File",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "form",
+                "text"
+              ],
+              "description": "What the user pastes. Only with a client."
+            },
+            "valid": {
+              "title": "Valid",
+              "type": "string",
+              "minLength": 1,
+              "description": "That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client."
+            },
+            "next": {
+              "title": "Next",
+              "type": "string",
+              "minLength": 1,
+              "description": "How to go on after pasting the setup. Only with a client."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "clients",
+            "title": "Clients"
+          },
+          {
+            "path": "clients[].value",
+            "title": "Value"
+          },
+          {
+            "path": "clients[].title",
+            "title": "Client"
+          },
+          {
+            "path": "client",
+            "title": "Client"
+          },
+          {
+            "path": "server",
+            "title": "Server"
+          },
+          {
+            "path": "server.command",
+            "title": "Program"
+          },
+          {
+            "path": "server.args",
+            "title": "Arguments"
+          },
+          {
+            "path": "server.env",
+            "title": "Environment"
+          },
+          {
+            "path": "setup",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.form",
+            "title": "Form"
+          },
+          {
+            "path": "setup.shell",
+            "title": "Shell"
+          },
+          {
+            "path": "setup.text",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.file",
+            "title": "File"
+          },
+          {
+            "path": "valid",
+            "title": "Valid"
+          },
+          {
+            "path": "next",
+            "title": "Next"
+          }
+        ]
+      },
+      {
         "name": "tool.info",
         "title": "About ReqSeq",
         "summary": "Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.",
@@ -5877,6 +6211,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "versions": {
               "title": "Versions",
               "type": "object",
@@ -6070,6 +6407,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "versions",
             "build",
             "runtime",
@@ -6079,6 +6417,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "versions",
             "title": "Versions"
@@ -6194,6 +6536,7 @@
         "title": "Show metamodel",
         "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-012",
@@ -6208,6 +6551,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "types": {
               "title": "Types",
               "type": "array",
@@ -6323,6 +6669,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "types",
             "properties",
             "relations",
@@ -6333,6 +6680,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "types",
             "title": "Types"
@@ -6732,6 +7083,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "mermaid": {
               "title": "Mermaid",
               "type": "string",
@@ -6749,11 +7103,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "mermaid",
             "problems"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "mermaid",
             "title": "Mermaid"
@@ -6930,6 +7289,7 @@
         "summary": "Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint.",
         "details": "New elements always get the initial status of the metamodel; when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses. The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55`.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -7024,6 +7384,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "element": {
               "title": "Element",
               "$ref": "../data-export.schema.json#/$defs/element"
@@ -7055,11 +7418,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "element",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "element",
             "title": "Element"
@@ -7635,6 +8003,7 @@
         "title": "Get element",
         "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -7725,6 +8094,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "element": {
               "title": "Element",
               "$ref": "../data-export.schema.json#/$defs/element",
@@ -7755,11 +8127,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "element",
             "fileSha256"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "element",
             "title": "Element"
@@ -8204,6 +8581,7 @@
         "title": "Resolve reference",
         "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-060",
@@ -8273,6 +8651,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "element": {
               "title": "Element",
               "$ref": "../data-export.schema.json#/$defs/element",
@@ -8313,11 +8694,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "element",
             "current"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "element",
             "title": "Element"
@@ -8902,6 +9288,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "elements": {
               "title": "Elements",
               "type": "array",
@@ -9020,6 +9409,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "total"
           ],
           "oneOf": [
@@ -9036,6 +9426,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "elements",
             "title": "Elements",
@@ -10213,6 +10607,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "total": {
               "title": "Total",
               "type": "integer",
@@ -10391,6 +10788,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "total",
             "types",
             "statuses",
@@ -10399,6 +10797,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "total",
             "title": "Total"
@@ -10499,6 +10901,7 @@
         "title": "Update element",
         "summary": "Change title, text or properties of one element. Unknown properties are kept, and unset removes one; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Changes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -10665,6 +11068,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "element": {
               "title": "Element",
               "$ref": "../data-export.schema.json#/$defs/element"
@@ -10707,6 +11113,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "element",
             "fileSha256",
             "files",
@@ -10714,6 +11121,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "element",
             "title": "Element"
@@ -11299,6 +11710,7 @@
         "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
         "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets a status from the statuses of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11348,6 +11760,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -11367,10 +11782,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -11547,6 +11967,7 @@
         "title": "Supersede element",
         "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11604,6 +12025,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -11623,10 +12047,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -11907,6 +12336,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "applied": {
               "title": "Written",
               "type": "boolean",
@@ -12019,6 +12451,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "applied",
             "count",
             "affected",
@@ -12031,6 +12464,10 @@
         },
         "showsOutput": true,
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "applied",
             "title": "Written"
@@ -12298,6 +12735,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "count": {
               "title": "Changed elements",
               "type": "integer",
@@ -12389,6 +12829,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "count",
             "changed",
             "skipped",
@@ -12396,6 +12837,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "count",
             "title": "Changed elements",
@@ -12545,6 +12990,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "file": {
               "title": "Image file",
               "$ref": "../common.schema.json#/$defs/outputPath",
@@ -12558,11 +13006,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "file",
             "markdown"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "file",
             "title": "Image file",
@@ -12615,6 +13068,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "kinds": {
               "title": "Relation kinds",
               "type": "array",
@@ -12651,10 +13107,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "kinds"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "kinds",
             "title": "Relation kinds"
@@ -12678,6 +13139,7 @@
         "title": "Create relation",
         "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
         "stage": 2,
@@ -12730,6 +13192,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "description": "Written files, relative to the workspace root.",
@@ -12749,10 +13214,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -12985,6 +13455,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -13004,10 +13477,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -13288,6 +13766,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "root": {
               "title": "Root element",
               "$ref": "../common.schema.json#/$defs/uuid"
@@ -13632,6 +14113,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "root",
             "nodes",
             "total",
@@ -13645,6 +14127,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "root",
             "title": "Root element",
@@ -14525,6 +15011,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "elements": {
               "title": "Related elements",
               "type": "array",
@@ -14545,11 +15034,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "elements",
             "total"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "elements",
             "title": "Related elements",
@@ -14941,6 +15435,7 @@
         "title": "Show affected elements",
         "summary": "Elements affected by a change of one element, with path and distance.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-006",
@@ -15014,6 +15509,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "affected": {
               "title": "Affected elements",
               "type": "array",
@@ -15145,6 +15643,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "affected",
             "total",
             "records",
@@ -15152,6 +15651,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "affected",
             "title": "Affected elements",
@@ -15458,6 +15961,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "root": {
               "title": "Root element",
               "$ref": "../common.schema.json#/$defs/uuid"
@@ -15650,6 +16156,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "root",
             "nodes",
             "total",
@@ -15658,6 +16165,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "root",
             "title": "Root element",
@@ -15858,6 +16369,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "columns": {
               "title": "Columns",
               "type": "array",
@@ -16180,6 +16694,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "columns",
             "rows",
             "total",
@@ -16187,6 +16702,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "columns",
             "title": "Columns"
@@ -16728,6 +17247,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "root": {
               "title": "Root element",
               "$ref": "../common.schema.json#/$defs/uuid"
@@ -17008,6 +17530,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "root",
             "nodes",
             "edges",
@@ -17017,6 +17540,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "root",
             "title": "Root element",
@@ -17555,6 +18082,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "mermaid": {
               "title": "Mermaid",
               "type": "string",
@@ -17580,6 +18110,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "mermaid",
             "truncated",
             "incomplete",
@@ -17587,6 +18118,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "mermaid",
             "title": "Mermaid"
@@ -17771,6 +18306,7 @@
         "title": "List hints",
         "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-026",
@@ -17860,6 +18396,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "kinds": {
               "title": "Hints per kind",
               "type": "array",
@@ -17906,6 +18445,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "kinds",
             "hints",
             "total",
@@ -17913,6 +18453,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "kinds",
             "title": "Hints per kind"
@@ -18194,6 +18738,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "confirmed": {
               "title": "Confirmed hints",
               "description": "The IDs of the confirmed hints, each once.",
@@ -18221,11 +18768,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "confirmed",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "confirmed",
             "title": "Confirmed hints"
@@ -18406,6 +18958,7 @@
         "title": "Search elements",
         "summary": "Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 3,
         "implements": [
           "SR-066",
@@ -18500,6 +19053,9 @@
           "type": "object",
           "description": "One page of the hits, the best first: ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order. Waits for the search index while it is built. The hits of the page read their files for the snippet.",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "hits": {
               "title": "Hits",
               "type": "array",
@@ -18693,12 +19249,17 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "hits",
             "total",
             "incomplete"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "hits",
             "title": "Hits",
@@ -18973,6 +19534,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "fields": {
               "title": "Fields",
               "type": "array",
@@ -19001,10 +19565,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "fields"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "fields",
             "title": "Fields"
@@ -19037,6 +19606,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "filters": {
               "title": "Saved filters",
               "type": "array",
@@ -19097,10 +19669,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "filters"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "filters",
             "title": "Saved filters"
@@ -19475,6 +20052,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -19494,10 +20074,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -19713,6 +20298,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -19782,12 +20370,17 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files",
             "renamed",
             "perspectives"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -20048,6 +20641,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "name": {
               "title": "Saved filter",
               "type": "string",
@@ -20087,6 +20683,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "name",
             "file",
             "fileSha256",
@@ -20095,6 +20692,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "name",
             "title": "Saved filter"
@@ -20302,6 +20903,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "perspectives": {
               "title": "Perspectives",
               "type": "array",
@@ -20367,10 +20971,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "perspectives"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "perspectives",
             "title": "Perspectives"
@@ -20758,6 +21367,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -20777,10 +21389,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -20996,6 +21613,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -21040,11 +21660,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files",
             "renamed"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -21292,6 +21917,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "name": {
               "title": "Perspective",
               "type": "string",
@@ -21331,6 +21959,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "name",
             "file",
             "fileSha256",
@@ -21339,6 +21968,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "name",
             "title": "Perspective"
@@ -21533,6 +22166,7 @@
         "title": "List evidence",
         "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-028",
@@ -21595,6 +22229,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "records": {
               "title": "Evidence records",
               "type": "array",
@@ -21846,6 +22483,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "records",
             "bearing",
             "display",
@@ -21855,6 +22493,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "records",
             "title": "Evidence records"
@@ -22459,6 +23101,7 @@
         "summary": "Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.",
         "details": "The record is Markdown (evidence-record.schema.json). A verification names a requirement and optionally the acceptance criteria it proves, a validation a need or a requirement. Never replaces a file: a name that is taken gets -2, -3, ...",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
         "stage": 4,
@@ -22615,6 +23258,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -22670,11 +23316,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files",
             "record"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -22968,6 +23619,7 @@
         "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
         "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
         "stage": 4,
@@ -23056,6 +23708,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "testCases": {
               "title": "Enriched test cases",
               "type": "integer",
@@ -23133,6 +23788,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "testCases",
             "withoutReference",
             "notInView",
@@ -23143,6 +23799,10 @@
         },
         "showsOutput": true,
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "testCases",
             "title": "Enriched test cases"
@@ -23405,6 +24065,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "elements": {
               "title": "Elements",
               "type": "array",
@@ -23435,11 +24098,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "elements",
             "total"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "elements",
             "title": "Elements",
@@ -23881,6 +24549,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "levels": {
               "title": "Levels",
               "type": "array",
@@ -23984,10 +24655,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "levels"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "levels",
             "title": "Levels"
@@ -24083,6 +24759,7 @@
         "title": "Show verification degree",
         "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-037",
@@ -24108,6 +24785,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "degree": {
               "title": "Verification degree",
               "$ref": "../data-export.schema.json#/$defs/verificationDegree"
@@ -24131,11 +24811,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "degree",
             "view"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "degree",
             "title": "Verification degree"
@@ -24214,6 +24899,7 @@
         "title": "List requirements without a passed test",
         "summary": "Every requirement without a passed test execution in one view: no verification record with method test and result passed, of any version, holds there. Each with its verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-120"
@@ -24258,6 +24944,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "elements": {
               "title": "Requirements without a passed test",
               "type": "array",
@@ -24293,12 +24982,17 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "elements",
             "total",
             "view"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "elements",
             "title": "Requirements without a passed test",
@@ -24754,9 +25448,16 @@
         },
         "output": {
           "type": "object",
+          "required": [
+            "answer"
+          ],
           "$ref": "../data-export.schema.json"
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "reqseq-data",
             "title": "Format version"
@@ -25360,6 +26061,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -25379,10 +26083,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -25588,6 +26297,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "added": {
               "title": "Added",
               "type": "array",
@@ -25653,12 +26365,17 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "added",
             "replaced",
             "excluded"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "added",
             "title": "Added",
@@ -25936,6 +26653,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -25955,10 +26675,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -26174,6 +26899,9 @@
           "type": "object",
           "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}); git.unavailable when a repository involved is not under Git or has no commit (details.repository); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter; file.faulty when the baselines folder cannot be listed (details.repository, details.file); input.invalid with details.reason git-folder (details.repository, details.file, details.rule, details.path) when the baselines folder meets Git: a name taken for .git, a folder with a .git entry or a link into .git, also where the workspace file places it. The baseline is never replaced afterwards.",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -26237,11 +26965,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files",
             "baseline"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -26461,6 +27194,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "baselines": {
               "title": "Baselines",
               "type": "array",
@@ -26530,11 +27266,16 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "baselines",
             "location"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "baselines",
             "title": "Baselines"
@@ -26814,6 +27555,9 @@
           "type": "object",
           "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline. The files on disk are read, not the baseline's commits: a repository here whose HEAD is another commit than the one under repositories is a baseline.repository-commit-differs warning with both commits, which names what was read; for withEvidence check out the baseline's commits to read the evidence as it stood.",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "name": {
               "title": "Baseline",
               "description": "Name of the baseline.",
@@ -27072,6 +27816,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "name",
             "file",
             "repository",
@@ -27085,6 +27830,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "name",
             "title": "Baseline"
@@ -27680,6 +28429,9 @@
           "type": "object",
           "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "repository": {
               "title": "Repository",
               "description": "Workspace name of the repository of the element.",
@@ -27722,6 +28474,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "repository",
             "from",
             "to",
@@ -27730,6 +28483,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "repository",
             "title": "Repository"
@@ -27811,6 +28568,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "unmapped": {
               "title": "Unmapped",
               "type": "array",
@@ -27873,6 +28633,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "unmapped",
             "new",
             "changed",
@@ -27882,6 +28643,10 @@
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "unmapped",
             "title": "Unmapped",
@@ -28242,6 +29007,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "created": {
               "title": "Created",
               "type": "array",
@@ -28305,6 +29073,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "created",
             "updated",
             "kept",
@@ -28315,6 +29084,10 @@
         },
         "showsOutput": true,
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "created",
             "title": "Created",
@@ -28620,6 +29393,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "files": {
               "title": "Files",
               "type": "array",
@@ -28639,10 +29415,15 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "files"
           ]
         },
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "files",
             "title": "Files",
@@ -28895,6 +29676,9 @@
         "output": {
           "type": "object",
           "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
             "file": {
               "title": "ReqIF file",
               "$ref": "../common.schema.json#/$defs/outputPath",
@@ -28938,6 +29722,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "answer",
             "file",
             "elements",
             "relations"
@@ -28945,6 +29730,10 @@
         },
         "showsOutput": true,
         "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
           {
             "path": "file",
             "title": "ReqIF file",

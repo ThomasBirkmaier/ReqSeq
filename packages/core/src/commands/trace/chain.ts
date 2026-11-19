@@ -52,6 +52,7 @@ import {
   viewRuleOf,
 } from "../../variants/index.js";
 import { variantIndependentOf } from "../../workspace/index.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 const CORE: View = { kind: "core" };
 
@@ -115,6 +116,16 @@ const namedEvidence = async (
 
 export default defineCommand({
   name: "trace.chain",
+  answer: (output, input) =>
+    sentence(
+      `The chain of ${input.ref} has ${counted(output.total, "element")}`,
+      output.gaps.length === 0
+        ? ""
+        : `${counted(output.gaps.length, "gap")}${output.nodes.length < output.total ? " on this page" : ""}`,
+      output.unresolved.length === 0 ? "" : `${counted(output.unresolved.length, "relation")} not followed`,
+      problemsNote(output.problems),
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"trace.chain">> => {
     const graph = derivationGraph(await traceContext(ctx.workspace), "trace.chain");
     const { metamodel, store } = graph;

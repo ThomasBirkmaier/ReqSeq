@@ -5,11 +5,13 @@ import { PassThrough } from "node:stream";
 import type { CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
+  FIRST_COMMANDS,
   PRODUCT_VERSION,
   Workspace,
   createCommandRuntime,
   agentInstructions,
   defineTestCommand,
+  getCommandRuntime,
   loadContracts,
   rememberWorkspace,
 } from "@reqseq/core";
@@ -131,8 +133,19 @@ const reached = (defs: Readonly<Record<string, unknown>>, start: string): Set<st
   return names;
 };
 
-/** A listed tool split into its selection part (empty without a selection) and the rest. */
-const sizesOf = (tool: { readonly inputSchema: unknown }): { selection: number; rest: number } => {
+/**
+ * A listed tool split into its selection part (empty without a selection) and the rest. The rest leaves out
+ * `_meta` (#1926): the bound of a tool is about the schema and description an agent reads to call it, and the
+ * `_meta` key is no part of that; it would push `element_update` (6,121 of 6,144) over by its 38 bytes. The whole
+ * list (`overBounds`) counts `_meta`, since a client receives it.
+ */
+const sizesOf = ({
+  _meta: _load,
+  ...tool
+}: {
+  readonly inputSchema: unknown;
+  readonly _meta?: unknown;
+}): { selection: number; rest: number } => {
   const schema = isObject(tool.inputSchema) ? tool.inputSchema : {};
   const defs = isObject(schema["$defs"]) ? schema["$defs"] : {};
   const roots = SELECTION_ROOTS.filter((name) => name in defs);
@@ -442,6 +455,7 @@ describe("serveMcp without a workspace", () => {
     await client.close();
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({
+      answer: "The list of workspaces the app opened holds 1 workspace.",
       workspaces: [{ root, opened: opened.toISOString(), exists: true }],
     });
   });
@@ -510,6 +524,19 @@ describe("callTool", () => {
     const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
     expect(instructions).toContain("workspace_status");
+  });
+
+  it("marks exactly the catalog entries with loadUpfront to load upfront, the first commands among them (#1926)", async () => {
+    const { listed } = await productList();
+    const upfront = listed.tools.filter((tool) => tool._meta?.["anthropic/alwaysLoad"] === true);
+    const marked = getCommandRuntime().contracts.commands.filter((entry) => entry.loadUpfront === true);
+    expect(upfront.map((tool) => tool.name).sort()).toEqual(
+      marked.map((entry) => toolName(entry.name)).sort(),
+    );
+    expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
+    // The server instructions name the first commands, so an agent must have their schemas at once.
+    expect(marked.map((entry) => entry.name)).toEqual(expect.arrayContaining([...FIRST_COMMANDS]));
+    expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
   });
 
   it("bounds the list by an allowance per tool, so a tool above that must shorten (ThomasBirkmaier/ReqSeq-archive#496)", async () => {
