@@ -346,31 +346,58 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     },
   };
 
-  it("[SR-229/AK-x7d8] workspace init through the MCP server and the API creates the workspace below a Git root and warns that the skill file lies outside", async () => {
+  it("[SR-229/AK-x7d8] workspace init through the MCP server and the API creates the workspace below a Git root and warns that the skill file lies outside, also when ReqSeq's own file is there", async () => {
+    // The place is checked before anything is read there (SR-142), so ReqSeq's own unchanged file gets the same warning.
+    const none = new Workspace(os.tmpdir());
+    const own = (
+      (await runtime.invoke("tool.guide", { skill: true }, { workspace: none })) as { guide: string }
+    ).guide;
+    await none.close();
     for (const access of ["mcp", "api"] as const) {
-      const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" }, git: true });
-      fixtures.push(ws);
-      await fs.mkdir(ws.path("spec"));
-      const input = { path: ".", name: "Station" };
-      let body: unknown;
-      if (access === "mcp") {
-        body = (await mcp(ws, "workspace.init", input, "spec")).body;
-      } else {
-        await withApi(ws, async (api) => void (body = (await api("workspace.init", input)).body), "spec");
+      for (const present of [undefined, own]) {
+        const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" }, git: true });
+        fixtures.push(ws);
+        await fs.mkdir(ws.path("spec"));
+        if (present !== undefined) {
+          await fs.mkdir(path.dirname(ws.path(SKILL)), { recursive: true });
+          await fs.writeFile(ws.path(SKILL), present);
+        }
+        const input = { path: ".", name: "Station" };
+        let body: unknown;
+        if (access === "mcp") {
+          body = (await mcp(ws, "workspace.init", input, "spec")).body;
+        } else {
+          await withApi(ws, async (api) => void (body = (await api("workspace.init", input)).body), "spec");
+        }
+        expect(body).toMatchObject({
+          files: ["metamodel/standard-model.yaml", "reqseq-workspace.yaml", ".gitignore"],
+          problems: [
+            {
+              code: "workspace.skill-not-written",
+              severity: "warning",
+              message: refused.message,
+              file: `../${SKILL}`,
+            },
+          ],
+        });
+        if (present === undefined) {
+          await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
+        } else {
+          expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(present);
+        }
       }
-      expect(body).toMatchObject({
-        files: ["metamodel/standard-model.yaml", "reqseq-workspace.yaml", ".gitignore"],
-        problems: [
-          {
-            code: "workspace.skill-not-written",
-            severity: "warning",
-            message: refused.message,
-            file: `../${SKILL}`,
-          },
-        ],
-      });
-      await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
     }
+  });
+
+  it("[SR-229/AK-x7d8] the command line exits from workspace init with the same code with and without the warning", async () => {
+    const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" }, git: true });
+    fixtures.push(ws);
+    const plain = await cli(ws, ["workspace", "init", "a", "A"], ".");
+    expect(plain.out).not.toContain("workspace.skill-not-written");
+    await fs.writeFile(ws.path(SKILL), "my own skill\n");
+    const warned = await cli(ws, ["workspace", "init", "b", "B"], ".");
+    expect(warned.out).toContain("warning  workspace.skill-not-written");
+    expect([plain.code, warned.code]).toEqual([EXIT.ok, EXIT.ok]);
   });
 
   it("[SR-229/AK-v09f] the API and the MCP server write nothing at a Git root above the workspace and name the command line; the command line writes it", async () => {

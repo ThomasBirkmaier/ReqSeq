@@ -183,7 +183,7 @@ export interface SkillWriteOptions {
   readonly localPaths: LocalPaths;
   /**
    * Leave ReqSeq's own unchanged file of another version as it is (`unchanged`): `workspace.init` changes no
-   * existing file (SR-014 AK1, assumption of question #2002).
+   * existing file (SR-014 AK1, SR-229 AK9).
    */
   readonly keepOwn?: boolean;
 }

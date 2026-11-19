@@ -31,7 +31,7 @@ const notWritten = (message: string, file: unknown): Problem => ({
 
 /**
  * The skill file of the new workspace (SR-229 AK9), written without `replace` and leaving ReqSeq's own file of
- * another version in place (SR-014 AK1, question #2002): the path written, or why not. The workspace is complete
+ * another version in place (SR-014 AK1, SR-229 AK9): the path written, or why not. The workspace is complete
  * here, so no failure of this step fails the call.
  */
 const writeSkill = async (

@@ -16,7 +16,7 @@ vi.mock("../tool/guide/skill-file.js", async (actual) => ({
 }));
 
 describe("workspace.init when the skill file cannot be written", () => {
-  it("creates the workspace and names only the code of the failure", async () => {
+  it("[SR-229/AK-x7d8] creates the workspace and names only the code of the failure", async () => {
     for (const [code, shown] of [
       ["EIO", "EIO"],
       [undefined, "unknown"],
