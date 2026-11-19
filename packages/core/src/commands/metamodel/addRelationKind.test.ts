@@ -117,6 +117,13 @@ describe("metamodel commands: the frame as metamodel.addRelationKind shows it (S
       ],
     });
     expect(limits.details).toMatchObject({ reason: "metamodel-invalid" });
+    // id, type and status are fields every element has (D-012): neither a given key nor one made
+    // from the name may be one of them.
+    for (const input of [{ name: "Status" }, { name: "Same as", key: "id" }, { name: "Type" }]) {
+      const structural = await failure(workspace, "metamodel.addRelationKind", input);
+      expect(structural.details).toMatchObject({ reason: "metamodel-invalid" });
+      expect(structural.message).toContain("is a field every element has (D-012)");
+    }
     expect(await read(MODEL)).toBe(SMALL_MODEL);
 
     // A type that names an unknown property is only a warning: written, and named.

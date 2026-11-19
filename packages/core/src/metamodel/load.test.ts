@@ -685,6 +685,43 @@ describe("loadMetamodel", () => {
     ]);
   });
 
+  it("reports a property or relation kind keyed id, type or status on the line of its key (D-012, #1986)", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml": [
+          "reqseq-metamodel: 1",
+          "properties:",
+          "  - { key: status, name: State, kind: text }",
+          "relations:",
+          "  - { key: id, name: Same as }",
+          "  - { key: type, name: Kind of }",
+          "",
+        ].join("\n"),
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(
+      metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.line, p.message]),
+    ).toEqual([
+      [
+        "model/z-more.yaml",
+        3,
+        "Property key status is a field every element has (D-012); choose another key",
+      ],
+      [
+        "model/z-more.yaml",
+        5,
+        "Relation kind key id is a field every element has (D-012); choose another key",
+      ],
+      [
+        "model/z-more.yaml",
+        6,
+        "Relation kind key type is a field every element has (D-012); choose another key",
+      ],
+    ]);
+  });
+
   it("reports the reserved prefix UNKNOWN also while a file is faulty", async () => {
     const ws = await fixture({
       files: {

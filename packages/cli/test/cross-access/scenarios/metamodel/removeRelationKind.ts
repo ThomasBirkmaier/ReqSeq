@@ -53,5 +53,10 @@ scenariosOf("metamodel.removeRelationKind", [
     fixture: UNUSED,
     input: { kind: "conflicts-with" },
     expect: "output",
+    check: (results) => {
+      for (const { outcome } of Object.values(results)) {
+        expect(outcome).toMatchObject({ output: { mentions: ["perspectives/conflicts.yaml"] } });
+      }
+    },
   },
 ]);

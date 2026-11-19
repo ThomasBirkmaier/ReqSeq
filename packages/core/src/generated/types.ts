@@ -1479,7 +1479,7 @@ export interface MetamodelEffectiveType {
 }
 
 /**
- * Property definition (SR-012 AK3).
+ * Property definition (SR-012 AK3). Its key is not `id`, `type` or `status`, the fields every element has (D-012); such a key is a metamodel error.
  * Schema: `schemas/metamodel.schema.json#/$defs/property`.
  */
 export interface MetamodelProperty {
@@ -1527,7 +1527,7 @@ export type MetamodelPropertyMeaning =
   | "translation";
 
 /**
- * Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
+ * Relation kind. Stored under its key in the source file, which is not `id`, `type` or `status`, the fields every element has (D-012; such a key is a metamodel error). `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
  * Schema: `schemas/metamodel.schema.json#/$defs/relationKind`.
  */
 export interface MetamodelRelationKind {
@@ -2705,7 +2705,7 @@ export interface MetamodelRemoveRelationKindOutput {
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4). */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4). A relation kind is no definition the version is computed from (ADR-0005), so this is 0. */
   readonly versionsChanged: number;
   /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
   readonly missingRequired: number;

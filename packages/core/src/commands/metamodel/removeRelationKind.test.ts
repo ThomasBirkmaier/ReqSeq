@@ -104,6 +104,25 @@ describe("metamodel commands: the frame as metamodel.removeRelationKind shows it
     expect(await read(MODEL)).toBe(SMALL_MODEL);
   });
 
+  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, as it may hold the key, and names the file (#1990)", async () => {
+    // Unclosed quote: the frontmatter does not parse, and the file still holds `about`.
+    const broken = `---\nid: ${uuid(9)}\ntype: note\ntitle: "Unclosed\nabout: []\n---\n`;
+    const { workspace, read } = await openSmall({
+      ...elements([1, "hazard"]),
+      "elements/E-000000000009.md": broken,
+    });
+    const refused = await failure(workspace, "metamodel.removeRelationKind", { kind: "about" });
+    expect([refused.code, refused.details]).toEqual([
+      "file.faulty",
+      {
+        command: "metamodel.removeRelationKind",
+        files: [{ repository: "system", file: "elements/E-000000000009.md" }],
+      },
+    ]);
+    expect(refused.message).toContain("elements/E-000000000009.md");
+    expect([await read(MODEL), await read("elements/E-000000000009.md")]).toEqual([SMALL_MODEL, broken]);
+  });
+
   it("[SR-236/AK-bm7r] names the saved filters, perspectives and mapping files that name the removed key and does not change them", async () => {
     const perspective = "reqseq-perspective: 1\nname: Topics\ncolumns: [title, about]\n";
     const files = {

@@ -1401,8 +1401,19 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
       }),
     );
 
-  it("[SR-215/AK-qpq7] asks as free text only the classes of AK2 and numbers, and as JSON only the ReqIF mapping", () => {
+  it("[SR-215/AK-qpq7] asks as free text only the classes of AK2 and numbers, and as JSON only the ReqIF mapping (and the relation kind limits until #1954)", () => {
     const commands = prompted(CATALOG);
+    // Each exception is still asked as JSON, so it goes once the prompt builds the value (#1954).
+    expect(
+      AS_JSON.filter(
+        (entry) =>
+          !commands.some((command) =>
+            askable(command).some(
+              (arg) => `${command.name} ${arg.field}` === entry && ASKED[arg.complete] === "json",
+            ),
+          ),
+      ),
+    ).toEqual([]);
     const free = commands.flatMap((command) =>
       command.arguments
         .filter((arg) => arg.complete === "text")
