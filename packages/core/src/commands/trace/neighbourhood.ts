@@ -7,7 +7,7 @@
 // always complete; the output is one page of `limit` nodes from `offset` with `total` (SR-082 AK4).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { resolveRef, shortIdState } from "../../model/index.js";
+import { namesField, namesOf, resolveRef, shortIdState } from "../../model/index.js";
 import {
   checkRelationKinds,
   currentVersionLookup,
@@ -17,13 +17,13 @@ import {
   traceNeighbourhood,
 } from "../../trace/index.js";
 import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
-import { counted, incompleteNote, sentence } from "../answer.js";
+import { counted, incompleteNote, rootNamed, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.neighbourhood",
   answer: (output, input) =>
     sentence(
-      `The neighbourhood of ${input.ref} has ${counted(output.total, "element")}`,
+      `The neighbourhood of ${rootNamed(output.root, [...output.nodes, ...(output.names ?? [])], input.ref)} has ${counted(output.total, "element")}`,
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"trace.neighbourhood">> => {
@@ -67,6 +67,8 @@ export default defineCommand({
       { limit: input.limit, offset: input.offset },
       currentVersionLookup(ctx.workspace),
     );
-    return viewIncomplete(base.layout, view) ? { ...output, incomplete: true } : output;
+    // The root by name on every page, also one that does not hold it (the answer names it, #1874).
+    const named = { ...output, ...namesField(namesOf({ metamodel, store, shortIds }, [root.id])) };
+    return viewIncomplete(base.layout, view) ? { ...named, incomplete: true } : named;
   },
 });

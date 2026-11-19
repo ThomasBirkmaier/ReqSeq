@@ -269,13 +269,15 @@ export interface ViewParts {
   readonly packages: PackageModel | undefined;
   readonly variantTypes: ReadonlySet<string>;
   readonly properties: PropertyModel;
+  /** The catalog as the window read it, for the titles of an output's fields (SR-223 AK1). */
+  readonly catalog: RefObject<readonly CommandListing[]>;
 }
 
 export const areaViews = (parts: ViewParts): AreaViews => {
   const { viewCall, revision, seen, outside, dispatch, onData, setEcho, onDrawn, gate, ready } = parts;
   const { leavesClean, stopped, drop, switchSaves, typeNames, kindNames, overview, recent, latest } = parts;
   const { forgetName, call, copy, ask, context, titles, drafts, onDraft, keepOf, setElementControls } = parts;
-  const { packages, variantTypes, properties } = parts;
+  const { packages, variantTypes, properties, catalog } = parts;
   const openTarget = (id: string, repository?: string): void => {
     // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
     // A reference names the repository when the link has one.
@@ -303,6 +305,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
     onData,
     onEcho: setEcho,
     onCopy: copy,
+    outputFields: (command) => catalog.current.find((entry) => entry.name === command)?.outputFields,
     onDrawn,
     gate,
     ready,
