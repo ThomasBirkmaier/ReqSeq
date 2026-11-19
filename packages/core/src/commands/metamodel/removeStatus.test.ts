@@ -10,14 +10,17 @@ import {
   SMALL_MODEL,
   WITH_MISSING_REPOSITORY,
   WORKSPACE_FILE,
+  elementFile,
   elements,
   failure,
   openSmall,
+  openSmallAcross,
   run,
   uuid,
 } from "../metamodel-commands.test-helper.js";
 
-type Removed = CommandOutput<"metamodel.removeStatus">;
+/** The output as `invoke` gives it, with the answer sentence. */
+type Removed = CommandOutput<"metamodel.removeStatus"> & { readonly answer: string };
 
 const remove = (workspace: Workspace, type: string, status: string): Promise<Removed> =>
   run<Removed>(workspace, "metamodel.removeStatus", { type, status });
@@ -28,10 +31,7 @@ const NOTE_WITHOUT_LIST = SMALL_MODEL.replace("    statuses: [draft, noted]\n", 
 describe("metamodel.removeStatus removes a status from a type (SR-240 AK3)", () => {
   it("[SR-240/AK-pgn4] removes a status from the type's list, and its definition once no type has it", async () => {
     const files = { "filters/noted.yaml": "reqseq-filter: 1\nname: Noted\nwhere: { status: [noted] }\n" };
-    const { workspace, read } = await openSmall({
-      ...files,
-      ...elements([1, "hazard", { status: "noted" }]),
-    });
+    const { workspace, read } = await openSmall({ ...files, ...elements([1, "note", { status: "draft" }]) });
     const removed = await remove(workspace, "note", "noted");
     expect(removed).toEqual({
       answer:
@@ -39,6 +39,7 @@ describe("metamodel.removeStatus removes a status from a type (SR-240 AK3)", () 
       type: "note",
       status: "noted",
       removed: true,
+      kept: [],
       mentions: ["filters/noted.yaml"],
       files: [MODEL],
       versionsChanged: 0,
@@ -97,11 +98,67 @@ describe("metamodel.removeStatus removes a status from a type (SR-240 AK3)", () 
     expect(await read(MODEL)).toBe(model);
   });
 
-  it("[SR-240/AK-pgn4] keeps the definition of the initial status when no type has it any more", async () => {
+  it("[SR-240/AK-pgn4] keeps the definition no type has any more while an element of any type has the status, and names their number", async () => {
+    // An element of another type, and one in another repository of a type the metamodel does not know.
+    const { workspace, read } = await openSmallAcross({
+      [`system/elements/E-1.md`]: elementFile(uuid(1), "hazard", { status: "noted" }),
+      [`product/E-2.md`]: elementFile(uuid(2), "memo", { status: "noted" }),
+    });
+    const removed = await remove(workspace, "note", "noted");
+    expect(removed.answer).toBe(
+      "Removed the status noted from the type note; no type has the status noted any more, but its definition stays, as 2 elements have it; 1 file written.",
+    );
+    expect([removed.removed, removed.kept, removed.mentions]).toEqual([
+      false,
+      [
+        {
+          kind: "status",
+          key: "noted",
+          count: 2,
+          elements: [
+            { id: uuid(1), shortId: "HZ-000001", repository: "system" },
+            { id: uuid(2), shortId: "UNKNOWN-000002", repository: "product" },
+          ],
+        },
+      ],
+      [],
+    ]);
+    expect(await read(MODEL)).toBe(
+      SMALL_MODEL.replace("    statuses: [draft, noted]\n", "    statuses: [draft]\n"),
+    );
+  });
+
+  it("[SR-240/AK-pgn4] keeps the definition of the initial status when no type has it any more, and names the elements that have it", async () => {
     const model = SMALL_MODEL.replace("    statuses: [draft, open]\n", "    statuses: [open]\n");
+    // The system requirement of the fixture, of a type the small model does not have, is a draft.
     const { workspace, read } = await openSmall({}, model);
-    expect((await remove(workspace, "note", "draft")).removed).toBe(false);
+    const removed = await remove(workspace, "note", "draft");
+    expect([removed.removed, removed.kept, removed.answer]).toEqual([
+      false,
+      [
+        {
+          kind: "status",
+          key: "draft",
+          count: 1,
+          elements: [
+            { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", shortId: "UNKNOWN-e88fb3", repository: "system" },
+          ],
+        },
+      ],
+      "Removed the status draft from the type note; no type has the status draft any more, but its definition stays, as 1 element has it; 1 file written.",
+    ]);
     expect(await read(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
+    // Without such an element it stays as well, and nothing is named.
+    const { workspace: unused, read: readUnused } = await openSmall(
+      {
+        "requirements/SR-6328cee88fb3.md":
+          "---\nid: e8df96ea-a168-4d90-8d65-6328cee88fb3\ntype: system-requirement\nstatus: open\ntitle: Show wind speed\n---\n",
+      },
+      model,
+    );
+    const quiet = await remove(unused, "note", "draft");
+    expect([quiet.removed, quiet.kept]).toEqual([false, []]);
+    expect(await readUnused(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
   });
 
   it("removes a key the type's list has twice, and refuses an unknown type or status and a status the type does not have", async () => {
@@ -169,6 +226,7 @@ describe("the answer of metamodel.removeStatus", () => {
       type: "note",
       status: "open",
       removed: false,
+      kept: [],
       mentions: [],
       files: [MODEL],
       versionsChanged: 0,
