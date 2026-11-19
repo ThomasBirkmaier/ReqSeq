@@ -1,0 +1,93 @@
+[
+  {
+    "name": "chevrotain",
+    "version": "11.1.2",
+    "license": "Apache-2.0",
+    "file": "chevrotain@11.1.2.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "name": "chevrotain-allstar",
+    "version": "0.3.1",
+    "license": "MIT",
+    "file": "chevrotain-allstar@0.3.1.txt",
+    "sha256": "61a510d06eccead56b802d9919e0575f0bbdd9dbdd35b886fb83e2ec391126e5"
+  },
+  {
+    "name": "@chevrotain/gast",
+    "version": "11.1.2",
+    "license": "Apache-2.0",
+    "file": "@chevrotain+gast@11.1.2.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "name": "@chevrotain/regexp-to-ast",
+    "version": "11.1.2",
+    "license": "Apache-2.0",
+    "file": "@chevrotain+regexp-to-ast@11.1.2.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "name": "@chevrotain/utils",
+    "version": "11.1.2",
+    "license": "Apache-2.0",
+    "file": "@chevrotain+utils@11.1.2.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "name": "langium",
+    "version": "4.2.1",
+    "license": "MIT",
+    "file": "langium@4.2.1.txt",
+    "sha256": "599bf70b4e55f06250571d103dbd8441e0c47cb7f858c0147ca312ce38e9ef2a"
+  },
+  {
+    "name": "lodash-es",
+    "version": "4.17.23",
+    "license": "MIT",
+    "file": "lodash-es@4.17.23.txt",
+    "sha256": "f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc"
+  },
+  {
+    "name": "path-browserify",
+    "version": "1.0.1",
+    "license": "MIT",
+    "file": "path-browserify@1.0.1.txt",
+    "sha256": "a22b9d5763f574e5db347c30acc0b33eaf4846767c03d2e27d012e864e79a824"
+  },
+  {
+    "name": "vscode-jsonrpc",
+    "version": "8.2.0",
+    "license": "MIT",
+    "file": "vscode-jsonrpc@8.2.0.txt",
+    "sha256": "ec9ee83580841e8eb687aca9867f221503809ba6426c7f876ede17d91b9fcfd0"
+  },
+  {
+    "name": "vscode-languageserver-protocol",
+    "version": "3.17.5",
+    "license": "MIT",
+    "file": "vscode-languageserver-protocol@3.17.5.txt",
+    "sha256": "ec9ee83580841e8eb687aca9867f221503809ba6426c7f876ede17d91b9fcfd0"
+  },
+  {
+    "name": "vscode-languageserver-textdocument",
+    "version": "1.0.12",
+    "license": "MIT",
+    "file": "vscode-languageserver-textdocument@1.0.12.txt",
+    "sha256": "ec9ee83580841e8eb687aca9867f221503809ba6426c7f876ede17d91b9fcfd0"
+  },
+  {
+    "name": "vscode-languageserver-types",
+    "version": "3.17.5",
+    "license": "MIT",
+    "file": "vscode-languageserver-types@3.17.5.txt",
+    "sha256": "ec9ee83580841e8eb687aca9867f221503809ba6426c7f876ede17d91b9fcfd0"
+  },
+  {
+    "name": "vscode-uri",
+    "version": "3.1.0",
+    "license": "MIT",
+    "file": "vscode-uri@3.1.0.txt",
+    "sha256": "c669138cb1eb01fbb745e8e460b291e4f2869c14a40061390b6095d845ed4c82"
+  }
+]

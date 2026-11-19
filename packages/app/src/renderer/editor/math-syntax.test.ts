@@ -1,5 +1,6 @@
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
+import { MATH_SYNTAX_CASES } from "@reqseq/testkit";
 import { describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
 import { mathSyntax } from "./math-syntax.js";
@@ -105,4 +106,31 @@ describe("block formulas", () => {
     expect(nodes("$$x$$")[0]).toBe("InlineMath $$x$$");
     expect(nodes("$$ x\ny\n$$").filter((node) => node.startsWith("BlockMath"))).toEqual([]);
   });
+});
+
+describe("the cases shared with the HTML export (SR-231 AK5)", () => {
+  /** The formulas of `doc` as the preview sets them: inline ones by their marks, blocks by their lines. */
+  const formulas = (doc: string): { source: string; display: boolean }[] => {
+    const state = EditorState.create({ doc, extensions: [markdownSupport({ markdown: [mathSyntax] })] });
+    const found: { source: string; display: boolean }[] = [];
+    ensureSyntaxTree(state, doc.length, 1e9)?.iterate({
+      enter: (node) => {
+        if (node.name === "InlineMath") {
+          const text = doc.slice(node.from, node.to);
+          const open = text.startsWith("$$") ? 2 : 1;
+          found.push({ source: text.slice(open, -open), display: open === 2 });
+        } else if (node.name === "BlockMath") {
+          const lines = node.node.getChildren("MathText").map((t) => doc.slice(t.from, t.to));
+          found.push({ source: lines.join("\n"), display: true });
+        }
+      },
+    });
+    return found;
+  };
+
+  for (const { name, text, formulas: expected } of MATH_SYNTAX_CASES) {
+    it(`finds the formulas of ${name}`, () => {
+      expect(formulas(text)).toEqual(expected);
+    });
+  }
 });

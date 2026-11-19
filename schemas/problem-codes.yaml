@@ -344,6 +344,10 @@ problems:
     title: Image not copied
     cause: An image of a text is missing in the element's repository, is a symbolic link, or its file is no image by its content, so `html.export` did not copy it and the page shows the place as text.
     remedy: Add the image file to the repository at the path the text gives, or correct the path.
+  html.formula-error:
+    title: Formula with an error
+    cause: A formula of a text or Markdown property has an error KaTeX names, so the page of `html.export` shows its source as code, followed by the error.
+    remedy: Correct the formula, as the error says.
   html.foreign-file:
     title: File not written by the export
     cause: The folder of the HTML export holds a file, link or folder that the earlier export did not write (its marker file does not name it). `html.export` left it unchanged.
