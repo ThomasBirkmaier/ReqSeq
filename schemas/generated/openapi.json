@@ -3851,7 +3851,7 @@
                         "properties",
                         "statuses"
                       ],
-                      "description": "The definitions removed with the type: its properties and statuses that no other type has."
+                      "description": "The definitions removed with the type: its properties and statuses that no other type has and no element holds or has, never the initial status; those that stay are in `kept`."
                     },
                     "kept": {
                       "title": "Definitions kept",
@@ -3859,7 +3859,7 @@
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/keptDefinition"
                       },
-                      "description": "Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them, properties first, in metamodel order.",
+                      "description": "Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them, properties first, in metamodel order; the initial status too, whose definition never goes.",
                       "x-key": [
                         "kind",
                         "key"
@@ -4781,7 +4781,7 @@
     "/v1/commands/metamodel.removeProperty": {
       "post": {
         "operationId": "metamodel_removeProperty",
-        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
+        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.",
         "tags": [
           "metamodel"
         ],

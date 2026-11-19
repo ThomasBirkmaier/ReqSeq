@@ -9,7 +9,8 @@
 //   statuses it has that no other type has, except the initial status. A type without a status list
 //   has every status, so a status is dropped only while every other type has a list without it.
 //   One that an element of another type, or of a type the metamodel does not know, still holds
-//   stays, and `kept` names each with the number of those elements (`keptDefinitions`).
+//   stays, and `kept` names each with the number of those elements (`keptDefinitions`); so is the
+//   initial status when no type has it any more and an element has it (SR-240 AK3).
 // - Saved filters, perspectives and mapping files that name a removed key are listed, not changed.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -70,10 +71,7 @@ const unhadWithout = (
   const status = only("statuses");
   return {
     properties: metamodel.properties.map((p) => p.key).filter(property),
-    statuses: metamodel.statuses
-      .filter((s) => s.initial !== true)
-      .map((s) => s.key)
-      .filter(status),
+    statuses: metamodel.statuses.map((s) => s.key).filter(status),
   };
 };
 
@@ -121,7 +119,10 @@ export default defineCommand({
         );
       }
       refuseMissingRepositories(layout, COMMAND);
-      const removed = keptDefinitions(store, shortIds, unhadWithout(metamodel, input.type));
+      const held = keptDefinitions(store, shortIds, unhadWithout(metamodel, input.type));
+      // The initial status's definition never goes; `kept` names it while elements have it (SR-240 AK3).
+      const initial = new Set(metamodel.statuses.filter((s) => s.initial === true).map((s) => s.key));
+      const removed = { ...held, statuses: held.statuses.filter((key) => !initial.has(key)) };
       // A kept relation property that targets the type names it: the refusal names its elements too.
       const targeting = new Set(
         metamodel.properties

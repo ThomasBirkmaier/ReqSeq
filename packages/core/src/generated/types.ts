@@ -2646,14 +2646,14 @@ export interface MetamodelRemoveTypeOutput {
   readonly answer: Answer;
   /** Key of the removed type. */
   readonly type: Key;
-  /** The definitions removed with the type: its properties and statuses that no other type has (SR-238 AK5, SR-240 AK3). */
+  /** The definitions removed with the type: its properties and statuses that no other type has and no element holds or has, never the initial status (SR-238 AK5, SR-240 AK3); those that stay are in `kept`. */
   readonly removed: {
     /** Properties whose definition was removed, as no other type has them and no element holds them. */
     readonly properties: readonly Key[];
     /** Statuses whose definition was removed, as no other type has them and no element has them. */
     readonly statuses: readonly Key[];
   };
-  /** Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them (SR-237 AK5), properties first, in metamodel order. */
+  /** Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them (SR-237 AK5), properties first, in metamodel order; the initial status too, whose definition never goes. */
   readonly kept: readonly KeptDefinition[];
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
@@ -2825,7 +2825,7 @@ export interface MetamodelChangePropertyOutput {
 }
 
 /**
- * Input of `metamodel.removeProperty` as `run` gets it: validated, properties with a `default` filled in. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Input of `metamodel.removeProperty` as `run` gets it: validated, properties with a `default` filled in. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.
  * Schema: `schemas/commands/metamodel.removeProperty.json input`.
  */
 export interface MetamodelRemovePropertyInput {
@@ -2836,7 +2836,7 @@ export interface MetamodelRemovePropertyInput {
 }
 
 /**
- * Output of `metamodel.removeProperty`. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.
+ * Output of `metamodel.removeProperty`. Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.
  * Schema: `schemas/commands/metamodel.removeProperty.json output`.
  */
 export interface MetamodelRemovePropertyOutput {

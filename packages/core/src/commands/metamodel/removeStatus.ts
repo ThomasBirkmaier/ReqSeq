@@ -8,10 +8,11 @@
 // - A type without a list, neither its own nor an ancestor's, gets the list of every status it had
 //   but this one; a type that extends it with a list of its own would then get more statuses, which
 //   is refused (as in metamodel.addStatus).
-// - Once no type has the status, also no type without a list, its definition goes, except the
-//   initial status's, unless an element of any type still has the status: then it stays and
-//   `kept` names it with the number of those elements (`keptDefinitions`). Saved filters,
-//   perspectives and mapping files that name a removed definition are listed.
+// - Once no type has the status, also no type without a list, its definition goes, unless an
+//   element of any type still has the status: then it stays and `kept` names it with the number of
+//   those elements (`keptDefinitions`). The initial status's definition never goes, but `kept`
+//   names it the same way (SR-240 AK3). Saved filters, perspectives and mapping files that name a
+//   removed definition are listed.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { refuseShared, removeListItem, setMapValue } from "../../files/index.js";
@@ -138,12 +139,13 @@ export default defineCommand({
           edit: (yaml) => setMapValue(yaml, place.file.path, at, "statuses", list),
         });
       }
-      const unhad = status.initial !== true && !keptElsewhere(metamodel, input.type, status.key, list);
+      const unhad = !keptElsewhere(metamodel, input.type, status.key, list);
       const { statuses, kept } = keptDefinitions(store, shortIds, {
         properties: [],
         statuses: unhad ? [status.key] : [],
       });
-      const removed = statuses.length > 0;
+      // The initial status's definition never goes, also when no element has it (SR-240 AK3).
+      const removed = statuses.length > 0 && status.initial !== true;
       const definition = removed ? definitionAt(files, "statuses", status.key) : undefined;
       if (definition !== undefined) {
         edits.push({

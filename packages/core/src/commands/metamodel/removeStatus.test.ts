@@ -128,11 +128,37 @@ describe("metamodel.removeStatus removes a status from a type (SR-240 AK3)", () 
     );
   });
 
-  it("[SR-240/AK-pgn4] keeps the definition of the initial status when no type has it any more", async () => {
+  it("[SR-240/AK-pgn4] keeps the definition of the initial status when no type has it any more, and names the elements that have it", async () => {
     const model = SMALL_MODEL.replace("    statuses: [draft, open]\n", "    statuses: [open]\n");
+    // The system requirement of the fixture, of a type the small model does not have, is a draft.
     const { workspace, read } = await openSmall({}, model);
-    expect((await remove(workspace, "note", "draft")).removed).toBe(false);
+    const removed = await remove(workspace, "note", "draft");
+    expect([removed.removed, removed.kept, removed.answer]).toEqual([
+      false,
+      [
+        {
+          kind: "status",
+          key: "draft",
+          count: 1,
+          elements: [
+            { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", shortId: "UNKNOWN-e88fb3", repository: "system" },
+          ],
+        },
+      ],
+      "Removed the status draft from the type note; no type has the status draft any more, but its definition stays, as 1 element has it; 1 file written.",
+    ]);
     expect(await read(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
+    // Without such an element it stays as well, and nothing is named.
+    const { workspace: unused, read: readUnused } = await openSmall(
+      {
+        "requirements/SR-6328cee88fb3.md":
+          "---\nid: e8df96ea-a168-4d90-8d65-6328cee88fb3\ntype: system-requirement\nstatus: open\ntitle: Show wind speed\n---\n",
+      },
+      model,
+    );
+    const quiet = await remove(unused, "note", "draft");
+    expect([quiet.removed, quiet.kept]).toEqual([false, []]);
+    expect(await readUnused(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
   });
 
   it("removes a key the type's list has twice, and refuses an unknown type or status and a status the type does not have", async () => {

@@ -164,6 +164,18 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
     expect(after).not.toContain("key: follows");
   });
 
+  it("[SR-237/AK-b0j6] keeps the initial status that no type has any more and names the elements that have it", async () => {
+    // Only note has the initial status; the system requirement of the fixture is a draft.
+    const model = SMALL_MODEL.replace("    statuses: [draft, open]\n", "    statuses: [open]\n");
+    const { workspace, read } = await openSmall({}, model);
+    const removed = await remove(workspace, "note");
+    expect([removed.removed, removed.kept.map((k) => [k.kind, k.key, k.count])]).toEqual([
+      { properties: ["remark"], statuses: ["noted"] },
+      [["status", "draft", 1]],
+    ]);
+    expect(await read(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
+  });
+
   it("[SR-237/AK-b0j6] refuses while a relation property that has the type as target type stays, as an element holds its key", async () => {
     const model = SMALL_MODEL.replace(
       "    properties: [title, remark]",
