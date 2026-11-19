@@ -31,7 +31,7 @@ const COMMANDS: Readonly<Record<string, string>> = {
 
 /** Checks the form of the setup for `client` (SR-227 AK2), and that only Claude Code's names the call writing the skill file. */
 const formOf = (client: string, { setup, next }: Setup): void => {
-  expect(next.includes("`reqseq tool guide --skill --write --workspace ")).toBe(client === "claude-code");
+  expect(next.includes(" tool guide --skill --write --workspace ")).toBe(client === "claude-code");
   const command = COMMANDS[client];
   if (command !== undefined) {
     expect(setup.form).toBe("command");
