@@ -20076,6 +20076,203 @@
           }
         }
       }
+    },
+    "/v1/commands/html.export": {
+      "post": {
+        "operationId": "html_export",
+        "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
+        "tags": [
+          "html"
+        ],
+        "x-reqseq-effect": "write-files",
+        "x-reqseq-stage": 6,
+        "x-reqseq-implements": [
+          "SR-231",
+          "SR-235"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "output": {
+                    "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+                    "$ref": "#/components/schemas/common/$defs/localPath"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "output"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
+                    "folder": {
+                      "title": "Folder",
+                      "$ref": "#/components/schemas/common/$defs/outputPath",
+                      "description": "The written folder, relative to the workspace root when it lies inside, else absolute."
+                    },
+                    "pages": {
+                      "title": "Element pages",
+                      "x-elements": "exportedElements",
+                      "description": "Pages of elements written: one for each element of `exportedElements`.",
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "removed": {
+                      "title": "Removed files",
+                      "description": "Files of the earlier export that this export no longer writes and removed.",
+                      "type": "integer",
+                      "minimum": 0,
+                      "x-normal": 0
+                    },
+                    "exportedElements": {
+                      "title": "List of exported elements",
+                      "type": "array",
+                      "description": "The elements that got a page, in the order of the element store.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true
+                    },
+                    "problems": {
+                      "title": "Problems",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
+                      },
+                      "x-normal": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "answer",
+                    "folder",
+                    "pages",
+                    "exportedElements",
+                    "removed",
+                    "problems"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -21031,7 +21228,12 @@
               "reqif.edited-elsewhere",
               "reqif.mapping-differs",
               "reqif.source-model-unsaved",
-              "reqif.source-value-chosen"
+              "reqif.source-value-chosen",
+              "html.unsafe-content",
+              "html.image-not-copied",
+              "html.foreign-file",
+              "html.marker-entry-ignored",
+              "html.cleanup-failed"
             ],
             "x-technical": true
           },
@@ -23149,6 +23351,34 @@
             "additionalProperties": false
           }
         }
+      },
+      "html-export-marker": {
+        "title": "HTML export marker file",
+        "description": "The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export: it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into. ReqSeq writes it anew on every export; it is not meant to be edited.",
+        "type": "object",
+        "required": [
+          "reqseq-html-export",
+          "files"
+        ],
+        "properties": {
+          "reqseq-html-export": {
+            "description": "Version of this file format.",
+            "const": 1
+          },
+          "files": {
+            "description": "The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "pending": {
+            "description": "Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it.",
+            "const": ".reqseq-export-staging"
+          }
+        },
+        "additionalProperties": false
       },
       "metamodel": {
         "title": "Metamodel file",

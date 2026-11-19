@@ -260,6 +260,8 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: GUSTS, kind: "nope", target: WIND },
   ],
+  // The folder of the elements holds no marker file, so nothing in it is replaced or removed.
+  "html.export": [{ output: "site" }, { output: "requirements" }],
   // An element file as output is refused (no XML), never replaced.
   "reqif.export": [{ output: "out.reqif" }, { output: "requirements/SR-1d2e3f4a5b6c.md" }],
   "reqif.import": [
@@ -399,7 +401,12 @@ describe("no delete of an element (SR-099, D-045)", () => {
         /\b(?:rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync|rename|renameSync)\(/.test(read(file)),
       )
       .sort();
-    expect(removing).toEqual(["files/lock.ts", "files/private.ts", "files/write.ts"]);
+    expect(removing).toEqual([
+      "files/export-folder.ts",
+      "files/lock.ts",
+      "files/private.ts",
+      "files/write.ts",
+    ]);
     // The one delete of a file the user wrote, the file of a perspective or saved filter (SR-217 AK5).
     const deleting = sources
       .filter((file) => !file.startsWith("files/") && /\bdeleteSavedFile\b/.test(read(file)))

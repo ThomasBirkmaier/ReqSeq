@@ -336,6 +336,27 @@ problems:
     cause: "`reqif.export` with `sourceModel` writes a choice into an enumeration of the source whose mapping (`values`) gives several values of the source for it; it wrote the first in the mapping's order. The message names the requirement and the attribute."
     remedy: If another value is meant, map only that one to the choice in the mapping's `values`.
 
+  html.unsafe-content:
+    title: Content shown as text
+    cause: "A text or Markdown property holds something the pages of `html.export` would run, load or link outside the export: raw HTML, a link with another scheme than http, https or mailto, an image from the network, a `data:` image or one outside the element's repository, an SVG image with scripts or outside references, or a Mermaid diagram with a click action, an HTML label or its own configuration. The page shows the place as text."
+    remedy: Write the content as Markdown without it, for example an image file in the element's repository instead of a link to the network, if it should appear formatted.
+  html.image-not-copied:
+    title: Image not copied
+    cause: An image of a text is missing in the element's repository, is a symbolic link, or its file is no image by its content, so `html.export` did not copy it and the page shows the place as text.
+    remedy: Add the image file to the repository at the path the text gives, or correct the path.
+  html.foreign-file:
+    title: File not written by the export
+    cause: The folder of the HTML export holds a file, link or folder that the earlier export did not write (its marker file does not name it). `html.export` left it unchanged.
+    remedy: Nothing, if it belongs there; else remove it by hand.
+  html.marker-entry-ignored:
+    title: Marker file entry not used
+    cause: "An entry of the marker file `reqseq-html-export.yaml` names no file of the export folder that the export may replace: a path with `..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link, or an entry twice. `html.export` neither replaced nor removed it."
+    remedy: Nothing; the next export writes the marker file anew. Check the file the entry names by hand.
+  html.cleanup-failed:
+    title: Staging folder left
+    cause: "`html.export` wrote the new export, but could not remove its staging folder `.reqseq-export-staging` in the export folder, for example because another program held a file in it."
+    remedy: Remove the folder by hand, or run the export again, which removes it.
+
 errors:
   input.invalid:
     cause: The input of the command does not match its schema, or names something the command cannot do, for example an unknown command.
