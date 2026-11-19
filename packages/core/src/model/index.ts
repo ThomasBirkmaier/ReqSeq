@@ -302,6 +302,7 @@ export type { NewElementBase } from "./write.js";
 export {
   assertElementWritable,
   createElement,
+  initialStatus,
   newElementBase,
   propertyKeyRefusal,
   newElementBytes,
