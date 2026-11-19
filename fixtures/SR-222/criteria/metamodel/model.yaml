@@ -1,0 +1,30 @@
+# SR-222, acceptance criteria in the search: criterion keys, criterion references, an identifier
+# and a synonym (`AK`), so a reference meets other designations (SR-220).
+reqseq-metamodel: 1
+types:
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, spec-id, synonyms, rationale, acceptance-criteria]
+    required: [title]
+  - key: glossary-term
+    name: Glossary Term
+    prefix: GL
+    properties: [title, synonyms]
+    required: [title]
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
+  - { key: synonyms, name: Synonyms, kind: text, many: true, meaning: synonyms }
+  - { key: rationale, name: Rationale, kind: text }
+  - {
+      key: acceptance-criteria,
+      name: Acceptance Criteria,
+      kind: text,
+      many: true,
+      meaning: acceptance-criteria,
+    }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }

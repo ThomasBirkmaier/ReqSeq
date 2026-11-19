@@ -18,7 +18,7 @@ packages:
 derives-from:
   - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:674bb62923239dd9, title: Unterschied zum Kern erkennbar }
 based-on:
-  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:283052be2cc95fc4, title: Unterschiede zeigt die Versionsverwaltung }
+  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:abbf666adc34704d, title: Unterschiede zeigt die Versionsverwaltung }
 ---
 
 Das Tool muss für jede Variante zeigen, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.

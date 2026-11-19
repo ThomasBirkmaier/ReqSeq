@@ -480,6 +480,11 @@ export interface ActionContext {
    * catalog.
    */
   readonly build?: (command: BuiltCommand, context: ActionContext) => void;
+  /**
+   * "Connect AI agent" (SR-227, `use-connect-agent.ts`) in `context`: asks the client, without an open workspace
+   * after the workspace (SR-225 AK7). Absent: the window offers it not.
+   */
+  readonly connectAgent?: (context: ActionContext) => void;
 }
 
 /** The catalog commands a builder runs (SR-219 AK1): "New perspective" and "New saved filter". */

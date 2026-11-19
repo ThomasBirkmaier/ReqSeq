@@ -97,12 +97,21 @@ const requiredOf = (command: CommandListing): readonly string[] =>
 export const isWrite = (command: CommandListing): boolean => command.effect !== "read";
 
 /**
- * The arguments asked before the command runs: the required ones. A write command without any asks its
- * first argument as if it were required (`hint.confirm`: `ref`, the shown element first), so it never runs
- * at once on an empty input.
+ * The optional arguments the app asks as steps, as if they were required, by command: "Connect AI agent" asks
+ * the client among its fixed values (SR-227 AK1), while CLI, API and MCP without it list the clients. Named
+ * here one by one, so the other optional arguments of read commands stay behind Ctrl/Cmd+Enter.
+ */
+export const ASKED_IN_APP: ReadonlyMap<string, readonly string[]> = new Map([
+  ["workspace.connectAgent", ["client"]],
+]);
+
+/**
+ * The arguments asked before the command runs: the required ones, and those of `ASKED_IN_APP`. A write command
+ * without any asks its first argument as if it were required (`hint.confirm`: `ref`, the shown element first),
+ * so it never runs at once on an empty input.
  */
 export const askedOf = (command: CommandListing): readonly string[] => {
-  const required = requiredOf(command);
+  const required = [...requiredOf(command), ...(ASKED_IN_APP.get(command.name) ?? [])];
   const first = command.arguments.find((arg) => arg.complete !== "selection");
   return required.length > 0 || !isWrite(command) || first === undefined ? required : [first.field];
 };

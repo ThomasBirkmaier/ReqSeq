@@ -15,7 +15,7 @@ import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -58,6 +58,23 @@ const environment = (extra: Readonly<Record<string, string>> = {}): NodeJS.Proce
     XDG_CACHE_HOME: path.join(home, "cache"),
     ...extra,
   };
+};
+
+/** Makes `name` below the temporary folder the HOME of every process started from now on. */
+const useHome = async (name: string): Promise<void> => {
+  home = path.join(top, name);
+  for (const folder of [home, path.join(home, "AppData"), path.join(home, "config")]) {
+    await fs.mkdir(folder, { recursive: true });
+  }
+};
+
+/** Ends every server a test started, also when it ran out of time while they ran. */
+const endChildren = (): void => {
+  for (const child of children.splice(0)) {
+    if (child.exitCode === null) {
+      child.kill();
+    }
+  }
 };
 
 /** Every file and folder below `folder` with its size and modification time. */
@@ -205,11 +222,9 @@ beforeAll(async () => {
   const parent = path.join(top, "Ann's work (ü) \u2019");
   await fs.mkdir(parent);
   ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true, tempDir: parent });
-  home = path.join(top, "home");
   stubs = path.join(top, "bin");
-  for (const folder of [home, stubs, path.join(home, "AppData"), path.join(home, "config")]) {
-    await fs.mkdir(folder, { recursive: true });
-  }
+  await fs.mkdir(stubs);
+  await useHome("home");
   await fs.writeFile(
     path.join(stubs, "stub.mjs"),
     [
@@ -225,19 +240,20 @@ beforeAll(async () => {
   }
 });
 
+afterEach(endChildren);
+
 afterAll(async () => {
-  for (const child of children.splice(0)) {
-    if (child.exitCode === null) {
-      child.kill();
-    }
-  }
+  endChildren();
   await ws.cleanup();
   await fs.rm(top, { recursive: true, force: true, maxRetries: 3 });
 });
 
 describe("reqseq workspace connect-agent", () => {
-  it("[SR-227/AK-qxzf] the program the pasted setup of each client names starts the MCP server of this workspace", async () => {
-    for (const client of CLIENTS) {
+  // One test per client: on Windows each command client runs in two shells and starts two servers, and all six
+  // in one test took longer than the time a test has (#1956).
+  it.each(CLIENTS)(
+    "[SR-227/AK-qxzf] the program the pasted setup of %s names starts the MCP server of this workspace",
+    async (client) => {
       const output = await connectAgent(client);
       const started: Server[] = [];
       if (output.setup.form === "json") {
@@ -264,10 +280,12 @@ describe("reqseq workspace connect-agent", () => {
       for (const server of started) {
         expect(await workspaceOf(server), client).toBe(ws.root);
       }
-    }
-  });
+    },
+  );
 
   it("[SR-227/AK-nq91] creates and changes no file, in the workspace or the home and configuration folders", async () => {
+    // A HOME of its own: a server of an earlier test that still runs writes only into the HOME it was started with.
+    await useHome("home-nq91");
     const before = [await snapshot(ws.root), await snapshot(home)];
     for (const client of CLIENTS) {
       await connectAgent(client);

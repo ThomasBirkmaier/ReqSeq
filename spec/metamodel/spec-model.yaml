@@ -18,7 +18,7 @@
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, ThomasBirkmaier/ReqSeq-archive#444).
 # - packages on every type: a package is a set of any elements (glossary „Paket“, D-040, #1293).
 # - verification-method counts to the version (`content: true`), unlike the standard model (D-057, #378).
-# ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
+# This file is changed in a pull request.
 reqseq-metamodel: 1
 
 types:
