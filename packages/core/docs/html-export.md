@@ -11,7 +11,8 @@
 | `images/<uuid>-<n><ext>` | Copies of the images of the element's texts; `<ext>` from the type the bytes are (`imageExtension`), never from the file name. |
 | `assets/docs.css` | The stylesheet of the shipped docs (`docs-theme.generated.ts`, SR-231 AK4) |
 | `assets/reqseq.css` | The export's own styles (`OWN_CSS`): the grey of the element facts and of errors, the drawn diagrams, and scrolling of a wide display formula |
-| `assets/theme.js`, `assets/reqseq.js` | The page scripts (`page-script.ts`): the theme before the first paint; the theme selects, the menu and the diagrams |
+| `assets/theme.js`, `assets/reqseq.js` | The page scripts (`page-script.ts`, `search.ts`): the theme before the first paint; the theme selects, the menu, the diagrams and the search |
+| `assets/search-index.js` | The search index (`search.ts`, SR-231 AK7), loaded on the first search |
 | `assets/katex.css`, `assets/mermaid.js` | Only when a page needs them: KaTeX's stylesheet with its woff2 fonts as `data:` URLs, and the Mermaid bundle (`vendor.ts`) |
 | `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle and Starlight (`notices.ts`) |
 | `reqseq-html-export.yaml` | The marker file (`schemas/html-export-marker.schema.json`) |
@@ -22,7 +23,15 @@ Every link names a file. Every page carries a Content-Security-Policy (`page.ts`
 
 ## Look of the docs (`page.ts`, `docs-theme.generated.ts`, `page-script.ts`)
 
-`pnpm docs:export-theme` (`packages/docs/src/export-theme.ts`) reads one page of the offline build of the docs and writes `docs-theme.generated.ts`: the stylesheet, the attributes of `<html>` and `<body>`, and Starlight's frame (header, sidebar pane with its menu button, theme selects, content and footer) without scripts, search, social links, table of contents and the links to the next page, with slots for the site title, sidebar, title, content and footer. The CI docs step runs it with `--check`. The pane has no `popover` in the frame: `reqseq.js` sets `popover="auto"` below 50em, the docs' breakpoint, and keeps the page `inert` while it is open, as Starlight's script does. The theme is stored under Starlight's key `starlight-theme`.
+`pnpm docs:export-theme` (`packages/docs/src/export-theme.ts`) reads one page of the offline build of the docs and writes `docs-theme.generated.ts`: the stylesheet, the attributes of `<html>` and `<body>`, and Starlight's frame (header with the docs' search field, sidebar pane with its menu button, theme selects, content and footer) without scripts, social links, table of contents and the links to the next page, with slots for the site title, sidebar, title, content and footer. The CI docs step runs it with `--check`. The pane has no `popover` in the frame: `reqseq.js` sets `popover="auto"` below 50em, the docs' breakpoint, and keeps the page `inert` while it is open, as Starlight's script does. The theme is stored under Starlight's key `starlight-theme`.
+
+## Search (`search.ts`)
+
+The docs' search field stays in the frame, without the address of the docs' index and `hidden`, so a page without script shows no field that does nothing (`OWN_CSS` hides it; the docs' rule has no specificity). `searchScript` runs at the end of `assets/reqseq.js`: it shows the field with the label "Search elements" (`⌘ K` and `Meta+K` on macOS), opens its dialog on a click or Ctrl+K / Cmd+K, and on the first open adds `assets/search-index.js` as a `<script>`, found from its own `src`; a page load never parses the index. One load runs at a time; a failed one is forgotten and the next search tries again ("Search unavailable").
+
+The index (`searchIndexScript`) sets `reqseqSearchIndex`: the type names once, and per element with a page its identifier, short ID, title, type and UUID, in store order and NFC. Characters beyond ASCII are written as `\uXXXX`, so a server's charset cannot change them. The query is lower-cased (`toLowerCase`, no locale) and split at white space; an element is a hit when each word occurs in its identifier, short ID or title, also as a word part (SR-231 AK7). A blank query shows nothing. Hits whose identifier or short ID is the whole query come first, then the store order; the dialog says how many, shows 50 at a time with "Show N more", and each row is text with a link to `elements/<uuid>.html`. Enter opens the first hit, also while the index loads; Up and Down move between hits. The type is shown, not searched, since SR-231 AK7 names identifier, short ID and title.
+
+With 50,000 elements the index is about 7 MB; in Node under happy-dom, loading it takes about 125 ms and a query over all elements at most about 13 ms.
 
 ## Formulas and diagrams (`formula.ts`, `math-syntax.ts`, `render-options.ts`)
 

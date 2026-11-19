@@ -187,6 +187,25 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-231/AK-c1hj]",
+    name: "every page has the search field, and the index file names each element with a page and its title",
+    fixture: withText("Text."),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files["site/assets/search-index.js"]).toMatch(
+          new RegExp(`^globalThis\\.reqseqSearchIndex = .*"Show wind speed",0,"${WIND}"`, "u"),
+        );
+        expect(files["site/assets/reqseq.js"]).toContain("function searchScript(");
+        for (const file of ["site/index.html", PAGE]) {
+          expect(files[file]).toMatch(/<reqseq-search class="astro-\w+" hidden="">/u);
+        }
+      }
+    },
+  },
+  {
     tag: "[SR-231/AK-hmbc]",
     name: "the footer names the commit of the main repository and the date, and the page asks for noindex",
     fixture: ONE_REPOSITORY,

@@ -5,9 +5,11 @@
 //
 // - the stylesheet the page links, the print one inside `@media print`;
 // - the page frame, parsed with parse5: Starlight's header, sidebar pane with its menu button, theme selects,
-//   content panel and footer with their scoped classes; every `<script>` and `<template>` removed, the search, the
-//   social links, the table of contents and the links to the previous and next page left out, and the sidebar
-//   pane without `popover` (the export's script sets it below the docs' breakpoint, as Starlight's does). Slots
+//   content panel and footer with their scoped classes; every `<script>` and `<template>` removed, the social links,
+//   the table of contents and the links to the previous and next page left out, and the sidebar pane without
+//   `popover` (the export's script sets it below the docs' breakpoint, as Starlight's does). The docs' search field
+//   (`Search.astro`) stays with its scoped classes, without the address of its index and `hidden`: the export's
+//   script shows it and searches the export's own index (SR-231 AK7). Slots
 //   take the site title and its link, the sidebar, the page title, the content and the footer, so neither the
 //   docs' version nor their `href="/"` lands in the file;
 // - Starlight's licence, which the export's notices name.
@@ -132,7 +134,6 @@ export const themeOfPage = (
     if (
       name === "script" ||
       name === "template" ||
-      name === "reqseq-search" ||
       name === "starlight-lang-select" ||
       cls.includes("social-icons") ||
       cls.includes("right-sidebar-container") ||
@@ -141,6 +142,8 @@ export const themeOfPage = (
       defaultTreeAdapter.detachNode(element);
     }
   }
+  const search = landmark(body, "search field", (e) => e.tagName === "reqseq-search");
+  search.attrs = [...search.attrs.filter((a) => a.name !== "data-index"), { name: "hidden", value: "" }];
   const title = landmark(body, "site title", (e) => e.tagName === "a" && classes(e).includes("site-title"));
   const titleText = landmark(title, "site title text", (e) => e.tagName === "span");
   title.attrs = title.attrs.map((a) => (a.name === "href" ? { ...a, value: MARK("home") } : a));

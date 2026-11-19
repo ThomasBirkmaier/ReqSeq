@@ -1,4 +1,4 @@
-// The pages of the HTML export in Chromium (SR-231 AK2, AK4, AK5): the CLI exports a workspace, and a window of
+// The pages of the HTML export in Chromium (SR-231 AK2, AK4, AK5, AK7): the CLI exports a workspace, and a window of
 // the built app with a session of its own opens the pages over `file://` and from a server on 127.0.0.1 under the
 // sub-path /a/b/. Every request is recorded: none may leave the folder, and the server answers a request outside
 // /a/b/ with a sentinel the test fails on. The window loads each page from main (`loadURL`), as the app's guard
@@ -259,6 +259,33 @@ test.describe("the pages of the HTML export", () => {
     await expect(pane).toBeVisible();
   };
 
+  /** The search (SR-231 AK7): Ctrl+K opens it, the index loads from the folder, and a hit opens its page. */
+  const checkSearch = async (
+    app: ElectronApplication,
+    page: Page,
+    id: number,
+    shot?: string,
+  ): Promise<void> => {
+    const field = page.locator("header reqseq-search");
+    await expect(field.locator("button[data-open]")).toBeVisible();
+    await page.keyboard.press("Control+K");
+    const dialog = field.locator("dialog");
+    await expect(dialog).toBeVisible();
+    await dialog.locator("input").fill("WIND sho");
+    await expect(dialog.locator(".status")).toHaveText("1 element found");
+    const hit = dialog.locator(".hits a");
+    await expect(hit).toHaveCount(1);
+    await expect(hit.locator("strong")).toHaveText("SR-e88fb3 Show wind speed");
+    if (shot !== undefined) {
+      await page.screenshot({ path: path.join(SHOTS, shot) });
+    }
+    await dialog.locator("input").fill("gusts");
+    await expect(hit.locator("strong")).toHaveText("SR-4a5b6c Show gusts");
+    const target = await hit.evaluate((a: HTMLAnchorElement) => a.href);
+    await load(app, page, id, target);
+    await expect(page.locator("h1#_top")).toContainText("Show gusts");
+  };
+
   test("[SR-231/AK-f39g] opened over file://, every page shows its content and asks for no file outside the folder", async () => {
     const { app } = running;
     const { page, id } = await openWindow(app);
@@ -273,6 +300,20 @@ test.describe("the pages of the HTML export", () => {
     }
   });
 
+  test("[SR-231/AK-c1hj] opened over file://, Ctrl+K finds an element by parts of its title in any case and a hit opens its page", async () => {
+    const { app } = running;
+    const { page, id } = await openWindow(app);
+    watch(page);
+    const root = pathToFileURL(`${site}${path.sep}`).href;
+    await load(app, page, id, `${root}elements/${WIND}.html`);
+    await checkSearch(app, page, id, "html-export-search-light.png");
+    const asked = await requests(app);
+    expect(asked).toContain(`${root}assets/search-index.js`);
+    for (const url of asked) {
+      expect(url.startsWith(root) || url === "about:blank" || url.startsWith("data:"), url).toBe(true);
+    }
+  });
+
   test("[SR-231/AK-f39g] served under a sub-path, every page shows its content and asks for nothing outside it", async () => {
     const { app } = running;
     const server = await serve(site);
@@ -283,6 +324,7 @@ test.describe("the pages of the HTML export", () => {
       await checkElementPage(page);
       await checkThemeAndMenu(app, page, id, `${server.base}index.html`);
       await page.screenshot({ path: path.join(SHOTS, "html-export-index-light.png") });
+      await checkSearch(app, page, id);
       await load(app, page, id, `${server.base}elements/${GUSTS}.html`);
       await expect(page.locator("h1#_top")).toBeVisible();
       for (const url of await requests(app)) {
