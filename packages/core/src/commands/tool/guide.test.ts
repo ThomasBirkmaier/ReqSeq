@@ -93,7 +93,21 @@ describe("tool.guide", () => {
       "reqseq-workspace.yaml": workspaceFile(""),
       "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
     });
+    // A long workspace file: a plain path of 80 characters, which the calls leave out, and three more locations.
+    const long = `${"a/".repeat(39)}bb`;
+    const longest = await folder({
+      "reqseq-workspace.yaml": workspaceFile(
+        `evidence:\n${[long, "x", "y", "evidence/ci"].map((p) => `  - { repository: main, path: "${p}" }\n`).join("")}`,
+      ),
+      "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
+    });
     const variants = [cli, mcp, await guide(without), await guide(without, { names: "mcp" })];
+    for (const names of NAMES) {
+      const text = await guide(longest, { names });
+      expect(text).toContain(`\`${long}\`, \`x\`, \`y\`, \`evidence/ci\`.`);
+      expect(text).toContain(names === "cli" ? "--output 'x/<run>.xml'" : '"output":"x/<run>.xml"');
+      variants.push(text);
+    }
     for (const names of NAMES) {
       variants.push(await guide(await folder(), { names }));
     }
@@ -148,8 +162,15 @@ describe("tool.guide", () => {
       "7. Workspace check",
     ];
     const headings = sections(text).map((s) => s.heading);
-    const at = steps.map((step) => headings.indexOf(step));
-    expect(at.every((index, i) => index > 0 && (i === 0 || index > (at[i - 1] ?? 0)))).toBe(true);
+    expect(headings).toEqual([
+      "Values from this workspace",
+      "Impact check",
+      ...steps.slice(0, 2),
+      "Writing requirements",
+      ...steps.slice(2),
+      "Rules",
+      "In a pipeline",
+    ]);
     const commands = (heading: string): string[] => namedCommands(section(text, heading));
     expect(commands("1. Need")).toEqual(["element.create", "evidence.record"]);
     expect(commands("2. Requirement with acceptance criteria and verification method")).toEqual([
@@ -192,7 +213,7 @@ describe("tool.guide", () => {
           "Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references",
           "and its open hints",
           "queries its affected elements",
-          "searches the elements that name each new or changed term or the identifier of the element",
+          "searches the elements that name each new or changed term and those that name the identifier of the element",
           "for a new element it queries the affected elements of the elements it will point to.",
           "It then reads what it found against the change, the directly affected elements first, along with the evidence records of the element and of the affected requirements",
           "and the tests that carry their reference in their name.",

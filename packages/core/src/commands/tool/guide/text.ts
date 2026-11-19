@@ -147,9 +147,13 @@ const workspaceLines = (context: GuideContext): readonly string[] => {
 /** A path that a code span and a shell word show as it is. */
 const isPlainPath = (folder: string): boolean => /^[\w./-]{1,80}$/.test(folder);
 
-/** The first evidence location that is a plain path, for a call; else a placeholder. */
+/** The longest evidence location a call names; a longer one would take the room of AK1's length limit twice. */
+const CALL_PATH_MAX = 40;
+
+/** The first evidence location that is a plain path of at most `CALL_PATH_MAX` characters, for a call; else a placeholder. */
 const evidenceLocation = (context: GuideContext): string =>
-  context.workspace?.evidence.find(isPlainPath) ?? "<evidence location>";
+  context.workspace?.evidence.find((folder) => isPlainPath(folder) && folder.length <= CALL_PATH_MAX) ??
+  "<evidence location>";
 
 /** The input of `element.create` for `type`: its required properties as placeholders, then `given` where it has them. */
 const createInput = (
@@ -217,7 +221,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "Impact check",
     lines: (context) => [
-      `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches the elements that name each new or changed term or the identifier of the element (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
+      `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches the elements that name each new or changed term and those that name the identifier of the element (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
       `It then reads what it found against the change, the directly affected elements first, along with the evidence records of the element and of the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests that carry their reference in their name. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
     ],
   },
@@ -234,7 +238,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       const method = context.workspace?.verificationMethod;
       const kind = derivationKind(context);
       return [
-        `Create the requirement with its acceptance criteria and its verification method: ${context.call(requirementCall(context))}.`,
+        `Create the requirement: ${context.call(requirementCall(context))}.`,
         ...(method === undefined || method.choices.length === 0
           ? []
           : [`Verification methods: ${method.choices.map((choice) => `\`${choice}\``).join(", ")}.`]),
@@ -253,7 +257,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "3. One test per acceptance criterion",
     lines: (context) => [
-      `Name each test case with the reference of its acceptance criterion, \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier of the requirement, or its short ID, and the criterion key, never the number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion.`,
+      `Name each test case with the reference of its acceptance criterion, \`[<ID>/AK-<criterion key>]\`${testNameExample(context)}: the identifier or short ID of the requirement and the criterion key, never the number. ${context.call({ command: "element.get", input: { ref: "<requirement>" } })} shows the reference of each criterion.`,
     ],
   },
   {
@@ -294,7 +298,7 @@ export const GUIDE_TAIL: GuideSection = {
 };
 
 const INTRODUCTION =
-  "ReqSeq keeps needs, requirements, their relations and their evidence as Markdown files in Git repositories. Each step below names the command that does it; the command line, the local API and the MCP server offer the same commands with the same results.";
+  "ReqSeq keeps needs, requirements, relations and evidence as Markdown files in Git repositories. Each step names its command; the command line, the local API and the MCP server offer the same commands with the same results.";
 
 /** The agent guide as Markdown (SR-229 AK1), LF line endings and a final newline. */
 export const agentGuide = (
