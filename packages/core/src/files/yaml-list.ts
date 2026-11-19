@@ -321,7 +321,8 @@ const commentStarts = (text: string): number[] => {
  * `text` with `[from, to)` replaced by `by`, and without the comment at the end of the line that
  * now holds the end of `by`: that line changed, so its comment goes (SR-236 AK3). A line that reads
  * as before, as when the removed text was whole lines up to the start of the next item, keeps it. A
- * changed line left with only blanks goes with its line break: it held only what was removed.
+ * changed line loses its trailing blanks, and one left with only blanks goes with its line break: it
+ * held only what was removed.
  */
 const edited = (text: string, from: number, to: number, by: string): string => {
   const out = spliced(text, from, to, by);
@@ -464,6 +465,25 @@ const blockMapEdit = (parsed: Parsed, map: YAMLMap, key: string, value: unknown)
   return spliced(text, lineStart, lineEndAfter(text, valueEnd), "");
 };
 
+/**
+ * `text` without the entry `[start, end)` of a flow collection and its separator, whose next entry
+ * starts at `next`. When the next entry is on a later line and the separator on the entry's last
+ * line, the cut ends with that line, so the lines below stay as they are (SR-236 AK3); an entry on
+ * lines of its own goes with them and the comment lines directly above it in its column. Otherwise
+ * the cut runs up to the next entry.
+ */
+const flowEntryRemoved = (text: string, start: number, end: number, next: number): string => {
+  const lineBreak = lineBreakAt(text, end);
+  const comma = text.indexOf(",", end);
+  if (next <= lineBreak || comma > lineBreak || !/^[ \t]*$/.test(text.slice(end, comma))) {
+    return edited(text, start, next, "");
+  }
+  const lineStart = lineStartOf(text, start);
+  return /^[ \t]*$/.test(text.slice(lineStart, start))
+    ? edited(text, withCommentsAbove(text, lineStart, start - lineStart), lineEndAfter(text, end), "")
+    : edited(text, start, lineBreak, "");
+};
+
 /** The new text of a flow mapping `map` with `key` set to `value`, or removed when undefined. */
 const flowMapEdit = (text: string, map: YAMLMap, key: string, value: unknown): string => {
   const index = map.items.findIndex((p) => isScalar(p.key) && p.key.value === key);
@@ -488,7 +508,7 @@ const flowMapEdit = (text: string, map: YAMLMap, key: string, value: unknown): s
   }
   const next = pairs[index + 1];
   if (next !== undefined) {
-    return edited(text, start, rangeOf(next.key)[0], "");
+    return flowEntryRemoved(text, start, endOf(index), rangeOf(next.key)[0]);
   }
   return index === 0
     ? edited(text, start, endOf(index), "")
@@ -588,16 +608,18 @@ const flowItemRemoved = (text: string, seq: YAMLSeq, index: number): string => {
   const next = items[index + 1];
   const [start, end] = rangeOf(items[index]);
   if (next !== undefined) {
-    return edited(text, start, rangeOf(next)[0], "");
+    return flowEntryRemoved(text, start, end, rangeOf(next)[0]);
   }
   return index === 0 ? edited(text, start, end, "") : edited(text, rangeOf(items[index - 1])[1], end, "");
 };
 
 /**
  * Removes the item `index` of the list at `at` in `yaml`: a block item with its lines and the
- * comment lines directly above it (SR-236 AK3), a flow item with its text and separator; a list
- * left without items stays as `[]`. A comment at the end of a line changed within it goes (`edited`). Throws as `appendListItem` does, `file.faulty` also when `at`
- * leads to no list or the item is an alias or carries an anchor.
+ * comment lines directly above it (SR-236 AK3), a flow item with its text and separator (with the
+ * rest of its line and, on a line of its own, the comment lines directly above it, when the next
+ * item is on a later line: `flowEntryRemoved`); a list left without items stays as `[]`. A comment
+ * at the end of a line changed within it goes (`edited`). Throws as `appendListItem` does,
+ * `file.faulty` also when `at` leads to no list or the item is an alias or carries an anchor.
  */
 export const removeListItem = (
   yaml: EditableYaml,

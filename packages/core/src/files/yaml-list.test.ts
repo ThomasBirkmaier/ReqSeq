@@ -436,6 +436,20 @@ describe("a comment at the end of a line changed within the line (SR-236 AK3, #1
     );
   });
 
+  it("[SR-236/AK-k2s3] keeps the lines below a removed flow entry whose next entry is on a later line", () => {
+    expect(remove("s: [a,\n  b, # kb\n  c]\n", ["s"], 0)).toBe("s: [\n  b, # kb\n  c]\n");
+    expect(set("s:\n  - { key: a,\n      name: A # na\n    }\n", ["s", 0], "key", undefined)).toBe(
+      "s:\n  - {\n      name: A # na\n    }\n",
+    );
+    expect(remove("s: [\n  a,\n  # about b\n  b,\n]\n", ["s"], 0)).toBe("s: [\n  # about b\n  b,\n]\n");
+    // The comment of the removed entry's line goes with it, and so do the comment lines directly above it.
+    expect(remove("s: [\n  # about a\n  a, # a\n\n  b\n]\n", ["s"], 0)).toBe("s: [\n\n  b\n]\n");
+    expect(remove("s: [\r\n  # about a\r\n  a,\r\n  b\r\n]\r\n", ["s"], 0)).toBe("s: [\r\n  b\r\n]\r\n");
+    // A separator on the next entry's line: the cut runs up to the next entry.
+    expect(remove("s: [\n  a\n  , b]\n", ["s"], 0)).toBe("s: [\n  b]\n");
+    expect(remove("s: [\n  a # x, y\n  , b]\n", ["s"], 0)).toBe("s: [\n  b]\n");
+  });
+
   it("[SR-236/AK-k2s3] does not take a # in a value for a comment, and keeps the comment of a line that does not change", () => {
     expect(set('s:\n  - { key: a, name: "A #1", note: n }  # c\n', ["s", 0], "note", "m")).toBe(
       's:\n  - { key: a, name: "A #1", note: m }\n',
