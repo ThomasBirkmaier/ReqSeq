@@ -27,6 +27,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  afterCommit = undefined;
+  handle.mockClear();
   act(() => {
     root.unmount();
   });

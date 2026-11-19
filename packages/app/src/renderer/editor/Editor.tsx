@@ -8,7 +8,7 @@ import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { Command, ViewUpdate } from "@codemirror/view";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
 import { listDragging } from "./list-drag.js";
@@ -477,7 +477,8 @@ export const Editor = ({
     // The editor is created once for its element; the props reach it through the effects below.
   }, [host]);
 
-  useEffect(() => {
+  // A layout effect like the one below, so a new configuration is in place before the document follows a text.
+  useLayoutEffect(() => {
     if (
       view !== undefined &&
       (applied.current.readOnly !== readOnly || applied.current.plugins !== plugins)
