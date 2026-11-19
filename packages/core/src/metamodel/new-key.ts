@@ -9,12 +9,14 @@ import { isKeyForm } from "./load.js";
 export const keyFromName = (name: string): { readonly key: string; readonly usable: boolean } => {
   const key = name
     .normalize("NFC")
+    .replace(/[Ää]/g, "ae")
+    .replace(/[Öö]/g, "oe")
+    .replace(/[Üü]/g, "ue")
+    .replace(/[ßẞ]/g, "ss")
+    // Only A–Z and a–z are letters here: a letter outside them that lower-cases to one (İ) is
+    // another character too (#1958).
+    .replace(/[^A-Za-z0-9]+/g, "-")
     .toLowerCase()
-    .replaceAll("ä", "ae")
-    .replaceAll("ö", "oe")
-    .replaceAll("ü", "ue")
-    .replaceAll("ß", "ss")
-    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return { key, usable: isKeyForm(key) };
 };

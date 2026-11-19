@@ -5,11 +5,12 @@
 // - The document is never rendered again: text is inserted, so every other line stays byte for
 //   byte with its comment and line ending. A new item comes at the end of its list.
 // - A block list (`- ...` items) gets the item in the fixed style of `yaml-document.ts`, its `-` in
-//   the column of the list's first `-`, after the end of the list as the parser gives it; comment and
-//   blank lines after the list stay below it. A flow list (`[...]`) gets the item in flow style after
+//   the column of the list's first `-`, after the line of its last value and the comment lines that
+//   follow indented to that column or more; a blank line or a comment further left (the heading of
+//   the next key) stays below it. A flow list (`[...]`) gets the item in flow style after
 //   its last item (after `[` when empty), so only that line changes. A missing list is added with
-//   the item after the last line of the block mapping that gets it, in the column of its keys; a
-//   missing top-level list at the end of the file.
+//   the item after the last line of the block mapping that gets it (the same way), in the column of
+//   its keys; a missing top-level list at the end of the file, before a document end marker `...`.
 // - The line ending is that of the line the item follows, else CRLF when the file has one, else LF.
 // - A list, or a node on the path to it, that is an alias or carries an anchor is refused
 //   (`file.faulty` with file and line), as an edit there would change what another place of the file
@@ -42,9 +43,51 @@ const lineEndingBefore = (text: string, offset: number): LineEnding => {
   return text.includes("\r\n") ? "\r\n" : "\n";
 };
 
-/** `rendered` with `indent` spaces before each line that is not empty. */
+/**
+ * `rendered` with `indent` spaces before each line that is not empty. Split at line feeds only, as a
+ * text may hold other line separators (U+2028, U+2029) that are no line break of YAML.
+ */
 const indented = (rendered: string, indent: number): string =>
-  indent === 0 ? rendered : rendered.replace(/^(?=.)/gm, " ".repeat(indent));
+  rendered
+    .split("\n")
+    .map((line) => (line === "" || line === "\r" ? line : `${" ".repeat(indent)}${line}`))
+    .join("\n");
+
+/** The offset after the line break of the line that holds `offset - 1` (`offset` when it starts a line). */
+const lineEndAfter = (text: string, offset: number): number => {
+  if (offset === 0 || text[offset - 1] === "\n") {
+    return offset;
+  }
+  const next = text.indexOf("\n", offset);
+  return next === -1 ? text.length : next + 1;
+};
+
+/**
+ * The end of the content of the block collection `node` (after the line break of its last item's
+ * last line), and after the comment lines that follow it indented to `col` or more: they belong to
+ * it. The parser's range of a collection also takes the blank lines and the comments below it, which
+ * may belong to the next key (`# Properties` above `properties:`).
+ */
+const contentEnd = (text: string, node: YAMLSeq | YAMLMap, col: number): number => {
+  // A block collection has at least one item.
+  const last = node.items.at(-1) as Node | { readonly key: Node; readonly value: Node | null };
+  const lastNode = isNode(last) ? last : (last.value ?? last.key);
+  let end = lineEndAfter(text, rangeOf(lastNode)[1]);
+  for (;;) {
+    const line = text.slice(end, lineEndAfter(text, end + 1));
+    const comment = /^ *(?=#)/.exec(line);
+    if (comment === null || comment[0].length < col) {
+      return end;
+    }
+    end += line.length;
+  }
+};
+
+/** Where the end marker `...` of the document starts, else the end of the text (SR-236 AK4). */
+const documentEnd = (text: string, from: number): number => {
+  const marker = /^\.\.\.(?=[ \t\r\n#]|$)/m.exec(text.slice(from));
+  return marker === null ? text.length : from + marker.index;
+};
 
 /** Where and what to insert into the text. */
 interface Insertion {
@@ -64,14 +107,10 @@ const linesAt = (text: string, end: number, rendered: string, eol: LineEnding): 
 
 /** The insertion of `item` into the block list `seq`, after its end; the list starts at its first `-`. */
 const intoBlockList = (text: string, seq: YAMLSeq, lines: LineCounter, item: unknown): Insertion => {
-  const [start, end] = rangeOf(seq);
+  const col = lines.linePos(rangeOf(seq)[0]).col - 1;
+  const end = contentEnd(text, seq, col);
   const eol = lineEndingBefore(text, end);
-  return linesAt(
-    text,
-    end,
-    indented(renderYaml([item], eol, "block-list"), lines.linePos(start).col - 1),
-    eol,
-  );
+  return linesAt(text, end, indented(renderYaml([item], eol, "block-list"), col), eol);
 };
 
 /** The insertion of `item` into the flow list `seq`, after its last item or after `[`. */
@@ -92,9 +131,10 @@ const newList = (
   key: string,
   item: unknown,
 ): Insertion => {
-  const end = top || map === null ? text.length : rangeOf(map)[1];
-  const eol = lineEndingBefore(text, end);
   const indent = top || map === null ? 0 : lines.linePos(rangeOf(map)[0]).col - 1;
+  const end =
+    map === null ? text.length : top ? documentEnd(text, rangeOf(map)[1]) : contentEnd(text, map, indent);
+  const eol = lineEndingBefore(text, end);
   return linesAt(text, end, indented(renderYaml({ [key]: [item] }, eol), indent), eol);
 };
 

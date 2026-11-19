@@ -200,6 +200,16 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
     );
     expect(await none.read(OWN.types)).toBe("reqseq-metamodel: 1\n");
     expect(await none.read(OWN.properties)).toBe(properties);
+
+    // A first file that ends with a document end marker gets the list before it.
+    const marked = await own({
+      [OWN.types]: "reqseq-metamodel: 1\n",
+      "models/model/a-statuses.yaml": "reqseq-metamodel: 1\n...\n",
+    });
+    await add(marked.workspace, RISK);
+    expect(await marked.read("models/model/a-statuses.yaml")).toBe(
+      "reqseq-metamodel: 1\ntypes:\n  - key: risk\n    name: Risk\n    prefix: RI\n...\n",
+    );
   });
 
   it("[SR-236/AK-cv7t] refuses on a read-only metamodel repository, a metamodel that does not read and a list behind a YAML alias, and writes nothing", async () => {
@@ -257,6 +267,14 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
     // An umlaut written as a base letter and a combining mark counts as the umlaut (NFC).
     expect((await add(workspace, { name: "Müll", prefix: "MU" })).type.key).toBe("muell");
     expect((await add(workspace, { name: "Café Order", prefix: "CO" })).type.key).toBe("caf-order");
+    // Only A–Z and a–z are letters: İ lower-cases to i and a mark, yet is another character; the
+    // Kelvin sign is the letter K in NFC.
+    expect((await add(workspace, { name: "\u0130ris \u212Aelvin", prefix: "IK" })).type.key).toBe(
+      "ris-kelvin",
+    );
+    expect((await add(workspace, { name: "Line\u2028Break", prefix: "LB" })).type.name).toBe(
+      "Line\u2028Break",
+    );
     expect((await add(workspace, { name: "Hazard", prefix: "HZ", key: "danger" })).type.key).toBe("danger");
     for (const [name, key, why] of [
       ["2nd level", "2nd-level", "does not start with a letter"],

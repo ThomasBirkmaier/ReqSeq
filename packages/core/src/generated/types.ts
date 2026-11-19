@@ -2429,7 +2429,7 @@ export interface MetamodelAddTypeOutput {
   readonly type: MetamodelType;
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4), such as elements whose type was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
   readonly versionsChanged: number;
   /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
   readonly missingRequired: number;

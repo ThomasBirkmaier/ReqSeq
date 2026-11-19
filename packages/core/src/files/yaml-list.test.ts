@@ -44,7 +44,7 @@ describe("appendListItem", () => {
       "  - key: need   # the need",
       "    name: Need",
       "    prefix: N",
-      "  # a comment after the list",
+      "# a comment after the list, in a column left of its dash",
       "",
       "statuses: []",
       "",
@@ -89,6 +89,24 @@ describe("appendListItem", () => {
     expect(append(text, { key: "b" })).toBe(
       "types:\n  - key: a\n    description: |+\n      x\n\n  - key: b\nother: 1\n",
     );
+  });
+
+  it("adds after the comments that belong to the list, before the blank line and the next key's comment", () => {
+    const head = "types:\n  - key: a\n    name: A\n    prefix: A # same line\n    # note\n";
+    const tail = "\n# Properties\nproperties: []\n";
+    expect(append(`${head}${tail}`, TYPE)).toBe(`${head}${indent(RENDERED, 2)}${tail}`);
+    const nested = "a:\n  b: 1\n  # of a\n# top\nc: 2\n";
+    expect(append(nested, 3, ["a", "list"])).toBe("a:\n  b: 1\n  # of a\n  list: [3]\n# top\nc: 2\n");
+    expect(append("a:\n  ? b\n# top\n", 3, ["a", "list"])).toBe("a:\n  ? b\n  list: [3]\n# top\n");
+  });
+
+  it("keeps a line separator inside a value (U+2028) as text", () => {
+    const out = append("types: []\n", { key: "x", name: "A\u2028B" });
+    expect(fileOf(out).text).toContain("A\u2028B");
+  });
+
+  it("creates a missing top-level list before a document end marker", () => {
+    expect(append("properties: []\n...\n", TYPE)).toBe(`properties: []\ntypes:\n${indent(RENDERED, 2)}...\n`);
   });
 
   it("adds a flow item to a flow list, also an empty, a multi-line one and one with a trailing comma", () => {

@@ -16,7 +16,8 @@ export const writeMetamodel = async <T>(
   command: string,
   plan: (source: MetamodelSource) => MetamodelPlan<T>,
 ): Promise<MetamodelWrite<T>> => {
-  const change = await changeMetamodel(workspace, command, plan);
+  // Loaded before the write, so a store that cannot be read refuses the command before it writes.
   const store = await workspace.get(elementStoreState);
+  const change = await changeMetamodel(workspace, command, plan);
   return { ...change, ...metamodelEffects(store, change.before, change.after) };
 };
