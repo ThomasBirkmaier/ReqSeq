@@ -37,7 +37,8 @@ test.describe("find and replace in the element buffer", () => {
     const logs: string[] = [];
     (globalThis as { dbg?: string[] }).dbg = logs;
     running.window.on("console", (m) => {
-      if (m.text().startsWith("DBG")) logs.push(`${String(Date.now())} ${m.text()}`);
+      const text = m.text().replace(/"(?:[^"\\]|\\.)*"/g, (q) => `«${q.slice(-40)}»`);
+      if (text.startsWith("DBG")) logs.push(`${String(Date.now())} ${text.slice(0, 300)}`);
     });
     await listAll(running.window);
     await editing(running.window);
@@ -45,7 +46,7 @@ test.describe("find and replace in the element buffer", () => {
     await running.window.keyboard.press("Home");
   });
   test.afterEach(async ({}, info) => {
-    if (info.status !== info.expectedStatus) {
+    if (info.status !== info.expectedStatus || info.title.startsWith("diagnostic")) {
       console.log((globalThis as { dbg?: string[] }).dbg?.join("\n"));
     }
     await running.close();

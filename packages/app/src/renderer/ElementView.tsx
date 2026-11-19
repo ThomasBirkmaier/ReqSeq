@@ -316,6 +316,7 @@ export const ElementView = ({
   // its input at once (SR-105 AK1): the app does it with the draft it keeps, since the editors go; not over
   // a change on disk or a file that is gone (SR-106).
   useEffect(() => {
+    console.log("DBG elementview mounted", buffer.key);
     mounted.current = true;
     const made = createAutosave({
       save: () => api.current.saveInput("quiet"),

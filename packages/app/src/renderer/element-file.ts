@@ -434,6 +434,7 @@ export const elementSaves = (
       return false;
     }
     const next = checkStep(answer.output.fileSha256, expected, refused);
+    console.log("DBG check", next.kind, JSON.stringify(answer.output.element.text));
     if (next.kind === "apply") {
       // The lines show what the file holds, also when `apply` keeps input over a change on disk.
       setGot(answer.output);
