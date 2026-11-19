@@ -1,0 +1,50 @@
+/* The overview: a line per type with its count, the perspectives, and the recent elements below. Greys only. */
+.overview .line {
+  padding: 0.1rem 0.75rem;
+  cursor: default;
+}
+
+.overview .line[aria-selected="true"] {
+  background: var(--select);
+}
+
+/* Each recent element is a grid of its own, so the ID column has one fixed width, the same in every line:
+   11rem holds a short ID with a usual identifier ("SR-ae0093 (SR-001)", SR-084 AK4); a longer one ends in
+   "…" and shows in full on hover. */
+.overview .recent {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.overview .recent .id,
+.overview .count,
+.overview .reason,
+.overview .group {
+  color: var(--muted);
+}
+
+.overview .recent .id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview .recent .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview .count {
+  font-variant-numeric: tabular-nums;
+}
+
+.overview .group {
+  margin-top: 1rem;
+  padding: 0.1rem 0.75rem;
+  font-size: 12px;
+}
