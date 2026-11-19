@@ -2,10 +2,13 @@
 // shows, laid out by its shape alone. Its answer (`answer`, SR-224 AK1) heads the page (`resultAnswer`), the
 // problems of its top-level problem lists follow, errors before warnings before infos under a heading each, and
 // then the rest. Every value stands under its title from the catalog (`outputFields`, SR-224 AK3), never under
-// its field name; a value equal to the normal value the catalog names for it is left out (SR-223 AK7, shown with
-// "Show details" by #1875); a key of a map stays as it is, since it is data. Elements are rows that open, with the
-// status their record gives at the end, as a list row shows it (#276; the rows of `trace.chain` too), a problem is
-// one line with its element and message, everything else is a quiet indented outline. The share of a
+// its field name; a key of a map stays as it is, since it is data. A value the catalog marks technical (UUID,
+// path, check value, commit, kind of a problem, duration: SR-224 AK3) and a value equal to the normal value it
+// names are left out, and shown at their lines as details, in the second grey, while "Show details" is on for the
+// buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
+// rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
+// `trace.chain` too), a problem is one line with its element and message (with details its kind and technical
+// values), everything else is a quiet indented outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, ThomasBirkmaier/ReqSeq-archive#592 Q3). A UUID the output names in `names` (ThomasBirkmaier/ReqSeq-archive#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
@@ -41,8 +44,13 @@ export interface ResultLine {
   readonly title?: string;
   /** The first line of an item of a list that is a record without a row of its own: a gap sets it apart. */
   readonly itemStart?: true;
-  /** The status of an element row whose record gives one, as a list row shows it (#276); a problem's kind. */
+  /**
+   * The status of an element row whose record gives one, as a list row shows it (#276); a problem's kind, which
+   * is technical and shown only with "Show details" (SR-223 AK2).
+   */
   readonly status?: string;
+  /** A technical value, or one equal to its normal value, shown only with "Show details" (SR-223 AK2, AK7). */
+  readonly detail?: true;
 }
 
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
@@ -71,6 +79,10 @@ interface Walk {
   readonly sink: Sink;
   readonly names: Names;
   readonly fields: Fields;
+  /** "Show details" is on for the buffer (SR-223 AK2): technical and normal values are shown, as details. */
+  readonly details: boolean;
+  /** The lines being walked belong to a technical or normal value, shown only with "Show details". */
+  readonly detail: boolean;
 }
 
 /** An element as outputs give it: an ID, its repository, a short ID and a title. */
@@ -118,9 +130,9 @@ const isProblemList = (value: unknown): value is readonly Rec[] =>
 
 /**
  * One problem: its element (SR-084 AK4), else the file and line it is about, then its message; its kind at the end.
- * Under a heading of its severity the line says no severity, elsewhere it starts with it.
+ * Under a heading of its severity the line says no severity, elsewhere it starts with it; `kind`: its kind is shown.
  */
-const problemLine = (problem: Rec, depth: number, headed: boolean): ResultLine => {
+const problemLine = (problem: Rec, depth: number, headed: boolean, kind: boolean): ResultLine => {
   const id = str(problem["elementId"]);
   // Safe fallback: a problem gives `elementRepository` only when its `repository` and `file` name another
   // file than the element's (schemas/common.schema.json, `problem`); otherwise a problem that names an element
@@ -140,7 +152,8 @@ const problemLine = (problem: Rec, depth: number, headed: boolean): ResultLine =
     depth,
     label: [...(headed ? [] : [severity]), name ?? place ?? ""].filter((part) => part !== "").join(" "),
     text: String(problem["message"]),
-    status: String(problem["code"]),
+    // The kind of a problem, which the catalog marks technical (SR-224 AK3): with "Show details" (SR-223 AK2).
+    ...(kind ? { status: String(problem["code"]) } : {}),
     ...(id === undefined || repository === undefined
       ? {}
       : { open: elementBuffer(id, repository, name ?? id) }),
@@ -166,9 +179,12 @@ interface Sink {
   rest: number;
 }
 
-const emit = (sink: Sink, line: () => ResultLine): void => {
+/** Adds a line, marked as a detail inside a value "Show details" shows (`Walk.detail`). */
+const emit = (walk: Walk, line: () => ResultLine): void => {
+  const { sink } = walk;
   if (sink.lines.length < MAX_RESULT_LINES) {
-    sink.lines.push(line());
+    const made = line();
+    sink.lines.push(walk.detail ? { ...made, detail: true } : made);
   } else {
     sink.rest += 1;
   }
@@ -198,6 +214,47 @@ const isNormal = (fields: Fields, path: string, value: unknown): boolean => {
   const normal = fields.get(path)?.normal;
   return normal !== undefined && JSON.stringify(normal) === JSON.stringify(value);
 };
+
+/**
+ * The field at `path` of `record` is technical (SR-224 AK3), shown only with "Show details" (SR-223 AK2):
+ * marked `true`, or `with-element` while the record, a problem, names an element (`elementId`).
+ */
+const isTechnical = (fields: Fields, path: string, record: Rec): boolean => {
+  const technical = fields.get(path)?.technical;
+  return technical === true || (technical === "with-element" && typeof record["elementId"] === "string");
+};
+
+/** A value "Show details" shows, under the title of its field (SR-223 AK2). */
+export interface DetailValue {
+  readonly label: string;
+  readonly text: string;
+}
+
+/**
+ * The technical values of `record`, an item at `path` of an output (`hints[]`), each under its title from
+ * `fields` and in the order of the record, without the fields named in `except` and those without a value (`null`,
+ * such as the commit of a file outside Git) (SR-223 AK2).
+ */
+export const technicalValues = (
+  record: object,
+  path: string,
+  fields: readonly OutputField[],
+  except: readonly string[] = [],
+): DetailValue[] => {
+  const byPath: Fields = new Map(fields.map((field) => [field.path, field]));
+  return Object.entries(record).flatMap(([key, value]) => {
+    const child = childOf(byPath, path, key);
+    return except.includes(key) || value === null || !isTechnical(byPath, child.path, record as Rec)
+      ? []
+      : [{ label: child.label, text: scalar(value) }];
+  });
+};
+
+/** The value is a UUID `names` names, or a non-empty list of them: the rows of their elements. */
+const isNamed = (value: unknown, names: Names): boolean =>
+  typeof value === "string"
+    ? names.has(value)
+    : Array.isArray(value) && value.length > 0 && value.every((each) => isNamed(each, names));
 
 /** The row with the `status` its record gives, if any: the only field of an element record a row shows. */
 const withStatus = (line: ResultLine, record: Rec): ResultLine => {
@@ -267,6 +324,34 @@ const leafLine = (value: unknown, depth: number, label: string, path: string, na
 };
 
 /**
+ * A problem's line (`problemLine`) at `path`, the path of its list; with "Show details" its kind at the end and
+ * under it its technical values, each under its title (SR-223 AK2), such as the UUID of its element.
+ */
+const problemLines = (problem: Rec, depth: number, headed: boolean, path: string, walk: Walk): void => {
+  const kind = childOf(walk.fields, path, "code").path;
+  emit(walk, () =>
+    problemLine(problem, depth, headed, walk.details || !isTechnical(walk.fields, kind, problem)),
+  );
+  if (!walk.details) {
+    return;
+  }
+  for (const [key, value] of Object.entries(problem)) {
+    const child = childOf(walk.fields, path, key);
+    if (key !== "code" && value !== null && isTechnical(walk.fields, child.path, problem)) {
+      // As text, also a UUID `names` names: the problem's line already opens its element.
+      emit(walk, () => ({
+        kind: "text",
+        depth: depth + 1,
+        label: child.label,
+        text: scalar(value),
+        field: child.path,
+        detail: true,
+      }));
+    }
+  }
+};
+
+/**
  * The lines of `value` at `path` (`""` the output itself), under `label` (`""` none). `item`: the value is an
  * item of a list (an entry whose `id` names an element is that element's row).
  */
@@ -278,10 +363,10 @@ const linesOf = (
   walk: Walk,
   item = false,
 ): void => {
-  const { sink, names } = walk;
+  const { names } = walk;
   if (Array.isArray(value)) {
     if (label !== "") {
-      emit(sink, () => ({ kind: "text", depth, label, text: String(value.length), field: path }));
+      emit(walk, () => ({ kind: "text", depth, label, text: String(value.length), field: path }));
     }
     // Problems of a list stand by severity, errors first (SR-223 AK1).
     const items = isProblemList(value) ? bySeverity(value) : (value as readonly unknown[]);
@@ -292,21 +377,21 @@ const linesOf = (
     return;
   }
   if (!isRecord(value)) {
-    emit(sink, () => leafLine(value, depth, label, path, names));
+    emit(walk, () => leafLine(value, depth, label, path, names));
     return;
   }
   const element = asElement(value);
   if (element !== undefined) {
-    emit(sink, () => withStatus(elementLine(element, depth), value));
+    emit(walk, () => withStatus(elementLine(element, depth), value));
     return;
   }
   const pair = pairOf(value, names);
   if (pair !== undefined) {
-    emit(sink, () => pairLine(pair, depth, childOf(walk.fields, path, pair.key).label));
+    emit(walk, () => pairLine(pair, depth, childOf(walk.fields, path, pair.key).label));
     return;
   }
   if (isProblem(value)) {
-    emit(sink, () => problemLine(value, depth, false));
+    problemLines(value, depth, false, path, walk);
     return;
   }
   outlineLines(value, depth, label, path, walk, item);
@@ -317,9 +402,13 @@ const fieldLines = (value: Rec, depth: number, path: string, walk: Walk, skip?: 
   const share = degreeShareOf(value);
   for (const [key, item] of Object.entries(value)) {
     const child = childOf(walk.fields, path, key);
-    if (key !== skip && !isNormal(walk.fields, child.path, item)) {
+    // A technical value that names elements is their rows, which are no detail (`isNamed`).
+    const detail =
+      isNormal(walk.fields, child.path, item) ||
+      (isTechnical(walk.fields, child.path, value) && !isNamed(item, walk.names));
+    if (key !== skip && (walk.details || !detail)) {
       const shown = key === "share" && share !== undefined ? degreePercent(share) : item;
-      linesOf(shown, depth, child.label, child.path, walk);
+      linesOf(shown, depth, child.label, child.path, detail ? { ...walk, detail: true } : walk);
     }
   }
 };
@@ -338,12 +427,12 @@ const outlineLines = (
 ): void => {
   const entry = item ? entryOf(value, walk.names) : undefined;
   if (entry !== undefined) {
-    emit(walk.sink, () => elementLine(entry, depth));
+    emit(walk, () => elementLine(entry, depth));
     fieldLines(value, depth + 1, path, walk, "id");
     return;
   }
   if (label !== "") {
-    emit(walk.sink, () => ({ kind: "text", depth, label, text: "", field: path }));
+    emit(walk, () => ({ kind: "text", depth, label, text: "", field: path }));
   }
   const first = walk.sink.lines.length;
   fieldLines(value, label === "" ? depth : depth + 1, path, walk);
@@ -429,15 +518,20 @@ const pageLines = (rest: unknown, walk: Walk): void => {
     linesOf(rest, 0, "", "", walk);
     return;
   }
-  const problems = bySeverity(Object.values(rest).filter(isProblemList).flat());
+  // Each problem with the path of its list, whose fields name what of it is technical.
+  const listed = Object.entries(rest).flatMap(([key, value]) =>
+    isProblemList(value) ? value.map((problem) => ({ problem, path: `${key}[]` })) : [],
+  );
+  // By severity, the order of the output kept within one (a stable sort).
+  const problems = [...listed].sort((a, b) => rankOf(a.problem) - rankOf(b.problem));
   let heading: string | undefined;
-  for (const problem of problems) {
+  for (const { problem, path } of problems) {
     const [, , title] = SEVERITIES[rankOf(problem)] ?? ["", "", "Other problems"];
     if (title !== heading) {
       heading = title;
-      emit(walk.sink, () => ({ kind: "heading", depth: 0, label: "", text: title }));
+      emit(walk, () => ({ kind: "heading", depth: 0, label: "", text: title }));
     }
-    emit(walk.sink, () => problemLine(problem, 0, true));
+    problemLines(problem, 0, true, path, walk);
   }
   fieldLines(
     Object.fromEntries(Object.entries(rest).filter(([, value]) => !isProblemList(value))),
@@ -449,14 +543,20 @@ const pageLines = (rest: unknown, walk: Walk): void => {
 
 /**
  * The lines of an output (none while there is none), at most `MAX_RESULT_LINES` and a last one that counts the
- * rest; `fields` are the `outputFields` of its command, which give the titles and normal values.
+ * rest; `fields` are the `outputFields` of its command, which give the titles, the normal values and what is
+ * technical. Technical values and values equal to their normal value are left out, and shown as details while
+ * `details` is on ("Show details", SR-223 AK2, AK7).
  */
-export const resultLines = (output: unknown, fields: readonly OutputField[] = []): ResultLine[] => {
+export const resultLines = (
+  output: unknown,
+  fields: readonly OutputField[] = [],
+  details = false,
+): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
     const byPath = new Map(fields.map((field) => [field.path, field]));
-    pageLines(splitSummary(shown, names).rest, { sink, names, fields: byPath });
+    pageLines(splitSummary(shown, names).rest, { sink, names, fields: byPath, details, detail: false });
   }
   const { lines, rest } = sink;
   if (rest > 0) {

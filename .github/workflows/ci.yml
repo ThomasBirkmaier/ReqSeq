@@ -119,9 +119,10 @@ jobs:
   # SR-076: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
   checks:
     name: checks (ubuntu-24.04)
-    # A normal run takes 6-7 minutes (the nightly about 11, plus up to 5 for the status model step); the bound ends a hang
-    # early.
-    timeout-minutes: ${{ github.event_name == 'schedule' && 20 || 15 }}
+    # A pull request run takes about 10 minutes, but about 1 in 4 hosted runners is about 1.5 times slower in every step,
+    # and there it takes 14-17 minutes (#1994); the bound of 15 cancelled green runs. 20 leaves about 3 minutes over the
+    # slowest healthy run and still ends a hang. The nightly gets up to 5 more for the status model step.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 25 || 20 }}
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps

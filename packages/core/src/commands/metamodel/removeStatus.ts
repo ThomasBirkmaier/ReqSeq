@@ -8,8 +8,11 @@
 // - A type without a list, neither its own nor an ancestor's, gets the list of every status it had
 //   but this one; a type that extends it with a list of its own would then get more statuses, which
 //   is refused (as in metamodel.addStatus).
-// - Once no type has the status, also no type without a list, its definition goes, except the
-//   initial status's; saved filters, perspectives and mapping files that name it are listed.
+// - Once no type has the status, also no type without a list, its definition goes, unless an
+//   element of any type still has the status: then it stays and `kept` names it with the number of
+//   those elements (`keptDefinitions`). The initial status's definition never goes, but `kept`
+//   names it the same way (SR-240 AK3). Saved filters, perspectives and mapping files that name a
+//   removed definition are listed.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { refuseShared, removeListItem, setMapValue } from "../../files/index.js";
@@ -24,6 +27,8 @@ import {
 } from "../../metamodel/index.js";
 import {
   hasStatus,
+  keptDefinitions,
+  keptNote,
   mentioningFiles,
   refuseMissingRepositories,
   refuseUses,
@@ -63,6 +68,7 @@ export default defineCommand({
     sentence(
       `Removed the status ${output.status} from the type ${output.type}`,
       output.removed ? "no type has it any more, so its definition went too" : "",
+      keptNote(output.kept),
       filesNote(output.files),
       output.mentions.length === 0
         ? ""
@@ -133,7 +139,13 @@ export default defineCommand({
           edit: (yaml) => setMapValue(yaml, place.file.path, at, "statuses", list),
         });
       }
-      const removed = status.initial !== true && !keptElsewhere(metamodel, input.type, status.key, list);
+      const unhad = !keptElsewhere(metamodel, input.type, status.key, list);
+      const { statuses, kept } = keptDefinitions(store, shortIds, {
+        properties: [],
+        statuses: unhad ? [status.key] : [],
+      });
+      // The initial status's definition never goes, also when no element has it (SR-240 AK3).
+      const removed = statuses.length > 0 && status.initial !== true;
       const definition = removed ? definitionAt(files, "statuses", status.key) : undefined;
       if (definition !== undefined) {
         edits.push({
@@ -143,7 +155,7 @@ export default defineCommand({
       }
       return {
         bytes: editedFiles(edits),
-        result: removed,
+        result: { removed, kept },
         check: (after: Metamodel): void => {
           const widened = widenedTypes(metamodel, after, input.type);
           if (widened.length > 0) {
@@ -159,8 +171,9 @@ export default defineCommand({
     return {
       type: input.type,
       status: input.status,
-      removed: change.result,
-      mentions: change.result ? [...(await mentioningFiles(layout, new Set([input.status])))] : [],
+      removed: change.result.removed,
+      kept: [...change.result.kept],
+      mentions: change.result.removed ? [...(await mentioningFiles(layout, new Set([input.status])))] : [],
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,

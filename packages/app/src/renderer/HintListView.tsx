@@ -4,7 +4,8 @@
 // unfolds the group; Right opens and Left closes it (SR-193 AK2), and Left on a hint closes its group. Up and Down, Ctrl+N and Ctrl+P move
 // the mark over headings and hints (SR-122 AK4); Enter or a click on a hint opens its element. The full
 // message is the tooltip of a hint and, for the marked hint, part of the modeline. A variant an outdated
-// evidence record names by its UUID is named as the view prompt names it (`views.ts`).
+// evidence record names by its UUID is named as the view prompt names it (`views.ts`). With "Show details" each
+// hint shows its technical values under their titles in a line of the second grey under its row (SR-223 AK2).
 import { bufferMark, useHidden } from "./area-slot.js";
 import { useEffect, useMemo, useState } from "react";
 import type { HintListOutput } from "@reqseq/core";
@@ -16,6 +17,7 @@ import { foldMove, hintList, hintRows, variantViews } from "./hint-list.js";
 import { shownId } from "./id-title.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
+import type { OutputField } from "./result.js";
 import { viewsOf } from "./views.js";
 import type { WindowAction } from "./window-layout.js";
 
@@ -25,6 +27,8 @@ export interface HintListViewProps {
   readonly output: HintListOutput;
   readonly dispatch: (action: WindowAction) => void;
   readonly onData: (key: string, data: BufferData | undefined) => void;
+  /** The fields of the output of `hint.list` in the catalog (`outputFields`): what of a hint is technical. */
+  readonly fields?: readonly OutputField[];
 }
 
 /**
@@ -63,12 +67,14 @@ export const HintListView = ({
   output,
   dispatch,
   onData,
+  fields,
 }: HintListViewProps): React.JSX.Element => {
   const scope = useIdScope();
   // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
   const bufferAttribute = bufferMark(useHidden());
   const views = useVariantNames(call, output);
-  const list = useMemo(() => hintList(output, views), [output, views]);
+  const list = useMemo(() => hintList(output, views, fields), [output, views, fields]);
+  const details = buffer.details === true;
   // Every group is open when the list opens (SR-026 AK5).
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
   const rows = useMemo(() => hintRows(list, folded), [list, folded]);
@@ -194,6 +200,11 @@ export const HintListView = ({
             <span className="hint-element">{row.line.element}</span>
             <span className="hint-title">{row.line.title}</span>
             <span className="hint-reason">{row.line.reason}</span>
+            {details && row.line.details.length > 0 ? (
+              <span className="hint-details">
+                {row.line.details.map((value) => `${value.label}: ${value.text}`).join(" · ")}
+              </span>
+            ) : null}
           </div>
         ),
       )}

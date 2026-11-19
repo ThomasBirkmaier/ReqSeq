@@ -224,6 +224,9 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
   /** UTF-8 bytes and lines of its JSON Lines (#319). */
   let linesBytes = 0;
   let lineCount = 0;
+  /** The opening of the export, compact and with indent 2: its answer first, then the format version. */
+  let compactHead = "";
+  let indentedHead = "";
 
   beforeAll(async () => {
     requireBuiltCli("pnpm test:perf");
@@ -249,6 +252,13 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
         linesBytes += Buffer.byteLength(chunk);
       }
       lineCount = (data as CommandOutput<"data.export">).elements.length;
+      // Every output opens with its answer (`invoke` adds it; the output type does not name it).
+      const { answer } = data as { readonly answer?: unknown };
+      if (typeof answer !== "string") {
+        throw new Error("data.export gave no answer");
+      }
+      compactHead = `{"answer":${JSON.stringify(answer)},"reqseq-data":5,`;
+      indentedHead = `{\n  "answer": ${JSON.stringify(answer)},\n  "reqseq-data": 5,`;
     } finally {
       await workspace.close();
     }
@@ -279,8 +289,8 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(run.code).toBe(0);
     const { size } = await fsp.stat(file);
     expect(size).toBe(indentedBytes + 1);
-    const { head, tail } = await edges(file, 21);
-    expect(head).toBe('{\n  "reqseq-data": 5,');
+    const { head, tail } = await edges(file, Buffer.byteLength(indentedHead));
+    expect(head).toBe(indentedHead);
     expect(tail.endsWith("\n}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
@@ -403,7 +413,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
               let last: Buffer = Buffer.alloc(0);
               res.on("data", (chunk: Buffer) => {
                 if (bytes === 0) {
-                  head = chunk.subarray(0, 17).toString("utf8");
+                  head = chunk.subarray(0, Buffer.byteLength(compactHead)).toString("utf8");
                 }
                 bytes += chunk.length;
                 // The last three bytes, also when the last chunk is only the line break.
@@ -427,7 +437,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       );
       expect(reply.status).toBe(200);
       expect(reply.bytes).toBe(compactBytes + 1);
-      expect(reply.head).toBe('{"reqseq-data":5,');
+      expect(reply.head).toBe(compactHead);
       expect(reply.tail.endsWith("}\n")).toBe(true);
       await recordValue(
         `POST data.export over the local API at N-036: ${(reply.bytes / MB).toFixed(0)} MB`,
@@ -458,7 +468,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(run.code).toBe(0);
     const { answer } = run;
     expect(answer.head).toContain(JSON.stringify(largeOutputNote(MAX_TEXT_BYTES)));
-    expect(answer.head).toContain('"structuredContent":{"reqseq-data":5,');
+    expect(answer.head).toContain(`"structuredContent":${compactHead}`);
     expect(answer.tail.endsWith("}")).toBe(true);
     // The structured content is the compact export; the envelope and the note add less than 1 KB.
     expect(answer.bytes).toBeGreaterThan(compactBytes);

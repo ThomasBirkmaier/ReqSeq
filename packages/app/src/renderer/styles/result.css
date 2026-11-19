@@ -111,6 +111,16 @@
   margin-left: 0;
 }
 
+/* With "Show details" (SR-223 AK2, AK7): a technical value, or one equal to its normal value, at its line in the
+   second grey, its title too; a UUID, a path or a hash in the monospace font, and never cut. */
+.result.output .line.detail .text {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* The setup of "Connect AI agent" (SR-227 AK7): a column like an element's, the answer, the block to copy as a
    field with its copy symbol at the right edge (SR-128), the next step, and the place it holds for, muted. */
 .result.agent-setup {
