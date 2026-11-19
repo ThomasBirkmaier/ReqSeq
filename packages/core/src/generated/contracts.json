@@ -6133,7 +6133,7 @@
         "name": "workspace.connectAgent",
         "title": "Connect AI agent",
         "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
-        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows), and for Claude Code `next` also names `reqseq tool guide --skill --write`, which writes the skill file; Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
         "effect": "read",
         "stage": 6,
         "implements": [
@@ -6299,7 +6299,7 @@
               "title": "Next",
               "type": "string",
               "minLength": 1,
-              "description": "How to go on after pasting the setup. Only with a client."
+              "description": "How to go on after pasting the setup; for Claude Code also the command-line call that writes the skill file. Only with a client."
             }
           },
           "additionalProperties": false,

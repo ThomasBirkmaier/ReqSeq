@@ -230,6 +230,13 @@ const NEXT: Readonly<Record<Client, string>> = {
     "Add the entry to your client's MCP configuration; a client with another form takes the same command, args and env.",
 };
 
+/**
+ * The sentence under Claude Code's command that names the call writing the skill file into the workspace's
+ * repository (AK2, SR-229 AK8), with the workspace quoted for the shell of the command.
+ */
+const skillSentence = (workspace: string, windows: boolean): string =>
+  `To give Claude Code the skill file, run \`reqseq tool guide --skill --write --workspace ${(windows ? quotePowerShell : quoteSh)(workspace)}\`.`;
+
 /** The folder whose move ends the setup, as the `valid` sentence names it (AK3). */
 const validSentence = (facts: SetupFacts): string => {
   const delivery = deliveryOf(facts.installation, facts.platform);
@@ -296,6 +303,9 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
   const windows = facts.platform === "win32";
   return {
     ...common,
+    ...(client === "claude-code"
+      ? { next: `${NEXT[client]} ${skillSentence(facts.workspace, windows)}` }
+      : {}),
     answer: `Run this command in ${windows ? "PowerShell" : "a terminal"} ${to}.`,
     setup: {
       form: "command",

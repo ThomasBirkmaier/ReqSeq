@@ -114,6 +114,19 @@ describe("setupOf", () => {
     expect(setup("vscode", windows).setup.text).toBe(
       String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Tools\\ReqSeq\\ReqSeq.exe\",\"args\":[\"C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"],\"env\":{\"ELECTRON_RUN_AS_NODE\":\"1\"}}"`,
     );
+    // Under Claude Code's command, the call that writes the skill file, the workspace quoted for its shell.
+    expect(setup("claude-code", mac).next).toMatch(
+      /To give Claude Code the skill file, run `reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
+    );
+    expect(setup("claude-code", { ...linux, workspace: "/home/ann/my station" }).next).toContain(
+      "`reqseq tool guide --skill --write --workspace '/home/ann/my station'`",
+    );
+    expect(setup("claude-code", windows).next).toContain(
+      "`reqseq tool guide --skill --write --workspace 'C:\\Work\\station'`",
+    );
+    for (const client of ["claude-desktop", "cursor", "vscode", "codex-cli", "other"] as const) {
+      expect(setup(client, linux).next).not.toContain("tool guide");
+    }
     expect(setup("claude-desktop", mac).setup.file).toBe(
       "/Users/ann/Library/Application Support/Claude/claude_desktop_config.json",
     );
