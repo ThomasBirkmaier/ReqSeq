@@ -404,7 +404,7 @@ describe("tool.guide", () => {
       for (const names of NAMES) {
         const body = section(await guide(root, { names }), "In a pipeline");
         expect(body).toContain(
-          "It can publish the elements as pages with the HTML export: `reqseq html export '<folder>'`.",
+          "The pipeline can publish the elements as pages with the HTML export: `reqseq html export '<folder>'`.",
         );
         expect(body).not.toContain("html_export");
         expect(body).not.toMatch(/github|gitlab|netlify|vercel|pages\.dev|cloudflare|host/i);
