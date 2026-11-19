@@ -33,7 +33,7 @@
             "since": {
               "title": "Connected since",
               "$ref": "../common.schema.json#/$defs/dateTime",
-              "description": "When the client connected: when the MCP server wrote the answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
+              "description": "When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
             }
           },
           "required": ["client", "since"],

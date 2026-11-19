@@ -1,7 +1,6 @@
 import { PassThrough } from "node:stream";
 import type { JSONRPCMessage } from "@modelcontextprotocol/server";
 import { serializeMessage } from "@modelcontextprotocol/server";
-import { clientName } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { LineTransport, MAX_MESSAGE_BYTES } from "./transport.js";
 
@@ -369,7 +368,6 @@ describe("LineTransport onConnect (SR-228)", () => {
     ]);
     // Connected on arrival, before any answer, without a name: core records it as null ("unknown client").
     expect(clients).toEqual([[undefined, 0]]);
-    expect(clientName(undefined)).toBeNull();
     await deliver(
       request(2, "tools/list", {
         _meta: {
@@ -388,6 +386,26 @@ describe("LineTransport onConnect (SR-228)", () => {
     ]);
     await transport.send(result(1));
     expect(clients).toEqual([]);
+    await transport.close();
+  });
+
+  it("connects only on a request that names a revision without initialize", async () => {
+    const naming = (id: number, revision: unknown): JSONRPCMessage =>
+      request(id, "tools/list", {
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": revision,
+          "io.modelcontextprotocol/clientInfo": { name: String(revision) },
+        },
+      });
+    const { transport, clients, deliver } = await session([
+      naming(1, "2025-11-25"),
+      naming(2, null),
+      naming(3, "2026-07"),
+      naming(4, 20260728),
+    ]);
+    expect(clients).toEqual([]);
+    await deliver(naming(5, "2026-07-28"));
+    expect(clients).toEqual([["2026-07-28", 0]]);
     await transport.close();
   });
 
