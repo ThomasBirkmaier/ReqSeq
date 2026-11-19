@@ -12,10 +12,38 @@ describe("svgRisk", () => {
     expect(
       svgRisk(svg('<defs><g id="a"/></defs><use xlink:href="#a"/><rect fill="url(#g)"/>')),
     ).toBeUndefined();
+    expect(svgRisk(new TextEncoder().encode("<svg><rect/></svg>"))).toBeUndefined();
   });
 
   it.each([
     ["a script", "<script>alert(1)</script>", "a script or embedded content"],
+    [
+      "a script under an SVG prefix",
+      '<s:script xmlns:s="http://www.w3.org/2000/svg">f()</s:script>',
+      "a script or embedded content",
+    ],
+    [
+      "a foreign object under a prefix",
+      '<s:foreignObject xmlns:s="http://www.w3.org/2000/svg"/>',
+      "a script or embedded content",
+    ],
+    [
+      "an animation under a prefix",
+      '<s:set xmlns:s="http://www.w3.org/2000/svg" attributeName="href" to="#x"/>',
+      "an animation or a character reference",
+    ],
+    ["an event attribute under a prefix", '<rect s:onload="f()"/>', "an event attribute"],
+    [
+      "the XHTML namespace",
+      '<h:script xmlns:h="http://www.w3.org/1999/xhtml">f()</h:script>',
+      "a namespace other than SVG and XLink",
+    ],
+    [
+      "a default namespace of XHTML",
+      '<g><div xmlns="http://www.w3.org/1999/xhtml"/></g>',
+      "a namespace other than SVG and XLink",
+    ],
+    ["a namespace without quotes", "<g xmlns:h=x/>", "a namespace other than SVG and XLink"],
     ["a foreign object", "<foreignObject><div/></foreignObject>", "a script or embedded content"],
     ["an entity", '<!ENTITY x "y">', "a script or embedded content"],
     ["an event attribute", '<rect onload="f()"/>', "an event attribute"],

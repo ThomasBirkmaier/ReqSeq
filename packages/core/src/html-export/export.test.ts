@@ -90,6 +90,30 @@ describe("html.export with images and Markdown properties", () => {
     expect(output.answer).toBe("Exported 2 element pages to site; 7 problems.");
   });
 
+  it("[SR-235/AK-t7cw] leaves an SVG image with a script under an SVG or XHTML prefix as text and copies nothing", async () => {
+    const { fixture, workspace } = await open({
+      "requirements/SR-6328cee88fb3.md": element("![s](img/s.svg) ![h](img/h.svg)"),
+      "requirements/img/s.svg":
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></svg>',
+      "requirements/img/h.svg":
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml"><h:script>alert(1)</h:script></svg>',
+    });
+    const output = await exported(workspace);
+    const page = await fs.readFile(fixture.path(`site/elements/${WIND}.html`), "utf8");
+    expect(page).toContain("<p>![s](img/s.svg) ![h](img/h.svg)</p>");
+    await expect(fs.stat(fixture.path("site/images"))).rejects.toThrow();
+    expect(output.problems.map((p) => [p.code, p.message])).toEqual([
+      [
+        "html.unsafe-content",
+        "Text: the image img/s.svg is an SVG image with a script or embedded content; it is shown as text",
+      ],
+      [
+        "html.unsafe-content",
+        "Text: the image img/h.svg is an SVG image with a namespace other than SVG and XLink; it is shown as text",
+      ],
+    ]);
+  });
+
   it("gives no page to elements that share a UUID or cannot be read, and reports them", async () => {
     const { fixture, workspace } = await open({
       "copy/SR-6328cee88fb3.md": element("A copy."),
