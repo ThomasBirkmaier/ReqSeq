@@ -212,7 +212,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
     expect(NORMAL_FORM).toBe("n2");
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found no problem.",
+      answer: "Checked 4 elements and found 1 warning.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -231,7 +231,7 @@ describe("outdated relations and references (SR-025)", () => {
     const b = await readFile(path.join(FIXTURE_FOLDER, B_FILE), "utf8");
     await ws.write(B_FILE, b.replace(A_VERSION, a.n2));
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found no problem.",
+      answer: "Checked 4 elements and found 1 warning.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -253,7 +253,7 @@ describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK-rvw7] reports nothing without Git either", async () => {
     const ws = await fixture();
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found no problem.",
+      answer: "Checked 4 elements and found 1 warning.",
       ok: true,
       problems: [],
       checkedElements: 4,

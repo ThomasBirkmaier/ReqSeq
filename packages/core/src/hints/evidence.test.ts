@@ -132,7 +132,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, OLD, "2026-01-02T10:00:00Z"),
     ]);
     expect(await check(workspace)).toEqual({
-      answer: "Checked 4 elements and found 1 warning.",
+      answer: "Checked 4 elements and found 2 warnings.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -145,7 +145,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, A_VERSION, "2026-01-02T10:00:00+02:00"),
     ]);
     expect(await check(workspace)).toEqual({
-      answer: "Checked 4 elements and found 1 warning.",
+      answer: "Checked 4 elements and found 2 warnings.",
       ok: true,
       problems: [],
       checkedElements: 4,

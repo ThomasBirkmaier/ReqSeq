@@ -237,7 +237,7 @@ describe("workspace.check", () => {
     // Only warnings, none shown: with failOn warning still not ok, since the workspace has findings
     // (exit code 1); they are counted as hidden, with the missing evidence location (SR-230 AK1).
     expect(await check(open(values.path("system")), { severity: "error", failOn: "warning" })).toEqual({
-      answer: "Checked 4 elements and found 5 warnings.",
+      answer: "Checked 4 elements and found 6 warnings.",
       ok: false,
       problems: [],
       hidden: { below: "error", warning: 6, info: 0 },
@@ -283,7 +283,7 @@ describe("workspace.check", () => {
     expect(refines).toHaveLength(1);
     await invoke("hint.confirm", { hintIds: refines }, { workspace });
     expect(await check(workspace, failOn)).toEqual({
-      answer: "Checked 4 elements and found no problem.",
+      answer: "Checked 4 elements and found 1 info.",
       ok: true,
       problems: [],
       checkedElements: 4,

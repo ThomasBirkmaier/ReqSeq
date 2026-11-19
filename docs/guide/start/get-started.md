@@ -123,7 +123,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 2 elements and found 2 warnings.
+Checked 2 elements and found 3 warnings.
 ok: true
 checkedElements: 2
 ...

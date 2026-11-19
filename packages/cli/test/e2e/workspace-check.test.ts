@@ -182,7 +182,7 @@ describe("reqseq workspace check (SR-019)", () => {
     ]);
     const lines = human.stdout.split("\n");
     expect(lines.slice(0, 3)).toEqual([
-      "Checked 13 elements and found 5 errors and 6 warnings.",
+      "Checked 13 elements and found 5 errors, 6 warnings and 1 info.",
       "ok: false",
       "checkedElements: 13",
     ]);
@@ -228,7 +228,7 @@ describe("reqseq workspace check (SR-019)", () => {
     ]);
     const lines = human.stdout.split("\n");
     expect(lines.slice(0, 3)).toEqual([
-      "Checked 5 elements and found 3 warnings.",
+      "Checked 5 elements and found 3 warnings and 1 info.",
       "ok: false",
       "checkedElements: 5",
     ]);
@@ -246,8 +246,8 @@ describe("reqseq workspace check (SR-019)", () => {
     const result = await reqseq([...args, "--json"], ws.path("system"));
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
-      // The answer counts the warnings left out as well (SR-224 AK1).
-      answer: "Checked 4 elements and found 5 warnings.",
+      // The answer counts the findings left out as well (SR-224 AK1).
+      answer: "Checked 4 elements and found 5 warnings and 1 info.",
       ok: false,
       problems: [],
       // The info is the count of open requirements (SR-230 AK2).
@@ -501,7 +501,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     const warnings = await checkBoth(cwd);
     expect([warnings.human.code, warnings.json.code, warnings.output.ok]).toEqual([0, 0, true]);
     expect(warnings.human.stdout.split("\n").slice(0, 3)).toEqual([
-      "Checked 4 elements and found 5 warnings.",
+      "Checked 4 elements and found 5 warnings and 1 info.",
       "ok: true",
       "checkedElements: 4",
     ]);
@@ -657,7 +657,7 @@ describe("the gaps of verification in workspace check (SR-230)", () => {
     expect(listed).toEqual({
       code: 0,
       stdout:
-        "elements:\n  SR-126b04  draft  Show gusts\n  SR-126b06  draft  Warn of strong wind\ntotal: 2\n",
+        "Listed 2 elements.\nelements:\n  SR-126b04  draft  Show gusts\n  SR-126b06  draft  Warn of strong wind\ntotal: 2\n",
       stderr: "",
     });
     expect((await reqseq(["workspace", "check", "--fail-on", "info"], ws.root)).code).toBe(1);
