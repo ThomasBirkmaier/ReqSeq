@@ -191,6 +191,11 @@ export interface ResultBuffer {
    * changes, since asking again would write again.
    */
   readonly written?: true;
+  /**
+   * "Show details" is on (SR-223 AK2): the output shows its technical values and those equal to their normal
+   * value. It holds for this buffer until it is closed, also when the same command opens it again.
+   */
+  readonly details?: true;
 }
 
 /** How far a graph goes from its element: a number of levels, or the whole chain (SR-111 AK2). */
@@ -846,18 +851,25 @@ const renamed = (buffers: Buffers, id: string, repository: string, name: string)
     : buffers;
 };
 
-/** `buffer`, with the type of the element the open buffer `before` knows when `buffer` knows none (SR-212 AK5). */
-const withType = (buffer: Buffer, before: Buffer | undefined): Buffer =>
-  buffer.kind === "element" &&
-  buffer.type === undefined &&
-  before?.kind === "element" &&
-  before.type !== undefined
+/**
+ * `buffer`, with the type of the element the open buffer `before` knows when `buffer` knows none (SR-212 AK5),
+ * and a result with the details `before` shows (SR-223 AK2: until the buffer is closed).
+ */
+const withKept = (buffer: Buffer, before: Buffer | undefined): Buffer => {
+  if (buffer.kind === "result") {
+    return before?.kind === "result" && before.details === true ? { ...buffer, details: true } : buffer;
+  }
+  return buffer.kind === "element" &&
+    buffer.type === undefined &&
+    before?.kind === "element" &&
+    before.type !== undefined
     ? { ...buffer, type: before.type }
     : buffer;
+};
 
 /** `buffer` in front, in place of the one with its key or with the key `replacing`. */
 const opened = (buffers: Buffers, shown: Buffer, replacing: string | undefined): Buffers => {
-  const buffer = withType(
+  const buffer = withKept(
     shown,
     buffers.find((open) => open.key === shown.key),
   );

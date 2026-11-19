@@ -29,7 +29,7 @@ Above it, the modeline describes the buffer (a list by filter, sort and count, a
 
 ## Buffers
 
-Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
+Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first. The output of a command opens with its answer; technical values, such as UUIDs, paths and check values, and values that are the normal one, such as no problems or not read-only, appear with **Show details** (Ctrl+K D), and the same command hides them again, for that buffer until it is closed. **Copy as JSON** puts the whole output on the clipboard as the CLI gives it with `--json`.
 
 A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
 

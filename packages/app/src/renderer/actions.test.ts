@@ -3,6 +3,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   ACTIONS,
+  JSON_COPY,
   historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
@@ -15,7 +16,15 @@ import {
   runAction,
 } from "./actions.js";
 import type { ActionContext } from "./action-types.js";
-import { elementBuffer, filteredList, overviewBuffer, resultBuffer, searchBuffer } from "./buffers.js";
+import {
+  NO_ROW,
+  elementBuffer,
+  filteredList,
+  overviewBuffer,
+  resultBuffer,
+  searchBuffer,
+} from "./buffers.js";
+import { linesOf } from "./result-copy.js";
 import { savedStep, typeStep } from "./list-filters.js";
 import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
 import type { KeyPress } from "./keys.js";
@@ -838,23 +847,79 @@ describe("save element and edit text", () => {
     expect(controls.copy).toHaveBeenCalledTimes(1);
   });
 
-  it("Copy result puts the whole shown output on the clipboard as one block", () => {
+  it("Copy as JSON puts the whole output on the clipboard as the command line gives it with --json", () => {
     const copy = vi.fn();
-    const info = resultBuffer(
-      "tool.info",
-      {},
-      "About ReqSeq",
-      { versions: { app: "1.0.0", cli: "1.0.0" } },
-      0,
-    );
-    expect(action("copy-result").title).toBe("Copy result");
-    action("copy-result").run(setup([info], {}, true, { copy }).context);
-    expect(copy).toHaveBeenCalledWith("result", "versions:\n  app: 1.0.0\n  cli: 1.0.0");
+    const output = { versions: { app: "1.0.0", cli: "1.0.0" } };
+    const info = resultBuffer("tool.info", {}, "About ReqSeq", output, 0);
+    expect(action("copy-as-json").title).toBe("Copy as JSON");
+    // It replaces "Copy result": there is no second command.
+    expect(ACTIONS.some((candidate) => candidate.id === "copy-result")).toBe(false);
+    action("copy-as-json").run(setup([info], {}, true, { copy }).context);
+    expect(copy).toHaveBeenCalledWith(JSON_COPY, `${JSON.stringify(output, null, 2)}\n`);
     const failed = { ...info, output: undefined, error: "x" };
-    expect(action("copy-result").available(setup([failed]).context)).toBe(false);
-    expect(action("copy-result").available(setup([list]).context)).toBe(false);
-    action("copy-result").run(setup([failed], {}, true, { copy }).context);
+    expect(action("copy-as-json").available(setup([failed]).context)).toBe(false);
+    expect(action("copy-as-json").available(setup([list]).context)).toBe(false);
+    action("copy-as-json").run(setup([failed], {}, true, { copy }).context);
     expect(copy).toHaveBeenCalledTimes(1);
+  });
+
+  it("Show details turns the details of the shown output on and off again, and says so (SR-223 AK2)", () => {
+    const info = resultBuffer("tool.info", {}, "About ReqSeq", { versions: {} }, 0);
+    expect(action("show-details").title).toBe("Show details");
+    const on = setup([info]);
+    action("show-details").run(on.context);
+    expect(on.dispatched).toContainEqual({ type: "update", buffer: { ...info, details: true } });
+    expect(on.echoed).toEqual(["Details shown"]);
+    const off = setup([{ ...info, details: true }]);
+    action("show-details").run(off.context);
+    expect(off.dispatched).toContainEqual({ type: "update", buffer: info });
+    expect(off.echoed).toEqual(["Details hidden"]);
+    const failed = { ...info, output: undefined, error: "x" };
+    expect(action("show-details").available(setup([failed]).context)).toBe(false);
+    action("show-details").run(setup([failed]).context);
+  });
+
+  it("Show details keeps the selected line, the second element row of a baseline, and drops a hidden one", () => {
+    // A baseline as `baseline.get` gives it: the commit of its repository is technical and stands above the rows.
+    const output = {
+      baseline: { name: "Release 3", commits: [{ name: "system", commit: "d0062d5" }] },
+      elements: [
+        { id: "uuid-1", repository: "spec", shortId: "SR-000001", title: "Wind", version: "n1:aa" },
+        { id: "uuid-2", repository: "spec", shortId: "SR-000002", title: "Gusts", version: "n1:bb" },
+      ],
+    };
+    const fields = [
+      { path: "baseline.commits[].commit", title: "Commit", technical: true as const },
+      { path: "elements[].version", title: "Version", technical: true as const },
+    ];
+    const catalog = () => [{ name: "baseline.get", outputFields: fields }] as never;
+    const shown = (cursor: number, details?: true) => ({
+      ...resultBuffer("baseline.get", {}, "Show baseline", output, 0),
+      cursor,
+      ...(details === undefined ? {} : { details }),
+    });
+    const toggled = (buffer: ReturnType<typeof shown>) => {
+      const run = setup([buffer], {}, true, { catalog });
+      action("show-details").run(run.context);
+      const [made] = run.dispatched;
+      return made?.type === "update" && made.buffer.kind === "result" ? made.buffer : undefined;
+    };
+    const rows = (details: boolean) =>
+      linesOf({ command: "baseline.get", output, ...(details ? { details: true as const } : {}) }, fields);
+    const second = rows(false).findIndex((line) => line.label === "SR-000002");
+    const on = toggled(shown(second));
+    expect(on?.details).toBe(true);
+    expect(rows(true)[on?.cursor ?? -1]?.label).toBe("SR-000002");
+    expect(on?.cursor).not.toBe(second);
+    const off = toggled({ ...shown(on?.cursor ?? 0), details: true });
+    expect(off?.cursor).toBe(second);
+    // A detail that is hidden again was selected: nothing is.
+    const commit = rows(true).findIndex((line) => line.label === "Commit");
+    expect(toggled({ ...shown(commit), details: true })?.cursor).toBe(NO_ROW);
+    // The hint list keeps its rows, so its cursor stays.
+    const hints = { hints: [], kinds: [], total: 0, incomplete: false };
+    const list = { ...resultBuffer("hint.list", {}, "List hints", hints, 0), cursor: 3 };
+    expect(toggled(list as never)?.cursor).toBe(3);
   });
 
   it("[SR-104/AK-k13x] Add property runs the controls with Ctrl/Cmd+Alt+A, on an element with a loaded text only", () => {
