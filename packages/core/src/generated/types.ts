@@ -5032,10 +5032,12 @@ export interface HtmlExportOutput {
   readonly answer: Answer;
   /** The written folder, relative to the workspace root when it lies inside, else absolute. */
   readonly folder: OutputPath;
-  /** Pages of elements written. */
+  /** Pages of elements written: one for each element of `exportedElements`. */
   readonly pages: number;
   /** Files of the earlier export that this export no longer writes and removed. */
   readonly removed: number;
+  /** The elements that got a page, in the order of the element store. */
+  readonly exportedElements: readonly CountedElement[];
   readonly problems: readonly Problem[];
 }
 

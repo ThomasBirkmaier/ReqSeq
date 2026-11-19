@@ -54,6 +54,12 @@ export interface HtmlExportResult {
   /** The real path of the folder written. */
   readonly folder: string;
   readonly pages: number;
+  /** The elements that got a page, in the order of the store (SR-224 AK4). */
+  readonly exported: readonly {
+    readonly id: string;
+    readonly shortId: string;
+    readonly repository: string;
+  }[];
   readonly removed: number;
   readonly problems: readonly Problem[];
 }
@@ -201,7 +207,7 @@ export const writeHtmlExport = async (workspace: Workspace, target: string): Pro
   for (const record of store.elements) {
     (seen.has(record.id) ? shared : seen).add(record.id);
   }
-  let pages = 0;
+  const exported: { id: string; shortId: string; repository: string }[] = [];
   try {
     for (const record of store.elements) {
       if (invalid.has(String(record.data["status"]))) {
@@ -223,7 +229,7 @@ export const writeHtmlExport = async (workspace: Workspace, target: string): Pro
       const heading = typeof title === "string" && title !== "" ? `${name} ${title}` : name;
       const html = await elementHtml(context, record, heading);
       await folder.write(elementPage(record.id), page({ title: heading, depth: 1, body: html }));
-      pages++;
+      exported.push({ id: record.id, shortId: shortIds.of(record), repository: record.repository });
     }
     await folder.write(STYLESHEET_FILE, STYLESHEET);
     await folder.write(
@@ -231,7 +237,7 @@ export const writeHtmlExport = async (workspace: Workspace, target: string): Pro
       page({
         title: layout.name,
         depth: 0,
-        body: `<h1>${escapeHtml(layout.name)}</h1><p>Element pages: ${String(pages)}</p>`,
+        body: `<h1>${escapeHtml(layout.name)}</h1><p>Element pages: ${String(exported.length)}</p>`,
       }),
     );
   } catch (error) {
@@ -260,5 +266,5 @@ export const writeHtmlExport = async (workspace: Workspace, target: string): Pro
       message: "The staging folder .reqseq-export-staging could not be removed; remove it by hand",
     });
   }
-  return { folder: folder.folder, pages, removed, problems };
+  return { folder: folder.folder, pages: exported.length, exported, removed, problems };
 };

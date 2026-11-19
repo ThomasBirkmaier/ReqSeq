@@ -32268,7 +32268,8 @@
             },
             "pages": {
               "title": "Element pages",
-              "description": "Pages of elements written.",
+              "x-elements": "exportedElements",
+              "description": "Pages of elements written: one for each element of `exportedElements`.",
               "type": "integer",
               "minimum": 0
             },
@@ -32278,6 +32279,15 @@
               "type": "integer",
               "minimum": 0,
               "x-normal": 0
+            },
+            "exportedElements": {
+              "title": "List of exported elements",
+              "type": "array",
+              "description": "The elements that got a page, in the order of the element store.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true
             },
             "problems": {
               "title": "Problems",
@@ -32293,6 +32303,7 @@
             "answer",
             "folder",
             "pages",
+            "exportedElements",
             "removed",
             "problems"
           ]
@@ -32309,12 +32320,34 @@
           },
           {
             "path": "pages",
-            "title": "Element pages"
+            "title": "Element pages",
+            "elements": [
+              "exportedElements"
+            ],
+            "keys": []
           },
           {
             "path": "removed",
             "title": "Removed files",
             "normal": 0
+          },
+          {
+            "path": "exportedElements",
+            "title": "List of exported elements",
+            "elements": true
+          },
+          {
+            "path": "exportedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "exportedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "exportedElements[].repository",
+            "title": "Repository"
           },
           {
             "path": "problems",

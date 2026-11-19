@@ -31,6 +31,7 @@ export default defineCommand({
     return {
       folder: shown(workspace.root, target),
       pages: result.pages,
+      exportedElements: [...result.exported],
       removed: result.removed,
       problems: [...result.problems],
     };

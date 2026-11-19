@@ -13122,7 +13122,8 @@
           },
           "pages": {
             "title": "Element pages",
-            "description": "Pages of elements written.",
+            "x-elements": "exportedElements",
+            "description": "Pages of elements written: one for each element of `exportedElements`.",
             "type": "integer",
             "minimum": 0
           },
@@ -13132,6 +13133,15 @@
             "type": "integer",
             "minimum": 0,
             "x-normal": 0
+          },
+          "exportedElements": {
+            "title": "List of exported elements",
+            "type": "array",
+            "description": "The elements that got a page, in the order of the element store.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/countedElement"
+            },
+            "x-elements": true
           },
           "problems": {
             "title": "Problems",
@@ -13147,6 +13157,7 @@
           "answer",
           "folder",
           "pages",
+          "exportedElements",
           "removed",
           "problems"
         ]

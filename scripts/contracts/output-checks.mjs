@@ -113,6 +113,7 @@ export const NOT_ELEMENT_COUNTS = new Map([
   ["evidence.enrichJunit notInView", "counts pairs of an element and a test case"],
   ["evidence.enrichJunit unknown[].line", POSITION],
   ["reqif.export relations", "counts relations"],
+  ["html.export removed", "counts files of the earlier export"],
 ]);
 
 /** The schema a field's `$ref`s end at. */
