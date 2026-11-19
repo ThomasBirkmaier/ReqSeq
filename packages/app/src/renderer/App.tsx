@@ -3,290 +3,87 @@
 // The sheet shows the most recent buffer: a list, a search result or an element; the modeline names the
 // buffer of the active area. Nothing else is permanently visible (SR-100). Every datum comes from a
 // catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import { flushSync } from "react-dom";
-import type { DataExportElement, MetamodelGetOutput } from "@reqseq/core";
-import type { CommandListing, InvokeResult, WorkspaceChangeReason } from "../shared/protocol.js";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import type { CommandListing } from "../shared/protocol.js";
 import type { ReqSeqBridge } from "../shared/protocol.js";
 import type { ActionContext, BuiltCommand, ElementControls, Prompt } from "./action-types.js";
 import {
   ACTIONS,
   actionFor,
-  allCommandsPrompt,
-  commandPrompt,
   historyKeyAction,
   isBufferMouseButton,
   mouseButtonAction,
-  referencePrompt,
   runAction,
-  unusedOrder,
-  swipeAction,
 } from "./actions.js";
-import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
-import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
-import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
-import { catalogItems, startBuilder, withExplanations } from "./catalog-commands.js";
-import { useConnectAgent } from "./use-connect-agent.js";
-import type { Draft } from "./drafts.js";
-import type { DraftStorage, KeptDrafts } from "./draft-store.js";
-import { takeDrafts, useWindowDrafts } from "./draft-store.js";
-import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
-import { OVERVIEW_KEY, elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
-import { ReadGate, WritesInFlight, countingWrites, drawnBy } from "./area-slot.js";
-import type { AreaViews } from "./BufferArea.js";
+import type { UndoMemory } from "./buffer-memory.js";
+import { forgetClosed } from "./buffer-memory.js";
+import { saveSession, sessionText } from "./buffer-session.js";
+import { useWindowDrafts } from "./draft-store.js";
+import type { ElementBuffer } from "./buffers.js";
+import { OVERVIEW_KEY, inMatrix } from "./buffers.js";
+import { ReadGate, WritesInFlight, drawnBy } from "./area-slot.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import { trackCalls } from "./call-turn.js";
 import type { ShownView } from "./views.js";
-import { inView, variantTypesOf, viewMark } from "./views.js";
-import type { PropertyModel } from "./element-view.js";
-import { propertyModel } from "./element-view.js";
-import type { GraphFilterChoice } from "./graph-choices.js";
-import { graphFilterChoices, graphMeanings, graphTakesEvidence, relationNames } from "./graph-choices.js";
+import { inView, viewMark } from "./views.js";
+import { graphFilterChoices, relationNames } from "./graph-choices.js";
 import { PREFIX } from "./bindings.js";
 import { COMMAND_SHORTCUT, isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { Walk } from "./buffer-cycle.js";
-import { NO_WALK, cycleKey, cycleOrder } from "./buffer-cycle.js";
-import { SlideController, directionOf, motionAllowed, shownLayer } from "./buffer-slide.js";
-import type { SwipeWay } from "./buffer-swipe.js";
-import { pastThird } from "./buffer-swipe.js";
-import { heldIn, holdWhenShown, releaseHold } from "./swipe-hold.js";
+import { NO_WALK, cycleOrder } from "./buffer-cycle.js";
+import { shownLayer } from "./buffer-slide.js";
+import { heldIn, releaseHold } from "./swipe-hold.js";
 import type { SwipeHold } from "./swipe-hold.js";
-import { SwipeDrag } from "./swipe-drag.js";
-import { useWheelSwipe } from "./use-wheel-swipe.js";
-import { SwipeDraw } from "./swipe-draw.js";
-import { bufferSwitchBlocked } from "./buffer-switch.js";
-import type { PackageModel } from "./package-page.js";
-import { packageModel } from "./package-page.js";
 import { neighbourBuffers, withSwipe } from "./neighbours.js";
-import type { BufferData, ElementHead, WorkspaceView } from "./modeline.js";
-import {
-  bufferView,
-  elementHead,
-  readOnlyNow,
-  markToken,
-  markedElement,
-  matrixSpot,
-  selectedRow,
-  shownElement,
-  windowTitle,
-  workspaceView,
-} from "./modeline.js";
+import type { BufferData, WorkspaceView } from "./modeline.js";
+import { markToken, markedElement, selectedRow, shownElement, windowTitle } from "./modeline.js";
 import { useOverview } from "./OverviewView.js";
-import { openPerspective } from "./perspective-actions.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
-import {
-  CLOSE_NOT_IN_TIME,
-  CLOSE_WINDOW,
-  closeUnsaved,
-  leftUnsaved,
-  notSaved,
-  notSavedInTime,
-  saveDrafts,
-  saveOne,
-} from "./switch.js";
-import { savedLine } from "./save-flow.js";
-import type { RecentEntry, RecentStorage } from "./recent.js";
-import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
+import { NO_CHANGES, arrivals } from "./outside-marks.js";
+import type { RecentEntry } from "./recent.js";
+import { remember, saveRecent } from "./recent.js";
 import { usePerspectiveUse, useRestoredWarning } from "./use-perspectives.js";
 import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
-import { FoldStatuses, foldCondition, loadFoldChoice, saveFoldChoice } from "./fold-statuses.js";
+import { FoldStatuses, foldCondition, loadFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
 import { commandPromptKey } from "./command-entry.js";
-import { docsEcho, withHelp } from "./docs-help.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
-import { menuContext, promptEntry } from "./entry-menu.js";
+import { menuContext } from "./entry-menu.js";
 import { useContextMenu } from "./use-context-menu.js";
+import { useConnectAgent } from "./use-connect-agent.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
 import { AboutLayer } from "./AboutWindow.js";
 import { useFollow } from "./use-follow.js";
 import { usePrefix } from "./use-prefix.js";
-import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
 import { NO_MARK, markStep } from "./follow-mark.js";
 import { stoppedMessage } from "../shared/open-hint.js";
-
-const MESSAGES: Readonly<Record<string, string>> = {
-  restarted: "The background process of the app stopped and was started again.",
-};
-
-/** No relation kinds or properties: the metamodel is not read (yet). */
-const NO_RELATIONS: Pick<MetamodelGetOutput, "relations" | "properties"> = { relations: [], properties: [] };
-
-/**
- * The app's local storage, where the recent elements (SR-118 AK5) and the open buffers (SR-115 AK4) of a
- * workspace are kept; read when needed, it may throw.
- */
-const appStorage = (): RecentStorage => window.localStorage;
-
-/**
- * The window's session storage, where its drafts are kept while the window is open, so that a page loaded
- * again after a crash gets them back (#270); read when needed, it may throw.
- */
-const windowStorage = (): DraftStorage => window.sessionStorage;
-
-/**
- * Whether a status after `reason` starts the buffers of its workspace: the first one of a page, another
- * workspace, or a restarted core before any workspace started in the page.
- */
-const startsBuffers = (reason: WorkspaceChangeReason | undefined, started: boolean): boolean =>
-  reason === undefined || reason === "opened" || (reason === "restarted" && !started);
-
-/** The minibuffer's line when a page loaded again got drafts back (#270). */
-const draftsBack = (count: number): string =>
-  `The window was loaded again; the unsaved input of ${count === 1 ? "1 buffer" : `${String(count)} buffers`} is back`;
-
-/**
- * macOS: the window has no native title bar (ADR-0010, ThomasBirkmaier/ReqSeq-archive#490), so this strip of the sheet moves the window
- * and names it. It holds no control.
- */
-const TitleBar = ({
-  shown,
-  title,
-}: {
-  readonly shown: boolean;
-  readonly title: string;
-}): React.JSX.Element | null =>
-  shown ? (
-    <div className="titlebar" aria-hidden="true">
-      {title}
-    </div>
-  ) : null;
-
-/** The parts of the modeline for the shown buffer: what it loaded, and `modified` for unsaved text. */
-const modelineParts = (
-  current: Buffer | undefined,
-  loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
-  drafts: ReadonlyMap<string, Draft>,
-  typeNames: ReadonlyMap<string, string>,
-  graphChoices: readonly GraphFilterChoice[],
-): string[] => {
-  if (current === undefined) {
-    return [];
-  }
-  const data = loaded?.key === current.key ? loaded.data : undefined;
-  return bufferView(
-    current,
-    data?.kind === "element" && drafts.has(current.key) ? { ...data, modified: true } : data,
-    typeNames,
-    graphChoices,
-  );
-};
-
-/** The first part of the modeline for the shown element, or none. */
-const headOf = (
-  element: DataExportElement | undefined,
-  typeNames: ReadonlyMap<string, string>,
-): ElementHead | undefined => (element === undefined ? undefined : elementHead(element, typeNames));
-
-/** The minibuffer's line: the last message, else why no workspace is open. */
-const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
-  echo === "" ? (view?.message ?? "") : echo;
-
-/** The mode of the shown metamodel (SR-130 AK4); undefined for another buffer. */
-const metamodelMode = (buffer: Buffer | undefined): MetamodelBuffer["mode"] | undefined =>
-  buffer?.kind === "metamodel" ? buffer.mode : undefined;
-
-/** What the views of the shown buffers loaded, by buffer key. */
-type Loaded = ReadonlyMap<string, BufferData | undefined>;
-
-/** `loaded` without the buffers no area shows; the same map when it has none of them. */
-const shownOnly = (loaded: Loaded, keys: readonly string[]): Loaded =>
-  [...loaded.keys()].every((key) => keys.includes(key))
-    ? loaded
-    : new Map([...loaded].filter(([key]) => keys.includes(key)));
-
-/**
- * The switch to the previous or next buffer in motion (SR-212): one at a time, taken in the keydown (`cycled`),
- * started by the commit that shows its buffer in the active area `side`, and ended by any other change of it.
- */
-const useSlides = (
-  sheet: React.RefObject<HTMLElement | null>,
-  side: string,
-  shown: Buffer | undefined,
-  gate: ReadGate,
-  ended: (to: string) => void,
-): SlideController => {
-  const slides = useRef<SlideController | undefined>(undefined);
-  const endedNow = useRef(ended);
-  endedNow.current = ended;
-  slides.current ??= new SlideController({
-    view: window,
-    root: () => sheet.current,
-    busy: (busy) => {
-      gate.slide(busy);
-    },
-    ended: (to) => {
-      endedNow.current(to);
-    },
-  });
-  const controller = slides.current;
-  const key = shown?.key;
-  useLayoutEffect(() => {
-    controller.settle(side, key);
-  }, [controller, side, key]);
-  useEffect(
-    () => () => {
-      controller.finish();
-      gate.dispose();
-    },
-    [controller],
-  );
-  return controller;
-};
-
-const NONE: ReadonlySet<string> = new Set();
-
-/**
- * The buffers drawn in advance that a change dropped since the shown `buffer` was switched to: they are
- * not read again in the background, and drawn in advance again only after the next switch (SR-212 AK5).
- */
-const useDropped = (
-  buffer: Buffer | undefined,
-): {
-  readonly dropped: ReadonlySet<string>;
-  readonly drop: (key: string) => void;
-  /** Takes `key` out of them again: a swipe draws it (SR-211 AK3). */
-  readonly undrop: (key: string) => void;
-} => {
-  const shown = buffer?.key;
-  const switches = useRef({ key: shown, count: 0 });
-  if (switches.current.key !== shown) {
-    switches.current = { key: shown, count: switches.current.count + 1 };
-  }
-  const [dropped, setDropped] = useState({ at: 0, keys: NONE });
-  const drop = useCallback((key: string): void => {
-    const at = switches.current.count;
-    setDropped((before) => ({ at, keys: new Set([...(before.at === at ? before.keys : []), key]) }));
-  }, []);
-  const undrop = useCallback((key: string): void => {
-    setDropped((before) =>
-      before.keys.has(key)
-        ? { at: before.at, keys: new Set([...before.keys].filter((one) => one !== key)) }
-        : before,
-    );
-  }, []);
-  return { dropped: dropped.at === switches.current.count ? dropped.keys : NONE, drop, undrop };
-};
-
+import type { Loaded } from "./app-parts.js";
+import {
+  TitleBar,
+  appStorage,
+  echoLine,
+  headOf,
+  metamodelMode,
+  modelineParts,
+  shownOnly,
+  windowStorage,
+} from "./app-parts.js";
+import { actionContext, areaViews } from "./app-context.js";
+import { bufferKeeps, useSaveOnLeave } from "./app-saves.js";
+import { useCommandPrompt } from "./use-command-prompt.js";
+import { useDropped, useSlides } from "./use-slides.js";
+import { useSwipeObjects, useSwipeSwitch } from "./use-swipe-switch.js";
+import { useMetamodelModel, useWorkspaceStatus } from "./use-workspace-status.js";
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
@@ -354,17 +151,18 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const serial = useRef(0);
   const sheet = useRef<HTMLElement>(null);
   const stoppedRef = useRef(false);
-  // The names of the types by their key, from the metamodel, for the modeline of an element (SR-114).
-  const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
-  // The types that are packages: their elements show the elements that name them (SR-112).
-  const [packages, setPackages] = useState<PackageModel | undefined>(undefined);
-  // The types with the meaning `variant`: their pages follow every change from outside (SR-103).
-  const [variantTypes, setVariantTypes] = useState<ReadonlySet<string>>(new Set());
-  // The properties of each type: which boxes are edited in place (SR-104) and which show Markdown (SR-127).
-  const [properties, setProperties] = useState<PropertyModel>(new Map());
-  // The relation kinds and properties of the metamodel, and the meanings `trace.graph` takes (from the
-  // catalog): the entries of a graph's relation kind prompts and the names of its modeline (SR-111 AK3).
-  const [relationModel, setRelationModel] = useState(NO_RELATIONS);
+  const {
+    typeNames,
+    setTypeNames,
+    packages,
+    setPackages,
+    variantTypes,
+    setVariantTypes,
+    properties,
+    setProperties,
+    relationModel,
+    setRelationModel,
+  } = useMetamodelModel();
   const [meanings, setMeanings] = useState<readonly string[]>([]);
   // Whether `trace.graph` takes `withEvidence`: then the kind prompts offer "Evidence" (SR-111 AK3).
   const [evidence, setEvidence] = useState(false);
@@ -431,215 +229,45 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const titlesRef = useRef(titles);
   titlesRef.current = titles;
 
-  useEffect(() => {
-    let mounted = true;
-    // If the metamodel cannot be read, the modeline shows the keys of the types.
-    const loadTypeNames = async (): Promise<void> => {
-      const metamodel = await callOn(tracked)("metamodel.get", {});
-      if (mounted) {
-        setTypeNames(
-          metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
-        );
-        setPackages(metamodel.ok ? packageModel(metamodel.output) : undefined);
-        setVariantTypes(new Set(metamodel.ok ? variantTypesOf(metamodel.output) : []));
-        setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
-        setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
-        setStatuses(metamodel.ok ? metamodel.output.statuses : []);
-      }
-    };
-    // The buffers of a workspace that has loaded: none of the one before, no drafts, no undo histories.
-    const startBuffers = (reason: "opened" | undefined, ok: boolean): void => {
-      resetDrafts();
-      memories.current.clear();
-      // A prompt opened while another workspace loaded stays (the old buffers went at `opened`).
-      if (reason === undefined) {
-        openPrompt.current = undefined;
-        setPrompt(undefined);
-      }
-      // The first buffer is the calm overview, not the list of all elements (SR-118).
-      dispatch({ type: "reset", ...(ok ? { buffer: overviewBuffer() } : {}) });
-    };
-    // Counts the workspaces opened in this window: the status of one that was left (a load that hung,
-    // answered by the closed connection when the next one opened) never overwrites the next one's view.
-    let opened = 0;
-    // The storage key of the open workspace's buffers as its last status gave it: its name or
-    // repositories can change while it is open, and the buffers follow (SR-115 AK4).
-    let currentKey: string | undefined;
-    // The buffers open when this workspace was last left come back behind the overview (SR-115 AK4): the
-    // overview shows at once (SR-118 AK1), the restored ones once their elements are named.
-    const restoreBuffers = (key: string | undefined, asked: number, back?: KeptDrafts): void => {
-      if (key === undefined) {
-        return;
-      }
-      void restoreSession(loadSession(appStorage, key), callOn(tracked), () => bridge.commands()).then(
-        (restored) => {
-          if (!mounted || asked !== opened) {
-            return;
-          }
-          // A name that could not be read (core restarting) keeps the stored
-          // buffers as they are: nothing is stored for this workspace until it opens again.
-          if (restored.complete) {
-            setSession(currentKey);
-          }
-          // A page loaded again gets the drafts of the buffers that came back, and shows the buffer it
-          // showed (#270); a draft whose buffer did not come back is not kept.
-          const keys = new Set(restored.buffers.map((buffer) => buffer.key));
-          const drafts = new Map([...(back?.drafts ?? [])].filter(([draft]) => keys.has(draft)));
-          if (drafts.size > 0) {
-            seedDrafts(drafts);
-            setEcho(draftsBack(drafts.size));
-          }
-          dispatch({ type: "restore", buffers: restored.buffers });
-          const shown = back?.shown;
-          if (shown !== undefined && keys.has(shown)) {
-            dispatch({ type: "switch", key: shown });
-          }
-        },
-      );
-    };
-    // The name or the repositories of the open workspace changed (its file was edited, or core
-    // restarted): the buffers move to the new key, so the next start finds them (SR-115 AK4). A status
-    // without a workspace keeps the key, so a failed read stops nothing.
-    const followKey = (moved: string | undefined): void => {
-      if (moved !== undefined) {
-        currentKey = moved;
-        rescopeDrafts(moved);
-        setSession((before) => (before === undefined ? undefined : moved));
-      }
-    };
-    // Whether a workspace has started in this page: until then a restarted core starts it, as the
-    // first status does (a page loaded again while core restarted, #270).
-    let started = false;
-    // A workspace is there in a page that started, or another one opened: its buffers start, and on the
-    // first workspace of a page the drafts kept in this window for it come back with their buffers
-    // (#270), taken before the start drops anything.
-    const begin = (result: InvokeResult, reason: "opened" | undefined, asked: number): void => {
-      currentKey = sessionKey(result);
-      const back =
-        reason === undefined && currentKey !== undefined ? takeDrafts(windowStorage, currentKey) : undefined;
-      startBuffers(reason, result.ok);
-      rescopeDrafts(currentKey);
-      started ||= currentKey !== undefined;
-      restoreBuffers(currentKey, asked, back);
-    };
-    // A write of the save of leaving, answered just before its change on the same channel: the change counts
-    // to the switch (SR-212 AK5). Taken when the change comes, so a refresh that ends early loses no count;
-    // another workspace starts with none.
-    const takeSwitchSave = (reason: WorkspaceChangeReason | undefined): (() => void) => {
-      if (reason === "opened") {
-        leavingWrites.current = 0;
-      }
-      if (reason !== "written" || leavingWrites.current === 0) {
-        return () => undefined;
-      }
-      leavingWrites.current -= 1;
-      return () => {
-        setSwitchSaves((count) => count + 1);
-      };
-    };
-    const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
-      const asked = opened;
-      const countSwitchSave = takeSwitchSave(reason);
-      const result = await tracked.invoke("workspace.status", {});
-      if (!mounted || asked !== opened) {
-        return;
-      }
-      const next = workspaceView(result, macRef.current);
-      setView(next);
-      document.title = windowTitle(next);
-      // The minibuffer said "Opening another workspace…" until the new one answers; drafts that come
-      // back with the buffers say so after it.
-      if (reason === "opened" || reason === "restarted") {
-        setEcho(MESSAGES[reason] ?? "");
-      }
-      if (startsBuffers(reason, started)) {
-        begin(result, reason === "opened" ? "opened" : undefined, asked);
-      } else {
-        followKey(sessionKey(result));
-      }
-      if (reason === "restarted") {
-        leaveSwitching();
-      }
-      perspectiveUse.follow(result);
-      const key = recentKey(result);
-      if (key !== scope.current) {
-        scope.current = key;
-        recentNames.current.clear();
-        recentRef.current = key === undefined ? [] : loadRecent(appStorage, key);
-        setRecent(recentRef.current);
-      }
-      // The shown buffer asks again, also a list that is the same list of another workspace.
-      if (reason !== undefined) {
-        setRevision((count) => count + 1);
-        countSwitchSave();
-        writes.changed(reason);
-      }
-      // The type names come with the workspace; the modeline shows keys until they are there. A write of
-      // the app changes no metamodel (no command writes it), so autosave does not read it every second.
-      if (result.ok && reason !== "written") {
-        void loadTypeNames();
-      } else if (!result.ok) {
-        setTypeNames(new Map());
-        setStatuses([]);
-        setPackages(undefined);
-        setVariantTypes(new Set());
-        setProperties(new Map());
-        setRelationModel(NO_RELATIONS);
-      }
-    };
-    void refresh(undefined);
-    const unsubscribe = bridge.on("workspace-changed", (change) => {
-      if (change.reason === "external" && change.elements !== undefined) {
-        fresh.record(change.elements);
-        // Elements only: the metamodel and the workspace stay, the views read again (D3 of the plan).
-        if (change.scope === "elements") {
-          const { elements } = change;
-          setOutside((before) => nextChanges(before, elements, fresh.fresh));
-          return;
-        }
-      }
-      // A save of this window reports `written`, its message ("Saved ...") stays; a change from outside
-      // is quiet (D-062). The core process stopped for good: a switch ends now, no refresh follows.
-      // Opened ends a switch at once; restarted ends one after its refresh.
-      if (change.reason === "stopped") {
-        setEcho(stoppedMessage(macRef.current));
-        leaveSwitching();
-        stoppedRef.current = true;
-        setStopped(true);
-      } else {
-        stoppedRef.current = false;
-        setStopped(false);
-        // The titles of reference targets are kept for one workspace and one core process: another
-        // workspace asks them again, and so does a core that restarted (it may have failed to answer).
-        if (change.reason === "opened" || change.reason === "restarted") {
-          titlesRef.current.clear();
-        }
-        // Another workspace is open (SR-131 AK3): the buffers and drafts of the old one go at once, before
-        // the new one has loaded, so nothing typed then is dropped or saved into the other workspace, and
-        // the switch ends at once: a load that hangs never keeps the window locked. The overview of the
-        // new workspace comes with its status.
-        if (change.reason === "opened") {
-          opened += 1;
-          // Nothing is stored until the buffers of the workspace now opened are restored.
-          setSession(undefined);
-          setShownView(undefined);
-          resetDrafts();
-          memories.current.clear();
-          openPrompt.current = undefined;
-          setPrompt(undefined);
-          // "About ReqSeq" named the workspace that is gone.
-          setAbout(undefined);
-          dispatch({ type: "reset" });
-          leaveSwitching();
-        }
-        void refresh(change.reason);
-      }
-    });
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, [bridge]);
+  // The status of the workspace, read at the start and after every change (`use-workspace-status.ts`).
+  useWorkspaceStatus({
+    bridge,
+    tracked,
+    resetDrafts,
+    seedDrafts,
+    rescopeDrafts,
+    memories,
+    openPrompt,
+    setPrompt,
+    dispatch,
+    setSession,
+    setEcho,
+    leavingWrites,
+    setSwitchSaves,
+    macRef,
+    setView,
+    leaveSwitching,
+    perspectiveUse,
+    scope,
+    recentNames,
+    recentRef,
+    setRecent,
+    setRevision,
+    writes,
+    setTypeNames,
+    setPackages,
+    setVariantTypes,
+    setProperties,
+    setRelationModel,
+    setStatuses,
+    fresh,
+    setOutside,
+    stoppedRef,
+    setStopped,
+    titlesRef,
+    setShownView,
+    setAbout,
+  });
 
   // What the shown element buffer lets the app do, at once (a prompt that opens saves its input first).
   const controlsNow = useRef(elementControls);
@@ -688,54 +316,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
   });
 
-  // Saves the draft of an element buffer that is not shown (SR-105 AK1: it was left), after the saves of
-  // it that run. True when none of its input is left unsaved; else the minibuffer says why.
-  const saveKept = (buffer: ElementBuffer): Promise<boolean> =>
-    queueSave(saves.current, buffer.key, async () => {
-      const draft = drafts.current.get(buffer.key);
-      if (draft === undefined) {
-        return true;
-      }
-      const result = await saveOne(
-        {
-          call: countingWrites(call, leavingWrites),
-          buffers: [buffer],
-          drafts: drafts.current,
-          properties: propertiesNow.current,
-          saved: (key) => {
-            onDraft(key, undefined);
-          },
-          rebased: onDraft,
-        },
-        buffer,
-        draft,
-      );
-      if (!result.ok) {
-        setEcho(leftUnsaved(result));
-      } else if (result.affected !== undefined) {
-        // The minibuffer names the element that was left with its directly affected elements (SR-024 AK2).
-        setEcho(savedLine(result.affected.name, undefined, result.affected.count));
-      }
-      return result.ok;
-    });
-  // What the app keeps of the shown element buffer (SR-105): its undo history, its saves in order, and its
-  // draft, which the app saves once the buffer is left.
-  const keepOf = (buffer: ElementBuffer): BufferKeep => ({
-    memory: memoryOf(memories.current, buffer.key),
-    ready: async () => {
-      await savesDone(saves.current, buffer.key);
-      return drafts.current.get(buffer.key);
-    },
-    save: (job) => queueSave(saves.current, buffer.key, job),
-    update: (change) => {
-      updateDraft(buffer.key, change);
-    },
-    left: (save) => {
-      if (save) {
-        void saveKept(buffer);
-      }
-    },
-  });
   // The undo history of a buffer goes with the buffer (closed, or pushed out by the buffers kept).
   useEffect(() => {
     forgetClosed(
@@ -762,31 +342,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // The previous and the next buffer of the active area, drawn hidden beside the shown one (SR-212 AK5),
   // without those dropped after a change since the last switch: they are not read again in the background.
   const { dropped, drop, undrop } = useDropped(current);
-  // The buffer a swipe draws (SR-211 AK3, `swipe-draw.ts`): beside the shown one, read as a shown buffer.
-  const [swipe] = useState(() => new SwipeDraw());
-  const swiped = useSyncExternalStore(swipe.subscribe, () => swipe.key);
-  // The shown buffer follows the swipe, the target at its edge (SR-211 AK3, AK4, `swipe-drag.ts`). Input during
-  // the drag ends it at once without a switch, and the swipe with it (`endSwipe`, AK12).
-  const endSwipe = useRef<() => void>(() => undefined);
-  const [drag] = useState(
-    () =>
-      new SwipeDrag({
-        view: window,
-        root: () => sheet.current,
-        busy: (busy) => {
-          gate.drag(busy);
-        },
-        input: () => {
-          endSwipe.current();
-        },
-        // A new swipe ended the drag before it, also its spring-back, whose end then calls nothing back.
-        cancelled: (target) => {
-          release(target);
-        },
-      }),
-  );
-  // The part of the width a released swipe went, for the switch it makes (`cycled`, SR-211 AK1, AK2).
-  const releasedAt = useRef<number | undefined>(undefined);
+  // The buffer a swipe draws and its drag (SR-211 AK3, AK4, `use-swipe-switch.ts`).
+  const { swipe, swiped, endSwipe, drag, releasedAt } = useSwipeObjects(sheet, gate, release);
   const neighbours = withSwipe(
     neighbourBuffers(buffers, walk.current.order, layout.other, {
       known: typeNames.size > 0,
@@ -817,246 +374,89 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
   // "Connect AI agent" (SR-227, SR-225 AK7): set below, where the command prompt it goes back to is.
   const connector = useRef<(from: ActionContext) => void>(() => undefined);
-  const context: ActionContext = {
-    workspace: view?.name !== undefined,
-    readOnly: readOnlyNow(view),
+  // The context of the actions (`app-context.ts`); what is declared further down is read when called.
+  const context = actionContext({
+    view,
     buffers,
-    cycleOrder: walk.current.order,
-    cycled: (key, step) => {
-      walk.current = { order: walk.current.order, cycled: key };
-      const from = buffers[0]?.key;
-      if (from !== undefined) {
-        const progress = releasedAt.current;
-        slides.prepare(
-          {
-            side: layout.active,
-            from,
-            to: key,
-            direction: directionOf(step),
-            ...(progress === undefined ? {} : { progress, peeked: true }),
-          },
-          revisionNow.current,
-          leavesClean(from),
-        );
-      }
-    },
-    leaveEditor: () => {
-      const focused = document.activeElement;
-      if (focused instanceof HTMLElement && focused.closest(".cm-editor") !== null) {
-        focused.blur();
-      }
-    },
+    walk,
+    releasedAt,
+    slides,
+    layout,
+    revisionNow: () => revisionNow.current,
+    leavesClean: (key) => leavesClean(key),
     mac,
     theme,
     call,
-    shownCall: viewCall,
+    viewCall,
     dispatch,
     ask,
-    echo: setEcho,
-    about: setAbout,
+    setEcho,
+    setAbout,
     copy,
-    // "Paste" (SR-195 AK3): main pastes into the field that has the focus now; it refuses without a click
-    // or Enter just before (`main/edit.ts`).
-    paste: () => {
-      void bridge.pasteText().then((pasted) => {
-        if (!pasted) {
-          setEcho("The clipboard cannot be used here");
-        }
-      });
-    },
+    bridge,
     notify,
-    // The bundled documentation in the browser (SR-141): main serves it on loopback and opens the page.
-    docs: (topic) => {
-      void bridge.openDocs(topic).then((result) => {
-        setEcho(docsEcho(result));
-      });
-    },
-    recent: () =>
-      recentRef.current.flatMap((entry) => {
-        const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);
-        return known === undefined ? [] : [known];
-      }),
-    ...(elementControls === undefined ? {} : { element: elementControls }),
-    ...(row === undefined ? {} : { row }),
-    ...(marked === undefined ? {} : { marked }),
-    ...matrixSpot(current, loaded),
-    // The element of an entry in the command prompt (SR-197): the marked one where the buffer has none of its own.
-    ...promptEntry(current, marked),
-    modified: current !== undefined && drafts.current.has(current.key),
-    closeArmed: (key) => armed.current === key,
-    armClose: (key) => {
-      armed.current = key;
-    },
-    discard: (key) => {
-      onDraft(key, undefined);
-    },
-    drafted: (key) => drafts.current.has(key),
-    // The element of the inactive area (SR-115 AK3) is saved from its draft, like one that is not shown:
-    // it took no input since it became inactive, when it saved its input (`ElementView`, `active`), and
-    // both saves go through the same queue of its key, so a save still running is waited for.
-    saveDraft: (key) => {
-      const buffer = buffers.find((open) => open.key === key);
-      if (buffer?.kind !== "element") {
-        return Promise.resolve(true);
-      }
-      return key === current?.key && elementControls !== undefined
-        ? elementControls.flush()
-        : saveKept(buffer);
-    },
+    recentRef,
+    recentNames,
+    elementControls,
+    row,
+    marked,
+    current,
+    loaded,
+    drafts,
+    armed,
+    onDraft,
+    saveKept: (buffer) => saveKept(buffer),
     graphChoices,
-    catalog: () => catalog.current,
-    build: (command, from) => {
-      builder.current(command, from);
-    },
-    connectAgent: (from) => {
-      connector.current(from);
-    },
-    follow: follow.controls,
-    // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
-    layout: {
-      other: layout.other,
-      split: () => {
-        dispatch({ type: "split", marked });
-      },
-      unsplit: () => {
-        dispatch({ type: "unsplit" });
-      },
-      beside: (side, buffer) => {
-        dispatch({ type: "beside", side, buffer });
-      },
-    },
-    // "Choose view" (SR-043 AK1): the shown buffers read again in the chosen view.
-    views: {
-      shown: shownView,
-      choose: (next) => {
-        setShownView(next);
-        setRevision((count) => count + 1);
-      },
-    },
-    // The perspectives opened last (SR-214 AK1): the prompt of "Open perspective" lists them first.
-    perspectives: perspectiveUse.controls,
-    // "Fold status in lists" (SR-201): the lists read again with the new choice.
-    folds: {
-      choice: foldChoice,
-      choose: (next) => {
-        setFoldChoice(next);
-        saveFoldChoice(() => window.localStorage, next);
-      },
-    },
-    // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
-    workspaces: {
-      name: view?.name,
-      list: () => bridge.recentWorkspaces(),
-      open: (...request) => bridge.openWorkspace(...request),
-      listFolder: (path) => bridge.listFolder(path),
-    },
-  };
+    catalog,
+    builder,
+    connector,
+    follow,
+    shownView,
+    setShownView,
+    setRevision,
+    perspectiveUse,
+    foldChoice,
+    setFoldChoice,
+  });
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
   const latest = useRef(context);
   latest.current = context;
   const propertiesNow = useRef(properties);
   propertiesNow.current = properties;
+  // What the window keeps and saves of its element buffers (SR-105, `app-saves.ts`).
+  const { saveKept, keepOf } = bufferKeeps({
+    saves,
+    drafts,
+    call,
+    leavingWrites,
+    propertiesNow,
+    onDraft,
+    setEcho,
+    memories,
+    updateDraft,
+  });
   // Help > ReqSeq Documentation (SR-141 AK2): as the action "Open documentation".
   useEffect(() => bridge.onHelp(() => latest.current.docs?.()), [bridge]);
-  // Before another workspace opens in this window (also from File > Open Workspace), main asks to save
-  // the unsaved input; it switches only when all is saved (SR-131 AK3, `switch.ts`). From then on the
-  // window is switching: the sheet takes no input and the minibuffer says so, until the other workspace
-  // is open, the save failed, or main gave up waiting (`save-expired`).
-  useEffect(() => {
-    // Before the window closes, also when the app quits (SR-105 AK1: closing leaves the element): the
-    // same saves, without the switching state. Input that cannot be saved keeps the window open once,
-    // with the reason in the minibuffer; the next close discards it, unless input or an action came
-    // in between (the question of "Close buffer").
-    // The save of a workspace switch while it runs (SR-131): a close waits for it, so it does not save
-    // the same drafts a second time and report the refused second write as unsaved (ThomasBirkmaier/ReqSeq-archive#611 review N3).
-    let switchSave: Promise<boolean> | undefined;
-    const beforeClose = async (): Promise<boolean> => {
-      if (armed.current === CLOSE_WINDOW) {
-        return true;
-      }
-      let result: Awaited<ReturnType<typeof saveDrafts>>;
-      try {
-        await switchSave;
-        await controlsNow.current?.flush();
-        await Promise.all([...saves.current.keys()].map((key) => savesDone(saves.current, key)));
-        result = await saveDrafts({
-          call,
-          buffers: latest.current.buffers,
-          drafts: drafts.current,
-          properties: propertiesNow.current,
-          saved: (key) => {
-            onDraft(key, undefined);
-          },
-          rebased: onDraft,
-        });
-      } catch (error) {
-        result = { ok: false, name: "The input", message: String(error) };
-      }
-      if (result.ok) {
-        return true;
-      }
-      armed.current = CLOSE_WINDOW;
-      setEcho(closeUnsaved(result));
-      return false;
-    };
-    const beforeSwitch = async (): Promise<boolean> => {
-      switchRun.current += 1;
-      const run = switchRun.current;
-      switchingNow.current = true;
-      setSwitching(true);
-      openPrompt.current = undefined;
-      setPrompt(undefined);
-      latest.current.leaveEditor();
-      setEcho("Opening another workspace…");
-      let saved = false;
-      try {
-        // The input of the shown buffer, and the saves of buffers left just before, come first.
-        await controlsNow.current?.flush();
-        await Promise.all([...saves.current.keys()].map((key) => savesDone(saves.current, key)));
-        const result = await saveDrafts({
-          call,
-          buffers: latest.current.buffers,
-          drafts: drafts.current,
-          properties: propertiesNow.current,
-          saved: (key) => {
-            onDraft(key, undefined);
-          },
-          rebased: onDraft,
-        });
-        saved = result.ok;
-        if (!result.ok) {
-          setEcho(notSaved(result));
-        }
-      } catch (error) {
-        setEcho(`The unsaved input could not be saved (${String(error)}); the workspace was not changed`);
-      }
-      if (!saved && run === switchRun.current) {
-        leaveSwitching();
-      }
-      return saved;
-    };
-    const unset = bridge.onSave(({ closing }) => {
-      if (closing) {
-        return beforeClose();
-      }
-      switchSave = beforeSwitch();
-      return switchSave;
-    });
-    const unsubscribe = bridge.on("save-expired", (expired) => {
-      // Before a close: the window stays open, and a close soon after closes it without waiting.
-      if (expired.closing === true) {
-        setEcho(CLOSE_NOT_IN_TIME);
-        return;
-      }
-      leaveSwitching();
-      setEcho(notSavedInTime(latest.current.workspaces?.name));
-    });
-    return () => {
-      unset();
-      unsubscribe();
-    };
-  }, [bridge, call]);
+  // The saves before another workspace opens or the window closes (SR-131 AK3, `app-saves.ts`).
+  useSaveOnLeave({
+    bridge,
+    call,
+    armed,
+    controlsNow,
+    saves,
+    latest,
+    drafts,
+    propertiesNow,
+    onDraft,
+    setEcho,
+    switchRun,
+    switchingNow,
+    setSwitching,
+    openPrompt,
+    setPrompt,
+    leaveSwitching,
+  });
   // The read of the catalog while it runs: a command prompt opened meanwhile, just after a folder was
   // opened, gets the catalog's commands ("Initialise workspace", the minibuffer's hint) when they are there (#1413).
   const catalogRead = useRef<Promise<void> | undefined>(undefined);
@@ -1064,102 +464,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const seen = revision + outside.seq;
   const revisionNow = useRef(seen);
   revisionNow.current = seen;
-  useEffect(() => {
-    const load = (): void => {
-      const read = bridge
-        .commands()
-        .then(
-          (commands) => {
-            catalog.current = commands;
-            setMeanings(graphMeanings(commands));
-            setEvidence(graphTakesEvidence(commands));
-          },
-          (error: unknown) => {
-            // Without the catalog the command prompt has the app's actions only; say why.
-            setEcho(String(error));
-          },
-        )
-        .finally(() => {
-          if (catalogRead.current === read) {
-            catalogRead.current = undefined;
-          }
-        });
-      catalogRead.current = read;
-    };
-    load();
-    // After a start without a workspace there was no core process to ask: ask the one just opened.
-    return bridge.on("workspace-changed", (change) => {
-      if (change.reason === "opened" && catalog.current.length === 0) {
-        load();
-      }
-    });
-  }, [bridge]);
-  // The command prompt: the actions that apply now and the catalog's read and write commands (ThomasBirkmaier/ReqSeq-archive#85);
-  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`). `shown`: the
-  // prompt is shown, so Escape in the first prompt of an action chosen in it shows it again (SR-134 AK1); its
-  // entries run from the prefix key or the context menu have no command prompt to go back to.
-  // While the catalog is read, the prompt opens with the actions and takes keys, and its entries are built
-  // again with the catalog's commands once it is there (`fill`); an Enter meanwhile waits for them, also on an
-  // action (the read is short: core answers at once, or the bridge gives none without a connection).
-  const commands = useCallback(
-    (shown = true, all = false, from?: ActionContext): Prompt => {
-      // Backspace on an empty input and Escape before the first argument of a catalog command or in the first
-      // prompt of an action chosen here (SR-134 AK1, AK4), open the command prompt again, or the list of every command it was chosen in.
-      const reopen = (): void => {
-        ask(commands(true, all));
-      };
-      // "All commands…" (SR-133 AK3): the shown prompt with an empty input offers it after the first nine. It lists
-      // the commands of the context the prompt opened in, as its other rows run in it: a click on the row must not
-      // drop what the shown buffer had selected.
-      const opened = from ?? latest.current;
-      const everything =
-        shown && !all
-          ? (): void => {
-              ask(commands(true, true, opened));
-            }
-          : undefined;
-      const build = (): Prompt => {
-        const now = from ?? latest.current;
-        const items = catalogItems(
-          { ...now, revision: () => revisionNow.current, reopen },
-          catalog.current,
-          ACTIONS,
-        );
-        const prompt = withHelp(
-          withExplanations(
-            commandPrompt(now, promptUse(appStorage), items, shown ? reopen : undefined, everything),
-            catalog.current,
-          ),
-          now,
-          catalog.current,
-        );
-        // Without use in the order of SR-133 AK1, which `rankByUse` keeps among commands in equal use.
-        const ordered = { ...prompt, items: unusedOrder(prompt.items) };
-        return all ? allCommandsPrompt(ordered) : ordered;
-      };
-      const prompt = build();
-      const reading = catalogRead.current;
-      // Only a shown prompt: the prefix key and the context menu take the entries as they are now.
-      return reading === undefined || !shown
-        ? prompt
-        : { ...prompt, fill: reading.then(() => ({ items: build().items })) };
-    },
-    [ask],
-  );
-  // Escape in the first step of a builder opens the command prompt again, as before a catalog command's first argument.
-  builder.current = (command, from) => {
-    startBuilder(
-      {
-        ...from,
-        revision: () => revisionNow.current,
-        reopen: () => {
-          ask(commands(true));
-        },
-      },
-      command,
-      catalog.current,
-    );
-  };
+  // The catalog and the command prompt (`use-command-prompt.ts`).
+  const commands = useCommandPrompt({
+    bridge,
+    catalog,
+    setMeanings,
+    setEvidence,
+    setEcho,
+    catalogRead,
+    ask,
+    latest,
+    revisionNow,
+    builder,
+  });
   connector.current = useConnectAgent(
     {
       catalog: () => catalog.current,
@@ -1309,168 +626,29 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       window.removeEventListener("mouseup", onMouse);
     };
   }, [ask, commands, startPrefix, contextMenu.isOpen]);
-  // A swipe to the left or right that macOS reports to the window, as older mouse software sends the buttons
-  // Back and Forward (SR-163 AK4): what the mouse button does, read from refs as `onMouse` does. It ends a
-  // running slide first, as a key does (SR-212 AK2), also when it then switches nothing; it switches nothing
-  // in the states of `bufferSwitchBlocked` and closes none of them; a waiting prefix key ends, as a press of a
-  // mouse button ends it. It does not ask the swipe of the wheel (`useWheelSwipe` below), so it switches also
-  // while a wheel still coasts.
-  const prefixCardShown = prefix.cardShown;
-  const cancelPrefix = prefix.cancel;
-  useEffect(
-    () =>
-      bridge.on("swipe", ({ direction }) => {
-        slides.interrupt();
-        endSwipe.current();
-        const now = latest.current;
-        const blocked = bufferSwitchBlocked(
-          {
-            switching: switchingNow.current,
-            prompting: openPrompt.current !== undefined,
-            contextMenu: contextMenu.isOpen(),
-            about: aboutOpen.current,
-            nextKeys: prefixCardShown(),
-          },
-          document,
-        );
-        if (blocked || !now.workspace) {
-          return;
-        }
-        cancelPrefix();
-        const action = swipeAction(now, direction);
-        if (action !== undefined) {
-          runAction(action, now);
-        }
-      }),
-    [bridge, slides, contextMenu.isOpen, prefixCardShown, cancelPrefix],
-  );
-  // A horizontal swipe on the trackpad, or the horizontal mouse wheel, switches as Alt+P and Alt+N do (SR-211,
-  // `buffer-swipe.ts`): not in the states of `bufferSwitchBlocked`, without a workspace or without another
-  // buffer. A swipe ends a running slide once it is a swipe (SR-212 AK2) and draws the buffer it would switch
-  // to (SR-211 AK3, `swipe-draw.ts`), unless the other area shows it or nothing moves. The switch and the end
-  // of the draw go into one commit, so the drawn layer becomes the shown one without being drawn again.
-  const otherNow = useRef(layout.other);
-  otherNow.current = layout.other;
-  // The switch of a swipe, with the part of the width it went (a slide on from there), or none (AK13).
-  const swipeSwitch = (way: SwipeWay, progress: number | undefined): void => {
-    const now = latest.current;
-    const action = mouseButtonAction(now, way === "back" ? 3 : 4);
-    cancelPrefix();
-    releasedAt.current = progress;
-    const target = drag.of?.target;
-    try {
-      flushSync(() => {
-        drag.handOff();
-        if (action !== undefined) {
-          runAction(action, now);
-        }
-        swipe.end();
-      });
-    } finally {
-      releasedAt.current = undefined;
-    }
-    // The hold ends with the slide of the switch (`ended`); a switch that took no slide ends it now.
-    if (!slides.busy) {
-      release(target);
-    }
-  };
-  const wheelSwipe = useWheelSwipe(sheet, {
-    blocked: () => {
-      const now = latest.current;
-      return (
-        !now.workspace ||
-        mouseButtonAction(now, 3) === undefined ||
-        bufferSwitchBlocked(
-          {
-            switching: switchingNow.current,
-            prompting: openPrompt.current !== undefined,
-            contextMenu: contextMenu.isOpen(),
-            about: aboutOpen.current,
-            nextKeys: prefixCardShown(),
-          },
-          document,
-        )
-      );
-    },
-    closedMenu: contextMenu.closedBy,
-    begin: (way: SwipeWay) => {
-      slides.interrupt();
-      const now = latest.current;
-      const target = cycleKey(now.cycleOrder, now.buffers[0]?.key, way === "back" ? 1 : -1);
-      if (target === undefined || target === otherNow.current || !motionAllowed(window)) {
-        return;
-      }
-      // A swipe that joins its segment again after a pause takes up its drag where it stands.
-      if (drag.of?.target !== target || drag.of.side !== layout.active) {
-        drag.start(
-          layout.active,
-          now.buffers[0]?.key,
-          target,
-          way,
-          slides.drawnAt(target, revisionNow.current),
-        );
-      }
-      const side = layout.active;
-      void swipe.draw(target).then((drawn) => {
-        if (drawn) {
-          drag.drawn(target);
-          if (drag.of?.target === target) {
-            setHold({ side, key: target });
-          }
-        }
-      });
-    },
-    move: (_way: SwipeWay, distance: number) => {
-      drag.move(distance);
-    },
-    switch: (way: SwipeWay) => {
-      swipeSwitch(way, undefined);
-    },
-    // Past a third the window switches from where the drag stands; a swipe that moved nothing (its target not
-    // drawn yet) switches nothing. Without a drag (the other area shows the target) it switches past a third.
-    release: (way: SwipeWay, distance: number, width: number) => {
-      const progress = drag.active ? drag.progress : undefined;
-      if (progress === undefined ? !pastThird(distance, width) : progress * 3 <= 1) {
-        return false;
-      }
-      swipeSwitch(way, progress);
-      return true;
-    },
-    // Not switched: the shown buffer springs back, and the draw ends after it (AK4).
-    end: () => {
-      const target = drag.of?.target;
-      drag.springBack(() => {
-        swipe.end();
-        release(target);
-      });
-    },
+  // The swipes (SR-163 AK4, SR-211, `use-swipe-switch.ts`).
+  useSwipeSwitch({
+    swipe,
+    swiped,
+    endSwipe,
+    drag,
+    releasedAt,
+    bridge,
+    slides,
+    latest,
+    switchingNow,
+    openPrompt,
+    contextMenu,
+    aboutOpen,
+    prefix,
+    sheet,
+    layout,
+    release,
+    revisionNow,
+    hold,
+    setHold,
+    shownKey,
   });
-  endSwipe.current = () => {
-    wheelSwipe.abort();
-    if (drag.active) {
-      const target = drag.of?.target;
-      drag.cancel();
-      swipe.end();
-      release(target);
-    }
-  };
-  // Another buffer shown in the area, another area active, or the target's draw ended (closed, or no longer
-  // beside the shown one): the drag ends at once, without a switch, and the rest of the swipe does nothing
-  // (SR-211 AK12). Before the paint, so no frame shows the old buffer moved.
-  useLayoutEffect(() => {
-    const of = drag.of;
-    if (of !== undefined && (of.side !== layout.active || of.from !== shownKey || swiped !== of.target)) {
-      endSwipe.current();
-    }
-  }, [drag, layout.active, shownKey, swiped]);
-  // A held target shown while no drag or slide moves toward it (Ctrl+P, a click, a switch without motion) is held
-  // no longer, so it reads as every shown buffer (SR-212 AK5). After the slide's own layout effect (`useSlides`),
-  // so the slide of a swipe's switch counts as moving.
-  useLayoutEffect(() => {
-    setHold((now) =>
-      holdWhenShown(now, layout.active, shownKey, slides.busy || drag.of?.target === shownKey),
-    );
-  }, [slides, drag, layout.active, shownKey, hold]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -1571,20 +749,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     setLoaded((before) => shownOnly(before, shownKeys));
   }, [shownKeys.join("\n")]);
 
-  const openTarget = (id: string, repository?: string): void => {
-    // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
-    // A reference names the repository when the link has one.
-    void call("element.get", { ref: id, ...(repository === undefined ? {} : { repository }) }).then(
-      (answer) => {
-        if (answer.ok) {
-          dispatch({ type: "open", buffer: elementBufferOf(answer.output.element) });
-        } else {
-          setEcho(answer.message);
-        }
-      },
-    );
-  };
-
   // A failed read of the counts says why and counts as drawn, so a switch to the overview does not wait for
   // the guard of the slide (SR-212).
   const overviewFailed = useCallback(
@@ -1620,75 +784,46 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     recentNames.current.delete(key);
   }, []);
 
-  // A relation names the repository of its target (ThomasBirkmaier/ReqSeq-archive#416): its buffer is opened at once.
-  const openRelation = (buffer: ElementBuffer): void => {
-    dispatch({ type: "open", buffer });
-  };
-
   // A press or a focus in the inactive area makes it active (SR-115 AK3); a prompt open for the other
   // area is cancelled, as Escape cancels it, so its choice does not act on the area left.
   const activate = (key: string): void => {
     cancelPrompt();
     dispatch({ type: "switch", key });
   };
-  const views: AreaViews = {
-    call: viewCall,
+  const views = areaViews({
+    viewCall,
     revision,
     seen,
     outside,
     dispatch,
     onData,
-    onEcho: setEcho,
-    onCopy: copy,
+    setEcho,
     onDrawn,
     gate,
     ready,
-    clean: leavesClean,
+    leavesClean,
     stopped,
     drop,
     switchSaves,
     typeNames,
     kindNames,
-    // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
-    overview: {
-      ...overview,
-      recent,
-      openPerspective: (name) => {
-        void openPerspective(latest.current, name);
-      },
-    },
-    element: (buffer) => ({
-      onGone: forgetName,
-      searchCall: call,
-      onCopy: copy,
-      onOpenTarget: openTarget,
-      onOpenRelation: openRelation,
-      onOpenResult: (opened) => {
-        dispatch({ type: "open", buffer: opened });
-      },
-      onPickElement: (request) => {
-        ask(referencePrompt(context, titles.picking(request)));
-      },
-      titles,
-      onAsk: ask,
-      draft: drafts.current.get(buffer.key),
-      onDraft,
-      keep: keepOf(buffer),
-      register: setElementControls,
-      // Not held while the view is hidden: whether it is a package page decides whether it is drawn in advance.
-      onType: (element) => {
-        dispatch({
-          type: "typed",
-          id: element.id,
-          repository: element.repository,
-          elementType: element.type,
-        });
-      },
-      packages,
-      variantTypes,
-      properties,
-    }),
-  };
+    overview,
+    recent,
+    latest,
+    forgetName,
+    call,
+    copy,
+    ask,
+    context,
+    titles,
+    drafts,
+    onDraft,
+    keepOf,
+    setElementControls,
+    packages,
+    variantTypes,
+    properties,
+  });
   const parts = modelineParts(current, loaded, drafts.current, typeNames, graphChoices);
   return (
     <div className="shell">
