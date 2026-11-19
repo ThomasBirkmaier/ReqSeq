@@ -269,6 +269,10 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     {},
   ],
   "hint.list": [{}, { kind: ["relation.outdated"], type: ["need"] }, { ref: OBSOLETE }, { ref: "SR-ffffff" }],
+  "metamodel.addType": [
+    { name: "Risk", prefix: "RI" },
+    { name: "Risk", prefix: "RX" },
+  ],
   "metamodel.get": [{}, { extra: true }],
   "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [

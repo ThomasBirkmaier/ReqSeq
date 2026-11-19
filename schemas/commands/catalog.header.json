@@ -13,6 +13,7 @@
     "tool.info",
     "metamodel.get",
     "metamodel.mermaid",
+    "metamodel.addType",
     "element.create",
     "element.get",
     "element.resolve",

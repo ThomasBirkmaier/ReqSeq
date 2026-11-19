@@ -15,7 +15,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
 import type { Problem } from "../catalog.js";
-import type { YamlFile } from "../files/index.js";
+import type { ParsedYaml } from "../files/index.js";
 import { readYamlFile } from "../files/index.js";
 import { contractsBundle, fileSchemaErrors, fileSchemaValidator } from "../runtime/contracts.js";
 import type { InputViolation } from "../runtime/input-errors.js";
@@ -100,7 +100,7 @@ const problem = (severity: Problem["severity"], message: string, file: string, l
 });
 
 /** The line of the node at `segments`, or of the closest node above it; undefined for an empty file. */
-const lineAt = (yaml: YamlFile, segments: readonly string[]): number | undefined => {
+const lineAt = (yaml: ParsedYaml, segments: readonly string[]): number | undefined => {
   for (let n = segments.length; n >= 0; n--) {
     const node: unknown = yaml.document.getIn(segments.slice(0, n), true);
     const range = isNode(node) ? node.range : undefined;
@@ -125,7 +125,7 @@ export const isKeyForm = (key: unknown): key is string =>
  * definition without a valid key keeps its place in the list. Built from the violation's form, never by
  * replacing text in its message, which quotes values and keys of the file (#840 review).
  */
-const namedMessage = (yaml: YamlFile, violation: InputViolation): string => {
+const namedMessage = (yaml: ParsedYaml, violation: InputViolation): string => {
   const message = fileMessage(violation);
   // A field below an entry of a list; its message starts with that field.
   const place = /^([a-z]+)\[(\d+)\]\./.exec(violation.field);
@@ -161,7 +161,7 @@ const violationSegments = (violation: InputViolation): readonly string[] => {
 /** A metamodel file that is valid YAML and matches the schema. */
 interface ValidFile {
   readonly file: string;
-  readonly yaml: YamlFile;
+  readonly yaml: ParsedYaml;
   readonly data: MetamodelFile;
 }
 
@@ -169,9 +169,22 @@ type CheckedFile =
   | { readonly kind: "valid"; readonly valid: ValidFile; readonly problems: readonly Problem[] }
   | { readonly kind: "faulty"; readonly problems: readonly Problem[] };
 
+/**
+ * Reads one metamodel file below the repository folder `root`: `readYamlFile` by default; the write
+ * layer passes one that gives the files as it read them, or as a command would write them
+ * (`write.ts`), so the same checks run on a planned state without touching the disk.
+ */
+export type MetamodelReader = (
+  root: string,
+  file: string,
+) => Promise<
+  | { readonly kind: "parsed"; readonly file: ParsedYaml }
+  | { readonly kind: "problem"; readonly problem: Problem }
+>;
+
 /** Reads and checks one file. Faulty YAML is the problem of the files block: file, line, reason. */
-const checkFile = async (root: string, file: string): Promise<CheckedFile> => {
-  const read = await readYamlFile(root, file);
+const checkFile = async (root: string, file: string, reader: MetamodelReader): Promise<CheckedFile> => {
+  const read = await reader(root, file);
   if (read.kind === "problem") {
     return { kind: "faulty", problems: [read.problem] };
   }
@@ -442,7 +455,7 @@ const empty = (layout: WorkspaceLayout, problems: readonly Problem[]): Metamodel
 });
 
 /** Reads the metamodel files; `loadMetamodel` names the repository in the problems. */
-const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
+const readMetamodel = async (layout: WorkspaceLayout, reader: MetamodelReader): Promise<Metamodel> => {
   const { metamodel } = layout;
   const repository = layout.repositories.find((r) => r.name === metamodel.repository);
   if (!metamodel.exists || metamodel.folder === undefined || repository === undefined) {
@@ -490,7 +503,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   // One file after the other, so the problems come in file order, each file's in line order.
   let complete = true;
   for (const file of files) {
-    const checked = await checkFile(repository.folder, file);
+    const checked = await checkFile(repository.folder, file, reader);
     problems.push(...checked.problems);
     if (checked.kind === "valid") {
       mergeFile(checked.valid, merged, problems);
@@ -562,10 +575,14 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
  * in the folder are read, not those in subfolders; hidden files (starting with `.`) are skipped.
  * When the folder is the root of the main repository, `reqseq-workspace.yaml` is not a metamodel
  * file; every other `.yaml` file there is. Every problem names the metamodel repository, since the
- * metamodel may lie in its own repository (SR-018) and `file` is relative to it.
+ * metamodel may lie in its own repository (SR-018) and `file` is relative to it. `reader` reads
+ * each file (`MetamodelReader`).
  */
-export const loadMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
-  const metamodel = await readMetamodel(layout);
+export const loadMetamodel = async (
+  layout: WorkspaceLayout,
+  reader: MetamodelReader = readYamlFile,
+): Promise<Metamodel> => {
+  const metamodel = await readMetamodel(layout, reader);
   const { repository } = layout.metamodel;
   return { ...metamodel, problems: metamodel.problems.map((p) => ({ ...p, repository })) };
 };
