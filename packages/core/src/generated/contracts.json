@@ -956,7 +956,12 @@
             "reqif.edited-elsewhere",
             "reqif.mapping-differs",
             "reqif.source-model-unsaved",
-            "reqif.source-value-chosen"
+            "reqif.source-value-chosen",
+            "html.unsafe-content",
+            "html.image-not-copied",
+            "html.foreign-file",
+            "html.marker-entry-ignored",
+            "html.cleanup-failed"
           ],
           "x-technical": true
         },
@@ -3082,6 +3087,36 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://reqseq.dev/schemas/html-export-marker.schema.json",
+      "title": "HTML export marker file",
+      "description": "The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export: it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into. ReqSeq writes it anew on every export; it is not meant to be edited.",
+      "type": "object",
+      "required": [
+        "reqseq-html-export",
+        "files"
+      ],
+      "properties": {
+        "reqseq-html-export": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "files": {
+          "description": "The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pending": {
+          "description": "Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it.",
+          "const": ".reqseq-export-staging"
+        }
+      },
+      "additionalProperties": false
     },
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6135,7 +6170,7 @@
         "name": "workspace.connectAgent",
         "title": "Connect AI agent",
         "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
-        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows), and for Claude Code `next` also names the call of `tool guide --skill --write` for the workspace, with the same program, which writes the skill file; Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
         "effect": "read",
         "stage": 6,
         "implements": [
@@ -6301,7 +6336,7 @@
               "title": "Next",
               "type": "string",
               "minLength": 1,
-              "description": "How to go on after pasting the setup. Only with a client."
+              "description": "How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client."
             }
           },
           "additionalProperties": false,
@@ -36532,6 +36567,298 @@
             "technical": true
           }
         ]
+      },
+      {
+        "name": "html.export",
+        "title": "Export HTML",
+        "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
+        "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a problem. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a problem. On an error the earlier export stays as it was.",
+        "effect": "write-files",
+        "whileReadOnly": "refuse",
+        "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",
+        "stage": 6,
+        "implements": [
+          "SR-231",
+          "SR-235"
+        ],
+        "arguments": [
+          {
+            "field": "output",
+            "complete": "folder"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+              "$ref": "../common.schema.json#/$defs/localPath"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "output"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "folder": {
+              "title": "Folder",
+              "$ref": "../common.schema.json#/$defs/outputPath",
+              "description": "The written folder, relative to the workspace root when it lies inside, else absolute."
+            },
+            "pages": {
+              "title": "Element pages",
+              "x-elements": "exportedElements",
+              "description": "Pages of elements written: one for each element of `exportedElements`.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "title": "Removed files",
+              "description": "Files of the earlier export that this export no longer writes and removed.",
+              "type": "integer",
+              "minimum": 0,
+              "x-normal": 0
+            },
+            "exportedElements": {
+              "title": "List of exported elements",
+              "type": "array",
+              "description": "The elements that got a page, in the order of the element store.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/countedElement"
+              },
+              "x-elements": true
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "folder",
+            "pages",
+            "exportedElements",
+            "removed",
+            "problems"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "folder",
+            "title": "Folder",
+            "technical": true
+          },
+          {
+            "path": "pages",
+            "title": "Element pages",
+            "elements": [
+              "exportedElements"
+            ],
+            "keys": []
+          },
+          {
+            "path": "removed",
+            "title": "Removed files",
+            "normal": 0
+          },
+          {
+            "path": "exportedElements",
+            "title": "List of exported elements",
+            "elements": true
+          },
+          {
+            "path": "exportedElements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "exportedElements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "exportedElements[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          }
+        ]
       }
     ]
   },
@@ -36618,6 +36945,11 @@
     "reqif.edited-elsewhere": "Edited in another tool",
     "reqif.mapping-differs": "Different saved mapping",
     "reqif.source-model-unsaved": "Source model not saved",
-    "reqif.source-value-chosen": "First source value written"
+    "reqif.source-value-chosen": "First source value written",
+    "html.unsafe-content": "Content shown as text",
+    "html.image-not-copied": "Image not copied",
+    "html.foreign-file": "File not written by the export",
+    "html.marker-entry-ignored": "Marker file entry not used",
+    "html.cleanup-failed": "Staging folder left"
   }
 }

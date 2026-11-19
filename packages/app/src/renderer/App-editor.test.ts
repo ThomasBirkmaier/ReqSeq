@@ -34,6 +34,7 @@ import {
   texts,
   calls,
 } from "./App.test-helper.js";
+import { answerNextOf } from "./agent-poll.test-helper.js";
 
 describe("App, the text editor", () => {
   /** A workspace whose elements have a text, and that saves it with a final line break. */
@@ -552,7 +553,7 @@ describe("App, the text editor", () => {
   it("[SR-131/AK-nkm5] a save that throws keeps the open workspace and says so", async () => {
     const { invoke, savers } = await openElement();
     await typeText("!");
-    invoke.mockImplementationOnce(() => Promise.reject(new Error("port closed")));
+    answerNextOf(invoke, "element.update", () => Promise.reject(new Error("port closed")));
     let saved: boolean | undefined;
     await act(async () => {
       saved = await savers[0]?.();
@@ -742,8 +743,10 @@ describe("App, the text editor", () => {
     // when the buffer is left and shown again.
     let answer: (() => void) | undefined;
     const update = handlers["element.update"];
-    fake.invoke.mockImplementationOnce(
-      (_name: string, input: Record<string, unknown> = {}) =>
+    answerNextOf(
+      fake.invoke,
+      "element.update",
+      (_name, input = {}) =>
         new Promise((resolve) => {
           answer = () => {
             resolve({ ok: true, output: update?.(input) });

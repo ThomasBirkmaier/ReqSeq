@@ -113,6 +113,7 @@ export const commands: readonly AnyCommand[] = [
   filterSave,
   hintConfirm,
   hintList,
+  lazyCommand("html.export", () => import("./html/export.js")),
   metamodelAddProperty,
   metamodelAddRelationKind,
   metamodelAddStatus,

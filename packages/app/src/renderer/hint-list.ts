@@ -10,6 +10,8 @@ import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import { togglesFold } from "./FoldSection.js";
 import { shownId, shownIdTitle } from "./id-title.js";
+import type { DetailValue, OutputField } from "./result.js";
+import { technicalValues } from "./result.js";
 
 type Hint = HintListOutput["hints"][number];
 
@@ -23,6 +25,11 @@ export interface HintLine {
   readonly message: string;
   /** The element the row opens; undefined when the hint names none. */
   readonly open: ElementBuffer | undefined;
+  /**
+   * The technical values of the hint under their titles, such as the UUID of its element, which the row shows
+   * with "Show details" (SR-223 AK2); its kind is in the heading of its group.
+   */
+  readonly details: readonly DetailValue[];
 }
 
 /** The hints of one kind: its code, its heading, the count of all its hints and the rows of the page. */
@@ -125,7 +132,7 @@ export const hintReason = (hint: Hint, views: ReadonlyMap<string, string>): stri
 };
 
 /** The row of a hint; it opens its element when the hint names one. */
-const hintLine = (hint: Hint, views: ReadonlyMap<string, string>): HintLine => {
+const hintLine = (hint: Hint, views: ReadonlyMap<string, string>): Omit<HintLine, "details"> => {
   const id = hint.elementId;
   const element =
     hint.elementShortId === undefined
@@ -155,13 +162,18 @@ const hintLine = (hint: Hint, views: ReadonlyMap<string, string>): HintLine => {
 
 /**
  * The list of `output`: a group per entry of `kinds` (which names the kind of every hint of every page), in
- * its order and with its count, and the hints of the page under their kind in the order of the output.
+ * its order and with its count, and the hints of the page under their kind in the order of the output, each with
+ * the technical values `fields` (`outputFields`) mark.
  */
-export const hintList = (output: HintListOutput, views: ReadonlyMap<string, string>): HintList => {
+export const hintList = (
+  output: HintListOutput,
+  views: ReadonlyMap<string, string>,
+  fields: readonly OutputField[] = [],
+): HintList => {
   const rows = new Map<string, HintLine[]>();
   for (const hint of output.hints) {
     const lines = rows.get(hint.code) ?? [];
-    lines.push(hintLine(hint, views));
+    lines.push({ ...hintLine(hint, views), details: technicalValues(hint, "hints[]", fields, ["code"]) });
     rows.set(hint.code, lines);
   }
   return {
