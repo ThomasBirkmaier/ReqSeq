@@ -164,6 +164,11 @@ const options = (argv: readonly string[] = ["electron", "."]): ShellOptions => (
     core: "/out/main/core.js",
     docs: "/no/docs",
   },
+  installation: {
+    runtime: "/opt/ReqSeq/ReqSeq",
+    entry: "/opt/ReqSeq/resources/cli/dist/bin.js",
+    electron: true,
+  },
   log: vi.fn(),
 });
 
@@ -327,10 +332,16 @@ describe("startShell", () => {
 
   it("opens the workspace of --workspace in the core process and connects the page once it has loaded", async () => {
     const { electron, windows, children } = await start(["electron", ".", "--workspace", "ws"]);
-    expect(electron.utilityProcess.fork).toHaveBeenCalledWith("/out/main/core.js", [], {
-      serviceName: "ReqSeq core",
-      stdio: "pipe",
-    });
+    expect(electron.utilityProcess.fork).toHaveBeenCalledWith(
+      "/out/main/core.js",
+      [
+        '--reqseq-installation={"runtime":"/opt/ReqSeq/ReqSeq","entry":"/opt/ReqSeq/resources/cli/dist/bin.js","electron":true}',
+      ],
+      {
+        serviceName: "ReqSeq core",
+        stdio: "pipe",
+      },
+    );
     expect(children[0]?.sent).toEqual([{ type: "open", folder: path.join(CWD, "ws") }]);
     windows[0]?.webContents.emit("did-finish-load");
     expect(children[0]?.sent.at(-1)).toEqual({ type: "connect" });

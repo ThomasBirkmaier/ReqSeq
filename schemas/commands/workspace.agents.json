@@ -14,11 +14,9 @@
   "output": {
     "type": "object",
     "properties": {
-      "answer": {
-        "$ref": "../common.schema.json#/$defs/answer"
-      },
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "recorded": {
-        "title": "Connections recorded",
+        "title": "Recorded",
         "type": "boolean",
         "description": "Whether the copy has a usable cache folder whose connections could be read (ADR-0008). false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
       },
@@ -44,7 +42,7 @@
         }
       },
       "last": {
-        "title": "Last connection",
+        "title": "Last connected",
         "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
         "anyOf": [
           {
@@ -55,7 +53,7 @@
                 "$ref": "../agent-connection.schema.json#/$defs/client"
               },
               "at": {
-                "title": "Connected last",
+                "title": "Last connected at",
                 "$ref": "../common.schema.json#/$defs/dateTime",
                 "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
               }
@@ -63,9 +61,7 @@
             "required": ["client", "at"],
             "additionalProperties": false
           },
-          {
-            "type": "null"
-          }
+          { "type": "null" }
         ]
       }
     },

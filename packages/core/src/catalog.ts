@@ -151,6 +151,9 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "file.read-only": "conflict",
   "file.not-regular": "conflict",
   "file.folder-missing": "not-found",
+  "agent.app-translocated": "conflict",
+  "agent.path-unsupported": "conflict",
+  "agent.cli-missing": "conflict",
   "command.not-implemented": "not-implemented",
   internal: "internal",
 };

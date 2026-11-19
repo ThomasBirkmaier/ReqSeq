@@ -62,7 +62,7 @@ The answer is the output, as with `--json`, with status 200, also when it report
 { "mcpServers": { "reqseq": { "command": "/path/to/reqseq", "args": ["mcp", "--workspace", "/path/to/workspace"] } } }
 ```
 
-Give the absolute path of the launcher, since a client often lacks your shell's path; on Windows, the app's runtime: see [Install ReqSeq](/how-to/install-reqseq/#mcp). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
+Give absolute paths, since a client often lacks your shell's path: [Connect an AI agent](/how-to/connect-an-ai-agent/). Each command is a tool, named with `_` for the dot (`element_create`, `evidence_enrichJunit`), whose arguments are the input. The result is the output; an error is a tool error with the same error object.
 
 ## Paths through the API and MCP
 

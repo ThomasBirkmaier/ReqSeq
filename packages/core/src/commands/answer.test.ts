@@ -24,6 +24,7 @@ import { commands } from "./index.js";
 import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceAgents from "./workspace/agents.js";
+import workspaceConnectAgent from "./workspace/connectAgent.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceListFolder from "./workspace/listFolder.js";
@@ -190,5 +191,12 @@ describe("answers of single commands", () => {
       "1 agent connected to this copy; the connection that ended last was agent.",
       "1 agent connected to this copy; the connection that ended last was a client without a name.",
     ]);
+  });
+
+  it("workspace.connectAgent keeps the sentence its run built, and names the clients without one", () => {
+    expect(answerOf(workspaceConnectAgent, { answer: "Run this command in a terminal." })).toBe(
+      "Run this command in a terminal.",
+    );
+    expect(answerOf(workspaceConnectAgent, { clients: [] })).toMatch(/^Choose the client to connect: /);
   });
 });

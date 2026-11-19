@@ -120,7 +120,7 @@ const style = (window: Page, selector: string, property: string): Promise<string
 
 /**
  * Longer than a card that comes after one that closed counts as taking its place and stands at once
- * (`TAKES_PLACE_MS` in Minibuffer.tsx).
+ * (`TAKES_PLACE_MS` in Card.tsx).
  */
 const APART_MS = 400;
 

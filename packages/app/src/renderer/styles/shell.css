@@ -1,0 +1,99 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.shell {
+  display: grid;
+  /* One column as wide as the window: a long message in the minibuffer, which does not wrap, does not
+     widen the sheet (#1631). */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--modeline) var(--line);
+  height: 100%;
+  /* The blurred seam around the card of the command line reaches past the window's edge (SR-182). */
+  overflow: clip;
+}
+
+/* Its own stacking context: nothing inside a buffer, such as the matrix's fixed column, can rise above
+   the minibuffer's candidates (#483). Its areas stand side by side, each as wide as the other (SR-115
+   AK3: one, or two after "Split window"). */
+.sheet {
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+/* An area holds one buffer. Two areas are parted by a quiet rule. The inactive one is a shade lighter
+   (SR-150 AK8): its text takes the muted grey, which still reads at a contrast of at least 4.5:1 (WCAG AA)
+   in both themes, so reading stays the main thing. */
+.area {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  /* Clipped, not hidden: no focus or scroll into view can scroll it sideways while a layer stands beside it. */
+  overflow: clip;
+}
+
+/* The track of a switch in motion (SR-212, buffer-slide.ts): two layers over the whole area, each moved by its
+   own translateX in % of the area. The live view is in "main"; "side" holds the picture of the view that was
+   left, only while a slide runs, and is never hit by the pointer. The live layer is not contained: the cards
+   of its view (the slash menu's backdrop) cover the whole window. */
+.slide-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.slide-layer[data-layer="side"] {
+  contain: strict;
+  pointer-events: none;
+}
+
+/* A buffer drawn in advance (SR-212 AK5): laid out beside the shown one, not painted, and not reached by the
+   pointer; showing it only flips its layer's attributes. */
+.slide-layer[data-layer="neighbour"] {
+  contain: strict;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The target of a swipe that joins the shown buffer at its edge (SR-211 AK3, swipe-drag.ts): painted while it
+   joins (as its area is), still inert and not reached by the pointer. */
+.slide-layer[data-layer="neighbour"][data-peek] {
+  visibility: inherit;
+}
+
+.slide-picture {
+  height: 100%;
+}
+
+.area + .area {
+  border-left: 1px solid var(--rule);
+}
+
+.area:not([data-active]) {
+  --text: var(--muted);
+  color: var(--text);
+}
+
+.buffer {
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.modeline,
+.minibuffer {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+  font-size: 12px;
+}
