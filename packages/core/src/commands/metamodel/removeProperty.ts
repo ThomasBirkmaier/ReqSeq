@@ -2,14 +2,16 @@
 // itself, in the file of the type (SR-236 AK3, AK4). No element and no element file changes (D-045).
 //
 // - The key leaves the type's own `properties` and `required` lists; an inherited property is
-//   removed at the type that has it itself (refused here, naming that type), also when the type
-//   lists it as well, as it would keep it from the parent.
+//   removed at the type that has it itself (refused here, naming that type). A type that lists a
+//   property a parent has as well loses its own entry and keeps the property (`inheritedFrom`).
 // - Refused while an element of the type, or of a type that extends it and loses the property,
 //   holds its key, also with an empty value, in any status (SR-236 AK7): `lostUses` on the metamodel
 //   afterwards, as metamodel.changeType checks a new parent, so a subtype that lists the key itself
 //   keeps it and its elements do not count.
 // - When no type has the property itself afterwards, its definition goes too (SR-238 AK5).
 // - Saved filters, perspectives and mapping files that name a removed definition are listed, not changed.
+// - While the store cannot read an element file, which may hold the key, the removal is refused
+//   (`file.faulty`, assumption of #1990).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { refuseSharedAt, removeListItem } from "../../files/index.js";
@@ -25,7 +27,9 @@ import {
 import {
   lostUses,
   mentioningFiles,
+  elementStoreState,
   refuseMissingRepositories,
+  refuseUnreadableFiles,
   refuseUses,
   shortIdState,
   withSubtypes,
@@ -48,6 +52,7 @@ export default defineCommand({
       `Removed the property ${input.property} from the type ${input.type}${
         output.definitionRemoved ? " and from the metamodel" : ""
       }`,
+      output.inheritedFrom === undefined ? "" : `it keeps it from its parent type ${output.inheritedFrom}`,
       filesNote(output.files),
       output.mentions.length === 0
         ? ""
@@ -57,6 +62,8 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"metamodel.removeProperty">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const shortIds = await ctx.workspace.get(shortIdState);
+    // Before the write layer, so `file.faulty` names the element files, not the metamodel repository.
+    refuseUnreadableFiles(await ctx.workspace.get(elementStoreState), COMMAND);
     const change = await writeMetamodel(ctx.workspace, COMMAND, ({ metamodel, files, store }) => {
       const typePlace = definitionAt(files, "types", input.type);
       const type = findType(metamodel, input.type);
@@ -70,17 +77,12 @@ export default defineCommand({
       }
       const lists = ownLists(own, input.property);
       const from = ownerAbove(metamodel, type, input.property, "properties");
-      // A type that lists a property its parent has keeps it: it is removed at the parent.
-      if ((lists.properties === -1 && lists.required === -1) || from !== undefined) {
+      if (lists.properties === -1 && lists.required === -1) {
         throw from === undefined
           ? new CommandError(
               "input.invalid",
               `Type ${input.type} does not have the property ${input.property}`,
-              {
-                reason: "not-on-type",
-                type: input.type,
-                property: input.property,
-              },
+              { reason: "not-on-type", type: input.type, property: input.property },
             )
           : new CommandError(
               "input.invalid",
@@ -112,7 +114,7 @@ export default defineCommand({
       }
       return {
         bytes: editedFiles(edits),
-        result: !kept,
+        result: { definitionRemoved: !kept, from },
         check: (after: Metamodel): void => {
           refuseUses(
             `Property ${input.property} stays in type ${input.type} while elements hold it`,
@@ -124,11 +126,16 @@ export default defineCommand({
     return {
       type: input.type,
       property: input.property,
-      definitionRemoved: change.result,
-      mentions: change.result ? [...(await mentioningFiles(layout, new Set([input.property])))] : [],
+      definitionRemoved: change.result.definitionRemoved,
+      ...(change.result.from === undefined ? {} : { inheritedFrom: change.result.from }),
+      mentions: change.result.definitionRemoved
+        ? [...(await mentioningFiles(layout, new Set([input.property])))]
+        : [],
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,
+      versionsChangedElements: [...change.versionsChangedElements],
+      missingRequiredElements: [...change.missingRequiredElements],
       problems: change.warnings,
     };
   },

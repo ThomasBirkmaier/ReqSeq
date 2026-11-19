@@ -111,25 +111,36 @@ const choiceAt = (property: MetamodelProperty, choice: string): number => {
 
 /**
  * The fixed values of `property` after the removals and changes of the input, without the added
- * ones; refuses a name two of them would have (SR-236 AK2).
+ * ones. Refuses a fixed value the input both changes and removes, and a new name another fixed value
+ * has afterwards (SR-236 AK2); names the metamodel has twice already are left to the workspace check.
  */
 const choicesAfter = (property: MetamodelProperty, input: Input): readonly MetamodelNamed[] => {
   const removed = new Set(input.removeChoices);
+  const both = (input.changeChoices ?? []).find((c) => removed.has(c.choice));
+  if (both !== undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `The fixed value ${both.choice} is both changed and removed; give one of them`,
+      { reason: "change-and-remove", property: property.key, choice: both.choice },
+    );
+  }
   const renamed = new Map((input.changeChoices ?? []).map((c) => [c.choice, c.name]));
   const after = choicesOf(property)
     .filter((c) => !removed.has(c.key))
     .map((c) => ({ ...c, name: renamed.get(c.key) ?? c.name }));
-  const seen = new Map<string, string>();
-  for (const { key, name } of after) {
-    const other = seen.get(name.normalize("NFC"));
+  for (const [choice, name] of renamed) {
+    const other = after.find((c) => c.key !== choice && c.name.normalize("NFC") === name?.normalize("NFC"));
     if (other !== undefined) {
-      throw new CommandError("input.invalid", `The fixed value ${other} already has the name ${name}`, {
-        reason: "taken",
-        field: "name",
-        key: other,
-      });
+      throw new CommandError(
+        "input.invalid",
+        `The fixed value ${other.key} already has the name ${other.name}`,
+        {
+          reason: "taken",
+          field: "name",
+          key: other.key,
+        },
+      );
     }
-    seen.set(name.normalize("NFC"), key);
   }
   return after;
 };
@@ -364,6 +375,8 @@ export default defineCommand({
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,
+      versionsChangedElements: [...change.versionsChangedElements],
+      missingRequiredElements: [...change.missingRequiredElements],
       problems: change.warnings,
     };
   },

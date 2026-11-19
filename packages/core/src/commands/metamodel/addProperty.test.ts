@@ -3,7 +3,15 @@
 import fs from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
-import { MODEL, SMALL_MODEL, elements, failure, openSmall, run } from "../metamodel-commands.test-helper.js";
+import {
+  MODEL,
+  SMALL_MODEL,
+  elements,
+  failure,
+  openSmall,
+  run,
+  uuid,
+} from "../metamodel-commands.test-helper.js";
 
 /** The output as `invoke` gives it, with the answer sentence. */
 type Added = CommandOutput<"metamodel.addProperty"> & { readonly answer: string };
@@ -40,9 +48,12 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
       },
       required: true,
       defined: false,
+      listedBy: [],
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 1,
+      versionsChangedElements: [],
+      missingRequiredElements: [{ id: uuid(1), repository: "system", shortId: "NO-000001" }],
       problems: [],
     });
     // A new one: name, kind and the fields of the kind; the key from the name.
@@ -112,6 +123,63 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
       "likelihood",
       "mitigation-steps",
     ]);
+  });
+
+  it("lists a key once that the type names already without a definition, and names the other types that list it", async () => {
+    const model = SMALL_MODEL.replace(
+      "    properties: [title, remark]\n",
+      "    properties: [title, remark, owner]\n",
+    ).replace("    properties: [likelihood]\n", "    properties: [likelihood, owner]\n");
+    const { workspace, read } = await openSmall({}, model);
+    const added = await add(workspace, { type: "note", required: false, name: "Owner", kind: "text" });
+    expect([added.listedBy, added.answer]).toEqual([
+      ["risk"],
+      "Gave the type note the new property Owner; also listed by risk; 1 file written.",
+    ]);
+    expect(await read(MODEL)).toContain("    properties: [title, remark, owner]\n");
+    // Required already: the output says so, and nothing is listed again.
+    const { workspace: required } = await openSmall(
+      {},
+      SMALL_MODEL.replace(
+        "    required: [title]\n    statuses: [draft, noted]\n",
+        "    required: [title, owner]\n    statuses: [draft, noted]\n",
+      ),
+    );
+    expect(
+      (await add(required, { type: "note", required: false, name: "Owner", kind: "text" })).required,
+    ).toBe(true);
+    // `many: false` is the default and describes no new property.
+    expect(
+      (await add(workspace, { type: "note", property: "severity", required: false, many: false })).defined,
+    ).toBe(false);
+  });
+
+  it("refuses the keys every element file holds itself, made or given (D-012)", async () => {
+    const { workspace, read } = await openSmall();
+    const made = await failure(workspace, "metamodel.addProperty", {
+      type: "note",
+      required: false,
+      name: "Status",
+      kind: "text",
+    });
+    expect([made.details, made.message]).toEqual([
+      { reason: "key-required", key: "status" },
+      "Give a key: Property key status is a field every element has (D-012); choose another key",
+    ]);
+    for (const key of ["id", "type"]) {
+      expect(
+        (
+          await failure(workspace, "metamodel.addProperty", {
+            type: "note",
+            required: false,
+            name: "Ident",
+            key,
+            kind: "text",
+          })
+        ).details,
+      ).toEqual({ reason: "structural-key", key });
+    }
+    expect(await read(MODEL)).toBe(SMALL_MODEL);
   });
 
   it("refuses a property the type has, an unknown type or property, and an input that is neither or both", async () => {
@@ -265,7 +333,7 @@ describe("metamodel commands: the frame as the property commands show it (SR-236
     ).toEqual({
       reason: "taken",
       field: "name",
-      key: "low",
+      key: "high",
     });
     expect(
       (

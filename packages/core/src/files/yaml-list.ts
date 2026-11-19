@@ -297,6 +297,19 @@ const spliced = (text: string, from: number, to: number, by: string): string =>
   text.slice(0, from) + by + text.slice(to);
 
 /**
+ * `text` with the new entry `key: value` at the end of the flow mapping `map`, on the line of its last
+ * entry (after `{` when it has none). That line changes, so a comment at its end goes (SR-236 AK3): the
+ * rest of the line holds only closing brackets, commas and the comment. #1988 tracks the other edits.
+ */
+const newFlowEntry = (text: string, map: YAMLMap, key: string, value: unknown): string => {
+  const last = map.items.at(-1) as { readonly key: Node; readonly value: Node | null } | undefined;
+  const at = last === undefined ? rangeOf(map)[0] + 1 : rangeOf(last.value ?? last.key)[1];
+  const end = lineBreakAt(text, at + 1);
+  const rest = text.slice(at, end).replace(/^([ \t,}\]]*?)[ \t]*#.*$/, "$1");
+  return flowMapEdit(spliced(text, at, end, rest), map, key, value);
+};
+
+/**
  * Adds `item` (JSON data) at the end of the list at `at` in `yaml`, read from `file` (named in
  * errors), as the file comment says, and returns the new bytes. Throws `file.faulty` for a document
  * that is not a block mapping, a path that does not lead to a list or to a block mapping that can
@@ -314,7 +327,7 @@ export const appendListItem = (
   // A missing list of a flow mapping is a new entry of it, on its line.
   const out =
     value === undefined && isMap(holder) && holder.flow === true
-      ? flowMapEdit(parsed.text, holder, at.at(-1) as string, [item])
+      ? newFlowEntry(parsed.text, holder, at.at(-1) as string, [item])
       : ((insertion) => spliced(parsed.text, insertion.at, insertion.at, insertion.text))(
           insertionFor(parsed, file, at, item),
         );

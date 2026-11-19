@@ -2681,16 +2681,22 @@ export interface MetamodelAddPropertyOutput {
   readonly type: Key;
   /** The property's definition as written afterwards. */
   readonly property: MetamodelProperty;
-  /** Whether the property is required in the type. */
+  /** Whether the type requires the property afterwards. */
   readonly required: boolean;
   /** true when the property's definition was added to the metamodel. */
   readonly defined: boolean;
+  /** Other types that list the key of the new property already, without a definition before; they have the property now too. */
+  readonly listedBy: readonly Key[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2770,14 +2776,18 @@ export interface MetamodelChangePropertyOutput {
   readonly property: MetamodelProperty;
   /** The fields removed because they do not belong to the new value kind, or maximum entries with `many: false` (SR-238 AK3). */
   readonly dropped: readonly ("choices" | "target-types" | "max-items" | "markdown")[];
-  /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
+  /** Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description (SR-236 AK7). The key alone counts, so a file that uses the same word for another property is listed too. */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2805,14 +2815,20 @@ export interface MetamodelRemovePropertyOutput {
   readonly property: Key;
   /** true when no type had the property any more, so its definition was removed (SR-238 AK5). */
   readonly definitionRemoved: boolean;
+  /** The parent type the type still has the property from, when it listed the property as well; absent otherwise. */
+  readonly inheritedFrom?: Key;
   /** Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description (SR-236 AK7). */
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }

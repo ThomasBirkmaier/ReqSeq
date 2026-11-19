@@ -11,6 +11,7 @@ import {
   failure,
   openSmall,
   run,
+  uuid,
 } from "../metamodel-commands.test-helper.js";
 
 /** The output as `invoke` gives it, with the answer sentence. */
@@ -52,6 +53,8 @@ describe("metamodel.changeProperty changes a property in place (SR-238 AK2)", ()
       files: [MODEL],
       versionsChanged: 1,
       missingRequired: 0,
+      versionsChangedElements: [{ id: uuid(1), repository: "system", shortId: "NO-000001" }],
+      missingRequiredElements: [],
       problems: [],
     });
     expect(await read(MODEL)).toBe(
@@ -164,7 +167,24 @@ describe("metamodel.changeProperty changes a property in place (SR-238 AK2)", ()
     expect(await refusal({ property: "remark", many: false, maxItems: 2 })).toEqual({
       reason: "single-value",
     });
+    expect(
+      await refusal({
+        property: "severity",
+        removeChoices: ["low"],
+        changeChoices: [{ choice: "low", name: "Lower" }],
+      }),
+    ).toEqual({ reason: "change-and-remove", property: "severity", choice: "low" });
     expect(await read(MODEL)).toBe(SMALL_MODEL);
+    // Two fixed values with one name in the metamodel do not block a change that touches neither.
+    const twice = SMALL_MODEL.replace(
+      "      - { key: high, name: High }\n",
+      "      - { key: high, name: Low }\n",
+    );
+    const { workspace: named } = await openSmall({}, twice);
+    expect(
+      (await change(named, { property: "severity", description: "How bad", addChoices: [{ name: "Mid" }] }))
+        .files,
+    ).toEqual([MODEL]);
     // Only the type's list changes: an anchor in the property's definition does not refuse it.
     const anchored = SMALL_MODEL.replace(REMARK, "  - { key: remark, name: &r Remark, kind: text }\n");
     const { workspace: shared, read: readShared } = await openSmall({}, anchored);

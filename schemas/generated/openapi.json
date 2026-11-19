@@ -4117,12 +4117,21 @@
                     "required": {
                       "title": "Required",
                       "type": "boolean",
-                      "description": "Whether the property is required in the type."
+                      "description": "Whether the type requires the property afterwards."
                     },
                     "defined": {
                       "title": "New definition",
                       "type": "boolean",
                       "description": "true when the property's definition was added to the metamodel."
+                    },
+                    "listedBy": {
+                      "title": "Also listed by",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/key"
+                      },
+                      "description": "Other types that list the key of the new property already, without a definition before; they have the property now too.",
+                      "x-normal": []
                     },
                     "files": {
                       "title": "Files",
@@ -4137,13 +4146,35 @@
                       "title": "Versions changed",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
                     },
                     "missingRequired": {
                       "title": "Missing required properties",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements that now miss a value of a required property they did not miss before."
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
                     },
                     "problems": {
                       "title": "Problems",
@@ -4162,9 +4193,12 @@
                     "property",
                     "required",
                     "defined",
+                    "listedBy",
                     "files",
                     "versionsChanged",
                     "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
                     "problems"
                   ]
                 }
@@ -4509,7 +4543,7 @@
                         "$ref": "#/components/schemas/common/$defs/outputPath",
                         "description": "Saved filter, perspective or mapping file, relative to the workspace root; not changed."
                       },
-                      "description": "Saved filters, perspectives and mapping files that name a removed key as a mapping key or text value, except their own name and description.",
+                      "description": "Saved filters, perspectives and mapping files that name the key of a removed fixed value as a mapping key or text value, except their own name and description. The key alone counts, so a file that uses the same word for another property is listed too.",
                       "x-normal": []
                     },
                     "files": {
@@ -4525,13 +4559,35 @@
                       "title": "Versions changed",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
                     },
                     "missingRequired": {
                       "title": "Missing required properties",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements that now miss a value of a required property they did not miss before."
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
                     },
                     "problems": {
                       "title": "Problems",
@@ -4552,6 +4608,8 @@
                     "files",
                     "versionsChanged",
                     "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
                     "problems"
                   ]
                 }
@@ -4725,6 +4783,11 @@
                       "type": "boolean",
                       "description": "true when no type had the property any more, so its definition was removed."
                     },
+                    "inheritedFrom": {
+                      "title": "Kept from",
+                      "$ref": "#/components/schemas/common/$defs/key",
+                      "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+                    },
                     "mentions": {
                       "title": "Files naming a removed key",
                       "type": "array",
@@ -4748,13 +4811,35 @@
                       "title": "Versions changed",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before."
+                      "description": "Elements whose version is another under the new metamodel: elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`.",
+                      "x-elements": "versionsChangedElements"
                     },
                     "missingRequired": {
                       "title": "Missing required properties",
                       "type": "integer",
                       "minimum": 0,
-                      "description": "Elements that now miss a value of a required property they did not miss before."
+                      "description": "Elements that now miss a value of a required property they did not miss before; those of `missingRequiredElements`.",
+                      "x-elements": "missingRequiredElements"
+                    },
+                    "versionsChangedElements": {
+                      "title": "Elements with another version",
+                      "type": "array",
+                      "description": "The elements `versionsChanged` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
+                    },
+                    "missingRequiredElements": {
+                      "title": "Elements missing a required property",
+                      "type": "array",
+                      "description": "The elements `missingRequired` counts, in store order.",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
+                      },
+                      "x-elements": true,
+                      "x-normal": []
                     },
                     "problems": {
                       "title": "Problems",
@@ -4776,6 +4861,8 @@
                     "files",
                     "versionsChanged",
                     "missingRequired",
+                    "versionsChangedElements",
+                    "missingRequiredElements",
                     "problems"
                   ]
                 }

@@ -17,6 +17,7 @@ import {
   findType,
   newChoices,
   newPropertyKey,
+  ownLists,
   propertyDefinition,
   refuseOutsideKind,
   refusePropertyName,
@@ -24,7 +25,7 @@ import {
   unknownDefinition,
 } from "../../metamodel/index.js";
 import { writeMetamodel } from "../../model/index.js";
-import { counted, filesNote, problemsNote, sentence } from "../answer.js";
+import { counted, filesNote, listed, problemsNote, sentence } from "../answer.js";
 
 const COMMAND = "metamodel.addProperty";
 
@@ -77,6 +78,7 @@ export default defineCommand({
   answer: (output) =>
     sentence(
       `Gave the type ${output.type} the ${output.required ? "required " : ""}${output.defined ? "new " : ""}property ${output.property.name}`,
+      output.listedBy.length === 0 ? "" : `also listed by ${listed([...output.listedBy])}`,
       filesNote(output.files),
       output.versionsChanged === 0
         ? ""
@@ -90,10 +92,12 @@ export default defineCommand({
     const change = await writeMetamodel(ctx.workspace, COMMAND, ({ metamodel, files }) => {
       const typePlace = definitionAt(files, "types", input.type);
       const type = findType(metamodel, input.type);
-      if (typePlace === undefined || type === undefined) {
+      const own = metamodel.types.find((t) => t.key === input.type);
+      if (typePlace === undefined || type === undefined || own === undefined) {
         throw unknownDefinition("type", input.type);
       }
-      const fresh = NEW_FIELDS.some((field) => input[field] !== undefined);
+      // `many: false` is the default, so it describes no new property.
+      const fresh = NEW_FIELDS.some((field) => input[field] !== undefined && input[field] !== false);
       const { name, kind } = input;
       const edits: Edit[] = [];
       let property: MetamodelProperty;
@@ -127,21 +131,34 @@ export default defineCommand({
       const { file, index } = typePlace;
       // The type's definition changes: an anchor or alias in it is refused (SR-236 AK5).
       refuseSharedAt(file, file.path, ["types", index]);
-      edits.push({
-        file,
-        edit: (yaml) =>
-          appendListItem(yaml, file.path, ["types", index, input.required ? "required" : "properties"], key),
-      });
-      return { bytes: editedFiles(edits), result: property };
+      // A key the type lists already without a definition (a metamodel warning) is not listed twice.
+      const lists = ownLists(own, key);
+      const required = input.required || lists.required !== -1;
+      if ((required ? lists.required : lists.properties) === -1) {
+        const list = required ? "required" : "properties";
+        edits.push({ file, edit: (yaml) => appendListItem(yaml, file.path, ["types", index, list], key) });
+      }
+      // The other types that list the key of a new definition have the property now too.
+      const listedBy = metamodel.types
+        .filter((t) => t.key !== input.type && input.property === undefined)
+        .filter((t) => {
+          const other = ownLists(t, key);
+          return other.properties !== -1 || other.required !== -1;
+        })
+        .map((t) => t.key);
+      return { bytes: editedFiles(edits), result: { property, required, listedBy } };
     });
     return {
       type: input.type,
-      property: change.result,
-      required: input.required,
+      property: change.result.property,
+      required: change.result.required,
       defined: input.property === undefined,
+      listedBy: [...change.result.listedBy],
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,
+      versionsChangedElements: [...change.versionsChangedElements],
+      missingRequiredElements: [...change.missingRequiredElements],
       problems: change.warnings,
     };
   },

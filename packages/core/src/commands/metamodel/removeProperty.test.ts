@@ -20,6 +20,20 @@ const remove = (workspace: Parameters<typeof run>[0], input: Record<string, unkn
   run<Removed>(workspace, "metamodel.removeProperty", input);
 
 describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)", () => {
+  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, naming it (assumption of #1990)", async () => {
+    const { workspace, read } = await openSmall({ "elements/E-broken.md": "---\nid: [\n---\n" });
+    const refused = await failure(workspace, "metamodel.removeProperty", {
+      type: "note",
+      property: "remark",
+    });
+    expect(refused.code).toBe("file.faulty");
+    expect(refused.details).toMatchObject({
+      command: "metamodel.removeProperty",
+      files: [{ repository: "system", file: "elements/E-broken.md" }],
+    });
+    expect(await read(MODEL)).toBe(SMALL_MODEL);
+  });
+
   it("[SR-238/AK-pbyq] removes a property the type has itself; its definition goes when no type has it any more", async () => {
     const files = {
       ...elements([2, "hazard", { severity: "low" }]),
@@ -37,6 +51,8 @@ describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)",
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     // The key, the definition and the comment line above it go; every other line stays.
@@ -112,19 +128,18 @@ describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)",
       property: "nope",
     });
     expect(await read(MODEL)).toBe(SMALL_MODEL);
-    // A type that lists a property its parent has as well keeps it: refused, naming the parent.
-    const { workspace: twice } = await openSmall(
-      {},
+    // A type that lists a property its parent has as well loses its own entry and keeps the property.
+    const { workspace: twice, read: readTwice } = await openSmall(
+      elements([4, "risk", { severity: "low" }]),
       SMALL_MODEL.replace("    properties: [likelihood]\n", "    properties: [likelihood, severity]\n"),
     );
-    expect(
-      (await failure(twice, "metamodel.removeProperty", { type: "risk", property: "severity" })).details,
-    ).toEqual({
-      reason: "inherited",
-      type: "risk",
-      property: "severity",
-      from: "hazard",
-    });
+    const own = await remove(twice, { type: "risk", property: "severity" });
+    expect([own.definitionRemoved, own.inheritedFrom, own.answer]).toEqual([
+      false,
+      "hazard",
+      "Removed the property severity from the type risk; it keeps it from its parent type hazard; 1 file written.",
+    ]);
+    expect(await readTwice(MODEL)).toBe(SMALL_MODEL);
     // A type without its own required list; its elements do not hold the key.
     expect((await remove(workspace, { type: "risk", property: "likelihood" })).definitionRemoved).toBe(true);
   });

@@ -13,7 +13,7 @@ import { CommandError } from "../catalog.js";
 import type { MetamodelNamed, MetamodelProperty, MetamodelType } from "../generated/types.js";
 import type { EffectiveType } from "./inheritance.js";
 import type { Metamodel } from "./load.js";
-import { keyOrMade } from "./new-key.js";
+import { keyFromName, keyOrMade } from "./new-key.js";
 
 export type PropertyKind = MetamodelProperty["kind"];
 
@@ -57,8 +57,25 @@ export const refusePropertyName = (metamodel: Metamodel, name: string, except?: 
 const keyInUse = (metamodel: Metamodel, key: string): boolean =>
   metamodel.properties.some((p) => p.key === key) || metamodel.relations.some((r) => r.key === key);
 
-/** The key of a new property: as given, else made from its name; refused when taken (SR-236 AK6). */
+/** The keys every element file holds itself: no property may have one of them. */
+const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
+
+/**
+ * The key of a new property: as given, else made from its name; refused when taken (SR-236 AK6) or
+ * when it is a field every element has, given (`structural-key`) or made (`key-required`).
+ */
 export const newPropertyKey = (metamodel: Metamodel, name: string, key: string | undefined): string => {
+  const candidate = key ?? keyFromName(name).key;
+  if (STRUCTURAL_KEYS.includes(candidate)) {
+    const message = `Property key ${candidate} is a field every element has (D-012); choose another key`;
+    throw new CommandError(
+      "input.invalid",
+      key === undefined ? `Give a key: ${message}` : message,
+      key === undefined
+        ? { reason: "key-required", key: candidate }
+        : { reason: "structural-key", key: candidate },
+    );
+  }
   if (key !== undefined && keyInUse(metamodel, key)) {
     throw new CommandError("input.invalid", `A property or relation kind already has the key ${key}`, {
       reason: "taken",
