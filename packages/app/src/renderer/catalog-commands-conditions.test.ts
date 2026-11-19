@@ -7,6 +7,7 @@ import { elementBuffer, filteredList, listBuffer } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
 import { askable, contextField } from "./catalog-arguments.js";
 import { catalogItems, startBuilder } from "./catalog-commands.js";
+import { asksInSteps } from "./metamodel-prompt.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import { contextOf } from "../../../../scripts/contracts/catalog-checks.mjs";
 import type { Answer } from "./catalog-commands.test-helper.js";
@@ -1321,10 +1322,13 @@ describe("a grouping chosen from hits (SR-215 AK1, #1647)", () => {
 describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, #1649)", () => {
   type Source = CommandListing["arguments"][number]["complete"];
   /**
-   * How the prompt asks each source: hits of AK1, built from hits by AK3/AK6, AK7 or AK8, typed with path
+   * How the prompt asks each source: hits of AK1, built from hits by AK3/AK6, AK7 or AK8, asked in the steps of
+   * the metamodel commands (SR-236 AK11; the walk over the catalog asks them as JSON), typed with path
    * completion (SR-143), or free input, which AK2 allows only for the classes below and the numbers.
    */
-  const ASKED: Readonly<Record<Source, "hits" | "built" | "path" | "text" | "number" | "json" | "never">> = {
+  const ASKED: Readonly<
+    Record<Source, "hits" | "built" | "steps" | "path" | "text" | "number" | "json" | "never">
+  > = {
     element: "hits",
     type: "hits",
     status: "hits",
@@ -1352,9 +1356,9 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
     sort: "built",
     properties: "built",
     relations: "built",
-    choices: "built",
-    choiceChanges: "built",
-    limits: "built",
+    choices: "steps",
+    choiceChanges: "steps",
+    limits: "steps",
     folder: "path",
     file: "path",
     text: "text",
@@ -1388,7 +1392,8 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
   const outside = (catalog: readonly CommandListing[]): string[] =>
     prompted(catalog).flatMap((command) =>
       askable(command).flatMap((arg) => {
-        const asked = ASKED[arg.complete];
+        const source = ASKED[arg.complete];
+        const asked = source === "steps" ? (asksInSteps(command) ? "built" : "json") : source;
         const allowed =
           asked === "text"
             ? arg.class !== undefined && CLASSES.includes(arg.class)
@@ -1416,6 +1421,13 @@ describe("no argument with fixed values asked as free text or JSON (SR-215 AK2, 
         .map((arg) => `${command.name} ${arg.field}: ${arg.class ?? "none"}`),
     );
     expect(outside(CATALOG)).toEqual([]);
+    // Fixed values and limits outside the metamodel commands' steps would be asked as JSON.
+    const metamodel = CATALOG.find((command) => command.name === "metamodel.addRelationKind");
+    expect(metamodel).toBeDefined();
+    const elsewhere = { ...metamodel, name: "element.limits" } as CommandListing;
+    expect(outside([...CATALOG, elsewhere]).filter((entry) => entry.startsWith("element.limits "))).toEqual([
+      "element.limits limits",
+    ]);
     // The cases whose class was not obvious (#1649).
     expect(free).toEqual(
       expect.arrayContaining([

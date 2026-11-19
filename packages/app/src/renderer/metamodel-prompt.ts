@@ -5,12 +5,15 @@
 // - Each step offers the definitions of the metamodel (`metamodel.get`) as hits with their key beside
 //   (SR-215 AK1); "Add property" and "Add status" also take a typed name, which starts a new definition.
 // - The key of a new definition is prefilled with the key core makes from its name, and the prefix of a new
-//   type with the initials of its name (`@reqseq/core/new-key`, SR-236 AK6); both can be changed before it runs.
+//   type with the initials of its name (`@reqseq/core/suggested-key`, SR-236 AK6); both can be changed before it runs.
 // - A field whose change the use of the definition locks shows the number of uses from `metamodel.get uses`
-//   and cannot be chosen (SR-236 AK8): the prefix and the abstract mark of a type, the value kind and several
-//   values of a property, and a fixed value that elements have, which cannot be removed.
+//   and cannot be chosen (SR-236 AK8): the prefix of a type and the abstract mark of one without it (removing
+//   it always works, SR-237 AK3), the value kind and several values of a property, and a fixed value that
+//   elements have, which cannot be removed.
 // - Several types are marks, with "Any type" as a hit of its own that writes no list; fixed values are marks of
-//   name and key; limits are a minimum and a maximum per target type, each a number or empty (SR-236 AK11).
+//   name and key; limits are the target types marked for them ("Limits for", from every type), then a minimum
+//   and a maximum per marked type, each a number or empty (SR-236 AK11). Escape keeps the marks of a step, and
+//   the step shows them when it is asked again (SR-215 AK5, AK9).
 // - Values given before the prompt asks (`startCommand`'s `prefilled`, SR-199) count as answered.
 //
 // The app builds the input and decides nothing about what is allowed (ADR-0002): core checks it. A refusal of
@@ -18,7 +21,7 @@
 // read-only metamodel repository (SR-236 AK5), is said in the echo area and nothing more is asked.
 
 import type { CommandTypes } from "@reqseq/core";
-import { keyFromName, prefixFromName } from "@reqseq/core/new-key";
+import { keyFromName, prefixFromName } from "@reqseq/core/suggested-key";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ArgumentExplanation, Choice, Prompt, PromptFill, PromptMark } from "./action-types.js";
 import type { CatalogContext } from "./catalog-arguments.js";
@@ -62,8 +65,16 @@ type Ask =
       readonly empty?: Given;
       readonly parse?: (text: string) => Given | undefined;
     }
-  /** Several types as marks (SR-215 AK5), "Any type" first, which gives `any`. */
-  | { readonly kind: "types"; readonly any: Given }
+  /**
+   * Several types as marks (SR-215 AK5), starting with `initial`; while the mark is empty a hit `anyName`
+   * ("Any type") comes first, which gives `any`.
+   */
+  | {
+      readonly kind: "types";
+      readonly any: Given;
+      readonly anyName?: string;
+      readonly initial?: readonly string[];
+    }
   /** New fixed values as marks of name and key; an empty input without marks gives `none`. */
   | { readonly kind: "choices"; readonly none?: Given };
 
@@ -80,10 +91,14 @@ interface Flow {
   readonly input: (values: Values, metamodel: Metamodel) => Input;
 }
 
-/** One answer: the step, its value and its label; one given before the prompt asked is `prefilled`. */
+/**
+ * One answer: the step, its value and its label; one given before the prompt asked is `prefilled`. An answer of
+ * a marks step keeps its `marks` (the type keys, the new fixed values), which show again when it is asked again.
+ */
 interface Answer extends Given {
   readonly id: string;
   readonly prefilled?: true;
+  readonly marks?: readonly unknown[];
 }
 
 /** Where the entry of one command stands. */
@@ -93,6 +108,11 @@ interface State {
   readonly flow: Flow;
   readonly metamodel: Metamodel;
   readonly answers: readonly Answer[];
+  /**
+   * The marks of the marks steps left without taking them, or asked again, by `draftKey`: Escape removes no
+   * mark, and a step asked again shows its marks again (SR-215 AK5, AK9).
+   */
+  readonly drafts: Readonly<Record<string, readonly unknown[]>>;
   /** Core's message of the refusal, said in the step asked again. */
   readonly error?: string;
 }
@@ -195,13 +215,34 @@ const numberStep = (id: string, label: string, initial: number | undefined, empt
 const NONE: Given = { value: undefined, label: "" };
 const REMOVED: Given = { value: null, label: "none" };
 
-/** The target types of the minimum and maximum steps answered (`min:<type>`, `max:<type>`), in their order. */
-const limitTargets = (values: Values): readonly string[] => [
-  ...new Set(Object.keys(values).flatMap((id) => (/^(?:min|max):/u.test(id) ? [id.slice(4)] : []))),
-];
+/** The target types picked for limits ("Limits for"), in their order; none before the step is answered. */
+const limitTargets = (values: Values): readonly string[] =>
+  Array.isArray(values["limitTargets"]) ? (values["limitTargets"] as readonly string[]) : [];
+
+type Limits = NonNullable<Metamodel["relations"][number]["limits"]>;
+
+/** The limits for any source type (none with `source-type`): the ones the limit steps ask and change. */
+const askedLimits = (limits: Limits = []): Limits =>
+  limits.filter((limit) => limit["source-type"] === undefined);
+
+/**
+ * "Limits for": the target types that get a minimum and a maximum, as marks from every type (SR-236 AK11), so a
+ * kind open to any type and a subtype of a target type get limits too. The target types of the limits there
+ * are marked to start with; with no mark, "No limits" gives none.
+ */
+const limitTargetsStep = (limits: Limits = []): Step => ({
+  id: "limitTargets",
+  label: "Limits for",
+  ask: {
+    kind: "types",
+    any: { value: [], label: "no limits" },
+    anyName: "No limits",
+    initial: [...new Set(askedLimits(limits).map((limit) => limit["target-type"]))],
+  },
+});
 
 /** The limits the minimum and maximum steps give, one per target type with a number; none when all are empty. */
-const limitsOf = (values: Values): readonly object[] =>
+const limitsOf = (values: Values): readonly { readonly "target-type": string }[] =>
   limitTargets(values).flatMap((target) => {
     const min = values[`min:${target}`];
     const max = values[`max:${target}`];
@@ -216,18 +257,27 @@ const limitsOf = (values: Values): readonly object[] =>
         ];
   });
 
-/** The minimum and maximum steps per target type (SR-236 AK11), each with the limit there is as its start. */
-const limitSteps = (
-  metamodel: Metamodel,
-  targets: readonly string[],
-  limits: Metamodel["relations"][number]["limits"] = [],
-): readonly Step[] =>
-  targets.flatMap((target) => {
+/**
+ * The minimum and maximum steps per target type picked (SR-236 AK11), each with the limit there is as its
+ * start; of several limits to one target type, the first that has it.
+ */
+const limitSteps = (metamodel: Metamodel, values: Values, limits: Limits = []): readonly Step[] =>
+  limitTargets(values).flatMap((target) => {
     const name = metamodel.types.find((type) => type.key === target)?.name ?? target;
-    const limit = limits.find((given) => given["target-type"] === target && !("source-type" in given));
+    const given = askedLimits(limits).filter((limit) => limit["target-type"] === target);
     return [
-      numberStep(`min:${target}`, `At least, to ${name}`, limit?.min, NONE),
-      numberStep(`max:${target}`, `At most, to ${name}`, limit?.max, NONE),
+      numberStep(
+        `min:${target}`,
+        `At least, to ${name}`,
+        given.find((limit) => limit.min !== undefined)?.min,
+        NONE,
+      ),
+      numberStep(
+        `max:${target}`,
+        `At most, to ${name}`,
+        given.find((limit) => limit.max !== undefined)?.max,
+        NONE,
+      ),
     ];
   });
 
@@ -266,13 +316,14 @@ const textField = (
   current: string | undefined,
 ): Field => ({
   name,
-  steps: [text(field, name, current, nullable(command, field) ? REMOVED : undefined)],
+  // "New value", as the field's name is in the line already (the mockup of #1931).
+  steps: [text(field, "New value", current, nullable(command, field) ? REMOVED : undefined)],
 });
 
 const booleanField = (field: string, name: string, locked?: string): Field => ({
   name,
   ...(locked === undefined ? {} : { locked }),
-  steps: [{ id: field, label: name, ask: { kind: "hits", hits: YES_NO } }],
+  steps: [{ id: field, label: "New value", ask: { kind: "hits", hits: YES_NO } }],
 });
 
 const typesStep = (id: string, label: string, any: Given): Step => ({
@@ -433,7 +484,8 @@ const flows = (command: CommandListing): Flow | undefined => {
                     },
                   ],
                 },
-                booleanField("abstract", "Abstract", locked),
+                // Removing the abstract mark always works (SR-237 AK3).
+                booleanField("abstract", "Abstract", type?.abstract === true ? undefined : locked),
                 meaningField(command),
               ],
               values,
@@ -543,7 +595,7 @@ const flows = (command: CommandListing): Flow | undefined => {
               ? [
                   {
                     name: "Most entries",
-                    steps: [numberStep("maxItems", "Most entries", property["max-items"], REMOVED)],
+                    steps: [numberStep("maxItems", "New value", property["max-items"], REMOVED)],
                   },
                 ]
               : []),
@@ -633,10 +685,8 @@ const flows = (command: CommandListing): Flow | undefined => {
           text("inverseName", "Inverse name", undefined, NONE),
           typesStep("sourceTypes", "Source types", NONE),
           typesStep("targetTypes", "Target types", NONE),
-          // Limits need target types: with any type there are none to ask.
-          ...(Array.isArray(values["targetTypes"])
-            ? limitSteps(metamodel, values["targetTypes"] as readonly string[])
-            : []),
+          limitTargetsStep(),
+          ...limitSteps(metamodel, values),
         ],
         input: (values) => {
           const limits = limitsOf(values);
@@ -659,10 +709,10 @@ const flows = (command: CommandListing): Flow | undefined => {
                 textField(command, "description", "Description", kind?.description),
                 { name: "Source types", steps: [typesStep("sourceTypes", "Source types", REMOVED)] },
                 { name: "Target types", steps: [typesStep("targetTypes", "Target types", REMOVED)] },
-                // Limits need target types: a kind open to any type gets them after its target types.
-                ...(kind?.["target-types"] === undefined || kind["target-types"].length === 0
-                  ? []
-                  : [{ name: "Limits", steps: limitSteps(metamodel, kind["target-types"], kind.limits) }]),
+                {
+                  name: "Limits",
+                  steps: [limitTargetsStep(kind?.limits), ...limitSteps(metamodel, values, kind?.limits)],
+                },
                 meaningField(command),
               ],
               values,
@@ -682,12 +732,22 @@ const flows = (command: CommandListing): Flow | undefined => {
           if (values["what"] !== "Limits") {
             return base;
           }
-          // The limits for one source type, which the steps do not ask, stay; every other limit empty removes it.
-          const kept = (
+          // The limits for one source type, which the steps do not ask, stay; every other limit is shown with its
+          // target type marked, and a target type unmarked or with both numbers empty loses its limit.
+          // Each limit keeps its place in the list; a new target type comes at the end.
+          const asked = new Map(limitsOf(values).map((limit) => [limit["target-type"], limit]));
+          const limits = (
             metamodel.relations.find((given) => given.key === values["kind"])?.limits ?? []
-          ).filter((limit) => limit["source-type"] !== undefined);
-          const limits = [...limitsOf(values), ...kept];
-          return { ...base, limits: limits.length === 0 ? null : limits };
+          ).flatMap((limit): readonly object[] => {
+            if (limit["source-type"] !== undefined) {
+              return [limit];
+            }
+            const changed = asked.get(limit["target-type"]);
+            asked.delete(limit["target-type"]);
+            return changed === undefined ? [] : [changed];
+          });
+          const all = [...limits, ...asked.values()];
+          return { ...base, limits: all.length === 0 ? null : all };
         },
       };
     case "metamodel.removeRelationKind":
@@ -817,21 +877,69 @@ const nextStep = (state: State): Step | undefined => {
   return state.flow.steps(state.metamodel, values).find((step) => !(step.id in values));
 };
 
-/** Takes `given` for `step` and goes on. */
-const answer = (state: State, step: Step, given: Given): void => {
+/** Where the marks of step `id` are kept: the step and the answers before it, as the step depends on them. */
+const draftKey = (answers: readonly Answer[], id: string): string =>
+  // A value left out (`undefined`) is not the null that removes a field.
+  JSON.stringify([...answers.map((given) => [given.id, given.value === undefined ? {} : given.value]), id]);
+
+/** The drafts with the marks `marks` of step `id` after `answers`; none is a draft too, an empty mark. */
+const withDraft = (
+  drafts: State["drafts"],
+  answers: readonly Answer[],
+  id: string,
+  marks: readonly unknown[],
+): State["drafts"] => ({
+  ...drafts,
+  [draftKey(answers, id)]: marks,
+});
+
+/** The marks step `step` was left with, or answered with before it is asked again; none before. */
+const draftOf = (state: State, step: Step): readonly unknown[] | undefined =>
+  state.drafts[draftKey(state.answers, step.id)];
+
+/**
+ * The answers before `at`, the marks of each answer from `at` on kept as a draft, so a marks step asked again
+ * shows them (SR-215 AK9).
+ */
+const dropFrom = (state: State, at: number): Pick<State, "answers" | "drafts"> => ({
+  answers: state.answers.slice(0, at),
+  drafts: state.answers
+    .slice(at)
+    .reduce(
+      (drafts, given, place) =>
+        given.marks === undefined
+          ? drafts
+          : withDraft(drafts, state.answers.slice(0, at + place), given.id, given.marks),
+      state.drafts,
+    ),
+});
+
+/**
+ * Takes `given` for `step` and goes on. An answer of a marks step keeps its `marks`, none for "Any type" and
+ * the like, which a step asked again shows (`dropFrom`).
+ */
+const answer = (state: State, step: Step, given: Given, marks: readonly unknown[] = []): void => {
   const { error: _error, ...rest } = state;
-  proceed({ ...rest, answers: [...rest.answers, { id: step.id, ...given }] });
+  const kept = step.ask.kind === "types" || step.ask.kind === "choices" ? { marks } : {};
+  proceed({ ...rest, answers: [...rest.answers, { id: step.id, ...given, ...kept }] });
 };
 
-/** One step back: the answer given last is asked again; before the first (or only those given before), the command prompt. */
-const back = (state: State): void => {
+/**
+ * One step back: the answer given last is asked again; before the first (or only those given before), the
+ * command prompt. A marks step keeps the `marks` of `step` it leaves: Escape removes no mark (SR-215 AK9).
+ */
+const back = (state: State, step?: Step, marks: readonly unknown[] = []): void => {
   const { error: _error, ...rest } = state;
-  const last = rest.answers.at(-1);
+  const kept: State = {
+    ...rest,
+    drafts: step === undefined ? rest.drafts : withDraft(rest.drafts, rest.answers, step.id, marks),
+  };
+  const last = kept.answers.at(-1);
   if (last === undefined || last.prefilled === true) {
     state.context.reopen();
     return;
   }
-  proceed({ ...rest, answers: rest.answers.slice(0, -1) });
+  proceed({ ...kept, ...dropFrom(kept, kept.answers.length - 1) });
 };
 
 const choiceOf = (state: State, step: Step, hit: Hit, at: number): Choice => {
@@ -913,14 +1021,27 @@ const askStep = (state: State, step: Step): void => {
   if (prompt !== undefined) {
     state.context.ask(prompt);
   } else if (step.ask.kind === "types") {
-    askTypeMarks(state, step, step.ask.any, []);
+    askTypeMarks(
+      state,
+      step,
+      step.ask,
+      (draftOf(state, step) as readonly string[] | undefined) ?? step.ask.initial ?? [],
+    );
   } else if (step.ask.kind === "choices") {
-    askChoices(state, step, step.ask.none, []);
+    askChoices(state, step, step.ask.none, (draftOf(state, step) as readonly NewChoice[] | undefined) ?? []);
   }
 };
 
-/** Several types as marks (SR-236 AK11, SR-215 AK5): "Any type" first while the mark is empty, which writes no list. */
-const askTypeMarks = (state: State, step: Step, any: Given, keys: readonly string[]): void => {
+/**
+ * Several types as marks (SR-236 AK11, SR-215 AK5): "Any type" (`anyName`) first while the mark is empty, which
+ * gives `any`; Escape goes back with the mark kept.
+ */
+const askTypeMarks = (
+  state: State,
+  step: Step,
+  ask: Extract<Ask, { kind: "types" }>,
+  keys: readonly string[],
+): void => {
   const label = `${state.error === undefined ? "" : `${state.error} · `}${lineOf(state)} · ${step.label}:`;
   const names = (given: readonly string[]): string =>
     given.map((key) => typeOf(state.metamodel, key)?.name ?? key).join(", ");
@@ -928,9 +1049,9 @@ const askTypeMarks = (state: State, step: Step, any: Given, keys: readonly strin
     ask: (prompt: Prompt) => {
       const anyHit: Choice = {
         id: "any",
-        name: "Any type",
+        name: ask.anyName ?? "Any type",
         run: () => {
-          answer(state, step, any);
+          answer(state, step, ask.any);
         },
       };
       state.context.ask(
@@ -961,15 +1082,15 @@ const askTypeMarks = (state: State, step: Step, any: Given, keys: readonly strin
             {
               label: typeMark(given).label,
               remove: () => {
-                askTypeMarks(state, step, any, []);
+                askTypeMarks(state, step, ask, []);
               },
             },
           ],
     take: (given) => {
-      answer(state, step, { value: [...given], label: names(given) });
+      answer(state, step, { value: [...given], label: names(given) }, given);
     },
-    back: () => {
-      back(state);
+    back: (given) => {
+      back(state, step, given);
     },
     explain: explainOf(state, step, false),
   });
@@ -995,10 +1116,15 @@ const askChoices = (state: State, step: Step, none: Given | undefined, marks: re
         answer(state, step, none);
       }
     } else {
-      answer(state, step, {
-        value: marks.map((mark) => ({ name: mark.name, key: mark.key })),
-        label: marks.map((mark) => mark.name).join(", "),
-      });
+      answer(
+        state,
+        step,
+        {
+          value: marks.map((mark) => ({ name: mark.name, key: mark.key })),
+          label: marks.map((mark) => mark.name).join(", "),
+        },
+        marks,
+      );
     }
   };
   const shown = (): readonly PromptMark[] =>
@@ -1045,12 +1171,9 @@ const askChoices = (state: State, step: Step, none: Given | undefined, marks: re
       ...explainOf(state, step, marks.length === 0),
       building: { enter: "adds the fixed value, or takes the marks", unmark: marks.length > 0, json: false },
     },
+    // Escape goes back with the marks kept (SR-215 AK9); Backspace removes the last one (`unmark`).
     back: () => {
-      if (marks.length === 0) {
-        back(state);
-      } else {
-        askChoices(state, step, none, marks.slice(0, -1));
-      }
+      back(state, step, marks);
     },
     literal: (typed) =>
       typed.trim() === ""
@@ -1080,7 +1203,9 @@ const refusedStep = (state: State, details: Readonly<Record<string, unknown>> | 
         (given.also !== undefined && field in given.also)) &&
       given.prefilled !== true,
   );
-  return at >= 0 ? at : state.answers.length - 1;
+  // Limits without a number asked: the target types picked for them.
+  const targets = field === "min:" ? state.answers.findIndex((given) => given.id === "limitTargets") : -1;
+  return at >= 0 ? at : targets >= 0 ? targets : state.answers.length - 1;
 };
 
 /** Runs the command with the input the answers make, and shows its output or core's refusal. */
@@ -1106,7 +1231,7 @@ const run = async (state: State): Promise<void> => {
   }
   // The refused answer is asked again with core's message, and the steps after it, which may read it (a key
   // made from a name, the limits of target types), after it.
-  proceed({ ...state, error: result.message, answers: state.answers.slice(0, at) });
+  proceed({ ...state, error: result.message, ...dropFrom(state, at) });
 };
 
 /** Asks the next step, or runs the command after the last. */
@@ -1155,7 +1280,7 @@ export const startMetamodelCommand = (
     prefilled: true,
   }));
   const read = context.call("metamodel.get", {});
-  const before: State = { context, command, flow, metamodel: EMPTY, answers };
+  const before: State = { context, command, flow, metamodel: EMPTY, answers, drafts: {} };
   const first = nextStep(before);
   const ready = read.then((answer): State | string =>
     answer.ok ? { ...before, metamodel: answer.output } : answer.message,

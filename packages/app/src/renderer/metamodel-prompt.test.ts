@@ -127,8 +127,16 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     expect(marked.items[0]?.name).toBe("Take 1 type");
     await choose(asked, "Package");
     await choose(asked, "Take 2 types");
+    // The target types for limits are marks from every type, then a minimum and a maximum per marked type.
     expect((await last(asked)).label).toBe(
-      "Add relation kind Verified by verified-by Decision, Package · At least, to Decision:",
+      "Add relation kind Verified by verified-by Decision, Package · Limits for:",
+    );
+    expect((await last(asked)).items[0]?.name).toBe("No limits");
+    await choose(asked, "Decision");
+    await choose(asked, "Package");
+    await choose(asked, "Take 2 types");
+    expect((await last(asked)).label).toBe(
+      "Add relation kind Verified by verified-by Decision, Package Decision, Package · At least, to Decision:",
     );
     await type(asked, "1");
     await enter(asked);
@@ -159,11 +167,11 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await flush();
     await choose(change.asked, "Replaces");
     await choose(change.asked, "Limits");
-    await enter(change.asked);
-    await enter(change.asked);
+    await choose(change.asked, "No limits");
     expect(ranWith(change.call, "metamodel.changeRelationKind")).toEqual({ kind: "replaces", limits: null });
 
-    // A limit for one source type stays as it is; a refused limit asks the limits again with core's message.
+    // Every limit for any source type is shown with its target type marked, a subtype of a target type too; a
+    // limit for one source type stays as it is; a refused limit asks the limits again with core's message.
     const limited: MetamodelGetOutput = {
       ...FIXTURE_METAMODEL,
       relations: FIXTURE_METAMODEL.relations.map((kind) =>
@@ -172,6 +180,7 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
               ...kind,
               limits: [
                 { "target-type": "requirement", max: 4 },
+                { "target-type": "software-requirement", max: 2 },
                 { "source-type": "software-requirement", "target-type": "requirement", min: 1 },
               ],
             }
@@ -195,23 +204,46 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await flush();
     await choose(limits.asked, "Replaces");
     await choose(limits.asked, "Limits");
+    expect((await last(limits.asked)).marks?.map((mark) => mark.label)).toEqual([
+      "type: requirement, software-requirement",
+    ]);
+    await choose(limits.asked, "Take 2 types");
     expect((await last(limits.asked)).initial).toBeUndefined();
     await enter(limits.asked);
     expect((await last(limits.asked)).initial).toBe("4");
     await type(limits.asked, "4x");
+    await enter(limits.asked);
+    expect((await last(limits.asked)).initial).toBe("2");
+    await type(limits.asked, "2");
     expect((await last(limits.asked)).label).toBe(
-      "A limit is not a number · Change relation kind Replaces Limits · At least, to System Requirement:",
+      "A limit is not a number · Change relation kind Replaces Limits System Requirement, Software Requirement · At least, to System Requirement:",
     );
     await type(limits.asked, "2");
     await type(limits.asked, "5");
+    await enter(limits.asked);
+    expect((await last(limits.asked)).initial).toBe("2");
+    await type(limits.asked, "2");
     expect(ranWith(limits.call, "metamodel.changeRelationKind")).toEqual({
       kind: "replaces",
       limits: [
         { "target-type": "requirement", min: 2, max: 5 },
+        { "target-type": "software-requirement", max: 2 },
         { "source-type": "software-requirement", "target-type": "requirement", min: 1 },
       ],
     });
-    // Any type as the targets of a new kind asks no limits; a kind open to any type offers none to change.
+    // Unmarking a target type removes its limit.
+    start(limits.context, "metamodel.changeRelationKind");
+    await flush();
+    await choose(limits.asked, "Replaces");
+    await choose(limits.asked, "Limits");
+    (await last(limits.asked)).marks?.[0]?.remove();
+    await flush();
+    await choose(limits.asked, "No limits");
+    expect(ranWith(limits.call, "metamodel.changeRelationKind")).toEqual({
+      kind: "replaces",
+      limits: [{ "source-type": "software-requirement", "target-type": "requirement", min: 1 }],
+    });
+    // A new kind and a kind open to any type get limits to the types marked.
     start(context, "metamodel.addRelationKind");
     await flush();
     await type(asked, "Touches");
@@ -219,11 +251,140 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await enter(asked);
     await choose(asked, "Any type");
     await choose(asked, "Any type");
+    await choose(asked, "No limits");
     expect(ranWith(call, "metamodel.addRelationKind")).toEqual({ name: "Touches", key: "touches" });
     start(change.context, "metamodel.changeRelationKind");
     await flush();
     await choose(change.asked, "Refines");
-    expect((await last(change.asked)).items.map((hit) => hit.name)).not.toContain("Limits");
+    await choose(change.asked, "Limits");
+    await choose(change.asked, "Package");
+    await choose(change.asked, "Take 1 type");
+    await type(change.asked, "1");
+    await enter(change.asked);
+    expect(ranWith(change.call, "metamodel.changeRelationKind")).toEqual({
+      kind: "refines",
+      limits: [{ "target-type": "package", min: 1 }],
+    });
+  });
+
+  it("[SR-215/AK-rx2z] keeps the marks of types and fixed values when Escape goes back, and shows them when the step is asked again", async () => {
+    const { context, asked, call } = ready({
+      "metamodel.changeRelationKind": () => OK,
+      "metamodel.changeProperty": () => OK,
+    });
+    start(context, "metamodel.changeRelationKind");
+    await flush();
+    await choose(asked, "Replaces");
+    await choose(asked, "Source types");
+    await choose(asked, "Decision");
+    (await last(asked)).back?.();
+    await flush();
+    expect((await last(asked)).label).toBe("Change relation kind Replaces · Change:");
+    await choose(asked, "Source types");
+    expect((await last(asked)).marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
+    // A step answered and asked again shows the marks it took.
+    await choose(asked, "Take 1 type");
+    expect(ranWith(call, "metamodel.changeRelationKind")).toEqual({
+      kind: "replaces",
+      sourceTypes: ["decision"],
+    });
+    start(context, "metamodel.changeRelationKind");
+    await flush();
+    await choose(asked, "Replaces");
+    await choose(asked, "Limits");
+    await choose(asked, "Package");
+    await choose(asked, "Take 1 type");
+    (await last(asked)).back?.();
+    await flush();
+    expect((await last(asked)).marks?.map((mark) => mark.label)).toEqual(["type: package"]);
+
+    // Fixed values: Escape goes back with the mark, Backspace removes it (`unmark`).
+    start(context, "metamodel.changeProperty");
+    await flush();
+    await choose(asked, "Component");
+    await choose(asked, "Add fixed values");
+    await type(asked, "Motor");
+    await type(asked, "motor");
+    (await last(asked)).back?.();
+    await flush();
+    expect((await last(asked)).label).toBe("Change property Component · Change:");
+    await choose(asked, "Add fixed values");
+    const marked = await last(asked);
+    expect(marked.marks?.map((mark) => mark.label)).toEqual(["Motor · motor"]);
+    expect(marked.unmark).toBe(true);
+
+    // A mark removed stays removed: "Any type" taken after it, and an empty mark left with Escape.
+    start(context, "metamodel.addRelationKind");
+    await flush();
+    await type(asked, "Touches");
+    await type(asked, "touches");
+    await enter(asked);
+    await choose(asked, "Decision");
+    (await last(asked)).back?.();
+    await flush();
+    await enter(asked);
+    expect((await last(asked)).marks?.map((mark) => mark.label)).toEqual(["type: decision"]);
+    (await last(asked)).marks?.[0]?.remove();
+    await flush();
+    await choose(asked, "Any type");
+    expect((await last(asked)).label).toBe("Add relation kind Touches touches · Target types:");
+    (await last(asked)).back?.();
+    await flush();
+    expect((await last(asked)).label).toBe("Add relation kind Touches touches · Source types:");
+    expect((await last(asked)).marks).toEqual([]);
+    let refuse = true;
+    const limited = ready(
+      {
+        "metamodel.changeRelationKind": () => {
+          const given = refuse
+            ? refusedWith("A limit is wrong", { reason: "metamodel-invalid", field: "limits" })
+            : OK;
+          refuse = false;
+          return given;
+        },
+      },
+      {
+        ...FIXTURE_METAMODEL,
+        relations: FIXTURE_METAMODEL.relations.map((kind) =>
+          kind.key === "replaces"
+            ? {
+                ...kind,
+                limits: [
+                  { "source-type": "software-requirement", "target-type": "requirement", min: 1 },
+                  { "target-type": "requirement", max: 4 },
+                ],
+              }
+            : kind,
+        ),
+      },
+    );
+    start(limited.context, "metamodel.changeRelationKind");
+    await flush();
+    await choose(limited.asked, "Replaces");
+    await choose(limited.asked, "Limits");
+    (await last(limited.asked)).marks?.[0]?.remove();
+    await flush();
+    (await last(limited.asked)).back?.();
+    await flush();
+    await choose(limited.asked, "Limits");
+    expect((await last(limited.asked)).marks).toEqual([]);
+    // A refused limit without a number asked asks the target types again.
+    await choose(limited.asked, "No limits");
+    expect((await last(limited.asked)).label).toBe(
+      "A limit is wrong · Change relation kind Replaces Limits · Limits for:",
+    );
+    // Each limit keeps its place in the list.
+    await choose(limited.asked, "System Requirement");
+    await choose(limited.asked, "Take 1 type");
+    await enter(limited.asked);
+    await type(limited.asked, "5");
+    expect(ranWith(limited.call, "metamodel.changeRelationKind")).toEqual({
+      kind: "replaces",
+      limits: [
+        { "source-type": "software-requirement", "target-type": "requirement", min: 1 },
+        { "target-type": "requirement", max: 5 },
+      ],
+    });
   });
 
   it("[SR-236/AK-q76q] asks fixed values one by one with name and key as marks, and the most entries as a number or empty", async () => {
@@ -417,13 +578,6 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     (await last(asked)).back?.();
     await flush();
     expect((await last(asked)).label).toBe("Change property Component Add fixed values · Fixed value:");
-    await type(asked, "Motor");
-    await type(asked, "motor");
-    const marked = await last(asked);
-    expect(marked.unmark).toBe(true);
-    marked.back?.();
-    await flush();
-    expect((await last(asked)).marks).toEqual([]);
     await type(asked, "Motor");
     await type(asked, "motor");
     (await last(asked)).marks?.[0]?.remove();
@@ -631,6 +785,14 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     const type = await last(asked);
     expect(item(type.items, "Prefix")).toMatchObject({ hint: "locked: 4 elements", inert: true });
     expect(item(type.items, "Abstract")).toMatchObject({ hint: "locked: 4 elements", inert: true });
+    // Removing the abstract mark of a used type always works (SR-237 AK3).
+    const abstract = ready({}, used({ types: { ...FIXTURE_METAMODEL.uses.types, item: 2 } }));
+    start(abstract.context, "metamodel.changeType");
+    await flush();
+    await choose(abstract.asked, "Item");
+    const item2 = await last(abstract.asked);
+    expect(item(item2.items, "Prefix")).toMatchObject({ hint: "locked: 2 elements", inert: true });
+    expect(item(item2.items, "Abstract").inert).toBeUndefined();
     // Unused: nothing is locked.
     const free = ready();
     start(free.context, "metamodel.changeType");

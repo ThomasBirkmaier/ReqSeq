@@ -1,6 +1,6 @@
 // The commands that change the metamodel in the command prompt, on the built app (SR-236 AK6, AK8, AK11):
 // "Add relation kind" asks its values in steps, the key prefilled from the name, the types as a mark with
-// "Any type", and a minimum and maximum per target type, and writes the metamodel file; "Change property"
+// "Any type", the target types for limits as a mark, and a minimum and maximum per marked type, and writes the metamodel file; "Change property"
 // shows the value kind of a property that elements hold as locked with their number. The light screenshots go
 // to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
@@ -60,8 +60,16 @@ test.describe("the metamodel commands in the command prompt (SR-236)", () => {
     await expect(marked(window)).toHaveText("Take 1 type");
     await window.screenshot({ path: path.join(SHOTS, "sr-236-types-light.png") });
     await window.keyboard.press("Enter");
+    // The target types for limits, as a mark from every type, then a minimum and a maximum per marked type.
     await expect(label(window)).toHaveText(
-      "Add relation kind Verified by verified-by Decision · At least, to Decision:",
+      "Add relation kind Verified by verified-by Decision · Limits for:",
+    );
+    await expect(marked(window)).toHaveText("No limits");
+    await pick(window, "Decision", "Decision");
+    await expect(marked(window)).toHaveText("Take 1 type");
+    await window.keyboard.press("Enter");
+    await expect(label(window)).toHaveText(
+      "Add relation kind Verified by verified-by Decision Decision · At least, to Decision:",
     );
     await window.keyboard.type("1");
     await window.keyboard.press("Enter");
