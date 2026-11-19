@@ -3,6 +3,7 @@
 import {
   MARKS,
   TECHNICAL_DEFINITIONS,
+  listsAbove,
   normalOf,
   outputFieldsOf,
   relativePath,
@@ -38,6 +39,83 @@ export const SHOWS_OUTPUT = new Set([
   "workspace.init",
 ]);
 
+const POSITION = "a position or size, not a number of elements";
+const CRITERIA = "counts acceptance criteria, not elements";
+const NODES =
+  "counts the nodes of the walks, and an element is a node once per direction or walk it is reached in";
+
+/**
+ * The integer fields of outputs that count no elements (SR-224 AK4), each with its reason: a shared definition by
+ * its place, a field of a command file as `<command> <path>`. Every other integer field is marked `x-elements`.
+ */
+export const NOT_ELEMENT_COUNTS = new Map([
+  ["common.schema.json#/$defs/problem/properties/line", POSITION],
+  ["common.schema.json#/$defs/problem/properties/place/properties/occurrence", POSITION],
+  [
+    "common.schema.json#/$defs/problem/properties/limit",
+    "a limit the metamodel sets, not a number of elements",
+  ],
+  [
+    "common.schema.json#/$defs/problem/properties/count",
+    "counts the relations, list entries or acceptance criteria of the one element the problem names",
+  ],
+  ["common.schema.json#/$defs/listGroup/properties/offset", POSITION],
+  ["common.schema.json#/$defs/textMarks/items/properties/start", POSITION],
+  ["common.schema.json#/$defs/textMarks/items/properties/end", POSITION],
+  [
+    "data-export.schema.json#/$defs/criterionName/properties/criterion",
+    "the number of an acceptance criterion",
+  ],
+  [
+    "data-export.schema.json#/$defs/criterionEntry/properties/criterion",
+    "the number of an acceptance criterion",
+  ],
+  ["data-export.schema.json#/$defs/criteriaCount/properties/verified", CRITERIA],
+  ["data-export.schema.json#/$defs/criteriaCount/properties/total", CRITERIA],
+  ["data-export.schema.json#/$defs/evidenceRecord/properties/line", POSITION],
+  ["metamodel.schema.json#/$defs/property/properties/max-items", "a limit the metamodel sets"],
+  ["metamodel.schema.json#/$defs/relationLimit/properties/min", "a limit the metamodel sets"],
+  ["metamodel.schema.json#/$defs/relationLimit/properties/max", "a limit the metamodel sets"],
+  ["workspace.check hidden.warning", "counts problems"],
+  ["workspace.check hidden.info", "counts problems"],
+  ["workspace.check durationMs", "a duration"],
+  ["element.list tree[].depth", POSITION],
+  ["element.list offset", POSITION],
+  ["element.list rows", "counts rows, and an element is a row in each group it is in"],
+  ["element.search offset", POSITION],
+  ["element.search rows", "counts rows, and a hit is a row in each group it is in"],
+  ["element.search hits[].snippet.criterion.criterion", "the number of an acceptance criterion"],
+  ["element.facets properties[].distinct", "counts values, not elements"],
+  ["element.assignCriterionKeys changed[].assigned", CRITERIA],
+  ["trace.chain nodes[].depth", POSITION],
+  ["trace.chain evidence[].depth", POSITION],
+  ["trace.chain total", NODES],
+  ["trace.neighbourhood nodes[].depth", POSITION],
+  ["trace.neighbourhood total", NODES],
+  ["trace.affected affected[].distance", POSITION],
+  ["trace.matrix rows[].depth", POSITION],
+  ["trace.matrix rows[].gaps[].column", POSITION],
+  ["trace.matrix rows[].gaps[].count", "counts the relations of the row"],
+  ["trace.matrix rows[].gaps[].min", "the minimum of relations the metamodel sets"],
+  ["trace.graph nodes[].level", POSITION],
+  ["trace.graph evidence[].level", POSITION],
+  ["trace.graph evidence[].testCases", "counts test cases"],
+  ["trace.graph evidence[].records", "counts verification records"],
+  ["trace.graph evidence[].results.passed", "counts test results"],
+  ["trace.graph evidence[].results.failed", "counts test results"],
+  ["trace.graph evidence[].results.inconclusive", "counts test results"],
+  ["trace.graph evidence[].results.skipped", "counts test results"],
+  ["hint.list kinds[].count", "counts hints"],
+  ["hint.list total", "counts hints"],
+  ["evidence.list display.rows[].criterion", "the number of an acceptance criterion"],
+  ["evidence.record criteria[].criterion", "the number of an acceptance criterion"],
+  ["evidence.enrichJunit testCases", "counts test cases"],
+  ["evidence.enrichJunit withoutReference", "counts test cases"],
+  ["evidence.enrichJunit notInView", "counts pairs of an element and a test case"],
+  ["evidence.enrichJunit unknown[].line", POSITION],
+  ["reqif.export relations", "counts relations"],
+]);
+
 /** The schema a field's `$ref`s end at. */
 function target(schema, file, schemas, seen = new Set()) {
   if (typeof schema.$ref !== "string" || seen.has(schema)) {
@@ -46,6 +124,19 @@ function target(schema, file, schemas, seen = new Set()) {
   seen.add(schema);
   const found = resolveRef(schema.$ref, file, schemas);
   return found === undefined ? { schema, file } : target(found.schema, found.file, schemas, seen);
+}
+
+/** Whether a field's value is an integer: its type, or that of an `anyOf`/`oneOf` branch. */
+function isInteger(schema, file, schemas) {
+  const end = target(schema, file, schemas);
+  const type = end.schema.type;
+  return (
+    type === "integer" ||
+    (Array.isArray(type) && type.includes("integer")) ||
+    [...(end.schema.anyOf ?? []), ...(end.schema.oneOf ?? [])].some((branch) =>
+      isInteger(branch, end.file, schemas),
+    )
+  );
 }
 
 /** Whether a schema is a UUID, or an object whose `id` is one: what an element list holds. */
@@ -168,25 +259,104 @@ function checkList(field, elements, schemas) {
   return errors;
 }
 
-/** A count of elements: an integer whose paths name lists of elements of the same output (SR-224 AK4). */
-function checkCount(field, elements, fields, schemas) {
+/** Whether an output is paged: its command takes a `limit`, so a top-level list holds one page. */
+const isPaged = (cmd) => cmd.input?.properties?.limit !== undefined;
+
+/** The fields of the item of a list: its properties and those of its `$ref`s and branches. */
+function itemFields(array, fields) {
+  const prefix = `${array.path}[].`;
+  return new Set(
+    fields
+      .filter((f) => f.path.startsWith(prefix) && !f.path.slice(prefix.length).includes("."))
+      .map((f) => f.name),
+  );
+}
+
+/**
+ * A count of elements (SR-224 AK4): an integer whose paths name lists of elements of the same output, or
+ * `"selection"`, whose elements only `element.list` gives (a read command only). Each list it is inside names
+ * the fields of its entry that identify it (`x-key`), and none is a map.
+ */
+function checkCount(cmd, field, elements, fields, schemas) {
   const errors = [];
-  if (target(field.schema, field.file, schemas).schema.type !== "integer") {
-    errors.push("x-elements with paths is for a number that counts elements");
+  if (!isInteger(field.schema, field.file, schemas)) {
+    errors.push("x-elements with paths or selection is for a number that counts elements");
   }
-  for (const relative of [elements].flat()) {
-    const mark = fields.find((other) => other.path === relativePath(field, String(relative)))?.schema[
-      "x-elements"
-    ];
-    if (mark !== true && mark !== "answer") {
-      errors.push(`x-elements "${relative}" names no field with x-elements true or "answer"`);
+  if (elements === "selection" && cmd.effect !== "read") {
+    errors.push(`x-elements "selection" is for a read command; a write command names the list of its output`);
+  }
+  for (const relative of elements === "selection" ? [] : [elements].flat()) {
+    errors.push(...checkCountPath(cmd, field, String(relative), fields));
+  }
+  return [...errors, ...checkCountLists(field, fields, schemas)];
+}
+
+/** A path of a count names a list of elements of the same output, in a read command one of all pages. */
+function checkCountPath(cmd, field, relative, fields) {
+  const named = fields.find((other) => other.path === relativePath(field, relative));
+  const mark = named?.schema["x-elements"];
+  if (mark !== true && mark !== "answer") {
+    return [`x-elements "${relative}" names no field with x-elements true or "answer"`];
+  }
+  return cmd.effect === "read" && mark === true && isTop(named) && isPaged(cmd)
+    ? [`x-elements "${relative}" names a list of one page; mark the number "selection"`]
+    : [];
+}
+
+/** Each list a count is inside names the fields of its entry (`x-key`), and none is a map. */
+function checkCountLists(field, fields, schemas) {
+  const errors = [];
+  const { lists, maps } = listsAbove(field, schemas);
+  if (maps > 0) {
+    errors.push("a number of elements is not inside a map: a reader cannot name its entry");
+  }
+  for (const list of lists) {
+    const key = list.key;
+    if (!Array.isArray(key) || key.length === 0 || key.some((name) => typeof name !== "string")) {
+      errors.push(`the list ${list.path} needs "x-key": the fields that identify its entry`);
+      continue;
+    }
+    const known = list.field === undefined ? new Set() : itemFields(list.field, fields);
+    for (const name of key.filter((name) => !known.has(name))) {
+      errors.push(`x-key of ${list.path} names "${name}", which its entry does not have`);
     }
   }
   return errors;
 }
 
-/** The errors of `x-normal` and `x-elements` of a field of one output. */
-function checkField(field, fields, schemas) {
+/** The key of `field` in `NOT_ELEMENT_COUNTS`: its shared place, else `<command> <path>`. */
+const notCountKey = (cmd, field) => (field.file === "commands/" ? `${cmd.name} ${field.path}` : field.place);
+
+/** Every integer field counts elements and is marked, or is listed in `notCounts` with its reason, not both. */
+function checkInteger(cmd, field, schemas, notCounts) {
+  if (!isInteger(field.schema, field.file, schemas)) {
+    return [];
+  }
+  const marked = field.schema["x-elements"] !== undefined;
+  const listed = notCounts.has(notCountKey(cmd, field));
+  if (marked && listed) {
+    return ["is marked x-elements and listed in NOT_ELEMENT_COUNTS; keep one"];
+  }
+  return marked || listed
+    ? []
+    : [
+        `a number: mark it x-elements if it counts elements, else list "${notCountKey(cmd, field)}" in NOT_ELEMENT_COUNTS of output-checks.mjs with the reason (SR-224 AK4)`,
+      ];
+}
+
+/** `x-key` stands on an array: the names of fields of its item. */
+function checkKey(field, schemas) {
+  const key = field.schema["x-key"];
+  if (key === undefined) {
+    return [];
+  }
+  return target(field.schema, field.file, schemas).schema.type === "array"
+    ? []
+    : ["x-key is for a list: the fields of its entry that identify it"];
+}
+
+/** The errors of `x-normal`, `x-elements` and `x-key` of a field of one output. */
+function checkField(cmd, field, fields, schemas, notCounts) {
   const elements = field.schema["x-elements"];
   const marks =
     elements === undefined
@@ -194,9 +364,33 @@ function checkField(field, fields, schemas) {
       : elements === true || elements === "answer"
         ? checkList(field, elements, schemas)
         : typeof elements === "string" || (Array.isArray(elements) && elements.length > 0)
-          ? checkCount(field, elements, fields, schemas)
-          : [`x-elements is true, "answer", or the paths of the lists a number counts`];
-  return [...checkNormal(field, schemas), ...marks];
+          ? checkCount(cmd, field, elements, fields, schemas)
+          : [`x-elements is true, "answer", "selection", or the paths of the lists a number counts`];
+  return [
+    ...checkNormal(field, schemas),
+    ...marks,
+    ...checkInteger(cmd, field, schemas, notCounts),
+    ...checkKey(field, schemas),
+  ];
+}
+
+/** The entries of `notCounts` that name no integer field: a shared place, or a field of a command's output. */
+function staleNotCounts(catalog, schemas, notCounts) {
+  const errors = [];
+  for (const key of notCounts.keys()) {
+    const [name, path] = key.split(" ");
+    const cmd = path === undefined ? undefined : catalog.commands.find((entry) => entry.name === name);
+    const field =
+      path === undefined
+        ? resolveRef(key, "", schemas)
+        : cmd === undefined
+          ? undefined
+          : outputFieldsOf(cmd.output, schemas).find((f) => f.path === path && f.file === "commands/");
+    if (field === undefined || !isInteger(field.schema, field.file, schemas)) {
+      errors.push(`NOT_ELEMENT_COUNTS "${key}" names no number of an output; remove it`);
+    }
+  }
+  return errors;
 }
 
 /** `showsOutput` (SR-224 AK7) in both directions, and the marks a command file may not have. */
@@ -229,8 +423,9 @@ function checkEntry(cmd, fields) {
  * The errors of the titles and marks of every output field of the catalog.
  * @param {{ commands: any[] }} catalog
  * @param {Record<string, any>} schemas the schema files by name (`loadContracts`)
+ * @param {Map<string, string>} notCounts the integer fields that count no elements, with their reason
  */
-export function checkOutputs(catalog, schemas) {
+export function checkOutputs(catalog, schemas, notCounts = NOT_ELEMENT_COUNTS) {
   const errors = checkTechnicalDefinitions(schemas);
   const patterns = technicalPatterns(schemas);
   const checked = new Set();
@@ -244,9 +439,14 @@ export function checkOutputs(catalog, schemas) {
         checked.add(place);
         errors.push(...checkPlace(field, schemas, patterns).map((e) => `${place} (${field.path}): ${e}`));
       }
-      errors.push(...checkField(field, fields, schemas).map((e) => `${where}: output ${field.path}: ${e}`));
+      errors.push(
+        ...checkField(cmd, field, fields, schemas, notCounts).map(
+          (e) => `${where}: output ${field.path}: ${e}`,
+        ),
+      );
     }
     errors.push(...checkEntry(cmd, fields).map((e) => `${where}: ${e}`));
   }
+  errors.push(...staleNotCounts(catalog, schemas, notCounts));
   return [...new Set(errors)];
 }

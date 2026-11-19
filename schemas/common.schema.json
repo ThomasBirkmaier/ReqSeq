@@ -60,6 +60,21 @@
         }
       ]
     },
+    "countedElement": {
+      "description": "An element that a number of a write command's output counts (SR-224 AK4).",
+      "type": "object",
+      "properties": {
+        "id": { "title": "Element", "$ref": "#/$defs/uuid" },
+        "shortId": { "title": "Short ID", "$ref": "#/$defs/shortId" },
+        "repository": {
+          "title": "Repository",
+          "type": "string",
+          "description": "Workspace name of the repository of its file."
+        }
+      },
+      "required": ["id", "shortId", "repository"],
+      "additionalProperties": false
+    },
     "elementName": {
       "description": "How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.",
       "type": "object",
@@ -592,7 +607,7 @@
       "additionalProperties": false
     },
     "outputSelection": {
-      "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages (SR-224 AK5).",
+      "description": "The elements of the output field of a read command marked `x-elements: \"answer\"`, over all pages (SR-224 AK5); with `count`, the elements one number of its output counts (SR-224 AK4).",
       "type": "object",
       "required": ["command", "input"],
       "properties": {
@@ -606,6 +621,27 @@
           "title": "Input",
           "type": "object",
           "description": "Its input."
+        },
+        "count": {
+          "title": "Number",
+          "type": "object",
+          "description": "A number of the output that counts elements (its `outputFields` entry has `elements`, neither `true` nor `answer`): the elements it counts for this input, over all pages. Without it, the answer's.",
+          "required": ["field"],
+          "properties": {
+            "field": {
+              "title": "Field",
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9-]*(\\[\\])?(\\.[A-Za-z][A-Za-z0-9-]*(\\[\\])?)*$",
+              "description": "Its path in `outputFields`, `[]` per list, no position: `degree.counts.open`, `groups[].count`."
+            },
+            "key": {
+              "title": "Entries",
+              "type": "array",
+              "items": { "type": "object" },
+              "description": "Per `[]` of `field`, outermost first: the entry by the fields its `keys` names, one it lacks left out. An entry the output lacks gives no elements."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -644,12 +680,14 @@
           "description": "Identifier of a package or target, when it has one."
         },
         "unavailable": {
+          "x-elements": "selection",
           "title": "Unavailable targets",
           "type": "integer",
           "minimum": 1,
           "description": "Only in the last group of a grouping by package or another relation property: its elements that name targets, none of them available (not on this machine or not in the workspace)."
         },
         "count": {
+          "x-elements": "selection",
           "title": "Rows",
           "type": "integer",
           "minimum": 1,

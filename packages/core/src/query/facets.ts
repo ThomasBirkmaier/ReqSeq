@@ -21,8 +21,11 @@
 //   relation properties always give theirs.
 // - `distinct` of free text is exact up to `maxValues`; beyond that counting stops (`distinctCapped`),
 //   as nobody uses the number and keeping every title of 50,000 elements costs time (N-036).
+// - The elements behind each number (`facetElements`, SR-224 AK4): the same reads of the same values.
 // Cost: one pass over the selection, plus one over the store for the free-text rule, which leaves
 // a property as soon as it has more than `maxValues` distinct values (N-036). No file is read.
+import type { OutputCount } from "../catalog.js";
+import { matchesKey } from "../catalog.js";
 import type { ElementFacetsOutput, MetamodelProperty } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findNamed, findType } from "../metamodel/index.js";
@@ -314,4 +317,51 @@ export const facetsOf = (
     statuses: [...statuses].map(([key, count]) => ({ key, count })).sort((a, b) => rank(a.key) - rank(b.key)),
     properties: tallies.map((t) => facetOf(selected, t, few, maxValues)),
   };
+};
+
+/**
+ * The elements behind a number of element.facets (SR-224 AK4, #1915), counted as `tally` counts them:
+ * `total`, the elements of a type or status by its `key`, of a listed property with or without a value, and
+ * of one of its values; an entry the output does not have (a property no type has, a value not offered)
+ * gives none.
+ */
+export const facetElements = (
+  selected: Selected,
+  maxValues: number,
+  count: OutputCount,
+): readonly ElementRecord[] => {
+  const { elements } = selected;
+  const [first = {}, second = {}] = count.key;
+  switch (count.field) {
+    case "total":
+      return elements;
+    case "types[].count":
+      return elements.filter((element) => element.type === first["key"]);
+    case "statuses[].count":
+      return elements.filter((element) => {
+        const status = element.data["status"];
+        return typeof status === "string" && status === first["key"];
+      });
+  }
+  const facet = facetsOf(selected, maxValues).properties.find((p) => matchesKey(p, first, ["key"]));
+  const definition = selected.metamodel.properties.find((p) => p.key === facet?.key);
+  if (facet === undefined || definition === undefined) {
+    return [];
+  }
+  const stored = (element: ElementRecord): readonly unknown[] => valuesOf(element.data[definition.key]);
+  if (count.field === "properties[].count" || count.field === "properties[].missing") {
+    const withValue = count.field === "properties[].count";
+    return elements.filter((element) => stored(element).length > 0 === withValue);
+  }
+  const value = facet.values?.find((v) => matchesKey(v, second, ["value"]))?.value;
+  if (value === undefined) {
+    return [];
+  }
+  return elements.filter((element) =>
+    definition.kind === "relation"
+      ? [...targetsOf(selected, element, stored(element)).values()].some(
+          (target) => selected.shortIds.of(target) === value,
+        )
+      : [...once(stored(element))].includes(value),
+  );
 };

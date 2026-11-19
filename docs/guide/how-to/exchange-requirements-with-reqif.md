@@ -239,6 +239,8 @@ file: statements.reqif
 elements: 3
 relations: 0
 withoutStatement: 2
+exportedElements: SR-..., SR-..., SR-...
+elementsWithoutStatement: SR-..., SR-...
 files: none
 No problems.
 ```
@@ -254,6 +256,8 @@ Exported 3 elements and 0 relations to customer.reqif.
 file: customer.reqif
 elements: 3
 relations: 0
+exportedElements: SR-..., SR-..., SR-...
+elementsWithoutStatement: none
 files: none
 No problems.
 ```
@@ -281,6 +285,8 @@ Exported 3 elements and 1 relation to all.reqif.
 file: all.reqif
 elements: 3
 relations: 1
+exportedElements: SR-..., SR-..., SR-...
+elementsWithoutStatement: none
 files: none
 No problems.
 ```

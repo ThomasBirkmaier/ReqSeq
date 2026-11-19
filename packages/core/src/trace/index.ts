@@ -99,7 +99,14 @@ export type {
 } from "./element-graph.js";
 export { elementGraph, elementGraphOutput } from "./element-graph.js";
 export type { MatrixColumn, MatrixContext, MatrixKey, MatrixPlace, MatrixRowFields } from "./matrix.js";
-export { columnOutput, matrixColumns, matrixContext, matrixKeys, matrixRows } from "./matrix.js";
+export {
+  columnElements,
+  columnOutput,
+  matrixColumns,
+  matrixContext,
+  matrixKeys,
+  matrixRows,
+} from "./matrix.js";
 export type {
   Neighbourhood,
   NeighbourhoodContext,

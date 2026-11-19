@@ -538,9 +538,20 @@
       "additionalProperties": false
     },
     "rowVerification": {
-      "description": "What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: empty for an element with none of them.",
+      "description": "What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: its element, and nothing else for an element with none of them.",
       "type": "object",
       "properties": {
+        "id": { "title": "Element", "$ref": "common.schema.json#/$defs/uuid" },
+        "repository": {
+          "title": "Repository",
+          "type": "string",
+          "description": "Workspace name of the repository of its file."
+        },
+        "file": {
+          "title": "File",
+          "$ref": "common.schema.json#/$defs/outputPath",
+          "description": "Path relative to the repository."
+        },
         "verification": {
           "title": "Verification status",
           "type": "array",
@@ -560,7 +571,8 @@
           "description": "SR-137 AK3: for a need, the verification degree of the requirements derived directly from it, as trace.graph gives it (`degree` of a node)."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "required": ["id", "repository", "file"]
     },
     "verificationEntry": {
       "type": "object",
@@ -690,6 +702,7 @@
           "description": "(verified + indirect) / total (AK1, AK2), unrounded; left out when total is 0. Shown as a percentage rounded down to one decimal (ADR-0012)."
         },
         "total": {
+          "x-elements": "selection",
           "title": "Requirements",
           "type": "integer",
           "minimum": 0,
@@ -702,30 +715,35 @@
           "required": ["open", "verified", "indirect", "failed", "outdated"],
           "properties": {
             "open": {
+              "x-elements": "selection",
               "title": "Open",
               "description": "Requirements with the verification status open.",
               "type": "integer",
               "minimum": 0
             },
             "verified": {
+              "x-elements": "selection",
               "title": "Verified",
               "description": "Requirements with the verification status verified.",
               "type": "integer",
               "minimum": 0
             },
             "indirect": {
+              "x-elements": "selection",
               "title": "Indirect",
               "description": "Requirements verified indirectly, through their children.",
               "type": "integer",
               "minimum": 0
             },
             "failed": {
+              "x-elements": "selection",
               "title": "Failed",
               "description": "Requirements with the verification status failed.",
               "type": "integer",
               "minimum": 0
             },
             "outdated": {
+              "x-elements": "selection",
               "title": "Outdated",
               "description": "Requirements with the verification status outdated.",
               "type": "integer",

@@ -1,5 +1,6 @@
 // What a metamodel change does to the elements (SR-236 AK9): how many change their version
-// (SR-015 AK4) and how many now miss a required property they did not miss before (SR-015 AK3).
+// (SR-015 AK4) and how many now miss a required property they did not miss before (SR-015 AK3),
+// with the elements each number counts (SR-224 AK4), named by their short IDs under the new metamodel.
 // One pass over the element store in memory, no file read (N-036); only elements of a type whose
 // counted definitions or required properties differ are looked at.
 //
@@ -13,13 +14,26 @@ import { NORMAL_FORM, comparableContent } from "../version/version.js";
 import type { ElementRecord } from "./elements.js";
 import { versionDefinitions, versionInputOf } from "./loaded-version.js";
 import { requiredFindings } from "./required.js";
+import type { ShortIds } from "./short-id.js";
+import { buildShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+
+/** An element a count names (SR-224 AK4). */
+export interface EffectElement {
+  readonly id: string;
+  readonly shortId: string;
+  readonly repository: string;
+}
 
 export interface MetamodelEffects {
   /** Elements whose version differs under the new metamodel. */
   readonly versionsChanged: number;
   /** Elements that miss a required property under the new metamodel that they did not miss before. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly EffectElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly EffectElement[];
 }
 
 /** What of a type decides the two counts, as one text. */
@@ -47,19 +61,32 @@ export const metamodelEffects = (
     }
     return known;
   };
-  let versionsChanged = 0;
-  let missingRequired = 0;
+  const versions: ElementRecord[] = [];
+  const required: ElementRecord[] = [];
   for (const element of store.elements) {
     if (!typeChanged(element.type)) {
       continue;
     }
     if (content(element, before) !== content(element, after)) {
-      versionsChanged += 1;
+      versions.push(element);
     }
     const was = missing(element, before);
     if ([...missing(element, after)].some((key) => !was.has(key))) {
-      missingRequired += 1;
+      required.push(element);
     }
   }
-  return { versionsChanged, missingRequired };
+  // Built at the first named element: the short IDs take one pass over the whole store.
+  let shortIds: ShortIds | undefined;
+  const named = (elements: readonly ElementRecord[]): EffectElement[] =>
+    elements.map((element) => ({
+      id: element.id,
+      shortId: (shortIds ??= buildShortIds(store.byId, after)).of(element),
+      repository: element.repository,
+    }));
+  return {
+    versionsChanged: versions.length,
+    missingRequired: required.length,
+    versionsChangedElements: named(versions),
+    missingRequiredElements: named(required),
+  };
 };

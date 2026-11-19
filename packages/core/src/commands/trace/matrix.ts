@@ -11,9 +11,18 @@
 // `evidence` comes right after `columns`, as the degree stands above the status column (SR-126 AK4);
 // `names` names the variant of its view and the missing children of the rows (ThomasBirkmaier/ReqSeq-archive#588).
 // The last execution of a test case names its criteria with number, key and text (SR-205 AK2).
-import type { CommandOutput } from "../../catalog.js";
+// `countedElements` gives the rows behind `total`, each number of a column and the degree (SR-224 AK4).
+import type {
+  CommandContext,
+  CommandInput,
+  CommandOutput,
+  OutputCount,
+  OutputElements,
+} from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
+  degreeElements,
+  degreeFieldElements,
   degreeOf,
   evidenceIndexState,
   evidenceReadState,
@@ -30,9 +39,10 @@ import { namesField, namesOf } from "../../model/index.js";
 import type { Selected } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
-import type { MatrixRowFields } from "../../trace/index.js";
+import type { MatrixContext, MatrixRowFields } from "../../trace/index.js";
 import {
   checkRelationKinds,
+  columnElements,
   columnOutput,
   currentVersionLookup,
   matrixColumns,
@@ -80,6 +90,61 @@ const evidenceOf = async (workspace: Workspace, selected: Selected): Promise<Mat
   };
 };
 
+/** The selection of the matrix of `input` and the context its columns and cells are built in. */
+const matrixOf = async (
+  ctx: CommandContext,
+  input: CommandInput<"trace.matrix">,
+): Promise<{ readonly selected: Selected; readonly context: MatrixContext }> => {
+  const command = "trace.matrix";
+  const base = await traceContext(ctx.workspace);
+  checkRelationKinds(base.metamodel, input.kinds, command);
+  const selected = await resolveSelection(ctx, input.selection ?? {}, command);
+  const includes = viewsInclude({ workspace: ctx.workspace, ...selected }, selected.views);
+  const context = matrixContext(base, {
+    shortIds: selected.shortIds,
+    kinds: input.kinds,
+    // A row is in every view of the selection (the selection's and the saved filter's), so is the other end of a link.
+    ...(includes === undefined ? {} : { includes }),
+  });
+  return { selected, context };
+};
+
+/**
+ * The rows behind a number of the matrix (SR-224 AK4): every row for `total`, the rows a column counts
+ * (`columnElements`), and the requirements of the degree above the evidence columns (`degreeElements`, in
+ * its view; none when the matrix shows no evidence).
+ */
+const countedRows = async (
+  ctx: CommandContext,
+  input: CommandInput<"trace.matrix">,
+  count: OutputCount,
+): Promise<OutputElements> => {
+  const { selected, context } = await matrixOf(ctx, input);
+  const { incomplete } = selected;
+  const [key = {}] = count.key;
+  if (count.field === "total") {
+    return { elements: selected.elements, incomplete };
+  }
+  if (count.field.startsWith("columns[].")) {
+    const field = count.field.slice("columns[].".length) as "count" | "expected" | "met";
+    return { elements: columnElements(context, selected.elements, key, field), incomplete };
+  }
+  const layout = await ctx.workspace.get(workspaceLayoutState);
+  const view = selected.views[0] ?? CORE;
+  if (!showsEvidence(layout, selected.metamodel, selected.elements)) {
+    return { elements: [], incomplete, view };
+  }
+  const status = await ctx.workspace.get(verificationState);
+  const read = await ctx.workspace.get(evidenceReadState);
+  await status.prepare(selected.elements, { own: true });
+  const by = degreeElements(status, selected.elements, view);
+  return {
+    elements: degreeFieldElements(by, count.field.slice("evidence.degree.".length)),
+    incomplete: incomplete || read.incomplete,
+    view,
+  };
+};
+
 export default defineCommand({
   name: "trace.matrix",
   answer: (output) =>
@@ -89,17 +154,8 @@ export default defineCommand({
     ),
   run: async (ctx, input): Promise<CommandOutput<"trace.matrix">> => {
     const command = "trace.matrix";
-    const base = await traceContext(ctx.workspace);
-    checkRelationKinds(base.metamodel, input.kinds, command);
-    const selected = await resolveSelection(ctx, input.selection ?? {}, command);
+    const { selected, context } = await matrixOf(ctx, input);
     const sorted = orderedSelection(selected, command, input.sort);
-    const includes = viewsInclude({ workspace: ctx.workspace, ...selected }, selected.views);
-    const context = matrixContext(base, {
-      shortIds: selected.shortIds,
-      kinds: input.kinds,
-      // A row is in every view of the selection (the selection's and the saved filter's), so is the other end of a link.
-      ...(includes === undefined ? {} : { includes }),
-    });
     const total = selected.elements.length;
     const columns = matrixColumns(context, selected.elements);
     const evidence = await evidenceOf(ctx.workspace, selected);
@@ -153,4 +209,5 @@ export default defineCommand({
       ...namesField(namesOf(selected, named)),
     };
   },
+  countedElements: countedRows,
 });

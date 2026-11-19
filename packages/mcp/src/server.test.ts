@@ -56,16 +56,20 @@ const catalog = {
  * schema self-contained, so only `FILTER_GRAMMAR_TOOL` carries the recursive condition with the short semantics
  * of each operator (agents learn them from these descriptions only); every other selection tool carries a stub
  * that names it (#1927). Each kind of selection part has its own bound (the full one 6.6 KB with
- * ThomasBirkmaier/ReqSeq-archive#336, 8 KB since #1249, 8.5 KB since #1873; ADR-0009), and the rest of each tool keeps the bound of
+ * ThomasBirkmaier/ReqSeq-archive#336, 8 KB since #1249, 8.5 KB since #1873, 9.5 KB since #1915; ADR-0009), and the rest of each tool keeps the bound of
  * ThomasBirkmaier/ReqSeq-archive#303. The rest of a selection tool leaves out every definition the full grammar
  * reaches, as before the stub: a definition it reaches also outside its selection (`common.key` from a sort key
  * of `element_list`) is bounded once, in the selection part of `FILTER_GRAMMAR_TOOL`, and the stub moves no
  * definition into the rest of a tool.
  */
-// 8.5 KB: raised for the selection kind `output` (#1873), 8 KB for the field descriptions of the reference (#1249).
-const SELECTION_MAX_BYTES = 8.5 * 1024;
-/** The selection part with the stub of the filter condition (#1927); 2 KB for the selection kind `output` (#1873). */
-const STUB_SELECTION_MAX_BYTES = 2 * 1024;
+// 9.5 KB: raised for `selection.output.count` (#1915), 8.5 KB for the selection kind `output` (#1873), 8 KB for
+// the field descriptions of the reference (#1249).
+const SELECTION_MAX_BYTES = 9.5 * 1024;
+/**
+ * The selection part with the stub of the filter condition (#1927); 2.75 KB for `selection.output.count` (#1915),
+ * 2 KB for the selection kind `output` (#1873).
+ */
+const STUB_SELECTION_MAX_BYTES = 2.75 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */

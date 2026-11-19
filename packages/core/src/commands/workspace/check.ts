@@ -50,7 +50,7 @@
 //   is open in the core (one info); computed per call after SR-103, only in a full check.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
 //   every access (SR-080 AK2).
-import type { CommandOutput, Problem } from "../../catalog.js";
+import type { CommandContext, CommandInput, CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   evidenceProblemsState,
@@ -162,6 +162,19 @@ const sinceBaselineOf = async (
     ? sinceBaselineProblems({ ...context, workspace, shortIds: await workspace.get(shortIdState) })
     : [];
 
+/** What a check of `input` reads first: the states, the changed files and the restriction to them. */
+const checkedOf = async (ctx: CommandContext, input: CommandInput<"workspace.check">) => {
+  const layout = await ctx.workspace.get(workspaceLayoutState);
+  const metamodel = await ctx.workspace.get(metamodelState);
+  const store = await ctx.workspace.get(elementStoreState);
+  // Git first: a commit that is not here fails the call before anything is built (SR-092 AK2).
+  const changed = await changedFiles(ctx.workspace.root, layout, input, ctx.signal);
+  const versions = metamodel.valid ? await currentVersions(ctx.workspace) : undefined;
+  const restriction =
+    changed === undefined ? undefined : restrictTo(changed, { store, layout, metamodel, versions });
+  return { layout, metamodel, store, changed, restriction };
+};
+
 export default defineCommand({
   name: "workspace.check",
   answer: (output) => {
@@ -183,14 +196,7 @@ export default defineCommand({
     );
   },
   run: async (ctx, input): Promise<Output> => {
-    const layout = await ctx.workspace.get(workspaceLayoutState);
-    const metamodel = await ctx.workspace.get(metamodelState);
-    const store = await ctx.workspace.get(elementStoreState);
-    // Git first: a commit that is not here fails the call before anything is built (SR-092 AK2).
-    const changed = await changedFiles(ctx.workspace.root, layout, input, ctx.signal);
-    const versions = metamodel.valid ? await currentVersions(ctx.workspace) : undefined;
-    const restriction =
-      changed === undefined ? undefined : restrictTo(changed, { store, layout, metamodel, versions });
+    const { layout, metamodel, store, changed, restriction } = await checkedOf(ctx, input);
     const keeps = (problem: Problem): boolean => restriction?.keeps(problem) ?? true;
     const findings: Problem[] = [
       ...layout.problems,
@@ -238,5 +244,10 @@ export default defineCommand({
       ...shownOf(findings, input.severity),
       checkedElements: restriction?.selected.length ?? store.elements.length,
     };
+  },
+  // The elements `checkedElements` counts (SR-224 AK4): those the restriction keeps, else every element.
+  countedElements: async (ctx, input) => {
+    const { store, restriction } = await checkedOf(ctx, input);
+    return { elements: restriction?.selected ?? store.elements, incomplete: false };
   },
 });

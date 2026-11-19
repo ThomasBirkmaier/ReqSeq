@@ -73,6 +73,32 @@ describe("renderHuman: values", () => {
     );
   });
 
+  it("shows a list of counted elements on one line of short IDs, cut after 10, at any depth (SR-224 AK4)", () => {
+    const counted = (n: number): { id: string; shortId: string; repository: string }[] =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `61061061-0000-4000-8000-0000000000${String(i).padStart(2, "0")}`,
+        shortId: `SR-0000${String(i).padStart(2, "0")}`,
+        repository: "system",
+      }));
+    expect(renderHuman({ exported: 2, exportedElements: counted(2), unchangedElements: [] })).toBe(
+      lines("exported: 2", "exportedElements: SR-000000, SR-000001", "unchangedElements: none"),
+    );
+    const cut = `${counted(10)
+      .map((e) => e.shortId)
+      .join(", ")} … and 2 more (--yaml lists them)`;
+    expect(renderHuman({ exportedElements: counted(12) })).toBe(lines(`exportedElements: ${cut}`));
+    expect(renderHuman({ baseline: { elements: 12, entries: counted(12) } })).toBe(
+      lines("baseline:", "  elements: 12", `  entries: ${cut}`),
+    );
+    // Another field beside the three is no counted element; a nested empty list stays as YAML.
+    expect(renderHuman({ baseline: { entries: [], more: [{ ...counted(1)[0], title: "T" }] } })).toContain(
+      "  entries: []\n",
+    );
+    expect(renderHuman({ more: [{ id: "x", shortId: "SR-1", repository: 1 }] })).toBe(
+      lines("more:", "  - id: x", "    shortId: SR-1", "    repository: 1"),
+    );
+  });
+
   it("renders a list of elements one line each, with distance and how each points along its path when it has them", () => {
     expect(
       renderHuman({

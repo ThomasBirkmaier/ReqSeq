@@ -198,6 +198,17 @@ export type UuidRef = string;
 export type ElementId = string;
 
 /**
+ * An element that a number of a write command's output counts (SR-224 AK4).
+ * Schema: `schemas/common.schema.json#/$defs/countedElement`.
+ */
+export interface CountedElement {
+  readonly id: Uuid;
+  readonly shortId: ShortId;
+  /** Workspace name of the repository of its file. */
+  readonly repository: string;
+}
+
+/**
  * How an output names an element it gives elsewhere by UUID only (ThomasBirkmaier/ReqSeq-archive#588), for people: its short ID, its identifier when it has one (ThomasBirkmaier/ReqSeq-archive#305) and its title, as element.list gives them.
  * Schema: `schemas/common.schema.json#/$defs/elementName`.
  */
@@ -534,7 +545,7 @@ export interface ElementSelection {
 }
 
 /**
- * The elements of the output field of a read command marked `x-elements: "answer"`, over all pages (SR-224 AK5).
+ * The elements of the output field of a read command marked `x-elements: "answer"`, over all pages (SR-224 AK5); with `count`, the elements one number of its output counts (SR-224 AK4).
  * Schema: `schemas/common.schema.json#/$defs/outputSelection`.
  */
 export interface OutputSelection {
@@ -542,6 +553,13 @@ export interface OutputSelection {
   readonly command: string;
   /** Its input. */
   readonly input: Readonly<Record<string, unknown>>;
+  /** A number of the output that counts elements (its `outputFields` entry has `elements`, neither `true` nor `answer`): the elements it counts for this input, over all pages. Without it, the answer's. */
+  readonly count?: {
+    /** Its path in `outputFields`, `[]` per list, no position: `degree.counts.open`, `groups[].count`. */
+    readonly field: string;
+    /** Per `[]` of `field`, outermost first: the entry by the fields its `keys` names, one it lacks left out. An entry the output lacks gives no elements. */
+    readonly key?: readonly Readonly<Record<string, unknown>>[];
+  };
 }
 
 /**
@@ -1041,10 +1059,15 @@ export interface DataExportTestCase {
 }
 
 /**
- * What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: empty for an element with none of them.
+ * What a row of a list shows of its element's verification (SR-137), the fields a node of trace.graph carries for it (SR-136), in the view of the list's selection (the selection's, else its saved filter's, else the core), the view evidence.degree counts the same selection in: its element, and nothing else for an element with none of them.
  * Schema: `schemas/data-export.schema.json#/$defs/rowVerification`.
  */
 export interface DataExportRowVerification {
+  readonly id: Uuid;
+  /** Workspace name of the repository of its file. */
+  readonly repository: string;
+  /** Path relative to the repository. */
+  readonly file: OutputPath;
   /** SR-137 AK1: the verification status of a requirement in that view, one entry; left out for any other element and for a requirement without a status there. */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-137 AK3: the count of a requirement's progress ring, as trace.graph gives it (`criteria` of a node). */
@@ -2046,8 +2069,10 @@ export interface CommandCatalog {
       readonly technical?: true | "with-element";
       /** The normal value: a shown value equal to it appears only with Show details (SR-223 AK7). */
       readonly normal?: unknown;
-      /** `answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). */
-      readonly elements?: true | "answer" | readonly string[];
+      /** `answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4). */
+      readonly elements?: true | "answer" | "selection" | readonly string[];
+      /** Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object. */
+      readonly keys?: readonly (readonly string[])[];
     }[];
     /** A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API, MCP and the app keep the JSON object (ADR-0002 rule 3, SR-151 AK4). */
     readonly textOutput?: string;
@@ -2535,10 +2560,14 @@ export interface MetamodelAddTypeOutput {
   readonly type: MetamodelType;
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2574,10 +2603,14 @@ export interface MetamodelChangeTypeOutput {
   readonly type: MetamodelType;
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2610,10 +2643,14 @@ export interface MetamodelRemoveTypeOutput {
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2923,6 +2960,8 @@ export interface ElementUpdateOutput {
   readonly files: readonly OutputPath[];
   /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276). */
   readonly affected: number;
+  /** The elements `affected` counts, in store order; empty when it is 0. */
+  readonly affectedElements: readonly CountedElement[];
   readonly problems?: readonly Problem[];
 }
 
@@ -3008,8 +3047,10 @@ export interface ElementBulkUpdateOutput {
     readonly id: Uuid;
     readonly shortId: ShortId;
   }[];
-  /** Elements of the selection that have the result already. */
+  /** Elements of the selection that have the result already: those of `unchangedElements`. */
   readonly unchanged: number;
+  /** The elements of the selection that have the result already, in store order. */
+  readonly unchangedElements: readonly CountedElement[];
   /** Elements left out because the metamodel does not allow the property for them (SR-071 AK3). */
   readonly skipped: readonly {
     readonly id: Uuid;
@@ -4583,8 +4624,10 @@ export interface BaselineCreateOutput {
     /** The repository that holds the file; `repository` in the file is relative to it. */
     readonly repository: string;
     readonly date: IsoDateTime;
-    /** Number of elements in the file. */
+    /** Number of elements in the file: those of `entries`. */
     readonly elements: number;
+    /** The elements the file lists, in its order. */
+    readonly entries: readonly CountedElement[];
   };
   readonly problems?: readonly Problem[];
   /** A repository is not here, so the view may miss a replacement or exclusion stored there (SR-006); the file is written all the same, with a warning. */
@@ -4956,12 +4999,16 @@ export interface ReqifExportOutput {
   readonly answer: Answer;
   /** The written ReqIF file, relative to the workspace root when it lies inside, else absolute. */
   readonly file: OutputPath;
-  /** Exported elements. */
+  /** Exported elements: those of `exportedElements`. */
   readonly elements: number;
   /** Exported relations. */
   readonly relations: number;
-  /** With statements: exported elements without a statement. */
+  /** With statements: exported elements without a statement, those of `elementsWithoutStatement`. */
   readonly withoutStatement?: number;
+  /** The exported elements, in the order of the file. */
+  readonly exportedElements: readonly CountedElement[];
+  /** With statements: the exported elements without a statement, in the order of the file; empty without statements. */
+  readonly elementsWithoutStatement: readonly CountedElement[];
   readonly files?: readonly OutputPath[];
   readonly problems?: readonly Problem[];
 }

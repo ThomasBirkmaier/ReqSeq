@@ -48,6 +48,7 @@
         "x-elements": "answer"
       },
       "total": {
+        "x-elements": "elements",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

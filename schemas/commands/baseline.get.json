@@ -198,42 +198,49 @@
         "description": "Elements per `state` over all pages.",
         "properties": {
           "unchanged": {
+            "x-elements": "selection",
             "title": "Unchanged",
             "description": "Elements unchanged since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "changed": {
+            "x-elements": "selection",
             "title": "Changed",
             "description": "Elements changed since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "superseded": {
+            "x-elements": "selection",
             "title": "Superseded",
             "description": "Elements superseded since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "removed": {
+            "x-elements": "selection",
             "title": "Removed",
             "description": "Elements that left the selection since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "added": {
+            "x-elements": "selection",
             "title": "Added",
             "description": "Elements that joined the selection since the baseline.",
             "type": "integer",
             "minimum": 0
           },
           "missing": {
+            "x-elements": "selection",
             "title": "Missing",
             "description": "Elements of the baseline that are not found.",
             "type": "integer",
             "minimum": 0
           },
           "inaccessible": {
+            "x-elements": "selection",
             "title": "Not on this machine",
             "description": "Elements of the baseline in a repository that is not on this machine.",
             "type": "integer",
@@ -244,6 +251,7 @@
         "required": ["unchanged", "changed", "superseded", "removed", "added", "missing", "inaccessible"]
       },
       "total": {
+        "x-elements": "elements",
         "title": "Total",
         "type": "integer",
         "minimum": 0,

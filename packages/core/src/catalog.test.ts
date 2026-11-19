@@ -261,4 +261,17 @@ describe("lazyCommand", () => {
       "command workspace.status gives no output elements",
     );
   });
+
+  it("passes countedElements on to the module, and fails when the module has none (#1915)", async () => {
+    const elements = { elements: [{ id: "a", repository: "system" }], incomplete: false };
+    const counting = defineCommand({ ...status, countedElements: () => Promise.resolve(elements) });
+    const input = {} as CommandInput<"workspace.status">;
+    const count = { field: "n", key: [] };
+    const lazy = lazyCommand("workspace.status", () => Promise.resolve({ default: counting }));
+    expect(await lazy.countedElements?.(ctx, input, count)).toBe(elements);
+    const without = lazyCommand("workspace.status", () => Promise.resolve({ default: status }));
+    await expect(without.countedElements?.(ctx, input, count)).rejects.toThrow(
+      "command workspace.status gives no counted elements",
+    );
+  });
 });
