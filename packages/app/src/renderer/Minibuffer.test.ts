@@ -67,6 +67,30 @@ describe("Minibuffer", () => {
     expect(command).toHaveBeenCalledTimes(2);
   });
 
+  it("opens what a linked message reports on a press and click on it, and the commands beside it (SR-223 AK8, SR-202 AK1)", async () => {
+    const command = vi.fn();
+    const open = vi.fn();
+    await render(
+      createElement(Minibuffer, {
+        echo: "Created baseline R1.",
+        onEcho: open,
+        prompt: undefined,
+        onCommand: command,
+        onClose: vi.fn(),
+      }),
+    );
+    for (const target of [query(".echo-open"), query('[aria-label="Minibuffer"]')]) {
+      await act(async () => {
+        target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        await Promise.resolve();
+      });
+      await click(target);
+    }
+    expect(query(".echo-open").textContent).toBe("Created baseline R1.");
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(command).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the next keys as rows of key and command, without an input", async () => {
     const onCommand = vi.fn();
     await render(

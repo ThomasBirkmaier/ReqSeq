@@ -71,7 +71,8 @@ export {
 } from "./property-plan.js";
 export type { KindField, PropertyKind } from "./property-plan.js";
 export { metamodelState } from "./state.js";
-export { changeMetamodel, definitionAt, definitionsOf, editedFiles } from "./write.js";
+export { statusKeysOf, statusListHolders, typeDefinition, widenedTypes } from "./status-lists.js";
+export { changeMetamodel, definitionAt, definitionsOf, editedFiles, fileForNew } from "./write.js";
 export type {
   DefinitionList,
   DefinitionPlace,

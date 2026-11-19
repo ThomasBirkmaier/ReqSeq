@@ -496,16 +496,6 @@ export const setMapValue = (
 };
 
 /**
- * Refuses the node at `at` in `yaml`, read from `file`, when it or anything in it, or a node on the
- * way to it, is an alias or carries an anchor (`file.faulty` with file and line, SR-236 AK5): a
- * command checks each definition it changes before it plans its edits.
- */
-export const refuseSharedAt = (yaml: EditableYaml, file: string, at: YamlPath): void => {
-  const parsed = parsedOf(yaml, file);
-  refuseSharedWithin(parsed, file, nodeAt(parsed, file, at), at.join("."));
-};
-
-/**
  * The start of the line of the dash of a block list item that starts at `start`: its own line, or the
  * nearest line above it that starts with a dash (`- # comment` before the item's first key). A dash
  * in a comment line does not count.
@@ -597,4 +587,14 @@ export const removeListItem = (
     withValue(parsed.data, at, index, undefined),
     `removing ${[...at, index].join(".")}`,
   );
+};
+
+/**
+ * Refuses the definition at `at` in `yaml` (read from `file`, named in errors) when it, or a node on
+ * the way to it, is an alias or holds an anchor anywhere (SR-236 AK5), as `setMapValue` refuses
+ * the mapping it changes; for a change that edits only a part of the definition, such as one list.
+ */
+export const refuseShared = (yaml: EditableYaml, file: string, at: YamlPath): void => {
+  const parsed = parsedOf(yaml, file);
+  refuseSharedWithin(parsed, file, nodeAt(parsed, file, at), at.join("."));
 };

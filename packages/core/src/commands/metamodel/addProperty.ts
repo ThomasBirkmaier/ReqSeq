@@ -8,7 +8,7 @@
 //   every other field is set with metamodel.changeProperty (SR-238 AK1).
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { appendListItem, refuseSharedAt } from "../../files/index.js";
+import { appendListItem, refuseShared } from "../../files/index.js";
 import type { MetamodelProperty } from "../../generated/types.js";
 import type { KindField, LineEdit, Metamodel, MetamodelSource, PropertyKind } from "../../metamodel/index.js";
 import {
@@ -17,6 +17,7 @@ import {
   findType,
   newChoices,
   newPropertyKey,
+  fileForNew,
   ownLists,
   propertyDefinition,
   refuseOutsideKind,
@@ -106,9 +107,7 @@ export default defineCommand({
           throw propertyOrNew();
         }
         const definition = newDefinition(metamodel, input, name, kind);
-        const target =
-          files.find((f) => (f.data as { readonly properties?: unknown }).properties !== undefined) ??
-          files[0];
+        const target = fileForNew(files, "properties");
         edits.push({
           file: target,
           edit: (yaml) => appendListItem(yaml, target.path, ["properties"], definition),
@@ -130,7 +129,7 @@ export default defineCommand({
       }
       const { file, index } = typePlace;
       // The type's definition changes: an anchor or alias in it is refused (SR-236 AK5).
-      refuseSharedAt(file, file.path, ["types", index]);
+      refuseShared(file, file.path, ["types", index]);
       // A key the type lists already without a definition (a metamodel warning) is not listed twice.
       const lists = ownLists(own, key);
       const required = input.required || lists.required !== -1;

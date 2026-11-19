@@ -293,6 +293,18 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", property: "rationale" },
     { type: "system-requirement", property: "title" },
   ],
+  "metamodel.addStatus": [
+    { type: "need", name: "Under review" },
+    { type: "need", status: "draft" },
+  ],
+  "metamodel.changeStatus": [
+    { status: "approved", description: "Agreed" },
+    { status: "approved", name: "Draft" },
+  ],
+  "metamodel.removeStatus": [
+    { type: "need", status: "obsolete" },
+    { type: "system-requirement", status: "draft" },
+  ],
   "metamodel.get": [{}, { extra: true }],
   "metamodel.mermaid": [{}, { extra: true }],
   "relation.add": [

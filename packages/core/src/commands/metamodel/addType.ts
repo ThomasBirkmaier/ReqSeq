@@ -7,7 +7,7 @@ import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 import { appendListItem } from "../../files/index.js";
 import type { MetamodelType } from "../../generated/types.js";
 import type { Metamodel } from "../../metamodel/index.js";
-import { keyOrMade } from "../../metamodel/index.js";
+import { fileForNew, keyOrMade } from "../../metamodel/index.js";
 import { writeMetamodel } from "../../model/index.js";
 
 const COMMAND = "metamodel.addType";
@@ -54,8 +54,7 @@ export default defineCommand({
         ...(input.abstract ? { abstract: true } : {}),
         ...(input.extends === undefined && title !== undefined ? { required: [title] } : {}),
       };
-      const target =
-        files.find((f) => (f.data as { readonly types?: unknown }).types !== undefined) ?? files[0];
+      const target = fileForNew(files, "types");
       return {
         bytes: new Map([[target.path, appendListItem(target, target.path, ["types"], added).bytes]]),
         result: added,

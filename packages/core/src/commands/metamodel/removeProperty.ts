@@ -14,7 +14,7 @@
 //   (`file.faulty`, assumption of #1990).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { refuseSharedAt, removeListItem } from "../../files/index.js";
+import { refuseShared, removeListItem } from "../../files/index.js";
 import type { LineEdit, Metamodel, MetamodelSource } from "../../metamodel/index.js";
 import {
   definitionAt,
@@ -93,7 +93,7 @@ export default defineCommand({
       refuseMissingRepositories(layout, COMMAND);
       const { file, index } = typePlace;
       // The type's definition changes: an anchor or alias in it is refused (SR-236 AK5).
-      refuseSharedAt(file, file.path, ["types", index]);
+      refuseShared(file, file.path, ["types", index]);
       const edits: Edit[] = (["properties", "required"] as const)
         .filter((list) => lists[list] !== -1)
         .map((list) => ({

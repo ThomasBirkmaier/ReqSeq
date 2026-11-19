@@ -387,6 +387,11 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /**
+   * Says `message` in the command line like `echo`, and a click on the message runs `open` (SR-223 AK8: the
+   * output of a write command). Absent: `echo`, and the message opens nothing.
+   */
+  readonly report?: (message: string, open: () => void) => void;
   /** Shows the window "About ReqSeq" with the output of `tool.info` (SR-161). Absent: a result buffer shows it. */
   readonly about?: (info: AboutInfo) => void;
   /** Puts `text` on the clipboard, and the modeline confirms it with `label` (SR-128 AK2). */

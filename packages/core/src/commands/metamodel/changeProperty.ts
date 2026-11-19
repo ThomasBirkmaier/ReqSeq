@@ -18,7 +18,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { EditableYaml, YamlEditResult, YamlPath } from "../../files/index.js";
-import { appendListItem, refuseSharedAt, removeListItem, setMapValue } from "../../files/index.js";
+import { appendListItem, refuseShared, removeListItem, setMapValue } from "../../files/index.js";
 import type { MetamodelNamed, MetamodelProperty } from "../../generated/types.js";
 import type { WorkspaceLayout } from "../../workspace/index.js";
 import type {
@@ -181,7 +181,7 @@ const requiredEdits = (
       { reason: "inherited", type: typeKey, property: key, from },
     );
   }
-  refuseSharedAt(file, file.path, ["types", index]);
+  refuseShared(file, file.path, ["types", index]);
   const list = (name: "properties" | "required"): YamlPath => ["types", index, name];
   if (required) {
     return [{ file, edit: (yaml) => appendListItem(yaml, file.path, list("required"), key) }];
@@ -354,7 +354,7 @@ export default defineCommand({
       const definitionChanges = definitionEdits(input, own, place, result);
       if (definitionChanges.length > 0) {
         // The definition changes: an anchor or alias in it is refused (SR-236 AK5).
-        refuseSharedAt(place.file, place.file.path, ["properties", place.index]);
+        refuseShared(place.file, place.file.path, ["properties", place.index]);
       }
       const edits = [
         ...definitionChanges,

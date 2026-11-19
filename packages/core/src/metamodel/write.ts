@@ -90,6 +90,14 @@ export const definitionAt = (
   return found === undefined ? undefined : { file: found.file, index: found.index };
 };
 
+/**
+ * The file a new definition of `list` goes into (SR-236 AK4): the first of `files` (in name order)
+ * that has the list, else the first file, at whose end the list is created.
+ */
+export const fileForNew = (files: readonly [YamlFile, ...YamlFile[]], list: DefinitionList): YamlFile =>
+  files.find((file) => (file.data as Partial<Record<DefinitionList, unknown>>)[list] !== undefined) ??
+  files[0];
+
 /** One line edit of a file's text (`setMapValue`, `removeListItem` or `appendListItem` with its arguments). */
 export type LineEdit = (yaml: EditableYaml) => YamlEditResult;
 
