@@ -82,7 +82,7 @@ export default defineCommand({
   name: "trace.graph",
   answer: (output, input) =>
     sentence(
-      `The graph of ${input.ref} has ${counted(output.nodes.length, "element")} and ${counted(output.edges.length, "link")}`,
+      `The graph of ${input.ref} has ${counted(output.nodes.length, "element")} and ${counted(output.edges.length, "relation")}`,
       output.truncated ? "cut by limit" : "",
       problemsNote(output.problems),
       incompleteNote(output.incomplete),

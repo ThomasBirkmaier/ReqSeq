@@ -10,7 +10,7 @@ import { evidenceReadState, selectionDegree, variantIdsOf, viewIdOf } from "../.
 import { namesField, namesOf } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 import type { View } from "../../variants/index.js";
-import { counted, incompleteNote, sentence } from "../answer.js";
+import { counted, incompleteNote, sentence, viewNamed } from "../answer.js";
 import { degreePercent } from "../../evidence/degree-text.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
@@ -21,7 +21,7 @@ export default defineCommand({
     const { degree } = output;
     const verified = degree.counts.verified + degree.counts.indirect;
     return sentence(
-      `${String(verified)} of ${counted(degree.total, "requirement")} in view ${output.view} ${verified === 1 ? "is" : "are"} verified or indirectly verified${degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`}`,
+      `${String(verified)} of ${counted(degree.total, "requirement")} in view ${viewNamed(output.view, output.names)} ${verified === 1 ? "is" : "are"} verified or indirectly verified${degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`}`,
       incompleteNote(output.incomplete),
     );
   },

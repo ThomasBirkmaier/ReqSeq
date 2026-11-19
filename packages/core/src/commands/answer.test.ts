@@ -18,6 +18,7 @@ import {
   paged,
   problemsNote,
   sentence,
+  viewNamed,
 } from "./answer.js";
 import elementList from "./element/list.js";
 import { commands } from "./index.js";
@@ -91,6 +92,16 @@ describe("the answer of every command (SR-224 AK1)", () => {
 });
 
 describe("the words of the answers", () => {
+  it("names a view as core, else its variant by identifier or short ID, else by UUID", () => {
+    const id = "37373737-3737-4737-8737-00000000c001";
+    expect([
+      viewNamed("core", undefined),
+      viewNamed(id, [{ id, shortId: "VAR-00c001", identifier: "VAR-001" }]),
+      viewNamed(id, [{ id, shortId: "VAR-00c001" }]),
+      viewNamed(id, []),
+    ]).toEqual(["core", "VAR-001", "VAR-00c001", id]);
+  });
+
   it("counts, pages, names and lists", () => {
     expect([counted(1, "entry", "entries"), counted(0, "file"), counted(2, "file")]).toEqual([
       "1 entry",

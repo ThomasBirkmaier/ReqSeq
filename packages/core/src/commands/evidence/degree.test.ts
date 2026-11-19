@@ -202,8 +202,7 @@ describe("evidence.degree (SR-037)", () => {
     // the variant of the view for readers (ThomasBirkmaier/ReqSeq-archive#588).
     const pro = { id: V, repository: "system", shortId: "VAR-00c001", title: "Pro" };
     expect(await degree(workspace, { selection: { ids: [R01, RV], view: "VAR-00c001" } })).toEqual({
-      answer:
-        "1 of 2 requirements in view 37373737-3737-4737-8737-00000000c001 is verified or indirectly verified (50 %).",
+      answer: "1 of 2 requirements in view VAR-00c001 is verified or indirectly verified (50 %).",
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: V,
       incomplete: false,

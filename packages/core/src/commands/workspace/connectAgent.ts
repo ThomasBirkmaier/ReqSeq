@@ -7,6 +7,7 @@ import { realpath, stat } from "node:fs/promises";
 import os from "node:os";
 import type { InvokedOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { sentence } from "../answer.js";
 import { CHOOSE_CLIENT, CLIENTS, deliveryLauncher, setupOf } from "../../agent-setup.js";
 import { currentInstallation } from "../../installation.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
@@ -63,7 +64,8 @@ export default defineCommand({
       throw new CommandError(result.code, result.message);
     }
     return {
-      answer: result.answer,
+      // One line also for a workspace name with a line break (SR-224 AK1).
+      answer: sentence(result.answer.replace(/\.$/, "")),
       client,
       server: { ...result.server, args: [...result.server.args] },
       setup: result.setup,

@@ -220,6 +220,28 @@ describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
     }
   });
 
+  it("[SR-224/AK-cw40] gives the same answer through the CLI, the API and MCP", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    const session = await mcpSession("answering agent");
+    try {
+      const viaCli = await vi.waitFor(async () => {
+        const output = (await agentsViaCli()) as { answer: string; connected: unknown[] };
+        expect(output.connected).toHaveLength(1);
+        return output;
+      });
+      const viaApi = (await withApi((call) => call("workspace.agents"))) as { answer: string };
+      const viaMcp = (await session.client.callTool({ name: "workspace_agents", arguments: {} }))
+        .structuredContent as { answer: string };
+      expect([viaCli.answer, viaApi.answer, viaMcp.answer]).toEqual([
+        "1 agent connected to this copy; no connection has ended.",
+        "1 agent connected to this copy; no connection has ended.",
+        "1 agent connected to this copy; no connection has ended.",
+      ]);
+    } finally {
+      await session.close();
+    }
+  });
+
   it("[SR-228/AK-sggn] gives a connection whose process crashed as the one connected last", async () => {
     const cache = cacheFolder(fixture.root);
     await fs.rm(cache, { recursive: true, force: true });

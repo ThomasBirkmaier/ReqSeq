@@ -105,6 +105,19 @@ describe("workspace.connectAgent", () => {
     expect(Object.keys(output)).toEqual(["answer", "client", "server", "setup", "valid", "next"]);
   });
 
+  it("keeps its answer on one line for a workspace name with a line break (SR-224 AK1)", async () => {
+    await installation();
+    const ws = await fixture();
+    const file = path.join(ws.root, "reqseq-workspace.yaml");
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("name: Weather station", 'name: "Weather\\nstation"'),
+    );
+    expect((await run(ws.root, { client: "other" })).answer).toBe(
+      'Add this entry to your client\'s MCP configuration to connect it to the workspace "Weather station".',
+    );
+  });
+
   it("refuses without the command line's entry", async () => {
     const ws = await fixture();
     setInstallation({ runtime: process.execPath, entry: path.join(ws.root, "missing.js"), electron: false });

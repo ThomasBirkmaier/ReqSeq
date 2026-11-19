@@ -15,6 +15,19 @@ export const paged = (shown: number, total: number, noun: string, plural?: strin
 export const named = (element: { readonly shortId: string; readonly identifier?: string }): string =>
   element.identifier ?? element.shortId;
 
+/**
+ * A view as a sentence names it: `core`, or its variant by identifier, else short ID, from the `names` of
+ * the output; the UUID only when `names` lacks it.
+ */
+export const viewNamed = (
+  view: string,
+  names:
+    readonly { readonly id: string; readonly shortId: string; readonly identifier?: string }[] | undefined,
+): string => {
+  const variant = names?.find((name) => name.id === view);
+  return variant === undefined ? view : named(variant);
+};
+
 /** `a`, `a and b`, `a, b and c`; "" for none. */
 export const listed = (items: readonly string[]): string =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.slice(-1).join("")}`;
