@@ -49,6 +49,8 @@ describe("metamodel.addStatus gives a type a status (SR-240 AK1)", () => {
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     // Risk inherits the list of hazard and gets one of its own, with only the new status.

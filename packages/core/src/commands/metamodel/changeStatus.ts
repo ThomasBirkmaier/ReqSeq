@@ -14,7 +14,7 @@ import { setMapValue } from "../../files/index.js";
 import type { MetamodelStatus } from "../../generated/types.js";
 import type { LineEdit, Metamodel } from "../../metamodel/index.js";
 import { definitionAt, editedFiles } from "../../metamodel/index.js";
-import { hasStatus, writeMetamodel } from "../../model/index.js";
+import { hasStatus, shortIdState, writeMetamodel } from "../../model/index.js";
 import { counted, filesNote, problemsNote, sentence } from "../answer.js";
 
 const COMMAND = "metamodel.changeStatus";
@@ -89,6 +89,7 @@ export default defineCommand({
       problemsNote(output.problems),
     ),
   run: async (ctx, input): Promise<CommandOutput<"metamodel.changeStatus">> => {
+    const shortIds = await ctx.workspace.get(shortIdState);
     const change = await writeMetamodel(ctx.workspace, COMMAND, ({ metamodel, files, store }) => {
       const place = definitionAt(files, "statuses", input.status);
       const own = metamodel.statuses.find((s) => s.key === input.status);
@@ -128,7 +129,9 @@ export default defineCommand({
           previousInitial: previous?.key,
           // The elements with the status, in any type and status of the store (D-044).
           elements: changed.includes("invalid")
-            ? store.elements.filter((e) => hasStatus(e, input.status)).length
+            ? store.elements
+                .filter((e) => hasStatus(e, input.status))
+                .map((e) => ({ id: e.id, shortId: shortIds.of(e), repository: e.repository }))
             : undefined,
         },
       };
@@ -137,10 +140,12 @@ export default defineCommand({
     return {
       status,
       ...(previousInitial === undefined ? {} : { previousInitial }),
-      ...(elements === undefined ? {} : { elements }),
+      ...(elements === undefined ? {} : { elements: elements.length, elementsWithStatus: elements }),
       files: change.files,
       versionsChanged: change.versionsChanged,
       missingRequired: change.missingRequired,
+      versionsChangedElements: [...change.versionsChangedElements],
+      missingRequiredElements: [...change.missingRequiredElements],
       problems: change.warnings,
     };
   },

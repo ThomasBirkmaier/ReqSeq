@@ -33,9 +33,15 @@ describe("metamodel.changeStatus changes a status in place (SR-240 AK2)", () => 
       answer: "Changed the status Opened; 2 elements have this status; 1 file written.",
       status: { key: "open", name: "Opened", description: "Not done: yet", invalid: true },
       elements: 2,
+      elementsWithStatus: [
+        { id: uuid(1), shortId: "HZ-000001", repository: "system" },
+        { id: uuid(2), shortId: "NO-000002", repository: "system" },
+      ],
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     expect(await read(MODEL)).toBe(

@@ -2674,10 +2674,14 @@ export interface MetamodelAddStatusOutput {
   readonly alsoTypes: readonly Key[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2709,14 +2713,20 @@ export interface MetamodelChangeStatusOutput {
   readonly status: MetamodelStatus;
   /** Key of the status that lost the initial mark; only when the status became initial. */
   readonly previousInitial?: Key;
-  /** The elements that have the status, of any type; only when the invalid mark changed (D-044). */
+  /** The elements that have the status, of any type; only when the invalid mark changed (D-044); those of `elementsWithStatus`. */
   readonly elements?: number;
+  /** The elements `elements` counts, in store order; only when the invalid mark changed. */
+  readonly elementsWithStatus?: readonly CountedElement[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }
@@ -2748,10 +2758,14 @@ export interface MetamodelRemoveStatusOutput {
   readonly mentions: readonly OutputPath[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
-  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before; those of `versionsChangedElements`. */
   readonly versionsChanged: number;
-  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3); those of `missingRequiredElements`. */
   readonly missingRequired: number;
+  /** The elements `versionsChanged` counts, in store order. */
+  readonly versionsChangedElements: readonly CountedElement[];
+  /** The elements `missingRequired` counts, in store order. */
+  readonly missingRequiredElements: readonly CountedElement[];
   /** The warnings of the metamodel afterwards (SR-236 AK1). */
   readonly problems: readonly Problem[];
 }

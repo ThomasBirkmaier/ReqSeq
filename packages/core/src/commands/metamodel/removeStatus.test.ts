@@ -43,6 +43,8 @@ describe("metamodel.removeStatus removes a status from a type (SR-240 AK3)", () 
       files: [MODEL],
       versionsChanged: 0,
       missingRequired: 0,
+      versionsChangedElements: [],
+      missingRequiredElements: [],
       problems: [],
     });
     expect(await read(MODEL)).toBe(
