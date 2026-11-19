@@ -429,6 +429,11 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   sort: typed(jsonOr),
   properties: typed(jsonOr),
   relations: typed(jsonOr),
+  // Built in the steps of the metamodel commands (`metamodel-prompt.ts`, SR-236 AK11); never asked through
+  // their offer.
+  choices: typed(jsonOr),
+  choiceChanges: typed(jsonOr),
+  limits: typed(jsonOr),
 };
 
 /** What the argument at `at` offers, or why its values cannot be read. */

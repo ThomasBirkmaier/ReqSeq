@@ -348,6 +348,9 @@ importers:
       hast-util-to-mdast:
         specifier: 10.1.2
         version: 10.1.2
+      katex:
+        specifier: 0.19.0
+        version: 0.19.0
       mdast-util-from-markdown:
         specifier: 2.1.0
         version: 2.1.0
@@ -379,6 +382,18 @@ importers:
       '@types/mdast':
         specifier: 4.0.4
         version: 4.0.4
+      happy-dom:
+        specifier: 21.0.4
+        version: 21.0.4
+      mermaid:
+        specifier: 11.17.2
+        version: 11.17.2
+      micromark-util-types:
+        specifier: 2.0.3
+        version: 2.0.3
+      rolldown:
+        specifier: 1.2.15
+        version: 1.2.15
 
   packages/docs:
     dependencies:
@@ -410,6 +425,9 @@ importers:
       micromark-extension-gfm:
         specifier: 3.0.0
         version: 3.0.0
+      parse5:
+        specifier: 8.1.1
+        version: 8.1.1
 
   packages/mcp:
     dependencies:
@@ -1803,6 +1821,10 @@ packages:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
     engines: {node: '>=0.12'}
 
+  entities@9.0.0:
+    resolution: {integrity: sha512-oJFNDJg3kTPwAD1cNn2+WmUq4wFoo09npc3Ydf1D7ED4smRiWrsKnaLxykrTWgyGEcusc87P5dxlAleol9kpkg==}
+    engines: {node: '>=20.19.0'}
+
   env-paths@3.0.0:
     resolution: {integrity: sha512-dtJUTepzMW3Lm/NPxRf3wP4642UWhjL2sQxc+ym2YMj1m/H2zDNQOlezafzkHwn6sMstjHTwG6iQQsctDW/b1A==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -2469,6 +2491,9 @@ packages:
   parse-ms@4.0.0:
     resolution: {integrity: sha512-TXfryirbmq34y8QBwgqCVLi+8oA3oWx2eAnSn62ITyEhEYaWRlVZ2DvMM9eZbMs/RfxPu/PK/aBLyGj4IrqMHw==}
     engines: {node: '>=18'}
+
+  parse5@8.1.1:
+    resolution: {integrity: sha512-EcR/6WDcU7b2N3vQSxKALCk9lXGtUMQxXio008OEMBE0kavu/7JLfBEeFPzi43nMqVDSbEn3QCK+BMCc9zO//w==}
 
   path-data-parser@0.1.0:
     resolution: {integrity: sha512-NOnmBpt5Y2RWbuv0LMzsayp3lVylAHLPUTut412ZA3l+C4uw4ZVkQbjShYCQ8TCpUMdPapr4YjUqLYD6v68j+w==}
@@ -4485,6 +4510,8 @@ snapshots:
 
   entities@7.0.1: {}
 
+  entities@9.0.0: {}
+
   env-paths@3.0.0: {}
 
   es-define-property@1.0.1: {}
@@ -5344,6 +5371,10 @@ snapshots:
   package-manager-detector@1.9.0: {}
 
   parse-ms@4.0.0: {}
+
+  parse5@8.1.1:
+    dependencies:
+      entities: 9.0.0
 
   path-data-parser@0.1.0: {}
 

@@ -37,7 +37,7 @@
     },
     {
       "field": "choices",
-      "complete": "json"
+      "complete": "choices"
     },
     {
       "field": "targetTypes",
