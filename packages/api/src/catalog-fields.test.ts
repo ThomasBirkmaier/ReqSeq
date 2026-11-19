@@ -151,7 +151,7 @@ describe("the catalog the API gives", () => {
         .filter((entry) => entry.showsOutput === true)
         .map((entry) => entry.name)
         .sort(),
-    ).toEqual(["element.bulkUpdate", "evidence.enrichJunit", "reqif.export", "reqif.import"]);
+    ).toEqual(["element.bulkUpdate", "evidence.enrichJunit", "reqif.export", "reqif.import", "tool.guide"]);
     // A command that names only its files, problems and the element it wrote does not show its output, and
     // neither does workspace.init: the app shows the overview after it (SR-226 AK2).
     for (const name of [
