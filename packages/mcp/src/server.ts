@@ -62,6 +62,7 @@ const listed = (tool: ServerTool): Tool => ({
   // Every catalog input schema has `type: "object"` at its root (catalog.meta.schema.json), as MCP requires.
   inputSchema: tool.inputSchema as Tool["inputSchema"],
   annotations: { ...tool.annotations },
+  ...(tool._meta === undefined ? {} : { _meta: { ...tool._meta } }),
 });
 
 /** One tool call: the command output, or the CommandError as a tool error. Never rejects. */

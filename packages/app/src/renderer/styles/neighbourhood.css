@@ -1,0 +1,34 @@
+/* The neighbourhood (SR-107): the parents above the title, the children as a tree, the incoming links by
+   kind. The rows are those of the lists. Greys, and the accent for "outdated" only. */
+.neighbourhood {
+  padding: 2rem 0.75rem 4rem;
+}
+
+.neighbourhood .twisty {
+  display: inline-block;
+  width: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.neighbourhood .repeated {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The parents line wraps: a parent that is cut off could not be followed. */
+.parents {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.parents [role="link"] {
+  cursor: pointer;
+}
+
+.parents [role="link"]:hover,
+.parents [role="link"]:focus-visible {
+  text-decoration: underline;
+}
