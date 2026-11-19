@@ -60,7 +60,6 @@ test.describe("the main view on a fixture workspace", () => {
       // where the window's own pointer may rest when the element's layout moves under it (Windows).
       await window.mouse.move(0, 0);
       for (const role of [
-        "button",
         "tab",
         "tablist",
         "navigation",
@@ -76,6 +75,12 @@ test.describe("the main view on a fixture workspace", () => {
       ] as const) {
         expect([role, await window.getByRole(role).count()]).toEqual([role, 0]);
       }
+      // Except the agent part of the modeline (SR-228 AK3), which SR-100 AK1 allows as part of the modeline.
+      expect(
+        await window
+          .getByRole("button")
+          .evaluateAll((all) => all.filter((e) => !e.matches(".modeline button.agent")).length),
+      ).toBe(0);
       expect(
         await window
           .getByRole("textbox")
