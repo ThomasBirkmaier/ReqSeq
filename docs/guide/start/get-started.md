@@ -32,7 +32,7 @@ next:
   reqseq element create <type> <title>              Create element
 ```
 
-The lines under `next:` are the next steps: connect an AI agent, then create an element. `reqseq` alone lists the first steps the same way. ReqSeq never commits: put the folder under Git yourself.
+ReqSeq never commits: put the folder under Git yourself.
 
 In the app: Ctrl+O and choose the folder, then run **Create workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 

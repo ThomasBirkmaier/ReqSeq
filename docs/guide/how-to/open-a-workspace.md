@@ -41,15 +41,7 @@ name: Weather station
 No problems.
 ```
 
-Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise the next step creates a workspace in that folder, with the name still to give:
-
-```text title="Output"
-error workspace.not-found: No reqseq-workspace.yaml in the workspace folder
-next:
-  reqseq workspace init . <name>  Create workspace
-```
-
-After `workspace init`, the output names the next steps under `next:`, with `--workspace` when the new workspace is not the current folder. API and MCP return the same steps as data: `next` in the output of `workspace.init` and in the `details` of the error.
+Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
 
 `workspace recent` lists the workspaces the app opened last; the CLI only reads that list:
 
