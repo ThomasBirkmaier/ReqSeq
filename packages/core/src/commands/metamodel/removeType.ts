@@ -8,6 +8,9 @@
 // - Dropped with it (SR-238 AK5, SR-240 AK3): its own properties that no other type lists, and the
 //   statuses it has that no other type has, except the initial status. A type without a status list
 //   has every status, so a status is dropped only while every other type has a list without it.
+//   One that an element of another type, or of a type the metamodel does not know, still holds
+//   stays, and `kept` names each with the number of those elements (`keptDefinitions`); so is the
+//   initial status when no type has it any more and an element has it (SR-240 AK3).
 // - Saved filters, perspectives and mapping files that name a removed key are listed, not changed.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -15,6 +18,9 @@ import { removeListItem } from "../../files/index.js";
 import type { DefinitionList, DefinitionPlace, LineEdit, Metamodel } from "../../metamodel/index.js";
 import { definitionAt, definitionsOf, editedFiles, findType } from "../../metamodel/index.js";
 import {
+  holdsKey,
+  keptDefinitions,
+  keptNote,
   mentioningFiles,
   refuseMissingRepositories,
   refuseUses,
@@ -46,11 +52,10 @@ const namedBy = (metamodel: Metamodel, type: string, dropped: readonly string[])
 ];
 
 /**
- * The properties and statuses that only `type` has, which go with it (see the file comment): once no
- * type has one, its definition goes (SR-238 AK5, SR-240 AK3), also while an element of another type
- * holds it outside its type (a hint already, `element.unknown-property`, `element.status-not-allowed`).
+ * The properties and statuses that only `type` has, which no type has once it goes (see the file
+ * comment); `keptDefinitions` keeps those an element still holds (SR-238 AK5, SR-240 AK3).
  */
-const droppedWith = (
+const unhadWithout = (
   metamodel: Metamodel,
   type: string,
 ): { readonly properties: readonly string[]; readonly statuses: readonly string[] } => {
@@ -66,10 +71,7 @@ const droppedWith = (
   const status = only("statuses");
   return {
     properties: metamodel.properties.map((p) => p.key).filter(property),
-    statuses: metamodel.statuses
-      .filter((s) => s.initial !== true)
-      .map((s) => s.key)
-      .filter(status),
+    statuses: metamodel.statuses.map((s) => s.key).filter(status),
   };
 };
 
@@ -94,6 +96,7 @@ export default defineCommand({
           ? ""
           : ` with ${listed([...output.removed.properties, ...output.removed.statuses])}`
       }`,
+      keptNote(output.kept),
       filesNote(output.files),
       output.mentions.length === 0
         ? ""
@@ -116,10 +119,24 @@ export default defineCommand({
         );
       }
       refuseMissingRepositories(layout, COMMAND);
-      const removed = droppedWith(metamodel, input.type);
+      const held = keptDefinitions(store, shortIds, unhadWithout(metamodel, input.type));
+      // The initial status's definition never goes; `kept` names it while elements have it (SR-240 AK3).
+      const initial = new Set(metamodel.statuses.filter((s) => s.initial === true).map((s) => s.key));
+      const removed = { ...held, statuses: held.statuses.filter((key) => !initial.has(key)) };
+      // A kept relation property that targets the type names it: the refusal names its elements too.
+      const targeting = new Set(
+        metamodel.properties
+          .filter((p) => p["target-types"]?.includes(input.type) === true)
+          .map((p) => p.key),
+      );
       refuseUses(
         `Type ${input.type} cannot be removed`,
-        [useOf(store, shortIds, "type", input.type, (e) => e.type === input.type)],
+        [
+          useOf(store, shortIds, "type", input.type, (e) => e.type === input.type),
+          ...removed.kept
+            .filter((k) => k.kind === "property" && targeting.has(k.key))
+            .map((k) => useOf(store, shortIds, "property", k.key, (e) => holdsKey(e, k.key))),
+        ],
         namedBy(metamodel, input.type, removed.properties),
       );
       const dropped = (list: DefinitionList, keys: readonly string[]): typeof places =>
@@ -137,6 +154,7 @@ export default defineCommand({
     return {
       type: input.type,
       removed: { properties: [...change.result.properties], statuses: [...change.result.statuses] },
+      kept: [...change.result.kept],
       mentions: [...(await mentioningFiles(layout, keys))],
       files: change.files,
       versionsChanged: change.versionsChanged,
