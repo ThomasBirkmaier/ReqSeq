@@ -482,6 +482,48 @@
           ],
           "additionalProperties": false
         },
+        "keptDefinition": {
+          "description": "A property or status definition that no type has any more and that stays, as elements of any type, also of a type the metamodel does not know, hold it.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string",
+              "enum": [
+                "property",
+                "status"
+              ],
+              "description": "property, or status."
+            },
+            "key": {
+              "title": "Key",
+              "$ref": "#/$defs/key"
+            },
+            "count": {
+              "title": "Elements holding it",
+              "type": "integer",
+              "minimum": 1,
+              "description": "The elements that have the status, or whose file holds the property key, also with an empty value; those of `elements`.",
+              "x-elements": "elements"
+            },
+            "elements": {
+              "title": "Elements holding it",
+              "type": "array",
+              "description": "The elements `count` counts, in store order.",
+              "items": {
+                "$ref": "#/$defs/countedElement"
+              },
+              "x-elements": true
+            }
+          },
+          "required": [
+            "kind",
+            "key",
+            "count",
+            "elements"
+          ],
+          "additionalProperties": false
+        },
         "elementName": {
           "description": "How an output names an element it gives elsewhere by UUID only, for people: its short ID, its identifier when it has one and its title, as element.list gives them.",
           "type": "object",
@@ -949,6 +991,7 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
@@ -959,6 +1002,7 @@
             "reqif.source-value-chosen",
             "html.unsafe-content",
             "html.image-not-copied",
+            "html.formula-error",
             "html.foreign-file",
             "html.marker-entry-ignored",
             "html.cleanup-failed"
@@ -8613,7 +8657,7 @@
         "name": "metamodel.removeType",
         "title": "Remove type",
         "summary": "Remove a type that no element has, no type extends and no other definition names; only the metamodel files change, and no element.",
-        "details": "The definition is removed from `types` of the file it is in, with its lines and the comment lines directly above it. Its own properties that no other type has lose their definition, and so do the statuses it had that no other type has (a type without a status list has every status; the initial status always stays), as when the last type loses them. No element file changes and nothing in Git; no element is deleted. Refused while an element of any status has the type, a type extends it, or a relation kind names it in `source-types`, `target-types` or a limit, or a property in `target-types` (except a property that goes with it); the refusal names each of these and the use. Saved filters, perspectives and mapping files that name a removed key are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type has the key (details.type); input.invalid with details.reason in-use (details.named: the definitions that name the type; details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.folder-missing when a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a removed definition or a node on the way to it is an alias or has an anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "details": "The definition is removed from `types` of the file it is in, with its lines and the comment lines directly above it. Its own properties that no other type has lose their definition, and so do the statuses it had that no other type has (a type without a status list has every status; the initial status always stays), as when the last type loses them: one that an element of another type, or of a type the metamodel does not know, still holds stays, and `kept` names each with those elements; a kept relation property that has the type as target type refuses the removal, with its elements in `details.uses`: that entry counts every element that holds the key, of any type, and `metamodel.changeProperty` can take the type out of its `target-types`. No element file changes and nothing in Git; no element is deleted. Refused while an element of any status has the type, a type extends it, or a relation kind names it in `source-types`, `target-types` or a limit, or a property in `target-types` (except a property that goes with it); the refusal names each of these and the use. Saved filters, perspectives and mapping files that name a removed key are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type has the key (details.type); input.invalid with details.reason in-use (details.named: the definitions that name the type; details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.folder-missing when a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a removed definition or a node on the way to it is an alias or has an anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
@@ -8662,7 +8706,7 @@
                   "items": {
                     "$ref": "../common.schema.json#/$defs/key"
                   },
-                  "description": "Properties whose definition was removed, as no other type has them."
+                  "description": "Properties whose definition was removed, as no other type has them and no element holds them."
                 },
                 "statuses": {
                   "title": "Statuses",
@@ -8670,7 +8714,7 @@
                   "items": {
                     "$ref": "../common.schema.json#/$defs/key"
                   },
-                  "description": "Statuses whose definition was removed, as no other type has them."
+                  "description": "Statuses whose definition was removed, as no other type has them and no element has them."
                 }
               },
               "additionalProperties": false,
@@ -8678,7 +8722,20 @@
                 "properties",
                 "statuses"
               ],
-              "description": "The definitions removed with the type: its properties and statuses that no other type has."
+              "description": "The definitions removed with the type: its properties and statuses that no other type has and no element holds or has, never the initial status; those that stay are in `kept`."
+            },
+            "kept": {
+              "title": "Definitions kept",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/keptDefinition"
+              },
+              "description": "Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them, properties first, in metamodel order; the initial status too, whose definition never goes.",
+              "x-key": [
+                "kind",
+                "key"
+              ],
+              "x-normal": []
             },
             "mentions": {
               "title": "Files naming a removed key",
@@ -8748,6 +8805,7 @@
             "answer",
             "type",
             "removed",
+            "kept",
             "mentions",
             "files",
             "versionsChanged",
@@ -8777,6 +8835,50 @@
           {
             "path": "removed.statuses",
             "title": "Statuses"
+          },
+          {
+            "path": "kept",
+            "title": "Definitions kept",
+            "normal": []
+          },
+          {
+            "path": "kept[].kind",
+            "title": "Kind"
+          },
+          {
+            "path": "kept[].key",
+            "title": "Key"
+          },
+          {
+            "path": "kept[].count",
+            "title": "Elements holding it",
+            "elements": [
+              "kept[].elements"
+            ],
+            "keys": [
+              [
+                "kind",
+                "key"
+              ]
+            ]
+          },
+          {
+            "path": "kept[].elements",
+            "title": "Elements holding it",
+            "elements": true
+          },
+          {
+            "path": "kept[].elements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "kept[].elements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "kept[].elements[].repository",
+            "title": "Repository"
           },
           {
             "path": "mentions",
@@ -10221,8 +10323,8 @@
       {
         "name": "metamodel.removeProperty",
         "title": "Remove property from type",
-        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
-        "details": "The key is removed from the type's own `properties` and `required` lists, in the file the type is in; a list left without keys stays as `[]`. When no type has the property itself afterwards, its definition is removed from `properties` of the file it is in, with its lines and the comment lines directly above it. An inherited property is removed at the type it is inherited from; a type that lists a property its parent has as well loses its own entry and keeps the property, and `inheritedFrom` names that parent. No element file changes and nothing in Git; no element is deleted. Refused while an element file of the type, or of a type that extends it and loses the property, holds its key, also with an empty value, in any status. Saved filters, perspectives and mapping files that name the key of a removed definition are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type or property has the key (details.type, details.property); input.invalid with details.reason inherited when the type has the property from a parent (details.from); input.invalid with details.reason not-on-type when the type does not have it; input.invalid with details.reason in-use when elements use what the change locks or removes (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.faulty when an element file cannot be read, as it may hold the key (details.command, details.files: repository and file); file.folder-missing when such a change needs the uses and a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a changed definition, or a node on the way to it, holds a YAML alias or anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "summary": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.",
+        "details": "The key is removed from the type's own `properties` and `required` lists, in the file the type is in; a list left without keys stays as `[]`. When no type has the property itself afterwards and no element file of any type holds its key, also with an empty value, its definition is removed from `properties` of the file it is in, with its lines and the comment lines directly above it; while an element file holds the key, the definition stays and `kept` names it with those elements. An inherited property is removed at the type it is inherited from; a type that lists a property its parent has as well loses its own entry and keeps the property, and `inheritedFrom` names that parent. No element file changes and nothing in Git; no element is deleted. Refused while an element file of the type, or of a type that extends it and loses the property, holds its key, also with an empty value, in any status. Saved filters, perspectives and mapping files that name the key of a removed definition are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type or property has the key (details.type, details.property); input.invalid with details.reason inherited when the type has the property from a parent (details.from); input.invalid with details.reason not-on-type when the type does not have it; input.invalid with details.reason in-use when elements use what the change locks or removes (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.faulty when an element file cannot be read, as it may hold the key (details.command, details.files: repository and file); file.folder-missing when such a change needs the uses and a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when a changed definition, or a node on the way to it, holds a YAML alias or anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
@@ -10278,12 +10380,25 @@
             "definitionRemoved": {
               "title": "Definition removed",
               "type": "boolean",
-              "description": "true when no type had the property any more, so its definition was removed."
+              "description": "true when no type had the property any more and no element held its key, so its definition was removed."
             },
             "inheritedFrom": {
               "title": "Kept from",
               "$ref": "../common.schema.json#/$defs/key",
               "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+            },
+            "kept": {
+              "title": "Definitions kept",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/keptDefinition"
+              },
+              "description": "The property when no type has it any more and its definition stays, as the files of elements of any type hold its key; empty otherwise.",
+              "x-key": [
+                "kind",
+                "key"
+              ],
+              "x-normal": []
             },
             "mentions": {
               "title": "Files naming a removed key",
@@ -10354,6 +10469,7 @@
             "type",
             "property",
             "definitionRemoved",
+            "kept",
             "mentions",
             "files",
             "versionsChanged",
@@ -10383,6 +10499,50 @@
           {
             "path": "inheritedFrom",
             "title": "Kept from"
+          },
+          {
+            "path": "kept",
+            "title": "Definitions kept",
+            "normal": []
+          },
+          {
+            "path": "kept[].kind",
+            "title": "Kind"
+          },
+          {
+            "path": "kept[].key",
+            "title": "Key"
+          },
+          {
+            "path": "kept[].count",
+            "title": "Elements holding it",
+            "elements": [
+              "kept[].elements"
+            ],
+            "keys": [
+              [
+                "kind",
+                "key"
+              ]
+            ]
+          },
+          {
+            "path": "kept[].elements",
+            "title": "Elements holding it",
+            "elements": true
+          },
+          {
+            "path": "kept[].elements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "kept[].elements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "kept[].elements[].repository",
+            "title": "Repository"
           },
           {
             "path": "mentions",
@@ -12855,7 +13015,7 @@
         "name": "metamodel.removeStatus",
         "title": "Remove status from type",
         "summary": "Remove a status from a type while no element of it or of a type that extends it has the status; only the metamodel files change, and no element.",
-        "details": "The status is removed from the type's own list of statuses, in the file the type is in. A type that has no list, neither its own nor one of an ancestor, has every status: it gets the list of every status it had but this one. A status the type has from the list of an ancestor is removed at that type. Once no type has the status, also no type without a list, its definition is removed with its lines and the comment lines directly above it, except the definition of the initial status. No element file changes and nothing in Git; no element is deleted and none changes its status. Saved filters, perspectives and mapping files that name a removed definition are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type or no status has the key (details.type, details.status); input.invalid with details.reason not-had when the type does not have the status (details.type, details.status); input.invalid with details.reason inherited when the type has the status from the list of an ancestor (details.types: the types whose list has it); input.invalid with details.reason in-use while an element of the type or of a type that extends it, in any status, has the status (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.folder-missing when a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason widens when a type that extends the type and has a list of its own would have more statuses (details.types); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when the type, a removed definition or a node on the way to them is an alias or has an anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
+        "details": "The status is removed from the type's own list of statuses, in the file the type is in. A type that has no list, neither its own nor one of an ancestor, has every status: it gets the list of every status it had but this one. A status the type has from the list of an ancestor is removed at that type. Once no type has the status, also no type without a list, and no element of any type has it, its definition is removed with its lines and the comment lines directly above it, except the definition of the initial status, which always stays; while an element has it, the definition stays and `kept` names it with those elements, the initial status too. No element file changes and nothing in Git; no element is deleted and none changes its status. Saved filters, perspectives and mapping files that name a removed definition are listed in `mentions` and not changed. Errors: input.invalid with details.reason unknown when no type or no status has the key (details.type, details.status); input.invalid with details.reason not-had when the type does not have the status (details.type, details.status); input.invalid with details.reason inherited when the type has the status from the list of an ancestor (details.types: the types whose list has it); input.invalid with details.reason in-use while an element of the type or of a type that extends it, in any status, has the status (details.uses: kind, key, count and the short IDs of the first 20 elements in code-unit order); file.folder-missing when a repository of the workspace is not on this machine (details.repository, details.repositories); input.invalid with details.reason widens when a type that extends the type and has a list of its own would have more statuses (details.types); input.invalid with details.reason metamodel-invalid and the errors in details.problems when the metamodel would have an error; workspace.read-only when the metamodel files do not give a valid metamodel or the metamodel repository is not on this machine; input.invalid with details.reason git-folder when the metamodel folder is .git or a repository of its own; file.read-only when the metamodel repository cannot be written; file.faulty when the type, a removed definition or a node on the way to them is an alias or has an anchor (details.repository, details.file, details.line); file.changed-on-disk when another process changed a file since it was read. Nothing is written on these.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "SR-236 AK5: a metamodel that cannot be read is never changed (SR-011 AK3).",
@@ -12911,8 +13071,21 @@
             "removed": {
               "title": "Definition removed",
               "type": "boolean",
-              "description": "true when no type has the status any more and its definition was removed.",
+              "description": "true when no type and no element has the status any more and its definition was removed.",
               "x-normal": false
+            },
+            "kept": {
+              "title": "Definitions kept",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/keptDefinition"
+              },
+              "description": "The status when no type has it any more and its definition stays, as elements of any type have it; empty otherwise.",
+              "x-key": [
+                "kind",
+                "key"
+              ],
+              "x-normal": []
             },
             "mentions": {
               "title": "Files naming a removed key",
@@ -12983,6 +13156,7 @@
             "type",
             "status",
             "removed",
+            "kept",
             "mentions",
             "files",
             "versionsChanged",
@@ -13009,6 +13183,50 @@
             "path": "removed",
             "title": "Definition removed",
             "normal": false
+          },
+          {
+            "path": "kept",
+            "title": "Definitions kept",
+            "normal": []
+          },
+          {
+            "path": "kept[].kind",
+            "title": "Kind"
+          },
+          {
+            "path": "kept[].key",
+            "title": "Key"
+          },
+          {
+            "path": "kept[].count",
+            "title": "Elements holding it",
+            "elements": [
+              "kept[].elements"
+            ],
+            "keys": [
+              [
+                "kind",
+                "key"
+              ]
+            ]
+          },
+          {
+            "path": "kept[].elements",
+            "title": "Elements holding it",
+            "elements": true
+          },
+          {
+            "path": "kept[].elements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "kept[].elements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "kept[].elements[].repository",
+            "title": "Repository"
           },
           {
             "path": "mentions",
@@ -25026,7 +25244,7 @@
             },
             "target": {
               "$ref": "../common.schema.json#/$defs/elementRef",
-              "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+              "description": "Confirm the open confirmable hints on relations and inline references that point at this element."
             },
             "all": {
               "type": "boolean",
@@ -25035,7 +25253,7 @@
             },
             "kind": {
               "type": "array",
-              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problemCode"
               }
@@ -36572,7 +36790,7 @@
         "name": "html.export",
         "title": "Export HTML",
         "summary": "Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.",
-        "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a problem. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a problem. On an error the earlier export stays as it was.",
+        "details": "The folder is new, empty, or holds an earlier HTML export (its marker file `reqseq-html-export.yaml`): then the files that export wrote are replaced or removed, and every other file stays as it is and is named as a problem. Texts are written as text where they would run, load or link something outside the folder (raw HTML, links with another scheme than http, https or mailto, images from the network or outside the element's repository, Mermaid diagrams with click actions or HTML labels), each named as a problem. Formulas are set when the pages are written, and Mermaid diagrams are drawn by one copy of the library in the folder; a formula with an error shows its source and the error and is named as a problem. On an error the earlier export stays as it was.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",
@@ -36938,6 +37156,7 @@
     "workspace.metamodel-mismatch": "Different metamodel in a repository",
     "workspace.invalid": "Invalid workspace file",
     "workspace.not-watched": "Folder not watched",
+    "workspace.skill-older-version": "Skill file of an older ReqSeq version",
     "git.unavailable": "Git cannot read the repository",
     "git.revision-missing": "Missing commit",
     "reqif.replaces-local": "Import replaces local content",
@@ -36948,6 +37167,7 @@
     "reqif.source-value-chosen": "First source value written",
     "html.unsafe-content": "Content shown as text",
     "html.image-not-copied": "Image not copied",
+    "html.formula-error": "Formula with an error",
     "html.foreign-file": "File not written by the export",
     "html.marker-entry-ignored": "Marker file entry not used",
     "html.cleanup-failed": "Staging folder left"

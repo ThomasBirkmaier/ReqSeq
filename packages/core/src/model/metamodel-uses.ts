@@ -219,6 +219,73 @@ export const lostUses = (
   return uses.filter((use) => use.count > 0);
 };
 
+/** A property or status definition that no type has any more and that stays, as elements hold it. */
+export interface Kept {
+  readonly kind: "property" | "status";
+  readonly key: string;
+  /** The elements that hold it, of any type: those of `elements`. */
+  readonly count: number;
+  /** The elements that hold it, in store order (SR-224 AK4). */
+  readonly elements: readonly {
+    readonly id: string;
+    readonly shortId: string;
+    readonly repository: string;
+  }[];
+}
+
+/**
+ * Splits the property and status definitions that no type has any more into those that go and those
+ * that stay (SR-238 AK5, SR-240 AK3, SR-237 AK5): one stays while an element has the status or holds
+ * the property key in its file, also with an empty value, whatever its type, also a type the
+ * metamodel does not know. The store holds the elements of every repository of the workspace (a
+ * missing one is refused before, `refuseMissingRepositories`). `kept` keeps the order of the input,
+ * properties first.
+ */
+export const keptDefinitions = (
+  store: ElementStore,
+  shortIds: ShortIds,
+  unhad: { readonly properties: readonly string[]; readonly statuses: readonly string[] },
+): {
+  readonly properties: readonly string[];
+  readonly statuses: readonly string[];
+  readonly kept: readonly Kept[];
+} => {
+  const kept: Kept[] = [];
+  const drop = (kind: Kept["kind"], keys: readonly string[]): readonly string[] =>
+    keys.filter((key) => {
+      const elements = store.elements
+        .filter((e) => (kind === "property" ? holdsKey(e, key) : hasStatus(e, key)))
+        .map((e) => ({ id: e.id, shortId: shortIds.of(e), repository: e.repository }));
+      if (elements.length > 0) {
+        kept.push({ kind, key, count: elements.length, elements });
+      }
+      return elements.length === 0;
+    });
+  const properties = drop("property", unhad.properties);
+  const statuses = drop("status", unhad.statuses);
+  return { properties, statuses, kept };
+};
+
+/** The verb a note on a kept definition uses, by kind and by one element or more. */
+const HOLD = {
+  property: ["holds", "hold"],
+  status: ["has", "have"],
+} as const;
+
+/**
+ * The note on `kept`: `no type has the property remark any more, but its definition stays, as 2
+ * elements hold it`; "" when empty.
+ */
+export const keptNote = (kept: readonly Kept[]): string =>
+  kept
+    .map(
+      (k) =>
+        `no type has the ${k.kind} ${k.key} any more, but its definition stays, as ${String(k.count)} ${
+          k.count === 1 ? "element" : "elements"
+        } ${HOLD[k.kind][k.count === 1 ? 0 : 1]} it`,
+    )
+    .join("; ");
+
 /** `use` in words: `property title: 3 elements (SR-1a2b3c, …)`. */
 const useText = (use: Use): string =>
   `${use.kind} ${use.key}: ${String(use.count)} ${use.count === 1 ? "element" : "elements"} (${use.elements.join(", ")}${use.count > use.elements.length ? ", …" : ""})`;
