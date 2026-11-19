@@ -86,9 +86,9 @@ const isStale = (lock: FoundLock, now: number): boolean => {
 };
 
 /**
- * The errors with which Windows refuses to open a file that is still there: EPERM for one that is pending
- * deletion (or whose rights deny it), EBUSY for one that another program holds open. A file that cannot be
- * read on Linux or macOS fails with EACCES instead.
+ * The errors that count as a refusal of a file that is still there, on every platform. Windows gives EPERM
+ * for a file that is pending deletion (or whose rights deny it) and EBUSY for one that another program
+ * holds open. An unreadable file on Linux or macOS fails with EACCES, which is no refusal.
  */
 const REFUSED_CODES: readonly string[] = ["EPERM", "EBUSY"];
 
@@ -127,7 +127,8 @@ const readLock = async (file: string): Promise<FoundLock | undefined> => {
       return undefined;
     }
     if (await refusedWhileListed(error, file)) {
-      // Its time from the folder entry where Windows gives it, so that a lock refused for good turns stale.
+      // Dated by its modification time where `stat` gives one, so that an old lock refused for good turns
+      // stale; without one it is dated now and counts as held.
       const stat = await fs.stat(file).catch(() => undefined);
       return { text: "", modified: stat?.mtimeMs ?? Date.now() };
     }
@@ -151,20 +152,40 @@ const removeQuietly = async (file: string): Promise<void> => {
  */
 type Created = "created" | "exists" | "refused";
 
-/** Create `file` with `text` exclusively. A failed write leaves no file behind. */
+/** What a failed exclusive create of `file` found: `exists`, `refused`, or `undefined` for neither. */
+const foundBy = async (error: unknown, file: string): Promise<Exclude<Created, "created"> | undefined> => {
+  if (errorCode(error) === "EEXIST") {
+    return "exists";
+  }
+  return (await refusedWhileListed(error, file)) ? "refused" : undefined;
+};
+
+/**
+ * Create `file` with `text` exclusively. A failed write leaves no file behind. A refusal whose name is no
+ * longer listed may have been given back between the last try and the listing: one more create decides.
+ */
 const createExclusive = async (file: string, text: string): Promise<Created> => {
   let handle: fs.FileHandle;
   try {
     // On Windows a file that is being removed while another process has it open refuses for a moment.
     handle = await retry(() => fs.open(file, "wx", 0o600), TRANSIENT_CODES, LOCK_RETRY);
   } catch (error) {
-    if (errorCode(error) === "EEXIST") {
-      return "exists";
+    const found = await foundBy(error, file);
+    if (found !== undefined) {
+      return found;
     }
-    if (await refusedWhileListed(error, file)) {
-      return "refused";
+    if (!REFUSED_CODES.includes(errorCode(error) ?? "")) {
+      throw error;
     }
-    throw error;
+    try {
+      handle = await fs.open(file, "wx", 0o600);
+    } catch (again) {
+      const foundAgain = await foundBy(again, file);
+      if (foundAgain !== undefined) {
+        return foundAgain;
+      }
+      throw again;
+    }
   }
   try {
     await handle.writeFile(text, "utf8");
@@ -224,9 +245,12 @@ const breakStale = async (file: string, stale: FoundLock): Promise<boolean> => {
 /**
  * Take the lock file `file` (absolute path): create it exclusively with mode 0600 (missing folders with
  * 0700), holding this process ID. Resolves `undefined` while another start holds it: its process runs and
- * it was taken less than LOCK_STALE_MS ago, or opening the lock file that its folder lists still fails with
- * EPERM or EBUSY after LOCK_ATTEMPTS tries (`refusedWhileListed`). A stale lock is broken and taken. Rejects with the Node error when the folder or
- * the file cannot be created, read or removed.
+ * it was taken less than LOCK_STALE_MS ago. A lock file that its folder lists but that cannot be opened
+ * (EPERM or EBUSY after the retries, `refusedWhileListed`) is being given back or held: a refused create
+ * is tried again up to LOCK_ATTEMPTS times and then counts as held; a refused read is dated by the file's
+ * modification time (else now), so a young lock counts as held after one try and an old one is broken and
+ * taken. A stale lock is broken and taken. Rejects with the Node error when the folder or the file cannot
+ * be created, read or removed.
  */
 export async function lockPrivateFile(file: string): Promise<PrivateLock | undefined> {
   await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });

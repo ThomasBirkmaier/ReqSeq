@@ -347,11 +347,11 @@ describe("lockPrivateFile", () => {
     expect(lock).toBeDefined();
     expect(spy).toHaveBeenCalledTimes(8);
     await lock?.release();
-    // A refusal that lasts: the Node error after the 10th attempt.
+    // A refusal that lasts, with nothing listed: the Node error after the 10th attempt and one more create.
     spy.mockRejectedValue(failure("EPERM"));
     spy.mockClear();
     await expect(lockPrivateFile(file)).rejects.toThrow("EPERM");
-    expect(spy).toHaveBeenCalledTimes(10);
+    expect(spy).toHaveBeenCalledTimes(11);
   });
 
   describe("a lock file that Windows refuses while its folder lists it (#1944)", () => {
@@ -434,6 +434,38 @@ describe("lockPrivateFile", () => {
       refuseOpen("EPERM", `${file}.break`);
       expect(await lockPrivateFile(file)).toBeUndefined();
       expect(pidOf(await fs.readFile(file, "utf8"))).toBe(DEAD_PID);
+    });
+
+    it("creates once more when the refused name is gone by the time the folder is listed", async () => {
+      const open = fs.open.bind(fs);
+      const spy = vi.spyOn(fs, "open");
+      for (let i = 0; i < 10; i++) {
+        spy.mockRejectedValueOnce(failure("EPERM"));
+      }
+      spy.mockImplementation(open);
+      // Given back between the last refusal and the listing: the fresh create takes it.
+      const lock = await lockPrivateFile(file);
+      expect(lock).toBeDefined();
+      expect(spy).toHaveBeenCalledTimes(11);
+      await lock?.release();
+      // Taken by another start before the fresh create: held.
+      spy.mockClear();
+      for (let i = 0; i < 10; i++) {
+        spy.mockRejectedValueOnce(failure("EBUSY"));
+      }
+      vi.spyOn(fs, "readdir").mockImplementationOnce(async () => {
+        await writeLock(lockOf({ pid: process.pid, created: Date.now() }));
+        return [] as never;
+      });
+      expect(await lockPrivateFile(file)).toBeUndefined();
+      // Refused again by the fresh create, and now listed: refused, so tried again, and then held.
+      await fs.rm(file);
+      spy.mockClear();
+      spy.mockRejectedValue(failure("EPERM"));
+      vi.spyOn(fs, "readdir").mockImplementationOnce(() => Promise.resolve([] as never));
+      await writeLock(lockOf({ pid: process.pid, created: Date.now() }));
+      expect(await lockPrivateFile(file)).toBeUndefined();
+      expect(spy).toHaveBeenCalledTimes(31);
     });
 
     it("rejects when no lock file is listed, or the folder cannot be listed: it cannot be written", async () => {
