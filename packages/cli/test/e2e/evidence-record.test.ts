@@ -40,9 +40,9 @@ const json = async (ws: FixtureWorkspace, args: readonly string[]): Promise<unkn
   return JSON.parse(result.stdout) as unknown;
 };
 
-/** The first line `reqseq element get <ref>` prints. */
-const firstLine = async (ws: FixtureWorkspace, ref: string): Promise<string> =>
-  (await run(ws, ["element", "get", ref])).stdout.split("\n")[0] ?? "";
+/** The line of the element in the text output of element get, after its answer (SR-224 AK2). */
+const elementLine = async (ws: FixtureWorkspace, ref: string): Promise<string> =>
+  (await run(ws, ["element", "get", ref])).stdout.split("\n")[1] ?? "";
 
 describe("reqseq evidence record (SR-030)", () => {
   it("[SR-030/AK-wm0j] reqseq evidence record writes the UUID and current version of the requirement", async () => {
@@ -82,18 +82,18 @@ describe("reqseq evidence record (SR-030)", () => {
 
   it("[SR-030/AK-bt7q] reqseq element get shows a recorded validation in the validation status only", async () => {
     const ws = await open();
-    expect(await firstLine(ws, "SR-00c001")).toBe(
+    expect(await elementLine(ws, "SR-00c001")).toBe(
       "SR-00c001  approved  Show wind speed  [verification: core verified 1 of 1 criteria]",
     );
-    expect(await firstLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: open]");
+    expect(await elementLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: open]");
     for (const ref of ["SR-00c001", "N-00a001"]) {
       const result = await run(ws, ["evidence", "record", ref, "validation", "failed", "--date", DATE]);
       expect([result.code, result.stderr]).toEqual([0, ""]);
     }
-    expect(await firstLine(ws, "SR-00c001")).toBe(
+    expect(await elementLine(ws, "SR-00c001")).toBe(
       "SR-00c001  approved  Show wind speed  [verification: core verified 1 of 1 criteria]  [validation: failed]",
     );
-    expect(await firstLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: failed]");
+    expect(await elementLine(ws, "N-00a001")).toBe("N-00a001  approved  Know the wind  [validation: failed]");
   });
 
   it("prints the file, the element and the version", async () => {

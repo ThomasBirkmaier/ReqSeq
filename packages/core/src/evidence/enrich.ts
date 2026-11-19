@@ -522,7 +522,7 @@ const outputSnapshot = async (
 export const enrichJunitFile = async (
   workspace: Workspace,
   input: EvidenceEnrichJunitInput,
-): Promise<EvidenceEnrichJunitOutput> => {
+): Promise<Omit<EvidenceEnrichJunitOutput, "answer">> => {
   // The pattern's syntax first: a refusal touches no file.
   const pattern = input.namePattern === undefined ? undefined : parseNamePattern(input.namePattern);
   if (input.skipNotInView === true && input.variant === undefined) {
@@ -590,7 +590,7 @@ export const enrichJunitFile = async (
   });
   const shownTarget = shownPath(layout, main, targetFolder, target);
   // SR-230 AK3: asked once the file is there, so a new output is looked for after it is written.
-  const ended = async (files: string[]): Promise<EvidenceEnrichJunitOutput> => ({
+  const ended = async (files: string[]): Promise<Omit<EvidenceEnrichJunitOutput, "answer">> => ({
     testCases: result.testCases,
     withoutReference: result.withoutReference,
     notInView: result.notInView,

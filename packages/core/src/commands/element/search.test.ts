@@ -54,6 +54,7 @@ describe("element.search (SR-068)", () => {
     // `source` of b5, the unknown property `owner` of b4 (SR-016), a choice by its name.
     const supplier = await search(ws, { query: "supplier" });
     expect(supplier).toEqual({
+      answer: "Found 1 hit for the query supplier.",
       hits: [
         {
           id: B5,
@@ -150,7 +151,10 @@ describe("element.search (SR-068)", () => {
     expect(await hits(ws, "dAnA")).toEqual([B4, B5]);
     expect(await hits(ws, "survve ICNG")).toEqual([B3]);
     // In any case the same hits, scores and order.
-    expect(await search(ws, { query: "WIND" })).toEqual(await search(ws, { query: "wind" }));
+    expect(await search(ws, { query: "WIND" })).toEqual({
+      ...(await search(ws, { query: "wind" })),
+      answer: "Found 2 hits for the query WIND.",
+    });
     expect(await hits(ws, "wind")).toEqual([B1, N1]);
   });
 
@@ -318,7 +322,12 @@ describe("element.search (SR-068)", () => {
     expect(all.total).toBe(7);
     expect(all.hits).toHaveLength(7);
     const page = await search(ws, { query: "approved", offset: 2, limit: 3 });
-    expect(page).toEqual({ hits: all.hits.slice(2, 5), total: 7, incomplete: false });
+    expect(page).toEqual({
+      answer: "Found 3 of 7 hits for the query approved.",
+      hits: all.hits.slice(2, 5),
+      total: 7,
+      incomplete: false,
+    });
     // Hits are sorted by score, equal ones in workspace order.
     const scores = all.hits.map((hit) => hit.score);
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
@@ -330,8 +339,18 @@ describe("element.search (SR-068)", () => {
 
   it("finds nothing for a query without a word", async () => {
     const ws = await open();
-    expect(await search(ws, { query: "" })).toEqual({ hits: [], total: 0, incomplete: false });
-    expect(await search(ws, { query: " -- " })).toEqual({ hits: [], total: 0, incomplete: false });
+    expect(await search(ws, { query: "" })).toEqual({
+      answer: "Found 0 hits for an empty query.",
+      hits: [],
+      total: 0,
+      incomplete: false,
+    });
+    expect(await search(ws, { query: " -- " })).toEqual({
+      answer: "Found 0 hits for the query --.",
+      hits: [],
+      total: 0,
+      incomplete: false,
+    });
   });
 
   it("gives an empty title to an element without one, and no status when it has none", async () => {

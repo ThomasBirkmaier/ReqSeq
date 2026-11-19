@@ -106,6 +106,8 @@ describe("generated TypeScript types", () => {
             extra: { type: "object", required: ["z"], additionalProperties: false },
             extraOpen: { type: "object", required: ["z"] },
             extraTyped: { type: "object", required: ["z"], additionalProperties: { type: "boolean" } },
+            // `type: object` and `required` beside a `$ref` (the output of data.export): no index signature.
+            beside: { type: "object", required: ["z"], $ref: "#/$defs/open" },
           },
         },
       },
@@ -122,6 +124,7 @@ describe("generated TypeScript types", () => {
     expect(declaration(out, "XExtraOpen")).toContain(
       "  readonly z: unknown;\n  readonly [key: string]: unknown;\n}",
     );
+    expect(declaration(out, "XBeside")).toBe("export type XBeside = XOpen & {\n  readonly z: unknown;\n};\n");
     expect(declaration(out, "XExtraTyped")).toContain(
       "  readonly z: boolean;\n  readonly [key: string]: boolean;\n}",
     );

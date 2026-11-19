@@ -174,7 +174,11 @@ describe("reqseq data store (SR-062)", () => {
     const commit = await ws.head("system");
     const json = await inSystem(ws, ["data", "store", "states", "--json"]);
     expect([json.code, json.stderr]).toEqual([0, ""]);
-    expect(JSON.parse(json.stdout)).toEqual({ files: [`states/${commit}.jsonl`], problems: [] });
+    expect(JSON.parse(json.stdout)).toEqual({
+      answer: `Stored the data in states/${commit}.jsonl.`,
+      files: [`states/${commit}.jsonl`],
+      problems: [],
+    });
     const refused = await inSystem(ws, ["data", "store", "--folder", "out/.git"]);
     expect(refused.code).toBe(2);
     await expect(fs.stat(ws.path("system/out"))).rejects.toMatchObject({ code: "ENOENT" });

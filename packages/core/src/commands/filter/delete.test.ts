@@ -78,6 +78,7 @@ describe("filter.delete (SR-217)", () => {
     const before = await files(fixture);
     const named = await remove(workspace, { name: "sensors" });
     expect(named).toEqual({
+      answer: "Nothing deleted without confirm: saved filter Sensors is in filters/sensors.yaml.",
       name: "Sensors",
       file: "filters/sensors.yaml",
       fileSha256: expect.stringMatching(/^[0-9a-f]{64}$/) as unknown,
@@ -92,7 +93,12 @@ describe("filter.delete (SR-217)", () => {
       file: named.file,
       expectedFileSha256: named.fileSha256,
     });
-    expect(out).toEqual({ ...named, deleted: true, files: ["filters/sensors.yaml"] });
+    expect(out).toEqual({
+      ...named,
+      answer: "Deleted saved filter Sensors; 1 file written.",
+      deleted: true,
+      files: ["filters/sensors.yaml"],
+    });
     const { "filters/sensors.yaml": _gone, ...rest } = before;
     expect(await files(fixture)).toEqual(rest);
     const unknown = await failure(workspace, { name: "Sensors" });

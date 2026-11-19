@@ -23,6 +23,7 @@
   },
   "output": {
     "type": "object",
+    "required": ["answer"],
     "$ref": "../data-export.schema.json"
   }
 }

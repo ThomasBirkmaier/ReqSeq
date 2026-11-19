@@ -23,6 +23,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "count": {
         "title": "Changed elements",
         "type": "integer",
@@ -100,6 +101,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["count", "changed", "skipped", "files"]
+    "required": ["answer", "count", "changed", "skipped", "files"]
   }
 }

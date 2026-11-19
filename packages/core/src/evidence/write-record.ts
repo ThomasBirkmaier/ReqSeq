@@ -776,7 +776,7 @@ export const recordEvidence = async (
   workspace: Workspace,
   input: EvidenceRecordInput,
   deps: RecordDeps = DEFAULT_DEPS,
-): Promise<EvidenceRecordOutput> => {
+): Promise<Omit<EvidenceRecordOutput, "answer">> => {
   const layout = await workspace.get(workspaceLayoutState);
   const prepared = await prepare(workspace, input, deps.now);
   const { shortId, variantShortId, fields } = prepared;

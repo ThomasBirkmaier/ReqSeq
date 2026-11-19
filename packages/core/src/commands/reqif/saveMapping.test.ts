@@ -85,6 +85,7 @@ describe("reqif.saveMapping (SR-054)", () => {
     const { fixture, workspace } = await open();
     const before = await metamodelHash(fixture);
     expect(await save(workspace, { mapping: MAPPING })).toEqual({
+      answer: "Saved the mapping in reqif/kunde-a.yaml.",
       files: ["reqif/kunde-a.yaml"],
       problems: [],
     });
@@ -316,7 +317,11 @@ describe("reqif.saveMapping (SR-054)", () => {
         "",
       ].join("\n"),
     );
-    expect(await save(workspace, { mapping })).toEqual({ files: [], problems: [] });
+    expect(await save(workspace, { mapping })).toEqual({
+      answer: "Saved no mapping.",
+      files: [],
+      problems: [],
+    });
   });
 
   it("fills an empty existing file", async () => {

@@ -191,7 +191,7 @@ export const elementGraphOutput = async (
   versionsOf: VersionsOf,
   marksOf: MarksOf,
   extrasOf: NodeExtras,
-): Promise<Omit<TraceGraphOutput, "problems">> => {
+): Promise<Omit<TraceGraphOutput, "problems" | "answer">> => {
   const { shortIds, metamodel } = context;
   const elements = graph.nodes.map((p) => p.element);
   const members = new Set(elements);

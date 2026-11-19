@@ -9,9 +9,16 @@ import { createElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
+import { filesNote, named, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.create",
+  answer: (output, _input, names) =>
+    sentence(
+      `Created ${names.type(output.element.type)} ${named(output.element)}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.create">> => {
     const written = await createElement(
       ctx.workspace,

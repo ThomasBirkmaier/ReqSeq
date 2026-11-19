@@ -54,7 +54,11 @@ describe("perspective.list (SR-213)", () => {
       { name: "Drafts by status", where, group: "status" },
       { workspace },
     );
-    expect(saved).toEqual({ files: ["perspectives/drafts-by-status.yaml"], problems: [] });
+    expect(saved).toEqual({
+      answer: "Saved perspective Drafts by status; 1 file written.",
+      files: ["perspectives/drafts-by-status.yaml"],
+      problems: [],
+    });
     await fixture.commit();
     // Another person: a clone of the repository on another machine, opened by its own ReqSeq.
     const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-213-"));
@@ -64,6 +68,7 @@ describe("perspective.list (SR-213)", () => {
     const theirs = new Workspace(clone);
     onTestFinished(() => theirs.close());
     expect(await listed(theirs)).toEqual({
+      answer: "Found 1 perspective.",
       perspectives: [
         { name: "Drafts by status", file: "perspectives/drafts-by-status.yaml", where, group: "status" },
       ],
@@ -130,6 +135,7 @@ describe("perspective.list (SR-213)", () => {
 
   it("lists nothing without a perspectives folder, and reports one that cannot be read", async () => {
     expect(await listed((await open({ fixture: "SR-069/filter" })).workspace)).toEqual({
+      answer: "Found 0 perspectives.",
       perspectives: [],
       problems: [],
       incomplete: false,

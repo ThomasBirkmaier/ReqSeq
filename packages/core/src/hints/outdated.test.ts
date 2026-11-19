@@ -211,7 +211,12 @@ describe("outdated relations and references (SR-025)", () => {
     // The fixture stores the n1 versions of the unchanged targets; the tool writes n2 (ADR-0005).
     expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
     expect(NORMAL_FORM).toBe("n2");
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-rvw7] reports nothing when every relation and reference stores the current version in normal form 2 (ADR-0005)", async () => {
@@ -225,7 +230,12 @@ describe("outdated relations and references (SR-025)", () => {
     const a = await formsOf(A);
     const b = await readFile(path.join(FIXTURE_FOLDER, B_FILE), "utf8");
     await ws.write(B_FILE, b.replace(A_VERSION, a.n2));
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("reports a stored version of normal form 2 that is not the current one, with the current version confirm writes (ADR-0005)", async () => {
@@ -242,7 +252,12 @@ describe("outdated relations and references (SR-025)", () => {
 
   it("[SR-025/AK-rvw7] reports nothing without Git either", async () => {
     const ws = await fixture();
-    expect(await check(open(ws.root))).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(open(ws.root))).toEqual({
+      answer: "Checked 4 elements and found 1 warning.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-zmvt] names source, target and the dates of the stored and the current version, and is not ok", async () => {

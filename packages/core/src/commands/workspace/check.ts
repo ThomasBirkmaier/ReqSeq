@@ -95,6 +95,7 @@ import {
   targetNotCoreProblemsState,
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { counted, listed, sentence } from "../answer.js";
 
 type Severity = Problem["severity"];
 
@@ -163,6 +164,24 @@ const sinceBaselineOf = async (
 
 export default defineCommand({
   name: "workspace.check",
+  answer: (output) => {
+    const count = (severity: string): number =>
+      output.problems.filter((problem) => problem.severity === severity).length;
+    const found = [
+      [count("error"), "error"],
+      [count("warning") + (output.hidden?.warning ?? 0), "warning"],
+      [count("info") + (output.hidden?.info ?? 0), "info"],
+    ] as const;
+    const parts = found
+      .filter(([n]) => n > 0)
+      .map(([n, severity]) => (severity === "info" ? `${String(n)} info` : counted(n, severity)));
+    const what = parts.length === 0 ? "found no problem" : `found ${listed(parts)}`;
+    return sentence(
+      output.checkedElements === undefined
+        ? `The workspace check ${what}`
+        : `Checked ${counted(output.checkedElements, "element")} and ${what}`,
+    );
+  },
   run: async (ctx, input): Promise<Output> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const metamodel = await ctx.workspace.get(metamodelState);

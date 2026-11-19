@@ -104,6 +104,7 @@ describe("element.search grouped (SR-149 AK6)", () => {
   it("gives no group for a query without hits, and refuses a key it cannot group by whatever the query finds", async () => {
     const workspace = await open();
     expect(await search(workspace, { query: "zzzzzz", group: "status" })).toEqual({
+      answer: "Found 0 hits for the query zzzzzz.",
       hits: [],
       groups: [],
       offset: 0,

@@ -106,7 +106,12 @@ describe("workspace.check", () => {
   it("[SR-019/AK-v7nq] is ok and lists no problem for a workspace without findings", async () => {
     const ws = await fixture(CLEAN);
     const out = await check(open(ws.root));
-    expect(out).toEqual({ ok: true, problems: [], checkedElements: 5 });
+    expect(out).toEqual({
+      answer: "Checked 5 elements and found no problem.",
+      ok: true,
+      problems: [],
+      checkedElements: 5,
+    });
   });
 
   it("[SR-019/AK-v7nq] stays ok with info only, such as a repository that is not on this machine", async () => {
@@ -192,12 +197,14 @@ describe("workspace.check", () => {
     const info = open(missing.path("system"));
     // Only info, all left out: ok unless failOn info, whatever severity shows.
     expect(await check(info, { severity: "warning" })).toEqual({
+      answer: "Checked 4 elements and found 2 info.",
       ok: true,
       problems: [],
       hidden: { below: "warning", warning: 0, info: 2 },
       checkedElements: 4,
     });
     expect(await check(info, { severity: "error", failOn: "info" })).toEqual({
+      answer: "Checked 4 elements and found 2 info.",
       ok: false,
       problems: [],
       hidden: { below: "error", warning: 0, info: 2 },
@@ -206,6 +213,7 @@ describe("workspace.check", () => {
     // A clean workspace hides nothing.
     const clean = await fixture(CLEAN);
     expect(await check(open(clean.root), { severity: "error" })).toEqual({
+      answer: "Checked 5 elements and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 5,
@@ -229,6 +237,7 @@ describe("workspace.check", () => {
     // Only warnings, none shown: with failOn warning still not ok, since the workspace has findings
     // (exit code 1); they are counted as hidden, with the missing evidence location (SR-230 AK1).
     expect(await check(open(values.path("system")), { severity: "error", failOn: "warning" })).toEqual({
+      answer: "Checked 4 elements and found 6 warnings.",
       ok: false,
       problems: [],
       hidden: { below: "error", warning: 6, info: 0 },
@@ -273,7 +282,12 @@ describe("workspace.check", () => {
     const refines = (await check(workspace, failOn)).problems.map((p) => p.hintId);
     expect(refines).toHaveLength(1);
     await invoke("hint.confirm", { hintIds: refines }, { workspace });
-    expect(await check(workspace, failOn)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace, failOn)).toEqual({
+      answer: "Checked 4 elements and found 1 info.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-019/AK-pt9j] checks again after the element store is read again", async () => {
@@ -304,6 +318,7 @@ describe("workspace.check", () => {
     );
     expect(out.ok).toBe(false);
     expect(await check(workspace, { changedFiles: [] })).toEqual({
+      answer: "Checked 0 elements and found no problem.",
       ok: true,
       problems: [],
       checkedElements: 0,

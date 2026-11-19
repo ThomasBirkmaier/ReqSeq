@@ -19,6 +19,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "levels": {
         "title": "Levels",
         "type": "array",
@@ -102,6 +103,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["levels"]
+    "required": ["answer", "levels"]
   }
 }

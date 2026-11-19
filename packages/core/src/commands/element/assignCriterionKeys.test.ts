@@ -153,6 +153,7 @@ describe("element.assignCriterionKeys (SR-204 AK3)", () => {
   it("gives no key without a property with the meaning acceptance-criteria", async () => {
     const opened = await open({ "metamodel/standard-model.yaml": NO_CRITERIA, ...FILES });
     expect(await assign(opened, {})).toEqual({
+      answer: "Assigned criterion keys to 0 acceptance criteria of 0 elements; no file written.",
       count: 0,
       changed: [],
       skipped: [],

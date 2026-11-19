@@ -22,6 +22,7 @@ reqseq workspace init . "Weather station"
 ```
 
 ```text title="Output"
+Created workspace Weather station; 3 files written.
 files:
   metamodel/standard-model.yaml
   reqseq-workspace.yaml
@@ -44,6 +45,7 @@ reqseq element create need "See the wind speed" --text "As a sailor, I want to s
 ```
 
 ```text title="Output"
+Created Need N-7fe707; 1 file written.
 N-7fe707  draft  See the wind speed  [validation: open]
 files:
   need/N-d0e44b7fe707.md
@@ -63,6 +65,7 @@ reqseq element create system-requirement "Show the wind speed" --text "The stati
 ```
 
 ```text title="Output"
+Created System Requirement SR-c67baa; 1 file written; 3 problems.
 SR-c67baa  draft  Show the wind speed  [verification: core open]
 files:
   system-requirement/SR-58b371c67baa.md
@@ -80,6 +83,7 @@ reqseq relation add SR-c67baa derives-from N-7fe707
 ```
 
 ```text title="Output"
+Added a derives-from relation from SR-c67baa to N-7fe707; 1 file written.
 files:
   system-requirement/SR-58b371c67baa.md
 No problems.
@@ -98,6 +102,7 @@ reqseq trace chain N-7fe707
 ```
 
 ```text title="Output"
+The chain of N-7fe707 has 2 elements; 1 gap.
 N-7fe707  draft  See the wind speed
 children:
   1  SR-c67baa  draft  Show the wind speed  [gap: no evidence]
@@ -118,6 +123,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
+Checked 2 elements and found 3 warnings.
 ok: true
 checkedElements: 2
 ...

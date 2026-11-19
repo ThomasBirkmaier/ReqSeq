@@ -39,6 +39,7 @@ import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
 import type { VersionForms } from "../../version/version.js";
 import { formOf, sameVersion } from "../../version/version.js";
+import { incompleteNote, named, sentence } from "../answer.js";
 
 /**
  * `error` with the one element whose UUID ends with the tail of `ref` as candidate, if there is one
@@ -180,6 +181,18 @@ const namesOneElement = async (workspace: Workspace, ref: string, copy: ElementC
 
 export default defineCommand({
   name: "element.resolve",
+  answer: (output) =>
+    sentence(
+      `The reference names ${named(output.element)}`,
+      output.current === "current"
+        ? "the version given matches its file"
+        : output.current === "outdated"
+          ? "the version given is outdated"
+          : output.current === "unknown"
+            ? "it has no version to compare with"
+            : "",
+      incompleteNote(output.incomplete),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"element.resolve">> => {
     const { version } = input;
     // Only versions of the normal forms this tool computes can be compared (ADR-0005).

@@ -131,7 +131,12 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, A_VERSION, "2026-01-01T10:00:00Z"),
       record(A, OLD, "2026-01-02T10:00:00Z"),
     ]);
-    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace)).toEqual({
+      answer: "Checked 4 elements and found 2 warnings.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-tmds] reports nothing when the newest record is for the current version", async () => {
@@ -139,7 +144,12 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, OLD, "2026-01-01T10:00:00Z"),
       record(A, A_VERSION, "2026-01-02T10:00:00+02:00"),
     ]);
-    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace)).toEqual({
+      answer: "Checked 4 elements and found 2 warnings.",
+      ok: true,
+      problems: [],
+      checkedElements: 4,
+    });
   });
 
   it("[SR-025/AK-tmds] [SR-205/AK-m2vv] reports a criterion with records of older versions only while the others are verified (SR-031 AK8), named with number, key and text", async () => {

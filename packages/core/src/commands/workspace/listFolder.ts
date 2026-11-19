@@ -11,9 +11,16 @@ import os from "node:os";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { listTypedFolder } from "../../workspace/list-folder.js";
+import { counted, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "workspace.listFolder",
+  answer: (output) =>
+    sentence(
+      output.problem === undefined
+        ? `Found ${counted(output.entries.length, "entry", "entries")}${output.truncated === true ? ", more not listed" : ""}`
+        : `Found no entries: ${output.problem === "missing" ? "the folder does not exist" : output.problem === "unreadable" ? "the folder cannot be read" : "the path is refused"}`,
+    ),
   run: (ctx, input): Promise<CommandOutput<"workspace.listFolder">> =>
     listTypedFolder(input.path, {
       files: input.files,

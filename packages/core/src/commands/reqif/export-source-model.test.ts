@@ -163,7 +163,14 @@ describe("reqif.export with sourceModel (SR-158)", () => {
   it("[SR-158/AK-rpq1] writes the source's types, attributes and datatypes with their IDENTIFIER and LONG-NAME, and each requirement with its source IDENTIFIER", async () => {
     const { fixture, workspace } = await open();
     const out = await run(workspace, {});
-    expect(out).toEqual({ file: "back.reqif", elements: 2, relations: 0, files: [], problems: [] });
+    expect(out).toEqual({
+      answer: "Exported 2 elements and 0 relations to back.reqif.",
+      file: "back.reqif",
+      elements: 2,
+      relations: 0,
+      files: [],
+      problems: [],
+    });
     const file = await parsed(fixture);
     expect(file.header.toolId).toBe("reqseq-source-model");
     expect(

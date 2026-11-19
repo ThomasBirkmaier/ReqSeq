@@ -185,8 +185,9 @@ describe("reqseq binary", () => {
       cwd: ws.root,
     });
     expect([created.code, created.stderr]).toEqual([0, ""]);
-    const lines = created.stdout.split("\n");
-    // The answer has the verification status, as element get shows it (#214).
+    const [answer, ...lines] = created.stdout.split("\n");
+    // The answer comes first (SR-224 AK2); then the element with its verification status, as element get shows it (#214).
+    expect(answer).toMatch(/^Created System Requirement SR-[0-9a-f]{6,}; 1 file written; 3 problems\.$/);
     expect(lines[0]).toMatch(/^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]$/);
     expect(lines[1]).toBe("files:");
     const file = lines[2]?.trim() ?? "";
@@ -223,7 +224,7 @@ describe("reqseq binary", () => {
     ]);
     const shown = await reqseq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(
-      /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
+      /^SR-[0-9a-f]{6,} is of type System Requirement with status draft; 3 problems\.\nSR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
     );
   });
 
@@ -233,16 +234,18 @@ describe("reqseq binary", () => {
     const run = (...args: string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
     const shown = await run("element", "get", "sr-036");
     expect([shown.code, shown.stderr]).toEqual([0, ""]);
-    expect(shown.stdout.split("\n")[0]).toBe(
+    expect(shown.stdout.split("\n").slice(0, 2)).toEqual([
+      "SR-036 is of type System Requirement with status draft.",
       // SR-037 derives from it and has no record: the child that is missing (SR-034 AK2), named from `names`.
       "SR-0b0036 (SR-036)  draft  Accept identifiers as references  [verification: core open (missing SR-0b0037 (SR-037))]",
-    );
+    ]);
     expect(shown.stdout).toContain(
       "    - -> derives-from  N-0a0001 (N-001)  Name elements by their spec ID\n",
     );
     const chain = await run("trace", "chain", "N-001");
     expect(chain.stdout).toBe(
       [
+        "The chain of N-001 has 3 elements; 1 gap.",
         "N-0a0001 (N-001)  draft  Name elements by their spec ID",
         "children:",
         "  1  SR-0b0036 (SR-036)  draft  Accept identifiers as references",
@@ -282,8 +285,9 @@ describe("reqseq binary", () => {
         `error input.invalid: Invalid input for element.get: <ref> " SR-036" ${REF_FORM}\n`,
       ]);
       const lower = await run("element", "get", "n-D4E5F6");
-      expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([
+      expect([lower.code, ...lower.stdout.split("\n").slice(0, 2)]).toEqual([
         0,
+        "N-d4e5f6 is of type Need with status approved.",
         "N-d4e5f6  approved  See the wind  [validation: open]",
       ]);
       const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");
@@ -384,7 +388,11 @@ describe("reqseq binary", () => {
       cwd: ws.root,
     });
     expect(removed.code).toBe(0);
-    expect(JSON.parse(removed.stdout)).toEqual({ files: ["requirements/SR-0b0000000001.md"], problems: [] });
+    expect(JSON.parse(removed.stdout)).toEqual({
+      answer: `Removed the derives-from relation from SR-b0000000001 to ${D}; 1 file written.`,
+      files: ["requirements/SR-0b0000000001.md"],
+      problems: [],
+    });
     expect(await ws.git(["status", "--porcelain"])).toBe("");
     const refused = await reqseq(["relation", "add", "N-a0000000001", "derives-from", D], { cwd: ws.root });
     expect(refused.code).not.toBe(0);
@@ -398,7 +406,7 @@ describe("reqseq with test commands", () => {
     const result = await reqseq(["workspace", "check"], { cwd: ws.root, testCommands: true });
     expect(result).toMatchObject({
       code: 0,
-      stdout: "ok: true\ncheckedElements: 0\nNo problems.\n",
+      stdout: "Checked 0 elements and found no problem.\nok: true\ncheckedElements: 0\nNo problems.\n",
       stderr: "",
     });
   });
@@ -409,6 +417,7 @@ describe("reqseq with test commands", () => {
     expect(result.code).toBe(1);
     expect(result.stdout).toBe(
       [
+        "Checked 0 elements and found 1 error and 1 warning.",
         "ok: false",
         "checkedElements: 0",
         "error  file.invalid-yaml  Größe – 測試 is not YAML  product/a.md:3",
@@ -425,7 +434,12 @@ describe("reqseq with test commands", () => {
     const result = await reqseq(["workspace", "check", "--json"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(1);
     expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toEqual({ ok: false, problems, checkedElements: 0 });
+    expect(JSON.parse(result.stdout)).toEqual({
+      answer: "Checked 0 elements and found 1 error and 1 warning.",
+      ok: false,
+      problems,
+      checkedElements: 0,
+    });
   });
 
   it("ends quietly with the command's exit code when the reader closes the pipe early", async () => {

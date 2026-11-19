@@ -65,6 +65,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "type": {
         "title": "Type",
         "$ref": "../metamodel.schema.json#/$defs/type",
@@ -102,6 +103,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["type", "files", "versionsChanged", "missingRequired", "problems"]
+    "required": ["answer", "type", "files", "versionsChanged", "missingRequired", "problems"]
   }
 }

@@ -19,6 +19,7 @@ import { outdatedOfShown } from "../../hints/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { closedCycle, cycleFindings, upwardGraph } from "../../trace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
+import { filesNote, problemsNote, sentence } from "../answer.js";
 
 /**
  * The hints on the cycle of derivations that the relation closes, read on the element store after
@@ -88,6 +89,14 @@ const keptOutdated = async (
 
 export default defineCommand({
   name: "relation.add",
+  answer: (output, input) =>
+    sentence(
+      output.files.length === 0
+        ? `The ${input.kind} relation from ${input.source} to ${input.target} was there already`
+        : `Added a ${input.kind} relation from ${input.source} to ${input.target}`,
+      filesNote(output.files),
+      problemsNote(output.problems),
+    ),
   run: async (ctx, input): Promise<CommandOutput<"relation.add">> => {
     const added = await addRelation(ctx.workspace, input);
     return {

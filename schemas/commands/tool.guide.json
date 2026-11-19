@@ -23,6 +23,7 @@
   "output": {
     "type": "object",
     "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "guide": {
         "title": "Agent guide",
         "type": "string",
@@ -31,6 +32,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["guide"]
+    "required": ["answer", "guide"]
   }
 }

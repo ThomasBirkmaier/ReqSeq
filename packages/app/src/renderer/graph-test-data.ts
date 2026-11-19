@@ -42,6 +42,7 @@ export const graphOutput = (
   edges: readonly GraphEdge[],
   extra: Partial<TraceGraphOutput> = {},
 ): TraceGraphOutput => ({
+  answer: "The graph of S1.",
   root: "uuid-S1",
   nodes,
   edges,

@@ -96,6 +96,7 @@ describe("element.addAttachment", () => {
     const before = await fs.readFile(opened.fixture.path(WIND.file), "utf8");
     const out = await add(opened, { ref: "SR-e88fb3", sourcePath: "incoming/layout.png" });
     expect(out).toEqual({
+      answer: "Copied the image to requirements/SR-6328cee88fb3/layout.png.",
       file: "requirements/SR-6328cee88fb3/layout.png",
       markdown: "![layout](SR-6328cee88fb3/layout.png)",
     });
@@ -166,6 +167,7 @@ describe("element.addAttachment", () => {
       sourcePath: "incoming/layout.png",
     });
     expect(odd).toEqual({
+      answer: "Copied the image to my reqs/Wind (gusts) ü/layout.png.",
       file: "my reqs/Wind (gusts) ü/layout.png",
       markdown: "![layout](Wind%20%28gusts%29%20%C3%BC/layout.png)",
     });
@@ -175,7 +177,11 @@ describe("element.addAttachment", () => {
       ref: "0b7c6e1a-1111-4222-8333-000000000002",
       sourcePath: "incoming/layout.png",
     });
-    expect(top).toEqual({ file: "Top/layout.png", markdown: "![layout](Top/layout.png)" });
+    expect(top).toEqual({
+      answer: "Copied the image to Top/layout.png.",
+      file: "Top/layout.png",
+      markdown: "![layout](Top/layout.png)",
+    });
   });
 
   it("[SR-097/AK-hp47] gives every image a name that is the same and allowed on Windows, macOS and Linux", async () => {
@@ -199,6 +205,7 @@ describe("element.addAttachment", () => {
       expect([sourcePath, out]).toEqual([
         sourcePath,
         {
+          answer: `Copied the image to requirements/SR-6328cee88fb3/${name}.`,
           file: `requirements/SR-6328cee88fb3/${name}`,
           markdown: `![${name.slice(0, name.lastIndexOf("."))}](SR-6328cee88fb3/${name})`,
         },
@@ -229,6 +236,7 @@ describe("element.addAttachment", () => {
     expect(await filesBelow(opened.fixture.root)).toEqual(files);
     // The bytes of the first name: that file is reused.
     expect(await add(opened, { ref: WIND.id, sourcePath: "incoming/other/layout.png" })).toEqual({
+      answer: "Copied the image to requirements/SR-6328cee88fb3/layout.png.",
       file: "requirements/SR-6328cee88fb3/layout.png",
       markdown: "![layout](SR-6328cee88fb3/layout.png)",
     });
@@ -433,6 +441,7 @@ describe("element.addAttachment", () => {
     const sourcePath = "incoming/layout.png";
     expect((await addError(opened, { ref, sourcePath })).code).toBe("ref.ambiguous");
     expect(await add(opened, { ref, sourcePath, file: "copies/N-00606ccf2661.md" })).toEqual({
+      answer: "Copied the image to copies/N-00606ccf2661/layout.png.",
       file: "copies/N-00606ccf2661/layout.png",
       markdown: "![layout](N-00606ccf2661/layout.png)",
     });
@@ -450,6 +459,7 @@ describe("element.addAttachment", () => {
     const opened = await open();
     const output = await add(opened, { ref: WIND.id, content: PNG.toString("base64"), name: "Bild 1.PNG" });
     expect(output).toEqual({
+      answer: "Copied the image to requirements/SR-6328cee88fb3/Bild-1.png.",
       file: "requirements/SR-6328cee88fb3/Bild-1.png",
       markdown: "![Bild-1](SR-6328cee88fb3/Bild-1.png)",
     });

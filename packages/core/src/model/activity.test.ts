@@ -582,11 +582,17 @@ describe("recording never changes a result (SR-080 AK2, point 5 of the plan revi
 describe("the last access as workspace.activity gives it", () => {
   it("gives the recorded access, and null without one, without a cache folder or for a broken file", async () => {
     const opened = await copy(ONE);
-    expect(await call(opened.workspace, "workspace.activity", {})).toEqual({ activity: null });
+    expect(await call(opened.workspace, "workspace.activity", {})).toEqual({
+      answer: "No call through the API or the MCP server named an element on this working copy.",
+      activity: null,
+    });
     await call(opened.workspace, "element.get", { ref: "SR-e88fb3" }, "api");
     const file = await recorded(opened);
     const reader = open(opened.fixture.root, opened.cache);
-    expect(await call(reader, "workspace.activity", {}, "mcp")).toEqual({ activity: file?.access });
+    expect(await call(reader, "workspace.activity", {}, "mcp")).toEqual({
+      answer: `The last call through the API that named an element was element.get, at ${String(file?.access.at)}.`,
+      activity: file?.access,
+    });
 
     for (const text of ["{", JSON.stringify({ ...file, version: 2 }), `${" ".repeat(5000)}{}`]) {
       await fs.writeFile(path.join(opened.cache, ACTIVITY_FILE), text);
@@ -600,7 +606,10 @@ describe("the last access as workspace.activity gives it", () => {
     expect(await readActivity(opened.cache)).toBeUndefined();
 
     const none = open(opened.fixture.root, undefined);
-    expect(await call(none, "workspace.activity", {})).toEqual({ activity: null });
+    expect(await call(none, "workspace.activity", {})).toEqual({
+      answer: "No call through the API or the MCP server named an element on this working copy.",
+      activity: null,
+    });
   });
 });
 
