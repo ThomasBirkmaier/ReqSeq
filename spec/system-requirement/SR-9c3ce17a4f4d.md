@@ -4,7 +4,7 @@ type: system-requirement
 status: approved
 title: Export an die Quelle in ihrem Modell schreiben
 spec-id: SR-158
-rationale: "Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können. Welche Werte der Export trägt (AK3, AK6): siehe #1835."
+rationale: "Der Export an eine Quelle bleibt eine ReqSeq-Datei und nutzt von der Zuordnung nur ihre Einstellungen für den Export. Damit Werkzeuge wie DOORS Next oder Polarion Werte wie die Stellungnahme (SR-058) in ihre vorhandenen Objekte übernehmen, soll der Export die Datei zusätzlich im Modell der Quelle schreiben können. Welche Werte der Export trägt (AK3, AK6): siehe #1835. Welche Werte der Export ablehnt (AK7): siehe #1886."
 requirement-type: interface
 acceptance-criteria:
   - key: rpq1
@@ -20,7 +20,7 @@ acceptance-criteria:
   - key: kz13
     text: Gegeben importierte Requirements einer Quelle und ihre gespeicherte Zuordnung, wenn sie im Modell der Quelle ohne Stellungnahme an die Quelle exportiert werden (zum Beispiel `reqseq reqif export --mapping reqif/kunde-a.yaml --source-model`), dann trägt jedes Requirement in jedem Attribut der Quelle, das die Zuordnung dem Titel, dem Text oder einer Property zuordnet, deren Wert; für die wegzulassenden Properties (SR-059 AK1) und für einen leeren Wert trägt es keinen Wert. Exportiert werden alle Elemente mit der Quelle der Zuordnung, durch eine Auswahl eingrenzbar. Die Datei enthält keine SPEC-RELATION, auch nicht zu einem nicht exportierten Element (anders als SR-052 AK2 und SR-059 AK2).
   - key: nxcq
-    text: Gegeben ein Export im Modell der Quelle, bei dem ein Wert nicht eindeutig oder nicht in den Datentyp der Quelle passt, weil die Zuordnung mehrere Attribute eines SPEC-OBJECT-TYPE demselben Titel, Text oder derselben Property zuordnet, weil sie mehrere SPEC-OBJECT-TYPEs der Quelle demselben Typ zuordnet, oder weil ein Wert länger, größer oder kleiner ist, als der Datentyp erlaubt, oder keinem Aufzählungswert zugeordnet ist, wenn er geschrieben wird, dann lehnt das Tool ab, schreibt nichts und nennt jedes betroffene Requirement mit Attribut oder Typ.
+    text: Gegeben ein Export im Modell der Quelle, bei dem ein Wert nicht eindeutig oder nicht in den Datentyp der Quelle passt, weil die Zuordnung mehrere Attribute eines SPEC-OBJECT-TYPE demselben Titel, Text oder derselben Property zuordnet, weil sie mehrere SPEC-OBJECT-TYPEs der Quelle demselben Typ zuordnet, oder weil ein Wert länger, größer oder kleiner ist, als der Datentyp erlaubt, oder keinem Aufzählungswert zugeordnet ist, wenn er geschrieben wird, dann lehnt das Tool ab, schreibt nichts und nennt jedes betroffene Requirement mit Attribut oder Typ. Ebenso lehnt es ab, wenn ein Wert aus einem anderen Grund nicht in sein Attribut der Quelle passt, zum Beispiel ein Text, der keine Zahl ist, für ein Attribut vom Datentyp INTEGER oder REAL, ein Text, der kein Datum ist, für DATE, ein anderer Text als `true` oder `false` für BOOLEAN, eine Zahl mit Nachkommastellen für INTEGER oder mehrere Werte einer Property für ein Attribut, das nur einen Wert trägt; ebenso, wenn der SPEC-OBJECT-TYPE eines exportierten Requirements das Attribut der Stellungnahme nicht hat (AK3).
 verification-method: test
 packages:
   - { id: 0d3dc867-b3e5-401f-a6db-d95463166616, version: n2:0a96ee534d188a3a, title: Austausch per ReqIF }

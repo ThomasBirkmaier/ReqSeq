@@ -3,6 +3,7 @@
   "title": "Show workspace status",
   "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 1,
   "implements": ["SR-004", "SR-006", "SR-011", "SR-018", "SR-173"],
   "arguments": [],

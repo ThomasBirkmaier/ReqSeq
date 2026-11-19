@@ -224,6 +224,38 @@ const toolInfo = async (launcher: string): Promise<Record<string, Record<string,
   return JSON.parse(stdout) as Record<string, Record<string, unknown>>;
 };
 
+/**
+ * The setup "Connect AI agent" gives for an installed delivery or tarball (SR-227 AK3, AK5): its server, started as
+ * a client starts it, answers `initialize`, and its `tool_info` names the workspace of the setup.
+ */
+const connectAndStart = async (
+  launcher: string,
+): Promise<{
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly env: Record<string, string>;
+}> => {
+  const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
+  fixtures.push(ws);
+  const run = launch(launcher, ["workspace", "connect-agent", "--client", "other", "--json"], ws);
+  let stdout = "";
+  run.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+  expect(await exited(run)).toBe(0);
+  const { server } = JSON.parse(stdout) as {
+    server: { command: string; args: string[]; env: Record<string, string> };
+  };
+  const child = spawn(server.command, server.args, { stdio: "pipe", env: { ...process.env, ...server.env } });
+  children.push(child);
+  const client = new Client({ name: "delivery", version: "1" });
+  await client.connect(new LineTransport(child.stdout, { write: (text) => child.stdin.write(text) }));
+  const result = await client.callTool({ name: "tool_info", arguments: {} });
+  expect((result.structuredContent as { workspace: { path: string } }).workspace.path).toBe(ws.root);
+  child.stdin.end();
+  expect(await exited(child)).toBe(0);
+  await client.close();
+  return server;
+};
+
 describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
   const target = DELIVERY_TARGET[system];
   const artifact = path.join(deliveryDir, deliveryArtifactName(names, system, version));
@@ -274,6 +306,32 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     }
     // The command line runs on the Electron of the delivery (ADR-0014), as the app does.
     expect(info["runtime"]?.["electron"]).toBeDefined();
+  });
+
+  it(`[SR-227/AK-qxzf] the setup of the ${system} delivery starts its MCP server, and a second copy gives its own paths`, async (ctx) => {
+    if (!runnable) {
+      ctx.skip(notRunnable);
+    }
+    // A second copy in a folder with a space: two installations give different paths (AK3).
+    const folder = path.join(await tempFolder(), "Re Seq");
+    await fs.mkdir(folder);
+    const copy = await installDelivery(artifact, folder, names);
+    for (const root of [installed, copy]) {
+      const server = await connectAndStart(path.join(root, layout.launcher));
+      if (process.platform === "win32") {
+        // The Windows form (AK3): ReqSeq.exe, bin.js and ELECTRON_RUN_AS_NODE.
+        expect(server.command).toBe(path.join(root, `${names.productName}.exe`));
+        expect(server.args[0]).toBe(path.join(root, "resources", "cli", "dist", "bin.js"));
+        expect(server.env).toEqual({ ELECTRON_RUN_AS_NODE: "1" });
+      } else {
+        expect(server.command).toBe(await fs.realpath(path.join(root, layout.launcher)));
+        expect(server.env).toEqual({});
+      }
+    }
+    const [first, second] = await Promise.all(
+      [installed, copy].map((root) => connectAndStart(path.join(root, layout.launcher))),
+    );
+    expect(first?.command).not.toBe(second?.command);
   });
 
   it(`[SR-078/AK-n50j] the ${system} delivery installs without network and its command line and MCP server run`, async (ctx) => {
@@ -333,6 +391,21 @@ describe("the CLI tarball", () => {
     // The dependencies are inside the tarball.
     const prefix = await installTarball();
     await runCommandLineAndMcp(path.join(prefix, "bin", names.launcher));
+  });
+
+  it("[SR-227/AK-qxzf] the setup of the CLI tarball starts its MCP server on Node", async (ctx) => {
+    if (!existsSync(tarball)) {
+      ctx.skip(`not built: ${path.basename(tarball)}`);
+    }
+    if (process.platform !== "linux") {
+      ctx.skip(NO_NAMESPACE);
+    }
+    await assertOffline();
+    const prefix = await installTarball();
+    const server = await connectAndStart(path.join(prefix, "bin", names.launcher));
+    // Node and the command line's bin.js: the tarball has no launcher of a delivery.
+    expect(path.basename(server.args[0] ?? "")).toBe("bin.js");
+    expect(server.env).toEqual({});
   });
 
   it("[SR-141/AK-k4fs] the CLI tarball serves its documentation without network: pages and search hits of its version", async (ctx) => {

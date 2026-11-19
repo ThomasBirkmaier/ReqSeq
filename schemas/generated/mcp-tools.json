@@ -104,6 +104,62 @@
         }
       }
     },
+    "agent-connection": {
+      "title": "Agent connection file",
+      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
+      "type": "object",
+      "required": [
+        "version",
+        "process",
+        "client",
+        "since",
+        "ended"
+      ],
+      "properties": {
+        "version": {
+          "description": "Version of this file format.",
+          "const": 1
+        },
+        "process": {
+          "type": "string",
+          "pattern": "^[0-9]+-[0-9a-f]{8}$",
+          "description": "The MCP server process: its process ID and 8 random hex digits, new for every connection. The file name is `agent-<process>.json`; a file whose name does not match is ignored."
+        },
+        "client": {
+          "$ref": "#/$defs/agent-connection/$defs/client"
+        },
+        "since": {
+          "$ref": "#/$defs/common/$defs/dateTime",
+          "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+        },
+        "ended": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common/$defs/dateTime"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the connection ended cleanly (the client closed standard input, the server was stopped); null while it runs, and after a crash."
+        }
+      },
+      "additionalProperties": false,
+      "$defs": {
+        "client": {
+          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
     "api-endpoint": {
       "title": "API endpoint file",
       "description": "`api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`): where the running local API of `reqseq serve api` listens, and its token. Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only. A file left behind by a stopped API names a port nobody listens on.",
@@ -898,6 +954,9 @@
                 "file.read-only",
                 "file.not-regular",
                 "file.folder-missing",
+                "agent.app-translocated",
+                "agent.path-unsupported",
+                "agent.cli-missing",
                 "command.not-implemented",
                 "internal"
               ]
@@ -4357,6 +4416,89 @@
       }
     },
     {
+      "name": "workspace_agents",
+      "title": "Show connected agents",
+      "description": "The clients connected to this working copy through the MCP server, each with when it connected, and the client connected last; whether the cache folder of the copy records connections at all.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "title": "Recorded",
+            "type": "boolean",
+            "description": "Whether the copy has a usable cache folder whose connections could be read. false when the workspace has no cache folder, the cache folder lies inside a repository of the workspace, or it cannot be read; then both lists are empty."
+          },
+          "connected": {
+            "title": "Connected agents",
+            "type": "array",
+            "description": "Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "client": {
+                  "title": "Client",
+                  "$ref": "#/$defs/agent-connection/$defs/client"
+                },
+                "since": {
+                  "title": "Connected since",
+                  "$ref": "#/$defs/common/$defs/dateTime",
+                  "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+                }
+              },
+              "required": [
+                "client",
+                "since"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "last": {
+            "title": "Last connected",
+            "description": "The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "client": {
+                    "title": "Client",
+                    "$ref": "#/$defs/agent-connection/$defs/client"
+                  },
+                  "at": {
+                    "title": "Last connected at",
+                    "$ref": "#/$defs/common/$defs/dateTime",
+                    "description": "When it was connected last: its end, or after a crash the last time its process showed it was running."
+                  }
+                },
+                "required": [
+                  "client",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recorded",
+          "connected",
+          "last"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "workspace_recent",
       "title": "List recent workspaces",
       "description": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
@@ -4509,6 +4651,180 @@
         "required": [
           "name",
           "entries"
+        ]
+      }
+    },
+    {
+      "name": "workspace_connectAgent",
+      "title": "Connect AI agent",
+      "description": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "enum": [
+              "claude-code",
+              "claude-desktop",
+              "cursor",
+              "vscode",
+              "codex-cli",
+              "other"
+            ],
+            "description": "The client of the agent. Left out, the output lists the clients."
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string",
+            "minLength": 1,
+            "description": "What to do with the setup, in one sentence; without a client, which clients there are."
+          },
+          "clients": {
+            "title": "Clients",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "title": "Value",
+                  "enum": [
+                    "claude-code",
+                    "claude-desktop",
+                    "cursor",
+                    "vscode",
+                    "codex-cli",
+                    "other"
+                  ],
+                  "description": "The value of `client`."
+                },
+                "title": {
+                  "title": "Client",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The name of the client."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "value",
+                "title"
+              ]
+            },
+            "description": "The clients to choose from, in this order. Only without a client."
+          },
+          "client": {
+            "title": "Client",
+            "enum": [
+              "claude-code",
+              "claude-desktop",
+              "cursor",
+              "vscode",
+              "codex-cli",
+              "other"
+            ],
+            "description": "The chosen client."
+          },
+          "server": {
+            "title": "Server",
+            "type": "object",
+            "properties": {
+              "command": {
+                "title": "Program",
+                "type": "string",
+                "minLength": 1,
+                "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+              },
+              "args": {
+                "title": "Arguments",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace."
+              },
+              "env": {
+                "title": "Environment",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "command",
+              "args",
+              "env"
+            ],
+            "description": "The program, arguments and environment the setup gives the client. Only with a client."
+          },
+          "setup": {
+            "title": "Setup",
+            "type": "object",
+            "properties": {
+              "form": {
+                "title": "Form",
+                "enum": [
+                  "command",
+                  "json"
+                ],
+                "description": "`command`: a command for the terminal; `json`: a JSON block for a configuration file."
+              },
+              "shell": {
+                "title": "Shell",
+                "enum": [
+                  "sh",
+                  "powershell"
+                ],
+                "description": "The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`."
+              },
+              "text": {
+                "title": "Setup",
+                "type": "string",
+                "minLength": 1,
+                "description": "The command or the JSON block to paste, with the paths filled in."
+              },
+              "file": {
+                "title": "File",
+                "type": "string",
+                "minLength": 1,
+                "description": "The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "form",
+              "text"
+            ],
+            "description": "What the user pastes. Only with a client."
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "string",
+            "minLength": 1,
+            "description": "That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client."
+          },
+          "next": {
+            "title": "Next",
+            "type": "string",
+            "minLength": 1,
+            "description": "How to go on after pasting the setup. Only with a client."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer"
         ]
       }
     },

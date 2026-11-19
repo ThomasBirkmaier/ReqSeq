@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" role="img" aria-label="ReqSeq has four ways in that run the same commands with the same result: the desktop app for you, the reqseq command line for your agent, your CI and you, the MCP server for your AI agent, and a local HTTP API on loopback for scripts and tools. ReqSeq reads and writes the spec as Markdown files in spec/ of your Git repository, reads Git and never commits, and opens no network connections.">
+<style>
+text{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#f1f4f8}
+.k{font-size:15px;font-weight:700;letter-spacing:.01em} .t{font-size:13.5px;font-weight:500}
+.m{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;fill:#aab3c0} .s{font-size:12.5px;fill:#aab3c0} .e{font-size:12px;fill:#aab3c0;font-style:italic}
+</style>
+<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#1a2130"/></pattern>
+<linearGradient id="rq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#60a5fa" stop-opacity="0.1"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0.1"/></linearGradient></defs>
+<rect width="1200" height="430" rx="16" fill="#0a0e16"/><rect width="1200" height="430" rx="16" fill="url(#g)"/>
+<rect x="51.0" y="28" width="258" height="96" rx="12" fill="#60a5fa" fill-opacity="0.07" stroke="#60a5fa" stroke-opacity="0.75" stroke-width="1.3"/>
+<g transform="translate(65.0,41)" fill="none" stroke="#60a5fa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><path d="M2 6.5h14"/><circle cx="4.6" cy="4.8" r=".3"/><circle cx="6.4" cy="4.8" r=".3"/></g>
+<text x="91.0" y="55" class="k" style="fill:#60a5fa">App</text>
+<text x="67.0" y="82" class="t">You, in the desktop app</text>
+<text x="67.0" y="103" class="m">Ctrl+Shift+P</text>
+<path d="M180.0,128 V168" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M175.0,161 L180.0,168 L185.0,161" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="331.0" y="28" width="258" height="96" rx="12" fill="#cbd5e1" fill-opacity="0.07" stroke="#cbd5e1" stroke-opacity="0.75" stroke-width="1.3"/>
+<g transform="translate(345.0,41)" fill="none" stroke="#cbd5e1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><path d="M5 7l2 2-2 2M9 11h4"/></g>
+<text x="371.0" y="55" class="k" style="fill:#cbd5e1">CLI</text>
+<text x="347.0" y="82" class="t">Your agent, your CI, you</text>
+<text x="347.0" y="103" class="m">reqseq element create</text>
+<path d="M460.0,128 V168" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M455.0,161 L460.0,168 L465.0,161" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="611.0" y="28" width="258" height="96" rx="12" fill="#a78bfa" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.75" stroke-width="1.3"/>
+<g transform="translate(625.0,41)" fill="none" stroke="#a78bfa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v4M12 2v4"/><path d="M4 6h10v3a5 5 0 0 1-10 0z"/><path d="M9 14v3"/></g>
+<text x="651.0" y="55" class="k" style="fill:#a78bfa">MCP</text>
+<text x="627.0" y="82" class="t">Your AI agent</text>
+<text x="627.0" y="103" class="m">reqseq mcp</text>
+<path d="M740.0,128 V168" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M735.0,161 L740.0,168 L745.0,161" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="891.0" y="28" width="258" height="96" rx="12" fill="#2dd4bf" fill-opacity="0.07" stroke="#2dd4bf" stroke-opacity="0.75" stroke-width="1.3"/>
+<g transform="translate(905.0,41)" fill="none" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3c-2 0-2 1-2 3s-1 3-2 3c1 0 2 1 2 3s0 3 2 3M12 3c2 0 2 1 2 3s1 3 2 3c-1 0-2 1-2 3s0 3-2 3"/></g>
+<text x="931.0" y="55" class="k" style="fill:#2dd4bf">API</text>
+<text x="907.0" y="82" class="t">Scripts and tools</text>
+<text x="907.0" y="103" class="m">reqseq serve api</text>
+<path d="M1020.0,128 V168" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M1015.0,161 L1020.0,168 L1025.0,161" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="24" y="172" width="1152" height="90" rx="22" fill="url(#rq)" stroke="#a78bfa" stroke-opacity="0.35" stroke-width="1.2"/>
+<text x="600.0" y="212" text-anchor="middle" style="font-size:19px;font-weight:800">ReqSeq</text>
+<text x="600.0" y="236" text-anchor="middle" class="s">the same commands with the same result, whichever way in</text>
+<path d="M600.0,266 V302" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M595.0,295 L600.0,302 L605.0,295" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M595.0,273 L600.0,266 L605.0,273" stroke="#5b6577" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="614.0" y="288.0" class="e">reads and writes Markdown</text>
+<rect x="330.0" y="306" width="540" height="96" rx="12" fill="#34d399" fill-opacity="0.07" stroke="#34d399" stroke-opacity="0.75" stroke-width="1.3"/>
+<g transform="translate(344.0,319)" fill="none" stroke="#34d399" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></g>
+<text x="370.0" y="333" class="k" style="fill:#34d399">spec/ in your Git repository</text>
+<text x="346.0" y="360" class="t">One Markdown file per element</text>
+<text x="346.0" y="381" class="s">ReqSeq reads Git, never commits, and opens no network connection</text>
+</svg>

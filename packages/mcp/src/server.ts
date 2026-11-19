@@ -1,7 +1,7 @@
 // `reqseq mcp` (ADR-0009): the MCP server over stdio, one tool per implemented catalog command. It has no
 // network listener at all (SR-079). Every call is one `invoke`; the result is the command output as structured
 // content and as JSON text, a CommandError is a tool error with the error object as JSON text (SR-080 AK2).
-import type { CommandRuntime, Workspace } from "@reqseq/core";
+import type { AgentRecording, CommandRuntime, Workspace } from "@reqseq/core";
 import {
   CommandError,
   PRODUCT_NAME,
@@ -10,6 +10,7 @@ import {
   getCommandRuntime,
   internalError,
   jsonByteLength,
+  recordAgentConnection,
 } from "@reqseq/core";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/server";
 import { McpServer, ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
@@ -47,6 +48,7 @@ const listed = (tool: ServerTool): Tool => ({
   // Every catalog input schema has `type: "object"` at its root (catalog.meta.schema.json), as MCP requires.
   inputSchema: tool.inputSchema as Tool["inputSchema"],
   annotations: { ...tool.annotations },
+  ...(tool._meta === undefined ? {} : { _meta: { ...tool._meta } }),
 });
 
 /** One tool call: the command output, or the CommandError as a tool error. Never rejects. */
@@ -131,10 +133,18 @@ export interface ServeMcpOptions extends McpServerOptions {
 
 /**
  * Serve MCP over the stdio framing until the input ends or `signal` aborts; resolves when the session is
- * closed. The SDK picks the protocol era from the client's first message.
+ * closed. The SDK picks the protocol era from the client's first message. Once the client is connected
+ * (`LineTransportOptions.onConnect`), the connection is recorded in the cache folder of the copy with the
+ * name the client gave, and it ends with the session (SR-228; only the MCP server records one, never the
+ * API or the command line).
  */
 export async function serveMcp(options: ServeMcpOptions): Promise<void> {
-  const transport = new LineTransport(options.input, options.output);
+  let connection: AgentRecording | undefined;
+  const transport = new LineTransport(options.input, options.output, {
+    onConnect: (client) => {
+      connection = recordAgentConnection(options.workspace, client);
+    },
+  });
   const handle = serveStdio(() => createMcpServer(options), { transport });
   const stop = (): void => {
     void handle.close();
@@ -146,4 +156,5 @@ export async function serveMcp(options: ServeMcpOptions): Promise<void> {
   await transport.closed;
   options.signal?.removeEventListener("abort", stop);
   await handle.close();
+  await connection?.end();
 }

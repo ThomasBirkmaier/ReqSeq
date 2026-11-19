@@ -1,0 +1,52 @@
+/* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer
+   (or two side by side), the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
+   everything; one accent colour, for "outdated" and for a gap in the chain, and the colours of a failed and
+   an outdated verification badge (D-062). Every colour is a
+   token below with a light and a dark value; the page follows the system (`color-scheme`), and the action
+   "Toggle dark mode" sets `data-theme` on the root. A rule uses a token, never a colour of its own
+   (styles.test.ts). */
+:root {
+  color-scheme: light dark;
+  --text: light-dark(#1f2328, #e6e8eb);
+  --muted: light-dark(#606871, #9ca4ad);
+  --rule: light-dark(#e6e8eb, #30363d);
+  --edge: light-dark(#8c959f, #6e7681);
+  --sheet: light-dark(#ffffff, #16181b);
+  --select: light-dark(#eef0f2, #25292e);
+  --raised: light-dark(#f9fbfd, #1c1f22);
+  --accent-outdated: light-dark(#b54708, #f0883e);
+  --accent-gap: light-dark(#b54708, #f0883e);
+  /* The right half of a verification badge that is failed or outdated (SR-157 AK3), under the text in the
+     colour of the sheet (AK4: 4.5:1); outdated is the accent of "outdated" (styles.test.ts). */
+  --badge-failed: light-dark(#cf222e, #f85149);
+  --badge-outdated: light-dark(#b54708, #f0883e);
+  --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
+  --outside-change: light-dark(#ebeef1, #292e34);
+  /* A mark in the input of the command prompt (SR-215 AK3): a grey of its own, not the selection's. */
+  --mark: light-dark(#e3e5e8, #383e46);
+  /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
+  --dim: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 12%));
+  /* The backdrop of the window "About ReqSeq" (SR-161 AK6): far darker than --dim. */
+  --about-dim: light-dark(rgb(0 0 0 / 28%), rgb(0 0 0 / 52%));
+  --line: 1.6rem;
+  --modeline: calc(var(--line) + 0.5rem);
+  --titlebar: 38px;
+  /* Calm typography (SR-192 AK3): code in a face of fixed width, all other text, tables included, in the
+     proportional face of the root. */
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--text);
+  background: var(--sheet);
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
