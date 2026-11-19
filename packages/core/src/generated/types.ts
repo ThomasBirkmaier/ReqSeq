@@ -1930,6 +1930,8 @@ export interface CommandCatalog {
     readonly whileReadOnlyReason?: string;
     /** The command deletes a file, the file of a perspective or saved filter, which is no element (D-056, SR-217 AK5): only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint` (ADR-0002 rule 5, ADR-0009). */
     readonly deletes?: "saved-file";
+    /** The command is on the everyday path of an agent: the MCP server marks its tool with `_meta["anthropic/alwaysLoad"]: true`, so a client that defers tools loads this one with its schema at once (ADR-0009, #1926). Left out on every other command; other accesses ignore it. */
+    readonly loadUpfront?: true;
     /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
