@@ -3,6 +3,7 @@
   "title": "Get element",
   "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 1,
   "implements": [
     "SR-005",

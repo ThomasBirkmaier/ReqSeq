@@ -3,6 +3,7 @@
   "title": "List requirements without a passed test",
   "summary": "Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question ThomasBirkmaier/ReqSeq-archive#532). Each with its verification status.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 4,
   "implements": ["SR-120"],
   "arguments": [

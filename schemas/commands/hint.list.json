@@ -3,6 +3,7 @@
   "title": "List hints",
   "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
   "effect": "read",
+  "loadUpfront": true,
   "stage": 2,
   "implements": ["SR-026", "SR-040", "SR-045", "SR-072", "SR-103", "SR-205"],
   "arguments": [

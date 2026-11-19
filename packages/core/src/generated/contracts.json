@@ -4154,6 +4154,10 @@
               "const": "saved-file",
               "description": "The command deletes a file, the file of a perspective or saved filter, which is no element: only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint`."
             },
+            "loadUpfront": {
+              "const": true,
+              "description": "The command is on the everyday path of an agent: the MCP server marks its tool with `_meta[\"anthropic/alwaysLoad\"]: true`, so a client that defers tools loads this one with its schema at once. Left out on every other command; other accesses ignore it."
+            },
             "stage": {
               "type": "integer",
               "minimum": 1,
@@ -4694,6 +4698,7 @@
         "title": "Show workspace status",
         "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-004",
@@ -5124,6 +5129,7 @@
         "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
         "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -6504,6 +6510,7 @@
         "title": "Show metamodel",
         "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-012",
@@ -7256,6 +7263,7 @@
         "summary": "Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint.",
         "details": "New elements always get the initial status of the metamodel; when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses. The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55`.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -7969,6 +7977,7 @@
         "title": "Get element",
         "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -8546,6 +8555,7 @@
         "title": "Resolve reference",
         "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-060",
@@ -10865,6 +10875,7 @@
         "title": "Update element",
         "summary": "Change title, text or properties of one element. Unknown properties are kept, and unset removes one; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Changes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11673,6 +11684,7 @@
         "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
         "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets a status from the statuses of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11929,6 +11941,7 @@
         "title": "Supersede element",
         "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -13100,6 +13113,7 @@
         "title": "Create relation",
         "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
         "stage": 2,
@@ -15395,6 +15409,7 @@
         "title": "Show affected elements",
         "summary": "Elements affected by a change of one element, with path and distance.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-006",
@@ -18265,6 +18280,7 @@
         "title": "List hints",
         "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-026",
@@ -18916,6 +18932,7 @@
         "title": "Search elements",
         "summary": "Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 3,
         "implements": [
           "SR-066",
@@ -22123,6 +22140,7 @@
         "title": "List evidence",
         "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-028",
@@ -23057,6 +23075,7 @@
         "summary": "Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.",
         "details": "The record is Markdown (evidence-record.schema.json). A verification names a requirement and optionally the acceptance criteria it proves, a validation a need or a requirement. Never replaces a file: a name that is taken gets -2, -3, ...",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
         "stage": 4,
@@ -23574,6 +23593,7 @@
         "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
         "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
         "stage": 4,
@@ -24713,6 +24733,7 @@
         "title": "Show verification degree",
         "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-037",
@@ -24852,6 +24873,7 @@
         "title": "List requirements without a passed test",
         "summary": "Every requirement without a passed test execution in one view: no verification record with method test and result passed, of any version, holds there. Each with its verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-120"
