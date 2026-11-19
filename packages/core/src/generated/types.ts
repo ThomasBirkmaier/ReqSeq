@@ -466,6 +466,7 @@ export type ProblemCode =
   | "workspace.metamodel-mismatch"
   | "workspace.invalid"
   | "workspace.not-watched"
+  | "workspace.skill-outdated"
   | "git.unavailable"
   | "git.revision-missing"
   | "reqif.replaces-local"

@@ -58,10 +58,17 @@ export type SkillFileState =
   | { readonly state: "missing" }
   | { readonly state: "foreign" }
   /**
-   * Written by ReqSeq: its `version`, whether its checksum still matches (`intact`), and whether it is
-   * what this version writes (`current`, compared in the canonical form, so line endings do not count).
+   * Written by ReqSeq: its `version`, whether its checksum still matches (`intact`), whether it is what this
+   * version writes (`current`), and whether it is what this version writes with the version it carries
+   * (`sameContent`, AK10: only the version differs); compared in the canonical form, so line endings do not count.
    */
-  | { readonly state: "own"; readonly version: string; readonly intact: boolean; readonly current: boolean };
+  | {
+      readonly state: "own";
+      readonly version: string;
+      readonly intact: boolean;
+      readonly current: boolean;
+      readonly sameContent: boolean;
+    };
 
 interface Looked {
   readonly found: SkillFileState;
@@ -141,9 +148,11 @@ const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): 
   if (!identity.own) {
     return { found: { state: "foreign" }, snapshot: read.snapshot };
   }
-  const current = canonical(text) === skillFile(entries);
+  const lf = canonical(text);
+  const current = lf === skillFile(entries);
+  const sameContent = current || lf === skillFile(entries, identity.version);
   return {
-    found: { state: "own", version: identity.version, intact: identity.intact, current },
+    found: { state: "own", version: identity.version, intact: identity.intact, current, sameContent },
     snapshot: read.snapshot,
   };
 };

@@ -1,4 +1,5 @@
 // Cross-access scenarios of workspace.check, in addition to the default one (cross-access.test.ts).
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -83,7 +84,51 @@ const CROSS_REPOSITORY_TITLE: FixtureOptions = {
   },
 };
 
+/** ReqSeq's own skill file of version 0.0.1 with a body this version does not write, its checksum intact (SR-229 AK10). */
+const OLD_SKILL = ((): string => {
+  const blank = [
+    "---",
+    "name: managing-requirements",
+    'description: "An older skill."',
+    "metadata:",
+    '  generator: "ReqSeq"',
+    '  reqseq-version: "0.0.1"',
+    '  reqseq-checksum: "sha256:"',
+    "---",
+    "",
+    "# Managing requirements with ReqSeq",
+    "",
+  ].join("\n");
+  const sum = createHash("sha256").update(blank, "utf8").digest("hex");
+  return blank.replace('"sha256:"', `"sha256:${sum}"`);
+})();
+
 scenariosOf("workspace.check", [
+  {
+    name: "an older skill file of ReqSeq with other content is one info with the call that renews it (#1920)",
+    fixture: {
+      fixture: "SR-001/two-elements",
+      files: { ".claude/skills/managing-requirements/SKILL.md": OLD_SKILL },
+    },
+    input: {},
+    tag: "[SR-229/AK-gmk1]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      expect(
+        problems
+          .filter((p) => p["code"] === "workspace.skill-outdated")
+          .map((p) => [p["severity"], p["file"], String(p["message"]).split("; ")[1]]),
+      ).toEqual([
+        [
+          "info",
+          ".claude/skills/managing-requirements/SKILL.md",
+          "`reqseq tool guide --skill --write` renews it",
+        ],
+      ]);
+    },
+  },
   {
     name: "a workspace with requirements and no evidence location gets one warning at the workspace file (#1921)",
     fixture: { fixture: "SR-001/two-elements" },
