@@ -50,7 +50,7 @@ Adapters share one runtime per process: `getCommandRuntime()` returns it (create
 
    export default defineCommand({
      name: "element.get",
-     answer: (output, _input, names) => sentence(`${named(output.element)} is ${withArticle(names.type(output.element.type))}`),
+     answer: (output, _input, names) => sentence(`${named(output.element)} is of type ${names.type(output.element.type)}`),
      run: async (ctx, input) => {
        // input: ElementGetInput, the result must be ElementGetOutput; both come from the catalog.
        const store = ctx.workspace.get(elementStore); // per-workspace state, see below
