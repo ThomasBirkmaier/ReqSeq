@@ -1,0 +1,34 @@
+---
+id: 2a5189ca-9ba4-4099-8f65-fa8c37e7fdc6
+type: system-requirement
+status: draft
+title: Vor einer Baseline den Stand des Arbeitsbereichs zeigen
+spec-id: SR-242
+requirement-type: functional
+acceptance-criteria:
+  - key: cq4q
+    text: "Gegeben ein Arbeitsbereich mit Warnungen und ohne Fehler, wenn „Prepare baseline“ aufgerufen wird (App: Befehl; CLI, API, MCP: `baseline.prepare`), dann nennt der [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) die Zahl der Fehler und Warnungen der Prüfung des Bestands und den Nachweisgrad der Auswahl (SR-037), und die Ausgabe führt in allen Zugängen die Befunde wie `workspace.check`."
+  - key: fncy
+    text: Gegeben eine Auswahl mit 10 gültigen Requirements, davon 6 nachgewiesen, 1 nicht bestanden, 1 veraltet und 2 offen, und 3 Requirements ihrer Sicht ohne bestandenen Test, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen dieselben Zahlen je Nachweisstatus wie `evidence.degree` (SR-037) und die Zahl ohne bestandenen Test wie `evidence.withoutPassedTest` für diese Sicht (SR-120) mit dem Namen der Sicht, jede als Zahl von Elementen gekennzeichnet (SR-224 AK4).
+  - key: hss7
+    text: Gegeben eine neueste Baseline nach der Regel von SR-241 AK1, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe ihren Namen und je Kennzeichnung dieselbe Zahl wie `baseline.get` für sie; ohne Baseline fehlt diese Angabe.
+  - key: rqjf
+    text: Gegeben Fehler in der Prüfung des Bestands, solange das Tool Schreibbefehle nicht ablehnt (SR-011 AK3), wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen trotzdem „Create baseline“ als nächsten Schritt mit der Auswahl, die „Prepare baseline“ erhielt, ohne Angabe mit der Auswahl des ganzen Arbeitsbereichs; offen ist nur der Name. Daneben nennt sie „Show changes since baseline“, wenn es eine Baseline gibt.
+  - key: tsww
+    text: Gegeben eine Baseline als Auswahl, wenn „Prepare baseline“ aufgerufen wird, dann lehnt das Tool das ab wie `baseline.create`.
+packages:
+  - { id: 2990bac4-d226-4a31-bb4f-64425f53e055, version: n2:a139a91857d617ad, title: Pakete und Baselines }
+verification-method: test
+derives-from:
+  - { id: 6ad47f0e-0734-4f0d-8d66-06c23933693c, version: n2:3d50558afdf39622, title: Baseline jederzeit festhalten }
+  - { id: 6adc6939-8613-4ad1-bcbe-36c978755079, version: n2:0ce9bd37d401ff1f, title: Nachweisgrad einer Auswahl }
+refines:
+  - { id: 6adc6c49-e383-41ed-ac99-941741a85262, version: n2:94718d1b8a2e216c, title: Nachweisgrad einer Auswahl berechnen }
+  - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
+  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:ed6ae1f0a7b4a03c, title: Den nächsten Schritt nennen }
+based-on:
+  - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
+  - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }
+---
+
+Das Tool muss mit einem Befehl vor dem Festhalten einer [Baseline](reqseq:6ad4f981-8c70-4568-a77a-3da4cd2f98ac?version=n2:ccd1e07d6007cfb6) die [Befunde](reqseq:7bd46b59-0bdf-45de-8e04-2ea489b9a477?version=n2:9d0ccd8bf8416a53) der [Prüfung des Bestands](reqseq:737279a5-6169-40cb-b0ca-e4a8b0898b52?version=n2:ecd68892fa34e5bf), den [Nachweisgrad](reqseq:6ad4f977-5b23-4a33-a450-d377e776a54b?version=n2:36cf695a2c408b4f) einer [Auswahl](reqseq:f0c30c41-91fa-4ac5-8e7c-9054c84ccfc8?version=n2:29932e80a50c6573), die Requirements ohne bestandenen Test und die Änderungen seit der neuesten Baseline zeigen und „Create baseline“ als nächsten Schritt nennen. Der Befehl sperrt keinen Befehl und prüft nicht, ob die Baseline angelegt werden kann.
