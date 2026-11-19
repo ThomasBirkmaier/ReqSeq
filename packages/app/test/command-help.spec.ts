@@ -279,6 +279,27 @@ const help = (window: Page) => window.getByRole("region", { name: "Command help"
 const drawer = (window: Page) => window.locator("#command-help");
 const markedName = (window: Page) => window.locator('.candidates [aria-selected="true"] .name');
 
+/**
+ * Records the element each click in the window goes to, as `tag.class`, and returns them once read. A click whose
+ * press and release land on different elements goes to an element that holds both, so a failure shows whether the
+ * click missed the link or the link's request opened nothing (#2062).
+ */
+const recordClicks = async (window: Page): Promise<() => Promise<string[]>> => {
+  await window.evaluate(() => {
+    const landed: string[] = [];
+    Object.assign(globalThis, { reqseqClicks: landed });
+    addEventListener(
+      "click",
+      (event) => {
+        const { target } = event;
+        landed.push(target instanceof Element ? `${target.localName}.${target.className}` : "no element");
+      },
+      true,
+    );
+  });
+  return () => window.evaluate(() => [...(globalThis as unknown as { reqseqClicks: string[] }).reqseqClicks]);
+};
+
 /** A transition of the panel that moves it, with its times (ms): the slide in or out. */
 interface Slide {
   readonly duration: number;
@@ -488,7 +509,12 @@ test.describe("the command help (SR-210 AK3, AK4, AK5, AK7)", () => {
     ]);
     await expect(shown.locator(".help-cli")).toHaveCount(0);
     await expect(shown.locator(".help-arguments")).toHaveCount(0);
+    // The click comes once the help stands: while it slides in and the card grows, the link moves, and Playwright
+    // checks only that the press lands on it. A release elsewhere gives a click on no link (#2062).
+    await transitionsSettled(window);
+    const clicks = await recordClicks(window);
     await shown.getByRole("link", { name: "Entry in the keyboard reference" }).click();
+    expect(await clicks()).toEqual(["a.help-docs"]);
     await expect.poll(async () => (await opened(app)).at(-1) ?? "").toContain("#action-sort");
     // An action with a key names it: on the matrix, "Show as list".
     await window.keyboard.press("Escape");
