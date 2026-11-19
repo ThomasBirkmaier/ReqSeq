@@ -44,6 +44,9 @@ const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => 
 };
 
 /** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
+/** The answer of a check without findings (SR-224 AK1). */
+const NO_PROBLEM = (checked: number): string => `Checked ${String(checked)} elements and found no problem.`;
+
 const checkBoth = async (
   cwd: string,
   args: readonly string[] = [],
@@ -96,9 +99,13 @@ describe("reqseq workspace check (SR-019)", () => {
       );
     }
     const { human, json, output } = await checkBoth(ws.root);
-    expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 5\nNo problems.\n", stderr: "" });
+    expect(human).toEqual({
+      code: 0,
+      stdout: `${NO_PROBLEM(5)}\nok: true\ncheckedElements: 5\nNo problems.\n`,
+      stderr: "",
+    });
     expect(json.code).toBe(0);
-    expect(output).toEqual({ ok: true, problems: [], checkedElements: 5 });
+    expect(output).toEqual({ answer: NO_PROBLEM(5), ok: true, problems: [], checkedElements: 5 });
   });
 
   it("[SR-019/AK-v7nq] ends with exit code 0 when there is only info, such as a repository that is not here", async () => {
@@ -129,7 +136,11 @@ describe("reqseq workspace check (SR-019)", () => {
       ["relation.missing-target", "requirements/SR-b00000000005.md", `${SR}5`],
     ]);
     const lines = human.stdout.split("\n");
-    expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 13"]);
+    expect(lines.slice(0, 3)).toEqual([
+      "Checked 13 elements and found 5 errors and 6 warnings.",
+      "ok: false",
+      "checkedElements: 13",
+    ]);
     expect(lines).toContainEqual(
       expect.stringMatching(
         /^warning {2}element\.wrong-value-kind {2}SR-b00000000004 {2}.* {2}system:requirements\/SR-b00000000004\.md:7$/,
@@ -171,7 +182,11 @@ describe("reqseq workspace check (SR-019)", () => {
       ["trace.cycle", "requirements/SR-0b0000000003.md", `${CYCLE}3`],
     ]);
     const lines = human.stdout.split("\n");
-    expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 5"]);
+    expect(lines.slice(0, 3)).toEqual([
+      "Checked 5 elements and found 3 warnings.",
+      "ok: false",
+      "checkedElements: 5",
+    ]);
     expect(
       lines.filter(
         (line) =>
@@ -186,6 +201,8 @@ describe("reqseq workspace check (SR-019)", () => {
     const result = await reqseq([...args, "--json"], ws.path("system"));
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
+      // The answer counts the warnings left out as well (SR-224 AK1).
+      answer: "Checked 4 elements and found 5 warnings.",
       ok: false,
       problems: [],
       hidden: { below: "error", warning: 5, info: 0 },
@@ -194,7 +211,8 @@ describe("reqseq workspace check (SR-019)", () => {
     const human = await reqseq(args, ws.path("system"));
     expect(human).toEqual({
       code: 1,
-      stdout: "ok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+      stdout:
+        "Checked 4 elements and found 5 warnings.\nok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
       stderr: "",
     });
   });
@@ -322,9 +340,13 @@ describe("outdated relations in workspace check (SR-025)", () => {
   it("[SR-025/AK-rvw7] reports nothing and ends with exit code 0 when every relation is current", async () => {
     const ws = await fixture("SR-025/outdated", true);
     const { human, json, output } = await checkBoth(ws.root);
-    expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 4\nNo problems.\n", stderr: "" });
+    expect(human).toEqual({
+      code: 0,
+      stdout: `${NO_PROBLEM(4)}\nok: true\ncheckedElements: 4\nNo problems.\n`,
+      stderr: "",
+    });
     expect(json.code).toBe(0);
-    expect(output).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(output).toEqual({ answer: NO_PROBLEM(4), ok: true, problems: [], checkedElements: 4 });
   });
 
   it("[SR-025/AK-zmvt] [SR-019/AK-pt9j] names source, target and the dates of both versions and ends with exit code 1", async () => {
@@ -413,9 +435,9 @@ describe("outdated relations in workspace check (SR-025)", () => {
     expect([last.human.code, last.json.code, last.output]).toEqual([
       0,
       0,
-      { ok: true, problems: [], checkedElements: 4 },
+      { answer: NO_PROBLEM(4), ok: true, problems: [], checkedElements: 4 },
     ]);
-    expect(last.human.stdout).toBe("ok: true\ncheckedElements: 4\nNo problems.\n");
+    expect(last.human.stdout).toBe(`${NO_PROBLEM(4)}\nok: true\ncheckedElements: 4\nNo problems.\n`);
   });
 });
 
@@ -425,7 +447,11 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     const cwd = ws.path("system");
     const warnings = await checkBoth(cwd);
     expect([warnings.human.code, warnings.json.code, warnings.output.ok]).toEqual([0, 0, true]);
-    expect(warnings.human.stdout.split("\n").slice(0, 2)).toEqual(["ok: true", "checkedElements: 4"]);
+    expect(warnings.human.stdout.split("\n").slice(0, 3)).toEqual([
+      "Checked 4 elements and found 5 warnings.",
+      "ok: true",
+      "checkedElements: 4",
+    ]);
     expect(warnings.output.problems.map((p) => p.severity)).toEqual(Array(5).fill("warning"));
     expect((await reqseq(["workspace", "check", "--fail-on", "error"], cwd)).code).toBe(0);
     expect((await reqseq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(1);
@@ -439,7 +465,8 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     const info = await reqseq(["workspace", "check", "--fail-on", "info", "--severity", "warning"], cwd);
     expect(info).toEqual({
       code: 1,
-      stdout: "ok: false\ncheckedElements: 4\nNo problems at or above warning; 2 info not shown.\n",
+      stdout:
+        "Checked 4 elements and found 2 info.\nok: false\ncheckedElements: 4\nNo problems at or above warning; 2 info not shown.\n",
       stderr: "",
     });
   });
@@ -449,7 +476,8 @@ describe("which findings fail the check: --fail-on, apart from --severity (Thoma
     const human = await reqseq(["workspace", "check", "--severity", "error"], ws.path("system"));
     expect(human).toEqual({
       code: 0,
-      stdout: "ok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+      stdout:
+        "Checked 4 elements and found 5 warnings.\nok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
       stderr: "",
     });
     const yaml = await reqseq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
@@ -539,7 +567,11 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     expect((JSON.parse(named.stdout) as Output).problems).toEqual(output.problems);
     // Nothing changed since HEAD: exit code 0.
     const none = await reqseq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
-    expect(none).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 0\nNo problems.\n", stderr: "" });
+    expect(none).toEqual({
+      code: 0,
+      stdout: `${NO_PROBLEM(0)}\nok: true\ncheckedElements: 0\nNo problems.\n`,
+      stderr: "",
+    });
   });
 
   it("[SR-092/AK-fh11] says that a commit is not available locally and ends with exit code 4", async () => {

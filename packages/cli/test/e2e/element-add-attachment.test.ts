@@ -50,6 +50,7 @@ describe("reqseq element add-attachment (SR-097)", () => {
     expect([out.code, out.stderr]).toEqual([0, ""]);
     const added = JSON.parse(out.stdout) as Added;
     expect(added).toEqual({
+      answer: "Copied the image to requirements/SR-6328cee88fb3/Wind-layout.png.",
       file: "requirements/SR-6328cee88fb3/Wind-layout.png",
       markdown: "![Wind-layout](SR-6328cee88fb3/Wind-layout.png)",
     });
@@ -96,7 +97,7 @@ describe("reqseq element add-attachment (SR-097)", () => {
     );
     expect([out.code, out.stdout, out.stderr]).toEqual([
       0,
-      'file: requirements/SR-6328cee88fb3/Wind-layout.png\nmarkdown: "![Wind-layout](SR-6328cee88fb3/Wind-layout.png)"\n',
+      'Copied the image to requirements/SR-6328cee88fb3/Wind-layout.png.\nfile: requirements/SR-6328cee88fb3/Wind-layout.png\nmarkdown: "![Wind-layout](SR-6328cee88fb3/Wind-layout.png)"\n',
       "",
     ]);
     const refused = await reqseq(

@@ -62,6 +62,7 @@ describe("reqseq trace chain (SR-022)", () => {
     expect(human).toEqual({
       code: 0,
       stdout: [
+        "The chain of N-00a001 has 5 elements; 3 gaps.",
         "N-00a001  approved  See the wind",
         "children:",
         "  1  SR-00b001  draft  Show wind speed",
@@ -82,7 +83,8 @@ describe("reqseq trace chain (SR-022)", () => {
   it("[SR-022/AK-rmkp] shows a later page without nesting an element under the wrong parent (ThomasBirkmaier/ReqSeq-archive#310)", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const page = await reqseq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
-    expect(page.stdout.split("\n").slice(0, 3)).toEqual([
+    expect(page.stdout.split("\n").slice(0, 4)).toEqual([
+      "The chain of N-00a001 has 5 elements; 2 gaps on this page.",
       "children:",
       `  1  SR-00b002  draft  Show wind direction  [not in view, holds in VAR-00d001]  [under ${P}a001]`,
       // CR-00c001 derives from SR-00b001 (on the first page), not from SR-00b002 above it.
@@ -94,7 +96,8 @@ describe("reqseq trace chain (SR-022)", () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
     const page = await reqseq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
     expect(page.code).toBe(0);
-    expect(page.stdout.split("\n").slice(0, 3)).toEqual([
+    expect(page.stdout.split("\n").slice(0, 4)).toEqual([
+      "The chain of N-000001 has 5 elements; 1 problem.",
       "N-a0000000001  approved  See the wind",
       "children:",
       "  1  SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000002]",
@@ -104,9 +107,10 @@ describe("reqseq trace chain (SR-022)", () => {
       ["trace", "chain", "SR-b0000000001", "--direction", "up", "--limit", "1"],
       ws.root,
     );
-    expect(up.stdout.split("\n")[0]).toBe(
+    expect(up.stdout.split("\n").slice(0, 2)).toEqual([
+      "The chain of SR-b0000000001 has 4 elements; 1 problem.",
       "SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000003]",
-    );
+    ]);
   });
 
   it("[SR-022/AK-dqf1] prints every parent of a component requirement up to the needs", async () => {
@@ -301,6 +305,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     expect(human).toEqual({
       code: 0,
       stdout: [
+        "The chain of SR-33b001 has 1 element.",
         "SR-33b001  draft  Show wind speed",
         "  1  test case  wind tunnel check",
         "       2026-10-19T10:00:00Z  passed  Prototype P2  reports/wind-tunnel.pdf",
@@ -338,6 +343,7 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
     expect(human).toEqual({
       code: 0,
       stdout: [
+        "The chain of N-33a001 has 5 elements; 1 gap.",
         "N-33a001  approved  See the wind",
         "children:",
         "  1  SR-33b001  draft  Show wind speed",
@@ -413,7 +419,8 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
       },
     ]);
     const human = await reqseq(["trace", "chain", "SR-33b003"], ws.root);
-    expect(human.stdout.split("\n").slice(0, 2)).toEqual([
+    expect(human.stdout.split("\n").slice(0, 3)).toEqual([
+      "The chain of SR-33b003 has 2 elements; 1 gap.",
       "SR-33b003  draft  Show gusts  [gap: no evidence]",
       "  1  test case  tests.test_wind › test_gusts[SR-33b003]  [not executed]",
     ]);

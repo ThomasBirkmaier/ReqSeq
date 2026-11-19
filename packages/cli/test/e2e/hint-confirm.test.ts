@@ -69,6 +69,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     const out = await reqseq([...args, "--hint-ids", "element.unknown-property", "--json"], ws.root);
     expect([out.code, out.stderr]).toEqual([1, ""]);
     expect(JSON.parse(out.stdout) as Confirmed).toEqual({
+      answer: "Confirmed 2 hints; 1 file written; 1 problem.",
       confirmed: [validity?.hintId, derives?.hintId],
       files: [A_FILE],
       problems: [expect.objectContaining({ code: "hint.not-confirmable", severity: "error" })],
@@ -90,6 +91,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     expect(target).toEqual({
       code: 0,
       stdout: [
+        "Confirmed 2 hints; 1 file written.",
         "confirmed:",
         `  ${derives?.hintId ?? ""}`,
         `  ${link?.hintId ?? ""}`,
@@ -102,6 +104,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     });
     const ref = await reqseq(["hint", "confirm", "--ref", A, "--json"], ws.root);
     expect(JSON.parse(ref.stdout) as Confirmed).toEqual({
+      answer: "Confirmed 1 hint; 1 file written.",
       confirmed: [validity?.hintId],
       files: [A_FILE],
       problems: [],
@@ -111,7 +114,7 @@ describe("reqseq hint confirm (SR-027)", () => {
     const none = await reqseq(["hint", "confirm", "--ref", A], ws.root);
     expect([none.code, none.stdout]).toEqual([
       0,
-      `confirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints\n`,
+      `Confirmed 0 hints; no file written; 1 problem.\nconfirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints\n`,
     ]);
     const empty = await reqseq(["hint", "confirm"], ws.root);
     expect([empty.code, empty.stderr]).toEqual([

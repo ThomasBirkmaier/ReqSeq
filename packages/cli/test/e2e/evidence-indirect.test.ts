@@ -30,6 +30,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed the verification status of 19 elements.",
         "elements:",
         "  N-00a001  approved  Know the weather  [validation: open]",
         "  SR-00b100  approved  Show the weather  [verification: core indirect]",
@@ -66,6 +67,7 @@ describe("reqseq evidence status and element get with indirect verification (SR-
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed the verification status of 1 element.",
         "elements:",
         "  SR-00b120  approved  Warn of storms  [verification: core open (missing SR-00b121, SR-00b122, SR-00b123)]",
         "total: 1",
@@ -91,9 +93,10 @@ describe("reqseq evidence status and element get with indirect verification (SR-
   it("[SR-034/AK-s1b5] reqseq element get shows a parent with an obsolete child as indirect", async () => {
     const result = await reqseq(["element", "get", "SR-00b130"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
-    expect(result.stdout.split("\n")[0]).toBe(
+    expect(result.stdout.split("\n").slice(0, 2)).toEqual([
+      "SR-00b130 is a system-requirement with status approved.",
       "SR-00b130  approved  Show the rain  [verification: core indirect]",
-    );
+    ]);
     const json = await reqseq(["element", "get", "SR-00b130", "--json"]);
     const out = JSON.parse(json.stdout) as {
       readonly element: { readonly status: string; readonly verification: unknown };

@@ -58,6 +58,7 @@ describe("reqseq workspace recent (SR-131)", () => {
     const json = await reqseq(["workspace", "recent", "--json"], fixture.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     expect(JSON.parse(json.stdout)).toEqual({
+      answer: "The list of workspaces the app opened holds 2 workspaces.",
       workspaces: [
         { root: fixture.root, opened: at(2), exists: true },
         { root: gone, opened: at(1), exists: false },
@@ -81,6 +82,7 @@ describe("reqseq workspace recent (SR-131)", () => {
     const result = await reqseq(["workspace", "recent", "--json"], elsewhere);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
+      answer: "The list of workspaces the app opened holds 1 workspace.",
       workspaces: [{ root: fixture.root, opened: at(2), exists: true }],
     });
     expect(await fs.readFile(list, "utf8")).toBe(text);
@@ -94,6 +96,10 @@ describe("reqseq workspace recent (SR-131)", () => {
 
   it("prints an empty list when the app recorded none", async () => {
     const result = await reqseq(["workspace", "recent", "--json"], fixture.root);
-    expect([result.code, result.stderr, JSON.parse(result.stdout)]).toEqual([0, "", { workspaces: [] }]);
+    expect([result.code, result.stderr, JSON.parse(result.stdout)]).toEqual([
+      0,
+      "",
+      { answer: "The list of workspaces the app opened holds 0 workspaces.", workspaces: [] },
+    ]);
   });
 });

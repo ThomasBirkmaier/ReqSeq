@@ -30,6 +30,7 @@ describe("reqseq with emergent requirements (SR-035)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed the verification status of 12 elements.",
         "elements:",
         "  N-00a001  approved  Know the weather  [validation: open]",
         "  SR-00b100  approved  Show the weather  [verification: core open (missing SR-00b110)]",
@@ -55,6 +56,7 @@ describe("reqseq with emergent requirements (SR-035)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
+        "Listed 4 elements.",
         "elements:",
         "  SR-00b110  approved  Show the forecast  [emergent]",
         "  SR-00b130  approved  Warn of storms  [emergent]",
