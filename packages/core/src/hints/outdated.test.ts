@@ -3,7 +3,7 @@
 // ADR-0004) and references N in its text; requirement B refines A. Every stored version is current.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
@@ -76,8 +76,14 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
-  (await invoke("workspace.check", input, { workspace })) as Output;
+/** `workspace.check` without the gaps of verification (SR-230 AK1, AK2), which most fixtures here have. */
+const check = async (
+  workspace: Workspace,
+  input: Readonly<Record<string, unknown>> = {},
+): Promise<Output> => {
+  const out = (await invoke("workspace.check", input, { workspace })) as Output;
+  return { ...out, problems: withoutVerificationGaps(out.problems) };
+};
 
 /** The committer date of HEAD as ADR-0005 writes a version date. */
 const headDate = async (ws: FixtureWorkspace): Promise<string> =>
@@ -673,7 +679,8 @@ describe("outdated relations and references (SR-025)", () => {
     // Not ok for the warnings with failOn warning, though the filter leaves them out; counted as hidden.
     expect(out.ok).toBe(false);
     expect(out.problems).toEqual([]);
-    expect(out.hidden).toEqual({ below: "error", warning: 3, info: 0 });
+    // The three outdated relations and the missing evidence location (SR-230 AK1).
+    expect(out.hidden).toEqual({ below: "error", warning: 4, info: 0 });
   });
 
   it("does not report a target whose current version is unknown (its file no longer holds it)", async () => {

@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import YAML from "yaml";
 import type { Run } from "../support/reqseq.js";
@@ -324,7 +324,10 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
       });
       const { run, output } = await check(ws.root);
       expect(run.code, run.stdout).toBe(0);
-      expect(output.problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
+      // Besides the count of open requirements, SR-d4c0de (SR-230 AK2).
+      expect(withoutVerificationGaps(output.problems).filter((p) => p.code.startsWith("evidence."))).toEqual(
+        [],
+      );
       // The example in the repository is left as it was, ignored files included.
       expect(await git(["status", "--porcelain", "--ignored", "--", "toolchain/junit"])).toBe(before);
     },
@@ -499,6 +502,7 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
     const ws = await exampleWorkspace();
     const { run, output } = await check(ws.root);
     expect(run.code, run.stdout).toBe(0);
-    expect(output.problems).toEqual([]);
+    // Its requirements are open until a test run is recorded: one info (SR-230 AK2), nothing else.
+    expect(output.problems.map((p) => p.code)).toEqual(["evidence.open-requirements"]);
   });
 });
