@@ -2432,6 +2432,40 @@ export interface MetamodelMermaidOutput {
 }
 
 /**
+ * Input of `metamodel.addType` as `run` gets it: validated, properties with a `default` filled in. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json input`.
+ */
+export interface MetamodelAddTypeInput {
+  /** Display name of the type; no other type may have it. */
+  readonly name: string;
+  /** Prefix of the short IDs of its elements, e.g. SR (D-017); no other type may have it. */
+  readonly prefix: MetamodelPrefix;
+  /** Fixed key of the type (D-043). Left out: made from the name (SR-236 AK6). */
+  readonly key?: Key;
+  /** Key of the type it extends; its properties, required properties and statuses are inherited (SR-012 AK2). */
+  readonly extends?: Key;
+  /** No elements of the type can be created; it is only extended (SR-012 AK4). */
+  readonly abstract: boolean;
+}
+
+/**
+ * Output of `metamodel.addType`. Add an element type to the metamodel; only the metamodel file that gets it changes, line by line.
+ * Schema: `schemas/commands/metamodel.addType.json output`.
+ */
+export interface MetamodelAddTypeOutput {
+  /** The definition as written to the file. */
+  readonly type: MetamodelType;
+  /** The metamodel files changed (SR-236 AK3). */
+  readonly files: readonly OutputPath[];
+  /** Elements whose version is another under the new metamodel (SR-015 AK4): elements of a type whose counted properties change and that have a value for one of them, such as elements of a type that was unknown before. */
+  readonly versionsChanged: number;
+  /** Elements that now miss a value of a required property they did not miss before (SR-015 AK3). */
+  readonly missingRequired: number;
+  /** The warnings of the metamodel afterwards (SR-236 AK1). */
+  readonly problems: readonly Problem[];
+}
+
+/**
  * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint (SR-064).
  * Schema: `schemas/commands/element.create.json input`.
  */
@@ -4740,6 +4774,7 @@ export interface CommandTypes {
   readonly "tool.guide": { readonly input: ToolGuideInput; readonly output: ToolGuideOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "metamodel.mermaid": { readonly input: MetamodelMermaidInput; readonly output: MetamodelMermaidOutput };
+  readonly "metamodel.addType": { readonly input: MetamodelAddTypeInput; readonly output: MetamodelAddTypeOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };
