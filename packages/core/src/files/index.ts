@@ -3,7 +3,10 @@
 // to disk. Core blocks import it relatively; it is not part of the package's public API, except
 // `isTempFile` and the JSON text functions the adapters stream with (`src/index.ts`).
 export { findConflictMarker } from "./conflict-markers.js";
+export { openExportFolder, STAGING_FOLDER } from "./export-folder.js";
+export type { ExportFolder, IgnoredEntry, MarkerSpec } from "./export-folder.js";
 export { createFolder } from "./folder.js";
+export { imageExtension } from "./image-type.js";
 export { linksStayInside } from "./links.js";
 export { errorCode, isTakenForGit, resolveInRoot, systemForm } from "./paths.js";
 export { TRANSIENT_CODES } from "./retry.js";
@@ -66,7 +69,7 @@ export type { JsonLinesSpec } from "./json-lines.js";
 export { DATA_HEAD_BYTES, isJsonlDataFile } from "./jsonl-data.js";
 export { editElementFile, zip } from "./edit.js";
 export { editYamlDocument, renderYamlDocument } from "./yaml-document.js";
-export { appendListItem, removeListItem, setMapValue } from "./yaml-list.js";
+export { appendListItem, refuseShared, removeListItem, setMapValue } from "./yaml-list.js";
 export type { YamlPath } from "./yaml-list.js";
 export { yamlPointerLine } from "./yaml-pointer.js";
 export { listFolderFiles } from "./list-folder.js";

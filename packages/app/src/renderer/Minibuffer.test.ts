@@ -2,7 +2,7 @@
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460, ThomasBirkmaier/ReqSeq-archive#573).
 import "../../../../scripts/test-support/dom-selection.mjs";
-import { act, createElement, useReducer } from "react";
+import { act, createElement, Fragment, useLayoutEffect, useReducer } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Choice, Prompt, PromptFill } from "./action-types.js";
 import { elementBuffer } from "./buffers.js";
@@ -65,6 +65,30 @@ describe("Minibuffer", () => {
       await click(target);
     }
     expect(command).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens what a linked message reports on a press and click on it, and the commands beside it (SR-223 AK8, SR-202 AK1)", async () => {
+    const command = vi.fn();
+    const open = vi.fn();
+    await render(
+      createElement(Minibuffer, {
+        echo: "Created baseline R1.",
+        onEcho: open,
+        prompt: undefined,
+        onCommand: command,
+        onClose: vi.fn(),
+      }),
+    );
+    for (const target of [query(".echo-open"), query('[aria-label="Minibuffer"]')]) {
+      await act(async () => {
+        target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        await Promise.resolve();
+      });
+      await click(target);
+    }
+    expect(query(".echo-open").textContent).toBe("Created baseline R1.");
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(command).toHaveBeenCalledTimes(1);
   });
 
   it("shows the next keys as rows of key and command, without an input", async () => {
@@ -1449,6 +1473,47 @@ describe("Minibuffer", () => {
           expect(yes).not.toHaveBeenCalled();
           expect(back).not.toHaveBeenCalled();
         }
+      });
+
+      it("takes a key pressed once the step is on the page, before its passive effects ran (#1982)", async () => {
+        const { prompt, back } = confirmation();
+        let ask: (serial: number) => void = () => undefined;
+        // Presses Escape in the commit that puts the step on the page, after the layout effects of the prompt
+        // and before any passive effect: as a key that comes once the step is on the page, before React ran the
+        // passive effects of that commit, which can run after the frame that paints it (#1982).
+        const Presser = ({ serial }: { readonly serial: number }): null => {
+          useLayoutEffect(() => {
+            if (serial === 2) {
+              const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+              Object.defineProperty(event, "timeStamp", { value: performance.now() });
+              input().dispatchEvent(event);
+            }
+          }, [serial]);
+          return null;
+        };
+        const Harness = (): React.ReactElement => {
+          const [serial, setSerial] = useReducer((_: number, value: number) => value, 1);
+          ask = setSerial;
+          const first: Prompt = { label: "value", items: [choice("value", "Why")] };
+          return createElement(
+            Fragment,
+            null,
+            createElement(Minibuffer, {
+              echo: "",
+              prompt: { serial, prompt: serial === 1 ? first : prompt },
+              onCommand: vi.fn(),
+              onClose: vi.fn(),
+            }),
+            createElement(Presser, { serial }),
+          );
+        };
+        await render(createElement(Harness));
+        await act(async () => {
+          ask(2);
+          await Promise.resolve();
+        });
+        await flush();
+        expect(back).toHaveBeenCalledTimes(1);
       });
 
       it("opens no command help, so Ctrl/Cmd+Enter after Ctrl+H still confirms (SR-210 AK4)", async () => {

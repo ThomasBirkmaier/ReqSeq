@@ -174,4 +174,21 @@ describe("the lines of a trace chain", () => {
     const output = { other: [node("uuid-1", "SR-1", "Show wind speed")], nodes: [], evidence };
     expect(shown(output)).toEqual(["other|1", "  SR-1|Show wind speed", "nodes|0"]);
   });
+
+  it("shows the fields under their titles and finds the nodes by their field, not by its title (SR-223 AK1)", () => {
+    const evidence = [
+      { id: "uuid-1", repository: "system", testCases: [], records: [execution({ item: "b1" })] },
+    ];
+    const output = { nodes: [node("uuid-1", "SR-1", "Show wind speed")], evidence };
+    const fields = [{ path: "nodes", title: "Nodes" }];
+    const lines = chainLines(output, fields).map(
+      (line) => `${"  ".repeat(line.depth)}${line.label}|${line.text}`,
+    );
+    expect(lines.slice(0, 3)).toEqual([
+      "Nodes|1",
+      "  SR-1|Show wind speed",
+      expect.stringMatching(/^ {4}record\|/u),
+    ]);
+    expect(chainLines({ nodes: [] }, fields).map((line) => line.label)).toEqual(["Nodes"]);
+  });
 });

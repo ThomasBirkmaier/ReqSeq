@@ -97,7 +97,7 @@ describe("reqseq trace chain (SR-022)", () => {
     const page = await reqseq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
     expect(page.code).toBe(0);
     expect(page.stdout.split("\n").slice(0, 4)).toEqual([
-      "The chain of N-000001 has 5 elements; 1 problem.",
+      "The chain of N-a0000000001 has 5 elements; 1 problem.",
       "N-a0000000001  approved  See the wind",
       "children:",
       "  1  SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000002]",

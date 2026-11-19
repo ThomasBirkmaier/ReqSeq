@@ -10,7 +10,13 @@ export { resolveTypes } from "./inheritance.js";
 export type { DefinedKeys, EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
 export { limitsOf, maxItemsOf, minimaOf } from "./limits.js";
 export type { ItemLimit, Minima, RelationLimit, RelationMinimum } from "./limits.js";
-export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, isKeyForm, loadMetamodel } from "./load.js";
+export {
+  METAMODEL_FILE_EXTENSION,
+  STRUCTURAL_KEYS,
+  UNKNOWN_TYPE_PREFIX,
+  isKeyForm,
+  loadMetamodel,
+} from "./load.js";
 export type { Metamodel } from "./load.js";
 export {
   allowsType,
@@ -55,9 +61,24 @@ export {
   versionDifferences,
 } from "./repository-metamodels.js";
 export { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
-export { keyFromName } from "./new-key.js";
+export { keyFromName, keyOrMade } from "./new-key.js";
+export {
+  choicesOf,
+  fieldsOutside,
+  newChoices,
+  newPropertyKey,
+  ownLists,
+  ownerAbove,
+  propertyDefinition,
+  refuseOutsideKind,
+  refusePropertyName,
+  refuseSingleLimit,
+  unknownDefinition,
+} from "./property-plan.js";
+export type { KindField, PropertyKind } from "./property-plan.js";
 export { metamodelState } from "./state.js";
-export { changeMetamodel, definitionAt, definitionsOf, editedFiles } from "./write.js";
+export { statusKeysOf, statusListHolders, typeDefinition, widenedTypes } from "./status-lists.js";
+export { changeMetamodel, definitionAt, definitionsOf, editedFiles, fileForNew } from "./write.js";
 export type {
   DefinitionList,
   DefinitionPlace,

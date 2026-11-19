@@ -10,6 +10,7 @@ import {
   quoteWindowsArgument,
   serverOf,
   setupOf,
+  skillCall,
 } from "./agent-setup.js";
 
 const MAC_APP = "/Applications/ReqSeq.app";
@@ -114,6 +115,31 @@ describe("setupOf", () => {
     expect(setup("vscode", windows).setup.text).toBe(
       String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Tools\\ReqSeq\\ReqSeq.exe\",\"args\":[\"C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"],\"env\":{\"ELECTRON_RUN_AS_NODE\":\"1\"}}"`,
     );
+    // Under Claude Code's command, the call that writes the skill file, started as the setup starts the server.
+    expect(setup("claude-code", mac).next).toMatch(
+      /To give Claude Code the skill file, run `\/Applications\/ReqSeq\.app\/Contents\/Resources\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
+    );
+    expect(skillCall({ ...linux, workspace: "/home/ann/my station" })).toBe(
+      "/home/ann/ReqSeq/bin/reqseq tool guide --skill --write --workspace '/home/ann/my station'",
+    );
+    expect(skillCall({ ...linux, launcherExists: false })).toBe(
+      "ELECTRON_RUN_AS_NODE=1 /home/ann/ReqSeq/ReqSeq /home/ann/ReqSeq/resources/cli/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
+    );
+    expect(skillCall(windows)).toBe(
+      "$env:ELECTRON_RUN_AS_NODE='1'; & 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'; Remove-Item Env:ELECTRON_RUN_AS_NODE",
+    );
+    const node = {
+      runtime: "C:\\Program Files\\nodejs\\node.exe",
+      entry: "C:\\npm\\reqseq\\dist\\bin.js",
+      electron: false,
+    };
+    expect(skillCall({ ...windows, installation: node })).toBe(
+      "& 'C:\\Program Files\\nodejs\\node.exe' 'C:\\npm\\reqseq\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'",
+    );
+    expect(setup("claude-code", windows).next).toContain(`run \`${skillCall(windows)}\`.`);
+    for (const client of ["claude-desktop", "cursor", "vscode", "codex-cli", "other"] as const) {
+      expect(setup(client, linux).next).not.toContain("tool guide");
+    }
     expect(setup("claude-desktop", mac).setup.file).toBe(
       "/Users/ann/Library/Application Support/Claude/claude_desktop_config.json",
     );

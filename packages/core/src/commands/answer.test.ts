@@ -15,6 +15,7 @@ import {
   incompleteNote,
   listed,
   named,
+  rootNamed,
   paged,
   problemsNote,
   sentence,
@@ -22,6 +23,9 @@ import {
 } from "./answer.js";
 import elementList from "./element/list.js";
 import { commands } from "./index.js";
+import traceChain from "./trace/chain.js";
+import traceGraph from "./trace/graph.js";
+import traceNeighbourhood from "./trace/neighbourhood.js";
 import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceAgents from "./workspace/agents.js";
@@ -113,6 +117,12 @@ describe("the words of the answers", () => {
       "SR-0000b1",
       "SR-1",
     ]);
+    // The root by its node, whatever ref named it; the ref as given when the page does not hold the root.
+    const nodes = [{ id: "uuid-1", shortId: "SR-0000b1", identifier: "SR-1" }];
+    expect([rootNamed("uuid-1", nodes, "uuid-1"), rootNamed("uuid-2", nodes, "uuid-2")]).toEqual([
+      "SR-1",
+      "uuid-2",
+    ]);
     expect([listed([]), listed(["a"]), listed(["a", "b"]), listed(["a", "b", "c"])]).toEqual([
       "",
       "a",
@@ -137,6 +147,26 @@ describe("the words of the answers", () => {
 });
 
 describe("answers of single commands", () => {
+  it("trace.chain, trace.graph and trace.neighbourhood name the root by its node, also for a UUID as ref (#1874)", () => {
+    const root = { id: "uuid-1", shortId: "SR-0000b1", identifier: "SR-073" };
+    const chain = { root: "uuid-1", nodes: [root], total: 5, gaps: [], unresolved: [] };
+    expect(answerOf(traceChain, chain, { ref: "uuid-1" })).toBe("The chain of SR-073 has 5 elements.");
+    expect(answerOf(traceGraph, { root: "uuid-1", nodes: [root], edges: [] }, { ref: "uuid-1" })).toBe(
+      "The graph of SR-073 has 1 element and 0 relations.",
+    );
+    expect(answerOf(traceNeighbourhood, { root: "uuid-1", nodes: [root], total: 1 }, { ref: "uuid-1" })).toBe(
+      "The neighbourhood of SR-073 has 1 element.",
+    );
+    // A later page names the root by `names`, as the first page does.
+    const later = { root: "uuid-1", nodes: [], names: [root] };
+    expect(answerOf(traceChain, { ...later, total: 5, gaps: [], unresolved: [] }, { ref: "uuid-1" })).toBe(
+      "The chain of SR-073 has 5 elements.",
+    );
+    expect(answerOf(traceNeighbourhood, { ...later, total: 3 }, { ref: "uuid-1" })).toBe(
+      "The neighbourhood of SR-073 has 3 elements.",
+    );
+  });
+
   it("element.list counts the rows of `partial` as of `elements`", () => {
     expect(answerOf(elementList, { partial: [{}, {}], total: 3 })).toBe("Listed 2 of 3 elements.");
     expect(answerOf(elementList, { total: 0 })).toBe("Listed 0 elements.");

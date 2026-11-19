@@ -13,6 +13,7 @@ type Unit =
   | "commands"
   | "data"
   | "reqif"
+  | "html-export"
   | "graph"
   | "query"
   | "hints"
@@ -49,7 +50,7 @@ const LAYERS: readonly (readonly Unit[])[] = [
   ["trace", "variants", "baselines"],
   ["evidence"],
   ["hints", "query"],
-  ["data", "reqif", "graph"],
+  ["data", "reqif", "html-export", "graph"],
   ["commands"],
   ["runtime entry"],
 ];
@@ -91,6 +92,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
       "hints",
       "metamodel",
       "model",
+      "html-export",
       "query",
       "reqif",
       "runtime state",
@@ -105,6 +107,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
     types: ["git", "query", "runtime state"],
   },
   reqif: { values: ["files", "metamodel", "model", "runtime state", "workspace"] },
+  "html-export": { values: ["files", "metamodel", "model", "workspace"], types: ["runtime state"] },
   graph: {
     values: ["evidence", "hints", "metamodel", "model", "runtime state", "trace", "variants", "workspace"],
   },

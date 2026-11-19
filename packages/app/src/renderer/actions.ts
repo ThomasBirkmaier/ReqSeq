@@ -11,14 +11,15 @@
 // `app-actions.ts`, `list-actions.ts` and the others below); their types are in `action-types.ts`, and
 // where they are available is in `action-conditions.ts`.
 import type { DataExportElement, ElementSelection } from "@reqseq/core";
-import type { SearchField } from "./buffers.js";
+import type { ResultBuffer, SearchField } from "./buffers.js";
 import { bufferName, overviewBuffer, fieldsInput, searchBuffer } from "./buffers.js";
 import { SEARCH_COMMAND, searchFieldsPrompt, summaryOf } from "./search-fields.js";
 import { PREFIX_BINDINGS, bindingLabel } from "./bindings.js";
 import { ALL_COMMANDS, ALL_COMMANDS_DESCRIPTION } from "./prompt-keys.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { LIST_ACTIONS } from "./list-actions.js";
-import { linesOf, resultText } from "./result-copy.js";
+import { keptCursor, linesOf, outputJson } from "./result-copy.js";
+import { isHintOutput } from "./hint-list.js";
 import type { KeyPress, Shortcut } from "./keys.js";
 import { SAVE_SHORTCUT, shortcutLabel } from "./keys.js";
 import type { SwipeDirection } from "../shared/protocol.js";
@@ -37,6 +38,9 @@ import { GRAPH_ACTIONS } from "./graph-actions.js";
 import { BUFFER_ACTIONS } from "./buffer-actions.js";
 import { APP_ACTIONS } from "./app-actions.js";
 import { SETUP_FIELD, shownSetup } from "./connect-agent.js";
+
+/** What "Copy as JSON" copies, as the modeline names it: "Copied output as JSON" (SR-128 AK2). */
+export const JSON_COPY = "output as JSON";
 
 /**
  * Ctrl/Cmd+Alt+A (macOS ⌥⌘A) adds a property to the shown element (SR-104 AK2). Not Cmd+Shift+A: with
@@ -466,15 +470,39 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   {
-    // The whole output of the shown result buffer as one block, whichever command gave it.
-    id: "copy-result",
-    title: "Copy result",
-    description: "Copy the whole output of the shown command to the clipboard.",
+    // SR-223 AK9: the whole output of the shown result buffer as the command line gives it with `--json`,
+    // whichever command gave it, the hint list too; the modeline confirms it (SR-128 AK2).
+    id: "copy-as-json",
+    title: "Copy as JSON",
+    description: "Copy the whole output of the shown command to the clipboard, as JSON.",
     available: (context: ActionContext): boolean => shownResult(context) !== undefined,
     run: (context: ActionContext): void => {
       const result = shownResult(context);
       if (result !== undefined) {
-        context.copy?.("result", resultText(linesOf(result)));
+        context.copy?.(JSON_COPY, outputJson(result.output));
+      }
+    },
+  },
+  {
+    // SR-223 AK2: the technical values and those equal to their normal value of the shown output, the hint
+    // list too, shown and hidden again; per buffer until it is closed (`ResultBuffer.details`). Ctrl+K D.
+    id: "show-details",
+    title: "Show details",
+    description: "Show or hide the technical values of the shown command output.",
+    available: (context: ActionContext): boolean => shownResult(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const result = shownResult(context);
+      if (result !== undefined) {
+        const { details, ...rest } = result;
+        const toggled: ResultBuffer = details === true ? rest : { ...rest, details: true };
+        // The selected line stays selected: the hint list keeps its rows, an output page finds the line again.
+        const fields = context.catalog?.().find((entry) => entry.name === result.command)?.outputFields;
+        const cursor =
+          result.command === "hint.list" && isHintOutput(result.output)
+            ? result.cursor
+            : keptCursor(linesOf(result, fields), linesOf(toggled, fields), result.cursor);
+        context.dispatch({ type: "update", buffer: { ...toggled, cursor } });
+        context.echo(details === true ? "Details hidden" : "Details shown");
       }
     },
   },

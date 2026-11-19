@@ -17,6 +17,15 @@
     "metamodel.addType",
     "metamodel.changeType",
     "metamodel.removeType",
+    "metamodel.addProperty",
+    "metamodel.changeProperty",
+    "metamodel.removeProperty",
+    "metamodel.addRelationKind",
+    "metamodel.changeRelationKind",
+    "metamodel.removeRelationKind",
+    "metamodel.addStatus",
+    "metamodel.changeStatus",
+    "metamodel.removeStatus",
     "element.create",
     "element.get",
     "element.resolve",
@@ -68,6 +77,7 @@
     "reqif.analyze",
     "reqif.import",
     "reqif.saveMapping",
-    "reqif.export"
+    "reqif.export",
+    "html.export"
   ]
 }

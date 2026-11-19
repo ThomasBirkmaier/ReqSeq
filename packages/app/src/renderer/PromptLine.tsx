@@ -1,6 +1,6 @@
 // The line of the command prompt while it asks (a prompt): the input, the candidates on the card above it, the
 // explanation line and the command help.
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   ArgumentExplanation,
   Choice,
@@ -723,11 +723,12 @@ export const PromptLine = ({
   // Whether an Enter waits (`waiting` or `early`), shown as "searching…", so a person or a test sees that
   // it is not taken yet (#467).
   const [pending, setPending] = useState(false);
-  // When a confirmation step was shown (`performance.now()`, SR-218 AK3): a key press or a click that began
-  // before it does nothing on it; none yet while it is not shown.
-  const shownAt = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    // Effects run once the prompt is painted.
+  // When a confirmation step was put on the page (`performance.now()`, SR-218 AK3): a key press or a click that
+  // began before it does nothing on it. Set in a layout effect, in the same task as the step goes into the page and
+  // before the frame that paints it: a passive effect can run after that frame, and then a key pressed on the shown
+  // step was taken as one from before it (#1982).
+  const shownAt = useRef(Number.POSITIVE_INFINITY);
+  useLayoutEffect(() => {
     shownAt.current = performance.now();
   }, []);
   /**
@@ -736,9 +737,7 @@ export const PromptLine = ({
    */
   const guarded = (event: React.KeyboardEvent | React.MouseEvent): boolean =>
     given.confirm !== undefined &&
-    (shownAt.current === undefined ||
-      event.timeStamp < shownAt.current ||
-      ("repeat" in event ? event.repeat : event.detail > 1));
+    (event.timeStamp < shownAt.current || ("repeat" in event ? event.repeat : event.detail > 1));
 
   useEffect(() => {
     // The text the input starts with is searched as if typed (the search words kept from the field choice,

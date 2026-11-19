@@ -117,6 +117,11 @@ test.describe("the view of a variant in the app", () => {
     await expect(names).toHaveText(["yes", "no"]);
     await window.keyboard.press("Enter");
     await window.keyboard.press("Enter");
+    // The answer in the command line opens the output (SR-223 AK8).
+    await window.locator(".echo-open").click();
+    // The written file is a path, which "Show details" (Ctrl+K D) shows (SR-223 AK2).
+    await window.keyboard.press("ControlOrMeta+K");
+    await window.keyboard.press("d");
     await expect(window.locator(".result")).toContainText("variants/VAR-0000000000c1.md");
     expect(await cliView(running, A)).toContain("SR-0000a2");
     await window.keyboard.press("ControlOrMeta+Shift+P");
