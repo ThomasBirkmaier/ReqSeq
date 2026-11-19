@@ -60,9 +60,19 @@ describe("metamodel.changeType changes a type in place (SR-237 AK2)", () => {
     const meta = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
     expect(meta.types.find((t) => t.key === "note")).toMatchObject({ name: "Remark note", meaning: "need" });
 
-    // null removes the description line.
-    await change(workspace, { type: "note", description: null });
-    expect(await read(MODEL)).not.toContain("description:");
+    // null removes the description and the meaning line.
+    await change(workspace, { type: "note", description: null, meaning: null });
+    expect(await read(MODEL)).not.toMatch(/description:|meaning: need/);
+    // A definition with an anchor or alias in it is refused with file and line (SR-236 AK5).
+    const { workspace: anchored } = await openSmall(
+      {},
+      SMALL_MODEL.replace("    name: Note\n", "    name: &n Note\n"),
+    );
+    const refused = await failure(anchored, "metamodel.changeType", { type: "note", name: "Other" });
+    expect([refused.code, refused.details]).toEqual([
+      "file.faulty",
+      { file: MODEL, line: 16, repository: "system" },
+    ]);
   });
 
   it("refuses an unknown type and a name another type has", async () => {
@@ -110,6 +120,12 @@ describe("metamodel.changeType: prefix and abstract mark only without use (SR-23
     expect((await change(workspace, { type: "risk", abstract: true })).files).toEqual([]);
     expect((await change(workspace, { type: "risk", abstract: false })).files).toEqual([MODEL]);
     expect(await read(MODEL)).toBe(SMALL_MODEL);
+    // `abstract: false` written in the file is no abstract mark: nothing to change.
+    const { workspace: plain } = await openSmall(
+      {},
+      SMALL_MODEL.replace("    prefix: NO\n", "    prefix: NO\n    abstract: false\n"),
+    );
+    expect((await change(plain, { type: "note", abstract: false })).files).toEqual([]);
     // A type no element has gets a new prefix and the mark; the comment at the end of the line goes.
     expect((await change(workspace, { type: "note", prefix: "NT", abstract: true })).type).toMatchObject({
       prefix: "NT",
@@ -188,7 +204,8 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
     expect(meta.uses).toEqual({
       types: { hazard: 1, risk: 1, note: 1 },
       properties: { title: 3, severity: 2, likelihood: 1, remark: 1 },
-      values: { severity: { low: 0, high: 1 } },
+      // A fixed value counts on any element with it, also one of a type the metamodel does not have.
+      values: { severity: { low: 1, high: 1 } },
       relations: { about: 1 },
       // Open is not a status of a note: that element does not count for it.
       statuses: { draft: 1, open: 1, noted: 0 },

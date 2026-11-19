@@ -107,10 +107,13 @@ export default defineCommand({
         ]);
       }
       // A field that already has the value is left as it is, with its line.
+      // `abstract: false` written in the file is the same as no abstract line.
+      const current = (field: (typeof FIELDS)[number]): unknown =>
+        field === "abstract" && own.abstract === false
+          ? undefined
+          : (own as unknown as Record<string, unknown>)[field];
       const changed = FIELDS.filter(
-        (field) =>
-          input[field] !== undefined &&
-          written(input, field) !== (own as unknown as Record<string, unknown>)[field],
+        (field) => input[field] !== undefined && written(input, field) !== current(field),
       );
       const edits = changed.map((field): { readonly file: typeof place.file; readonly edit: LineEdit } => ({
         file: place.file,

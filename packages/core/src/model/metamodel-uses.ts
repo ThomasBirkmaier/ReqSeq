@@ -5,8 +5,8 @@
 // - A type is used by each element of that type.
 // - A property by each element of a type that has it (own or inherited) whose file holds its key,
 //   also with an empty value.
-// - A fixed value (a choice) by each element of a type that has the property whose value is it or,
-//   for several values, holds it.
+// - A fixed value (a choice) by each element whose value of the property is it or, for several
+//   values, holds it, whatever the element's type.
 // - A relation kind by each element whose file holds its key: a relation of the kind, or an empty list.
 // - A status by each element of a type that has it with that status.
 //
@@ -25,7 +25,7 @@ import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import { locate, settingLocation } from "../workspace/index.js";
+import { settingLocation } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -72,10 +72,13 @@ export const holdsKey = (element: Pick<ElementRecord, "data">, key: string): boo
 export const hasStatus = (element: Pick<ElementRecord, "data">, key: string): boolean =>
   element.data["status"] === key;
 
-/** Adds one to `counts[key]` when the key is counted there. */
-const bump = (counts: Record<string, number> | undefined, key: string): void => {
-  const count = counts?.[key];
-  if (counts !== undefined && count !== undefined) {
+/**
+ * Adds one to `counts[key]` when the key is counted there: an own entry only, so a key such as
+ * `constructor` or `__proto__` of an element file never reads or writes what objects inherit.
+ */
+const bump = (counts: Record<string, number>, key: string): void => {
+  const count: unknown = Object.hasOwn(counts, key) ? counts[key] : undefined;
+  if (typeof count === "number") {
     counts[key] = count + 1;
   }
 };
@@ -86,9 +89,6 @@ const countElement = (uses: MetamodelUses, element: ElementRecord, type: Effecti
     bump(uses.types, type.key);
     for (const key of type.properties.filter((k) => holdsKey(element, k))) {
       bump(uses.properties, key);
-      for (const choice of choicesOf(element.data[key])) {
-        bump(uses.values[key], choice);
-      }
     }
     const status = element.data["status"];
     if (typeof status === "string" && type.statuses.includes(status)) {
@@ -97,6 +97,13 @@ const countElement = (uses: MetamodelUses, element: ElementRecord, type: Effecti
   }
   for (const key of Object.keys(element.data)) {
     bump(uses.relations, key);
+    // A fixed value counts on every element with the value, whatever its type (SR-236 AK7).
+    const counts = Object.hasOwn(uses.values, key) ? uses.values[key] : undefined;
+    if (counts !== undefined) {
+      for (const choice of choicesOf(element.data[key])) {
+        bump(counts, choice);
+      }
+    }
   }
 };
 
@@ -251,11 +258,14 @@ export const mentioningFiles = async (
 ): Promise<readonly string[]> => {
   const found: string[] = [];
   for (const setting of ["filters", "perspectives", "mappings"] as const) {
-    const { folder } = locate(layout, settingLocation(layout, setting));
-    if (folder === undefined) {
+    const location = settingLocation(layout, setting);
+    const repository = layout.repositories.find((r) => r.name === location.repository && r.available);
+    if (repository === undefined) {
       continue;
     }
-    const listing = await listFolderFiles(folder);
+    const folder = path.resolve(repository.folder, location.path);
+    // Within its repository only: a folder linked out of it is not read (`listFolderFiles` with a root).
+    const listing = await listFolderFiles(folder, repository.folder);
     if (listing.kind !== "names") {
       continue;
     }

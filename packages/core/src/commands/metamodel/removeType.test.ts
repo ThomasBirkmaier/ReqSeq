@@ -109,7 +109,7 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
     expect((await remove(workspace, "note")).removed).toEqual({ properties: [], statuses: [] });
   });
 
-  it("keeps a status or property that an element of another type still holds, and ignores a relation property of the type to itself", async () => {
+  it("drops a status or property no type has any more, also one an element of another type holds, and ignores a relation property of the type to itself", async () => {
     const model = SMALL_MODEL.replace(
       "    properties: [title, remark]",
       "    properties: [title, remark, follows]",
@@ -117,17 +117,24 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
       "  - { key: remark, name: Remark, kind: text }",
       "  - { key: remark, name: Remark, kind: text }\n  - { key: follows, name: Follows, kind: relation, target-types: [note] }",
     );
-    const { workspace, read } = await openSmall(
+    const { workspace } = await openSmall(
       elements([1, "hazard", { status: "noted", remark: "stray" }]),
       model,
     );
-    expect((await remove(workspace, "note")).removed).toEqual({ properties: ["follows"], statuses: [] });
-    const after = await read(MODEL);
-    expect([
-      after.includes("key: remark"),
-      after.includes("key: noted"),
-      after.includes("key: follows"),
-    ]).toEqual([true, true, false]);
+    expect((await remove(workspace, "note")).removed).toEqual({
+      properties: ["remark", "follows"],
+      statuses: ["noted"],
+    });
+  });
+
+  it("refuses a definition that holds a YAML anchor or alias, with file and line (SR-236 AK5)", async () => {
+    const model = SMALL_MODEL.replace("    name: Note\n", "    name: &n Note\n");
+    const { workspace } = await openSmall({}, model);
+    const anchored = await failure(workspace, "metamodel.removeType", { type: "note" });
+    expect([anchored.code, anchored.details]).toEqual([
+      "file.faulty",
+      { file: MODEL, line: 16, repository: "system" },
+    ]);
   });
 
   it("refuses an unknown type", async () => {

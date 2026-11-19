@@ -5545,8 +5545,14 @@
             "description": "true: no elements of the type can be created, only while no element has the type; false removes the mark."
           },
           "meaning": {
-            "$ref": "#/$defs/metamodel/$defs/typeMeaning",
-            "description": "New built-in meaning of the type, in place of the one it has."
+            "enum": [
+              "requirement",
+              "need",
+              "variant",
+              "package",
+              null
+            ],
+            "description": "New built-in meaning of the type, one of `typeMeaning` of metamodel.schema.json; null removes it."
           }
         },
         "additionalProperties": false,
@@ -5666,7 +5672,8 @@
             "required": [
               "properties",
               "statuses"
-            ]
+            ],
+            "description": "The definitions removed with the type: its properties and statuses that no other type has."
           },
           "mentions": {
             "title": "Files naming a removed key",

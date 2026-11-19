@@ -2515,8 +2515,8 @@ export interface MetamodelChangeTypeInput {
   readonly extends?: Key | null;
   /** true: no elements of the type can be created (SR-012 AK4), only while no element has the type; false removes the mark. */
   readonly abstract?: boolean;
-  /** New built-in meaning of the type (D-012), in place of the one it has. */
-  readonly meaning?: MetamodelTypeMeaning;
+  /** New built-in meaning of the type (D-012), one of `typeMeaning` of metamodel.schema.json; null removes it. */
+  readonly meaning?: "requirement" | "need" | "variant" | "package" | null;
 }
 
 /**
@@ -2554,6 +2554,7 @@ export interface MetamodelRemoveTypeOutput {
   readonly answer: Answer;
   /** Key of the removed type. */
   readonly type: Key;
+  /** The definitions removed with the type: its properties and statuses that no other type has (SR-238 AK5, SR-240 AK3). */
   readonly removed: {
     /** Properties whose definition was removed, as no other type has them. */
     readonly properties: readonly Key[];

@@ -19,7 +19,7 @@
 //   never breaks a file or changes another value silently.
 import { isDeepStrictEqual } from "node:util";
 import type { Node, YAMLMap, YAMLSeq } from "yaml";
-import { LineCounter, isAlias, isMap, isNode, isScalar, isSeq, parseDocument } from "yaml";
+import { LineCounter, isAlias, isMap, isNode, isScalar, isSeq, parseDocument, visit } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { LineEnding } from "./frontmatter.js";
 import type { EditableYaml, YamlEditResult } from "./yaml-document.js";
@@ -174,12 +174,42 @@ const shared = (node: unknown): boolean =>
  * node's content, on its line or one above it (`types: &all` before `- ...`).
  */
 const sharedLine = (parsed: Parsed, node: unknown): number | undefined => {
-  if (!isMap(node) && !isSeq(node)) {
+  if (isAlias(node) || !isNode(node)) {
     return parsed.lineOf(node);
   }
   const start = rangeOf(node)[0];
   const at = parsed.text.lastIndexOf(`&${String(node.anchor)}`, start);
   return parsed.lines.linePos(at).line;
+};
+
+/** The first node within `node` (itself included) that is an alias or carries an anchor, scalars too. */
+const sharedWithin = (node: unknown): Node | undefined => {
+  let found: Node | undefined;
+  visit(node as Node, {
+    Node: (_, inner) => {
+      if (isAlias(inner) || inner.anchor !== undefined) {
+        found = inner;
+        return visit.BREAK;
+      }
+      return undefined;
+    },
+  });
+  return found;
+};
+
+/**
+ * Refuses a definition `node` at `shown` that holds an alias or an anchor anywhere (SR-236 AK5): an
+ * edit there would change, or break, what another place of the file means.
+ */
+const refuseSharedWithin = (parsed: Parsed, file: string, node: unknown, shown: string): void => {
+  const inner = sharedWithin(node);
+  if (inner !== undefined) {
+    throw faulty(
+      file,
+      `uses a YAML anchor or alias in ${shown}; ReqSeq does not change it there`,
+      sharedLine(parsed, inner),
+    );
+  }
 };
 
 /** A parsed document and how to name its lines. */
@@ -388,7 +418,8 @@ const flowMapEdit = (text: string, map: YAMLMap, key: string, value: unknown): s
   const pairs = map.items as unknown as readonly { readonly key: Node; readonly value: Node | null }[];
   const endOf = (i: number): number => {
     const pair = pairs[i] as { readonly key: Node; readonly value: Node | null };
-    return rangeOf(pair.value)[1];
+    // A key without a value in a flow mapping (`{ key: a, name }`) has no value node.
+    return rangeOf(pair.value ?? pair.key)[1];
   };
   if (index === -1) {
     if (value === undefined) {
@@ -432,14 +463,7 @@ export const setMapValue = (
   if (!isMap(map)) {
     throw faulty(file, `has no mapping at ${at.join(".")}`, parsed.lineOf(map));
   }
-  const entry = child(map, key);
-  if (shared(entry)) {
-    throw faulty(
-      file,
-      `uses a YAML anchor or alias for ${[...at, key].join(".")}; ReqSeq does not change it there`,
-      sharedLine(parsed, entry),
-    );
-  }
+  refuseSharedWithin(parsed, file, map, at.join("."));
   const out =
     map.flow === true ? flowMapEdit(parsed.text, map, key, value) : blockMapEdit(parsed, map, key, value);
   return checked(
@@ -451,13 +475,17 @@ export const setMapValue = (
   );
 };
 
-/** The start of the line of the dash of a block list item that starts at `start`. */
+/**
+ * The start of the line of the dash of a block list item that starts at `start`: its own line, or the
+ * nearest line above it that starts with a dash (`- # comment` before the item's first key). A dash
+ * in a comment line does not count.
+ */
 const dashLine = (text: string, start: number): number => {
-  let at = start - 1;
-  while (at > 0 && text[at] !== "-") {
-    at -= 1;
+  let line = lineStartOf(text, start);
+  while (!/^[ \t]*-(?:[ \t]|$)/m.test(text.slice(line, lineEndAfter(text, line + 1)))) {
+    line = lineStartOf(text, line - 1);
   }
-  return lineStartOf(text, at);
+  return line;
 };
 
 /**
@@ -529,14 +557,7 @@ export const removeListItem = (
   if (!isSeq(seq) || seq.items[index] === undefined) {
     throw faulty(file, `has no list item at ${[...at, index].join(".")}`, parsed.lineOf(seq));
   }
-  const item = seq.items[index];
-  if (shared(item)) {
-    throw faulty(
-      file,
-      `uses a YAML anchor or alias at ${[...at, index].join(".")}; ReqSeq does not change it there`,
-      sharedLine(parsed, item),
-    );
-  }
+  refuseSharedWithin(parsed, file, seq.items[index], [...at, index].join("."));
   const out =
     seq.flow === true ? flowItemRemoved(parsed.text, seq, index) : blockItemRemoved(parsed, at, seq, index);
   return checked(

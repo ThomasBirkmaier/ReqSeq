@@ -266,6 +266,10 @@ describe("setMapValue", () => {
     expect(set(text, ["values", 0], "name", undefined)).toBe("values:\n  - { key: a }   # first\n  - {}\n");
     expect(set("values:\n  - { key: a }\n", ["values", 0], "key", undefined)).toBe("values:\n  - {  }\n");
     expect(set(text, ["values", 0], "other", undefined)).toBe(text);
+    // A key without a value in a flow mapping.
+    expect(set("values:\n  - { key: a, name }\n", ["values", 0], "description", "d")).toBe(
+      "values:\n  - { key: a, name, description: d }\n",
+    );
   });
 
   it("refuses an anchor or alias and a path to no mapping", () => {
@@ -278,6 +282,22 @@ describe("setMapValue", () => {
     expect(errorOf(() => set(alias, ["types", 0], "name", "B")).details).toEqual({ file: "m.yaml", line: 4 });
     expect(errorOf(() => set("types: [a]\n", ["types", 0], "name", "B")).code).toBe("file.faulty");
     expect(errorOf(() => set("- a\n", ["types", 0], "name", "B")).code).toBe("file.faulty");
+  });
+});
+
+describe("anchors and aliases inside a definition (SR-236 AK5)", () => {
+  const ANCHORED = "types:\n  - key: a\n    name: &n Scratch\n  - key: b\n    name: *n\n";
+  it("refuses to change or remove a definition that holds an anchor or an alias, with file and line", () => {
+    expect(errorOf(() => set(ANCHORED, ["types", 0], "prefix", "S")).details).toEqual({
+      file: "m.yaml",
+      line: 3,
+    });
+    expect(errorOf(() => set(ANCHORED, ["types", 1], "prefix", "S")).details).toEqual({
+      file: "m.yaml",
+      line: 5,
+    });
+    expect(errorOf(() => remove(ANCHORED, ["types"], 0)).details).toEqual({ file: "m.yaml", line: 3 });
+    expect(errorOf(() => remove(ANCHORED, ["types"], 1)).code).toBe("file.faulty");
   });
 });
 
@@ -321,6 +341,12 @@ describe("removeListItem", () => {
     expect(
       remove("types:\n  - key: a\n    name: A\n    # about a\n  # about b\n  - key: b\n", ["types"], 0),
     ).toBe("types:\n  # about b\n  - key: b\n");
+  });
+
+  it("finds the dash of an item that starts below it, past a dash in a comment", () => {
+    expect(remove("types:\n  - # the a-type\n    # a - b\n    key: a\n  - key: b\n", ["types"], 0)).toBe(
+      "types:\n  - key: b\n",
+    );
   });
 
   it("removes comment lines up to the start of the file", () => {
