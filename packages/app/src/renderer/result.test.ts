@@ -9,7 +9,7 @@ import type { Call } from "./call.js";
 import { bufferView } from "./modeline.js";
 import type { BufferData } from "./modeline.js";
 import type { OutputField } from "./result.js";
-import { MAX_RESULT_LINES, resultAnswer, resultLines, resultSummary } from "./result.js";
+import { MAX_RESULT_LINES, resultAnswer, resultLines, resultSummary, technicalValues } from "./result.js";
 import { INCOMPLETE_NOTE, ResultView } from "./ResultView.js";
 import { LoadingView } from "./BufferArea.js";
 import type { WindowAction } from "./window-layout.js";
@@ -288,6 +288,99 @@ describe("result lines", () => {
     ]);
     expect(resultLines({ ok: false }, fields).map((line) => [line.label, line.text])).toEqual([
       ["Passed", "no"],
+    ]);
+  });
+
+  it("leaves out technical values and shows them at their lines, as details, with Show details (SR-223 AK2, AK7)", () => {
+    const fields: OutputField[] = [
+      { path: "ok", title: "Passed", normal: true },
+      { path: "root", title: "Root", technical: true },
+      { path: "folder", title: "Folder", technical: true },
+      { path: "repositories[].name", title: "Name" },
+      { path: "repositories[].commit", title: "Commit", technical: true },
+      { path: "problems[].code", title: "Problem kind", technical: true },
+      { path: "problems[].elementId", title: "Element", technical: true },
+      { path: "problems[].file", title: "File", technical: "with-element" },
+      { path: "problems[].storedCommit", title: "Commit of the stored version", technical: true },
+    ];
+    const output = {
+      ok: true,
+      root: "uuid-1",
+      folder: "spec/metamodel",
+      repositories: [{ name: "spec", commit: "d0062d5" }],
+      problems: [
+        { ...hint, file: "need/N-1.md", storedCommit: null },
+        { code: "workspace.x", severity: "info", message: "Nothing to say", file: "workspace.yaml" },
+      ],
+      // The problem's element is named too: under the problem it stays its UUID, no second row of it.
+      names: [element(1), element(2)],
+    };
+    const shown = (details: boolean) =>
+      resultLines(output, fields, details).map((line) => [
+        line.label,
+        line.text,
+        ...(line.status === undefined ? [] : [line.status]),
+        ...(line.detail === true ? ["detail"] : []),
+      ]);
+    // Without details: no kind, no UUID, no path, no commit and not the normal "Passed: yes"; the technical
+    // UUID that `names` names stays the row of its element, and a file without an element is where it is.
+    expect(shown(false)).toEqual([
+      ["", "Warnings"],
+      ["SR-000002", "The target changed"],
+      ["", "Info"],
+      ["workspace.yaml", "Nothing to say"],
+      ["Root: SR-000001", "Title 1"],
+      ["repositories", "1"],
+      ["Name", "spec"],
+    ]);
+    // With details: each at its line, marked as a detail.
+    expect(shown(true)).toEqual([
+      ["", "Warnings"],
+      ["SR-000002", "The target changed", "relation.outdated"],
+      ["Element", "uuid-2", "detail"],
+      ["File", "need/N-1.md", "detail"],
+      ["", "Info"],
+      ["workspace.yaml", "Nothing to say", "workspace.x"],
+      ["Passed", "yes", "detail"],
+      ["Root: SR-000001", "Title 1"],
+      ["Folder", "spec/metamodel", "detail"],
+      ["repositories", "1"],
+      ["Name", "spec"],
+      ["Commit", "d0062d5", "detail"],
+    ]);
+  });
+
+  it("keeps a technical list of named UUIDs as the rows of their elements, and hides one of other UUIDs", () => {
+    const fields: OutputField[] = [
+      { path: "members", title: "Members", technical: true },
+      { path: "others", title: "Others", technical: true },
+    ];
+    const output = { members: ["uuid-1"], others: ["uuid-9"], names: [element(1)] };
+    expect(resultLines(output, fields).map((line) => [line.label, line.text])).toEqual([
+      ["Members", "1"],
+      ["SR-000001", "Title 1"],
+    ]);
+    expect(resultLines(output, fields, true).map((line) => line.detail === true)).toEqual([
+      false,
+      false,
+      true,
+      true,
+    ]);
+  });
+
+  it("gives the technical values of a record under their titles, without the fields it leaves out", () => {
+    const fields: OutputField[] = [
+      { path: "hints[].code", title: "Problem kind", technical: true },
+      { path: "hints[].elementId", title: "Element", technical: true },
+      { path: "hints[].line", title: "Line", technical: "with-element" },
+      { path: "hints[].message", title: "Message" },
+    ];
+    expect(technicalValues({ ...hint, line: 3 }, "hints[]", fields, ["code"])).toEqual([
+      { label: "Element", text: "uuid-2" },
+      { label: "Line", text: "3" },
+    ]);
+    expect(technicalValues({ code: "x", line: 3, elementId: null }, "hints[]", fields)).toEqual([
+      { label: "Problem kind", text: "x" },
     ]);
   });
 

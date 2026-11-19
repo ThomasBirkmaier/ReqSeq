@@ -20,6 +20,7 @@ import {
   reduceBuffers,
   relationBuffer,
   renameAction,
+  resultBuffer,
   searchBuffer,
   selectionOf,
   sortLabel,
@@ -148,6 +149,17 @@ describe("buffers", () => {
       a.key,
     ]);
     expect(reduceBuffers(buffers, { type: "switch", key: "gone" })).toBe(buffers);
+  });
+
+  it("keeps the details of a result opened again until it is closed (SR-223 AK2)", () => {
+    const result = resultBuffer("tool.info", {}, "About ReqSeq", { a: 1 }, 0);
+    const shown = { ...result, details: true as const };
+    // The same command again: the same buffer, its details still on.
+    expect(reduceBuffers([shown, list], { type: "open", buffer: result })[0]).toEqual(shown);
+    expect(reduceBuffers([result, list], { type: "open", buffer: result })[0]).toEqual(result);
+    // Closed and opened again: without details.
+    const closed = reduceBuffers([shown, list], { type: "close", key: shown.key });
+    expect(reduceBuffers(closed, { type: "open", buffer: result })[0]).toEqual(result);
   });
 
   it("closes a buffer: the next most recent one is shown; the last one gives the overview", () => {

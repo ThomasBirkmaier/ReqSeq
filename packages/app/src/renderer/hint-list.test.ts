@@ -156,6 +156,7 @@ describe("hint list layout", () => {
     const [first] = list.groups[2]?.lines ?? [];
     expect(first).toEqual({
       element: "SR-bc163c (SR-052)",
+      details: [],
       title: "Export a package as ReqIF",
       reason: "view: Core",
       message: evidence("core", 1).message,

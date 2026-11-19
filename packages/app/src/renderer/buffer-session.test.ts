@@ -350,6 +350,29 @@ describe("buffer session (SR-115 AK4)", () => {
     ).toBeUndefined();
   });
 
+  it("keeps Show details of a result over a restart, since it holds until the buffer is closed (SR-223 AK2)", async () => {
+    const shown = resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { a: 1 }, 7);
+    const storage = memory();
+    saveSession(() => storage, "key", sessionText([{ ...shown, details: true }]));
+    const restored = await restoreSession(
+      loadSession(() => storage, "key"),
+      names.call,
+      CATALOG,
+    );
+    expect(restored.buffers).toEqual([
+      {
+        ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
+        details: true,
+      },
+    ]);
+    // Without details on, nothing about them is stored, and a stored value other than true is no details.
+    expect(sessionText([shown])).not.toContain("details");
+    const odd: StoredSession = {
+      buffers: [{ kind: "result", command: "evidence.list", input: {}, name: "x", details: "yes" } as never],
+    };
+    expect((await restoreSession(odd, names.call, CATALOG)).buffers[0]).not.toHaveProperty("details");
+  });
+
   it("[SR-115/AK-qtv5] leaves out an element that is gone and a result that is no implemented read command", async () => {
     const session: StoredSession = {
       buffers: [
