@@ -5,6 +5,8 @@ import "../../../../scripts/test-support/dom-selection.mjs";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
+import { AGENTS_POLL_MS } from "./agent-status.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import {
   SHOWN,
@@ -551,12 +553,13 @@ describe("App", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
+    invoke.mockClear();
     await change("opened");
     expect(shownOne("input")).toBeNull();
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
     expect(text("Modeline")).toBe("Overview3 elementsOther");
     expect(document.title).toBe("Other - ReqSeq");
-    expect(invoke).toHaveBeenCalled();
+    expect(withoutAgentPoll(invoke).map(([name]) => name)).toContain("workspace.status");
   });
 
   it("[SR-131/AK-cssj] the status of a workspace left while it loaded never overwrites the next one", async () => {
@@ -637,16 +640,22 @@ describe("App", () => {
     const { bridge, invoke, handlers, change } = fakeBridge(workspace());
     await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
-    const before = invoke.mock.calls.length;
+    const before = withoutAgentPoll(invoke).length;
     await change("stopped");
-    expect(invoke).toHaveBeenCalledTimes(before);
+    expect(withoutAgentPoll(invoke)).toHaveLength(before);
     expect(query("article h1").textContent).toBe("Title 1");
     expect(text("Minibuffer")).toBe(
       "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );
     expect(text("Modeline")).toContain("stopped");
     await runCommand("show element id");
-    expect(invoke).toHaveBeenCalledTimes(before);
+    expect(withoutAgentPoll(invoke)).toHaveLength(before);
+    // The poll of the connected agents ends with the process too (SR-228): no call of any name follows.
+    const all = invoke.mock.calls.length;
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, AGENTS_POLL_MS + 100));
+    });
+    expect(invoke).toHaveBeenCalledTimes(all);
     expect(text("Minibuffer")).toBe(
       "The background process of the app keeps stopping. Press Ctrl+O to open the workspace again.",
     );

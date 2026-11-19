@@ -6,6 +6,7 @@ import { act } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { withoutAgentPoll } from "./agent-poll.test-helper.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import type { Handler } from "./App.test-helper.js";
 import {
@@ -310,7 +311,7 @@ describe("App, the overview (SR-118)", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     await runCommand("show overview");
     expect(setItem).toHaveBeenCalledWith(KEY(), JSON.stringify([known(1)]));
-    const called = new Set(invoke.mock.calls.map(([name]) => name));
+    const called = new Set(withoutAgentPoll(invoke).map(([name]) => name));
     expect(called.size).toBeGreaterThan(3);
     for (const name of called) {
       // One file per catalog command (ADR-0002); core's index cannot load under happy-dom.
