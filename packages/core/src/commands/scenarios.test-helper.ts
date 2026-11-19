@@ -327,6 +327,8 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: "SR-ffffff", kind: "refines", target: WIND },
   ],
+  // A non-empty folder without the marker file is refused (SR-235 AK1).
+  "html.export": [{ output: "site" }, { output: "requirements" }],
   // The status is exported for information only.
   "reqif.export": [{ output: "out.reqif" }, { output: "out.reqif", profile: "p" }],
   "reqif.analyze": [

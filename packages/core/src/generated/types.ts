@@ -473,7 +473,12 @@ export type ProblemCode =
   | "reqif.edited-elsewhere"
   | "reqif.mapping-differs"
   | "reqif.source-model-unsaved"
-  | "reqif.source-value-chosen";
+  | "reqif.source-value-chosen"
+  | "html.unsafe-content"
+  | "html.image-not-copied"
+  | "html.foreign-file"
+  | "html.marker-entry-ignored"
+  | "html.cleanup-failed";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this ReqSeq version does not implement it yet (a later stage).
@@ -1411,6 +1416,19 @@ export interface FilterSortKeyWithDefaults {
   readonly by: Key;
   /** Ascending or descending. */
   readonly order: "asc" | "desc";
+}
+
+/**
+ * The file `reqseq-html-export.yaml` that `html.export` writes into the folder of an HTML export (SR-235): it lists the files that export wrote, so the next export into the same folder replaces or removes exactly those and leaves every other file as it is. A folder that is not empty and holds no such file is never written into (SR-235 AK1). ReqSeq writes it anew on every export; it is not meant to be edited.
+ * Schema: `schemas/html-export-marker.schema.json#`.
+ */
+export interface HtmlExportMarkerFile {
+  /** Version of this file format. */
+  readonly "reqseq-html-export": 1;
+  /** The files of the export, relative to its folder, with `/`, sorted by code units. An entry that names no file the export may replace (`..`, an absolute path, a name `.git` or a nested repository on its way, a symbolic link) is neither replaced nor removed (SR-235 AK2). */
+  readonly files: readonly string[];
+  /** Only while an export runs: the folder `.reqseq-export-staging` it writes into before the files go into place. An export that finds it left by a process that no longer runs removes it. */
+  readonly pending?: ".reqseq-export-staging";
 }
 
 /**
@@ -2359,7 +2377,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup. Only with a client. */
+  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
   readonly next?: string;
 }
 
@@ -5463,6 +5481,32 @@ export interface ReqifExportOutput {
   readonly problems?: readonly Problem[];
 }
 
+/**
+ * Input of `html.export` as `run` gets it: validated, properties with a `default` filled in. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json input`.
+ */
+export interface HtmlExportInput {
+  /** The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export. */
+  readonly output: LocalPath;
+}
+
+/**
+ * Output of `html.export`. Write the workspace as an HTML export into a folder: a start page `index.html` and one page per element without an invalid status, readable in a browser without network.
+ * Schema: `schemas/commands/html.export.json output`.
+ */
+export interface HtmlExportOutput {
+  readonly answer: Answer;
+  /** The written folder, relative to the workspace root when it lies inside, else absolute. */
+  readonly folder: OutputPath;
+  /** Pages of elements written: one for each element of `exportedElements`. */
+  readonly pages: number;
+  /** Files of the earlier export that this export no longer writes and removed. */
+  readonly removed: number;
+  /** The elements that got a page, in the order of the element store. */
+  readonly exportedElements: readonly CountedElement[];
+  readonly problems: readonly Problem[];
+}
+
 /** Input and output type of every catalog command, by name (`defineCommand` in catalog.ts). */
 export interface CommandTypes {
   readonly "workspace.init": { readonly input: WorkspaceInitInput; readonly output: WorkspaceInitOutput };
@@ -5541,4 +5585,5 @@ export interface CommandTypes {
   readonly "reqif.import": { readonly input: ReqifImportInput; readonly output: ReqifImportOutput };
   readonly "reqif.saveMapping": { readonly input: ReqifSaveMappingInput; readonly output: ReqifSaveMappingOutput };
   readonly "reqif.export": { readonly input: ReqifExportInput; readonly output: ReqifExportOutput };
+  readonly "html.export": { readonly input: HtmlExportInput; readonly output: HtmlExportOutput };
 }

@@ -6,7 +6,7 @@
 //
 // Stored is what rebuilds each buffer, in the order of use: the kind, the UUID and repository of an
 // element, the kept parts of a list's query (`keptQuery`: steps and sort) and its mode, the text of a
-// search with its steps (as a list keeps them, not the grouping), the input of a graph, the mode of the metamodel, the command and input of a result. Never an
+// search with its steps (as a list keeps them, not the grouping), the input of a graph, the mode of the metamodel, the command and input of a result with its details on (SR-223 AK2). Never an
 // element's title or text, no output and no selected row. The names of the elements are read again when
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
 // leaves it out of its recent list. A result is run again when it is shown, and only when the catalog
@@ -96,6 +96,8 @@ export type StoredBuffer =
       readonly command: string;
       readonly input: Readonly<Record<string, unknown>>;
       readonly name: string;
+      /** "Show details" is on (SR-223 AK2): it holds until the buffer is closed, also over a restart. */
+      readonly details?: true;
     };
 
 /** The buffers of a workspace as stored, in the order of use. */
@@ -212,7 +214,13 @@ const storedOf = (buffer: Buffer): StoredBuffer => {
     case "metamodel":
       return { kind: "metamodel", mode: buffer.mode };
     case "result":
-      return { kind: "result", command: buffer.command, input: buffer.input, name: buffer.name };
+      return {
+        kind: "result",
+        command: buffer.command,
+        input: buffer.input,
+        name: buffer.name,
+        ...(buffer.details === true ? { details: true as const } : {}),
+      };
   }
 };
 
@@ -375,7 +383,13 @@ const PARSERS: Readonly<Record<StoredBuffer["kind"], (value: Fields) => StoredBu
       : undefined,
   result: (value) =>
     isText(value["command"]) && isObject(value["input"]) && isText(value["name"])
-      ? { kind: "result", command: value["command"], input: value["input"], name: value["name"] }
+      ? {
+          kind: "result",
+          command: value["command"],
+          input: value["input"],
+          name: value["name"],
+          ...(value["details"] === true ? { details: true as const } : {}),
+        }
       : undefined,
 };
 
@@ -560,16 +574,19 @@ const rebuild = (
       return searchBuffer(stored.query, stored.steps, undefined, stored.fields);
     case "metamodel":
       return metamodelBuffer(stored.mode);
-    case "result":
-      return runs.has(stored.command)
-        ? resultBuffer(
-            stored.command as keyof CommandTypes,
-            stored.input,
-            stored.name,
-            undefined,
-            RESTORED_REVISION,
-          )
-        : undefined;
+    case "result": {
+      if (!runs.has(stored.command)) {
+        return undefined;
+      }
+      const buffer = resultBuffer(
+        stored.command as keyof CommandTypes,
+        stored.input,
+        stored.name,
+        undefined,
+        RESTORED_REVISION,
+      );
+      return stored.details === true ? { ...buffer, details: true } : buffer;
+    }
     case "element":
     case "neighbourhood":
     case "graph": {
