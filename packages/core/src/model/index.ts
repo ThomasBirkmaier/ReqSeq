@@ -99,6 +99,8 @@ export {
   USES_NAMED,
   hasStatus,
   holdsKey,
+  keptDefinitions,
+  keptNote,
   lostUses,
   mentioningFiles,
   metamodelUses,
@@ -111,7 +113,7 @@ export {
   valueUse,
   withSubtypes,
 } from "./metamodel-uses.js";
-export type { MetamodelUses, Use, UseKind } from "./metamodel-uses.js";
+export type { Kept, MetamodelUses, Use, UseKind } from "./metamodel-uses.js";
 export { writeMetamodel } from "./metamodel-write.js";
 export type { MetamodelWrite } from "./metamodel-write.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";

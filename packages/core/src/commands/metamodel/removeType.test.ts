@@ -8,14 +8,17 @@ import {
   SMALL_MODEL,
   WITH_MISSING_REPOSITORY,
   WORKSPACE_FILE,
+  elementFile,
   elements,
   failure,
   openSmall,
+  openSmallAcross,
   run,
   uuid,
 } from "../metamodel-commands.test-helper.js";
 
-type Removed = CommandOutput<"metamodel.removeType">;
+/** The output as `invoke` gives it, with the answer sentence. */
+type Removed = CommandOutput<"metamodel.removeType"> & { readonly answer: string };
 
 const remove = (workspace: Parameters<typeof run>[0], type: string): Promise<Removed> =>
   run<Removed>(workspace, "metamodel.removeType", { type });
@@ -35,6 +38,7 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
       answer: "Removed the type note with remark and noted; 1 file written.",
       type: "note",
       removed: { properties: ["remark"], statuses: ["noted"] },
+      kept: [],
       mentions: [],
       files: [MODEL],
       versionsChanged: 0,
@@ -111,7 +115,7 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
     expect((await remove(workspace, "note")).removed).toEqual({ properties: [], statuses: [] });
   });
 
-  it("drops a status or property no type has any more, also one an element of another type holds, and ignores a relation property of the type to itself", async () => {
+  it("[SR-237/AK-b0j6] keeps each definition no type has any more that an element of another type holds, names it with their number, and drops a relation property of the type to itself", async () => {
     const model = SMALL_MODEL.replace(
       "    properties: [title, remark]",
       "    properties: [title, remark, follows]",
@@ -119,14 +123,78 @@ describe("metamodel.removeType removes an unused type (SR-237 AK5)", () => {
       "  - { key: remark, name: Remark, kind: text }",
       "  - { key: remark, name: Remark, kind: text }\n  - { key: follows, name: Follows, kind: relation, target-types: [note] }",
     );
-    const { workspace } = await openSmall(
-      elements([1, "hazard", { status: "noted", remark: "stray" }]),
+    // An element of another type, and one in another repository of a type the metamodel does not know.
+    const { workspace, read } = await openSmallAcross(
+      {
+        [`system/elements/E-1.md`]: elementFile(uuid(1), "hazard", { status: "noted", remark: "stray" }),
+        [`product/E-2.md`]: elementFile(uuid(2), "memo", { remark: '""' }),
+        "system/filters/notes.yaml":
+          "reqseq-filter: 1\nname: Notes\nwhere: { remark: [x], status: [noted] }\n",
+      },
       model,
     );
-    expect((await remove(workspace, "note")).removed).toEqual({
-      properties: ["remark", "follows"],
-      statuses: ["noted"],
-    });
+    const removed = await remove(workspace, "note");
+    expect(removed.answer).toBe(
+      "Removed the type note with follows; no type has the property remark any more, but its definition stays, as 2 elements hold it; no type has the status noted any more, but its definition stays, as 1 element has it; 1 file written.",
+    );
+    expect([removed.removed, removed.kept, removed.mentions]).toEqual([
+      { properties: ["follows"], statuses: [] },
+      [
+        {
+          kind: "property",
+          key: "remark",
+          count: 2,
+          elements: [
+            { id: uuid(1), shortId: "HZ-000001", repository: "system" },
+            { id: uuid(2), shortId: "UNKNOWN-000002", repository: "product" },
+          ],
+        },
+        {
+          kind: "status",
+          key: "noted",
+          count: 1,
+          elements: [{ id: uuid(1), shortId: "HZ-000001", repository: "system" }],
+        },
+      ],
+      [],
+    ]);
+    const after = await read(MODEL);
+    expect(after).toContain("  - { key: remark, name: Remark, kind: text }\n");
+    expect(after).toContain("  - { key: noted, name: Noted }\n");
+    expect(after).not.toContain("key: follows");
+  });
+
+  it("[SR-237/AK-b0j6] keeps the initial status that no type has any more and names the elements that have it", async () => {
+    // Only note has the initial status; the system requirement of the fixture is a draft.
+    const model = SMALL_MODEL.replace("    statuses: [draft, open]\n", "    statuses: [open]\n");
+    const { workspace, read } = await openSmall({}, model);
+    const removed = await remove(workspace, "note");
+    expect([removed.removed, removed.kept.map((k) => [k.kind, k.key, k.count])]).toEqual([
+      { properties: ["remark"], statuses: ["noted"] },
+      [["status", "draft", 1]],
+    ]);
+    expect(await read(MODEL)).toContain("  - { key: draft, name: Draft, initial: true }\n");
+  });
+
+  it("[SR-237/AK-b0j6] refuses while a relation property that has the type as target type stays, as an element holds its key", async () => {
+    const model = SMALL_MODEL.replace(
+      "    properties: [title, remark]",
+      "    properties: [title, remark, follows]",
+    ).replace(
+      "  - { key: remark, name: Remark, kind: text }",
+      "  - { key: remark, name: Remark, kind: text }\n  - { key: follows, name: Follows, kind: relation, target-types: [note] }",
+    );
+    const { workspace, read } = await openSmall(elements([1, "hazard", { follows: "[]" }]), model);
+    const refused = await failure(workspace, "metamodel.removeType", { type: "note" });
+    expect([refused.code, refused.details]).toEqual([
+      "input.invalid",
+      {
+        reason: "in-use",
+        named: ["property follows has it as target type"],
+        uses: [{ kind: "property", key: "follows", count: 1, elements: ["HZ-000001"] }],
+      },
+    ]);
+    expect(await read(MODEL)).toBe(model);
   });
 
   it("refuses a definition that holds a YAML anchor or alias, with file and line (SR-236 AK5)", async () => {
@@ -213,6 +281,7 @@ describe("the answer of metamodel.removeType", () => {
     const output = {
       type: "note",
       removed: { properties: [], statuses: [] },
+      kept: [],
       mentions: ["filters/notes.yaml"],
       files: [MODEL],
       versionsChanged: 0,
