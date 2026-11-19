@@ -250,6 +250,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { variant: VARIANT, refs: [WIND], undo: true },
     { variant: WIND, refs: [GUSTS] },
   ],
+  "tool.guide": [{ skill: true, write: true }, { skill: true, write: true, replace: true }, { write: true }],
   "workspace.init": [
     { path: "new", name: "New" },
     { path: ".", name: "Again" },

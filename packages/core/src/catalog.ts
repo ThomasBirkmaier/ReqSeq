@@ -219,6 +219,7 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "variant.nested": "input",
   "baseline.uncommitted-changes": "conflict",
   "baseline.exists": "conflict",
+  "file.exists": "conflict",
   "reqif.invalid": "input",
   "reqif.unmapped": "input",
   "reqif.conflict": "conflict",

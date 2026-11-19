@@ -306,7 +306,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "metamodel.addProperty": "written element",
       "metamodel.changeProperty": "written element",
       "metamodel.removeProperty": "written element",
-      "tool.guide": "none",
+      "tool.guide": "written element",
       "metamodel.get": "none",
       "metamodel.mermaid": "none",
       "element.create": "written element",
