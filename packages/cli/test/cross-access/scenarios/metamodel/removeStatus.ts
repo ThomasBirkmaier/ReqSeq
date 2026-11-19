@@ -6,8 +6,8 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.removeStatus", [
   {
-    name: "writes the list of the other statuses on a type without one, with the same bytes and output through every access (SR-236 AK12)",
-    tag: "[SR-236/AK-rtcn]",
+    name: "writes the list of the other statuses on a type without one, with the same bytes and output through every access (SR-240 AK3, SR-236 AK12)",
+    tag: "[SR-240/AK-pgn4]",
     input: { type: "need", status: "obsolete" },
     expect: "output",
     check: (results) => {

@@ -73,8 +73,7 @@ describe("metamodel.addStatus gives a type a status (SR-240 AK1)", () => {
     const { workspace, read } = await openSmall({}, model);
     const added = await add(workspace, { type: "note", name: "Archived", invalid: true });
     expect(added).toMatchObject({
-      answer:
-        "Added the new status Archived to the type note; the type memo without a status list has it too; 1 file written.",
+      answer: "Added the new status Archived to the type note; the type memo has it too; 1 file written.",
       status: { key: "archived", name: "Archived", invalid: true },
       created: true,
       statuses: ["draft", "open", "noted", "archived"],
@@ -137,6 +136,45 @@ describe("metamodel.addStatus gives a type a status (SR-240 AK1)", () => {
       expect([refused.code, refused.details]).toEqual(["input.invalid", details]);
     }
     expect(await read(MODEL)).toBe(SMALL_MODEL);
+  });
+
+  it("[SR-240/AK-s2fx] gives a type in flow style that inherits a list a list of its own", async () => {
+    const model = SMALL_MODEL.replace(
+      "properties:\n",
+      "  - { key: memo, name: Memo, prefix: ME, extends: hazard }\nproperties:\n",
+    );
+    const { workspace, read } = await openSmall({}, model);
+    expect((await add(workspace, { type: "memo", status: "noted" })).statuses).toEqual([
+      "draft",
+      "open",
+      "noted",
+    ]);
+    expect(await read(MODEL)).toBe(
+      model.replace(
+        "  - { key: memo, name: Memo, prefix: ME, extends: hazard }",
+        "  - { key: memo, name: Memo, prefix: ME, extends: hazard, statuses: [noted] }",
+      ),
+    );
+  });
+
+  it("[SR-240/AK-s2fx] writes a key a list names already without a definition only once, and names the other types that get it", async () => {
+    const model = SMALL_MODEL.replace(
+      "    statuses: [draft, noted]\n",
+      "    statuses: [draft, noted, review]\n",
+    );
+    const own = await openSmall({}, model);
+    expect((await add(own.workspace, { type: "note", name: "Review" })).statuses).toEqual([
+      "draft",
+      "noted",
+      "review",
+    ]);
+    expect(await own.read(MODEL)).toBe(`${model}  - key: review\n    name: Review\n`);
+    const other = await openSmall({}, model);
+    const added = await add(other.workspace, { type: "hazard", name: "Review" });
+    expect(added).toMatchObject({
+      alsoTypes: ["note"],
+      answer: "Added the new status Review to the type hazard; the type note has it too; 1 file written.",
+    });
   });
 });
 
@@ -356,7 +394,7 @@ describe("the answer of metamodel.addStatus", () => {
       problems: [{}],
     };
     expect(addStatus.answer(output as never, { type: "note" }, { type: (key) => key })).toBe(
-      "Added the new status Review to the type note; the types memo and risk without a status list have it too; 1 file written; 2 elements with another version; 1 problem.",
+      "Added the new status Review to the type note; the types memo and risk have it too; 1 file written; 2 elements with another version; 1 problem.",
     );
   });
 });

@@ -6,8 +6,8 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.addStatus", [
   {
-    name: "adds a new status to a type without a list and writes the same bytes and output through every access (SR-236 AK12)",
-    tag: "[SR-236/AK-rtcn]",
+    name: "adds a new status to a type without a list and writes the same bytes and output through every access (SR-240 AK1, SR-236 AK12)",
+    tag: "[SR-240/AK-s2fx]",
     input: { type: "need", name: "In review", invalid: false },
     expect: "output",
     check: (results) => {

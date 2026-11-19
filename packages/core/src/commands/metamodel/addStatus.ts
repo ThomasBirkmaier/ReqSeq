@@ -6,8 +6,8 @@
 //   (SR-236 AK6), and a name another status has is refused (SR-236 AK2).
 // - The type gets the key at the end of its own list, created when it has none, in the file the type
 //   is in. A type without a list, neither its own nor an ancestor's, has every status: it gets the
-//   list of every status it had and the new one, and the output names the other types without a
-//   list, which get a new status too.
+//   list of every status it had and the new one. The output names the other types that get a new
+//   status too: those without a list, and those whose list names its key already (a warning before).
 // - A type that extends it and has a list of its own would get more statuses: refused, naming it.
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -22,6 +22,7 @@ import {
   keyFromName,
   statusKeysOf,
   statusListHolders,
+  typeDefinition,
   widenedTypes,
 } from "../../metamodel/index.js";
 import { writeMetamodel } from "../../model/index.js";
@@ -125,7 +126,7 @@ export default defineCommand({
       `Added the ${output.created ? "new " : ""}status ${output.status.name} to the type ${output.type}`,
       output.alsoTypes.length === 0
         ? ""
-        : `${output.alsoTypes.length === 1 ? "the type" : "the types"} ${listed(output.alsoTypes)} without a status list ${output.alsoTypes.length === 1 ? "has" : "have"} it too`,
+        : `${output.alsoTypes.length === 1 ? "the type" : "the types"} ${listed(output.alsoTypes)} ${output.alsoTypes.length === 1 ? "has" : "have"} it too`,
       filesNote(output.files),
       output.versionsChanged === 0
         ? ""
@@ -159,14 +160,28 @@ export default defineCommand({
         const target = fileForNew(files, "statuses");
         edits.push({ file: target, edit: (yaml) => appendListItem(yaml, target.path, ["statuses"], status) });
       }
-      edits.push({
-        file: place.file,
-        edit: (yaml) =>
-          statusListHolders(metamodel, input.type).length > 0
-            ? appendListItem(yaml, place.file.path, [...at, "statuses"], status.key)
-            : // Every status it had, in metamodel order, and the new one (SR-240 AK1).
-              setMapValue(yaml, place.file.path, at, "statuses", [...type.statuses, status.key]),
-      });
+      const own = typeDefinition(metamodel, input.type)?.statuses;
+      // A key the own list names already, without a definition (a metamodel warning), is not written twice.
+      if (own?.includes(status.key) !== true) {
+        edits.push({
+          file: place.file,
+          edit: (yaml) =>
+            own !== undefined
+              ? appendListItem(yaml, place.file.path, [...at, "statuses"], status.key)
+              : // Its own list: the new status below an inherited list; else every status it had, in
+                // metamodel order, and the new one (SR-240 AK1). `setMapValue` also writes into a
+                // type in flow style.
+                setMapValue(
+                  yaml,
+                  place.file.path,
+                  at,
+                  "statuses",
+                  statusListHolders(metamodel, input.type).length > 0
+                    ? [status.key]
+                    : [...type.statuses, status.key],
+                ),
+        });
+      }
       return {
         bytes: editedFiles(edits),
         result: { status, created },
@@ -184,11 +199,13 @@ export default defineCommand({
     });
     const { status, created } = change.result;
     const before = change.before;
+    // The other types that get the status, except those that extend the type and inherit it: types
+    // without a list, and types whose list names the key of a new status already.
     const alsoTypes = change.after.effectiveTypes
       .filter(
         (t) =>
           t.key !== input.type &&
-          statusListHolders(change.after, t.key).length === 0 &&
+          !t.ancestors.includes(input.type) &&
           t.statuses.includes(status.key) &&
           !statusKeysOf(before, t.key).includes(status.key),
       )

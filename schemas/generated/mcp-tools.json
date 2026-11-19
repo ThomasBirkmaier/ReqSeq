@@ -5878,7 +5878,7 @@
             "items": {
               "$ref": "#/$defs/common/$defs/key"
             },
-            "description": "The other types without a list of statuses, their own or an ancestor's, which have every status and so the new one too.",
+            "description": "The other types that have the status now and did not before, except types that extend the type: types without a list of statuses, their own or an ancestor's, which have every status, and types whose list names the key of a new status already (an unknown status before, a metamodel warning).",
             "x-normal": []
           },
           "files": {

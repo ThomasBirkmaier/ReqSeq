@@ -6,8 +6,8 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.changeStatus", [
   {
-    name: "moves the initial mark and writes the same bytes and output through every access, the element keeping its status (SR-236 AK12)",
-    tag: "[SR-236/AK-rtcn]",
+    name: "moves the initial mark and writes the same bytes and output through every access, the element keeping its status (SR-240 AK2, SR-236 AK12)",
+    tag: "[SR-240/AK-kk0y]",
     input: { status: "approved", initial: true },
     expect: "output",
     check: (results) => {

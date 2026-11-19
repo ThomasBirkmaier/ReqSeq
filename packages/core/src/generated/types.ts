@@ -2633,7 +2633,7 @@ export interface MetamodelAddStatusOutput {
   readonly created: boolean;
   /** The statuses of the type afterwards, own and inherited, in the order of the metamodel's statuses. */
   readonly statuses: readonly Key[];
-  /** The other types without a list of statuses, their own or an ancestor's, which have every status and so the new one too (SR-240 AK1). */
+  /** The other types that have the status now and did not before, except types that extend the type: types without a list of statuses, their own or an ancestor's, which have every status (SR-240 AK1), and types whose list names the key of a new status already (an unknown status before, a metamodel warning). */
   readonly alsoTypes: readonly Key[];
   /** The metamodel files changed (SR-236 AK3). */
   readonly files: readonly OutputPath[];
