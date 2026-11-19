@@ -66,6 +66,22 @@ describe("themeOfPage (SR-231 AK4)", () => {
     expect(() => themeOfPage(page(BODY.replace("<nav>", '<nav><img src="/logo.svg">')))).toThrow(
       "addresses outside the page: /logo.svg",
     );
+    for (const [markup, address] of [
+      ['<svg><use xlink:href="/icons.svg#x"></use></svg>', "/icons.svg#x"],
+      ['<a href="#top" ping="https://t.example/p">x</a>', "https://t.example/p"],
+      ['<button formaction="/go">x</button>', "/go"],
+      [`<div style="background:url('/bg.png')"></div>`, "/bg.png"],
+    ] as const) {
+      expect(() => themeOfPage(page(BODY.replace("<nav>", `<nav>${markup}`)))).toThrow(
+        `addresses outside the page: ${address}`,
+      );
+    }
+    // A data: URL in a style and an anchor stay.
+    expect(() =>
+      themeOfPage(
+        page(BODY.replace("<nav>", `<nav><div style="background:url('data:image/png;base64,AA')"></div>`)),
+      ),
+    ).not.toThrow();
     const footerFirst = BODY.replace('<h1 id="_top">Home</h1>', "").replace(
       "<header>",
       '<h1 id="_top">Home</h1><header>',

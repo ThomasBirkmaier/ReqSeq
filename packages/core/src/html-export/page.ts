@@ -30,7 +30,7 @@ export const DOCS_CSS = DOCS_STYLESHEET;
 
 /** The export's own styles, after the docs' ones: facts, errors in the docs' grey, diagrams, formulas. */
 export const OWN_CSS = [
-  ".rq-facts, .rq-render-error, .rq-inaccessible { color: var(--sl-color-gray-3); }",
+  ".rq-facts, .rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
   "div.rq-render-error { margin-top: 0.5rem; }",
   ".rq-diagram-image { display: block; max-width: 100%; height: auto; }",

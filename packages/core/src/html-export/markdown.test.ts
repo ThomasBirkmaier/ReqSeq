@@ -230,9 +230,31 @@ describe("renderMarkdown (SR-235 AK4, AK5)", () => {
     expect(await quote("> [!NOTE]")).toMatch(
       /^<aside aria-label="Note" class="starlight-aside starlight-aside--note">/u,
     );
+    // Only a first line that is the marker alone: more on its line keeps the quote; a hard break after it goes.
+    expect(await quote("> [!NOTE] **bold** text")).toMatch(/^<blockquote>/u);
+    const broken = await quote("> [!NOTE]  \n> after a hard break");
+    expect(broken).toContain('<div class="starlight-aside__content"><p>after a hard break</p>');
+    expect(broken).not.toContain("<br>");
     const mixed = await quote("> [!TIP]\n> **b** c");
     expect(mixed).toContain("starlight-aside--tip");
     expect(mixed).toContain("<strong>b</strong> c");
+  });
+
+  it("keeps a whole long formula line, and the formulas of an image's alt text as written", async () => {
+    // A line longer than the arguments a call takes (a TeX comment, which KaTeX sets quickly).
+    const long = await renderMarkdown(`# Head\n\n$$\n%${"x".repeat(150_000)}\n$$\n\nend`, context());
+    expect(long.findings).toEqual([]);
+    expect(long.formulas).toBe(true);
+    expect(long.html).toMatch(/^<h1>Head<\/h1>\n<div class="rq-formula">/u);
+    expect(long.html).toContain("<p>end</p>");
+    const { html } = await renderMarkdown(
+      "![cost $a$ and *$b$*](img.png) [link $c$](https://example.org)",
+      context(),
+    );
+    expect(html).toContain('alt="cost $a$ and $b$"');
+    expect(html).toContain(
+      '<a href="https://example.org" rel="noopener noreferrer">link <span class="katex">',
+    );
   });
 
   it("passes no node of an unknown type to the tree", () => {

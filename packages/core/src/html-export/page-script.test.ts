@@ -220,6 +220,27 @@ describe("pageScript: diagrams (SR-231 AK5)", () => {
     expect(initialize).toHaveBeenCalledTimes(2);
   });
 
+  it("draws again on a later theme change after a drawing failed", async () => {
+    const initialize = vi.fn<(config: unknown) => void>(() => {
+      if (initialize.mock.calls.length === 1) {
+        throw new Error("no configuration");
+      }
+    });
+    const render = vi.fn(() => Promise.resolve({ svg: "<svg><g/></svg>" }));
+    const { document, window } = browser(
+      '<starlight-theme-select><select><option value="dark">Dark</option><option value="light">Light</option></select></starlight-theme-select><pre data-rq-diagram><code>flowchart LR</code></pre>',
+      {
+        mermaid: { initialize, parse: () => Promise.resolve(true), render },
+      },
+    );
+    await pageScript(PAGE_SCRIPT_SETTINGS);
+    expect(document.querySelectorAll(".rq-diagram-image")).toHaveLength(0);
+    change(document.querySelector("select") as unknown as HTMLSelectElement, "light", window);
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll(".rq-diagram-image")).toHaveLength(1);
+    });
+  });
+
   it("names the error of what Mermaid throws, and the title Diagram without accTitle", async () => {
     const thrown: unknown[] = [
       new Error("Edge limit exceeded. 600 edges found, but the limit is 500.\nIncrease the limit"),

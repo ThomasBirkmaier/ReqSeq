@@ -153,19 +153,22 @@ const lineOf = (
   type: "mathFlowFence" | "mathFlowValue",
   done: (text: string) => State,
 ): State => {
-  const chars: number[] = [];
+  // Built character by character: spreading a long line into `String.fromCodePoint` exceeds the call stack.
+  let text = "";
+  let entered = false;
   const rest: State = (code) => {
     // `isEnd`, written out so that `code` is a number after it.
     if (code === null || code < -2) {
-      if (chars.length > 0) {
+      if (entered) {
         effects.exit(type);
       }
-      return done(String.fromCodePoint(...chars.map((c) => (c < 0 ? SPACE : c))))(code);
+      return done(text)(code);
     }
-    if (chars.length === 0) {
+    if (!entered) {
       effects.enter(type);
+      entered = true;
     }
-    chars.push(code);
+    text += String.fromCodePoint(code < 0 ? SPACE : code);
     effects.consume(code);
     return rest;
   };
@@ -231,6 +234,12 @@ export const mathSyntax = (): Extension => ({
 /** The node on top of the stack of `context`, a formula while one is open. */
 const top = (context: CompileContext): MathNode => context.stack.at(-1) as unknown as MathNode;
 
+/** Whether the node on top of `context` lies in the label of an image: a fragment on the stack right above an image. */
+const inImageLabel = (context: CompileContext): boolean => {
+  const types = (context.stack as readonly { readonly type: string }[]).map((node) => node.type);
+  return types.some((type, i) => type === "fragment" && types[i - 1] === "image");
+};
+
 /** The mdast extension of the file comment: `inlineMath` and `math` nodes with their source as written. */
 export const mathFromMarkdown = (): FromMarkdownExtension => ({
   enter: {
@@ -245,6 +254,12 @@ export const mathFromMarkdown = (): FromMarkdownExtension => ({
     inlineMath(this: CompileContext, token: Token) {
       const node = top(this);
       const source = this.sliceSerialize(token);
+      if (inImageLabel(this)) {
+        // The label of an image becomes its alt text, which keeps the formula as written.
+        Object.assign(node, { type: "text", value: source });
+        this.exit(token);
+        return;
+      }
       const open = source.startsWith("$$") ? 2 : 1;
       node.value = source.slice(open, -open);
       node.display = open === 2;

@@ -26,7 +26,7 @@ import type { Raw, State } from "mdast-util-to-hast";
 import { toHast } from "mdast-util-to-hast";
 import { gfm } from "micromark-extension-gfm";
 import type { ImageLink } from "../model/index.js";
-import { imageLink, isUuid } from "../model/index.js";
+import { imageLink, isUuid, referenceRepository } from "../model/index.js";
 import { isFormulaHtml, setFormula } from "./formula.js";
 import type { MathNode } from "./math-syntax.js";
 import { mathFromMarkdown, mathSyntax } from "./math-syntax.js";
@@ -341,14 +341,12 @@ const changesOf = (text: string, context: TextContext, definitions: ReadonlyMap<
     const rest = url.slice("reqseq:".length);
     const query = rest.indexOf("?");
     const id = query < 0 ? rest : rest.slice(0, query);
-    const repository = new URLSearchParams(query < 0 ? "" : rest.slice(query + 1)).get("repository");
+    // The repository as the store reads it (`model/references.ts`), so both name the same one.
+    const repository = referenceRepository(url);
     if (!isUuid(id)) {
       return { kind: "unwrap" };
     }
-    const outcome = context.reference({
-      id,
-      ...(repository === null || repository === "" ? {} : { repository }),
-    });
+    const outcome = context.reference({ id, ...(repository === undefined ? {} : { repository }) });
     if ("href" in outcome) {
       return { kind: "link", url: outcome.href, made: true };
     }
@@ -477,10 +475,17 @@ const changesOf = (text: string, context: TextContext, definitions: ReadonlyMap<
     if (first?.type !== "paragraph" || match === null) {
       return;
     }
-    // The marker line goes; a paragraph that held only it goes too.
+    // The marker is the whole first line: a line ending follows it in its text, or the text ends the paragraph or a
+    // hard break ends the line.
+    const [, next] = first.children;
+    const lineEnds = match[0].endsWith("\n") || next === undefined || next.type === "break";
+    if (!lineEnds) {
+      return;
+    }
+    // The marker line goes, with its hard break; a paragraph that held only it goes too.
     (lead as Text).value = (lead as Text).value.slice(match[0].length);
     if ((lead as Text).value === "") {
-      first.children = first.children.slice(1);
+      first.children = first.children.slice(next?.type === "break" ? 2 : 1);
     }
     if (first.children.length === 0) {
       node.children = node.children.slice(1);

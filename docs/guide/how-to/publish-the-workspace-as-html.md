@@ -13,9 +13,9 @@ The HTML export writes the workspace into a folder of pages for readers without 
 - `licenses/THIRD-PARTY-NOTICES.txt` with the licences of what the folder copies;
 - the marker file `reqseq-html-export.yaml`, which names the files of the export (SR-235 AK2).
 
-Open `index.html` from the folder (`file://`), or put the folder under any path of a web server: every link between the pages leads to a file of the folder, and no page asks for an address outside it (SR-231 AK2). ReqSeq publishes nothing; who may read the pages is up to where you put them (D-080).
+Open `index.html` from the folder (`file://`), or put the folder under any path of a web server: every link between the pages leads to a file of the folder, and no page asks for an address outside it (SR-231 AK2). ReqSeq publishes nothing: where you put the pages decides who reads them (D-080).
 
-The pages look like this documentation: a switch for dark and light, and below the width where this documentation changes its layout, the navigation as a menu (SR-231 AK4). Texts and Markdown properties are formatted: formulas are set when you export, Mermaid diagrams are drawn by the library in the folder, and tables, task lists, callouts and images show as such. A formula or diagram with an error shows the error under its source (SR-231 AK5); a formula with an error is also named as the problem `html.formula-error`. A reference links the page of its target; to a target with an invalid status, or one that is missing, only its link text is left, and a target in a repository that is not on this computer shows as `UNKNOWN-` with the last six digits of its UUID (SR-231 AK6, SR-006 AK1). The footer of every page names the commit of the main repository, with `-dirty` unless every repository on this computer has a known commit and no uncommitted change to the files the pages come from (SR-062 AK1), or "no commit" without Git, and the date of the export; each page asks search engines with `noindex` not to list it (SR-231 AK9).
+The pages look like this documentation: a switch for dark and light, and below the width where this documentation changes its layout, the navigation as a menu (SR-231 AK4). Formulas are set when you export, Mermaid diagrams are drawn by the library in the folder, and tables, task lists, callouts and images are formatted. A formula or diagram with an error shows its source, then the error (SR-231 AK5); a formula with an error is also named as the problem `html.formula-error`. A reference links the page of its target; to a target with an invalid status, or one that is missing, only its link text is left, and a reference to a target in a repository that is not on this computer shows its link text followed by `(UNKNOWN-<tail>, repository <name>, not accessible)`, with the last six digits of the UUID as `<tail>` (SR-231 AK6, SR-006 AK1). The footer of every page names the commit of the main repository, with `-dirty` unless every repository on this computer has a known commit and no uncommitted change to the files the pages come from (SR-062 AK1), or "no commit" without Git, and the date of the export; each page asks search engines with `noindex` not to list it (SR-231 AK9).
 
 Whatever would run, load or link something outside the folder is shown as text and named as a problem: raw HTML, links with another scheme than http, https or mailto, images from the network, from a `data:` address or from outside the element's repository, and Mermaid diagrams with click actions or HTML labels (SR-235 AK4). An image that is missing or not readable stays as text, and a link to another file of the repository is text without a link (SR-235 AK5).
 
@@ -42,7 +42,7 @@ removed: 0
 No problems.
 ```
 
-Export again into the same folder to update it.
+Export again into the folder to update it.
 
 ## API
 

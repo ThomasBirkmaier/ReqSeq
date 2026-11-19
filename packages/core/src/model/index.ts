@@ -192,6 +192,7 @@ export {
   placeOfReference,
   elementLinks,
   referenceTargetState,
+  referenceRepository,
   referencesOf,
   resolveReference,
   unavailableRepositoryHint,

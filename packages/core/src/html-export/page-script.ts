@@ -214,7 +214,8 @@ export function pageScript(settings: PageScriptSettings): Promise<void> {
     if (mermaid === undefined || blocks.length === 0) {
       return queue;
     }
-    queue = queue.then(() => draw(mermaid));
+    // A failed drawing leaves the page as it is and never stops the drawings of later theme changes.
+    queue = queue.then(() => draw(mermaid)).catch(() => undefined);
     return queue;
   };
 

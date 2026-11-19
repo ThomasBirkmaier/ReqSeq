@@ -62,6 +62,14 @@ const TEXT = [
   "  A --> B",
   "  click A call reqseqSentinel()",
   "```",
+  "",
+  // A style that names an address on the network: Mermaid's flowchart grammar refuses `url(`, so it shows its
+  // parse error, and the page asks for nothing (the recorded requests).
+  "```mermaid",
+  "flowchart LR",
+  "  C[Mast] --> D[Vane]",
+  "  style C fill:url(https://example.org/fill.png)",
+  "```",
 ].join("\n");
 
 const FIXTURE = {
@@ -202,12 +210,13 @@ test.describe("the pages of the HTML export", () => {
         return [...document.fonts].some((font) => font.family === "KaTeX_Main" && font.status === "loaded");
       }),
     ).toBe(true);
-    // The good diagram is an image that loaded; the broken one shows its error under its source.
+    // The good diagram is an image that loaded; the broken ones show their error under their source.
     const image = page.locator("img.rq-diagram-image");
     await expect(image).toHaveCount(1);
     expect(await image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
-    await expect(page.locator(".rq-render-error")).toHaveCount(1);
-    await expect(page.locator(".rq-render-error")).toContainText("Error");
+    await expect(page.locator(".rq-render-error")).toHaveCount(2);
+    await expect(page.locator(".rq-render-error").first()).toContainText("Error");
+    await expect(page.locator(".rq-render-error").last()).toContainText("fill:url(https://example.org");
     // The callout is the docs' aside, the table and the image copy are there.
     await expect(page.locator("aside.starlight-aside--caution")).toContainText("Check the mast.");
     await expect(page.locator("td", { hasText: "m/s" })).toHaveCSS("text-align", /right$/u);

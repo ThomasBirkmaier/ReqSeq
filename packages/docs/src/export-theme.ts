@@ -93,11 +93,24 @@ const attributesOf = (element: Element, dropped: readonly string[]): string =>
     )
     .join(" ");
 
-/** The addresses of the frame that lead out of the page: every `href` and `src` but an anchor and a slot. */
-const outsideAddresses = (frame: string): string[] =>
-  [...frame.matchAll(/\s(?:href|src|action|srcset|poster|data)="([^"]*)"/gu)]
+/**
+ * The addresses of the frame that lead out of the page: every attribute that takes an address but an anchor and a
+ * slot, and every `url()` of a `style` attribute but a `data:` URL.
+ */
+const outsideAddresses = (frame: string): string[] => [
+  ...[
+    ...frame.matchAll(
+      /\s(?:xlink:href|href|src|action|formaction|srcset|poster|data|ping|background|cite)="([^"]*)"/gu,
+    ),
+  ]
     .map((m) => String(m[1]))
-    .filter((value) => !value.startsWith("#") && !value.startsWith("@@reqseq-slot:"));
+    .filter((value) => !value.startsWith("#") && !value.startsWith("@@reqseq-slot:")),
+  ...[...frame.matchAll(/\sstyle="([^"]*)"/gu)].flatMap((m) =>
+    [...String(m[1]).matchAll(/url\(\s*(?!(?:["']|&quot;)?data:)(?:["']|&quot;)?([^"')&]*)/gu)].map((u) =>
+      String(u[1]),
+    ),
+  ),
+];
 
 /** The frame and the stylesheet links of the offline docs page `html` (see the file comment). */
 export const themeOfPage = (

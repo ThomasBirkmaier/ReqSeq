@@ -10,7 +10,7 @@
 | `elements/<uuid>.html` | One page per element without an invalid status (D-044). The UUID never changes (D-017), so a link keeps opening the element when its identifier, title or short ID change (SR-231 AK3). |
 | `images/<uuid>-<n><ext>` | Copies of the images of the element's texts; `<ext>` from the type the bytes are (`imageExtension`), never from the file name. |
 | `assets/docs.css` | The stylesheet of the shipped docs (`docs-theme.generated.ts`, SR-231 AK4) |
-| `assets/reqseq.css` | The export's own styles: footer, diagrams, errors, the start page entry |
+| `assets/reqseq.css` | The export's own styles (`OWN_CSS`): the grey of the element facts and of errors, the drawn diagrams, and scrolling of a wide display formula |
 | `assets/theme.js`, `assets/reqseq.js` | The page scripts (`page-script.ts`): the theme before the first paint; the theme selects, the menu and the diagrams |
 | `assets/katex.css`, `assets/mermaid.js` | Only when a page needs them: KaTeX's stylesheet with its woff2 fonts as `data:` URLs, and the Mermaid bundle (`vendor.ts`) |
 | `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle and Starlight (`notices.ts`) |
