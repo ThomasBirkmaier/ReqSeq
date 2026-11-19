@@ -31,7 +31,8 @@
 // - `output` (SR-224 AK5, #1873): the elements of the field of a read command's output
 //   marked `x-elements: "answer"` over all pages (`CommandDefinition.outputElements`), run through
 //   `readOutputElements` of the command's context as `invoke` runs a command (runtime/invoke.ts,
-//   `outputElementsReader`). An element is matched by repository and UUID; one the store does not hold
+//   `outputElementsReader`). An element is matched by repository and UUID, and by its file when it names one
+//   (a record: only that copy of a UUID found twice, SR-088); one the store does not hold
 //   is not selected; the inner output's `incomplete` holds, which baseline.get sets for such an entry
 //   (assumption of #1932). baseline.create refuses it.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
@@ -202,9 +203,13 @@ const savedParts = async (
 /** What a selection reads of the command's context: its workspace, and `readOutputElements` for `output`. */
 export type SelectionContext = Pick<CommandContext, "workspace" | "readOutputElements">;
 
-/** The key an element of an output is matched by: repository and UUID. */
-const keyOf = (element: { readonly id: string; readonly repository: string }): string =>
-  `${element.repository}\u0000${element.id}`;
+/** The key an element of an output is matched by: repository and UUID, and the file when it names one. */
+const keyOf = (element: {
+  readonly id: string;
+  readonly repository: string;
+  readonly file?: string;
+}): string =>
+  `${element.repository}\u0000${element.id}${element.file === undefined ? "" : `\u0000${element.file}`}`;
 
 /** The part `output` of `selection` (see the file comment): its test of an element, if given, and its `incomplete`. */
 const outputPart = async (
@@ -219,7 +224,13 @@ const outputPart = async (
     selection.output.input,
   );
   const keys = new Set(elements.map(keyOf));
-  return { tests: [(element) => keys.has(keyOf(element))], incomplete };
+  return {
+    tests: [
+      (element) =>
+        keys.has(keyOf(element)) || keys.has(keyOf({ id: element.id, repository: element.repository })),
+    ],
+    incomplete,
+  };
 };
 
 /**

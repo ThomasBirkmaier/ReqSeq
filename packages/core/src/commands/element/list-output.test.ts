@@ -16,10 +16,10 @@ const BY_PACKAGE =
   "selection: { package: 61061061-0000-4000-8000-0000000000d1 }\n" +
   "elements:\n  - { id: 61061061-0000-4000-8000-0000000000b1, version: n1:697a2ad17ed49170 }\n";
 
-const open = async (): Promise<Workspace> => {
+const open = async (files: Readonly<Record<string, string>> = {}): Promise<Workspace> => {
   const fixture = await createFixtureWorkspace({
     fixture: "SR-061/export",
-    files: { "system/baselines/by-package.yaml": BY_PACKAGE },
+    files: { "system/baselines/by-package.yaml": BY_PACKAGE, ...files },
   });
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.path("system"));
@@ -147,6 +147,22 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
     expect(none.total).toBe(0);
   });
 
+  it("lists only the copy of a UUID found twice that the output holds (SR-088)", async () => {
+    // A copy of b4 under another file name and title: the search finds the copy only.
+    const copy =
+      "---\nid: 61061061-0000-4000-8000-0000000000b4\ntype: system-requirement\nstatus: obsolete\n" +
+      "title: Zebracopy\nrequirement-type: functional\n---\n\nA copy of b4.\n";
+    const workspace = await open({ "system/requirements/SR-copy.md": copy });
+    const search = { command: "element.search", input: { query: "Zebracopy" } };
+    const hits = (await invoke("element.search", search.input, { workspace })) as {
+      readonly total: number;
+    };
+    expect(hits.total).toBe(1);
+    const listed = await list(workspace, { selection: { output: search } });
+    expect(listed.elements.map((e) => [e.id.slice(-2), e.file])).toEqual([["b4", "requirements/SR-copy.md"]]);
+    expect(listed.total).toBe(1);
+  });
+
   it("is a selection of every command that takes one, except baseline.create", async () => {
     const workspace = await open();
     const selection = { output: { command: "baseline.get", input: { baseline: "Release 1" } } };
@@ -179,6 +195,21 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
         'selection.output.command: workspace.listFolder lists no elements (no output field is marked x-elements "answer")',
       details: { command: "element.list", fields: ["selection.output.command"] },
     });
+    // A group or sort the inner command refuses on its own is refused inside the selection too.
+    for (const [command, input, field] of [
+      ["element.search", { query: "the", group: "nonsense" }, "group"],
+      ["element.list", { group: "nonsense" }, "group"],
+      ["element.list", { sort: [{ by: "nonsense" }] }, "sort[0].by"],
+    ] as const) {
+      const alone = (await failure(invoke(command, input, { workspace }))).toJSON();
+      expect(alone.details, command).toEqual({ command, fields: [field] });
+      const under = "selection.output.input.";
+      expect(await refused(command, input), command).toEqual({
+        code: alone.code,
+        message: `${under}${alone.message}`,
+        details: { command, fields: [`${under}${field}`] },
+      });
+    }
     expect(await refused("trace.affected", { ref: "SR-ffffff" })).toMatchObject({
       code: "ref.unknown",
       message: expect.stringMatching(/^selection\.output\.input: /) as unknown,

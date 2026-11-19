@@ -82,8 +82,12 @@ export interface AnswerNames {
 
 /** What `outputElements` gives: the elements, each once, in any order, and whether the output is `incomplete` (SR-006 AK2). */
 export interface OutputElements {
-  /** By repository and UUID, as `selection.output` matches them with the elements of the store. */
-  readonly elements: readonly { readonly id: string; readonly repository: string }[];
+  /**
+   * By repository and UUID, as `selection.output` matches them with the elements of the store; with `file`
+   * (a record of the store), only that copy of a UUID found twice (SR-088), so a number that counts one copy
+   * lists one.
+   */
+  readonly elements: readonly { readonly id: string; readonly repository: string; readonly file?: string }[];
   readonly incomplete: boolean;
 }
 

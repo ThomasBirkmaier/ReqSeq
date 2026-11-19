@@ -34,6 +34,7 @@ import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { Grouping, Selected, StoredSelection, TreePlace } from "../../query/index.js";
 import {
+  checkedSort,
   FACET_MAX_VALUES,
   groupUnavailable,
   groupingOf,
@@ -254,9 +255,12 @@ export default defineCommand({
       ...withProblems,
     };
   },
-  // The rows of every page, each element once: grouping and sorting change neither.
+  // The rows of every page, each element once: grouping and sorting change neither, but a group or
+  // sort that `run` refuses is refused here too.
   outputElements: async (ctx, input) => {
     const selected = await selectedOf(ctx, input);
+    groupOf(selected, "element.list", input);
+    checkedSort(selected, "element.list", input.sort);
     return { elements: selected.elements, incomplete: selected.incomplete };
   },
 });

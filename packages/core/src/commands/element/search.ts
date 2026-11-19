@@ -232,6 +232,11 @@ export default defineCommand({
   },
   outputElements: async (ctx, input) => {
     const { selected, index, options } = await searchOf(ctx, input);
-    return { elements: matchingElements(index, input.query, options), incomplete: selected.incomplete };
+    const elements = matchingElements(index, input.query, options);
+    // A group that `run` refuses is refused here too, checked against the same hits.
+    if (input.group !== undefined) {
+      groupingOf({ ...selected, elements }, "element.search", input.group);
+    }
+    return { elements, incomplete: selected.incomplete };
   },
 });
