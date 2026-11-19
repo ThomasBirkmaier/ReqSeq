@@ -1,0 +1,5 @@
+{
+  "kind": "based-on",
+  "description": "The source follows from a decision.",
+  "targetTypes": ["decision", "need"]
+}

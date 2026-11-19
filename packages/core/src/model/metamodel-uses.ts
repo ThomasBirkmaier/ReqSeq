@@ -228,6 +228,23 @@ export const refuseMissingRepositories = (layout: WorkspaceLayout, command: stri
   }
 };
 
+/**
+ * Refuses a change that needs a use count while the store cannot read an element file (an error at
+ * a file: faulty YAML, conflict markers, an invalid `id` or `type`, SR-008): the file may hold the
+ * definition (SR-236 AK7). `file.faulty` names the files, as `reqif.import` refuses (SR-053 AK3).
+ * Assumption of question #1990.
+ */
+export const refuseUnreadableFiles = (store: ElementStore, command: string): void => {
+  const unreadable = store.problems.filter((p) => p.severity === "error" && p.file !== undefined);
+  if (unreadable.length > 0) {
+    throw new CommandError(
+      "file.faulty",
+      `${command} needs every element to count the uses, and ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements; nothing is written. Fix them first.`,
+      { command, files: unreadable.map(({ repository, file }) => ({ repository, file })) },
+    );
+  }
+};
+
 /** Whether `data` holds `keys` as a mapping key or text value, except the top-level `name` and `description`. */
 const names = (data: unknown, keys: ReadonlySet<string>, top: boolean): boolean => {
   if (typeof data === "string") {
