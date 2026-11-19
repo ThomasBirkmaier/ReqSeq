@@ -61,7 +61,8 @@
 // update in `catalog-preview.ts`, and typed text and paths in `catalog-fills.ts`. Each value built from hits is a module of its own with its steps and the value it gives
 // (`condition-prompt.ts`, `sort-prompt.ts`, `create-prompt.ts`); the grouping's offer is `group-prompt.ts`.
 // "New perspective" and "New saved filter" ask the steps of `perspective.save` and `filter.save` in turn
-// (`startBuilder`, SR-219).
+// (`startBuilder`, SR-219), and the twelve commands that change the metamodel ask steps of their own
+// (`metamodel-prompt.ts`, SR-236 AK11).
 
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
@@ -117,6 +118,7 @@ import {
 import { offerFor } from "./catalog-offers.js";
 import { previewed, drafted, notSaved, show } from "./catalog-preview.js";
 import { withTypedReference, typedFill, pathFill } from "./catalog-fills.js";
+import { asksInSteps, startMetamodelCommand } from "./metamodel-prompt.js";
 
 /**
  * `prompt` with the explanation line (SR-210 AK1, AK5): the prompt keeps its place for it (`explains`), and each
@@ -1329,6 +1331,11 @@ export const startCommand = (
   more: boolean,
   prefilled: readonly Prefilled[] = [],
 ): void => {
+  // The metamodel commands ask steps of their own (SR-236 AK11).
+  if (asksInSteps(command)) {
+    startMetamodelCommand(context, command, prefilled);
+    return;
+  }
   step(context, {
     command,
     given: prefilled.map((value, at) => ({ ...value, prefilled: true, rank: at + 1 })),

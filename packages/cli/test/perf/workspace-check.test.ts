@@ -136,7 +136,13 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
     expect(run.code).toBe(0);
     // The generated requirements that got no derivation are hints (SR-022 AK6), and the workspace file
     // names no evidence location (SR-230 AK1); nothing else is reported.
-    const clean = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+    const { answer, ...clean } = JSON.parse(run.stdout) as {
+      answer: string;
+      ok: boolean;
+      problems: Problem[];
+      checkedElements: number;
+    };
+    expect(answer).toMatch(/^Checked 50000 elements /);
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(clean.problems)).toEqual([]);
     expect(noParentHints(clean.problems)).toHaveLength(orphans);
