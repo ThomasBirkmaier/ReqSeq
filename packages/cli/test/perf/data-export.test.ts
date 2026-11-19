@@ -454,7 +454,8 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
   it("[SR-061/AK-cjrr] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async (ctx) => {
     // The note replaces only a text larger than MCP's limit (32 MiB): the export is 557 MB at N-036. A smaller run
     // (#2037) stays below the limit at the sizes the PR check can generate in its time (10 MB at 3,500 elements).
-    if (compactBytes <= MAX_TEXT_BYTES) {
+    // A full-size run never skips: an export below the limit there fails the assertions below.
+    if (!perfSize().full && compactBytes <= MAX_TEXT_BYTES) {
       ctx.skip(`the export (${String(compactBytes)} bytes) is not larger than MCP's text limit`);
     }
     const memoryFile = path.join(scratch, "memory-mcp.json");
