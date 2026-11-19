@@ -31,7 +31,11 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 
 ## Light and dark (SR-113)
 
-The app follows the system's light or dark setting at start and while it runs (`prefers-color-scheme`, which Chromium takes from Electron's `nativeTheme`). Every colour is a token in `src/renderer/styles.css` with a light and a dark value (`light-dark()`), and `styles.test.ts` checks that the text reaches WCAG 2.2 AA in both and that no rule uses a colour of its own. The action "Toggle dark mode" (command prompt, no shortcut) switches to the other scheme at once, without a restart, by setting `data-theme` on the root element; "Follow system light or dark mode" (offered only after a choice) removes it. The choice lasts until the app quits and is stored nowhere, because every start follows the system (SR-113 AK1). The window background at start follows `nativeTheme`; the native title bar keeps the system's look. A new colour in a style rule or in the editor theme must be a token.
+The app follows the system's light or dark setting at start and while it runs (`prefers-color-scheme`, which Chromium takes from Electron's `nativeTheme`). Every colour is a token in `src/renderer/styles/tokens.css` with a light and a dark value (`light-dark()`), and `styles.test.ts` checks that the text reaches WCAG 2.2 AA in both and that no rule uses a colour of its own. The action "Toggle dark mode" (command prompt, no shortcut) switches to the other scheme at once, without a restart, by setting `data-theme` on the root element; "Follow system light or dark mode" (offered only after a choice) removes it. The choice lasts until the app quits and is stored nowhere, because every start follows the system (SR-113 AK1). The window background at start follows `nativeTheme`; the native title bar keeps the system's look. A new colour in a style rule or in the editor theme must be a token.
+
+## Styles
+
+`src/renderer/styles.css` holds no rule: it imports one file per view or area from `src/renderer/styles/` (tokens, shell, modeline, list, element, command prompt, graph, metamodel …), and the build bundles them into one style sheet. The order of the imports is the cascade, so a rule goes into the file of its view, and a new file takes its place in that list; `styles.test.ts` reads the files in this order.
 
 ## Processes
 

@@ -1,0 +1,231 @@
+/* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no
+   controls. A box has the size `graph-layout.ts` places it with (288 × 86 px): a line with the ID and the
+   type, the title on at most two lines, and a line with the marks at the bottom, so neither the ID nor
+   the type is ever cut. The element has a dark border (AK1), the selected box the background of a
+   selected row and, when it is not the element, a grey border. Links are grey (`--edge`, visible on the
+   sheet; derivations darker), inline references dashed; the links of the selected box are drawn in the
+   text colour when some other link is drawn, and outdated links always in the accent. The sheet has half
+   a view of room on every side, so the view can open on any box. */
+.graph-sheet {
+  position: relative;
+}
+
+.graph-canvas {
+  position: absolute;
+  top: 50vh;
+  left: 50vw;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.graph-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+}
+
+.graph-edge.derivation {
+  stroke: var(--muted);
+}
+
+.graph-edge.reference {
+  stroke-dasharray: 5 4;
+}
+
+.graph-edge.selected {
+  stroke: var(--text);
+}
+
+/* The link selected with `l` (SR-154): drawn wider and in the text colour, which an outdated link keeps
+   its accent over. */
+.graph-edge.chosen {
+  stroke: var(--text);
+  stroke-width: 3px;
+}
+
+/* After `.selected` and `.chosen`: an outdated link keeps the accent, also when it is a link of the selected box. */
+.graph-edge.outdated {
+  stroke: var(--accent-outdated);
+}
+
+/* The link under the mouse (SR-154): drawn wider. */
+.graph-edge.hovered {
+  stroke-width: 3px;
+}
+
+/* A wide line without colour over each link, so the mouse finds a thin curve. */
+.graph-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12px;
+  pointer-events: stroke;
+}
+
+/* The text of a link (SR-154): its relation kinds, one per line, above the point it belongs to; it
+   never takes the mouse, so the curve below keeps it. */
+.graph-edge-tip {
+  position: absolute;
+  z-index: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.graph-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--sheet);
+  cursor: default;
+}
+
+.graph-node.root {
+  padding: 5px 7px;
+  border: 2px solid var(--text);
+}
+
+.graph-node[aria-selected="true"],
+.graph-node.link-chosen {
+  background: var(--select);
+}
+
+.graph-node[aria-selected="true"]:not(.root),
+.graph-node.link-chosen:not(.root) {
+  border-color: var(--muted);
+}
+
+.graph-id,
+.graph-marks {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  height: 16px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* The ID and the type: the ID gives way with an ellipsis, so an identifier too long for the box never cuts
+   the type (SR-111 AK4); the whole ID is in the box's hover text. */
+.graph-id {
+  gap: 0;
+  margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-id-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `pre` keeps the space before the dot, which a flex item would drop. */
+.graph-id-type {
+  flex: none;
+  white-space: pre;
+}
+
+.graph-marks {
+  margin-top: auto;
+}
+
+.graph-marks .outdated {
+  color: var(--accent-outdated);
+}
+
+/* The verification of a box (SR-136), at the right end of the marks line apart from the marks: the status word, failed and outdated in the accent as in the
+   matrix, and a ring of 12 px with its text, the track in the edge grey and the full part in the text
+   colour. */
+.graph-marks .status.accent {
+  color: var(--accent-gap);
+}
+
+.graph-verification {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.graph-ring {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.graph-ring circle {
+  fill: none;
+  stroke-width: 2px;
+}
+
+.graph-ring .track {
+  stroke: var(--edge);
+}
+
+.graph-ring .full {
+  stroke: var(--text);
+}
+
+.graph-title {
+  display: -webkit-box;
+  flex: none;
+  max-height: 36px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.graph-node.root .graph-title {
+  font-weight: 700;
+}
+
+.graph-node.superseded .graph-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* An evidence box (SR-111 AK3): the summary of the evidence below a node, muted and dashed, so it reads
+   as no element; 288 × 64 px (`EVIDENCE_HEIGHT`), up to three lines. Its line is dotted. */
+.graph-evidence {
+  position: absolute;
+  display: -webkit-box;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px dashed var(--edge);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.graph-evidence-line {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+  stroke-dasharray: 2 3;
+}

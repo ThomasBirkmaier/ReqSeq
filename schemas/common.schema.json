@@ -518,6 +518,9 @@
             "file.read-only",
             "file.not-regular",
             "file.folder-missing",
+            "agent.app-translocated",
+            "agent.path-unsupported",
+            "agent.cli-missing",
             "command.not-implemented",
             "internal"
           ]

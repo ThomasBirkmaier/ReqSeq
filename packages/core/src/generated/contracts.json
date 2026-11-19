@@ -110,7 +110,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://reqseq.dev/schemas/agent-connection.schema.json",
       "title": "Agent connection file",
-      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
+      "description": "`agent-<process>.json` in the cache folder of the working copy: one MCP server process of the copy whose client is connected or was connected last. The MCP server writes it when the client is connected: when it has written the successful answer to the client's `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.",
       "type": "object",
       "required": [
         "version",
@@ -134,7 +134,7 @@
         },
         "since": {
           "$ref": "common.schema.json#/$defs/dateTime",
-          "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+          "description": "When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
         },
         "ended": {
           "anyOf": [
@@ -151,7 +151,7 @@
       "additionalProperties": false,
       "$defs": {
         "client": {
-          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
+          "description": "The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control, format and surrogate characters other than the joiners removed, trimmed, cut at a character boundary to at most 40 characters (grapheme clusters, so an accented letter or a composed emoji counts as one and is not split) and at most 400 UTF-16 code units. null when it gave none or nothing is left. A longer name in the file is cut when it is read.",
           "anyOf": [
             {
               "type": "string",
@@ -966,6 +966,9 @@
                 "file.read-only",
                 "file.not-regular",
                 "file.folder-missing",
+                "agent.app-translocated",
+                "agent.path-unsupported",
+                "agent.cli-missing",
                 "command.not-implemented",
                 "internal"
               ]
@@ -2771,7 +2774,7 @@
                 "text": {
                   "title": "Text search",
                   "type": "string",
-                  "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and if exact with 4+ letters, no digit, inside words, not IDs, quoted words as a phrase, and a designation also through the other designations of its element. A query without a word matches none."
+                  "description": "Elements that element.search finds for this query in all fields: every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case, also as a word start, and, exact with 4+ letters and no digit, inside words, quoted words as a phrase, a designation through its element's other ones, criterion keys and references. A query without a word matches none."
                 }
               },
               "additionalProperties": false
@@ -4143,6 +4146,10 @@
               "const": "saved-file",
               "description": "The command deletes a file, the file of a perspective or saved filter, which is no element: only with a boolean `confirm` input whose default is false (`catalog-checks.mjs`). Allowed only on `write-files` entries of the groups `perspective` and `filter`. It allows delete words in the name and title and sets the MCP `destructiveHint`."
             },
+            "loadUpfront": {
+              "const": true,
+              "description": "The command is on the everyday path of an agent: the MCP server marks its tool with `_meta[\"anthropic/alwaysLoad\"]: true`, so a client that defers tools loads this one with its schema at once. Left out on every other command; other accesses ignore it."
+            },
             "stage": {
               "type": "integer",
               "minimum": 1,
@@ -4675,6 +4682,7 @@
         "title": "Show workspace status",
         "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-004",
@@ -5097,6 +5105,7 @@
         "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
         "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -5547,7 +5556,7 @@
                   "since": {
                     "title": "Connected since",
                     "$ref": "../common.schema.json#/$defs/dateTime",
-                    "description": "When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived."
+                    "description": "When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived."
                   }
                 },
                 "required": [
@@ -5845,6 +5854,253 @@
           {
             "path": "truncated",
             "title": "Truncated"
+          }
+        ]
+      },
+      {
+        "name": "workspace.connectAgent",
+        "title": "Connect AI agent",
+        "summary": "The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.",
+        "details": "Clients: `claude-code` (Claude Code), `claude-desktop` (Claude Desktop), `cursor` (Cursor), `vscode` (VS Code), `codex-cli` (Codex CLI) and `other`. Without a client the output lists them. Claude Code, VS Code and Codex CLI get a command for the terminal (PowerShell on Windows); Claude Desktop and Cursor a JSON block with the file it belongs in on this system; `other` a JSON block in the common `mcpServers` form. The server is named `reqseq`: a second workspace in the same client needs another name. On macOS, an app that runs from the temporary place the system gives a downloaded app that was not moved gets no setup (`agent.app-translocated`).",
+        "effect": "read",
+        "stage": 6,
+        "implements": [
+          "SR-227"
+        ],
+        "arguments": [
+          {
+            "field": "client",
+            "complete": "choice"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The client of the agent. Left out, the output lists the clients."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "title": "Answer",
+              "type": "string",
+              "minLength": 1,
+              "description": "What to do with the setup, in one sentence; without a client, which clients there are."
+            },
+            "clients": {
+              "title": "Clients",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "title": "Value",
+                    "enum": [
+                      "claude-code",
+                      "claude-desktop",
+                      "cursor",
+                      "vscode",
+                      "codex-cli",
+                      "other"
+                    ],
+                    "description": "The value of `client`."
+                  },
+                  "title": {
+                    "title": "Client",
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The name of the client."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "title"
+                ]
+              },
+              "description": "The clients to choose from, in this order. Only without a client."
+            },
+            "client": {
+              "title": "Client",
+              "enum": [
+                "claude-code",
+                "claude-desktop",
+                "cursor",
+                "vscode",
+                "codex-cli",
+                "other"
+              ],
+              "description": "The chosen client."
+            },
+            "server": {
+              "title": "Server",
+              "type": "object",
+              "properties": {
+                "command": {
+                  "title": "Program",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+                },
+                "args": {
+                  "title": "Arguments",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace."
+                },
+                "env": {
+                  "title": "Environment",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "command",
+                "args",
+                "env"
+              ],
+              "description": "The program, arguments and environment the setup gives the client. Only with a client."
+            },
+            "setup": {
+              "title": "Setup",
+              "type": "object",
+              "properties": {
+                "form": {
+                  "title": "Form",
+                  "enum": [
+                    "command",
+                    "json"
+                  ],
+                  "description": "`command`: a command for the terminal; `json`: a JSON block for a configuration file."
+                },
+                "shell": {
+                  "title": "Shell",
+                  "enum": [
+                    "sh",
+                    "powershell"
+                  ],
+                  "description": "The shell the command is written for: PowerShell on Windows, else a POSIX shell. Only with `command`."
+                },
+                "text": {
+                  "title": "Setup",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The command or the JSON block to paste, with the paths filled in."
+                },
+                "file": {
+                  "title": "File",
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The absolute path of the client's configuration file on this system that the JSON block belongs in (Claude Desktop, Cursor). ReqSeq neither reads nor writes it."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "form",
+                "text"
+              ],
+              "description": "What the user pastes. Only with a client."
+            },
+            "valid": {
+              "title": "Valid",
+              "type": "string",
+              "minLength": 1,
+              "description": "That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client."
+            },
+            "next": {
+              "title": "Next",
+              "type": "string",
+              "minLength": 1,
+              "description": "How to go on after pasting the setup. Only with a client."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "clients",
+            "title": "Clients"
+          },
+          {
+            "path": "clients[].value",
+            "title": "Value"
+          },
+          {
+            "path": "clients[].title",
+            "title": "Client"
+          },
+          {
+            "path": "client",
+            "title": "Client"
+          },
+          {
+            "path": "server",
+            "title": "Server"
+          },
+          {
+            "path": "server.command",
+            "title": "Program"
+          },
+          {
+            "path": "server.args",
+            "title": "Arguments"
+          },
+          {
+            "path": "server.env",
+            "title": "Environment"
+          },
+          {
+            "path": "setup",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.form",
+            "title": "Form"
+          },
+          {
+            "path": "setup.shell",
+            "title": "Shell"
+          },
+          {
+            "path": "setup.text",
+            "title": "Setup"
+          },
+          {
+            "path": "setup.file",
+            "title": "File"
+          },
+          {
+            "path": "valid",
+            "title": "Valid"
+          },
+          {
+            "path": "next",
+            "title": "Next"
           }
         ]
       },
@@ -6180,10 +6436,65 @@
         ]
       },
       {
+        "name": "tool.guide",
+        "title": "Agent guide",
+        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. The MCP server sends it as its instructions.",
+        "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one.",
+        "effect": "read",
+        "loadUpfront": true,
+        "textOutput": "guide",
+        "stage": 3,
+        "implements": [
+          "SR-229"
+        ],
+        "arguments": [
+          {
+            "field": "names",
+            "complete": "choice"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "enum": [
+                "cli",
+                "mcp"
+              ],
+              "default": "cli",
+              "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "guide": {
+              "title": "Agent guide",
+              "type": "string",
+              "contentMediaType": "text/markdown",
+              "description": "The agent guide as Markdown, LF line endings and a final newline."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "guide"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "guide",
+            "title": "Agent guide"
+          }
+        ]
+      },
+      {
         "name": "metamodel.get",
         "title": "Show metamodel",
         "summary": "The effective metamodel: types with inherited properties and statuses, properties with whether they count to the version, relation kinds, statuses, meanings, the files read.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-012",
@@ -6920,6 +7231,7 @@
         "summary": "Create an element with a new random UUID and the initial status of its type. Only title, text and required properties are needed; empty required properties give a hint.",
         "details": "New elements always get the initial status of the metamodel; when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses. The file is named by the type prefix and the last 12 hex characters of the UUID (`SR-54538f4d6e55.md`); the short ID shows the last 6 or more (`SR-4d6e55`), so search the files for `4d6e55`.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -7625,6 +7937,7 @@
         "title": "Get element",
         "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 1,
         "implements": [
           "SR-005",
@@ -8194,6 +8507,7 @@
         "title": "Resolve reference",
         "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version, or a test name's reference to an acceptance criterion) and tell whether the version is current.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-060",
@@ -10489,6 +10803,7 @@
         "title": "Update element",
         "summary": "Change title, text or properties of one element. Unknown properties are kept, and unset removes one; status changes only via element.setStatus, and the origin of an imported element only via reqif.import.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Changes an element file, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11289,6 +11604,7 @@
         "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
         "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets a status from the statuses of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -11537,6 +11853,7 @@
         "title": "Supersede element",
         "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
         "stage": 1,
@@ -12668,6 +12985,7 @@
         "title": "Create relation",
         "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository. A relation over a limit of the kind is saved too, with a relation.too-many hint.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current version of the target, which depends on the metamodel (which properties count).",
         "stage": 2,
@@ -14931,6 +15249,7 @@
         "title": "Show affected elements",
         "summary": "Elements affected by a change of one element, with path and distance.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-006",
@@ -17761,6 +18080,7 @@
         "title": "List hints",
         "summary": "Open hints of the workspace, filterable by kind, type, package or variant; one page of hints at a time, total and the count per kind count all.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 2,
         "implements": [
           "SR-026",
@@ -18396,6 +18716,7 @@
         "title": "Search elements",
         "summary": "Full-text search of the elements of a selection in all or chosen fields (title, text, IDs, all properties or single properties), typo tolerant, in any case, with phrases in quotes, the best first, each hit with where it was found and a snippet around the match; optionally in groups.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 3,
         "implements": [
           "SR-066",
@@ -18406,7 +18727,8 @@
           "SR-174",
           "SR-216",
           "SR-220",
-          "SR-221"
+          "SR-221",
+          "SR-222"
         ],
         "arguments": [
           {
@@ -18444,7 +18766,7 @@
           "properties": {
             "query": {
               "type": "string",
-              "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier or UUID still matches its element. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
+              "description": "Words split at spaces; every word must match in a searched field (the title, the text, a property value, the type or status name, or an ID; with `fields` only those). A word matches words it begins (from 2 letters), words it stands inside after their start (from 4 letters, none for a query word with a digit, without a typo), and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case; a word found inside a longer word counts less than a whole word or a word start. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A criterion key, also after `AK-`, also matches each criterion with it, exactly, where the acceptance criteria are searched. A criterion reference of a test name, with or without brackets, matches each requirement its identifier or short ID names with exactly one criterion with the key, as an ID match (with `id`) and in that criterion; its words still match as an ID's, but not in these requirements; one that fits none is plain words. Consecutive words outside quotes that are a designation of an element (its title, a synonym or its translation, when the metamodel gives properties these meanings) also match where one of its other designations stands, from every element that has it: as whole words in this order, without a typo, in any case, the last word also as a word start, in a searched field; the longest designation at each place from the left counts, and the other words must still match. Designations of an element whose status is invalid do not count. After the ID matches come the hits found by every word itself (a word found inside a longer word counts as found itself), then those found through another designation, then those with a word found only in their type or status name, and in no other searched field. Words in quotes (`\"`, `„`, `“` or `”`, opening at the start or after a space) are a phrase: they match only one after the other in this order, as whole words, in any case and without a typo, within the title, the text or one value of a property, and not across a paragraph, list item or table cell; characters other than letters and digits between them and a line break within a paragraph do not count. Without a closing quote the phrase runs to the end and its last word also matches the words it begins. Quotes without a word count for nothing; a quoted short ID, identifier, UUID, criterion key or criterion reference still matches as without quotes. In a shell: `reqseq element search '\"Filter list\"'`. A query without a word finds nothing."
             },
             "selection": {
               "$ref": "../common.schema.json#/$defs/selection",
@@ -18457,7 +18779,7 @@
               "items": {
                 "$ref": "../common.schema.json#/$defs/searchFieldKey"
               },
-              "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word) or through another designation, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
+              "description": "Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier, and a criterion reference), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values, the acceptance criteria property also by the criterion keys of its criteria); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word) or through another designation, and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields."
             },
             "group": {
               "$ref": "../common.schema.json#/$defs/groupKey",
@@ -18533,12 +18855,12 @@
                     "title": "Score",
                     "type": "number",
                     "minimum": 0,
-                    "description": "Relevance of the matched words, rounded to 6 significant digits; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
+                    "description": "Relevance of the matched words, rounded to 6 significant digits; a criterion key found in a criterion adds that of one word found once, in as many elements as carry the key; a word found inside a longer word (also one that is a typo of it) counts less than a whole word or a word start; 0 for an ID match only; through another designation, the relevance of the words and designations found. A hit found through another designation comes after the hits found by every word itself, and a hit with a word found only in its type or status name after both, whatever its score."
                   },
                   "fields": {
                     "title": "Fields",
                     "type": "array",
-                    "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`.",
+                    "description": "What a word of the query was found in, among the fields searched, for a phrase or another designation of several words only where it stands whole; a single property is `properties`, and so is a criterion key or reference found in a criterion.",
                     "items": {
                       "type": "string",
                       "enum": [
@@ -18552,7 +18874,7 @@
                   "terms": {
                     "title": "Matched words",
                     "type": "array",
-                    "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a phrase or another designation of two or more words.",
+                    "description": "The words of the element that matched the words of the query outside quotes, a phrase of one word or another designation of one word, in lower case, the whole word also when a query word was found only at its start or inside it (the marks give that part); none for an ID, a criterion key found in a criterion, a criterion reference in the requirements it fits, a phrase or another designation of two or more words.",
                     "items": {
                       "type": "string"
                     }
@@ -18564,7 +18886,7 @@
                   },
                   "snippet": {
                     "title": "Snippet",
-                    "description": "Where a word was found and one line around the first match in reading order, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name. None when no visible word matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
+                    "description": "Where a word was found and one line around the first match in reading order, or the start of an acceptance criterion's text where only its key was found, only in the fields searched: in the text when it is searched and a visible word of it matched, else in the first value with a match of a searched property, the properties of the type in metamodel order, then the others in file order. `text` is at most 120 code points, `…` at a cut end included: the visible text without Markdown characters, white space as single spaces; `marks` are the matched words in it, of a word found by a word of the query outside quotes only at its start or inside it only that part, the whole word where its letters do not map one by one onto the indexed word, a phrase or another designation of several words as a whole and none of its words elsewhere. A list item or a nested value is a value of its own; a choice shows its name; an acceptance criterion is named in `criterion`. None when no visible word and no criterion key matched: a match only in the title, an ID, the identifier, the type or status name, a link destination, HTML or an entity, or a file changed since the index read it.",
                     "oneOf": [
                       {
                         "type": "object",
@@ -18606,6 +18928,33 @@
                             "title": "Property name",
                             "type": "string",
                             "description": "Its name in the metamodel; the key for a property the metamodel does not define."
+                          },
+                          "criterion": {
+                            "title": "Criterion",
+                            "type": "object",
+                            "description": "When the value is an acceptance criterion: its number and criterion key, as element.resolve gives them in `criterion`; the snippet stands for its text.",
+                            "properties": {
+                              "criterion": {
+                                "title": "Number",
+                                "type": "integer",
+                                "minimum": 1,
+                                "description": "Its position in the current version, from 1."
+                              },
+                              "key": {
+                                "title": "Criterion key",
+                                "$ref": "../common.schema.json#/$defs/criterionKey",
+                                "description": "The criterion key; left out without one."
+                              },
+                              "keyMarked": {
+                                "title": "Key marked",
+                                "const": true,
+                                "description": "Only its key was found in it: the location highlights the key, and the snippet is the start of its text without marks."
+                              }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                              "criterion"
+                            ]
                           },
                           "text": {
                             "title": "Text",
@@ -18778,6 +19127,22 @@
           {
             "path": "hits[].snippet.propertyName",
             "title": "Property name"
+          },
+          {
+            "path": "hits[].snippet.criterion",
+            "title": "Criterion"
+          },
+          {
+            "path": "hits[].snippet.criterion.criterion",
+            "title": "Number"
+          },
+          {
+            "path": "hits[].snippet.criterion.key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "hits[].snippet.criterion.keyMarked",
+            "title": "Key marked"
           },
           {
             "path": "groups",
@@ -21523,6 +21888,7 @@
         "title": "List evidence",
         "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-028",
@@ -22449,6 +22815,7 @@
         "summary": "Write a manual verification or validation record into an evidence folder of the workspace, for a check that is not an automated test; the element's UUID and current version are filled in.",
         "details": "The record is Markdown (evidence-record.schema.json). A verification names a requirement and optionally the acceptance criteria it proves, a validation a need or a requirement. Never replaces a file: a name that is taken gets -2, -3, ...",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Fills in the current version of the element, which depends on the metamodel (which properties count).",
         "stage": 4,
@@ -22958,6 +23325,7 @@
         "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
         "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
         "effect": "write-files",
+        "loadUpfront": true,
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Writes the current versions of the elements, which depend on the metamodel (which properties count).",
         "stage": 4,
@@ -24073,6 +24441,7 @@
         "title": "Show verification degree",
         "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-037",
@@ -24204,6 +24573,7 @@
         "title": "List requirements without a passed test",
         "summary": "Every requirement without a passed test execution in one view: no verification record with method test and result passed, of any version, holds there. Each with its verification status.",
         "effect": "read",
+        "loadUpfront": true,
         "stage": 4,
         "implements": [
           "SR-120"

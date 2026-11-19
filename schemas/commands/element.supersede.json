@@ -3,6 +3,7 @@
   "title": "Supersede element",
   "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).",
   "effect": "write-files",
+  "loadUpfront": true,
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
   "stage": 1,

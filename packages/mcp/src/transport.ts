@@ -43,9 +43,20 @@ export const MAX_MESSAGE_BYTES = 32 * 1024 * 1024;
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
 
-/** The `_meta` keys of a request of protocol revision 2026-07-28, which has no `initialize`. */
+/** The `_meta` keys of a request of a protocol revision without `initialize` (2026-07-28 and later). */
 const PROTOCOL_VERSION_KEY = "io.modelcontextprotocol/protocolVersion";
 const CLIENT_INFO_KEY = "io.modelcontextprotocol/clientInfo";
+
+/**
+ * The first MCP protocol revision without `initialize`. A request connects only when it names this
+ * revision or a later one (SR-228 AK1); revisions are dates `YYYY-MM-DD`, so they compare as strings.
+ */
+const FIRST_REVISION_WITHOUT_INITIALIZE = "2026-07-28";
+const REVISION = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whether `revision` names a protocol revision without `initialize`. */
+const namesRevisionWithoutInitialize = (revision: unknown): boolean =>
+  typeof revision === "string" && REVISION.test(revision) && revision >= FIRST_REVISION_WITHOUT_INITIALIZE;
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -55,8 +66,8 @@ const nameOf = (info: unknown): unknown => (isRecord(info) ? info["name"] : unde
 
 /**
  * How `message` connects a client: an `initialize` request (`clientInfo`, connected once its
- * successful answer is written), a request of revision 2026-07-28 with its envelope (`_meta`, which
- * holds the client's name; connected when it arrives, as that revision has no `initialize`), or not.
+ * successful answer is written), the first request that names a revision without `initialize` in its
+ * `_meta` (which holds the client's name; connected when it arrives, SR-228 AK1), or not.
  */
 const connectingClient = (
   message: JSONRPCMessage,
@@ -69,7 +80,7 @@ const connectingClient = (
     return { era: "initialize", client: nameOf(params["clientInfo"]) };
   }
   const meta = params._meta;
-  return isRecord(meta) && PROTOCOL_VERSION_KEY in meta
+  return isRecord(meta) && namesRevisionWithoutInitialize(meta[PROTOCOL_VERSION_KEY])
     ? { era: "envelope", client: nameOf(meta[CLIENT_INFO_KEY]) }
     : undefined;
 };
@@ -77,8 +88,8 @@ const connectingClient = (
 export interface LineTransportOptions {
   /**
    * Called once when a client is connected, with the name it gave (unchecked; SR-228): after the
-   * successful answer to an `initialize` is written, or when the first request of revision 2026-07-28
-   * arrives (that revision has no `initialize`, and its first request may get no answer with an id,
+   * successful answer to an `initialize` is written, or when the first request that names a revision
+   * without `initialize` arrives (SR-228 AK1; such a first request may get no answer with an id,
    * `subscriptions/listen`, or wait for a long load). The MCP server records the connection with it.
    */
   readonly onConnect?: (client: unknown) => void;
@@ -165,7 +176,7 @@ export class LineTransport implements Transport {
     onConnect?.(client);
   }
 
-  /** Notes an `initialize` request; connects at once on a request of revision 2026-07-28. */
+  /** Notes an `initialize` request; connects at once on the first request that names a revision without `initialize`. */
   #noteConnecting(message: JSONRPCMessage): void {
     if (this.#onConnect === undefined) {
       return;

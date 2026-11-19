@@ -70,7 +70,7 @@ const setup = (options: Options = {}) => {
       moves.push(`${way} ${String(distance)}`);
     },
     switch: (way: SwipeWay) => log.push(`switch ${way}`),
-    // The window of the app switches past a third at the end, as `App.tsx` does without a drag.
+    // The window of the app switches past a third at the end, as `use-swipe-switch.ts` does without a drag.
     release: (way: SwipeWay, distance: number) => {
       if (!pastThird(distance, options.width ?? 600)) {
         return false;

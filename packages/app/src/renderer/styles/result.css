@@ -1,0 +1,82 @@
+/* The result buffer: an outline of the output, greys only; element rows open. */
+.result {
+  padding: 0.5rem 0;
+}
+
+.result .line {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.1rem 0.75rem;
+  cursor: default;
+}
+
+.result .line[data-cursor] {
+  background: var(--select);
+}
+
+.result .label,
+.result .status {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* At the right edge, so the statuses of the rows line up as in a list. */
+.result .status {
+  margin-left: auto;
+}
+
+.result .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The setup of "Connect AI agent" (SR-227 AK7): a column like an element's, the answer, the block to copy as a
+   field with its copy symbol at the right edge (SR-128), the next step, and the place it holds for, muted. */
+.result.agent-setup {
+  padding: 2rem 0.75rem 4rem;
+  outline: none;
+}
+
+.result.agent-setup .column {
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.result.agent-setup p {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.result.agent-setup .valid {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.result.agent-setup code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.result.agent-setup .setup {
+  position: relative;
+  margin: 0 0 1rem;
+  padding: 0.5rem 1.75rem 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--select);
+  outline: none;
+}
+
+.result.agent-setup .setup pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.result.agent-setup .setup > .copy {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+}
