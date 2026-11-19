@@ -38,7 +38,7 @@ export interface ActivityAccess {
 }
 
 /**
- * `agent-<process>.json` in the cache folder of the working copy (ADR-0008): one MCP server process of the copy whose client is connected or was connected last (SR-228). The MCP server writes it when the client is connected: when it has answered the client's `initialize`, or, in protocol revision 2026-07-28, which has no `initialize`, when the client's first request arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.
+ * `agent-<process>.json` in the cache folder of the working copy (ADR-0008): one MCP server process of the copy whose client is connected or was connected last (SR-228). The MCP server writes it when the client is connected: when it has written the successful answer to the client's `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrives, renews the file's modification time every second while it runs, and sets `ended` when it stops. A connection counts as connected while `ended` is null and the modification time is at most 3 s from now; a process that crashed stops counting 3 s after its last renewal. It is private (mode 0600, like `api.json`): scripts ask `workspace.agents`. Removing it is safe.
  * Schema: `schemas/agent-connection.schema.json#`.
  */
 export interface AgentConnectionFile {
@@ -47,14 +47,14 @@ export interface AgentConnectionFile {
   /** The MCP server process: its process ID and 8 random hex digits, new for every connection. The file name is `agent-<process>.json`; a file whose name does not match is ignored. */
   readonly process: string;
   readonly client: AgentConnectionClient;
-  /** When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived. */
+  /** When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived. */
   readonly since: IsoDateTime;
   /** When the connection ended cleanly (the client closed standard input, the server was stopped); null while it runs, and after a crash. */
   readonly ended: IsoDateTime | null;
 }
 
 /**
- * The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control and format characters other than joiners removed, trimmed, cut to 40 characters (user-perceived characters). null when it gave none or nothing is left. A longer name in the file is cut when it is read.
+ * The name the client gave when it connected (`clientInfo.name`), as text: each run of white space one space, control, format and surrogate characters other than the joiners removed, trimmed, cut at a character boundary to at most 40 characters (grapheme clusters, so an accented letter or a composed emoji counts as one and is not split) and at most 400 UTF-16 code units. null when it gave none or nothing is left. A longer name in the file is cut when it is read.
  * Schema: `schemas/agent-connection.schema.json#/$defs/client`.
  */
 export type AgentConnectionClient = string | null;
@@ -2162,7 +2162,7 @@ export interface WorkspaceAgentsOutput {
   /** Each MCP server process of this copy whose client is connected now, the one connected first first. Calls through the API or the command line and MCP servers of another workspace or copy never count. */
   readonly connected: readonly {
     readonly client: AgentConnectionClient;
-    /** When the client connected: when the MCP server answered its `initialize`, or, in protocol revision 2026-07-28, when its first request arrived. */
+    /** When the client connected: when the MCP server wrote the successful answer to its `initialize`, or, for an MCP protocol revision without `initialize` (2026-07-28), when the first request naming that revision arrived. */
     readonly since: IsoDateTime;
   }[];
   /** The connection that ended last, also by a crash; null when none has ended. With `connected` empty and `last` null, no agent was connected to this copy as far as its cache folder knows. */
