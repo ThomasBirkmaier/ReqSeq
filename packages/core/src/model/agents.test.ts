@@ -107,6 +107,25 @@ const until = async (check: () => Promise<boolean>): Promise<void> => {
   throw new Error("condition not met in time");
 };
 
+/**
+ * Moves `folder` to `to` in one step, so a writer by path sees it gone at once. Windows refuses to
+ * move a folder while a file in it is open (a beat that writes): that is tried again.
+ */
+const moveAway = async (folder: string, to: string): Promise<void> => {
+  for (let tries = 1; ; tries += 1) {
+    try {
+      await fs.rename(folder, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? "";
+      if (tries === 50 || !["EPERM", "EACCES", "EBUSY"].includes(code)) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+};
+
 const recordWith = (workspace: Workspace, client: unknown, beatMs = 20): AgentRecording => {
   const recording = recordAgentConnection(workspace, client, { beatMs });
   onTestFinished(() => recording.end());
@@ -322,8 +341,10 @@ describe("recordAgentConnection", () => {
     expect(connected.connected).toEqual([
       { client: null, since: expect.any(String) as unknown, until: expect.any(Number) as unknown },
     ]);
-    // The cache is safe to remove (ADR-0008): the beat writes the file again.
-    await fs.rm(cache, { recursive: true });
+    // The cache is safe to remove (ADR-0008): the beat writes the file again. A recursive removal
+    // races the beat, which may write between emptying the folder and removing it (ENOTEMPTY,
+    // #2049), so the folder is moved away in one step and removed there, where the beat never writes.
+    await moveAway(cache, path.join(await tempFolder(), "removed"));
     await until(async () => (await agentFiles(cache).catch(() => [])).length === 1);
     await workspace.close();
     const ended = await agentConnections(cache);
