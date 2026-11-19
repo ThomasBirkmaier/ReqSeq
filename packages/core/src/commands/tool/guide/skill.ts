@@ -12,6 +12,7 @@ import { PRODUCT_VERSION } from "../../../product.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { GuideCall } from "./calls.js";
 import { renderCall } from "./calls.js";
+import { METAMODEL_CHANGES } from "./text.js";
 
 /** The name of the skill (AK7), which is also the name of its folder (D-079). */
 export const SKILL_NAME = "managing-requirements";
@@ -21,7 +22,7 @@ export const SKILL_FILE = `.claude/skills/${SKILL_NAME}/SKILL.md`;
 
 /** What the skill does and when it applies, in third person (AK7: at most 1,024 characters). */
 export const SKILL_DESCRIPTION =
-  "Works with needs, requirements, acceptance criteria, tests and evidence in a ReqSeq workspace. Use when creating a requirement, implementing a requirement up to its evidence, changing an element whose status is not the initial status, or checking the workspace before finishing a piece of work.";
+  "Works with needs, requirements, acceptance criteria, tests and evidence in a ReqSeq workspace. Use when creating a requirement, implementing a requirement up to its evidence, changing an element whose status is not the initial status, changing the metamodel, or checking the workspace before finishing a piece of work.";
 
 /** The headings of the workflows of AK7, in their order. */
 export const SKILL_WORKFLOWS = [
@@ -29,6 +30,7 @@ export const SKILL_WORKFLOWS = [
   "Implement a requirement up to its evidence",
   "Check before finishing",
   "Change an element whose status is not the initial status",
+  "Change the metamodel",
 ] as const;
 
 /** The value of `metadata.generator` that marks a file ReqSeq wrote. */
@@ -137,6 +139,7 @@ const skillBody = (
   both: (call: GuideCall) => string,
   entries: readonly CatalogEntry[],
 ): readonly string[] => {
+  const guide = { command: "tool.guide" } as const;
   const check = both({ command: "workspace.check" });
   const degree = both({ command: "evidence.degree" });
   const steps: Readonly<Record<(typeof SKILL_WORKFLOWS)[number], readonly string[]>> = {
@@ -165,8 +168,14 @@ const skillBody = (
       "Carry out the way the person chose, through the commands.",
       `Check the workspace: ${check}.`,
     ],
+    "Change the metamodel": [
+      `Propose the change with its rationale to the person; read the metamodel first (${both({ command: "metamodel.get" })}).`,
+      "Wait for the person's explicit decision, as the rules of the agent guide say; without it, change nothing.",
+      `Carry out the decision with the command for it, never by editing the files of the metamodel: ${METAMODEL_CHANGES.map((command) => both({ command })).join("; ")}.`,
+      `Check the workspace: ${check}.`,
+      `Read the agent guide again (${both(guide)}), because it names the types and statuses of the changed metamodel.`,
+    ],
   };
-  const guide = { command: "tool.guide" } as const;
   return [
     "# Managing requirements with ReqSeq",
     "",

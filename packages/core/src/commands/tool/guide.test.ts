@@ -15,6 +15,7 @@ import { readGuideFacts, workspaceFacts } from "./guide/facts.js";
 import {
   GUIDE_MAX_LENGTH,
   GUIDE_RULES,
+  METAMODEL_CHANGES,
   GUIDE_SECTIONS,
   GUIDE_TAIL,
   GUIDE_WRITING_RULES,
@@ -72,7 +73,7 @@ const namedCommands = (text: string): string[] => {
 };
 
 describe("tool.guide", () => {
-  it("[SR-229/AK-p4y6] gives the guide as Markdown, CLI calls or MCP tool names by `names`, the pipeline always as CLI calls, at most 9,000 characters", async () => {
+  it("[SR-229/AK-p4y6] gives the guide as Markdown, CLI calls or MCP tool names by `names`, the pipeline always as CLI calls, at most 10,000 characters with the standard model and at most three evidence locations of together at most 60 characters", async () => {
     const root = await standard();
     const cli = await guide(root, { names: "cli" });
     const mcp = await guide(root, { names: "mcp" });
@@ -121,7 +122,7 @@ describe("tool.guide", () => {
     for (const text of variants) {
       expect(Array.from(text).length).toBeLessThanOrEqual(GUIDE_MAX_LENGTH);
     }
-    expect(GUIDE_MAX_LENGTH).toBe(9000);
+    expect(GUIDE_MAX_LENGTH).toBe(10000);
   });
 
   it("[SR-229/AK-hyqj] without a workspace names the reason and the call that creates one, without metamodel facts", async () => {
@@ -175,6 +176,7 @@ describe("tool.guide", () => {
       ...steps.slice(0, 2),
       "Writing requirements",
       ...steps.slice(2),
+      "Metamodel",
       "Rules",
       "In a pipeline",
     ]);
@@ -187,7 +189,7 @@ describe("tool.guide", () => {
     expect(commands("3. One test per acceptance criterion")).toEqual(["element.get", "element.resolve"]);
     expect(commands("5. Enrich test results")).toEqual(["evidence.enrichJunit", "evidence.record"]);
     expect(commands("6. Verification degree")).toEqual(["evidence.degree", "evidence.withoutPassedTest"]);
-    expect(commands("7. Workspace check")).toEqual(["workspace.check", "workspace.status", "metamodel.get"]);
+    expect(commands("7. Workspace check")).toEqual(["workspace.check", "workspace.status"]);
     expect(section(text, "4. Evidence location")).toContain("Every test run gets a file of its own there");
     expect(section(text, "5. Enrich test results")).toContain("The item under test is what was tested");
     const need = section(text, "1. Need");
@@ -347,6 +349,7 @@ describe("tool.guide", () => {
     }
     expect(GUIDE_RULES).toEqual([
       "A person decides every status; the AI agent proposes a status change and sets it only to carry out an explicit decision.",
+      "A person decides every change to the metamodel; the AI agent proposes it and makes it only to carry out an explicit decision, and only through the metamodel commands, not through its files. If the metamodel cannot be read, the AI agent reports that and changes nothing.",
       "Before a change to the content of an element whose status is not the initial status of its type, the AI agent asks, unless a project rule allows the change.",
       "ReqSeq deletes no element; an element is superseded.",
       "The AI agent reads and changes elements through the commands, not through their files.",
@@ -360,6 +363,25 @@ describe("tool.guide", () => {
       "If, after the change, a requirement whose status is not the initial status of its type demands something other than before, the AI agent names both ways when it asks: to change it, or to supersede it and create a successor; it does not choose itself.",
       "Without a reply, the AI agent works on only the steps that can be undone, and names the assumption they rest on.",
     ]);
+  });
+
+  it("[SR-229/AK-qdn4] has the metamodel section after the workspace check and before the pipeline, with metamodel.get and every command that changes the metamodel", async () => {
+    const roots = [await standard(), await folder()];
+    for (const root of roots) {
+      for (const names of NAMES) {
+        const text = await guide(root, { names });
+        const headings = sections(text).map((s) => s.heading);
+        const at = headings.indexOf("Metamodel");
+        expect(at).toBeGreaterThan(headings.indexOf("7. Workspace check"));
+        expect(at).toBeLessThan(headings.indexOf("In a pipeline"));
+        expect(namedCommands(section(text, "Metamodel"))).toEqual(["metamodel.get", ...METAMODEL_CHANGES]);
+        expect(section(text, "Metamodel")).toContain("Change it only as the rules say");
+      }
+    }
+    const changes = ENTRIES.map((entry) => entry.name).filter(
+      (name) => name.startsWith("metamodel.") && !["metamodel.get", "metamodel.mermaid"].includes(name),
+    );
+    expect([...METAMODEL_CHANGES].sort()).toEqual(changes.sort());
   });
 
   it("[SR-229/AK-j7mz] names only commands of the command catalog, which this version implements", async () => {

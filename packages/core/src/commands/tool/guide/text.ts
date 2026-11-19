@@ -11,6 +11,7 @@
 // control characters, Markdown escaped, cut), keys and prefixes appear only in code spans (their schema
 // patterns allow letters, digits and dashes only), no description of the metamodel is taken, and the facts
 // stand under a heading that says they are values.
+import type { CommandName } from "../../../catalog.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { GuideCall, GuideNames } from "./calls.js";
 import { renderCall } from "./calls.js";
@@ -19,6 +20,7 @@ import type { GuideFacts, GuideType, GuideWorkspace } from "./facts.js";
 /** The rules of the guide (SR-229 AK5), word for word in every output. */
 export const GUIDE_RULES: readonly string[] = [
   "A person decides every status; the AI agent proposes a status change and sets it only to carry out an explicit decision.",
+  "A person decides every change to the metamodel; the AI agent proposes it and makes it only to carry out an explicit decision, and only through the metamodel commands, not through its files. If the metamodel cannot be read, the AI agent reports that and changes nothing.",
   "Before a change to the content of an element whose status is not the initial status of its type, the AI agent asks, unless a project rule allows the change.",
   "ReqSeq deletes no element; an element is superseded.",
   "The AI agent reads and changes elements through the commands, not through their files.",
@@ -47,8 +49,11 @@ export const GUIDE_WRITING_RULES: readonly string[] = [
   "The AI agent does not invent a value that nobody gave it; it asks and marks the value in the text as open until someone replies.",
 ];
 
-/** The longest guide with the standard model, in code points (SR-229 AK1). */
-export const GUIDE_MAX_LENGTH = 9000;
+/**
+ * The longest guide with the standard model and at most three evidence locations whose names in the guide
+ * are together at most 60 characters long, in code points (SR-229 AK1).
+ */
+export const GUIDE_MAX_LENGTH = 10000;
 
 /** The longest name from a workspace in the guide, and the longest reason, in code points. */
 const VALUE_MAX = 80;
@@ -215,6 +220,22 @@ const enrichCall = (context: GuideContext): GuideCall => ({
   input: { file: "<junit.xml>", item: "<item>", output: `${evidenceLocation(context)}/<run>.xml` },
 });
 
+/** The commands that change the metamodel (SR-236), which the metamodel section names (SR-229 AK15). */
+export const METAMODEL_CHANGES = [
+  "metamodel.addType",
+  "metamodel.changeType",
+  "metamodel.removeType",
+  "metamodel.addProperty",
+  "metamodel.changeProperty",
+  "metamodel.removeProperty",
+  "metamodel.addRelationKind",
+  "metamodel.changeRelationKind",
+  "metamodel.removeRelationKind",
+  "metamodel.addStatus",
+  "metamodel.changeStatus",
+  "metamodel.removeStatus",
+] as const satisfies readonly CommandName[];
+
 /** The sections of the guide, in their order. */
 export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { heading: "Values from this workspace", lines: workspaceLines },
@@ -279,7 +300,13 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "7. Workspace check",
     lines: (context) => [
-      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories, ${context.call({ command: "metamodel.get" })} its metamodel.`,
+      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories.`,
+    ],
+  },
+  {
+    heading: "Metamodel",
+    lines: (context) => [
+      `${context.call({ command: "metamodel.get" })} shows the metamodel. Change it only as the rules say, with ${METAMODEL_CHANGES.map((command) => context.call({ command })).join(", ")}.`,
     ],
   },
   {
