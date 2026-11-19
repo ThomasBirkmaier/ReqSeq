@@ -376,24 +376,17 @@ describe("reqif.import of each datatype (SR-053)", () => {
   });
 
   it("refuses a mapped status, id or type: the delivery never sets them (D-030)", async () => {
-    const metamodel = METAMODEL.replace(
-      "review-dates, platforms, legacy-class, note]",
-      "review-dates, platforms, legacy-class, note, status]",
-    ).replace(
-      "  - { key: note, name: Note, kind: text }",
-      "  - { key: note, name: Note, kind: text }\n  - { key: status, name: State, kind: text }",
-    );
+    // No property may have such a key (D-012), so the mapping names a field the metamodel cannot define.
     const workspace = await open(
       MAPPING.replace(
         "{ source: Criteria, property: acceptance-criteria }",
         "{ source: Criteria, property: status }",
       ),
-      metamodel,
     );
     const error = await failure(workspace);
     expect([error.code, error.message]).toEqual([
       "input.invalid",
-      "mapping.attributes[8].property: property cannot hold status: ReqSeq sets it",
+      "mapping.attributes[8].property: status is no property of the metamodel",
     ]);
   });
 

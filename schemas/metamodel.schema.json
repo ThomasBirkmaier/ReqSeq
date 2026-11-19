@@ -203,7 +203,7 @@
       "additionalProperties": false
     },
     "property": {
-      "description": "Property definition (SR-012 AK3).",
+      "description": "Property definition (SR-012 AK3). Its key is not `id`, `type` or `status`, the fields every element has (D-012); such a key is a metamodel error.",
       "allOf": [
         {
           "$ref": "#/$defs/named"
@@ -287,7 +287,7 @@
       ]
     },
     "relationKind": {
-      "description": "Relation kind. Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).",
+      "description": "Relation kind. Stored under its key in the source file, which is not `id`, `type` or `status`, the fields every element has (D-012; such a key is a metamodel error). `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).",
       "allOf": [
         {
           "$ref": "#/$defs/named"

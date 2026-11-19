@@ -154,7 +154,7 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
     ).toBe(false);
   });
 
-  it("refuses the keys every element file holds itself, made or given (D-012)", async () => {
+  it("refuses the keys every element file holds itself, made or given, as an error of the metamodel (D-012)", async () => {
     const { workspace, read } = await openSmall();
     const made = await failure(workspace, "metamodel.addProperty", {
       type: "note",
@@ -162,22 +162,18 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
       name: "Status",
       kind: "text",
     });
-    expect([made.details, made.message]).toEqual([
-      { reason: "key-required", key: "status" },
-      "Give a key: Property key status is a field every element has (D-012); choose another key",
-    ]);
+    expect(made.details).toMatchObject({ reason: "metamodel-invalid" });
+    expect(made.message).toContain("Property key status is a field every element has (D-012)");
     for (const key of ["id", "type"]) {
-      expect(
-        (
-          await failure(workspace, "metamodel.addProperty", {
-            type: "note",
-            required: false,
-            name: "Ident",
-            key,
-            kind: "text",
-          })
-        ).details,
-      ).toEqual({ reason: "structural-key", key });
+      const given = await failure(workspace, "metamodel.addProperty", {
+        type: "note",
+        required: false,
+        name: "Ident",
+        key,
+        kind: "text",
+      });
+      expect(given.details).toMatchObject({ reason: "metamodel-invalid" });
+      expect(given.message).toContain(`Property key ${key} is a field every element has (D-012)`);
     }
     expect(await read(MODEL)).toBe(SMALL_MODEL);
   });

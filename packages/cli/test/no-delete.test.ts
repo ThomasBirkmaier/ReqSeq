@@ -39,6 +39,7 @@ const DEFINITION_REMOVES: readonly string[] = [
   "metamodel.removeType",
   "metamodel.removeStatus",
   "metamodel.removeProperty",
+  "metamodel.removeRelationKind",
 ];
 /** Every delete-like command of the catalog, in catalog order; none of them deletes an element. */
 const ALLOWED = catalogNames.filter(
