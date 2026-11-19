@@ -151,6 +151,7 @@ describe("workspace.init", () => {
     const plain = await emptyFolder();
     const none = await init(open(plain.root), { path: plain.root, name: "N", skill: false });
     expect(none.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(none.problems).toEqual([]);
     await expect(fs.lstat(plain.path(".claude"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
