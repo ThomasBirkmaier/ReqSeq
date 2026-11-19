@@ -1,7 +1,7 @@
 // The window's side of the swipe (SR-211, `buffer-swipe.ts`): one wheel listener on the sheet, not passive, so a
 // swipe's events can be prevented. It answers the gesture's questions from the DOM: the pointer over the shown
 // layer of the active area (AK9), content there that scrolls sideways first (AK5), the width of that area, and
-// "Bewegung reduzieren" (AK13). What the window's state allows and what a switch does come from `App.tsx`.
+// "Bewegung reduzieren" (AK13). What the window's state allows and what a switch does come from `use-swipe-switch.ts`.
 import { useEffect, useRef, useState } from "react";
 import { motionAllowed, shownLayer } from "./buffer-slide.js";
 import type { SwipeHost, SwipeWay } from "./buffer-swipe.js";
