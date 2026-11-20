@@ -511,13 +511,14 @@ describe("metamodel commands: the frame as the property commands show it (SR-236
       required: false,
       name: "Größe der Wirkung",
       kind: "choice",
-      choices: [{ name: "Groß" }, { name: "Sehr groß" }],
+      choices: [{ name: "Groß" }, { name: "Sehr groß" }, { name: "Très fort" }],
     });
     expect(added.property).toMatchObject({
       key: "groesse-der-wirkung",
       choices: [
         { key: "gross", name: "Groß" },
         { key: "sehr-gross", name: "Sehr groß" },
+        { key: "tres-fort", name: "Très fort" },
       ],
     });
     // A property key counts against the relation kinds too.
