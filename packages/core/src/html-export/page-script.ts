@@ -267,6 +267,17 @@ export function pageScript(settings: PageScriptSettings): Promise<void> {
   return redraw();
 }
 
-/** A script that runs `fn` with `settings` (JSON) when it loads. */
+/**
+ * Each UTF-16 unit beyond ASCII as `\uXXXX`, which means the same in a string, a comment or a regular expression of
+ * a script, so that a server's charset cannot change the script (SR-231 AK2).
+ */
+export const asciiOnly = (text: string): string =>
+  text.replace(/[^\0-\x7f]/gu, (character) =>
+    [...Array(character.length).keys()]
+      .map((i) => `\\u${character.charCodeAt(i).toString(16).padStart(4, "0")}`)
+      .join(""),
+  );
+
+/** A script that runs `fn` with `settings` (JSON) when it loads, in ASCII (`asciiOnly`). */
 export const scriptOf = (fn: (settings: never) => unknown, settings?: unknown): string =>
-  `(${fn.toString()})(${settings === undefined ? "" : JSON.stringify(settings)});\n`;
+  asciiOnly(`(${fn.toString()})(${settings === undefined ? "" : JSON.stringify(settings)});\n`);

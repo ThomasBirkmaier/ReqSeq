@@ -33,7 +33,14 @@ import { labelMarks, rowName, searchRows } from "./rows.js";
 import type { Range, Row } from "./rows.js";
 import type { PromptUse } from "./usage.js";
 import type { Choice, Prompt, ActionContext, Action } from "./action-types.js";
-import { isElement, hasWorkspace, isOverview, shownResult, hasElementText } from "./action-conditions.js";
+import {
+  isElement,
+  hasWorkspace,
+  isOverview,
+  shownResult,
+  shownAnswerList,
+  hasElementText,
+} from "./action-conditions.js";
 import { GRAPH_ACTIONS } from "./graph-actions.js";
 import { BUFFER_ACTIONS } from "./buffer-actions.js";
 import { APP_ACTIONS } from "./app-actions.js";
@@ -489,10 +496,17 @@ export const ACTIONS: readonly Action[] = [
     id: "show-details",
     title: "Show details",
     description: "Show or hide the technical values of the shown command output.",
-    available: (context: ActionContext): boolean => shownResult(context) !== undefined,
+    available: (context: ActionContext): boolean =>
+      shownResult(context) !== undefined || shownAnswerList(context) !== undefined,
     run: (context: ActionContext): void => {
       const result = shownResult(context);
-      if (result !== undefined) {
+      const list = shownAnswerList(context);
+      if (list !== undefined) {
+        // SR-223 AK6: a list of the answer of an output shows the values per element at its rows; its rows stay.
+        const { details, ...rest } = list;
+        context.dispatch({ type: "update", buffer: details === true ? rest : { ...rest, details: true } });
+        context.echo(details === true ? "Details hidden" : "Details shown");
+      } else if (result !== undefined) {
         const { details, ...rest } = result;
         const toggled: ResultBuffer = details === true ? rest : { ...rest, details: true };
         // The selected line stays selected: the hint list keeps its rows, an output page finds the line again.

@@ -41,8 +41,8 @@ export interface TypeRow {
   /** The parent by its name (its key when no type has it); not set: no parent. */
   readonly parent?: string;
   readonly properties: readonly TextProperty[];
-  /** The names of its statuses, in order; empty: the type has no status. */
-  readonly statuses: readonly string[];
+  /** Its statuses by key and name, in order; empty: the type has no status. */
+  readonly statuses: readonly { readonly key: string; readonly name: string }[];
 }
 
 export interface RelationRow {
@@ -154,7 +154,7 @@ export const metamodelText = (output: MetamodelGetOutput): MetamodelText => {
         content: properties.get(key)?.content ?? false,
         inherited: fromParent.has(key),
       })),
-      statuses: type.statuses.map((key) => statusNames.get(key) ?? key),
+      statuses: type.statuses.map((key) => ({ key, name: statusNames.get(key) ?? key })),
     };
   });
   const relations = output.relations.map((kind): RelationRow => ({

@@ -315,6 +315,32 @@ export const currentVersionLookup =
 
 type NeighbourhoodEdge = TraceNeighbourhoodOutput["edges"][number];
 
+/** What an edge of a neighbourhood walk leads to and how it is marked (see the file comment). */
+export interface EdgeMarks {
+  /** The element the link points at (ADR-0004), whatever the walk direction. */
+  readonly target: ElementRecord;
+  /** SR-107 AK3: the edge is not the one its walk first reached its element through. */
+  readonly repeated: boolean;
+  /** SR-107 AK4: the link stores an older version of its target than `versionOf` gives. */
+  readonly outdated: boolean;
+}
+
+/** The marks of `edge` in `walked`, against the current versions of `versionOf`. */
+export const edgeMarks = (
+  walked: NeighbourhoodWalk,
+  edge: WalkEdge<IncomingLink>,
+  versionOf: VersionLookup,
+): EdgeMarks => {
+  const { link } = edge;
+  const target = walked.direction === "up" ? edge.to : edge.from;
+  const stored = link.kind === "relation" ? link.item["version"] : link.reference.version;
+  return {
+    target,
+    repeated: walked.result.byElement.get(edge.to)?.via !== edge,
+    outdated: isOutdatedVersion(stored, versionOf(target)),
+  };
+};
+
 /** The key's description in the output: whether it is a property, and its relation kind's meaning. */
 export const keyInfo = (
   metamodel: Metamodel,
@@ -376,8 +402,7 @@ export const neighbourhoodOutput = async (
   const edges = onEdges.map((entry): NeighbourhoodEdge => {
     const { walk: walked, edge } = entry;
     const { link } = edge;
-    const target = targetOf(entry);
-    const stored = link.kind === "relation" ? link.item["version"] : link.reference.version;
+    const { target, repeated, outdated } = edgeMarks(walked, edge, versionOf);
     return {
       source: link.source.id,
       sourceRepository: link.source.repository,
@@ -387,8 +412,8 @@ export const neighbourhoodOutput = async (
       ...(link.kind === "relation" ? { kind: link.key, ...infoOf(link.key) } : { meaning: "reference" }),
       direction: walked.direction,
       cyclic: edge.cyclic,
-      repeated: walked.result.byElement.get(edge.to)?.via !== edge,
-      outdated: isOutdatedVersion(stored, versionOf(target)),
+      repeated,
+      outdated,
     };
   });
   return { root: n.root.id, nodes, total: start, edges, incomplete: n.incomplete };

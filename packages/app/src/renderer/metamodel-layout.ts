@@ -12,7 +12,9 @@
 // other label takes.
 // The height of a box follows from its lines (`styles.css` sets the same). Its width is the width of its
 // widest line, measured by the view in the fonts the sheet draws them with (`Measure`), at least
-// `TYPE_WIDTH`, so no name and no property is ever cut; a label is as wide as its widest line.
+// `TYPE_WIDTH`, so no name and no property is ever cut; a label is as wide as its widest line. Under the
+// properties, the statuses stand side by side as small tags, in as many rows as the width needs
+// (`statusRows`), so the view draws the rows the layout counted (SR-130 AK2).
 // Known limitations: a curve that carries both "extends" and a relation kind (one ordered pair) is drawn
 // in the look of the inheritance; a curve drawn afterwards runs straight between its two boxes and may
 // cross a box of a layer between them (review N1, N2 of ThomasBirkmaier/ReqSeq-archive#631).
@@ -20,6 +22,7 @@ import type { Point } from "./dagre.js";
 import { layoutGraphOf, runLayout } from "./dagre.js";
 import { edgePath } from "./graph-layout.js";
 import type {
+  BoxStatus,
   MetamodelEdge,
   MetamodelGraph,
   MetamodelLink,
@@ -35,6 +38,12 @@ export const TYPE_PAD = 7;
 export const TYPE_HEADER = 22;
 /** One line per property. */
 export const TYPE_LINE = 18;
+/** The rule above the statuses and the room it takes; one row of status tags. */
+export const STATUS_TOP = 4;
+export const STATUS_LINE = 20;
+/** Border and padding left and right of a status tag, and the gap between two tags of a row. */
+export const STATUS_PAD = 10;
+export const STATUS_GAP = 4;
 /** The space between two boxes of a layer, and between two layers (dagre halves it around a label). */
 export const NODE_SEP = 48;
 export const RANK_SEP = 64;
@@ -53,21 +62,31 @@ const LOOP_SPAN = 20;
 /** The gap between a curve drawn afterwards and its label beside it. */
 const LABEL_GAP = 6;
 
-/** The height of the box of `node`: the header and one line per property. */
-export const typeHeight = (node: MetamodelNode): number =>
-  TYPE_PAD * 2 + TYPE_HEADER + node.properties.length * TYPE_LINE;
+/** The height of the box of `node`: the header, one line per property and its `rows` of statuses. */
+export const typeHeight = (node: MetamodelNode, rows = 0): number =>
+  TYPE_PAD * 2 +
+  TYPE_HEADER +
+  node.properties.length * TYPE_LINE +
+  (rows === 0 ? 0 : STATUS_TOP + rows * STATUS_LINE);
 
 /**
  * The fonts of the lines (`styles.css`): the name of a type, "abstract" and the prefix, a property, a
- * label line.
+ * label line, a status and the initial status (in bold).
  */
-export type TextFont = "name" | "small" | "property" | "label";
+export type TextFont = "name" | "small" | "property" | "label" | "status" | "initial";
 
 /** The width of `text` in `font`, in CSS pixels. */
 export type Measure = (text: string, font: TextFont) => number;
 
 /** Average widths of a character per font: what the layout assumes where nothing can measure (tests). */
-const CHAR_WIDTH: Readonly<Record<TextFont, number>> = { name: 8.5, small: 7, property: 7.5, label: 7 };
+const CHAR_WIDTH: Readonly<Record<TextFont, number>> = {
+  name: 8.5,
+  small: 7,
+  property: 7.5,
+  label: 7,
+  status: 6.5,
+  initial: 7,
+};
 
 export const estimate: Measure = (text, font) => text.length * CHAR_WIDTH[font];
 
@@ -79,8 +98,38 @@ export const typeWidth = (node: MetamodelNode, measure: Measure): number => {
       (node.abstract ? HEAD_GAP + measure("abstract", "small") : 0) +
       HEAD_GAP +
       measure(node.prefix, "small");
-  const lines = [head, ...node.properties.map((property) => measure(property.name, "property"))];
+  const lines = [
+    head,
+    ...node.properties.map((property) => measure(property.name, "property")),
+    ...node.statuses.map((status) => statusWidth(status, measure)),
+  ];
   return Math.max(TYPE_WIDTH, Math.ceil(Math.max(...lines) + 2 * TYPE_INSET + SPARE));
+};
+
+/** The width of the tag of a status: its name in its font, with border and padding. */
+const statusWidth = (status: BoxStatus, measure: Measure): number =>
+  measure(status.name, status.initial ? "initial" : "status") + STATUS_PAD;
+
+/**
+ * The statuses of `node` in the rows of a box `width` wide: side by side in their order, a new row where the
+ * next tag would not fit (the first of a row always does, since the box is as wide as its widest tag).
+ */
+export const statusRows = (node: MetamodelNode, width: number, measure: Measure): BoxStatus[][] => {
+  const room = width - 2 * TYPE_INSET;
+  const rows: BoxStatus[][] = [];
+  let used = 0;
+  for (const status of node.statuses) {
+    const tag = statusWidth(status, measure);
+    const row = rows.at(-1);
+    if (row !== undefined && used + STATUS_GAP + tag <= room) {
+      row.push(status);
+      used += STATUS_GAP + tag;
+    } else {
+      rows.push([status]);
+      used = tag;
+    }
+  }
+  return rows;
 };
 
 /** The label lines of an edge, and the room they take. */
@@ -96,6 +145,8 @@ export const labelSize = (
 export interface PlacedType {
   readonly key: string;
   readonly node: MetamodelNode;
+  /** Its statuses in the rows the box draws them in (`statusRows`). */
+  readonly statusRows: readonly (readonly BoxStatus[])[];
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -219,8 +270,12 @@ export const layoutMetamodel = (graph: MetamodelGraph, measure: Measure = estima
     marginx: 0,
     marginy: 0,
   });
+  const statusesOf = new Map<string, BoxStatus[][]>();
   for (const node of graph.nodes) {
-    dagre.setNode(node.key, { width: typeWidth(node, measure), height: typeHeight(node) });
+    const width = typeWidth(node, measure);
+    const statuses = statusRows(node, width, measure);
+    statusesOf.set(node.key, statuses);
+    dagre.setNode(node.key, { width, height: typeHeight(node, statuses.length) });
   }
   // The ranked edges from the upper end (the target) to the lower one; an edge whose source reaches its
   // target along them would close a cycle.
@@ -263,7 +318,12 @@ export const layoutMetamodel = (graph: MetamodelGraph, measure: Measure = estima
     const { x, y, width, height } = dagre.node(key);
     return { x: x - width / 2, y: y - height / 2, width, height, layer: rows.indexOf(y) };
   };
-  const nodes = graph.nodes.map((node): PlacedType => ({ key: node.key, node, ...boxAt(node.key) }));
+  const nodes = graph.nodes.map((node): PlacedType => ({
+    key: node.key,
+    node,
+    statusRows: statusesOf.get(node.key) ?? [],
+    ...boxAt(node.key),
+  }));
   // The labels dagre placed first; a label drawn afterwards takes a free place among them and the boxes.
   const placedLabels = new Map(
     graph.edges

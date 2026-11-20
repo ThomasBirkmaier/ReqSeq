@@ -134,6 +134,19 @@
   margin-top: 1.5rem;
 }
 
+/* A number of elements (SR-223 AK5): its value underlined in the colour of the edges, as a way to the list of those
+   elements, and the pointer of a row that opens. */
+.result.output .line.count {
+  cursor: pointer;
+}
+
+.result.output .line.count > .text {
+  justify-self: start;
+  text-decoration: underline;
+  text-decoration-color: var(--edge);
+  text-underline-offset: 3px;
+}
+
 /* With "Show details" (SR-223 AK2, AK7): a technical value, or one equal to its normal value, at its line in the
    second grey, its title too; a UUID, a path or a hash in the monospace font, and never cut. */
 .result.output .line.detail .text {

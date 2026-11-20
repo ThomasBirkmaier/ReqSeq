@@ -195,13 +195,15 @@ describe("the group lines of the output page (SR-223 AK3)", () => {
   const mount = async (initial: Buffer): Promise<{ actions: WindowAction[]; buffer: () => ResultBuffer }> => {
     const actions: WindowAction[] = [];
     let current: ResultBuffer | undefined;
+    // One call for every render, as the window gives it: another one would ask again (a new view).
+    const call = vi.fn<Call>();
     const Harness = (): React.ReactElement => {
       const [state, dispatch] = useReducer(reduceWindow, { buffers: [initial], layout: ONE_AREA });
       const [first] = state.buffers;
       current = first?.kind === "result" ? first : current;
       return first?.kind === "result"
         ? createElement(ResultView, {
-            call: vi.fn<Call>(),
+            call,
             buffer: first,
             revision: 1,
             dispatch: (action: WindowAction) => {

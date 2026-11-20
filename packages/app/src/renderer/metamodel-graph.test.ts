@@ -21,10 +21,16 @@ const edgeLines = (output: MetamodelGetOutput): string[] =>
     (edge) => `${edge.source} > ${edge.target}: ${edge.links.map(linkLabel).join(" | ")}`,
   );
 
+const ITEM_STATUSES = [
+  { key: "draft", name: "Draft", initial: true, invalid: false },
+  { key: "approved", name: "Approved", initial: false, invalid: false },
+  { key: "retired", name: "Retired", initial: false, invalid: true },
+];
+
 const derives: MetamodelLink = { link: "relation", kind: "derives-from", name: "Derives from" };
 
 describe("metamodelGraph", () => {
-  it("[SR-130/AK-s795] makes each type a node with name, prefix and properties including the inherited ones, each inheritance an edge to the parent, and each relation kind an edge from each allowed source to each allowed target, labelled with its name", () => {
+  it("[SR-130/AK-s795] makes each type a node with name, prefix, properties and statuses including the inherited ones, the initial and invalid statuses marked, each inheritance an edge to the parent, and each relation kind an edge from each allowed source to each allowed target, labelled with its name", () => {
     const graph = metamodelGraph(FIXTURE_METAMODEL);
     expect(graph.nodes).toEqual([
       {
@@ -34,7 +40,8 @@ describe("metamodelGraph", () => {
         name: "Item",
         prefix: "ITM",
         abstract: true,
-        properties: [{ key: "title", name: "Title", inherited: false }],
+        properties: [{ key: "title", name: "Title", inherited: false, owner: "item" }],
+        statuses: ITEM_STATUSES,
       },
       {
         key: "type:requirement",
@@ -44,10 +51,11 @@ describe("metamodelGraph", () => {
         prefix: "SR",
         abstract: false,
         properties: [
-          { key: "title", name: "Title", inherited: true },
-          { key: "rationale", name: "Rationale", inherited: false },
-          { key: "packages", name: "Package", inherited: false },
+          { key: "title", name: "Title", inherited: true, owner: "item" },
+          { key: "rationale", name: "Rationale", inherited: false, owner: "requirement" },
+          { key: "packages", name: "Package", inherited: false, owner: "requirement" },
         ],
+        statuses: ITEM_STATUSES,
       },
       {
         key: "type:software-requirement",
@@ -58,11 +66,13 @@ describe("metamodelGraph", () => {
         abstract: false,
         // rationale is listed again by the type, but its parent has it: inherited (review S2).
         properties: [
-          { key: "title", name: "Title", inherited: true },
-          { key: "rationale", name: "Rationale", inherited: true },
-          { key: "packages", name: "Package", inherited: true },
-          { key: "component", name: "Component", inherited: false },
+          { key: "title", name: "Title", inherited: true, owner: "item" },
+          { key: "rationale", name: "Rationale", inherited: true, owner: "requirement" },
+          { key: "packages", name: "Package", inherited: true, owner: "requirement" },
+          { key: "component", name: "Component", inherited: false, owner: "software-requirement" },
         ],
+        // The inherited statuses, the initial and the invalid one marked.
+        statuses: ITEM_STATUSES,
       },
       {
         key: "type:decision",
@@ -71,7 +81,11 @@ describe("metamodelGraph", () => {
         name: "Decision",
         prefix: "D",
         abstract: false,
-        properties: [{ key: "title", name: "Title", inherited: false }],
+        properties: [{ key: "title", name: "Title", inherited: false, owner: "decision" }],
+        statuses: [
+          { key: "open", name: "Open", initial: false, invalid: false },
+          { key: "decided", name: "Decided", initial: false, invalid: false },
+        ],
       },
       {
         key: "type:package",
@@ -80,9 +94,10 @@ describe("metamodelGraph", () => {
         name: "Package",
         prefix: "PKG",
         abstract: false,
-        properties: [{ key: "title", name: "Title", inherited: false }],
+        properties: [{ key: "title", name: "Title", inherited: false, owner: "package" }],
+        statuses: [],
       },
-      { key: ANY_KEY, any: true, name: "Any type", properties: [] },
+      { key: ANY_KEY, any: true, name: "Any type", properties: [], statuses: [] },
     ]);
     expect(graph.edges.slice(0, 5)).toEqual([
       { source: "type:requirement", target: "type:item", links: [{ link: "extends" }] },
@@ -145,7 +160,7 @@ describe("metamodelGraph", () => {
       metamodelGraph(
         metamodelOutput({ types, relations: [relation("r", { "target-types": ["a"] })] }),
       ).nodes.at(-1),
-    ).toEqual({ key: ANY_KEY, any: true, name: "Any type", properties: [] });
+    ).toEqual({ key: ANY_KEY, any: true, name: "Any type", properties: [], statuses: [] });
     // Every kind restricted on both sides: no node "Any type".
     const restricted = metamodelGraph(
       metamodelOutput({
@@ -171,7 +186,9 @@ describe("metamodelGraph", () => {
       ],
     });
     // A property no definition names is shown by its key; with no defined parent nothing is inherited.
-    expect(metamodelGraph(output).nodes[0]?.properties).toEqual([{ key: "p", name: "p", inherited: false }]);
+    expect(metamodelGraph(output).nodes[0]?.properties).toEqual([
+      { key: "p", name: "p", inherited: false, owner: "a" },
+    ]);
     expect(edgeLines(output)).toEqual(["type:a > type:b: r"]);
   });
 

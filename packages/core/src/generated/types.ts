@@ -2577,17 +2577,17 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
-  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine. */
+  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read (SR-236 AK7). Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0. */
   readonly uses: {
     /** Type key -> elements of the type. */
     readonly types: Readonly<Record<string, number>>;
-    /** Property key -> elements of a type that has the property whose file holds its key, also with an empty value. */
+    /** Property key -> elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value (SR-236 AK8): the use that locks a change of its value kind or several values. */
     readonly properties: Readonly<Record<string, number>>;
-    /** Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it. */
+    /** Key of a property with choices -> choice key -> elements of any type whose value of the property is the choice or holds it (SR-236 AK7). */
     readonly values: Readonly<Record<string, Readonly<Record<string, number>>>>;
     /** Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list. */
     readonly relations: Readonly<Record<string, number>>;
-    /** Status key -> elements with the status. */
+    /** Status key -> elements of a type that has the status, with that status (SR-236 AK7). */
     readonly statuses: Readonly<Record<string, number>>;
   };
 }
@@ -2807,9 +2807,9 @@ export interface MetamodelChangePropertyInput {
   readonly name?: string;
   /** New description, for people; null removes it. */
   readonly description?: string | null;
-  /** New value kind; only while no element file of a type with the property holds its key. */
+  /** New value kind; only while no element file of any type holds its key, also with an empty value (SR-236 AK7). */
   readonly kind?: "text" | "number" | "date" | "choice" | "relation";
-  /** true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key. */
+  /** true: the property holds a list of values; false removes the line. Only while no element file of any type holds its key, also with an empty value (SR-236 AK7). */
   readonly many?: boolean;
   /** At most this many entries in the list (SR-171); null removes the limit. */
   readonly maxItems?: number | null;
