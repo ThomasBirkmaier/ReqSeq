@@ -220,9 +220,15 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     await expect(window.getByLabel("Minibuffer")).toContainText("no file written");
     expect(await changed(window)).toEqual(["RulingD"]);
     // A folder without a workspace opens nothing (SR-131 AK5): the mark stays.
-    await openWorkspace(window, os.tmpdir());
-    await expect(window.getByLabel("Minibuffer")).toHaveText(/stays open$/u);
-    expect(await changed(window)).toEqual(["RulingD"]);
+    // A fresh empty folder, by its real path (macOS /private/var, Windows 8.3 names).
+    const none = await fsp.realpath(await fsp.mkdtemp(path.join(os.tmpdir(), "reqseq-none-")));
+    try {
+      await openWorkspace(window, none);
+      await expect(window.getByLabel("Minibuffer")).toHaveText(/stays open$/u);
+      expect(await changed(window)).toEqual(["RulingD"]);
+    } finally {
+      await fsp.rm(none, { recursive: true, force: true });
+    }
     // A folder of the open workspace opens it again, on the overview; its metamodel has no mark.
     await openWorkspace(window, path.join(running.workspace?.root ?? "", "model"));
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();

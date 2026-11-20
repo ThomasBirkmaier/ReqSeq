@@ -33,15 +33,16 @@ export const NO_CHANGE: MetamodelChange = { types: [], properties: [], statuses:
 type Out<Name extends keyof CommandTypes> = CommandTypes[Name]["output"];
 
 /**
- * What the output of `command` added or changed; undefined for a command that changes no metamodel, which
- * leaves the marks as they are.
+ * What the output of `command` added or changed; undefined for a command that changes no metamodel, and for
+ * a metamodel command whose output names no written file (`files` empty or missing), which both leave the
+ * marks as they are.
  */
 export const changeOf = (command: string, output: unknown): MetamodelChange | undefined => {
   const change = definitionsOf(command, output);
+  // Every metamodel command's output has `files`; read it as possibly missing all the same.
+  const files = (output as Partial<Pick<Out<"metamodel.addType">, "files">> | undefined)?.files;
   // A command that wrote no file (the same value confirmed) changed nothing: the marks stay.
-  return change === undefined || (output as { readonly files: readonly unknown[] }).files.length === 0
-    ? undefined
-    : change;
+  return change === undefined || files === undefined || files.length === 0 ? undefined : change;
 };
 
 /** What a metamodel command names as added or changed, whether or not it wrote a file. */

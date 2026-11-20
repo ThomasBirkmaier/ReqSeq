@@ -46,6 +46,9 @@ describe("changeOf", () => {
   it("[SR-130/AK-wb12] keeps the marks after a metamodel command whose output names no written file", () => {
     expect(changeOf("metamodel.changeType", { type: { key: "t" }, files: [] })).toBeUndefined();
     expect(changeOf("metamodel.removeStatus", { files: [] })).toBeUndefined();
+    // An output without `files` names no written file either.
+    expect(changeOf("metamodel.addType", { type: { key: "t" } })).toBeUndefined();
+    expect(changeOf("metamodel.removeType", undefined)).toBeUndefined();
   });
 });
 
