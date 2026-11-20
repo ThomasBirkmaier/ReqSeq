@@ -5,6 +5,7 @@
 // `swipe`, a swipe macOS reported to the window (SR-163 AK4). The facilities of the window ask the main
 // process: `copyText` writes the clipboard (SR-128), `pasteText` has main paste it into the focused field
 // (SR-195 AK3), `openFolderDialog` has main show the folder dialog of File > Open Workspace… (SR-225 AK2),
+// `chooseCreateFolder` has main give the folder for "Create workspace" of the start buffer (AK4–AK6),
 // `openDocs` opens the bundled documentation in the browser and `onHelp` hears Help > ReqSeq
 // Documentation (SR-141), `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open
 // one of them, or the workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders
@@ -24,6 +25,7 @@ import type {
 } from "../shared/protocol.js";
 import {
   COPY_CHANNEL,
+  CREATE_FOLDER_CHANNEL,
   DOCS_CHANNEL,
   DOCS_FAILED,
   EDIT_CHANNEL,
@@ -37,6 +39,7 @@ import {
   SAVE_CHANNEL,
   SWIPE_CHANNEL,
   WORKSPACE_CHANNEL,
+  createFolderAnswer,
   folderListing,
   isBridgeEvent,
   openDocsResult,
@@ -234,6 +237,14 @@ export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platfor
         return (await ipc.invoke(FOLDER_DIALOG_CHANNEL)) === true;
       } catch {
         return false;
+      }
+    },
+    // Main answers what it did and the folder's name; the path stays in main (SR-225 AK4).
+    chooseCreateFolder: async () => {
+      try {
+        return createFolderAnswer(await ipc.invoke(CREATE_FOLDER_CHANNEL));
+      } catch {
+        return { outcome: "refused" };
       }
     },
     // Only a topic of the right type goes to main, which checks it again; its answer is checked like the port's.

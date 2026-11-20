@@ -12,6 +12,7 @@ describe("preload entry", () => {
     const [name, bridge] = exposeInMainWorld.mock.calls[0] as [string, object];
     expect(name).toBe("reqseq");
     expect(Object.keys(bridge).sort()).toEqual([
+      "chooseCreateFolder",
       "commands",
       "copyText",
       "invoke",

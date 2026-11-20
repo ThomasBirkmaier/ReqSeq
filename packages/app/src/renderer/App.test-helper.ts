@@ -35,6 +35,7 @@ export interface FakeBridge {
   copyText: Mock<(text: string) => Promise<boolean>>;
   pasteText: Mock<() => Promise<boolean>>;
   openFolderDialog: Mock<() => Promise<boolean>>;
+  chooseCreateFolder: Mock<ReqSeqBridge["chooseCreateFolder"]>;
   recentWorkspaces: Mock<ReqSeqBridge["recentWorkspaces"]>;
   openWorkspace: Mock<ReqSeqBridge["openWorkspace"]>;
   savers: ((request?: SaveReason) => Promise<boolean>)[];
@@ -64,6 +65,10 @@ export const fakeBridge = (handlers: Record<string, Handler>): FakeBridge => {
   const pasteText = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
   // The folder dialog of File > Open Workspace…, which main shows (SR-225 AK2).
   const openFolderDialog = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
+  // The folder of "Create workspace" of the start buffer, which main gives (SR-225 AK4).
+  const chooseCreateFolder = vi.fn<ReqSeqBridge["chooseCreateFolder"]>(() =>
+    Promise.resolve({ outcome: "nothing" }),
+  );
   const recentWorkspaces = vi.fn<ReqSeqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
   const openWorkspace = vi.fn<ReqSeqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
   // The window's saver, which main calls before a switch (SR-131 AK3) or before the window closes
@@ -102,6 +107,7 @@ export const fakeBridge = (handlers: Record<string, Handler>): FakeBridge => {
     copyText,
     pasteText,
     openFolderDialog,
+    chooseCreateFolder,
     recentWorkspaces,
     openWorkspace,
     onSave,
@@ -138,6 +144,7 @@ export const fakeBridge = (handlers: Record<string, Handler>): FakeBridge => {
     copyText,
     pasteText,
     openFolderDialog,
+    chooseCreateFolder,
     recentWorkspaces,
     openWorkspace,
     savers,

@@ -9,6 +9,7 @@ import { NONE_OPENED } from "./connect-agent.js";
 import {
   NO_WORKSPACE,
   STATUS,
+  calls,
   click,
   fakeBridge,
   flush,
@@ -19,6 +20,7 @@ import {
   shownAll,
   shownOne,
   text,
+  type,
   workspace,
 } from "./App.test-helper.js";
 
@@ -40,10 +42,17 @@ const BARE_FOLDER: readonly CommandListing[] = [
 /** Without a workspace; `catalog` is what the bridge lists: none while no core process runs. */
 const start = async (catalog: readonly CommandListing[] = [], status: unknown = NO_WORKSPACE) => {
   const fake = fakeBridge({ ...workspace(), "workspace.status": () => status });
-  const bridge: ReqSeqBridge = { ...fake.bridge, commands: () => Promise.resolve(catalog) };
+  const listed = { catalog };
+  const bridge: ReqSeqBridge = { ...fake.bridge, commands: () => Promise.resolve(listed.catalog) };
   await render(bridge);
-  return fake;
+  return { ...fake, listed };
 };
+
+/** The status of a folder opened without a workspace (core's `workspace.not-found`). */
+const BARE_STATUS = (): Error =>
+  Object.assign(new Error("No reqseq-workspace.yaml in the workspace folder"), {
+    code: "workspace.not-found",
+  });
 
 /** The lines of the start buffer, each with its side text. */
 const lines = (): string[][] =>
@@ -95,7 +104,7 @@ describe("the start buffer", () => {
   });
 
   it("[SR-225/AK-s5p9] a click or the arrow keys and Enter run a line: the folder dialog, Create workspace, Connect AI agent", async () => {
-    const { openFolderDialog } = await start();
+    const { openFolderDialog, chooseCreateFolder } = await start();
     const buffer = query('[aria-label="Start"]');
     // It has the focus, so its keys work at once.
     expect(document.activeElement).toBe(buffer);
@@ -109,25 +118,18 @@ describe("the start buffer", () => {
     await keyDown(buffer, "Enter");
     await flush();
     expect(text("Minibuffer")).toBe("The folder dialog did not open. Press Ctrl+O to choose a folder.");
-    // Create workspace: no folder is open, so the folder dialog opens one first.
+    // Create workspace: main gives the folder for it (AK4).
     await keyDown(buffer, "ArrowDown");
     expect(buffer.getAttribute("aria-activedescendant")).toBe("start-1");
     await keyDown(buffer, "Enter");
     await flush();
-    expect(openFolderDialog).toHaveBeenCalledTimes(4);
+    expect(chooseCreateFolder).toHaveBeenCalledOnce();
+    expect(openFolderDialog).toHaveBeenCalledTimes(3);
     // Connect AI agent: its prompt asks the workspace first (SR-225 AK7).
     await keyDown(buffer, "ArrowDown");
     await keyDown(buffer, "Enter");
     await flush();
     expect(query("label.prompt-label").textContent).toBe(NONE_OPENED);
-  });
-
-  it("[SR-225/AK-s5p9] in a folder without a workspace, Create workspace starts the command prompt's Create workspace there", async () => {
-    const { openFolderDialog } = await start(BARE_FOLDER);
-    await click(query('[aria-label="Start"] #start-1'));
-    await flush();
-    expect(query("label.prompt-label").textContent).toContain("Create workspace");
-    expect(openFolderDialog).not.toHaveBeenCalled();
   });
 
   it("[SR-225/AK-tgvr] an opened workspace shows its overview, and the start commands no longer", async () => {
@@ -139,5 +141,100 @@ describe("the start buffer", () => {
     expect(shownOne('[aria-label="Overview"]')).not.toBeNull();
     expect(shownOne('[aria-label="Start"]')).toBeNull();
     expect(shownAll(".start-line")).toEqual([]);
+  });
+
+  it("[SR-225/AK-tccz] Create workspace takes the folder main gives, asks only the name, pre-filled, and Enter creates it with the standard model and opens it", async () => {
+    const { chooseCreateFolder, handlers, change, invoke, listed } = await start();
+    handlers["workspace.init"] = () => ({
+      answer: "Created workspace Station; 4 files written.",
+      files: [],
+      next: [],
+    });
+    // No folder is open: main shows the system folder dialog and opens the folder chosen there.
+    chooseCreateFolder.mockResolvedValueOnce({ outcome: "folder", name: "Station", opening: true });
+    await click(query('[aria-label="Start"] #start-1'));
+    expect(chooseCreateFolder).toHaveBeenCalledOnce();
+    // Nothing is asked before the folder is open and its catalog read.
+    expect(shownOne("label.prompt-label")).toBeNull();
+    listed.catalog = BARE_FOLDER;
+    handlers["workspace.status"] = BARE_STATUS;
+    await change("opened");
+    await flush();
+    expect(query("label.prompt-label").textContent).toBe("Create workspace · name:");
+    expect((query("input") as HTMLInputElement).value).toBe("Station");
+    await keyDown(query("input"), "Enter");
+    await flush();
+    // The folder itself, without a metamodel: the standard model (SR-014 AK1).
+    expect(calls(invoke, "workspace.init")).toEqual([{ path: ".", name: "Station" }]);
+    expect(text("Minibuffer")).toBe("Created workspace Station; 4 files written.");
+    // The new workspace opens: its overview (SR-226 AK2).
+    handlers["workspace.status"] = () => ({ name: "Station", readOnly: false });
+    await change("written");
+    await flush();
+    expect(shownOne('[aria-label="Overview"]')).not.toBeNull();
+    expect(shownOne('[aria-label="Start"]')).toBeNull();
+  });
+
+  it("[SR-225/AK-tccz] in a folder open without a workspace, no dialog: the name at once; the command prompt's Create workspace asks path and name", async () => {
+    const { chooseCreateFolder, openFolderDialog, invoke } = await start(BARE_FOLDER, BARE_STATUS());
+    chooseCreateFolder.mockResolvedValueOnce({ outcome: "folder", name: "Buoy", opening: false });
+    await click(query('[aria-label="Start"] #start-1'));
+    await flush();
+    expect(query("label.prompt-label").textContent).toBe("Create workspace · name:");
+    expect((query("input") as HTMLInputElement).value).toBe("Buoy");
+    expect(openFolderDialog).not.toHaveBeenCalled();
+    await keyDown(query("input"), "Escape");
+    // From the command prompt (SR-143): the path first.
+    await runCommand("Create workspace");
+    expect(query("label.prompt-label").textContent).toBe("Create workspace · path:");
+    expect(calls(invoke, "workspace.init")).toEqual([]);
+  });
+
+  it("[SR-225/AK-mw88] a canceled dialog, Escape or an empty name create nothing; an empty name and a refusal stay in the step and say why", async () => {
+    const { chooseCreateFolder, handlers, invoke } = await start(BARE_FOLDER, BARE_STATUS());
+    const create = query('[aria-label="Start"] #start-1');
+    // The dialog was canceled: nothing is asked or created.
+    chooseCreateFolder.mockResolvedValueOnce({ outcome: "nothing" });
+    await click(create);
+    expect(shownOne("label.prompt-label")).toBeNull();
+    // Main showed no dialog: the command line says so.
+    chooseCreateFolder.mockResolvedValueOnce({ outcome: "refused" });
+    await click(create);
+    expect(text("Minibuffer")).toBe("The folder dialog did not open. Press Ctrl+O to choose a folder.");
+    // Escape in the name.
+    chooseCreateFolder.mockResolvedValue({ outcome: "folder", name: "Station", opening: false });
+    await click(create);
+    await keyDown(query("input"), "Escape");
+    expect(shownOne("label.prompt-label")).toBeNull();
+    // An empty name stays in the step and says that a name is needed.
+    await click(create);
+    await type("  ");
+    await keyDown(query("input"), "Enter");
+    expect(query("label.prompt-label").textContent).toBe("A name is needed · Create workspace · name:");
+    expect(calls(invoke, "workspace.init")).toEqual([]);
+    // A refusal names its reason in the step, with the name given.
+    handlers["workspace.init"] = () =>
+      Object.assign(new Error("The folder holds reqseq-workspace.yaml already"), { code: "input.invalid" });
+    await type("Station");
+    await keyDown(query("input"), "Enter");
+    await flush();
+    expect(calls(invoke, "workspace.init")).toEqual([{ path: ".", name: "Station" }]);
+    expect(query("label.prompt-label").textContent).toBe(
+      "The folder holds reqseq-workspace.yaml already · Create workspace · name:",
+    );
+    expect((query("input") as HTMLInputElement).value).toBe("Station");
+  });
+
+  it("[SR-225/AK-tf62] a chosen folder that is a workspace is opened, nothing is created, and the command line names it", async () => {
+    const { chooseCreateFolder, handlers, change, invoke } = await start();
+    chooseCreateFolder.mockResolvedValueOnce({ outcome: "existing" });
+    await click(query('[aria-label="Start"] #start-1'));
+    handlers["workspace.status"] = () => STATUS;
+    await change("opened");
+    await flush();
+    expect(text("Minibuffer")).toBe("Opened the existing workspace Weather station");
+    expect(shownOne('[aria-label="Overview"]')).not.toBeNull();
+    expect(shownOne("label.prompt-label")).toBeNull();
+    expect(calls(invoke, "workspace.init")).toEqual([]);
   });
 });

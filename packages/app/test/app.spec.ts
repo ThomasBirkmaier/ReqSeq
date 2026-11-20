@@ -92,6 +92,7 @@ test.describe("on a fixture workspace", () => {
     // typed in "Open workspace" (SR-143), and the documentation in the browser (SR-141). None of them deletes
     // anything.
     expect(offered).toEqual([
+      "chooseCreateFolder",
       "commands",
       "copyText",
       "invoke",

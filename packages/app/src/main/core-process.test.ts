@@ -315,5 +315,14 @@ describe("CoreProcess", () => {
     }
     await core.open("/other");
     expect(children[2]?.sent[0]?.message).toEqual({ type: "open", folder: "/other" });
+    // The folder of "Create workspace" of the start buffer: itself, also when started again.
+    const third = children[2];
+    if (third !== undefined) {
+      exitOnStop(third);
+    }
+    await core.open("/new", { itself: true });
+    expect(children[3]?.sent[0]?.message).toEqual({ type: "open", folder: "/new", itself: true });
+    children[3]?.exit(5);
+    expect(children[4]?.sent[0]?.message).toEqual({ type: "open", folder: "/new", itself: true });
   });
 });

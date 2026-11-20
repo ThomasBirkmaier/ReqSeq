@@ -5,6 +5,7 @@ import {
   COPY_CHANNEL,
   DOCS_CHANNEL,
   EDIT_CHANNEL,
+  CREATE_FOLDER_CHANNEL,
   FOLDER_DIALOG_CHANNEL,
   HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
@@ -338,6 +339,30 @@ describe("createBridge", () => {
     expect(await bridge.openFolderDialog()).toBe(false);
   });
 
+  it("chooseCreateFolder asks main for the folder of Create workspace with nothing in the message, and keeps only its name", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    ipc.answer = { outcome: "folder", name: "Station", opening: true, path: "/home/Station" };
+    expect(await bridge.chooseCreateFolder()).toEqual({ outcome: "folder", name: "Station", opening: true });
+    expect(ipc.invoked).toEqual([{ channel: CREATE_FOLDER_CHANNEL, args: [] }]);
+    ipc.answer = { outcome: "existing" };
+    expect(await bridge.chooseCreateFolder()).toEqual({ outcome: "existing" });
+    ipc.answer = { outcome: "nothing" };
+    expect(await bridge.chooseCreateFolder()).toEqual({ outcome: "nothing" });
+    // Anything else, and a failure, is a refusal and never rejects.
+    for (const answer of [
+      true,
+      "/home/folder",
+      { outcome: "folder", name: 1, opening: true },
+      { outcome: "folder", name: "x" },
+      { outcome: "other" },
+      new Error("No handler registered"),
+    ]) {
+      ipc.answer = answer;
+      expect(await bridge.chooseCreateFolder()).toEqual({ outcome: "refused" });
+    }
+  });
+
   it("openDocs sends main only a topic string, never rejects, and keeps only an answer of the known shape", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -578,6 +603,7 @@ describe("what the renderer can reach", () => {
     // the repositories whose paths `element.get` gives; the recent elements of the overview live in the
     // window's storage. Both are display (AK1: „Zustand der Bedienung“).
     expect(Object.keys(bridge).sort()).toEqual([
+      "chooseCreateFolder",
       "commands",
       "copyText",
       "invoke",

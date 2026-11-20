@@ -34,36 +34,26 @@ export const startLines = (mac: boolean): readonly StartLine[] => [
 export const startShown = (view: WorkspaceView | undefined, shownBuffers: number): boolean =>
   view !== undefined && view.name === undefined && shownBuffers === 0;
 
-/** The id of the command prompt's entry of the catalog command "Create workspace" (`catalog-commands.ts`). */
-export const CREATE_WORKSPACE_ITEM = "command:workspace.init";
-
 /** What the window can do for a line of the start buffer. */
 export interface StartRunner {
   /** Main shows the folder dialog of File > Open Workspace… (`openFolderDialog` of the bridge). */
   readonly folderDialog: () => void;
-  /** The entry "Create workspace" of the command prompt, once its catalog is read; undefined without a folder open. */
-  readonly createEntry: () => Promise<(() => void) | undefined>;
+  /** "Create workspace" of the start buffer (AK4–AK6, `create-workspace.ts`). */
+  readonly createWorkspace: () => void;
   /** The action "Connect AI agent" (SR-225 AK7), as the modeline starts it. */
   readonly connectAgent: () => void;
 }
 
 /**
- * Runs a chosen line (AK2): "Open workspace…" shows the folder dialog as the menu item does. "Create workspace"
- * begins as AK4 says: with a folder without a workspace open, which the command prompt offers it for, its entry
- * there (path and name, SR-143, until #1892 asks only the name); else the folder dialog, which opens a folder with or
- * without a workspace. "Connect AI agent" runs as AK7 says.
+ * Runs a chosen line (AK2): "Open workspace…" shows the folder dialog as the menu item does, "Create workspace"
+ * begins as AK4 says (the folder, then only the name), and "Connect AI agent" runs as AK7 says.
  */
-export const runStart = async (command: StartCommand, runner: StartRunner): Promise<void> => {
+export const runStart = (command: StartCommand, runner: StartRunner): void => {
   if (command === "open") {
     runner.folderDialog();
   } else if (command === "connect") {
     runner.connectAgent();
   } else {
-    const entry = await runner.createEntry();
-    if (entry === undefined) {
-      runner.folderDialog();
-    } else {
-      entry();
-    }
+    runner.createWorkspace();
   }
 };

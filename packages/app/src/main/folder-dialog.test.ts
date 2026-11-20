@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { FOLDER_DIALOG_CHANNEL } from "../shared/protocol.js";
+import type { CreateFolderAnswer } from "../shared/protocol.js";
+import { CREATE_FOLDER_CHANNEL, FOLDER_DIALOG_CHANNEL } from "../shared/protocol.js";
 import type { EditInput } from "./edit.js";
 import { INPUT_WINDOW_MS } from "./edit.js";
 import type { FolderDialogElectron } from "./folder-dialog.js";
@@ -42,16 +43,30 @@ const setup = (contents = new FakeContents()) => {
         close = resolve;
       }),
   );
-  handleFolderDialog(electron as unknown as FolderDialogElectron, contents, open, () => time);
+  let answer: (value: CreateFolderAnswer) => void = () => undefined;
+  const create = vi.fn(
+    () =>
+      new Promise<CreateFolderAnswer>((resolve) => {
+        answer = resolve;
+      }),
+  );
+  handleFolderDialog(electron as unknown as FolderDialogElectron, contents, { open, create }, () => time);
   const fromWindow = { sender: contents, senderFrame: contents.mainFrame };
   const ask = (event: unknown = fromWindow): unknown => handlers.get(FOLDER_DIALOG_CHANNEL)?.(event);
+  const askCreate = (event: unknown = fromWindow): Promise<unknown> =>
+    handlers.get(CREATE_FOLDER_CHANNEL)?.(event) as Promise<unknown>;
   const later = (ms: number): void => {
     time += ms;
   };
   return {
     contents,
     open,
+    create,
     ask,
+    askCreate,
+    answer: (value: CreateFolderAnswer) => {
+      answer(value);
+    },
     later,
     close: () => {
       close();
@@ -96,6 +111,27 @@ describe("the folder dialog channel", () => {
     expect(ask({ ...fromWindow, senderFrame: null })).toBe(false);
     expect(ask({ ...fromWindow, sender: {} })).toBe(false);
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it("gives the folder for Create workspace on the same condition, with main's answer once it is done", async () => {
+    const { contents, open, create, ask, askCreate, answer, later } = setup();
+    expect(await askCreate()).toEqual({ outcome: "refused" });
+    contents.input(CLICK);
+    later(INPUT_WINDOW_MS + 1);
+    expect(await askCreate()).toEqual({ outcome: "refused" });
+    contents.input(CLICK);
+    const created = askCreate();
+    expect(create).toHaveBeenCalledOnce();
+    // While its dialog is open, neither channel shows another.
+    contents.input(CLICK);
+    expect(ask()).toBe(false);
+    expect(await askCreate()).toEqual({ outcome: "refused" });
+    answer({ outcome: "folder", name: "Station", opening: true });
+    expect(await created).toEqual({ outcome: "folder", name: "Station", opening: true });
+    contents.input(CLICK);
+    expect(ask()).toBe(true);
+    expect(open).toHaveBeenCalledOnce();
+    expect(create).toHaveBeenCalledOnce();
   });
 
   it("refuses a window that shows another page", () => {
