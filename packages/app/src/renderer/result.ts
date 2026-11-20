@@ -11,8 +11,8 @@
 // (SR-223 AK6), the values the catalog marks as the element's own only with "Show details", after the others
 // (SR-224 AK9), a problem is one line with its element and message (with details its kind and technical
 // values), several problems of one kind and severity are one group line with the title of their kind and their
-// count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
-// test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
+// count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, an
+// item about one problem kind (a count per kind) stands under the title of its kind as well, a test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
 // outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, ThomasBirkmaier/ReqSeq-archive#592 Q3). A UUID the output names in `names` (ThomasBirkmaier/ReqSeq-archive#588) is the row
@@ -644,6 +644,51 @@ const fieldLines = (
   }
 };
 
+/** The title of the problem kind the `code` of a record that is no problem names (SR-224 AK6); else undefined. */
+const kindOf = (value: Rec): string | undefined => {
+  const code = str(value["code"]);
+  return code === undefined ? undefined : problemTitle(code);
+};
+
+/** The fields of a record about one problem kind other than its kind. */
+const KIND_FIELD: ReadonlySet<string> = new Set(["code"]);
+
+/**
+ * An item about one problem kind, such as a count of hints per kind: it stands under the title of its kind, as a
+ * group of problems does (SR-223 AK3), its code being technical (SR-224 AK3). A single other value, such as the
+ * count, is one line with the title and the value at its end, as a group line has its count; several values are
+ * an outline under the title, set apart as an item. With "Show details" the code follows, as a detail.
+ */
+const kindLines = (value: Rec, title: string, depth: number, path: string, walk: Walk): void => {
+  const others = Object.keys(value).filter((key) => !KIND_FIELD.has(key));
+  const [only] = others;
+  if (others.length === 1 && only !== undefined && !isRecord(value[only]) && !Array.isArray(value[only])) {
+    const child = childOf(walk.fields, path, only);
+    emit(walk, () => ({
+      kind: "text",
+      depth,
+      label: "",
+      text: title,
+      status: scalar(value[only]),
+      field: child.path,
+    }));
+  } else {
+    emit(walk, () => ({ kind: "text", depth, label: title, text: "", itemStart: true }));
+    fieldLines(value, depth + 1, path, walk, KIND_FIELD);
+  }
+  if (walk.details) {
+    const kind = childOf(walk.fields, path, "code");
+    emit(walk, () => ({
+      kind: "text",
+      depth: depth + 1,
+      label: kind.label,
+      text: String(value["code"]),
+      field: kind.path,
+      detail: true,
+    }));
+  }
+};
+
 /** The UUID of an entry `names` names, which its row stands for. */
 const ID_FIELD: ReadonlySet<string> = new Set(["id"]);
 
@@ -671,6 +716,11 @@ const outlineLines = (
       emit(walk, () => elementLine(entry, depth));
       below();
     }
+    return;
+  }
+  const kindTitle = item ? kindOf(value) : undefined;
+  if (kindTitle !== undefined) {
+    kindLines(value, kindTitle, depth, path, walk);
     return;
   }
   if (label !== "") {
