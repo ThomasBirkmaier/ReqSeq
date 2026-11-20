@@ -7,6 +7,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { pageLinks } from "./links.js";
+import type { NeighbourhoodSource } from "./section-neighbourhood.js";
 import { criterionEvidence } from "./section-evidence.js";
 
 const context: ElementPageContext = {
@@ -15,6 +16,7 @@ const context: ElementPageContext = {
   shortIds: {} as ShortIds,
   layout: { repositories: [] },
   links: pageLinks(new Set()),
+  neighbourhood: {} as NeighbourhoodSource,
 };
 
 const at = (result: EvidenceRecord["result"], variant?: string): EvidenceRecord => ({
