@@ -19,7 +19,8 @@
 //   (`data-b`) and sorts in the order of its values, and a chip filters by it; with none, the column and the chip are
 //   hidden and their choice is cleared. The chip offers no grouping.
 //
-// An open menu of a chip closes on a click outside it and on Escape, which puts the focus on its chip (#2138).
+// An open menu of a chip closes on a click outside it and on Escape, which puts the focus on its chip when the focus
+// was in its menu (#2138).
 
 // Core has no DOM types (its `lib` is ES only), so the script takes what it uses from `globalThis` as these. The page
 // holds every element the script asks for with `querySelector`.
@@ -53,6 +54,7 @@ interface Browser {
     querySelectorAll: (selector: string) => Iterable<Node>;
     createElement: (name: string) => Node;
     addEventListener: (type: string, listener: (event: Event) => void) => void;
+    readonly activeElement: Node | null;
   };
 }
 
@@ -81,7 +83,7 @@ export function listScript(): void {
     `<details class="rq-chip${alt ? " rq-chip-alt" : ""}" data-chip="${id}"><summary></summary><div class="rq-chip-values" role="group" aria-label="${escape(label)}">${values}</div></details>`;
   /** The face of a chip: its label, the number of its chosen values (none: empty) and the mark of its menu. */
   const face = (label: string, chosen: number): string =>
-    `${escape(label)}<span class="rq-n">${chosen === 0 ? "" : String(chosen)}</span>${caret}`;
+    `${escape(label)}${chosen === 0 ? "" : ` <span class="rq-n">${String(chosen)}</span>`}${caret}`;
 
   const setUp = (box: Node): void => {
     const settings = JSON.parse(String(box.dataset["rqList"])) as Settings;
@@ -325,12 +327,9 @@ export function listScript(): void {
         }
       } else if (target.dataset["group"] !== undefined) {
         setGroup(Number(target.dataset["group"]));
-        // A single choice: its menu closes.
-        box.querySelector('[data-chip="group"]').removeAttribute("open");
         draw();
       } else if (change !== undefined && target.dataset["baseline"] !== undefined) {
         setBaseline(change, Number(target.dataset["baseline"]));
-        box.querySelector('[data-chip="compare"]').removeAttribute("open");
         draw();
       }
     });
@@ -367,12 +366,12 @@ export function listScript(): void {
     draw();
   };
 
-  /** Closes each open menu of a chip but `keep`; with `focus`, puts the focus on the chip of a closed one. */
-  const close = (keep: Node | null, focus: boolean): void => {
+  /** Closes each open menu of a chip but `keep`; one that held `focus` puts the focus on its chip. */
+  const close = (keep: Node | null, focus: Node | null = null): void => {
     for (const chip of document.querySelectorAll(".rq-list details.rq-chip[open]")) {
       if (chip !== keep) {
         chip.removeAttribute("open");
-        if (focus) {
+        if (focus?.closest(".rq-chip") === chip) {
           chip.querySelector("summary").focus();
         }
       }
@@ -382,12 +381,12 @@ export function listScript(): void {
     const target = event.target as Node;
     // A click on a value of a menu redraws the menu, so its target can have left the page: it was inside.
     if (target.isConnected) {
-      close(target.closest(".rq-chip"), false);
+      close(target.closest(".rq-chip"));
     }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      close(null, true);
+      close(null, document.activeElement);
     }
   });
 

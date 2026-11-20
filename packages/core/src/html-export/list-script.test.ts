@@ -96,7 +96,7 @@ describe("list script (SR-233 AK1)", () => {
     // The redrawn box keeps the focus, for the next value by keyboard.
     expect(window.document.activeElement).toBe(box.querySelector('[data-filter="0"][data-value="1"]'));
     // The chip shows the number of its chosen values.
-    expect(one('[data-chip="0"] summary').textContent).toBe("Status1");
+    expect(one('[data-chip="0"] summary').textContent).toBe("Status 1");
     expect(one('[data-chip="0"]').classList.contains("rq-on")).toBe(true);
     // The numbers of the other filter count the rows this filter leaves.
     expect(values(1)).toEqual(["Display1", "Sensor1"]);
@@ -142,6 +142,14 @@ describe("list script (SR-233 AK1)", () => {
     status.setAttribute("open", "");
     key("a");
     expect(status.hasAttribute("open")).toBe(true);
+    // Escape with the focus outside the menu closes it and leaves the focus where it is.
+    one(".rq-search").focus();
+    key("Escape");
+    expect(status.hasAttribute("open")).toBe(false);
+    expect(window.document.activeElement).toBe(box.querySelector(".rq-search"));
+    // Escape in the menu puts the focus on its chip.
+    status.setAttribute("open", "");
+    one('[data-chip="0"] input').focus();
     key("Escape");
     expect(status.hasAttribute("open")).toBe(false);
     expect(window.document.activeElement).toBe(box.querySelector('[data-chip="0"] summary'));
@@ -182,8 +190,7 @@ describe("list script (SR-233 AK1)", () => {
     search("alpha");
     expect(rows()).toEqual(["Packages: Display · 1", "SR-1 Alpha"]);
     expect(one(".rq-tokens").textContent).toBe("Grouped by Packages ×");
-    expect(one('[data-chip="group"] summary').textContent).toBe("Group1");
-    expect(one('[data-chip="group"]').hasAttribute("open")).toBe(false);
+    expect(one('[data-chip="group"] summary').textContent).toBe("Group 1");
     one('.rq-tokens [data-remove="group"]').click();
     expect(rows()).toEqual(["SR-1 Alpha"]);
     expect(field('[data-group="-1"]').checked).toBe(true);

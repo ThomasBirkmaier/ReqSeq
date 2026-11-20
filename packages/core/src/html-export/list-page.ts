@@ -402,7 +402,6 @@ export const LIST_CSS = [
   ".rq-chip > summary:hover { background: var(--sl-color-gray-6); color: var(--sl-color-white); }",
   ".rq-chip > summary:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px; }",
   ".rq-chip-alt > summary { border-style: solid; border-color: var(--sl-color-gray-5); }",
-  ".rq-chip > summary .rq-n:empty { display: none; }",
   ".rq-chip > summary .rq-n { min-width: 1.25rem; height: 1.25rem; line-height: 1.25rem; text-align: center; border-radius: 999px; font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--sl-color-text-accent); color: var(--sl-color-black); }",
   ".rq-chip.rq-on > summary { border-style: solid; border-color: var(--sl-color-text-accent); background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
   ".rq-chip-values { position: absolute; z-index: 10; min-width: 14rem; max-width: min(22rem, calc(100vw - 2rem)); max-height: 20rem; overflow-y: auto; margin-top: 0.3rem; padding: 0.3rem; background: var(--sl-color-bg-nav); border: 1px solid var(--sl-color-gray-5); border-radius: 0.6rem; box-shadow: var(--sl-shadow-md); }",
@@ -415,4 +414,5 @@ export const LIST_CSS = [
   ".rq-tokens button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.12rem 0.4rem 0.12rem 0.6rem; border-radius: 0.35rem; background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
   ".rq-tokens button:focus-visible { outline: 2px solid var(--sl-color-text-accent); }",
   ".rq-tokens .rq-hint { color: var(--sl-color-gray-3); }",
+  "@media print { .rq-list .rq-list-table { max-height: none; overflow: visible; } }",
 ];

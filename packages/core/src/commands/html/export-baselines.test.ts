@@ -299,7 +299,7 @@ describe("html.export: lists compared with a baseline", () => {
     choose("0");
     const token = document.querySelector('.rq-tokens [data-remove="baseline"]') as unknown as HTMLElement;
     expect(token.textContent).toBe("Compared with Release 2 (2026-11-02) ×");
-    expect(compare.querySelector("summary")?.textContent).toBe("Compare1");
+    expect(compare.querySelector("summary")?.textContent).toBe("Compare 1");
     token.click();
     expect(head()).not.toContain("Change since baseline");
     expect((compare.querySelector('[data-baseline="-1"]') as unknown as HTMLInputElement).checked).toBe(true);
