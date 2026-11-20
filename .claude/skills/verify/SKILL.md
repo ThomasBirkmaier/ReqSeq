@@ -33,6 +33,11 @@ pnpm vitest related --run --passWithNoTests $F
 pnpm trace-check
 ```
 
+`vitest related` finds a test only through the imports of the changed source files, and other packages import `@reqseq/core` from its `dist`, so it misses two kinds of tests. Run them as well, after `pnpm build`:
+
+- After a change of `docs/guide/` or the README: `pnpm vitest run packages/docs --reporter=dot`. These tests read the pages as files (the word budget of a page, the README against the guide, the guide examples run against this build); the citations of the pages are checked only by `pnpm docs:generate`.
+- After a change of `packages/core` that the adapters or the docs show, such as the agent guide in `packages/core/src/commands/tool/guide/`, the catalog or an output: the adapter and docs tests that read it, for example `pnpm vitest run packages/cli/src/guide-calls.test.ts packages/mcp/src/server.test.ts packages/docs --reporter=dot`.
+
 Optional, for a risky change to core: a local mutation run of the changed source files, never in CI (#1335). It prints the score per file and the surviving mutants without the static ones, and writes `test-results/mutation/mutation.json`:
 
 ```sh
