@@ -139,14 +139,20 @@ const impactCheck = (both: (call: GuideCall) => string, subject: string): string
 const requiredPlaceholders = (
   command: CommandName,
   entries: readonly CatalogEntry[],
-): Readonly<Record<string, unknown>> => {
-  const input = entries.find((entry) => entry.name === command)?.input ?? {};
-  const properties = (input["properties"] ?? {}) as Readonly<Record<string, { readonly type?: unknown }>>;
-  const required = (input["required"] ?? []) as readonly string[];
-  return Object.fromEntries(
-    required.map((field) => [field, properties[field]?.type === "boolean" ? false : `<${field}>`]),
+): Readonly<Record<string, unknown>> =>
+  Object.fromEntries(
+    entries
+      .filter((entry) => entry.name === command)
+      .flatMap((entry) => {
+        const { properties, required } = entry.input as {
+          readonly properties: Readonly<Record<string, { readonly type?: unknown }>>;
+          readonly required: readonly string[];
+        };
+        return Object.entries(properties)
+          .filter(([field]) => required.includes(field))
+          .map(([field, schema]) => [field, schema.type === "boolean" ? false : `<${field}>`]);
+      }),
   );
-};
 
 /** The body of the skill: its first step, then the workflows of AK7, each as numbered steps. */
 const skillBody = (
