@@ -864,6 +864,112 @@
       "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
       "type": "string"
     },
+    "baselineSince": {
+      "title": "Changes since the baseline",
+      "description": "A baseline and its elements per state since it, as baseline.get gives them for it (SR-051): the same numbers over all pages.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Baseline",
+          "description": "Name of the baseline.",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "$ref": "#/$defs/outputPath",
+          "description": "Relative to the workspace root, / as separator."
+        },
+        "repository": {
+          "title": "Repository",
+          "type": "string",
+          "description": "The repository that holds the file."
+        },
+        "date": {
+          "title": "Date",
+          "$ref": "#/$defs/dateTime"
+        },
+        "view": {
+          "title": "View",
+          "$ref": "#/$defs/viewId",
+          "description": "The view of the stored selection; left out for the core."
+        },
+        "selectionKnown": {
+          "title": "Selection stored",
+          "type": "boolean",
+          "description": "The file stores a selection. Without it no element is added or removed, and `counts` has no `added` and `removed` (SR-051 AK2).",
+          "x-normal": true
+        },
+        "counts": {
+          "title": "Elements per state",
+          "type": "object",
+          "description": "Elements per state over all pages, as `counts` of baseline.get.",
+          "properties": {
+            "unchanged": {
+              "x-elements": "selection",
+              "title": "Unchanged",
+              "description": "Elements unchanged since the baseline.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "changed": {
+              "x-elements": "selection",
+              "title": "Changed",
+              "description": "Elements changed since the baseline.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "superseded": {
+              "x-elements": "selection",
+              "title": "Superseded",
+              "description": "Elements superseded since the baseline.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "x-elements": "selection",
+              "title": "Removed",
+              "description": "Elements that left the selection since the baseline; left out without a stored selection.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "added": {
+              "x-elements": "selection",
+              "title": "Added",
+              "description": "Elements that joined the selection since the baseline; left out without a stored selection.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing": {
+              "x-elements": "selection",
+              "title": "Missing",
+              "description": "Elements of the baseline that are not found.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "inaccessible": {
+              "x-elements": "selection",
+              "title": "Not on this machine",
+              "description": "Elements of the baseline in a repository that is not on this machine.",
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": ["unchanged", "changed", "superseded", "missing", "inaccessible"]
+        },
+        "problems": {
+          "title": "Problems",
+          "type": "array",
+          "description": "In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check.",
+          "items": {
+            "$ref": "#/$defs/problem"
+          },
+          "x-normal": []
+        }
+      },
+      "additionalProperties": false,
+      "required": ["name", "file", "repository", "date", "selectionKnown", "counts"]
+    },
     "nextStep": {
       "title": "Next step",
       "description": "A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",

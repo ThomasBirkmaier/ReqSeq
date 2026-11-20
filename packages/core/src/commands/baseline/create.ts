@@ -12,7 +12,8 @@
 //   cannot say: refused with `input.invalid` (assumption of spec question #440 on SR-050 AK3); the
 //   same view is stored once.
 // - `selection.baseline` is refused: a baseline is not made of another one. So is `selection.output`
-//   (#1873), which is no form the file stores (ADR-0018 "selection").
+//   (#1873), which is no form the file stores (ADR-0018 "selection"). `refusedSelection` holds these
+//   rules and the one of the views, for baseline.prepare too (SR-242 AK4).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createBaseline } from "../../baselines/index.js";
@@ -25,6 +26,46 @@ import { invalidAt } from "../../query/context.js";
 import type { View } from "../../variants/index.js";
 import { settingLocation, workspaceLayoutState } from "../../workspace/index.js";
 import { counted, filesNote, incompleteNote, problemsNote, sentence } from "../answer.js";
+
+/** The field of a selection `baseline.create` refuses, and why. */
+export interface RefusedSelection {
+  readonly field: string;
+  readonly message: string;
+}
+
+const viewKey = (shown: View): string =>
+  shown.kind === "core" ? "core" : `${shown.variant.id}\n${shown.variant.repository}`;
+
+/**
+ * Why `baseline.create` refuses `selection` (see the file comment), undefined when it does not: by its kind
+ * alone, and with `selected`, the selection as resolved, also a saved filter with another view than the input's.
+ * `baseline.prepare` leaves out its next step "Create baseline" by the same rule (SR-242 AK4).
+ */
+export const refusedSelection = (
+  selection: ElementSelection,
+  selected?: Pick<Selected, "views" | "filter">,
+): RefusedSelection | undefined => {
+  if (selection.baseline !== undefined) {
+    return {
+      field: "selection.baseline",
+      message: "a baseline is not made of another baseline; leave it out",
+    };
+  }
+  if (selection.output !== undefined) {
+    return {
+      field: "selection.output",
+      message: "a baseline stores its selection, and a command output is no stored selection; leave it out",
+    };
+  }
+  const [view, other] = selected?.views ?? [];
+  if (view !== undefined && other !== undefined && viewKey(view) !== viewKey(other)) {
+    return {
+      field: "selection.view",
+      message: `the saved filter ${String(selected?.filter?.name)} has the view ${String(selected?.filter?.data.view)}, another than ${String(selection.view)}; a baseline stores one view, so give the filter's view or leave view out`,
+    };
+  }
+  return undefined;
+};
 
 /** `selection` as the baseline file stores it, for a file in the repository `home` (see the file comment). */
 const storedSelection = (
@@ -47,16 +88,11 @@ const storedSelection = (
   const wheres = [selected.filter?.data.where, selection.where].flatMap((where) =>
     where === undefined ? [] : [canonicalCondition(context, where, "selection.where")],
   );
-  const [view, other] = selected.views;
-  const key = (shown: View): string =>
-    shown.kind === "core" ? "core" : `${shown.variant.id}\n${shown.variant.repository}`;
-  if (view !== undefined && other !== undefined && key(view) !== key(other)) {
-    throw invalidAt(
-      context,
-      "selection.view",
-      `the saved filter ${String(selected.filter?.name)} has the view ${String(selected.filter?.data.view)}, another than ${String(selection.view)}; a baseline stores one view, so give the filter's view or leave view out`,
-    );
+  const refused = refusedSelection(selection, selected);
+  if (refused !== undefined) {
+    throw invalidAt(context, refused.field, refused.message);
   }
+  const [view] = selected.views;
   return {
     ...(selection.ids === undefined
       ? {}
@@ -83,19 +119,9 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"baseline.create">> => {
     const command = "baseline.create";
     const { workspace } = ctx;
-    if (input.selection.baseline !== undefined) {
-      throw invalidAt(
-        { command },
-        "selection.baseline",
-        "a baseline is not made of another baseline; leave it out",
-      );
-    }
-    if (input.selection.output !== undefined) {
-      throw invalidAt(
-        { command },
-        "selection.output",
-        "a baseline stores its selection, and a command output is no stored selection; leave it out",
-      );
+    const refused = refusedSelection(input.selection);
+    if (refused !== undefined) {
+      throw invalidAt({ command }, refused.field, refused.message);
     }
     const selected = await resolveSelection(ctx, input.selection, command);
     const layout = await workspace.get(workspaceLayoutState);

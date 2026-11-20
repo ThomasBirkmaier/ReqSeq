@@ -84,15 +84,18 @@ export type Scenario = Readonly<Record<string, unknown>>;
 
 /** Commands that write only with Git, so their fixture is a Git repository. */
 export const GIT_COMMANDS: ReadonlySet<string> = new Set([
+  "baseline.changes",
   "baseline.compare",
   "baseline.create",
   "baseline.get",
   "baseline.list",
+  "baseline.prepare",
 ]);
 
 /** Every implemented command except the two status commands, with calls that succeed and calls that fail. */
 export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   // In a Git repository (`GIT_COMMANDS`): the second call is refused, the name exists (SR-050 AK6).
+  "baseline.changes": [{}, { baseline: "Base" }, { baseline: "nope" }],
   "baseline.compare": [
     { baseline: "Base", ref: WIND },
     { baseline: "nope", ref: WIND },
@@ -103,6 +106,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   ],
   "baseline.get": [{ baseline: "Base" }, { baseline: "nope" }],
   "baseline.list": [{}, { unknown: true }],
+  "baseline.prepare": [{}, { selection: { ids: [WIND] } }, { selection: { baseline: "nope" } }],
   "data.export": [
     {},
     { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] } } },

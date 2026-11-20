@@ -496,3 +496,66 @@ describe("the names of an answer (SR-224 AK1)", () => {
     });
   });
 });
+
+describe("next steps while the workspace is read-only (SR-226 AK6)", () => {
+  const entry = (name: string, extra: object): object => ({
+    name,
+    title: "Test command",
+    summary: "Next steps (test only).",
+    stage: 1,
+    implements: ["SR-226"],
+    arguments: [],
+    input: { type: "object" },
+    ...extra,
+  });
+  // `next` is optional here: the filter follows the items of the field, not whether it is required.
+  const stepsCatalog = {
+    "reqseq-catalog": 1,
+    commands: [
+      entry("test.steps", {
+        effect: "read",
+        input: { type: "object", properties: { none: { type: "boolean" } }, additionalProperties: false },
+        output: {
+          type: "object",
+          properties: { next: { type: "array", items: { $ref: "../common.schema.json#/$defs/nextStep" } } },
+          additionalProperties: false,
+        },
+      }),
+      entry("test.write", {
+        effect: "write-files",
+        whileReadOnly: "refuse",
+        whileReadOnlyReason: "Writes (test only).",
+        output: { type: "object" },
+      }),
+    ],
+  };
+  const WRITE = { command: "test.write", input: {}, open: [] };
+  const READ = { command: "test.steps", input: {}, open: [] };
+  const steps = defineTestCommand<{ readonly none?: boolean }, unknown>({
+    name: "test.steps",
+    run: (_ctx, input) => Promise.resolve(input.none === true ? {} : { next: [WRITE, READ] }),
+  });
+  const write = defineTestCommand<object, unknown>({ name: "test.write", run: () => Promise.resolve({}) });
+
+  it("[SR-226/AK-t0mt] leaves out a refused step of an optional next list, and an output without next as it is", async () => {
+    const fixture = await createFixtureWorkspace({
+      files: {
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: main, url: "", main: true }\n' +
+          "metamodel: { repository: main, path: metamodel }\n",
+        "metamodel/broken.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
+      },
+      git: true,
+    });
+    onTestFinished(() => fixture.cleanup());
+    const ws = new Workspace(fixture.root);
+    onTestFinished(() => ws.close());
+    const rt = createCommandRuntime({
+      contracts: loadContracts({ catalog: stepsCatalog }),
+      commands: [steps, write],
+      validateOutput: true,
+    });
+    expect(await rt.invoke("test.steps", {}, { workspace: ws })).toMatchObject({ next: [READ] });
+    expect(await rt.invoke("test.steps", { none: true }, { workspace: ws })).not.toHaveProperty("next");
+  });
+});

@@ -97,6 +97,15 @@ const COPIED: FixtureOptions = {
       "title: Wind speed visible at a glance (copy)\n---\n\nThe wind speed is visible from across the room.\n",
   },
 };
+/** The baselines of `options` with one made the newest (SR-241 AK1), for the commands that take the newest. */
+const newest = (options: FixtureOptions, file: string): FixtureOptions => {
+  const files = { ...options.files };
+  files[file] = String(files[file]).replace("date: 2026-10-23", "date: 2026-10-24");
+  return { ...options, files };
+};
+const NEWEST_COUNTS = newest(EXPORT, "system/baselines/counts.yaml");
+const NEWEST_BY_PACKAGE = newest(EXPORT, "system/baselines/by-package.yaml");
+const NEWEST_ARCHIVE = newest(ARCHIVE, "system/baselines/archive.yaml");
 const GRAPH: FixtureOptions = { fixture: "SR-136/graph" };
 const GROUP: FixtureOptions = { fixture: "SR-149/group" };
 const MATRIX: FixtureOptions = { fixture: "SR-125/matrix" };
@@ -143,6 +152,19 @@ const CASES: readonly {
   { options: EXPORT, root: "system", command: "baseline.get", input: { baseline: "By package" } },
   { options: EXPORT, root: "system", command: "baseline.list", input: {} },
   { options: ARCHIVE, root: "system", command: "baseline.get", input: { baseline: "Archive" } },
+  {
+    options: EXPORT,
+    root: "system",
+    command: "baseline.changes",
+    input: { baseline: "Counts", limit: 1 },
+  },
+  { options: EXPORT, root: "system", command: "baseline.changes", input: { baseline: "By package" } },
+  { options: ARCHIVE, root: "system", command: "baseline.changes", input: { baseline: "Archive" } },
+  { options: GRAPH, command: "baseline.prepare", input: {} },
+  { options: GRAPH, command: "baseline.prepare", input: { selection: { package: "PKG-00d001" } } },
+  { options: NEWEST_COUNTS, root: "system", command: "baseline.prepare", input: {} },
+  { options: NEWEST_BY_PACKAGE, root: "system", command: "baseline.prepare", input: {} },
+  { options: NEWEST_ARCHIVE, root: "system", command: "baseline.prepare", input: {} },
 ];
 
 const opened = new Map<FixtureOptions, Workspace>();

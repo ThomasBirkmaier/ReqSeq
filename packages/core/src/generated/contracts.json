@@ -1405,6 +1405,125 @@
           "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
           "type": "string"
         },
+        "baselineSince": {
+          "title": "Changes since the baseline",
+          "description": "A baseline and its elements per state since it, as baseline.get gives them for it: the same numbers over all pages.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Baseline",
+              "description": "Name of the baseline.",
+              "type": "string"
+            },
+            "file": {
+              "title": "File",
+              "$ref": "#/$defs/outputPath",
+              "description": "Relative to the workspace root, / as separator."
+            },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "The repository that holds the file."
+            },
+            "date": {
+              "title": "Date",
+              "$ref": "#/$defs/dateTime"
+            },
+            "view": {
+              "title": "View",
+              "$ref": "#/$defs/viewId",
+              "description": "The view of the stored selection; left out for the core."
+            },
+            "selectionKnown": {
+              "title": "Selection stored",
+              "type": "boolean",
+              "description": "The file stores a selection. Without it no element is added or removed, and `counts` has no `added` and `removed`.",
+              "x-normal": true
+            },
+            "counts": {
+              "title": "Elements per state",
+              "type": "object",
+              "description": "Elements per state over all pages, as `counts` of baseline.get.",
+              "properties": {
+                "unchanged": {
+                  "x-elements": "selection",
+                  "title": "Unchanged",
+                  "description": "Elements unchanged since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "changed": {
+                  "x-elements": "selection",
+                  "title": "Changed",
+                  "description": "Elements changed since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "superseded": {
+                  "x-elements": "selection",
+                  "title": "Superseded",
+                  "description": "Elements superseded since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "x-elements": "selection",
+                  "title": "Removed",
+                  "description": "Elements that left the selection since the baseline; left out without a stored selection.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "added": {
+                  "x-elements": "selection",
+                  "title": "Added",
+                  "description": "Elements that joined the selection since the baseline; left out without a stored selection.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "missing": {
+                  "x-elements": "selection",
+                  "title": "Missing",
+                  "description": "Elements of the baseline that are not found.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "inaccessible": {
+                  "x-elements": "selection",
+                  "title": "Not on this machine",
+                  "description": "Elements of the baseline in a repository that is not on this machine.",
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "unchanged",
+                "changed",
+                "superseded",
+                "missing",
+                "inaccessible"
+              ]
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check.",
+              "items": {
+                "$ref": "#/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "file",
+            "repository",
+            "date",
+            "selectionKnown",
+            "counts"
+          ]
+        },
         "nextStep": {
           "title": "Next step",
           "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
@@ -35322,6 +35441,1596 @@
           {
             "path": "command",
             "title": "Command"
+          }
+        ]
+      },
+      {
+        "name": "baseline.changes",
+        "title": "Show changes since baseline",
+        "summary": "What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output.",
+        "details": "Without a baseline it takes the one with the latest date and time, at the same time the last by file name, skipping a file that is no valid baseline (named under problems, as baseline.list names it). A given baseline is found as baseline.get finds it, and an unknown or ambiguous one is refused the same way. The next steps are Confirm hints when a hint can be confirmed, Compare baseline when an element is marked changed, and Prepare baseline; a step whose write command is refused while the workspace is read-only is left out. Only reads.",
+        "effect": "read",
+        "stage": 5,
+        "implements": [
+          "SR-241"
+        ],
+        "arguments": [
+          {
+            "field": "baseline",
+            "complete": "baseline"
+          },
+          {
+            "field": "limit",
+            "complete": "number"
+          },
+          {
+            "field": "offset",
+            "complete": "number"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "baseline": {
+              "type": "string",
+              "description": "Name of a baseline, or its file name (with or without .yaml); without it the newest baseline."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 200,
+              "description": "Hints of the page, as hint.list; hintTotal and hintKinds count all."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "Hints skipped before the page, in the order of `hints`."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline, as for baseline.get.",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "baseline": {
+              "$ref": "../common.schema.json#/$defs/baselineSince",
+              "description": "The baseline compared with and its elements per state, as baseline.get gives them; left out when the workspace has no baseline."
+            },
+            "hints": {
+              "title": "Hints",
+              "type": "array",
+              "description": "The open hints of the whole workspace, as hint.list gives them without a filter, whatever the baseline selects: one page of `limit` hints from `offset`.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              }
+            },
+            "hintKinds": {
+              "title": "Hints per kind",
+              "type": "array",
+              "description": "The number of open hints per kind, as `kinds` of hint.list without a filter; empty without an open hint.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "title": "Problem kind",
+                    "$ref": "../common.schema.json#/$defs/problemCode"
+                  },
+                  "count": {
+                    "title": "Hints",
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Open hints of this kind."
+                  }
+                },
+                "required": [
+                  "code",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "hintTotal": {
+              "title": "Open hints",
+              "type": "integer",
+              "minimum": 0,
+              "description": "All open hints, as `total` of hint.list without a filter."
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            },
+            "next": {
+              "title": "Next steps",
+              "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/nextStep"
+              }
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete"
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The variant of the baseline's view, as baseline.get names it. Left out in the core.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "hints",
+            "hintKinds",
+            "hintTotal",
+            "next"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "baseline",
+            "title": "Changes since the baseline"
+          },
+          {
+            "path": "baseline.name",
+            "title": "Baseline"
+          },
+          {
+            "path": "baseline.file",
+            "title": "File",
+            "technical": true
+          },
+          {
+            "path": "baseline.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.date",
+            "title": "Date"
+          },
+          {
+            "path": "baseline.view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "baseline.selectionKnown",
+            "title": "Selection stored",
+            "normal": true
+          },
+          {
+            "path": "baseline.counts",
+            "title": "Elements per state"
+          },
+          {
+            "path": "baseline.counts.unchanged",
+            "title": "Unchanged",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.changed",
+            "title": "Changed",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.superseded",
+            "title": "Superseded",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.removed",
+            "title": "Removed",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.added",
+            "title": "Added",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.missing",
+            "title": "Missing",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.inaccessible",
+            "title": "Not on this machine",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "baseline.problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "baseline.problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "baseline.problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "baseline.problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "baseline.problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "baseline.problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "baseline.problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "baseline.problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "baseline.problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "baseline.problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "baseline.problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "baseline.problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "baseline.problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "baseline.problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "baseline.problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "baseline.problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "baseline.problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "baseline.problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "baseline.problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "baseline.problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "baseline.problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "baseline.problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "baseline.problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "baseline.problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "baseline.problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "baseline.problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "baseline.problems[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "hints",
+            "title": "Hints"
+          },
+          {
+            "path": "hints[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "hints[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "hints[].message",
+            "title": "Message"
+          },
+          {
+            "path": "hints[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "hints[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "hints[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "hints[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "hints[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "hints[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "hints[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "hints[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "hints[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "hints[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "hints[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "hints[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "hints[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "hints[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "hints[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "hints[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "hints[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "hints[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "hints[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "hints[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "hints[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "hints[].key",
+            "title": "Key"
+          },
+          {
+            "path": "hints[].place",
+            "title": "Place"
+          },
+          {
+            "path": "hints[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "hints[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "hints[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "hints[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "hints[].count",
+            "title": "Count"
+          },
+          {
+            "path": "hints[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "hints[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "hints[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "hints[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "hints[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "hints[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "hintKinds",
+            "title": "Hints per kind"
+          },
+          {
+            "path": "hintKinds[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "hintKinds[].count",
+            "title": "Hints"
+          },
+          {
+            "path": "hintTotal",
+            "title": "Open hints"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "next",
+            "title": "Next steps"
+          },
+          {
+            "path": "next[].command",
+            "title": "Command",
+            "technical": true
+          },
+          {
+            "path": "next[].input",
+            "title": "Known input"
+          },
+          {
+            "path": "next[].open",
+            "title": "Open fields",
+            "technical": true
+          },
+          {
+            "path": "next[].workspace",
+            "title": "Workspace",
+            "technical": true
+          },
+          {
+            "path": "incomplete",
+            "title": "Incomplete",
+            "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
+          }
+        ]
+      },
+      {
+        "name": "baseline.prepare",
+        "title": "Prepare baseline",
+        "summary": "Before a baseline: the problems of the workspace check, the verification degree of a selection, the requirements without a passed test and the changes since the newest baseline, with Create baseline as the next step.",
+        "details": "The problems are those of workspace.check for the whole workspace, also when a selection is given. The degree is that of evidence.degree for the selection, the number without a passed test that of evidence.withoutPassedTest for the selection's view, and the changes those of baseline.get for the newest baseline, as Show changes since baseline takes it. Create baseline is named with the selection given and only the name open, also when the check found errors; it is left out for a baseline or a command output as the selection, and for a saved filter with another view than its own, which baseline.create refuses, and while the workspace is read-only. Nothing else is checked of whether the baseline can be created, and no command is blocked. Only reads.",
+        "effect": "read",
+        "stage": 5,
+        "implements": [
+          "SR-242"
+        ],
+        "arguments": [
+          {
+            "field": "selection",
+            "complete": "selection"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "selection": {
+              "$ref": "../common.schema.json#/$defs/selection",
+              "description": "The elements of the baseline to come, as element.list takes them; without it the whole workspace. Its view (else its saved filter's, else the core) is the view of the degree."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "The problems of workspace.check with its default input.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "x-normal": []
+            },
+            "wholeWorkspace": {
+              "title": "Problems of the whole workspace",
+              "type": "boolean",
+              "description": "Given with a selection: the problems are those of the whole workspace, not of the selection."
+            },
+            "degree": {
+              "title": "Verification degree",
+              "$ref": "../data-export.schema.json#/$defs/verificationDegree",
+              "description": "The verification degree of the selection, as evidence.degree gives it."
+            },
+            "view": {
+              "title": "View",
+              "$ref": "../common.schema.json#/$defs/viewId",
+              "description": "core, or the variant of the selection's view (else of its saved filter's): the view of `degree` and `withoutPassedTest`."
+            },
+            "withoutPassedTest": {
+              "x-elements": "selection",
+              "title": "Without a passed test",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Requirements of the whole `view` without a passed test, not only of the selection, as `total` of evidence.withoutPassedTest for that view."
+            },
+            "baseline": {
+              "$ref": "../common.schema.json#/$defs/baselineSince",
+              "description": "The newest baseline and its elements per state, as baseline.get gives them; left out when the workspace has no baseline."
+            },
+            "baselineFiles": {
+              "title": "Baseline files",
+              "type": "object",
+              "description": "The files that are no valid baseline, as baseline.list names them, apart from the problems of the check; left out when there is none.",
+              "properties": {
+                "problems": {
+                  "title": "Problems",
+                  "type": "array",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/problem"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "problems"
+              ]
+            },
+            "next": {
+              "title": "Next steps",
+              "description": "Create baseline and, when there is a baseline, Show changes since baseline, as the details say.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/nextStep"
+              }
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete"
+            },
+            "names": {
+              "title": "Named elements",
+              "type": "array",
+              "description": "The variant of `view`, as evidence.degree names it, and that of the baseline's view. Left out in the core.",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/elementName"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "problems",
+            "degree",
+            "view",
+            "withoutPassedTest",
+            "next"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "problems[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "wholeWorkspace",
+            "title": "Problems of the whole workspace"
+          },
+          {
+            "path": "degree",
+            "title": "Verification degree"
+          },
+          {
+            "path": "degree.share",
+            "title": "Share"
+          },
+          {
+            "path": "degree.total",
+            "title": "Requirements",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "degree.counts",
+            "title": "Counts"
+          },
+          {
+            "path": "degree.counts.open",
+            "title": "Open",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "degree.counts.verified",
+            "title": "Verified",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "degree.counts.indirect",
+            "title": "Indirect",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "degree.counts.failed",
+            "title": "Failed",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "degree.counts.outdated",
+            "title": "Outdated",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "withoutPassedTest",
+            "title": "Without a passed test",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline",
+            "title": "Changes since the baseline"
+          },
+          {
+            "path": "baseline.name",
+            "title": "Baseline"
+          },
+          {
+            "path": "baseline.file",
+            "title": "File",
+            "technical": true
+          },
+          {
+            "path": "baseline.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.date",
+            "title": "Date"
+          },
+          {
+            "path": "baseline.view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "baseline.selectionKnown",
+            "title": "Selection stored",
+            "normal": true
+          },
+          {
+            "path": "baseline.counts",
+            "title": "Elements per state"
+          },
+          {
+            "path": "baseline.counts.unchanged",
+            "title": "Unchanged",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.changed",
+            "title": "Changed",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.superseded",
+            "title": "Superseded",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.removed",
+            "title": "Removed",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.added",
+            "title": "Added",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.missing",
+            "title": "Missing",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.counts.inaccessible",
+            "title": "Not on this machine",
+            "elements": "selection",
+            "keys": []
+          },
+          {
+            "path": "baseline.problems",
+            "title": "Problems",
+            "normal": []
+          },
+          {
+            "path": "baseline.problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "baseline.problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "baseline.problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "baseline.problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "baseline.problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "baseline.problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "baseline.problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "baseline.problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "baseline.problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "baseline.problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "baseline.problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "baseline.problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "baseline.problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "baseline.problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "baseline.problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "baseline.problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "baseline.problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "baseline.problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "baseline.problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "baseline.problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baseline.problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "baseline.problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "baseline.problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "baseline.problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "baseline.problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "baseline.problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "baseline.problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "baseline.problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "baseline.problems[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles",
+            "title": "Baseline files"
+          },
+          {
+            "path": "baselineFiles.problems",
+            "title": "Problems"
+          },
+          {
+            "path": "baselineFiles.problems[].code",
+            "title": "Problem kind",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].severity",
+            "title": "Severity"
+          },
+          {
+            "path": "baselineFiles.problems[].message",
+            "title": "Message"
+          },
+          {
+            "path": "baselineFiles.problems[].file",
+            "title": "File",
+            "technical": "with-element"
+          },
+          {
+            "path": "baselineFiles.problems[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baselineFiles.problems[].line",
+            "title": "Line",
+            "technical": "with-element"
+          },
+          {
+            "path": "baselineFiles.problems[].elementId",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].elementRepository",
+            "title": "Repository of the element"
+          },
+          {
+            "path": "baselineFiles.problems[].elementFile",
+            "title": "File of the element",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].elementShortId",
+            "title": "Short ID of the element"
+          },
+          {
+            "path": "baselineFiles.problems[].elementIdentifier",
+            "title": "Identifier of the element"
+          },
+          {
+            "path": "baselineFiles.problems[].elementTitle",
+            "title": "Title of the element"
+          },
+          {
+            "path": "baselineFiles.problems[].targetId",
+            "title": "Target",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].targetRepository",
+            "title": "Repository of the target"
+          },
+          {
+            "path": "baselineFiles.problems[].targetShortId",
+            "title": "Short ID of the target"
+          },
+          {
+            "path": "baselineFiles.problems[].targetIdentifier",
+            "title": "Identifier of the target"
+          },
+          {
+            "path": "baselineFiles.problems[].targetTitle",
+            "title": "Title of the target"
+          },
+          {
+            "path": "baselineFiles.problems[].storedVersion",
+            "title": "Stored version",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].currentVersion",
+            "title": "Current version",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].storedDate",
+            "title": "Date of the stored version"
+          },
+          {
+            "path": "baselineFiles.problems[].currentDate",
+            "title": "Date of the current version"
+          },
+          {
+            "path": "baselineFiles.problems[].storedCommit",
+            "title": "Commit of the stored version",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].currentCommit",
+            "title": "Commit of the current version",
+            "technical": true
+          },
+          {
+            "path": "baselineFiles.problems[].hintId",
+            "title": "Hint ID"
+          },
+          {
+            "path": "baselineFiles.problems[].key",
+            "title": "Key"
+          },
+          {
+            "path": "baselineFiles.problems[].place",
+            "title": "Place"
+          },
+          {
+            "path": "baselineFiles.problems[].place.in",
+            "title": "In"
+          },
+          {
+            "path": "baselineFiles.problems[].place.repository",
+            "title": "Repository"
+          },
+          {
+            "path": "baselineFiles.problems[].place.occurrence",
+            "title": "Occurrence"
+          },
+          {
+            "path": "baselineFiles.problems[].targetType",
+            "title": "Target type"
+          },
+          {
+            "path": "baselineFiles.problems[].count",
+            "title": "Count"
+          },
+          {
+            "path": "baselineFiles.problems[].criteria",
+            "title": "Acceptance criteria"
+          },
+          {
+            "path": "baselineFiles.problems[].criteria[].criterion",
+            "title": "Number"
+          },
+          {
+            "path": "baselineFiles.problems[].criteria[].key",
+            "title": "Criterion key"
+          },
+          {
+            "path": "baselineFiles.problems[].criteria[].text",
+            "title": "Text"
+          },
+          {
+            "path": "baselineFiles.problems[].limit",
+            "title": "Limit"
+          },
+          {
+            "path": "baselineFiles.problems[].view",
+            "title": "View",
+            "technical": true
+          },
+          {
+            "path": "next",
+            "title": "Next steps"
+          },
+          {
+            "path": "next[].command",
+            "title": "Command",
+            "technical": true
+          },
+          {
+            "path": "next[].input",
+            "title": "Known input"
+          },
+          {
+            "path": "next[].open",
+            "title": "Open fields",
+            "technical": true
+          },
+          {
+            "path": "next[].workspace",
+            "title": "Workspace",
+            "technical": true
+          },
+          {
+            "path": "incomplete",
+            "title": "Incomplete",
+            "normal": false
+          },
+          {
+            "path": "names",
+            "title": "Named elements"
+          },
+          {
+            "path": "names[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "names[].repository",
+            "title": "Repository"
+          },
+          {
+            "path": "names[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "names[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "names[].title",
+            "title": "Title"
           }
         ]
       },

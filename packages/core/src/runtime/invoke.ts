@@ -6,7 +6,9 @@
 // local paths of an API or MCP call outside the repositories of the workspace (SR-142). Gives each
 // command `readOutputElements`, which runs another read command for `selection.output` (SR-224 AK5) the same way
 // (`outputElementsReader`), and with `selection.output.count` gives the elements one number of its output counts
-// (SR-224 AK4, output-count.ts).
+// (SR-224 AK4, output-count.ts). Leaves out the next steps of an output whose command it would refuse
+// in the workspace of the call while it is read-only (`withRunnableSteps`, SR-226 AK6).
+import path from "node:path";
 import type {
   AnswerNames,
   AnyCommand,
@@ -18,8 +20,9 @@ import type {
 } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
+import type { NextStep } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { assertWritable, findType, metamodelState } from "../metamodel/index.js";
+import { assertWritable, findType, metamodelState, runnableSteps } from "../metamodel/index.js";
 import type { AccessCall, AccessName, NotedAccess } from "../model/activity.js";
 import { FOLLOWED_ACCESSES, accessSubject, noteAccess, recordAccess } from "../model/activity.js";
 import type { Contracts } from "./contracts.js";
@@ -236,6 +239,43 @@ const innerError = (error: CommandError): CommandError => {
   );
 };
 
+/**
+ * Whether an output schema has the field `next`, a list of next steps (`common.schema.json#/$defs/nextStep`),
+ * required or not: only then is `next` of an output read.
+ */
+const hasNextSteps = (output: unknown): boolean => {
+  const schema = output as { properties?: { next?: { items?: { $ref?: unknown } } } };
+  const ref = schema.properties?.next?.items?.$ref;
+  return typeof ref === "string" && ref.endsWith("#/$defs/nextStep");
+};
+
+/**
+ * `result` with only the next steps of its `next` that can run now (SR-226 AK6): a step in the workspace of
+ * the call is left out when `refused` names its command and the workspace is read-only; a step in another
+ * workspace (the new one of `workspace.init`) is the command's to check.
+ */
+const withRunnableSteps = async (
+  workspace: Workspace,
+  result: unknown,
+  refused: (command: string) => boolean,
+): Promise<unknown> => {
+  // `hasNextSteps`: the output may have `next`; an output without it is left as it is.
+  const steps = (result as { readonly next?: readonly NextStep[] }).next;
+  if (steps === undefined) {
+    return result;
+  }
+  const here = (step: NextStep): boolean =>
+    step.workspace === undefined || path.resolve(step.workspace) === path.resolve(workspace.root);
+  const local = steps.filter(here);
+  if (local.length === 0) {
+    // No step runs here: the workspace of the call is not read (`workspace.init` in another folder).
+    return result;
+  }
+  const runnable = new Set(await runnableSteps(workspace, local, refused));
+  const left = new Set(local.filter((step) => !runnable.has(step)));
+  return { ...(result as object), next: steps.filter((step) => !left.has(step)) };
+};
+
 /** `input.invalid` of `command` at `field` of `selection.output`. */
 const outputInvalid = (command: string, field: string, message: string): CommandError =>
   new CommandError("input.invalid", `${field}: ${message}`, { command, fields: [field] });
@@ -254,6 +294,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const guarded = new Set<string>();
   // Write commands, which the watcher of the workspace waits for (`Workspace.writesSettled`, #432).
   const writers = new Set<string>();
+  // Commands whose output names next steps in `next` (SR-226).
+  const stepping = new Set<string>();
   // Where the output of each command holds problems, from its output schema (ThomasBirkmaier/ReqSeq-archive#315); built on the
   // first call of the command, since a CLI process runs one (ThomasBirkmaier/ReqSeq-archive#319).
   const locators = new Map<string, () => ProblemLocator | undefined>();
@@ -294,6 +336,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     }
     if (entry.whileReadOnly === "refuse") {
       guarded.add(command.name);
+    }
+    if (hasNextSteps(entry.output)) {
+      stepping.add(command.name);
     }
   }
 
@@ -451,7 +496,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
           }
           // Before the command runs: a catalog the locator cannot follow fails before anything is written.
           const locator = locators.get(name)?.();
-          const result = await command.run(
+          const ran = await command.run(
             {
               workspace: ctx.workspace,
               signal,
@@ -460,6 +505,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
             },
             checked as never,
           );
+          const result = stepping.has(name)
+            ? await withRunnableSteps(ctx.workspace, ran, (step) => guarded.has(step))
+            : ran;
           // Every problem that names an element names its short ID too (ThomasBirkmaier/ReqSeq-archive#315),
           // and the output starts with its answer, built in core for every access (SR-224 AK1).
           const shown = await answered(

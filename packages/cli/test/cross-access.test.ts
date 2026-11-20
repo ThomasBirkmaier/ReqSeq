@@ -463,7 +463,11 @@ const comparable = (access: string, name: string, called: Outcome, start: number
  * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
  * checking it lies between `start` and `end` (ms); an error is left as it is.
  */
-const withoutDate = (access: string, result: Result, start: number, end: number): Result => {
+const withoutDate = (access: string, name: string, result: Result, start: number, end: number): Result => {
+  if (name !== "baseline.create") {
+    // baseline.changes and baseline.prepare name the date of a baseline file, written before the call.
+    return result;
+  }
   const date = (result.outcome as { output?: { baseline?: { date?: string } } }).output?.baseline?.date;
   if (date === undefined) {
     return result;
@@ -546,7 +550,13 @@ const runAll = async (
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
     const changed = changedBetween(before, files);
-    const result = withoutDate(access, normalized({ outcome, files, changed }, top) as Result, start, end);
+    const result = withoutDate(
+      access,
+      entry.name,
+      normalized({ outcome, files, changed }, top) as Result,
+      start,
+      end,
+    );
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }

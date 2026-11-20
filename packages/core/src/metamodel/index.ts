@@ -3,7 +3,7 @@
 // finding types by key or meaning.
 // Core blocks and commands import it relatively; it is not part of the package's public API.
 // The file types (`MetamodelFile`, `MetamodelType`, ...) are generated: `../generated/types.js`.
-export { assertWritable, metamodelProblems, workspaceAccess } from "./access.js";
+export { assertWritable, metamodelProblems, runnableSteps, workspaceAccess } from "./access.js";
 export type { WorkspaceAccess } from "./access.js";
 export { metamodelOutput } from "./output.js";
 export { resolveTypes } from "./inheritance.js";

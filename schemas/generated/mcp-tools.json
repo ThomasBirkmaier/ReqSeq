@@ -1395,6 +1395,125 @@
           "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
           "type": "string"
         },
+        "baselineSince": {
+          "title": "Changes since the baseline",
+          "description": "A baseline and its elements per state since it, as baseline.get gives them for it: the same numbers over all pages.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Baseline",
+              "description": "Name of the baseline.",
+              "type": "string"
+            },
+            "file": {
+              "title": "File",
+              "$ref": "#/$defs/common/$defs/outputPath",
+              "description": "Relative to the workspace root, / as separator."
+            },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "The repository that holds the file."
+            },
+            "date": {
+              "title": "Date",
+              "$ref": "#/$defs/common/$defs/dateTime"
+            },
+            "view": {
+              "title": "View",
+              "$ref": "#/$defs/common/$defs/viewId",
+              "description": "The view of the stored selection; left out for the core."
+            },
+            "selectionKnown": {
+              "title": "Selection stored",
+              "type": "boolean",
+              "description": "The file stores a selection. Without it no element is added or removed, and `counts` has no `added` and `removed`.",
+              "x-normal": true
+            },
+            "counts": {
+              "title": "Elements per state",
+              "type": "object",
+              "description": "Elements per state over all pages, as `counts` of baseline.get.",
+              "properties": {
+                "unchanged": {
+                  "x-elements": "selection",
+                  "title": "Unchanged",
+                  "description": "Elements unchanged since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "changed": {
+                  "x-elements": "selection",
+                  "title": "Changed",
+                  "description": "Elements changed since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "superseded": {
+                  "x-elements": "selection",
+                  "title": "Superseded",
+                  "description": "Elements superseded since the baseline.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "x-elements": "selection",
+                  "title": "Removed",
+                  "description": "Elements that left the selection since the baseline; left out without a stored selection.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "added": {
+                  "x-elements": "selection",
+                  "title": "Added",
+                  "description": "Elements that joined the selection since the baseline; left out without a stored selection.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "missing": {
+                  "x-elements": "selection",
+                  "title": "Missing",
+                  "description": "Elements of the baseline that are not found.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "inaccessible": {
+                  "x-elements": "selection",
+                  "title": "Not on this machine",
+                  "description": "Elements of the baseline in a repository that is not on this machine.",
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "unchanged",
+                "changed",
+                "superseded",
+                "missing",
+                "inaccessible"
+              ]
+            },
+            "problems": {
+              "title": "Problems",
+              "type": "array",
+              "description": "In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check.",
+              "items": {
+                "$ref": "#/$defs/common/$defs/problem"
+              },
+              "x-normal": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "file",
+            "repository",
+            "date",
+            "selectionKnown",
+            "counts"
+          ]
+        },
         "nextStep": {
           "title": "Next step",
           "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
@@ -14277,6 +14396,236 @@
           "to",
           "file",
           "command"
+        ]
+      }
+    },
+    {
+      "name": "baseline_changes",
+      "title": "Show changes since baseline",
+      "description": "What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "type": "string",
+            "description": "Name of a baseline, or its file name (with or without .yaml); without it the newest baseline."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200,
+            "description": "Hints of the page, as hint.list; hintTotal and hintKinds count all."
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Hints skipped before the page, in the order of `hints`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "An unknown or ambiguous baseline is input.invalid with details.reason unknown-baseline or ambiguous-baseline, as for baseline.get.",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "baseline": {
+            "$ref": "#/$defs/common/$defs/baselineSince",
+            "description": "The baseline compared with and its elements per state, as baseline.get gives them; left out when the workspace has no baseline."
+          },
+          "hints": {
+            "title": "Hints",
+            "type": "array",
+            "description": "The open hints of the whole workspace, as hint.list gives them without a filter, whatever the baseline selects: one page of `limit` hints from `offset`.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          },
+          "hintKinds": {
+            "title": "Hints per kind",
+            "type": "array",
+            "description": "The number of open hints per kind, as `kinds` of hint.list without a filter; empty without an open hint.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "title": "Problem kind",
+                  "$ref": "#/$defs/common/$defs/problemCode"
+                },
+                "count": {
+                  "title": "Hints",
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Open hints of this kind."
+                }
+              },
+              "required": [
+                "code",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "hintTotal": {
+            "title": "Open hints",
+            "type": "integer",
+            "minimum": 0,
+            "description": "All open hints, as `total` of hint.list without a filter."
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          },
+          "next": {
+            "title": "Next steps",
+            "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/nextStep"
+            }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "names": {
+            "title": "Named elements",
+            "type": "array",
+            "description": "The variant of the baseline's view, as baseline.get names it. Left out in the core.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "hints",
+          "hintKinds",
+          "hintTotal",
+          "next"
+        ]
+      }
+    },
+    {
+      "name": "baseline_prepare",
+      "title": "Prepare baseline",
+      "description": "Before a baseline: the problems of the workspace check, the verification degree of a selection, the requirements without a passed test and the changes since the newest baseline, with Create baseline as the next step.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/$defs/common/$defs/selection",
+            "description": "The elements of the baseline to come, as element.list takes them; without it the whole workspace. Its view (else its saved filter's, else the core) is the view of the degree."
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "$ref": "#/$defs/common/$defs/answer"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "description": "The problems of workspace.check with its default input.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "x-normal": []
+          },
+          "wholeWorkspace": {
+            "title": "Problems of the whole workspace",
+            "type": "boolean",
+            "description": "Given with a selection: the problems are those of the whole workspace, not of the selection."
+          },
+          "degree": {
+            "title": "Verification degree",
+            "$ref": "#/$defs/data-export/$defs/verificationDegree",
+            "description": "The verification degree of the selection, as evidence.degree gives it."
+          },
+          "view": {
+            "title": "View",
+            "$ref": "#/$defs/common/$defs/viewId",
+            "description": "core, or the variant of the selection's view (else of its saved filter's): the view of `degree` and `withoutPassedTest`."
+          },
+          "withoutPassedTest": {
+            "x-elements": "selection",
+            "title": "Without a passed test",
+            "type": "integer",
+            "minimum": 0,
+            "description": "Requirements of the whole `view` without a passed test, not only of the selection, as `total` of evidence.withoutPassedTest for that view."
+          },
+          "baseline": {
+            "$ref": "#/$defs/common/$defs/baselineSince",
+            "description": "The newest baseline and its elements per state, as baseline.get gives them; left out when the workspace has no baseline."
+          },
+          "baselineFiles": {
+            "title": "Baseline files",
+            "type": "object",
+            "description": "The files that are no valid baseline, as baseline.list names them, apart from the problems of the check; left out when there is none.",
+            "properties": {
+              "problems": {
+                "title": "Problems",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/common/$defs/problem"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "problems"
+            ]
+          },
+          "next": {
+            "title": "Next steps",
+            "description": "Create baseline and, when there is a baseline, Show changes since baseline, as the details say.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/nextStep"
+            }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "names": {
+            "title": "Named elements",
+            "type": "array",
+            "description": "The variant of `view`, as evidence.degree names it, and that of the baseline's view. Left out in the core.",
+            "items": {
+              "$ref": "#/$defs/common/$defs/elementName"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "problems",
+          "degree",
+          "view",
+          "withoutPassedTest",
+          "next"
         ]
       }
     },

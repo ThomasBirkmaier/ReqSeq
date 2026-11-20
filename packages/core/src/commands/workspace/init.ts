@@ -1,7 +1,7 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
 // workspace; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
-// (SR-226 AK2). Unless `skill` is false, it also writes the skill file as `tool.guide` with `write` does, without
+// (SR-226 AK2), without those the new workspace refuses while it is read-only (AK6). Unless `skill` is false, it also writes the skill file as `tool.guide` with `write` does, without
 // `replace` (SR-229 AK9, `writeSkillFile`): written, it is listed among the files; an existing own file is left
 // (SR-014 AK1); refused or failed, the workspace stays created and the reason becomes the problem
 // `workspace.skill-not-written`.
@@ -10,7 +10,12 @@ import path from "node:path";
 import type { CommandOutput, LocalPaths } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { CommandCatalog, Problem } from "../../generated/types.js";
-import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT, metamodelState } from "../../metamodel/index.js";
+import {
+  STANDARD_MODEL_FILE,
+  STANDARD_MODEL_TEXT,
+  metamodelState,
+  runnableSteps,
+} from "../../metamodel/index.js";
 import { contractsBundle } from "../../runtime/contracts.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
@@ -87,8 +92,9 @@ export default defineCommand({
       const skill = input.skill ? await writeSkill(created, ctx.localPaths) : { files: [], problems: [] };
       return {
         files: [...files, ...skill.files],
-        // The next steps run in the new workspace (SR-226 AK2), named by its absolute path.
-        next: afterInitSteps(root),
+        // The next steps run in the new workspace (SR-226 AK2), named by its absolute path; while it is
+        // read-only (an own metamodel that is not there yet), without those it refuses then (AK6).
+        next: await runnableSteps(created, afterInitSteps(root)),
         problems: [...layout.problems, ...metamodel.problems, ...skill.problems],
       };
     } finally {

@@ -175,6 +175,15 @@ const ARCHIVE: FixtureOptions = {
       `  - { id: ${X}aa, version: n1:2222222222222222, repository: archive }\n`,
   },
 };
+/** The baselines of `options` with the one in `file` made the newest (SR-241 AK1), for baseline.prepare. */
+const newest = (options: FixtureOptions, file: string): FixtureOptions => {
+  const files = { ...options.files };
+  files[file] = String(files[file]).replace("date: 2026-10-23", "date: 2026-10-24");
+  return { ...options, files };
+};
+const NEWEST_COUNTS = newest(EXPORT, "system/baselines/counts.yaml");
+const NEWEST_BY_PACKAGE = newest(EXPORT, "system/baselines/by-package.yaml");
+const NEWEST_ARCHIVE = newest(ARCHIVE, "system/baselines/archive.yaml");
 const GRAPH: FixtureOptions = { fixture: "SR-136/graph" };
 const GROUP: FixtureOptions = { fixture: "SR-149/group" };
 const MATRIX: FixtureOptions = { fixture: "SR-125/matrix" };
@@ -216,6 +225,18 @@ const READS: readonly { options: FixtureOptions; root?: string; command: string;
   { options: EXPORT, root: "system", command: "baseline.get", input: { baseline: "By package" } },
   { options: EXPORT, root: "system", command: "baseline.list", input: {} },
   { options: ARCHIVE, root: "system", command: "baseline.get", input: { baseline: "Archive" } },
+  {
+    options: EXPORT,
+    root: "system",
+    command: "baseline.changes",
+    input: { baseline: "Counts", limit: 1 },
+  },
+  { options: EXPORT, root: "system", command: "baseline.changes", input: { baseline: "By package" } },
+  { options: ARCHIVE, root: "system", command: "baseline.changes", input: { baseline: "Archive" } },
+  { options: GRAPH, command: "baseline.prepare", input: {} },
+  { options: NEWEST_COUNTS, root: "system", command: "baseline.prepare", input: {} },
+  { options: NEWEST_BY_PACKAGE, root: "system", command: "baseline.prepare", input: {} },
+  { options: NEWEST_ARCHIVE, root: "system", command: "baseline.prepare", input: {} },
   { options: COPIED, root: "system", command: "element.list", input: { withVerification: true } },
   {
     options: COPY_APPROVED,
@@ -243,8 +264,9 @@ const listsCounted = async (
   });
   if (listed.incomplete === true) {
     expect(listed.total, at).toBeLessThanOrEqual(value);
-    // Only the states of a baseline without an element in the workspace count no element of it at all.
-    if (value > 0 && !/^counts\.(missing|inaccessible)$/.test(field)) {
+    // Only the states of a baseline without an element in the workspace count no element of it at all
+    // (`counts.*` of baseline.get, `baseline.counts.*` of the commands that give its numbers).
+    if (value > 0 && !/^(baseline\.)?counts\.(missing|inaccessible)$/.test(field)) {
       expect(listed.total, at).toBeGreaterThan(0);
     }
   } else {
