@@ -19,7 +19,9 @@ acceptance-criteria:
   - key: rxbd
     text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den Referenz und App zeigen.
   - key: zk0v
-    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau die Schreibbefehle als „zeigt seine Ausgabe“ gekennzeichnet, deren Ausgabe die Vorschau oder das Ergebnis einer Mehrfachänderung (SR-071 AK2), eines Imports, eines Exports oder einer Anreicherung ist: `element.bulkUpdate`, `reqif.import`, `reqif.export` und `evidence.enrichJunit`; jeder andere Schreibbefehl ist es nicht."
+    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau die Schreibbefehle als „zeigt seine Ausgabe“ gekennzeichnet, deren Ausgabe die Vorschau oder das Ergebnis einer Mehrfachänderung (SR-071 AK2), eines ReqIF-Imports, eines ReqIF-Exports oder einer Anreicherung ist, und der Schreibbefehl, dessen Ausgabe die Agent-Anleitung oder die Skill-Datei ist (SR-229 AK1, AK7): `element.bulkUpdate`, `reqif.import`, `reqif.export`, `evidence.enrichJunit` und `tool.guide`; jeder andere Schreibbefehl ist es nicht."
+  - key: nhzq
+    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau `baseline.get` und `evidence.status` als „bleibt Ausgabeseite“ gekennzeichnet; ihre Antwort ist der Zustand jedes Eintrags (die Änderung seit der Baseline, der Nachweisstatus je Sicht). Jeder andere Befehl ist es nicht, auch `evidence.withoutPassedTest` nicht, dessen Antwort die Auswahl der Requirements ist (SR-120 AK2)."
 packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
@@ -27,7 +29,7 @@ derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n2:2a7f8dc7cc5cd0bf, title: Nur Aussagekräftiges sehen }
   - { id: 6adc5c63-608a-4196-b8c0-3037e8876029, version: n2:341a607c926aaf31, title: Alles ohne Oberfläche bedienbar }
 based-on:
-  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:116c000ecfa592b6, title: Ausgaben gestuft zeigen }
+  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:75ff2d30db7ad5dc, title: Ausgaben gestuft zeigen }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 ---
