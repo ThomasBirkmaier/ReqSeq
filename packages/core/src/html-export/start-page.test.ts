@@ -50,7 +50,14 @@ describe("start page (SR-233 AK3)", () => {
           entry({ identifier: "SR-1", verification: [{ view: "core", status: "verified" }] }, 2),
           entry({ id: "u2", title: "Two", verification: [{ view: "variant-1", status: "failed" }] }),
         ],
-        baseline: { name: "R1", date: "2026-11-02T13:00:00Z", changed: 3, added: 0, selectionKnown: false },
+        baseline: {
+          name: "R1",
+          page: "baselines/r1.html",
+          date: "2026-11-02T13:00:00Z",
+          changed: 3,
+          added: 0,
+          selectionKnown: false,
+        },
       }),
     );
     expect(html).toContain(
@@ -63,7 +70,7 @@ describe("start page (SR-233 AK3)", () => {
     expect(html).toContain('<h2 id="not-verified">Failed, outdated or open requirements</h2><p>None.</p>');
     expect(html).toContain('<a href="elements/u1.html">SR-1</a></td><td>One</td><td>2</td>');
     expect(html).toContain(
-      "<p>Since baseline R1 of 2026-11-02: 3 changed, 0 added. The baseline stores no selection, so no element counts as added.</p>",
+      '<p>Since baseline <a href="baselines/r1.html">R1</a> of 2026-11-02: 3 changed, 0 added. The baseline stores no selection, so no element counts as added.</p>',
     );
   });
 });

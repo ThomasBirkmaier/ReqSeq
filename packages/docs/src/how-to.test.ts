@@ -1,3 +1,4 @@
+import { SHORTCUT_TABLES } from "@reqseq/app";
 import { describe, expect, it } from "vitest";
 import type { AccessNames } from "./how-to.js";
 import { accessNames, checkHowTos, howToProblems } from "./how-to.js";
@@ -26,7 +27,7 @@ const complete = {
 };
 
 describe("accessNames", () => {
-  it("takes the app entries of all commands (a covering action by its title) and the inputs of those with an API path and an MCP tool", () => {
+  it("takes the app entries of all commands (a covering action by its title), the actions of the app, and the inputs of those with an API path and an MCP tool", () => {
     const commands = [
       { name: "trace.chain", title: "Show trace chain" },
       { name: "trace.matrix", title: "Show traceability matrix" },
@@ -44,9 +45,16 @@ describe("accessNames", () => {
         ],
       },
     });
+    // The entries of the commands, and the actions of the app by their titles, such as "Write skill file".
     expect(found.appEntries).toEqual(
-      new Set(["Show trace chain", "Show traceability matrix", "Go to element or buffer"]),
+      new Set([
+        "Show trace chain",
+        "Show traceability matrix",
+        "Go to element or buffer",
+        ...SHORTCUT_TABLES.actions.map((action) => action.title),
+      ]),
     );
+    expect(found.appEntries.has("Write skill file")).toBe(true);
     expect(found.inputs).toEqual(
       new Map([
         ["trace.chain", new Set(["ref"])],

@@ -131,6 +131,10 @@ const contentOf = (page: string): string =>
 const read = async (fixture: { path: (relative: string) => string }, id: string): Promise<string> =>
   contentOf(await fs.readFile(fixture.path(`site/elements/${id}.html`), "utf8"));
 
+/** A badge of the docs theme. */
+const badge = (label: string, variant = "default"): string =>
+  `<span class="sl-badge ${variant} small astro-qnj5uuvn">${label}</span>`;
+
 /** A row of the list of fields with its copy button. */
 const row = (label: string, html: string, copy: string): string =>
   `<dt>${label}</dt><dd class="rq-copyable"><span class="rq-value">${html}</span><button type="button" class="rq-copy" data-copy="${copy}" aria-label="Copy ${label}" title="Copy ${label}" hidden></button></dd>`;
@@ -146,12 +150,13 @@ describe("html.export shows every field of an element (SR-232 AK1)", () => {
         row("Type", "System Requirement", "System Requirement"),
         row("Identifier", "SR-001", "SR-001"),
         row("Short ID", "SR-e88fb3", "SR-e88fb3"),
-        row("Status", "approved", "approved"),
-        row("Packages", `<a href="../elements/${PKG}.html">PKG-00b001 Display</a>`, "PKG-00b001 Display"),
+        row("Status", badge("approved"), "approved"),
+        // A package by its title.
+        row("Packages", `<a href="../elements/${PKG}.html">Display</a>`, "Display"),
         row("Repository", "system", "system"),
         // Valid only on the coast: not in the core.
         row("Verification status in the core", "not in the core", "not in the core"),
-        row("Verification status in VAR-00c001 (VAR-1)", "open", "open"),
+        row("Verification status in VAR-00c001 (VAR-1)", badge("open", "caution"), "open"),
         "</dl>",
       ].join(""),
     );
@@ -173,12 +178,12 @@ describe("html.export shows every field of an element (SR-232 AK1)", () => {
     expect(gusts).toContain(
       row("Identifier", "–", "–") +
         row("Short ID", "SR-4a5b6c", "SR-4a5b6c") +
-        row("Status", "draft", "draft") +
+        row("Status", badge("draft"), "draft") +
         row("Packages", "–", "–"),
     );
     expect(gusts).toContain(
-      row("Verification status in the core", "open", "open") +
-        row("Verification status in VAR-00c001 (VAR-1)", "open", "open"),
+      row("Verification status in the core", badge("open", "caution"), "open") +
+        row("Verification status in VAR-00c001 (VAR-1)", badge("open", "caution"), "open"),
     );
     expect(gusts).toContain("<dt>customer-id</dt><dd><p>815</p></dd>");
     // A need: its validation status, no verification status.
@@ -242,19 +247,23 @@ describe("html.export shows the acceptance criteria (SR-232 AK2)", () => {
     // Keys: each criterion copies its reference for test names.
     const keyed = await read(fixture, "31313131-0000-4000-8000-3131310000e3");
     expect(keyed).toContain(
-      '<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status">verified</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kred]" aria-label="Copy criterion reference [SR-0000e3/AK-kred]" title="Copy criterion reference [SR-0000e3/AK-kred]" hidden></button></p><p>Given a reading, then it shows.</p>',
+      `<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status" title="core: verified">${badge("verified", "success")}</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kred]" aria-label="Copy criterion reference [SR-0000e3/AK-kred]" title="Copy criterion reference [SR-0000e3/AK-kred]" hidden></button></p><p>Given a reading, then it shows.</p>`,
     );
     expect(keyed).toContain(
-      '<strong>AK3</strong> <code>kfro</code> <span class="rq-criterion-status">outdated</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kfro]"',
+      `<strong>AK3</strong> <code>kfro</code> <span class="rq-criterion-status" title="core: outdated">${badge("outdated", "danger")}</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kfro]"`,
     );
     // Without keys: number, text and status, no button.
     const plain = await read(fixture, "31313131-0000-4000-8000-3131310000e4");
     expect(plain).toContain(
-      '<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <span class="rq-criterion-status">verified</span></p><p>',
+      `<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <span class="rq-criterion-status" title="core: verified">${badge("verified", "success")}</span></p><p>`,
     );
-    expect(plain).toContain('<strong>AK2</strong> <span class="rq-criterion-status">failed</span></p>');
+    expect(plain).toContain(
+      `<strong>AK2</strong> <span class="rq-criterion-status" title="core: failed">${badge("failed", "danger")}</span></p>`,
+    );
     const open3 = await read(fixture, "31313131-0000-4000-8000-3131310000e1");
-    expect(open3).toContain('<strong>AK3</strong> <span class="rq-criterion-status">open</span></p>');
+    expect(open3).toContain(
+      `<strong>AK3</strong> <span class="rq-criterion-status" title="core: open">${badge("open", "caution")}</span></p>`,
+    );
     expect(open3).not.toContain('data-copy="[');
     // Criteria are not repeated among the properties.
     expect(open3).not.toContain("<dt>Acceptance Criteria</dt>");
@@ -264,10 +273,11 @@ describe("html.export shows the acceptance criteria (SR-232 AK2)", () => {
     const { fixture, workspace } = await open();
     await exported(workspace);
     expect(await read(fixture, GUSTS)).toContain(
-      '<strong>AK1</strong> <span class="rq-criterion-status">core: open · VAR-00c001 (VAR-1): open</span></p>',
+      // The core's status; a view with the same status is named only in the title.
+      `<strong>AK1</strong> <span class="rq-criterion-status" title="core: open · VAR-00c001 (VAR-1): open">${badge("open", "caution")}</span></p>`,
     );
     expect(await read(fixture, WIND)).toContain(
-      '<strong>AK3</strong> <span class="rq-criterion-status">VAR-00c001 (VAR-1): open</span></p>',
+      `<strong>AK3</strong> <span class="rq-criterion-status" title="VAR-00c001 (VAR-1): open"><span class="rq-legend">VAR-00c001 (VAR-1)</span> ${badge("open", "caution")}</span></p>`,
     );
   });
 });

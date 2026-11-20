@@ -263,12 +263,15 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     expect(document.querySelector("#verification-degree + p")?.textContent).toBe(
       "0 of 2 requirements in the core are verified or indirectly verified (0 %).",
     );
-    expect([...document.querySelectorAll(".rq-degree li")].map((li) => li.textContent)).toEqual([
-      "open: 2",
-      "verified: 0",
-      "indirect: 0",
-      "failed: 0",
-      "outdated: 0",
+    // The number per verification status as badges of the docs, in the order of common.verificationStatus.
+    expect(
+      [...document.querySelectorAll(".rq-degree .sl-badge")].map((b) => [b.textContent, b.classList[1]]),
+    ).toEqual([
+      ["open 2", "caution"],
+      ["verified 0", "success"],
+      ["indirect 0", "note"],
+      ["failed 0", "danger"],
+      ["outdated 0", "danger"],
     ]);
     const table = (id: string): string[][] => texts(document.querySelectorAll(`#${id} + table tbody tr`));
     expect(table("not-verified")).toEqual([
@@ -297,6 +300,8 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     expect(document.querySelector("#since-baseline + p")?.textContent).toBe(
       "Since baseline Release 1 of 2026-11-02: 1 changed, 2 added.",
     );
+    const newest = String(document.querySelector("#since-baseline + p a")?.getAttribute("href"));
+    expect((await browse(site, newest)).document.querySelector("h1")?.textContent).toBe("Baseline Release 1");
     // Each type with its number of elements with a page, linked to its list where it has one.
     expect(table("types")).toEqual([
       ["Need", "1"],
@@ -376,6 +381,10 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     }
     const { document } = await browse(site, `elements/${DISPLAY}.html`);
     expect(document.querySelector('#starlight__sidebar a[aria-current="page"]')?.textContent).toBe("Display");
+    // The heading names the package by its title once; its elements follow its text.
+    expect(document.querySelector("h1")?.textContent).toBe("Display");
+    expect(document.querySelector(".rq-text + .rq-package")).not.toBeNull();
+    expect(document.querySelector(".rq-package .sl-badge.caution")?.textContent).toBe("open");
     expect(document.querySelector(".rq-text")?.textContent).toBe("All the station shows.");
     expect(texts(document.querySelectorAll(".rq-package tr"))).toEqual([
       ["Identifier", "Title", "Status", "Verification status in the core"],

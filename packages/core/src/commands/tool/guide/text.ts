@@ -4,7 +4,8 @@
 // values come from the catalog (the calls, guide/calls.ts) and from the metamodel of the workspace by meaning
 // (guide/facts.ts). The steps follow AK3 in its order, after the impact check (AK12), with the writing rules
 // `GUIDE_WRITING_RULES` after the requirement step (AK13), and the rules are `GUIDE_RULES` (AK5). Both rule
-// lists are English with the meaning of the German criterion (question #1928).
+// lists are English with the meaning of the German criterion (question #1928). The MCP server instructions
+// `serverInstructions` (AK17) are the title, a paragraph pointing to the guide and the rules section.
 //
 // The guide goes into the prompt of an AI agent, and the names of a workspace are written by anyone who can
 // change its files. So every name, path and reason from the workspace passes `guideValue` (one line, no
@@ -236,6 +237,19 @@ export const METAMODEL_CHANGES = [
   "metamodel.removeStatus",
 ] as const satisfies readonly CommandName[];
 
+/**
+ * The rules section (SR-229 AK5), the same in the guide and in the MCP server instructions (AK17). It reads
+ * only how calls are named, nothing from the workspace.
+ */
+export const RULES_SECTION = {
+  heading: "Rules",
+  lines: (context: Pick<GuideContext, "call">): readonly string[] => [
+    `Change an element with ${context.call({ command: "element.update", input: { ref: "<element>" } })}, its status with ${context.call({ command: "element.setStatus", input: { refs: ["<element>"], status: "<status>" } })}, and supersede it with ${context.call({ command: "element.supersede", input: { ref: "<element>", status: "<status>" } })}.`,
+    "",
+    ...GUIDE_RULES.map((rule) => `- ${rule}`),
+  ],
+} as const satisfies GuideSection;
+
 /** The sections of the guide, in their order. */
 export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { heading: "Values from this workspace", lines: workspaceLines },
@@ -309,14 +323,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       `${context.call({ command: "metamodel.get" })} shows the metamodel. Change it only as the rules say, with one of these commands and the input it takes: ${METAMODEL_CHANGES.map((command) => context.call({ command })).join(", ")}.`,
     ],
   },
-  {
-    heading: "Rules",
-    lines: (context) => [
-      `Change an element with ${context.call({ command: "element.update", input: { ref: "<element>" } })}, its status with ${context.call({ command: "element.setStatus", input: { refs: ["<element>"], status: "<status>" } })}, and supersede it with ${context.call({ command: "element.supersede", input: { ref: "<element>", status: "<status>" } })}.`,
-      "",
-      ...GUIDE_RULES.map((rule) => `- ${rule}`),
-    ],
-  },
+  RULES_SECTION,
 ];
 
 /**
@@ -332,6 +339,9 @@ export const GUIDE_TAIL: GuideSection = {
     `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. The ReqSeq command line must be installed in the pipeline for these steps; the installation guide in the bundled documentation of every release says how, on the page "${INSTALL_PAGE_TITLE}". An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as HTML pages: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
   ],
 };
+
+/** The title of the guide and of the MCP server instructions (SR-229 AK17). */
+const GUIDE_TITLE = "# Working with ReqSeq";
 
 const INTRODUCTION =
   "ReqSeq keeps needs, requirements, relations and evidence as Markdown files in Git. Each step names its command.";
@@ -356,5 +366,20 @@ export const agentGuide = (
     "",
     ...section.lines(context),
   ]);
-  return `${["# Working with ReqSeq", "", INTRODUCTION, ...body].join("\n")}\n`;
+  return `${[GUIDE_TITLE, "", INTRODUCTION, ...body].join("\n")}\n`;
+};
+
+/** The longest MCP server instructions, in code points (SR-229 AK17). */
+export const INSTRUCTIONS_MAX_LENGTH = 4000;
+
+/**
+ * The MCP server instructions (SR-229 AK17) as Markdown, LF line endings and a final newline: the title of the
+ * guide, the paragraph that points to the guide, and the rules section with the MCP tool names. Nothing comes
+ * from the workspace, so the text is the same for every folder and stays within `INSTRUCTIONS_MAX_LENGTH`.
+ */
+export const serverInstructions = (entries: readonly CatalogEntry[]): string => {
+  const call = (guideCall: GuideCall): string => renderCall(guideCall, "mcp", entries);
+  const pointer = `These instructions hold only the rules. The agent guide names the values of this workspace or why they are missing, the steps with their commands, and the rules for writing requirements. Before the first step, the AI agent reads the agent guide with ${call({ command: "tool.guide", input: { names: "mcp" } })} and follows it.`;
+  const rules = ["", `## ${RULES_SECTION.heading}`, "", ...RULES_SECTION.lines({ call })];
+  return `${[GUIDE_TITLE, "", pointer, ...rules].join("\n")}\n`;
 };

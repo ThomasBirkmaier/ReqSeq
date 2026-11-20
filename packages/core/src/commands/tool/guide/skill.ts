@@ -3,7 +3,8 @@
 // guide/skill-file.ts). It is built from the catalog only, never from a workspace, so it holds no name of a
 // metamodel and is the same for every workspace of one ReqSeq version. Every command appears both ways, as
 // the MCP tool and as the command-line call (`renderCall`). The rules of AK5 and AK13 and the pipeline
-// paragraph of AK11 stay in the agent guide; the skill points to it.
+// paragraph of AK11 stay in the agent guide; the skill points to it. The one exception is the rule that
+// project rules go first (`SKILL_PRECEDENCE`), which the skill states at its start, before the first workflow.
 //
 // The frontmatter carries the version of the tool and a checksum over the file (`skillChecksum`), so
 // ReqSeq replaces only a file it wrote itself that nobody changed (AK8).
@@ -33,6 +34,9 @@ export const SKILL_WORKFLOWS = [
   "Change an element whose status is not the initial status",
   "Change the metamodel",
 ] as const;
+
+/** The sentence at the start of the skill, before the first workflow (AK7): project rules go first (AK5). */
+export const SKILL_PRECEDENCE = "Project rules take precedence over this skill and the agent guide.";
 
 /** The value of `metadata.generator` that marks a file ReqSeq wrote. */
 const GENERATOR = "ReqSeq";
@@ -199,7 +203,7 @@ const skillBody = (
   return [
     "# Managing requirements with ReqSeq",
     "",
-    "Each command is named as the MCP tool, then as the command-line call; both do the same. The rules for working with ReqSeq are in the agent guide and apply to every step; this skill does not repeat them.",
+    `${SKILL_PRECEDENCE} Each command is named as the MCP tool, then as the command-line call; both do the same. The other rules for working with ReqSeq are in the agent guide and apply to every step; this skill does not repeat them.`,
     "",
     "## First",
     "",

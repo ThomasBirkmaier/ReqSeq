@@ -6,9 +6,9 @@ import { filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "evidence.record",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `Recorded a ${output.record.kind} with result ${output.record.result} for ${input.ref}`,
+      `Recorded a ${output.record.kind} with result ${output.record.result} for ${names.element(input.ref)}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

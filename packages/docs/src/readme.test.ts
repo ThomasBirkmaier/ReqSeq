@@ -24,6 +24,16 @@ describe("README", () => {
     expect(lead(await read("README.md"))).toBe(sentences);
   });
 
+  it("shows the pictures of the README on the landing page of the documentation", async () => {
+    const pictures = (text: string): string[] =>
+      [
+        ...new Set([...text.matchAll(/images\/([\w-]+\.(?:svg|gif|png))/g)].map((match) => match[1] ?? "")),
+      ].sort();
+    const readme = pictures(await read("README.md"));
+    expect(readme.length).toBeGreaterThanOrEqual(3);
+    expect(pictures(await read("docs/guide/index.md"))).toEqual(readme);
+  });
+
   it("has the commands of Get started as its quick start", async () => {
     const steps = async (path: string): Promise<(readonly string[])[]> =>
       pageSteps({ path, text: await read(path) }).flatMap((step) => ("argv" in step ? [step.argv] : []));

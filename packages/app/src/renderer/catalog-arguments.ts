@@ -106,14 +106,23 @@ export const ASKED_IN_APP: ReadonlyMap<string, readonly string[]> = new Map([
 ]);
 
 /**
+ * The write commands that run at once without asking an argument: "Agent guide" shows the agent guide with the
+ * calls of the command line and writes nothing without `write` (SR-229 AK18); its other arguments stay behind
+ * Ctrl/Cmd+Enter.
+ */
+const RUNS_AT_ONCE: ReadonlySet<string> = new Set(["tool.guide"]);
+
+/**
  * The arguments asked before the command runs: the required ones, and those of `ASKED_IN_APP`. A write command
  * without any asks its first argument as if it were required (`hint.confirm`: `ref`, the shown element first),
- * so it never runs at once on an empty input.
+ * so it never runs at once on an empty input, except those of `RUNS_AT_ONCE`.
  */
 export const askedOf = (command: CommandListing): readonly string[] => {
   const required = [...requiredOf(command), ...(ASKED_IN_APP.get(command.name) ?? [])];
   const first = command.arguments.find((arg) => arg.complete !== "selection");
-  return required.length > 0 || !isWrite(command) || first === undefined ? required : [first.field];
+  return required.length > 0 || !isWrite(command) || first === undefined || RUNS_AT_ONCE.has(command.name)
+    ? required
+    : [first.field];
 };
 
 /**

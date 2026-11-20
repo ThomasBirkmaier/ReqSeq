@@ -8,7 +8,7 @@
 import { readFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import type { HTMLElement, HTMLSelectElement } from "happy-dom";
+import type { HTMLElement, HTMLInputElement } from "happy-dom";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
@@ -165,16 +165,25 @@ describe("html.export: change since a baseline on the element page", () => {
   it("[SR-232/AK-dywy] names the change since each baseline with its version, and the field difference where Git has the commit", async () => {
     const { ws, firstDate } = await made();
     const site = await exported(ws);
-    const b1 = text(await page(site, `elements/${ID}b1.html`));
+    const b1Html = await page(site, `elements/${ID}b1.html`);
+    const b1 = text(b1Html);
     expect(b1).toContain(`Release 2 of 2026-11-02: changed; version in the baseline ${V.b1} of ${firstDate}`);
-    // The file moved since: its old path holds the old text.
-    expect(b1).toContain("Text Before b1: valid for VAR-0000c1");
-    expect(b1).toContain("Now b1: now valid for VAR-0000c1");
-    // The fixture's metamodel gives the criteria no meaning: they are a property that counts to the version.
-    expect(b1).toContain(
-      "Acceptance Criteria Before - Given wind, when the station measures it, then it shows the speed. Now - Given wind, when the station measures it, then it shows the speed in knots.",
+    // Each baseline with a difference is collapsible, the newest open; one row per changed field, word by word. The
+    // file moved since: its old path holds the old text.
+    expect(b1Html).toContain(
+      '<details class="rq-since-baseline" open><summary><a href="../baselines/488e33aa4e6d.html">Release 2</a> of 2026-11-02: changed;',
     );
-    expect(b1).toContain("Requirement Type Before functional Now performance");
+    expect(b1Html).toContain(
+      '<dl class="rq-diff"><dt>Text</dt><dd><div class="rq-diff-text">b1: <ins>now </ins>valid for VAR-0000c1',
+    );
+    expect(b1Html).toMatch(/<details class="rq-since-baseline"><summary><a href="[^"]+">Release 1<\/a>/u);
+    // The fixture's metamodel gives the criteria no meaning: they are a property that counts to the version.
+    expect(b1Html).toContain(
+      '<dt>Acceptance Criteria</dt><dd><div class="rq-diff-text">- Given wind, when the station measures it, then it shows the <del>speed.</del><ins>speed in knots.</ins></div></dd>',
+    );
+    expect(b1Html).toContain(
+      '<dt>Requirement Type</dt><dd><div class="rq-diff-text"><del>functional</del><ins>performance</ins></div></dd>',
+    );
     // The relation added is named; the new stored version of N-0000a1 is no difference.
     expect(b1).toContain("Relations added Derives from: SR-0000b3 Show the wind direction");
     expect(b1).not.toContain("Relations removed");
@@ -186,9 +195,12 @@ describe("html.export: change since a baseline on the element page", () => {
     expect(b3).toContain("Release 2 of 2026-11-02: added; the baseline does not list it");
     expect(b3).toContain("Release 1 of 2026-10-23: changed; version in the baseline n1:1111111111111111");
     // Removed and changed: the difference too; no file held SR-0000b5 at the commit.
-    const a1 = text(await page(site, `elements/${ID}a1.html`));
+    const a1Html = await page(site, `elements/${ID}a1.html`);
+    const a1 = text(a1Html);
     expect(a1).toContain("Release 2 of 2026-11-02: removed;");
-    expect(a1).toContain("Text Before a1: the need every requirement derives from. Now a1: the changed need");
+    expect(a1Html).toContain(
+      '<div class="rq-diff-text">a1: the <ins>changed </ins>need every requirement derives from.',
+    );
     expect(text(await page(site, `elements/${ID}b5.html`))).toContain(
       "The difference is not available: no file of repository system held the element at the commit",
     );
@@ -233,16 +245,19 @@ describe("html.export: lists compared with a baseline", () => {
     expect(document.querySelector(".rq-list thead th:last-child")?.textContent).toBe("Change since baseline");
     listScript();
     expect(head()).not.toContain("Change since baseline");
-    const select = document.querySelector(".rq-baseline") as unknown as HTMLSelectElement;
-    expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+    // The chip "Compare" offers the baselines, newest first, "No baseline" chosen.
+    const compare = document.querySelector('[data-chip="compare"]') as unknown as HTMLElement;
+    expect([...compare.querySelectorAll("label")].map((o) => o.textContent)).toEqual([
       "No baseline",
       "Release 2 (2026-11-02)",
       "Release 1 (2026-10-23)",
       "Sensor (2026-10-01)",
     ]);
+    expect((compare.querySelector('[data-baseline="-1"]') as unknown as HTMLInputElement).checked).toBe(true);
     const choose = (value: string): void => {
-      select.value = value;
-      select.dispatchEvent(new window.Event("change", { bubbles: true }));
+      const radio = compare.querySelector(`[data-baseline="${value}"]`) as unknown as HTMLInputElement;
+      radio.checked = true;
+      radio.dispatchEvent(new window.Event("change", { bubbles: true }));
     };
     const changes = (): Record<string, string> =>
       Object.fromEntries(
@@ -264,7 +279,7 @@ describe("html.export: lists compared with a baseline", () => {
       "SR-0000e1": "removed",
     });
     const chip = [...document.querySelectorAll("[data-chip]")].find(
-      (c) => c.querySelector("summary")?.textContent === "Change since baseline",
+      (c) => c.querySelector(".rq-chip-values")?.getAttribute("aria-label") === "Change since baseline",
     ) as unknown as HTMLElement;
     expect(chip.hidden).toBe(false);
     expect([...chip.querySelectorAll("label")].map((l) => l.textContent)).toEqual([
@@ -292,6 +307,18 @@ describe("html.export: lists compared with a baseline", () => {
     expect(head()).not.toContain("Change since baseline");
     expect(chip.hidden).toBe(true);
     expect(Object.keys(changes())).toHaveLength(5);
+    // The chosen baseline stands in the line of the filters; removing it there, or "Clear", ends the comparison.
+    choose("0");
+    const token = document.querySelector('.rq-tokens [data-remove="baseline"]') as unknown as HTMLElement;
+    expect(token.textContent).toBe("Compared with Release 2 (2026-11-02) ×");
+    expect(compare.querySelector("summary")?.textContent).toBe("Compare 1");
+    token.click();
+    expect(head()).not.toContain("Change since baseline");
+    expect((compare.querySelector('[data-baseline="-1"]') as unknown as HTMLInputElement).checked).toBe(true);
+    choose("1");
+    (document.querySelector(".rq-clear") as unknown as HTMLElement).click();
+    expect(head()).not.toContain("Change since baseline");
+    expect(compare.querySelector("summary")?.textContent).toBe("Compare");
   });
 });
 
@@ -302,21 +329,23 @@ describe("html.export: baseline pages", () => {
     const index = await page(site, "baselines/index.html");
     const release2 = await page(site, baselineHref(index, "Release 2"));
     const shown = text(release2);
-    expect(shown).toContain("Name Release 2 Date 2026-11-02T13:00:00Z");
+    expect(shown).toContain(
+      "6 elements in the baseline. Since then 1 changed, 1 added, 3 removed, 1 superseded. Name Release 2 Date 2026-11-02T13:00:00Z",
+    );
     expect(shown).toContain(`Commits Repository Commit system ${first} sensor ${sensor}`);
     expect(shown).toContain(
-      `Changed Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
+      `Changed (1) Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
     );
     expect(shown).toContain(
-      "Added Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
+      "Added (1) Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
     );
     expect(shown).toContain(
-      `Removed Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
+      `Removed (3) Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
     );
     expect(shown).toContain(
-      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
+      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged (1) Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
     );
-    expect(shown).toContain("Superseded Identifier Title Status SR-0000b4 Show the wind obsolete");
+    expect(shown).toContain("Superseded (1) Identifier Title Status SR-0000b4 Show the wind obsolete");
     expect(release2).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
     expect(release2).not.toContain(`elements/${ID}b4.html`);
     expect(shown).not.toContain("stores no selection");
@@ -325,8 +354,10 @@ describe("html.export: baseline pages", () => {
     expect(release1).toContain(
       "This baseline stores no selection, so no element counts as added or removed.",
     );
-    expect(release1).toContain("Added None. Removed None.");
-    expect(release1).toContain(`Not in the workspace UUID Repository Why ${ID}ff no element file holds it`);
+    expect(release1).toContain("Added (0) None. Removed (0) None.");
+    expect(release1).toContain(
+      `Not in the workspace (1) UUID Repository Why ${ID}ff no element file holds it`,
+    );
   });
 
   it("[SR-234/AK-swvj] lists every baseline with date, number of elements and of changed ones, newest first", async () => {

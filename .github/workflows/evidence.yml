@@ -361,9 +361,9 @@ jobs:
                 if (open.length > 0) {
                   await github.rest.issues.createComment({ owner, repo, issue_number: open[0].number, body: text + footer });
                 } else {
-                  // Every open issue has a milestone: the lowest open version x.y (CLAUDE.md, Issues).
+                  // Every open issue has a milestone: the lowest open version x.y; a P2 bug skips a fix-release milestone x.y.z (CLAUDE.md, Issues).
                   const versions = (await github.paginate(github.rest.issues.listMilestones, { owner, repo, state: "open", per_page: 100 }))
-                    .map((m) => ({ number: m.number, v: /^v(\d+)\.(\d+)\b/.exec(m.title) }))
+                    .map((m) => ({ number: m.number, v: /^v(\d+)\.(\d+)(?![.\d])/.exec(m.title) }))
                     .filter((m) => m.v !== null)
                     .sort((a, b) => Number(a.v[1]) - Number(b.v[1]) || Number(a.v[2]) - Number(b.v[2]));
                   const milestone = versions[0]?.number;

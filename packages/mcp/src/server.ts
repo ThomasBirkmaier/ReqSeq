@@ -30,16 +30,17 @@ export interface McpServerOptions {
 
 /** What `createMcpServer` sends in its `initialize` result. */
 export interface McpServerStart extends McpServerOptions {
-  /** The instructions: the output of `tool.guide` with the names of the MCP tools (`mcpInstructions`). */
+  /** The instructions: the output of `tool.guide` with `instructions` (`mcpInstructions`). */
   readonly instructions: string;
 }
 
 /**
- * The instructions of the `initialize` result: exactly the agent guide of `tool.guide` with the names of the
- * MCP tools, for the workspace the server is started for (SR-229 AK1). The adapter adds no text of its own.
+ * The instructions of the `initialize` result: exactly the MCP server instructions of `tool.guide` with
+ * `instructions` (SR-229 AK17), the rules and the call that reads the agent guide. The adapter adds no text
+ * of its own.
  */
 export async function mcpInstructions(runtime: CommandRuntime, workspace: Workspace): Promise<string> {
-  const output = await runtime.invoke("tool.guide", { names: "mcp" }, { workspace });
+  const output = await runtime.invoke("tool.guide", { instructions: true }, { workspace });
   return (output as { readonly guide: string }).guide;
 }
 

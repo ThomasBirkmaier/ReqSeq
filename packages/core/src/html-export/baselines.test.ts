@@ -77,15 +77,51 @@ const plain = (html: string): string =>
     .trim();
 
 describe("baseline page (SR-234 AK1)", () => {
+  it("[SR-234/AK-vjfq] sorts each group by identifier with digit runs as numbers, counts it, and sums the baseline up", () => {
+    const names = new Map([
+      ["u10", "SR-10"],
+      ["u9", "sr-9"],
+      ["u2", "N-2"],
+      ["u9b", "SR-9"],
+      ["u9c", "SR-9"],
+    ]);
+    const rows = ["u10", "u9", "u2", "u9b", "u9c"].map((id) => ({ ...CHANGED, id }));
+    const body = plain(
+      baselinePageBody(
+        {
+          ...BASELINE,
+          selectionKnown: false,
+          elements: rows,
+          counts: { ...BASELINE.counts, changed: 5, superseded: 1, inaccessible: 0 },
+          total: 5,
+        },
+        (row) => ({ name: String(names.get(row.id)), title: "", status: "–", href: undefined }),
+      ),
+    );
+    expect(body).toMatch(
+      /^5 elements in the baseline\. Since then 5 changed, 1 superseded\. .* Changed \(5\) Identifier Title Status Version in the baseline N-2 – .* SR-9 – .* SR-9 – .* sr-9 – .* SR-10 – /u,
+    );
+    expect(
+      plain(
+        baselinePageBody({ ...BASELINE, elements: [], total: 1 }, () => ({
+          name: "",
+          title: "",
+          status: "",
+          href: undefined,
+        })),
+      ),
+    ).toMatch(/^1 element in the baseline\. Since then 1 changed, 0 added, 0 removed, 0 superseded\./u);
+  });
+
   it("[SR-234/AK-vjfq] shows a version without date, and an entry in a repository that is not here", () => {
     const body = plain(
       baselinePageBody(BASELINE, () => ({ name: "SR-b1", title: "T", status: "draft", href: undefined })),
     );
     expect(body).toContain(
-      "Changed Identifier Title Status Version in the baseline SR-b1 T draft n2:0000000000000001 Added",
+      "Changed (1) Identifier Title Status Version in the baseline SR-b1 T draft n2:0000000000000001 Added (0)",
     );
     expect(body).toContain(
-      `Not in the workspace UUID Repository Why ${A} remote repository not on this machine`,
+      `Not in the workspace (1) UUID Repository Why ${A} remote repository not on this machine`,
     );
     // A row whose copy the store does not hold, and an element without status, by its UUID and "–".
     const named = rowElementOf({
@@ -143,10 +179,15 @@ describe("change since a baseline on the element page (SR-232 AK7)", () => {
     ];
     const html = plain(baselinesSection({ ...ctx, since: since(old) }, page(now, "Same.")));
     expect(html).toContain("R of 2026-11-02: changed; version in the baseline n2:0000000000000001");
-    expect(html).toContain("Acceptance criterion AK1 (k1aa) Before Old. Now New.");
-    expect(html).toContain("Acceptance criterion AK2 (k2bb), removed Before Gone. Now none");
-    expect(html).toContain("Acceptance criterion AK2 (k3cc), added Before none Now Added with key.");
-    expect(html).toContain("Acceptance criterion AK3, added Before none Now Added without key.");
+    // One row per changed criterion, old and new wording as one word-level difference; the newest baseline open.
+    const raw = baselinesSection({ ...ctx, since: since(old) }, page(now, "Same."));
+    expect(raw).toContain('<details class="rq-since-baseline" open><summary><a href="../baselines/');
+    expect(raw).toContain(
+      '<dl class="rq-diff"><dt>Acceptance criterion AK1 (k1aa)</dt><dd><div class="rq-diff-text"><del>Old.</del><ins>New.</ins></div></dd>' +
+        '<dt>Acceptance criterion AK2 (k2bb), removed</dt><dd><div class="rq-diff-text"><del>Gone.</del></div></dd>' +
+        '<dt>Acceptance criterion AK2 (k3cc), added</dt><dd><div class="rq-diff-text"><ins>Added with key.</ins></div></dd>' +
+        '<dt>Acceptance criterion AK3, added</dt><dd><div class="rq-diff-text"><ins>Added without key.</ins></div></dd>',
+    );
     // A target the workspace does not have (or not in the element's repository) by its UUID; one it has by identifier
     // and title now (not the stored title), as a link to its page.
     expect(html).toContain("Relations removed Refines: SR-7 B now");

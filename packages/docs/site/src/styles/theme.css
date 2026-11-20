@@ -43,3 +43,10 @@ h1#_top {
 .sl-markdown-content {
   line-height: 1.7;
 }
+
+/* The guide's pictures that come in a light and a dark variant (`<name>-light.svg`, `<name>-dark.svg`, as in the README)
+   show the one of the chosen theme. Only the site's own assets (`_astro/`): an image of an HTML export stays as it is. */
+:root[data-theme="light"] .sl-markdown-content img[src*="/_astro/"][src*="-dark."],
+:root[data-theme="dark"] .sl-markdown-content img[src*="/_astro/"][src*="-light."] {
+  display: none;
+}

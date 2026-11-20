@@ -6,9 +6,9 @@ import { incompleteNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "trace.mermaid",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `Drew the graph of ${input.ref} as a Mermaid flowchart`,
+      `Drew the graph of ${names.element(input.ref, { repository: input.repository })} as a Mermaid flowchart`,
       output.truncated ? "cut by limit" : "",
       problemsNote(output.problems),
       incompleteNote(output.incomplete),

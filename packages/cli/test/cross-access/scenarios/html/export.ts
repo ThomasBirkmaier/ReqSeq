@@ -333,15 +333,20 @@ scenariosOf("html.export", [
     check: (results) => {
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files[PAGE]));
-        for (const [label, value] of [
-          ["Type", "System Requirement"],
-          ["Short ID", "SR-e88fb3"],
-          ["Status", "draft"],
-          ["Packages", "–"],
-          ["Verification status in the core", "open"],
+        for (const [label, value, variant] of [
+          ["Type", "System Requirement", undefined],
+          ["Short ID", "SR-e88fb3", undefined],
+          ["Status", "draft", "default"],
+          ["Packages", "–", undefined],
+          ["Verification status in the core", "open", "caution"],
         ] as const) {
+          // Status and verification status as badges.
+          const shown =
+            variant === undefined
+              ? value
+              : `<span class="sl-badge ${variant} small astro-qnj5uuvn">${value}</span>`;
           expect(page).toContain(
-            `<dt>${label}</dt><dd class="rq-copyable"><span class="rq-value">${value}</span><button type="button" class="rq-copy" data-copy="${value}"`,
+            `<dt>${label}</dt><dd class="rq-copyable"><span class="rq-value">${shown}</span><button type="button" class="rq-copy" data-copy="${value}"`,
           );
         }
         expect(files["site/assets/copy.js"]).toContain("navigator");
@@ -362,11 +367,11 @@ scenariosOf("html.export", [
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files[PAGE]));
         expect(page).toContain(
-          '<p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status">open</span><button type="button" class="rq-copy" data-copy="[SR-e88fb3/AK-kred]"',
+          '<p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status" title="core: open"><span class="sl-badge caution small astro-qnj5uuvn">open</span></span><button type="button" class="rq-copy" data-copy="[SR-e88fb3/AK-kred]"',
         );
         expect(page).toContain("<p>Given wind, then it shows.</p>");
         expect(page).toContain(
-          '<strong>AK2</strong> <span class="rq-criterion-status">open</span></p><p>Given calm, then 0 shows.</p>',
+          '<strong>AK2</strong> <span class="rq-criterion-status" title="core: open"><span class="sl-badge caution small astro-qnj5uuvn">open</span></span></p><p>Given calm, then 0 shows.</p>',
         );
       }
     },
@@ -382,7 +387,7 @@ scenariosOf("html.export", [
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files["site/elements/31313131-0000-4000-8000-3131310000e3.html"]));
         expect(page).toContain(
-          '<p>Given a reading, then it shows.</p><div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div>',
+          '<p>Given a reading, then it shows.</p><details class="rq-evidence"><summary>Evidence records (1)</summary><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></details>',
         );
       }
     },
@@ -587,7 +592,7 @@ scenariosOf("html.export", [
         expect(own).toContain("The display.");
         expect(own).toContain('<h2 id="elements">Elements</h2>');
         expect(own).toContain(
-          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td>Show wind speed</td><td>draft</td>`,
+          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td class="rq-title">Show wind speed</td><td class="rq-nowrap">draft</td>`,
         );
       }
     },
@@ -620,7 +625,7 @@ scenariosOf("html.export", [
         expect(page).toContain(
           "Release 2</a> of 2026-11-02: changed; version in the baseline n1:697a2ad17ed49170",
         );
-        expect(page).toContain("then it shows the speed in knots.</pre>");
+        expect(page).toContain("then it shows the <del>speed.</del><ins>speed in knots.</ins>");
         expect(page).toContain(
           "The difference is not available: the commit 61aa061aa061 of the baseline is not in the local Git history of repository system.",
         );
@@ -654,9 +659,9 @@ scenariosOf("html.export", [
         const href = /href="\.\.\/(baselines\/[0-9a-f]{12}\.html)">Release 2</u.exec(index)?.[1];
         const page = contentOf(String(files[`system/site/${String(href)}`]));
         expect(page).toContain('<h2 id="commits">Commits</h2>');
-        expect(page).toContain(`<h2 id="changed">Changed</h2><table>`);
+        expect(page).toContain(`<h2 id="changed">Changed (1)</h2><table>`);
         expect(page).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
-        expect(page).toContain('<h2 id="unchanged">Unchanged</h2>');
+        expect(page).toContain('<h2 id="unchanged">Unchanged (1)</h2>');
         expect(page).toContain("This baseline stores no selection");
       }
     },

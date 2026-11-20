@@ -187,8 +187,9 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
     previewed(context, entry, input, answer.output as Preview, revision, back);
   } else if (answer.ok) {
     show(context, entry, input, answer.output, revision);
-  } else if (answer.code === "input.invalid" && entry.given.length > 0) {
-    // The prompt asks the value core refused again, else the one given last, with core's message.
+  } else if (answer.code === "input.invalid" && entry.given.some((given) => given.prefilled !== true)) {
+    // The prompt asks the value core refused again, else the one given last, with core's message. With only
+    // given values ("Write skill file", SR-229 AK16) nothing was asked: the command line says why.
     askAgain(context, { ...entry, error: answer.message }, refusedAt(entry, answer.details));
   } else {
     context.echo(answer.message);

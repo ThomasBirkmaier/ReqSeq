@@ -16,7 +16,7 @@ An agent works with ReqSeq through its client, which starts the MCP server (`req
 | Cursor | `cursor` | a JSON block and the file on this system it belongs in |
 | Other | `other` | a JSON block in the common `mcpServers` form |
 
-On Windows the command is for PowerShell. Run Claude Code's command in the folder where you start Claude Code. Under it, the output names the call of `tool guide --skill --write` for the workspace, with the same absolute paths, which writes the skill file `managing-requirements` for Claude Code. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
+On Windows the command is for PowerShell. Run Claude Code's command in the folder where you start Claude Code. Under it, the output names the call of `tool guide --skill --write` for the workspace, with the same absolute paths, which writes the skill file `managing-requirements` for Claude Code. In a workspace without the skill file, the call writes it; a file there that ReqSeq did not write, or that was changed since, is overwritten only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
 
 The setup holds as long as ReqSeq stays where it is: after a move, print it again. On macOS, an app that was not moved after the download runs from a place the system gives it for this start only, and gets no setup: move `ReqSeq.app` to `/Applications` first. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
@@ -35,6 +35,8 @@ A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on
 Run **Connect AI agent** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) and choose the client. The app shows what to do, the command or JSON block, and how to go on. "Copy field" (Ctrl+Shift+C, ⌘⇧C on macOS) or the copy symbol at the block puts the block on the clipboard.
 
 Without an open workspace, it first asks for the workspace as "Open workspace" does, opens it, and then asks for the client.
+
+**Write skill file** writes the skill file `managing-requirements` for Claude Code and names it; a file ReqSeq did not write stays.
 
 The right end of the modeline shows whether an AI agent is connected to this copy of the workspace through the MCP server: a green dot and "Agent connected" while one is, a grey dot and "No agent connected" once the last connection has ended, also by a crash, and "Connect AI agent" when none has ever been connected to it. Hover over it for the client and since when it is connected, or which client was connected last and when. A click on "No agent connected" or "Connect AI agent" starts **Connect AI agent**. `reqseq workspace agents` gives the same on the command line.
 

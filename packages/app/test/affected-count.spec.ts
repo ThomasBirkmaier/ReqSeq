@@ -73,12 +73,13 @@ test.describe("affected elements after a save", () => {
     await expect(minibuffer).toHaveText(SAVED);
     await window.screenshot({ path: path.join(OUT, "sr-024-affected-light.png") });
     // The CLI gives the same number for the next change of the content, once the app has saved every key (a
-    // slow runner may save the typed text in two writes, and a second one would meet the CLI's change).
+    // slow runner may save the typed text in two writes, and a second one would meet the CLI's change). The
+    // modeline drops "modified" only when the last save has answered, so the file holds the text: one call
+    // reads it. A poll bounded by 5 s failed when that call alone took 5.1 s, the first CLI call of a macOS
+    // shard (#2086).
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
-    await expect
-      .poll(async () => (await running.cli(["element", "get", SPEED])).stdout, { timeout: 5000 })
-      .toContain("In knots.");
     const got = await running.cli(["element", "get", SPEED]);
+    expect(got.stdout).toContain("In knots.");
     const { fileSha256 } = JSON.parse(got.stdout) as { fileSha256: string };
     const cli = await running.cli([
       "element",

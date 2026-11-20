@@ -135,6 +135,28 @@ describe("element page sections (SR-232 AK1, AK2)", () => {
     ).toBe(expected);
   });
 
+  it("[SR-232/AK-zr5v] shows the core's status as a badge and names only the views whose status differs", async () => {
+    const criteria = {
+      property: "ak",
+      criteria: [
+        { criterion: 1, text: "Given." },
+        { criterion: 2, text: "When." },
+      ],
+    };
+    const criterionStatuses = [
+      { view: "core", statuses: ["verified", "unknown"] },
+      { view: ID, statuses: ["failed", "unknown"] },
+    ] as unknown as NonNullable<ElementData["criterionStatuses"]>;
+    const html = await criteriaSection(context(), page({ element: element(), criteria, criterionStatuses }));
+    expect(html).toContain(
+      `<strong>AK1</strong> <span class="rq-criterion-status" title="core: verified · ${ID}: failed"><span class="sl-badge success small astro-qnj5uuvn">verified</span> <span class="rq-legend">${ID}</span> <span class="sl-badge danger small astro-qnj5uuvn">failed</span></span>`,
+    );
+    // A status the export has no colour for: the default badge; the same in every view: the core's badge only.
+    expect(html).toContain(
+      `<strong>AK2</strong> <span class="rq-criterion-status" title="core: unknown · ${ID}: unknown"><span class="sl-badge default small astro-qnj5uuvn">unknown</span></span>`,
+    );
+  });
+
   it("[SR-232/AK-zr5v] shows a criterion as written when the property is no Markdown, and no section without criteria", async () => {
     const plain = context({
       properties: [{ key: "ak", name: "AK", kind: "text", many: true }] as unknown as Metamodel["properties"],

@@ -619,7 +619,7 @@ const OutputLines = ({
         return (
           <div
             key={at}
-            className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.list === undefined ? "" : " count"}`}
+            className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.list === undefined ? "" : " count"}${line.block === true ? " block" : ""}`}
             data-depth={line.depth}
             style={{ "--indent": `${String(line.depth * 1.25)}rem` } as React.CSSProperties}
             {...(opens === undefined

@@ -124,6 +124,21 @@ describe("the explanation line of the command prompt (SR-210)", () => {
     for (const action of ACTIONS) {
       expect(action.description === undefined, action.id).toBe(coveredCommand(action, CATALOG) !== undefined);
     }
+    // "Write skill file" runs one catalog command with fixed input beside that command's own entry ("Agent
+    // guide"): its own description, and as the command help the command with that input (SR-229 AK16).
+    const skill = ACTIONS.find((action) => action.id === "write-skill-file");
+    const writing = withExplanations(
+      { label: "Command", items: [{ id: "write-skill-file", name: "Write skill file", run: vi.fn() }] },
+      CATALOG,
+      ACTIONS,
+    );
+    expect(writing.items[0]?.explain).toEqual({ summary: skill?.description });
+    expect(writing.items[0]?.help).toEqual({
+      title: "Write skill file",
+      summary: skill?.description,
+      runs: [{ where: "with skill and write", command: "tool.guide" }],
+      keyReference: true,
+    });
     // An entry no action and no catalog command has, such as an element or a buffer, gets none.
     const other = withExplanations(
       { label: "Command", items: [{ id: "uuid-1", name: "SR-1", run: vi.fn() }] },

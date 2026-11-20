@@ -288,8 +288,8 @@ describe("the answer of metamodel.removeType", () => {
       missingRequired: 0,
       problems: [{}],
     };
-    expect(removeType.answer(output as never, { type: "note" }, { type: (key) => key })).toBe(
-      "Removed the type note; 1 file written; 1 file naming a removed key, not changed; 1 problem.",
-    );
+    expect(
+      removeType.answer(output as never, { type: "note" }, { type: (key) => key, element: (ref) => ref }),
+    ).toBe("Removed the type note; 1 file written; 1 file naming a removed key, not changed; 1 problem.");
   });
 });
