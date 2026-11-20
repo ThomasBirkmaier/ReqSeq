@@ -237,6 +237,7 @@ describe("an export folder", () => {
       { entry: "a/b.html/c", reason: "it is no file the export wrote: a folder, a link or inside one" },
     ]);
     expect(folder.foreign).toEqual(["a/mine.txt", "assets", "foreign.txt"]);
+    expect([...folder.earlier].sort()).toEqual(["a/b.html", "index.html"]);
     expect((await refusal(folder.write("foreign.txt", "new"))).message).toBe(
       "Not exported: foreign.txt is taken by a file the earlier export did not write; move it away",
     );

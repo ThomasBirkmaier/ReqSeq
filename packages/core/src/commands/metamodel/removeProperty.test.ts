@@ -7,10 +7,13 @@ import {
   SMALL_MODEL,
   WITH_MISSING_REPOSITORY,
   WORKSPACE_FILE,
+  elementFile,
   elements,
   failure,
   openSmall,
+  openSmallAcross,
   run,
+  uuid,
 } from "../metamodel-commands.test-helper.js";
 
 /** The output as `invoke` gives it, with the answer sentence. */
@@ -47,6 +50,7 @@ describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)",
       type: "note",
       property: "remark",
       definitionRemoved: true,
+      kept: [],
       mentions: ["filters/remarks.yaml"],
       files: [MODEL],
       versionsChanged: 0,
@@ -80,6 +84,38 @@ describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)",
     );
     expect((await remove(listed, { type: "hazard", property: "severity" })).definitionRemoved).toBe(false);
     expect(await readListed(MODEL)).toContain("    properties: [title]\n    required: [title]\n");
+  });
+
+  it("[SR-238/AK-pbyq] keeps the definition no type has any more while the file of an element of any type holds its key, and names their number", async () => {
+    // An element of another type with an empty value, and one in another repository of a type the
+    // metamodel does not know.
+    const { workspace, read } = await openSmallAcross({
+      [`system/elements/E-1.md`]: elementFile(uuid(1), "hazard", { remark: '""' }),
+      [`product/E-2.md`]: elementFile(uuid(2), "memo", { remark: "stray" }),
+      "system/filters/remarks.yaml": "reqseq-filter: 1\nname: Remarks\nwhere: { remark: [x] }\n",
+    });
+    const removed = await remove(workspace, { type: "note", property: "remark" });
+    expect(removed.answer).toBe(
+      "Removed the property remark from the type note; no type has the property remark any more, but its definition stays, as 2 elements hold it; 1 file written.",
+    );
+    expect([removed.definitionRemoved, removed.kept, removed.mentions]).toEqual([
+      false,
+      [
+        {
+          kind: "property",
+          key: "remark",
+          count: 2,
+          elements: [
+            { id: uuid(1), shortId: "HZ-000001", repository: "system" },
+            { id: uuid(2), shortId: "UNKNOWN-000002", repository: "product" },
+          ],
+        },
+      ],
+      [],
+    ]);
+    expect(await read(MODEL)).toBe(
+      SMALL_MODEL.replace("    properties: [title, remark]\n", "    properties: [title]\n"),
+    );
   });
 
   it("[SR-238/AK-pbyq] refuses while an element of the type or of an inheriting type holds it, and an inherited property", async () => {

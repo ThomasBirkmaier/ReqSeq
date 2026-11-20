@@ -16,8 +16,10 @@ import {
   measure,
   measureMedian,
   noParentHints,
+  perfSize,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -39,10 +41,14 @@ import { NORMAL_FORM } from "../../src/version/version.js";
 import { standardModel, versionOf } from "./core-version.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
-/** Targets whose version core recomputes from their file (every one is compared with the generator). */
-const SAMPLE = 500;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
+/**
+ * Every this many relations, core recomputes the version of the target from its file (every one is compared with
+ * the generator): 500 targets at N-036. A fixed step, not a fixed count: a smaller run (#2037) samples fewer, and
+ * none of them is the element a test above saved.
+ */
+const SAMPLE_EVERY = 400;
 
 describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
   let version: VersionFunction;
@@ -115,10 +121,11 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         thresholdMs: 60_000,
       },
     );
-    // The generated requirements that got no derivation are hints (SR-022 AK6, #659); nothing else.
+    // The generated requirements that got no derivation are hints (SR-022 AK6, #659), and the gaps of
+    // verification are at the workspace file (SR-230 AK1, AK2); nothing else.
     expect(malformedNoParentHints(findings)).toEqual([]);
     expect(noParentHints(findings)).toHaveLength(withoutParent(tree.files));
-    expect(withoutNoParent(findings)).toEqual([]);
+    expect(withoutVerificationGaps(withoutNoParent(findings))).toEqual([]);
   }, 600_000);
 
   it("computes the current version of every element once per store and carries it over a save (ThomasBirkmaier/ReqSeq-archive#259)", async () => {
@@ -249,7 +256,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(stored).toHaveLength(RELATIONS);
     expect(stored.filter(({ target }) => versions.get(target.id) !== target.version)).toEqual([]);
     // Every 400th relation: the target core would store now, from the target's file.
-    for (const { repository, target } of stored.filter((_, i) => i % (RELATIONS / SAMPLE) === 0)) {
+    for (const { repository, target } of stored.filter((_, i) => i % SAMPLE_EVERY === 0)) {
       expect(await currentTarget(context, repository, target)).toEqual(target);
     }
   }, 600_000);

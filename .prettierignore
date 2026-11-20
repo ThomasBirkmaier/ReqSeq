@@ -10,3 +10,4 @@ packages/core/src/generated/
 **/*.md
 .claude/
 test-results/
+packages/core/src/html-export/*.generated.ts

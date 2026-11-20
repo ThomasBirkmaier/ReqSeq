@@ -20,8 +20,11 @@ import {
   malformedNoParentHints,
   measure,
   noParentHints,
+  perfSize,
+  scaledCount,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -33,8 +36,8 @@ import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** Every this many elements one gets a new text after the commit. */
 const EVERY = 100;
 /** A version no element has: every relation and reference that stores it is outdated. */
@@ -107,7 +110,8 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(out.problems)).toEqual([]);
     expect(noParentHints(out.problems)).toHaveLength(orphans);
-    const outdated = withoutNoParent(out.problems);
+    // And the gaps of verification at the workspace file (SR-230 AK1, AK2).
+    const outdated = withoutVerificationGaps(withoutNoParent(out.problems));
     expect(outdated.filter((p) => p.code !== "relation.outdated")).toEqual([]);
     expect(outdated).toHaveLength(expected);
     expect(outdated.every((p) => p.targetId !== undefined && changed.has(p.targetId))).toBe(true);
@@ -130,11 +134,13 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       async () => (await invoke("hint.list", { limit: 5000 }, { workspace })) as CommandOutput<"hint.list">,
       { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
     );
-    expect(all.total).toBe(check.problems.length);
+    // A hint names an element: the gaps of verification at the workspace file are none (SR-230 AK1, AK2).
+    const hints = withoutVerificationGaps(check.problems);
+    expect(all.total).toBe(hints.length);
     // hint.list adds the titles of the element and of the target (elementTitle, targetTitle, #1592); the
     // rest is as workspace.check gives it.
     expect(all.hints.map(({ elementTitle: _element, targetTitle: _target, ...hint }) => hint)).toEqual(
-      check.problems.slice(0, 5000),
+      hints.slice(0, 5000),
     );
     const titles = new Map(tree.elements.map((e) => [e.id, e.title]));
     expect(all.hints.every((h) => h.elementTitle === titles.get(h.elementId ?? ""))).toBe(true);
@@ -239,9 +245,11 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
     fixture = await writeLargeWorkspace(tree, { git: true });
     // A merge request on top: tag `base`, then a commit that changes three elements.
     const folders = new Map(tree.repositories.map((r) => [r.name, r.folder]));
-    merged = [tree.elements[1000], tree.elements[25_000], tree.elements[49_999]].filter(
-      (e) => e !== undefined,
-    );
+    merged = [
+      tree.elements[scaledCount(1000)],
+      tree.elements[scaledCount(25_000)],
+      tree.elements[ELEMENTS - 1],
+    ].filter((e) => e !== undefined);
     for (const repository of tree.repositories) {
       await fixture.git(["tag", "base"], repository.folder);
     }

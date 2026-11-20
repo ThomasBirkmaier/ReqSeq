@@ -606,3 +606,23 @@ export const currentVersionsOf = async (
   const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));
   return entriesOf(run, records, known);
 };
+
+/**
+ * The files elements of `versions` embed, per repository: relative to it with `/`, in NFC; the state files of
+ * `repositoryState` (`data.export`, the footer of the HTML export).
+ */
+export const embedsOf = (versions: CurrentVersions): ReadonlyMap<string, ReadonlySet<string>> => {
+  const embeds = new Map<string, Set<string>>();
+  for (const [record, entry] of versions.byRecord) {
+    if (entry.kind === "version") {
+      for (const image of entry.images) {
+        if (image.found !== "nested") {
+          const files = embeds.get(record.repository) ?? new Set();
+          files.add(image.names.join("/").normalize("NFC"));
+          embeds.set(record.repository, files);
+        }
+      }
+    }
+  }
+  return embeds;
+};

@@ -58,10 +58,17 @@ export type SkillFileState =
   | { readonly state: "missing" }
   | { readonly state: "foreign" }
   /**
-   * Written by ReqSeq: its `version`, whether its checksum still matches (`intact`), and whether it is
-   * what this version writes (`current`, compared in the canonical form, so line endings do not count).
+   * Written by ReqSeq: its `version`, whether its checksum still matches (`intact`), whether it is what this
+   * version writes (`current`), and whether it is what this version writes with the version it carries
+   * (`sameContent`, AK10: only the version differs); compared in the canonical form, so line endings do not count.
    */
-  | { readonly state: "own"; readonly version: string; readonly intact: boolean; readonly current: boolean };
+  | {
+      readonly state: "own";
+      readonly version: string;
+      readonly intact: boolean;
+      readonly current: boolean;
+      readonly sameContent: boolean;
+    };
 
 interface Looked {
   readonly found: SkillFileState;
@@ -141,9 +148,11 @@ const look = async (location: SkillLocation, entries: readonly CatalogEntry[]): 
   if (!identity.own) {
     return { found: { state: "foreign" }, snapshot: read.snapshot };
   }
-  const current = canonical(text) === skillFile(entries);
+  const lf = canonical(text);
+  const current = lf === skillFile(entries);
+  const sameContent = current || lf === skillFile(entries, identity.version);
   return {
-    found: { state: "own", version: identity.version, intact: identity.intact, current },
+    found: { state: "own", version: identity.version, intact: identity.intact, current, sameContent },
     snapshot: read.snapshot,
   };
 };
@@ -181,6 +190,11 @@ export interface SkillWriteOptions {
   readonly replace: boolean;
   /** The local path rule of the call (SR-142). */
   readonly localPaths: LocalPaths;
+  /**
+   * Leave ReqSeq's own unchanged file of another version as it is (`unchanged`): `workspace.init` changes no
+   * existing file (SR-014 AK1, SR-229 AK9).
+   */
+  readonly keepOwn?: boolean;
 }
 
 /** The command-line call that writes the skill file, which a refusal through API and MCP names (AK8). */
@@ -247,7 +261,7 @@ const write = async (
   await checkAccess(location, options, entries);
   const { found, snapshot } = await look(location, entries);
   const own = found.state === "own" && found.intact;
-  if (own && found.current) {
+  if (own && (found.current || options.keepOwn === true)) {
     return { path: location.path, action: "unchanged" };
   }
   if (found.state !== "missing" && !own && !options.replace) {

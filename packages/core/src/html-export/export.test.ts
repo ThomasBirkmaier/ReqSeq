@@ -11,7 +11,7 @@ import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { elementStoreState } from "../model/index.js";
 import { writeHtmlExport } from "./export.js";
-import { expectSafe } from "./safe-html.test-helper.js";
+import { contentOf, expectSafe } from "./safe-html.test-helper.js";
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -46,12 +46,12 @@ describe("html.export with images and Markdown properties", () => {
     await fs.symlink(fixture.path("requirements/img/wind.png"), fixture.path("requirements/img/link.png"));
     const output = await exported(workspace);
     const page = await fs.readFile(fixture.path(`site/elements/${WIND}.html`), "utf8");
-    expectSafe(page.replace(/^[\s\S]*<main>/, "").replace(/<\/main>[\s\S]*$/, ""));
+    expectSafe(contentOf(page));
     expect(page).toContain(
       `<img src="../images/${WIND}-0.png" alt="ok"> <img src="../images/${WIND}-0.png" alt="ok again"> ![gone](img/gone.png) ![text](img/notes.png) ![link](img/link.png) ![trap](img/trap.svg) <img src="../images/${WIND}-5.svg" alt="plain"> doc ![dir](img/)`,
     );
     expect(page).toContain(
-      `<section><h2>Rationale</h2><p>Seen on the mast. &lt;b&gt;bold&lt;/b&gt; <img src="../images/${WIND}-0.png" alt="m"></p></section>`,
+      `<dt>Rationale</dt><dd><p>Seen on the mast. &lt;b&gt;bold&lt;/b&gt; <img src="../images/${WIND}-0.png" alt="m"></p></dd>`,
     );
     expect(await fs.readFile(fixture.path(`site/images/${WIND}-0.png`))).toEqual(PNG);
     expect((await fs.readdir(fixture.path("site/images"))).sort()).toEqual([
@@ -133,7 +133,9 @@ describe("html.export with images and Markdown properties", () => {
     expect(output.pages).toBe(2);
     expect(
       await fs.readFile(fixture.path("site/elements/0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa.html"), "utf8"),
-    ).toContain('<h1>UNKNOWN-aaaaaa</h1><p class="rq-facts">memo</p>');
+    ).toMatch(
+      />UNKNOWN-aaaaaa<\/h1>[\s\S]*<dt>Type<\/dt><dd class="rq-copyable"><span class="rq-value">memo<\/span>/u,
+    );
     expect(output.problems.map((p) => [p.code, p.file])).toEqual([
       ["file.invalid-yaml", "requirements/broken.md"],
       ["element.duplicate-id", "copy/SR-6328cee88fb3.md"],

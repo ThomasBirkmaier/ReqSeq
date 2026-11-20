@@ -5,19 +5,26 @@
 // is recorded with time and memory. No SR names a time for the import; the 60 s of the plan are the
 // expectation of #696 (a delivery of N-036 planned in well under a minute), so the rows are recorded,
 // not asserted. Correctness is asserted as usual.
-import { createFixtureWorkspace, measurePeakMemory, memoryIncrease, recordValue } from "@reqseq/testkit";
+import {
+  createFixtureWorkspace,
+  measurePeakMemory,
+  memoryIncrease,
+  perfSize,
+  recordValue,
+} from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandName, CommandOutput } from "../../src/catalog.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 
-const OBJECTS = 50_000;
+// The size of the run (#2037): N-036's 50,000 objects unless REQSEQ_PERF_ELEMENTS is set.
+const OBJECTS = perfSize().elements;
 /** One SPEC-RELATION per tenth object: object i satisfies object i - 1. */
 const RELATION_EVERY = 10;
 /** The second delivery changes every tenth object, 10 %. */
 const CHANGED_EVERY = 10;
-const CHANGED = OBJECTS / CHANGED_EVERY;
+const CHANGED = Math.ceil(OBJECTS / CHANGED_EVERY);
 const PLAN_MS = 60_000;
 /**
  * The first import took about 1,000 s on a 4-core container (#577), more than the suite's 600 s per
