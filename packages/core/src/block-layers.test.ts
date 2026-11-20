@@ -108,7 +108,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   },
   reqif: { values: ["files", "metamodel", "model", "runtime state", "workspace"] },
   "html-export": {
-    values: ["evidence", "files", "metamodel", "model", "workspace"],
+    values: ["evidence", "files", "hints", "metamodel", "model", "workspace"],
     types: ["runtime state"],
   },
   graph: {
