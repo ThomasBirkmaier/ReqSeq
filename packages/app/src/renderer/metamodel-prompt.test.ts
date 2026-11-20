@@ -14,6 +14,7 @@ import {
   setup,
   start,
 } from "./catalog-commands.test-helper.js";
+import { metamodelGiven } from "./metamodel-menu.js";
 import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import type { CatalogContext } from "./catalog-arguments.js";
 
@@ -893,5 +894,120 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     await flush();
     expect(call.mock.calls.some(([name]) => name === "metamodel.removeType")).toBe(true);
     expect(changed).toEqual([["metamodel.removeType", OK]]);
+  });
+});
+
+/** A press in the metamodel's graph on a place marked `data-menu="<place>"` with the `data-given-*` attributes. */
+const pressedOn = (place: string, attributes: Record<string, string>): Element =>
+  ({
+    closest: (selector: string) =>
+      selector === `[data-menu="${place}"]`
+        ? { getAttribute: (name: string) => attributes[name] ?? null }
+        : null,
+  }) as unknown as Element;
+
+/** The four Remove entries of the graph's menus: the place pressed, the command, and the input it runs with. */
+const REMOVE_ENTRIES = [
+  {
+    entry: "Remove type",
+    place: "metamodel-type",
+    attributes: { "data-given-type": "package", "data-given-type-name": "Package" },
+    name: "metamodel.removeType",
+    input: { type: "package" },
+  },
+  {
+    entry: "Remove property from type",
+    place: "metamodel-property",
+    attributes: {
+      "data-given-type": "software-requirement",
+      "data-given-type-name": "Software Requirement",
+      "data-given-property": "component",
+      "data-given-property-name": "Component",
+    },
+    name: "metamodel.removeProperty",
+    input: { type: "software-requirement", property: "component" },
+  },
+  {
+    entry: "Remove status from type",
+    place: "metamodel-status",
+    attributes: {
+      "data-given-type": "decision",
+      "data-given-type-name": "Decision",
+      "data-given-status": "decided",
+      "data-given-status-name": "Decided",
+    },
+    name: "metamodel.removeStatus",
+    input: { type: "decision", status: "decided" },
+  },
+  {
+    entry: "Remove relation kind",
+    place: "metamodel-kind",
+    attributes: { "data-given-kind": "blocks", "data-given-kind-name": "Blocks" },
+    name: "metamodel.removeRelationKind",
+    input: { kind: "blocks" },
+  },
+] as const;
+
+type RemoveEntry = (typeof REMOVE_ENTRIES)[number];
+
+/** Starts the Remove entry `of` as the menu does: the command with the arguments its place gives. */
+const removeFromMenu = (context: CatalogContext, of: RemoveEntry): void => {
+  const given = metamodelGiven(of.place, pressedOn(of.place, of.attributes))?.[of.name];
+  expect(given).toBeDefined();
+  expect(command(of.name).title).toBe(of.entry);
+  startCommand(context, command(of.name), false, given);
+};
+
+describe("the Remove entries of the metamodel graph's menus (SR-199 AK8)", () => {
+  for (const of of REMOVE_ENTRIES) {
+    it(`[SR-199/AK-r608] "${of.entry}" runs at once with the definition the place gives, and says core's answer`, async () => {
+      const { context, asked, call, echoed } = ready({ [of.name]: () => OK });
+      removeFromMenu(context, of);
+      await flush();
+      await flush();
+      // No step and no confirmation: the command prompt asks nothing.
+      expect(asked).toEqual([]);
+      expect(call.mock.calls.filter(([name]) => name === of.name)).toHaveLength(1);
+      expect(ranWith(call, of.name)).toEqual(of.input);
+      expect(echoed).toEqual(["Changed."]);
+    });
+  }
+
+  it("[SR-199/AK-r608] says why core refuses a removal, an inherited status, a type a definition names or a use, and asks nothing", async () => {
+    const reasons: Partial<Record<RemoveEntry["name"], string>> = {
+      "metamodel.removeStatus":
+        "Type software-requirement has the status retired from the status list of type item; remove it there",
+      "metamodel.removeType": "Type package cannot be removed: property packages has it as target type",
+      "metamodel.removeProperty":
+        "Property title stays in type decision while elements hold it: property title: 1 element (D-d0000000130)",
+    };
+    for (const of of REMOVE_ENTRIES) {
+      const reason = reasons[of.name];
+      if (reason === undefined) {
+        continue;
+      }
+      const { context, asked, call, echoed } = ready({
+        [of.name]: () => refusedWith(reason, { reason: "in-use" }),
+      });
+      removeFromMenu(context, of);
+      await flush();
+      await flush();
+      expect(asked).toEqual([]);
+      expect(call.mock.calls.filter(([name]) => name === of.name)).toHaveLength(1);
+      expect(echoed).toEqual([reason]);
+    }
+  });
+
+  it("[SR-199/AK-r608] says why a removal fails that core does not refuse, such as a metamodel file that cannot be written", async () => {
+    const failed = Object.assign(new Error("The metamodel repository system cannot be written"), {
+      name: "file.read-only",
+    });
+    const of = REMOVE_ENTRIES[3];
+    const { context, asked, echoed } = ready({ [of.name]: () => failed });
+    removeFromMenu(context, of);
+    await flush();
+    await flush();
+    expect(asked).toEqual([]);
+    expect(echoed).toEqual(["The metamodel repository system cannot be written"]);
   });
 });
