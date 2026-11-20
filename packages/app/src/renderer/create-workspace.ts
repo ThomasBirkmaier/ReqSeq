@@ -18,6 +18,9 @@ export const INIT_COMMAND = "workspace.init";
 /** What the step says after an empty name (AK5). */
 export const NAME_NEEDED = "A name is needed";
 
+/** What the command line says when main started nothing for "Create workspace" (the click or Enter too long ago). */
+export const CREATE_REFUSED = "Create workspace did not start; choose it again.";
+
 /** What the command line says when the chosen folder is itself a workspace, which opened (AK6). */
 export const openedExisting = (name: string): string => `Opened the existing workspace ${name}`;
 
@@ -26,7 +29,7 @@ const HERE = ".";
 
 /**
  * Asks the name of the new workspace in the folder open without one (AK4): pre-filled with `initial`, the folder's
- * name at first. An empty name stays in the step and says that a name is needed, a refusal of core stays there with
+ * name at first. An empty name (as typed: core takes any other) stays in the step and says that a name is needed, a refusal of core stays there with
  * its reason, and Escape ends the prompt: nothing is created (AK5). Enter creates the workspace there, which the
  * window then opens, and its answer goes to the command line as after the command prompt's "Create workspace".
  */
@@ -50,8 +53,9 @@ export const askWorkspaceName = (
       skips: false,
       more: false,
     },
-    text: (text) => {
-      const name = text.trim();
+    // The name goes to core as typed, as the command prompt and the command line pass it; only an empty one is
+    // asked again here (AK5).
+    text: (name) => {
       if (name === "") {
         askWorkspaceName(context, command, "", NAME_NEEDED);
         return;
@@ -83,8 +87,6 @@ export interface CreateRunnerDeps {
   /** Main gives the folder (`chooseCreateFolder` of the bridge). */
   readonly choose: () => Promise<CreateFolderAnswer>;
   readonly echo: (message: string) => void;
-  /** Main showed no dialog: the command line says so, as for "Open workspace…". */
-  readonly refused: () => void;
   /** The read of the catalog while it runs, else undefined. */
   readonly catalogRead: () => Promise<void> | undefined;
   /** Asks the name in the folder open without a workspace, pre-filled with `initial` (`askWorkspaceName`). */
@@ -135,7 +137,7 @@ export const createRunner = (deps: CreateRunnerDeps): CreateRunner => {
     if (answer.outcome === "refused" || answer.outcome === "nothing") {
       pending = undefined;
       if (answer.outcome === "refused") {
-        deps.refused();
+        deps.echo(CREATE_REFUSED);
       }
       return;
     }

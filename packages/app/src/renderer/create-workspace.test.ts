@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CreateFolderAnswer } from "../shared/protocol.js";
 import type { CreateRunnerDeps } from "./create-workspace.js";
-import { createRunner, openedExisting } from "./create-workspace.js";
+import { CREATE_REFUSED, createRunner, openedExisting } from "./create-workspace.js";
 
 const setup = (catalogRead: () => Promise<void> | undefined = () => undefined) => {
   const answers: ((answer: CreateFolderAnswer) => void)[] = [];
@@ -15,7 +15,6 @@ const setup = (catalogRead: () => Promise<void> | undefined = () => undefined) =
         }),
     ),
     echo: vi.fn<(message: string) => void>(),
-    refused: vi.fn<() => void>(),
     catalogRead: vi.fn(catalogRead),
     askName: vi.fn<(initial: string) => void>(),
   } satisfies CreateRunnerDeps;
@@ -110,10 +109,10 @@ describe("Create workspace of the start buffer", () => {
     const { deps, runner, answer } = setup();
     runner.start();
     await answer({ outcome: "nothing" });
-    expect(deps.refused).not.toHaveBeenCalled();
+    expect(deps.echo).not.toHaveBeenCalled();
     runner.start();
     await answer({ outcome: "refused" });
-    expect(deps.refused).toHaveBeenCalledOnce();
+    expect(deps.echo).toHaveBeenCalledExactlyOnceWith(CREATE_REFUSED);
     // The core process stopped: the answer that comes later belongs to no run.
     runner.start();
     runner.changed("stopped");
@@ -127,7 +126,7 @@ describe("Create workspace of the start buffer", () => {
     await answer({ outcome: "folder", name: "Station", opening: true });
     runner.shown(undefined);
     expect(deps.askName).not.toHaveBeenCalled();
-    expect(deps.echo).not.toHaveBeenCalled();
+    expect(deps.echo).toHaveBeenCalledOnce();
     expect(deps.choose).toHaveBeenCalledTimes(4);
   });
 });

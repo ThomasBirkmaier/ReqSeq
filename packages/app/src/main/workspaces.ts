@@ -17,9 +17,10 @@
 // list, read again for each request, or (`typed`) a typed folder path that core's lexical check takes
 // (absolute or `~`, no UNC path, no NUL, at most 4096 characters) before any file-system call, and only
 // when a folder from it upwards holds a workspace file: a renderer never opens a folder without a
-// workspace. Only "Create workspace" of the start buffer (SR-225 AK4, `createFolder`) opens one, and only the folder
-// the window has open or the person chose in the system folder dialog, never a path the renderer names. Main makes no synchronous file-system call here (a hung share would freeze the window): the
-// keys are stored, and the existence checks are core's asynchronous, bounded ones.
+// workspace. Only "Create workspace" of the start buffer (SR-225 AK4, `createFolder`) opens one, and
+// only the folder the window has open or the person chose in the system folder dialog, never a path
+// the renderer names. Main makes no synchronous file-system call here (a hung share would freeze the
+// window): the keys are stored, and the existence checks are core's asynchronous, bounded ones.
 import os from "node:os";
 import path from "node:path";
 import type Electron from "electron";

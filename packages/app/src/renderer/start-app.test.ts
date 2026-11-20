@@ -197,10 +197,10 @@ describe("the start buffer", () => {
     chooseCreateFolder.mockResolvedValueOnce({ outcome: "nothing" });
     await click(create);
     expect(shownOne("label.prompt-label")).toBeNull();
-    // Main showed no dialog: the command line says so.
+    // Main started nothing: the command line says so.
     chooseCreateFolder.mockResolvedValueOnce({ outcome: "refused" });
     await click(create);
-    expect(text("Minibuffer")).toBe("The folder dialog did not open. Press Ctrl+O to choose a folder.");
+    expect(text("Minibuffer")).toBe("Create workspace did not start; choose it again.");
     // Escape in the name.
     chooseCreateFolder.mockResolvedValue({ outcome: "folder", name: "Station", opening: false });
     await click(create);
@@ -208,21 +208,21 @@ describe("the start buffer", () => {
     expect(shownOne("label.prompt-label")).toBeNull();
     // An empty name stays in the step and says that a name is needed.
     await click(create);
-    await type("  ");
+    await type("");
     await keyDown(query("input"), "Enter");
     expect(query("label.prompt-label").textContent).toBe("A name is needed · Create workspace · name:");
     expect(calls(invoke, "workspace.init")).toEqual([]);
-    // A refusal names its reason in the step, with the name given.
+    // The name goes to core as typed, and a refusal names its reason in the step, with the name given.
     handlers["workspace.init"] = () =>
       Object.assign(new Error("The folder holds reqseq-workspace.yaml already"), { code: "input.invalid" });
-    await type("Station");
+    await type(" Station ");
     await keyDown(query("input"), "Enter");
     await flush();
-    expect(calls(invoke, "workspace.init")).toEqual([{ path: ".", name: "Station" }]);
+    expect(calls(invoke, "workspace.init")).toEqual([{ path: ".", name: " Station " }]);
     expect(query("label.prompt-label").textContent).toBe(
       "The folder holds reqseq-workspace.yaml already · Create workspace · name:",
     );
-    expect((query("input") as HTMLInputElement).value).toBe("Station");
+    expect((query("input") as HTMLInputElement).value).toBe(" Station ");
   });
 
   it("[SR-225/AK-tf62] a chosen folder that is a workspace is opened, nothing is created, and the command line names it", async () => {

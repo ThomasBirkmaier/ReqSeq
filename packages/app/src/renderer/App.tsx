@@ -528,10 +528,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       .items.find((item) => item.id === CONNECT_AGENT_ACTION)
       ?.run();
   };
-  // Main refuses a dialog when the click or Enter is too long ago or a dialog is open: say so, not nothing.
-  const dialogRefused = (): void => {
-    setEcho(dialogRefusedMessage(macRef.current));
-  };
   // "Create workspace" of the start buffer (SR-225 AK4–AK6, `create-workspace.ts`): main gives the folder, then
   // the command prompt asks only the name there, with the catalog and context of the render it runs in.
   const askNameNow = useRef<(initial: string) => void>(() => undefined);
@@ -549,9 +545,6 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       createRunner({
         choose: () => bridge.chooseCreateFolder(),
         echo: setEcho,
-        refused: () => {
-          setEcho(dialogRefusedMessage(macRef.current));
-        },
         catalogRead: () => catalogRead.current,
         askName: (initial) => {
           askNameNow.current(initial);
@@ -568,7 +561,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       folderDialog: () => {
         void bridge.openFolderDialog().then((shown) => {
           if (!shown) {
-            dialogRefused();
+            // Main refuses when the click or Enter is too long ago or a dialog is open: say so, not nothing.
+            setEcho(dialogRefusedMessage(macRef.current));
           }
         });
       },
