@@ -222,12 +222,17 @@ describe("tool.guide with skill", () => {
     const steps = new Map(workflows(text).map((s) => [s.heading, s.steps])).get("Change the metamodel") ?? [];
     expect(steps).toHaveLength(5);
     const [propose, decide, carry, check, again] = steps;
-    expect(propose).toContain("Propose the change with its rationale");
+    expect(propose).toContain(
+      "Read the metamodel (`metamodel_get` or `reqseq metamodel get`), then propose the change with its rationale",
+    );
     expect(decide).toContain("Wait for the person's explicit decision");
     for (const command of METAMODEL_CHANGES) {
-      expect(carry).toContain(`\`${mcpToolName(command)}\` or \`${commandLineName(command)}\``);
+      expect(carry).toContain(`\`${mcpToolName(command)}\` with `);
+      expect(carry).toContain(`\`${commandLineName(command)} `);
     }
-    expect(carry).toContain("never by editing the files of the metamodel");
+    expect(carry).toContain(
+      '`metamodel_addType` with `{"name":"<name>","prefix":"<prefix>"}` or `reqseq metamodel add-type',
+    );
     expect(check).toContain("`workspace_check` or `reqseq workspace check`");
     expect(again).toContain("Read the agent guide again (`tool_guide` or `reqseq tool guide`)");
   });

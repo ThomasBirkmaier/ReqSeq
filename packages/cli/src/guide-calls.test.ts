@@ -103,8 +103,27 @@ describe("the command-line calls of the agent guide", () => {
     }));
     expect(cli.length).toBe(mcp.length);
     expect(cli.length).toBeGreaterThan(8);
+    // The metamodel section names the commands that change the metamodel without input (SR-229 AK15): a
+    // name, not a call, so the agent gives each the input its schema asks for. Only calls are run here.
+    const required = (command: CommandName): boolean => {
+      const input = loadContracts().entry(command)?.input;
+      return Array.isArray(input?.["required"]) && input["required"].length > 0;
+    };
+    const isCall = mcp.map((call) => Object.keys(call.input).length > 0 || !required(call.command));
+    const names = mcp.filter((_, i) => isCall[i] !== true).map((call) => call.command);
+    expect(names).toHaveLength(12);
+    expect(names.every((name) => /^metamodel\.(add|change|remove)[A-Z]/.test(name))).toBe(true);
+    expect(cli.filter((_, i) => isCall[i] !== true)).toEqual(
+      names.map(
+        (name) => `reqseq metamodel ${name.slice(10).replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`,
+      ),
+    );
 
-    await sameCalls(root, cli, mcp);
+    await sameCalls(
+      root,
+      cli.filter((_, i) => isCall[i] === true),
+      mcp.filter((_, i) => isCall[i] === true),
+    );
   });
 
   it("[SR-229/AK-j7mz] give each command of the skill file the input its MCP form names", async () => {

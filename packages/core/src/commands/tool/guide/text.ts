@@ -306,7 +306,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "Metamodel",
     lines: (context) => [
-      `${context.call({ command: "metamodel.get" })} shows the metamodel. Change it only as the rules say, with ${METAMODEL_CHANGES.map((command) => context.call({ command })).join(", ")}.`,
+      `${context.call({ command: "metamodel.get" })} shows the metamodel. Change it only as the rules say, with one of these commands and the input it takes: ${METAMODEL_CHANGES.map((command) => context.call({ command })).join(", ")}.`,
     ],
   },
   {

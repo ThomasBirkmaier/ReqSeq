@@ -9,6 +9,7 @@
 // ReqSeq replaces only a file it wrote itself that nobody changed (AK8).
 import { createHash } from "node:crypto";
 import { PRODUCT_VERSION } from "../../../product.js";
+import type { CommandName } from "../../../catalog.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { GuideCall } from "./calls.js";
 import { renderCall } from "./calls.js";
@@ -134,6 +135,19 @@ const impactCheck = (both: (call: GuideCall) => string, subject: string): string
     `and read what you find against the change, with the records (${both({ command: "evidence.list", input: { ref: "<requirement>" } })}).`,
   ].join(" ");
 
+/** The required fields of `command`'s input as placeholders: `<field>` for text, `false` for a boolean. */
+const requiredPlaceholders = (
+  command: CommandName,
+  entries: readonly CatalogEntry[],
+): Readonly<Record<string, unknown>> => {
+  const input = entries.find((entry) => entry.name === command)?.input ?? {};
+  const properties = (input["properties"] ?? {}) as Readonly<Record<string, { readonly type?: unknown }>>;
+  const required = (input["required"] ?? []) as readonly string[];
+  return Object.fromEntries(
+    required.map((field) => [field, properties[field]?.type === "boolean" ? false : `<${field}>`]),
+  );
+};
+
 /** The body of the skill: its first step, then the workflows of AK7, each as numbered steps. */
 const skillBody = (
   both: (call: GuideCall) => string,
@@ -169,9 +183,9 @@ const skillBody = (
       `Check the workspace: ${check}.`,
     ],
     "Change the metamodel": [
-      `Propose the change with its rationale to the person; read the metamodel first (${both({ command: "metamodel.get" })}).`,
-      "Wait for the person's explicit decision, as the rules of the agent guide say; without it, change nothing.",
-      `Carry out the decision with the command for it, never by editing the files of the metamodel: ${METAMODEL_CHANGES.map((command) => both({ command })).join("; ")}.`,
+      `Read the metamodel (${both({ command: "metamodel.get" })}), then propose the change with its rationale to the person.`,
+      "Wait for the person's explicit decision, as the rules of the agent guide say.",
+      `Carry out the decision with the command for it: ${METAMODEL_CHANGES.map((command) => both({ command, input: requiredPlaceholders(command, entries) })).join("; ")}.`,
       `Check the workspace: ${check}.`,
       `Read the agent guide again (${both(guide)}), because it names the types and statuses of the changed metamodel.`,
     ],

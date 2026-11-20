@@ -1,7 +1,7 @@
 // The calls the agent guide names (SR-229 AK1, AK6): a catalog command and its input, shown as a call of the
 // command line or as the name of the MCP tool. The command is a `CommandName`, so a call of a command outside
 // the catalog does not compile. The command-line form follows the catalog: a required field that is not a
-// list or an object is a positional argument in the order of the input schema, every other field a flag
+// list, an object or a boolean is a positional argument in the order of the input schema, every other field a flag
 // named by its catalog argument (`--set` for `properties`) or by the field in kebab-case (a boolean as
 // `--x` or `--no-x`), an object of
 // named values one `--<flag> key=<value>` per entry, a list one flag per item (packages/cli/src/fields.ts; a test
@@ -44,12 +44,16 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 const isComposite = (schema: unknown): boolean =>
   isRecord(schema) && (schema["type"] === "array" || schema["type"] === "object");
 
+/** Whether a field of an input schema holds a boolean, which is a flag on the command line even when required. */
+const isBoolean = (schema: unknown): boolean => isRecord(schema) && schema["type"] === "boolean";
+
 /** The words of `call` on the command line after the command name, in the order the parser takes them. */
 const commandLineWords = (entry: CatalogEntry, input: Readonly<Record<string, unknown>>): string[] => {
   const properties = isRecord(entry.input["properties"]) ? entry.input["properties"] : {};
   const required = Array.isArray(entry.input["required"]) ? (entry.input["required"] as unknown[]) : [];
   const fields = Object.keys(properties).filter((name) => Object.hasOwn(input, name));
-  const positional = (name: string): boolean => required.includes(name) && !isComposite(properties[name]);
+  const positional = (name: string): boolean =>
+    required.includes(name) && !isComposite(properties[name]) && !isBoolean(properties[name]);
   const flagOf = (name: string): string =>
     entry.arguments.find((argument) => argument.field === name)?.flag ?? kebabCase(name);
   const flags = fields

@@ -117,7 +117,10 @@ describe("tool.guide", () => {
       "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
     });
     for (const names of NAMES) {
-      variants.push(await guide(await folder(), { names }), await guide(three, { names }));
+      const text = await guide(three, { names });
+      expect(text).toContain(`\`${"a".repeat(40)}\`, \`${"b".repeat(10)}\`, \`${"c".repeat(10)}\`.`);
+      expect(text).toContain(`${"a".repeat(40)}/<run>.xml`);
+      variants.push(await guide(await folder(), { names }), text);
     }
     for (const text of variants) {
       expect(Array.from(text).length).toBeLessThanOrEqual(GUIDE_MAX_LENGTH);
@@ -375,7 +378,9 @@ describe("tool.guide", () => {
         expect(at).toBeGreaterThan(headings.indexOf("7. Workspace check"));
         expect(at).toBeLessThan(headings.indexOf("In a pipeline"));
         expect(namedCommands(section(text, "Metamodel"))).toEqual(["metamodel.get", ...METAMODEL_CHANGES]);
-        expect(section(text, "Metamodel")).toContain("Change it only as the rules say");
+        expect(section(text, "Metamodel")).toContain(
+          "Change it only as the rules say, with one of these commands and the input it takes:",
+        );
       }
     }
     const changes = ENTRIES.map((entry) => entry.name).filter(
