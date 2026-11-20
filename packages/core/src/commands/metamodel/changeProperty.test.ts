@@ -265,8 +265,8 @@ describe("metamodel.changeProperty changes the value kind only without use (SR-2
     });
   });
 
-  it("[SR-238/AK-btz9] refuses a new kind or several values while an element file of a type with the property holds its key, also empty", async () => {
-    // An element of another type holding the key does not count; one with an empty value does.
+  it("[SR-238/AK-btz9] refuses a new kind or several values while an element file of any type holds its key, also empty", async () => {
+    // An element of another type holding the key counts (SR-236 AK7), and so does an empty value.
     const { workspace, read } = await openSmall(
       elements(
         [1, "note", { remark: '""' }],
@@ -277,10 +277,10 @@ describe("metamodel.changeProperty changes the value kind only without use (SR-2
     const refused = await failure(workspace, "metamodel.changeProperty", { property: "remark", many: true });
     expect(refused.details).toMatchObject({
       reason: "in-use",
-      uses: [{ kind: "property", key: "remark", count: 2 }],
+      uses: [{ kind: "property", key: "remark", count: 3 }],
     });
     expect(refused.message).toMatch(
-      /^Property remark keeps its kind, several values and fixed values while elements use them: property remark: 2 elements \(NO-/,
+      /^Property remark keeps its kind, several values and fixed values while elements use them: property remark: 3 elements \(HZ-/,
     );
     expect(
       (await failure(workspace, "metamodel.changeProperty", { property: "remark", kind: "number" })).details,
@@ -349,7 +349,11 @@ describe("metamodel.changeProperty changes fixed values (SR-238 AK4)", () => {
     expect(
       (await failure(workspace, "metamodel.changeProperty", { property: "severity", kind: "text" })).details,
     ).toMatchObject({
-      uses: [{ kind: "value", key: "severity.low", count: 1 }],
+      uses: [
+        // A note holds the key, though notes do not have the property: it counts for the kind (SR-236 AK7).
+        { kind: "property", key: "severity", count: 1 },
+        { kind: "value", key: "severity.low", count: 1 },
+      ],
     });
     const { workspace: missing, read } = await openSmall({ [WORKSPACE_FILE]: WITH_MISSING_REPOSITORY });
     const refused = await failure(missing, "metamodel.changeProperty", {

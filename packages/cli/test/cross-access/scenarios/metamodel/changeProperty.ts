@@ -2,6 +2,7 @@
 // On the default fixture, SR-004/one-repository with the standard model in one file and one system
 // requirement.
 import { expect } from "vitest";
+import { UNREADABLE_ELEMENT } from "../../fixtures.js";
 import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.changeProperty", [
@@ -21,5 +22,17 @@ scenariosOf("metamodel.changeProperty", [
     tag: "[SR-236/AK-rtcn]",
     input: { property: "title", kind: "number" },
     expect: "error",
+  },
+  {
+    name: "refuses a new value kind while an element file cannot be read, through every access (SR-008 AK3)",
+    tag: "[SR-008/AK-kdrw]",
+    fixture: UNREADABLE_ELEMENT,
+    input: { property: "remark", kind: "number" },
+    expect: "error",
+    check: (results) => {
+      for (const [access, { changed }] of Object.entries(results)) {
+        expect(changed, access).toEqual([]);
+      }
+    },
   },
 ]);

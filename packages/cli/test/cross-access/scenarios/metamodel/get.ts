@@ -3,7 +3,7 @@ import type { MetamodelGetOutput as MetamodelOutput } from "@reqseq/core";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { CHAIN, IN_CRITERIA } from "../../fixtures.js";
+import { CHAIN, IN_CRITERIA, KEPT_DEFINITIONS } from "../../fixtures.js";
 
 /** Inheritance, per-type statuses, relation kinds open on a side or both (SR-130). */
 const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
@@ -119,6 +119,21 @@ scenariosOf("metamodel.get", [
             line: 6,
           },
         ]);
+      }
+    },
+  },
+  {
+    name: "counts a property on every element whose file holds its key, of any type (SR-236 AK8)",
+    tag: "[SR-236/AK-wq1x]",
+    fixture: KEPT_DEFINITIONS,
+    input: {},
+    expect: "output",
+    check: (results) => {
+      for (const [access, { outcome }] of Object.entries(results)) {
+        // The hazard holds a remark, though hazards do not have the property.
+        expect((outcome as { output: MetamodelOutput }).output.uses.properties, access).toMatchObject({
+          remark: 1,
+        });
       }
     },
   },
