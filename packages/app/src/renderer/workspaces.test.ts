@@ -4,7 +4,7 @@ import type { OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protoc
 import type { Choice, PromptFill } from "./action-types.js";
 import { rankByUse } from "./usage.js";
 import type { WorkspaceControls } from "./workspaces.js";
-import { startsFolderPath, workspacePrompt } from "./workspaces.js";
+import { openWorkspaceAt, startsFolderPath, workspacePrompt } from "./workspaces.js";
 
 const ENTRIES: readonly RecentWorkspaceEntry[] = [
   { root: "/req/station", state: "open" },
@@ -181,6 +181,32 @@ describe("the prompt Open workspace", () => {
     expect(await run({ ok: false, reason: "missing" })).toEqual([
       "/home/ada/notes is not found; Weather station stays open",
     ]);
+  });
+});
+
+describe("opening a workspace by its root", () => {
+  const at = async (root: string) => {
+    const echoed: string[] = [];
+    const open = vi.fn<WorkspaceControls["open"]>(() => Promise.resolve({ ok: true }));
+    const workspaces: WorkspaceControls = {
+      name: "Weather station",
+      list: () => Promise.resolve(ENTRIES),
+      open,
+    };
+    openWorkspaceAt({ workspaces, echo: (message) => echoed.push(message) }, ENTRIES, root);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return { open, echoed };
+  };
+
+  it("opens a listed root as its entry of the list, and an unlisted one as a typed folder path", async () => {
+    expect((await at("/req/buoy")).open).toHaveBeenCalledExactlyOnceWith("/req/buoy");
+    expect((await at("/req/kestrel")).open).toHaveBeenCalledExactlyOnceWith("/req/kestrel", { typed: true });
+  });
+
+  it("says what the prompt says for a listed root that is gone", async () => {
+    const { open, echoed } = await at("/mnt/usb/harbour");
+    expect(open).not.toHaveBeenCalled();
+    expect(echoed).toEqual(["/mnt/usb/harbour is not found; Weather station stays open"]);
   });
 });
 

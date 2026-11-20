@@ -3,7 +3,7 @@
 // workspace is open, and switching the workspace of the window is main's job. The list is core's
 // (`@reqseq/core/recent-workspaces`: order, keys, existence checks, typed paths), loaded on the first
 // request, so the start of main loads no part of core; main only marks the entry its core process has
-// open.
+// open, also a folder opened without a workspace that has one since (`workspace.init` there).
 //
 // Before any switch, also File > Open Workspace, main asks the window to save its unsaved input
 // (SAVE_CHANNEL, answered on SAVED_CHANNEL) and opens the other workspace only when the window answers
@@ -61,6 +61,8 @@ export interface WorkspaceSwitch {
   readonly key: string | undefined;
   /** The root of the open workspace when it belongs in the list, which may not hold it yet. */
   readonly listedRoot: string | undefined;
+  /** The root the core process opened, also a folder without a workspace; undefined while none is open. */
+  readonly root: string | undefined;
   /** Opens `folder` in the window in place of the open workspace; never rejects. */
   open(folder: string, options: { readonly exact: boolean }): Promise<void>;
 }
@@ -224,6 +226,15 @@ export const handleWorkspaces = (
     }
   };
 
+  /**
+   * The root of a folder opened without a workspace that has one now (`workspace.init` there, SR-226 AK5): the
+   * workspace open in the window, which the list holds once it is opened again.
+   */
+  const createdInPlace = async (module: RecentWorkspacesModule): Promise<string | undefined> => {
+    const { root } = options.core;
+    return root !== undefined && (await module.workspaceExists(root)) ? root : undefined;
+  };
+
   electron.ipcMain.handle(
     RECENT_WORKSPACES_CHANNEL,
     async (event): Promise<readonly RecentWorkspaceEntry[]> => {
@@ -235,7 +246,10 @@ export const handleWorkspaces = (
         const open = options.core.key;
         // The open workspace is the one opened last, so it comes first, also while the core process has
         // not written it to the stored list yet (#423).
-        const root = states.find((entry) => entry.key === open)?.root ?? options.core.listedRoot;
+        const root =
+          states.find((entry) => entry.key === open)?.root ??
+          options.core.listedRoot ??
+          (await createdInPlace(await recent()));
         const first: RecentWorkspaceEntry[] = root === undefined ? [] : [{ root, state: "open" }];
         return [
           ...first,

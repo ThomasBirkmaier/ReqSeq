@@ -672,9 +672,9 @@ describe("App", () => {
         answer = resolve;
       });
     await render(bridge);
-    // The workspace's changes, the catalog after a start without a workspace, and the mode „Agent folgen“
-    // (SR-117, a restart asks again).
-    expect(listeners.size).toBe(3);
+    // The workspace's changes, the catalog after a start without a workspace, the mode „Agent folgen“
+    // (SR-117, a restart asks again), and a next step that waits for its workspace (SR-226 AK5).
+    expect(listeners.size).toBe(4);
     act(() => {
       root.unmount();
     });

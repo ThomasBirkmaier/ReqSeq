@@ -2,11 +2,13 @@
 // output page shows as its last lines, each by the name the command prompt gives its command and with its key where
 // it has one (`appCommandEntry`). Choosing one runs that entry of the command prompt with the step's known inputs
 // given (`ActionContext.given`, as the matrix gives them, SR-199), so the prompt asks only the open ones (SR-108
-// AK6). An app action that covers the command (`coveringAction`, such as "Connect AI agent") takes no given inputs:
-// it asks all of its inputs itself. Layout and lookup only: which steps an output names is core's (ADR-0002).
+// AK6). A step whose workspace is not the open one opens that workspace first and runs there (`stepRunner`). An
+// app action that covers the command (`coveringAction`, such as "Connect AI agent") takes no given inputs: it asks
+// all of its inputs itself. Layout and lookup only: which steps an output names is core's (ADR-0002).
 import type { NextStep } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { WorkspaceControls } from "./workspaces.js";
+import { openWorkspaceAt } from "./workspaces.js";
 import { appCommandEntry, coveringAction } from "./command-entry.js";
 import type { Prefilled } from "./matrix-menu.js";
 
@@ -62,15 +64,76 @@ export const stepGiven = (step: NextStep): Prefilled[] =>
   }));
 
 /**
- * What a choice of a step says when the command prompt has no entry that runs it now: "open it first" only while
- * the step names a workspace that is not the open one (`open`: the root of the open workspace, undefined while none
- * is open). In its own workspace, such as a write command in a read-only workspace, the step cannot run here.
+ * What a choice of a step says when no entry of the command prompt runs it in its own workspace, such as a write
+ * command in a read-only workspace.
  */
-export const stepUnavailable = (step: NextStep, name: string, open: string | undefined): string =>
-  step.workspace === undefined || step.workspace === open
-    ? `${name} cannot run here`
-    : `${name} runs in the workspace ${step.workspace}: open it first`;
+export const stepUnavailable = (name: string): string => `${name} cannot run here`;
 
-/** The root of the open workspace, as the list of recent workspaces marks it; undefined while none is open. */
-export const openRoot = async (workspaces: WorkspaceControls | undefined): Promise<string | undefined> =>
-  (await workspaces?.list())?.find((entry) => entry.state === "open")?.root;
+/** What runs a step that is chosen, from the window. */
+export interface StepRunnerDeps {
+  /** The workspaces of the window; undefined without them. */
+  readonly workspaces: () => WorkspaceControls | undefined;
+  readonly echo: (message: string) => void;
+  /** The read of the catalog while it runs, else undefined. */
+  readonly catalogRead: () => Promise<void> | undefined;
+  /** Runs the step's entry of the command prompt in the open workspace, or says that it cannot run here. */
+  readonly run: (step: NextStep) => void;
+}
+
+/** A chosen step, and what the window learns of the switch to its workspace. */
+export interface StepRunner {
+  readonly choose: (step: NextStep) => void;
+  /** The workspace of the window changed (`workspace-changed`). */
+  readonly changed: (reason: string) => void;
+  /** The status of the window's workspace arrived; `open`: a workspace is open. */
+  readonly shown: (open: boolean) => void;
+}
+
+/**
+ * Runs a chosen step: at once in the open workspace when the step names no workspace or the open one; else it
+ * first opens the step's workspace as "Open workspace" does (`openWorkspaceAt`, also while none is open) and
+ * runs the step once that workspace is open and its status and the catalog are read. A workspace that does
+ * not open runs nothing: the command line says why, as the prompt "Workspace" says it.
+ */
+export const stepRunner = (deps: StepRunnerDeps): StepRunner => {
+  // The step whose workspace is being opened, and whether the window learned that it opened.
+  let pending: { readonly step: NextStep; readonly opened: boolean } | undefined;
+  return {
+    choose: (step) => {
+      const workspaces = deps.workspaces();
+      const root = step.workspace;
+      if (root === undefined || workspaces === undefined) {
+        deps.run(step);
+        return;
+      }
+      void workspaces.list().then((entries) => {
+        if (entries.find((entry) => entry.state === "open")?.root === root) {
+          deps.run(step);
+          return;
+        }
+        const opening = (on: boolean): void => {
+          pending = on ? { step, opened: false } : undefined;
+        };
+        openWorkspaceAt({ workspaces, echo: deps.echo, opening }, entries, root);
+      });
+    },
+    changed: (reason) => {
+      if (reason === "opened" && pending !== undefined) {
+        pending = { step: pending.step, opened: true };
+      }
+    },
+    shown: (open) => {
+      if (pending?.opened !== true) {
+        return;
+      }
+      const { step } = pending;
+      pending = undefined;
+      // The workspace did not open after all: its status says why.
+      if (open) {
+        void (deps.catalogRead() ?? Promise.resolve()).then(() => {
+          deps.run(step);
+        });
+      }
+    },
+  };
+};

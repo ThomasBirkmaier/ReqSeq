@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
-import type { CommandListing, RecentWorkspaceEntry } from "../shared/protocol.js";
+import { describe, expect, it, vi } from "vitest";
+import type { CommandListing, OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protocol.js";
 import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
+import type { NextStep } from "./next-steps.js";
+import type { WorkspaceControls } from "./workspaces.js";
 import {
   isStepList,
   nextStepsOf,
-  openRoot,
+  stepRunner,
   stepEntry,
   stepGiven,
   stepItemId,
@@ -51,36 +53,110 @@ describe("next steps of an output (SR-226 AK5)", () => {
     ]);
   });
 
-  it("says why a step cannot run: open its workspace first only while another one or none is open", () => {
-    const here = { command: "x", input: {}, open: [], workspace: "/w" };
-    expect(stepUnavailable({ command: "x", input: {}, open: [] }, "Create element", "/w")).toBe(
-      "Create element cannot run here",
-    );
-    expect(stepUnavailable(here, "Create element", undefined)).toBe(
-      "Create element runs in the workspace /w: open it first",
-    );
-    expect(stepUnavailable(here, "Create element", "/other")).toBe(
-      "Create element runs in the workspace /w: open it first",
-    );
-    // Its own workspace is open, read-only: no entry runs the write command, and opening it would not help.
-    expect(stepUnavailable(here, "Create element", "/w")).toBe("Create element cannot run here");
+  it("says that a step cannot run in its own workspace", () => {
+    expect(stepUnavailable("Create element")).toBe("Create element cannot run here");
+  });
+});
+
+describe("running a chosen next step (SR-226 AK5)", () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const setup = (
+    entries: readonly RecentWorkspaceEntry[],
+    answer: OpenWorkspaceResult = { ok: true },
+    controls = true,
+  ) => {
+    const ran: NextStep[] = [];
+    const echoed: string[] = [];
+    const open = vi.fn<WorkspaceControls["open"]>(() => Promise.resolve(answer));
+    let read: Promise<void> | undefined;
+    const runner = stepRunner({
+      workspaces: () =>
+        controls ? { name: "Station", list: () => Promise.resolve(entries), open } : undefined,
+      echo: (message) => echoed.push(message),
+      catalogRead: () => read,
+      run: (step) => ran.push(step),
+    });
+    return {
+      runner,
+      ran,
+      echoed,
+      open,
+      reading: (promise: Promise<void>) => {
+        read = promise;
+      },
+    };
+  };
+  const elsewhere: NextStep = { command: "element.create", input: {}, open: ["type"], workspace: "/new" };
+
+  it("runs a step at once that names no workspace, or the open one, or without workspace controls", async () => {
+    const { runner, ran, open } = setup([{ root: "/new", state: "open" }]);
+    const plain: NextStep = { command: "element.create", input: {}, open: [] };
+    runner.choose(plain);
+    runner.choose(elsewhere);
+    await settle();
+    expect(ran).toEqual([plain, elsewhere]);
+    expect(open).not.toHaveBeenCalled();
+    const without = setup([], { ok: true }, false);
+    without.runner.choose(elsewhere);
+    expect(without.ran).toEqual([elsewhere]);
   });
 
-  it("finds the root of the open workspace in the list of recent workspaces", async () => {
-    const list = (entries: readonly RecentWorkspaceEntry[]) => ({
-      name: undefined,
-      list: () => Promise.resolve(entries),
-      open: () => Promise.resolve({ ok: true as const }),
-    });
-    expect(
-      await openRoot(
-        list([
-          { root: "/w", state: "open" },
-          { root: "/v", state: "found" },
-        ]),
-      ),
-    ).toBe("/w");
-    expect(await openRoot(list([{ root: "/v", state: "found" }]))).toBeUndefined();
-    expect(await openRoot(undefined)).toBeUndefined();
+  it("opens the step's workspace first, also while none is open, and runs it once that is open and read", async () => {
+    for (const entries of [[{ root: "/w", state: "open" }], []] as const) {
+      const { runner, ran, open, reading } = setup(entries);
+      runner.choose(elsewhere);
+      await settle();
+      // Not listed: opened as a typed folder path.
+      expect(open).toHaveBeenCalledExactlyOnceWith("/new", { typed: true });
+      // The status of the workspace left changes nothing; the one after the switch runs the step, after the catalog.
+      runner.shown(true);
+      runner.changed("written");
+      expect(ran).toEqual([]);
+      runner.changed("opened");
+      let done = (): void => undefined;
+      reading(
+        new Promise((resolve) => {
+          done = resolve;
+        }),
+      );
+      runner.shown(true);
+      await settle();
+      expect(ran).toEqual([]);
+      done();
+      await settle();
+      expect(ran).toEqual([elsewhere]);
+      // Once only.
+      runner.shown(true);
+      await settle();
+      expect(ran).toEqual([elsewhere]);
+    }
+  });
+
+  it("runs nothing when the workspace does not open, and says what the open flow says", async () => {
+    const refused = setup([{ root: "/w", state: "open" }], { ok: false, reason: "no-workspace" });
+    refused.runner.choose(elsewhere);
+    await settle();
+    refused.runner.changed("opened");
+    refused.runner.shown(true);
+    await settle();
+    expect(refused.ran).toEqual([]);
+    expect(refused.echoed).toEqual(["No workspace in /new or a folder above it; Station stays open"]);
+    const gone = setup([
+      { root: "/w", state: "open" },
+      { root: "/new", state: "missing" },
+    ]);
+    gone.runner.choose(elsewhere);
+    await settle();
+    expect(gone.open).not.toHaveBeenCalled();
+    expect(gone.echoed).toEqual(["/new is not found; Station stays open"]);
+    // Opened, but core could not open the workspace: its status says why, the step does not run.
+    const failed = setup([]);
+    failed.runner.choose(elsewhere);
+    await settle();
+    failed.runner.changed("opened");
+    failed.runner.shown(false);
+    failed.runner.shown(true);
+    await settle();
+    expect(failed.ran).toEqual([]);
   });
 });

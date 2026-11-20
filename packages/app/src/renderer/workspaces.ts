@@ -107,6 +107,24 @@ const choose = (context: WorkspacePromptContext, { root, state }: RecentWorkspac
   }
 };
 
+/**
+ * Opens the workspace at `root` as "Open workspace" does: as its entry of `entries` (the list of recent
+ * workspaces) when it has one, else as a typed folder path (AK5), such as a workspace created since it was
+ * last opened. What it says when nothing opens is what the prompt says.
+ */
+export const openWorkspaceAt = (
+  context: WorkspacePromptContext,
+  entries: readonly RecentWorkspaceEntry[],
+  root: string,
+): void => {
+  const entry = entries.find((each) => each.root === root);
+  if (entry === undefined) {
+    openThrough(context, root, true);
+  } else {
+    choose(context, entry);
+  }
+};
+
 /** One workspace of the list: its full path (so typing narrows on folder names), marked open or not found. */
 const workspaceChoice = (context: WorkspacePromptContext, entry: RecentWorkspaceEntry): Choice => ({
   id: `workspace:${entry.root}`,

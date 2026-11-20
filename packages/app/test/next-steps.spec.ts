@@ -79,3 +79,31 @@ test("[SR-226/AK-sfy2] the next steps of an output are its last lines with the n
   await expect(window.locator("label.prompt-label")).toHaveText("Connect AI agent · client:");
   await window.screenshot({ path: path.join(SHOTS, "next-steps-prompt-light.png") });
 });
+
+test("[SR-226/AK-sfy2] a next step that names a workspace other than the open one opens it first, then runs there", async () => {
+  const { window } = running;
+  // An empty folder is open, without a workspace; the new workspace goes into another folder.
+  const other = path.join(folder, "buoy");
+  fs.mkdirSync(other);
+  await running.app.evaluate(({ dialog, Menu }, chosen) => {
+    dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [chosen] });
+    const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
+    file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
+  }, folder);
+  await expect(window.getByLabel("Minibuffer")).toContainText("Create workspace");
+  await window.keyboard.press(COMMANDS);
+  await window.keyboard.type("Create workspace");
+  await window.keyboard.press("Enter");
+  await window.keyboard.type(other);
+  await window.keyboard.press("Enter");
+  await window.keyboard.type("Buoy");
+  await window.keyboard.press("Enter");
+  await window.locator(".echo-open").click();
+  const page = window.locator(".result.output");
+  await expect(page).toBeVisible();
+
+  // "Create element" runs in the new workspace: it opens, and the command prompt asks the open inputs there.
+  await page.locator(".line.step").last().click();
+  await expect(window.getByLabel("Modeline")).toContainText("Buoy");
+  await expect(window.locator("label.prompt-label")).toHaveText("Create element · type:");
+});

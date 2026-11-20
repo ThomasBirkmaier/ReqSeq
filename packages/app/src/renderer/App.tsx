@@ -59,7 +59,7 @@ import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext } from "./entry-menu.js";
 import type { NextStep } from "./next-steps.js";
-import { openRoot, stepEntry, stepGiven, stepItemId, stepUnavailable } from "./next-steps.js";
+import { stepEntry, stepGiven, stepItemId, stepRunner, stepUnavailable } from "./next-steps.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useConnectAgent } from "./use-connect-agent.js";
 import { useCopyNotice } from "./use-copy-notice.js";
@@ -526,8 +526,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   };
   // A next step of an output (SR-226 AK5) runs the entry of the command prompt for its command, as a choice in the
   // context menu does, with its known inputs given, so the prompt asks only the open ones; not while another
-  // workspace opens.
-  const runStep = (step: NextStep): void => {
+  // workspace opens. A step that names another workspace than the open one, or one while none is open, opens it
+  // first and runs there once it is open (`stepRunner`).
+  const runInWorkspace = (step: NextStep): void => {
     if (switchingNow.current) {
       return;
     }
@@ -537,13 +538,41 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       (each) => each.id === stepItemId(step, catalog.current),
     );
     if (item === undefined) {
-      const { name } = stepEntry(step.command, catalog.current, context.mac);
-      void openRoot(latest.current.workspaces).then((open) => {
-        setEcho(stepUnavailable(step, name, open));
-      });
+      setEcho(stepUnavailable(stepEntry(step.command, catalog.current, context.mac).name));
     } else {
       item.run();
     }
+  };
+  const runInWorkspaceNow = useRef(runInWorkspace);
+  runInWorkspaceNow.current = runInWorkspace;
+  const steps = useMemo(
+    () =>
+      stepRunner({
+        workspaces: () => latest.current.workspaces,
+        echo: setEcho,
+        catalogRead: () => catalogRead.current,
+        run: (step) => {
+          runInWorkspaceNow.current(step);
+        },
+      }),
+    [setEcho],
+  );
+  useEffect(
+    () =>
+      bridge.on("workspace-changed", ({ reason }) => {
+        steps.changed(reason);
+      }),
+    [bridge, steps],
+  );
+  useEffect(() => {
+    steps.shown(view?.name !== undefined);
+  }, [view, steps]);
+  const runStep = (step: NextStep): void => {
+    if (switchingNow.current) {
+      return;
+    }
+    beforeCommand();
+    steps.choose(step);
   };
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
   const prefix = usePrefix({

@@ -70,7 +70,6 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
         next: [
           { command: "trace.affected", input: {}, open: ["ref"] },
           { command: "trace.affected", input: { ref: "uuid-2" }, open: [] },
-          { command: "test.none", input: {}, open: [], workspace: "/elsewhere" },
         ],
       }),
       "trace.affected": () => ({ elements: [], total: 0 }),
@@ -92,7 +91,6 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(steps().map((line) => line.textContent)).toEqual([
       "Show affected elements",
       "Show affected elements",
-      "test.none",
     ]);
     // An open input: the command prompt asks it.
     await click(step(0));
@@ -101,10 +99,43 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     // Every input known: the command runs with it.
     await click(step(1));
     expect(calls(fake.invoke, "trace.affected")).toEqual([{ ref: "uuid-2" }]);
+  });
+
+  it("opens the workspace a next step names when it is not the open one, then runs the step there (SR-226 AK5)", async () => {
+    const fake = fakeBridge({
+      ...workspace(),
+      "baseline.list": () => ({
+        baselines: [],
+        next: [{ command: "trace.affected", input: { ref: "uuid-2" }, open: [], workspace: "/elsewhere" }],
+      }),
+      "trace.affected": () => ({ elements: [], total: 0 }),
+    });
+    fake.recentWorkspaces.mockResolvedValue([
+      { root: "/w", state: "open" },
+      { root: "/elsewhere", state: "found" },
+    ]);
+    const bridge = {
+      ...fake.bridge,
+      commands: () => Promise.resolve([listing("baseline.list"), listing("trace.affected")] as never),
+    };
+    await render(bridge);
     await runCommand("List baselines");
-    // No entry of the command prompt runs it here: the command line says where it runs.
-    await click(step(2));
-    expect(text("Minibuffer")).toBe("test.none runs in the workspace /elsewhere: open it first");
+    const step = container.querySelector(".line.step");
+    if (step === null) {
+      throw new Error("No step");
+    }
+    await click(step);
+    await flush();
+    // Not in the workspace open now: the step waits for its own.
+    expect(fake.openWorkspace).toHaveBeenCalledExactlyOnceWith("/elsewhere");
+    expect(calls(fake.invoke, "trace.affected")).toEqual([]);
+    fake.recentWorkspaces.mockResolvedValue([
+      { root: "/elsewhere", state: "open" },
+      { root: "/w", state: "found" },
+    ]);
+    await fake.change("opened");
+    await flush();
+    expect(calls(fake.invoke, "trace.affected")).toEqual([{ ref: "uuid-2" }]);
   });
 
   it("says a next step cannot run in its own workspace while that is read-only (SR-226 AK5)", async () => {
