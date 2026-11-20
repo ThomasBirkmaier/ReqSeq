@@ -86,6 +86,16 @@ const BASELINES: Readonly<Record<string, string>> = {
     "elements: []",
     "",
   ].join("\n"),
+  // A date that does not parse (a leap second), in the last file: it counts as the earliest.
+  "baselines/Z-leap.yaml": [
+    "reqseq-baseline: 1",
+    "name: Leap",
+    "date: 2026-12-31T23:59:60Z",
+    "repositories:",
+    "  - { name: system, commit: abcdef0123456789abcdef0123456789abcdef01 }",
+    "elements: []",
+    "",
+  ].join("\n"),
   "baselines/Release-1.yaml": [
     "reqseq-baseline: 1",
     "name: Release 1",
@@ -298,6 +308,18 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
       "lists/system-requirement.html",
     ]);
     expect(output.problems).toEqual([]);
+  });
+
+  it("[SR-233/AK-hqc9] passes on the warnings of baseline.get on the newest baseline", async () => {
+    const release = String(BASELINES["baselines/Release-1.yaml"]).replace(
+      `package: { id: ${DISPLAY}`,
+      `package: { id: ${ID}ff`,
+    );
+    const { workspace } = await open({ "baselines/Release-1.yaml": release });
+    const output = await call(workspace, "html.export", { output: "site" });
+    const { problems } = await call(workspace, "baseline.get", { baseline: "Release 1" });
+    expect(problems?.map((p) => p.code)).toEqual(["baseline.invalid"]);
+    expect(output.problems).toEqual(problems);
   });
 
   it("[SR-233/AK-hqc9] says that the export is incomplete when a repository is not on this machine", async () => {

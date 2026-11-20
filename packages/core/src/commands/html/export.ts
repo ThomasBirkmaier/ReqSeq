@@ -8,7 +8,9 @@ import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { CommandContext } from "../../catalog.js";
+import type { Baseline } from "../../baselines/index.js";
 import { workspaceBaselines } from "../../baselines/index.js";
+import type { Problem } from "../../generated/types.js";
 import type { NewestBaseline } from "../../html-export/index.js";
 import { writeHtmlExport } from "../../html-export/index.js";
 import { baselineCounts } from "../baseline/get.js";
@@ -22,24 +24,38 @@ const shown = (root: string, absolute: string): string => {
     : relative.split(path.sep).join("/");
 };
 
-/** The newest baseline and what changed since (see the file comment); undefined without one. */
-const newestBaseline = async (ctx: CommandContext): Promise<NewestBaseline | undefined> => {
+/**
+ * The newest baseline and what changed since (see the file comment), undefined without one, with the warnings of
+ * `baseline.get` on it.
+ */
+const newestBaseline = async (
+  ctx: CommandContext,
+): Promise<{ readonly newest: NewestBaseline | undefined; readonly problems: readonly Problem[] }> => {
   const { baselines } = await workspaceBaselines(ctx.workspace);
-  // A leap second (`…:60Z`) parses as NaN; its comparisons then fall back to file order.
-  const [newest] = baselines
-    .map((baseline, at) => ({ baseline, at, time: Date.parse(baseline.data.date) }))
-    .sort((a, b) => b.time - a.time || b.at - a.at);
-  if (newest === undefined) {
-    return undefined;
+  let baseline: Baseline | undefined;
+  let latest = Number.NEGATIVE_INFINITY;
+  for (const candidate of baselines) {
+    // A date that does not parse (a leap second, `…:60Z`) counts as the earliest.
+    const parsed = Date.parse(candidate.data.date);
+    const time = Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+    if (time >= latest) {
+      baseline = candidate;
+      latest = time;
+    }
   }
-  const { baseline } = newest;
-  const { counts, selectionKnown } = await baselineCounts(ctx, baseline);
+  if (baseline === undefined) {
+    return { newest: undefined, problems: [] };
+  }
+  const { counts, selectionKnown, problems } = await baselineCounts(ctx, baseline);
   return {
-    name: baseline.name,
-    date: baseline.data.date,
-    changed: counts.changed,
-    added: counts.added,
-    selectionKnown,
+    newest: {
+      name: baseline.name,
+      date: baseline.data.date,
+      changed: counts.changed,
+      added: counts.added,
+      selectionKnown,
+    },
+    problems,
   };
 };
 
@@ -54,18 +70,18 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"html.export">> => {
     const { workspace } = ctx;
     const target = path.resolve(workspace.root, input.output);
-    const baseline = await newestBaseline(ctx);
+    const { newest, problems } = await newestBaseline(ctx);
     const result = await writeHtmlExport(
       workspace,
       target,
-      baseline === undefined ? {} : { newestBaseline: baseline },
+      newest === undefined ? {} : { newestBaseline: newest },
     );
     return {
       folder: shown(workspace.root, target),
       pages: result.pages,
       exportedElements: [...result.exported],
       removed: result.removed,
-      problems: [...result.problems],
+      problems: [...problems, ...result.problems],
     };
   },
 });

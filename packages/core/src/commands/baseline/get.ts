@@ -244,19 +244,21 @@ const shownBaseline = async (
 };
 
 /**
- * `baseline.get` of `baseline` without rows: its counts as the command gives them, for the start page of the HTML
+ * `baseline.get` of `baseline` without rows: its counts and warnings as the command gives them, for the start page of the HTML
  * export (SR-233 AK3).
  */
 export const baselineCounts = async (
   ctx: CommandContext,
   baseline: Baseline,
-): Promise<Pick<CommandOutput<typeof command>, "counts" | "selectionKnown">> => {
-  const { counts, selectionKnown } = await shownBaseline(ctx, await selectedOf(ctx, baseline), {
+): Promise<
+  Pick<CommandOutput<typeof command>, "counts" | "selectionKnown"> & { readonly problems: readonly Problem[] }
+> => {
+  const { counts, selectionKnown, problems } = await shownBaseline(ctx, await selectedOf(ctx, baseline), {
     limit: 0,
     offset: 0,
     withEvidence: false,
   });
-  return { counts, selectionKnown };
+  return { counts, selectionKnown, problems: problems ?? [] };
 };
 
 export default defineCommand({

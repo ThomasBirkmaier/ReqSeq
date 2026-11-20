@@ -330,7 +330,8 @@ const hintCounts = async (workspace: Workspace): Promise<ReadonlyMap<string, num
   const { hints } = await listHints(workspace, { limit: Number.MAX_SAFE_INTEGER, offset: 0 });
   const counts = new Map<string, number>();
   for (const hint of hints) {
-    const key = hintKey(String(hint.elementId), hint.repository);
+    // A hint on an evidence record names the element's own repository apart from the record's (`problemElement`).
+    const key = hintKey(String(hint.elementId), hint.elementRepository ?? hint.repository);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
@@ -418,7 +419,7 @@ const siteOf = async (
       label: "Packages",
       links: [...packages.keys()].map((entry) => ({
         path: elementPage(entry.element.id),
-        label: entry.element.title === "" ? entry.element.shortId : entry.element.title,
+        label: packageLabel(entry),
       })),
     },
   ];

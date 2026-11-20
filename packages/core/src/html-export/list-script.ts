@@ -31,6 +31,7 @@ interface Node {
   addEventListener: (type: string, listener: (event: { readonly target: unknown }) => void) => void;
   cloneNode: (deep: boolean) => Node;
   replaceChildren: (...nodes: Node[]) => void;
+  focus: () => void;
 }
 interface Browser {
   readonly document: {
@@ -206,7 +207,7 @@ export function listScript(): void {
     };
 
     search.addEventListener("input", () => {
-      state.q = search.value.normalize("NFC").toLowerCase();
+      state.q = search.value.trim().normalize("NFC").toLowerCase();
       draw();
     });
     box.addEventListener("change", (event) => {
@@ -220,6 +221,12 @@ export function listScript(): void {
           filter.chosen.delete(value);
         }
         draw();
+        // The redraw replaced the box just toggled: focus its new one, which stays unless no row has its value.
+        for (const input of box.querySelectorAll(
+          `[data-filter="${String(filter.f)}"][data-value="${String(value)}"]`,
+        )) {
+          input.focus();
+        }
       } else if (target.dataset["group"] !== undefined) {
         setGroup(Number(target.dataset["group"]));
         draw();

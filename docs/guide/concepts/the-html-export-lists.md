@@ -5,11 +5,11 @@ sidebar:
   order: 4
 ---
 
-Readers of an [HTML export](/concepts/the-html-export/) find elements through the start page, a list per type and the package pages; the navigation of every page names the start page, each list and each package (SR-233 AK4).
+Readers of an [HTML export](/concepts/the-html-export/) find elements through the start page, a list per type and the package pages; the navigation of every page names each package (SR-233 AK4), and also the start page and each list.
 
 ## Start page
 
-The start page `index.html` carries the name of the workspace. It names the commit, the date of the export and the ReqSeq version, and says that the export is incomplete when a repository of the workspace is not on this computer (SR-006 AK2). Below follow:
+The start page `index.html` carries the name of the workspace. It names the commit, the date of the export and the ReqSeq version, and says that the export is incomplete when a repository of the workspace is not on this machine (SR-006 AK2). Below follow:
 
 - the verification degree in the core, with the number of requirements per verification status;
 - the requirements whose verification status in the core is failed, outdated or open;
@@ -21,9 +21,9 @@ The start page `index.html` carries the name of the workspace. It names the comm
 
 Each type with an element that has a page gets a list, `lists/<type key>.html`, except the types with the meaning package or variant. A row names the identifier (else the short ID) with a link to the page, the title, the status, the packages, for a requirement the verification status in the core, and the number of open hints. Elements with an invalid status are in no list (SR-233 AK1, SR-231 AK1).
 
-Above the table, a search field keeps the rows whose identifier, short ID or title holds the text, ignoring case. Filters by status, package, verification status and each property with fixed values offer their values with the number of rows each would leave; several values of one filter match any of them, several filters all of them. A click on a column head sorts by it, again for descending, in the order of `element.list` (SR-075 AK1); "Group" groups the rows by one filter, and a row with several packages stands in each of their groups (SR-233 AK1).
+Above the table, a search field keeps the rows whose identifier, short ID or title holds the text, ignoring case. Filters by status, package, verification status and each property with fixed values offer their values, each with the number of rows that have it under the search and the other filters; several values of one filter match any of them, several filters all of them. A click on a column head sorts by it, again for descending, in the order of SR-075 AK1; the packages sort by the title of the first, and rows without a value stay last. "Group" groups the rows by one filter (SR-233 AK1); a row with several packages stands in each of their groups.
 
-Search, filters, sorting and grouping need JavaScript; without it the list stands there whole as a table (SR-233 AK5).
+Search, filters and sorting need JavaScript, and so does grouping; without it the list stands there whole as a table (SR-233 AK5).
 
 ## Package pages
 

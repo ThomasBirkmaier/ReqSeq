@@ -76,7 +76,7 @@ describe("list script (SR-233 AK1)", () => {
     expect(rows()).toEqual(["SR-1 Alpha"]);
     expect(one(".rq-list-count").textContent).toBe("1 of 3 elements");
     expect(one(".rq-clear").hidden).toBe(false);
-    search("sr-");
+    search(" sr- ");
     expect(one(".rq-list-count").textContent).toBe("3 elements");
     search("none");
     expect(rows()).toEqual([]);
@@ -84,12 +84,14 @@ describe("list script (SR-233 AK1)", () => {
   });
 
   it("filters with or within a filter and and between filters, each value with its number of rows", () => {
-    const { one, rows, toggle, values, box } = page();
+    const { window, one, rows, toggle, values, box } = page();
     // A value without rows is not offered: no row is without status.
     expect(values(0)).toEqual(["draft2", "approved1"]);
     expect(values(1)).toEqual(["Display2", "Sensor1", "–1"]);
     toggle('[data-filter="0"][data-value="1"]');
     expect(rows()).toEqual(["SR-2 Beta"]);
+    // The redrawn box keeps the focus, for the next value by keyboard.
+    expect(window.document.activeElement).toBe(box.querySelector('[data-filter="0"][data-value="1"]'));
     expect(one('[data-chip="0"] summary').textContent).toBe("Status 1");
     expect(one('[data-chip="0"]').classList.contains("rq-on")).toBe(true);
     // The numbers of the other filter count the rows this filter leaves.
