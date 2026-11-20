@@ -134,6 +134,18 @@ const plural = (count: number, noun: string): string => `${String(count)} ${noun
 const lockedBy = (uses: number | undefined): string | undefined =>
   uses === undefined || uses === 0 ? undefined : `locked: ${plural(uses, "element")}`;
 
+/** The number of uses of the definition `key` in a list of `metamodel.get uses`; none for a key it has not. */
+const usesOf = (list: readonly { readonly key: string; readonly count: number }[], key: unknown) =>
+  list.find((entry) => entry.key === key)?.count;
+
+/** The numbers of uses of the fixed values of the property `key`, by choice key. */
+const valueUses = (metamodel: Metamodel, key: string): Readonly<Record<string, number>> =>
+  Object.fromEntries(
+    metamodel.uses.values
+      .filter((entry) => entry.property === key)
+      .map((entry) => [entry.value, entry.count]),
+  );
+
 const YES_NO: readonly Hit[] = [
   { name: "no", given: { value: false, label: "no" } },
   { name: "yes", given: { value: true, label: "yes" } },
@@ -457,7 +469,7 @@ const flows = (command: CommandListing): Flow | undefined => {
       return {
         steps: (metamodel, values) => {
           const type = typeOf(metamodel, values["type"]);
-          const locked = lockedBy(metamodel.uses.types[String(values["type"])]);
+          const locked = lockedBy(usesOf(metamodel.uses.types, values["type"]));
           return [
             { id: "type", label: "Type", ask: { kind: "hits", hits: typeHits(metamodel) } },
             ...changeSteps(
@@ -575,7 +587,7 @@ const flows = (command: CommandListing): Flow | undefined => {
         steps: (metamodel, values) => {
           const property = propertyOf(metamodel, values["property"]);
           const key = String(values["property"]);
-          const locked = lockedBy(metamodel.uses.properties[key]);
+          const locked = lockedBy(usesOf(metamodel.uses.properties, key));
           const fields: Field[] = [
             textField(command, "name", "Name", property?.name),
             textField(command, "description", "Description", property?.description),
@@ -616,7 +628,7 @@ const flows = (command: CommandListing): Flow | undefined => {
                 { id: "required", label: "Required", ask: { kind: "hits", hits: YES_NO } },
               ],
             },
-            ...choiceFields(property, metamodel.uses.values[key] ?? {}, values),
+            ...choiceFields(property, valueUses(metamodel, key), values),
           ];
           return [
             {
@@ -1257,7 +1269,7 @@ const EMPTY: Metamodel = {
   relationKinds: {},
   files: [],
   problems: [],
-  uses: { types: {}, properties: {}, values: {}, relations: {}, statuses: {} },
+  uses: { types: [], properties: [], values: [], relations: [], statuses: [] },
 };
 
 /**

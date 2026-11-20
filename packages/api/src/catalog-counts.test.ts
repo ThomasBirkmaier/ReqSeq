@@ -214,6 +214,7 @@ const READS: readonly { options: FixtureOptions; root?: string; command: string;
   { options: GRAPH, command: "evidence.withoutPassedTest", input: { limit: 1 } },
   { options: GRAPH, command: "trace.matrix", input: { limit: 1 } },
   { options: GRAPH, command: "tool.info", input: {} },
+  { options: GRAPH, command: "metamodel.get", input: {} },
   { options: GRAPH, command: "workspace.check", input: {} },
   { options: GROUP, command: "element.list", input: { group: "package", limit: 1 } },
   { options: GROUP, command: "element.search", input: { query: "wind", group: "package", limit: 1 } },

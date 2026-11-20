@@ -127,6 +127,7 @@ const CASES: readonly {
   { options: GRAPH, command: "trace.graph", input: { ref: "N-00a001" } },
   { options: GRAPH, command: "trace.matrix", input: { limit: 1 } },
   { options: GRAPH, command: "tool.info", input: {} },
+  { options: GRAPH, command: "metamodel.get", input: {} },
   {
     options: GRAPH,
     command: "trace.related",

@@ -197,6 +197,40 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-224/AK-h9kx]",
+    name: "a selection by a number of a command's output: the elements of every type a status counts",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      selection: {
+        output: {
+          command: "metamodel.get",
+          input: {},
+          count: { field: "uses.statuses[].count", key: [{ key: "draft" }] },
+        },
+      },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements, total } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[]; total: number } }
+      ).output;
+      expect([elements.map((e) => e.shortId).sort(), total]).toEqual([
+        [
+          "N-0000a1",
+          "PKG-0000d1",
+          "SR-0000b1",
+          "SR-0000b2",
+          "SR-0000b3",
+          "SR-0000e1",
+          "VAR-0000c1",
+          "VAR-0000c2",
+        ],
+        8,
+      ]);
+    },
+  },
+  {
     name: "a selection by the output of a command that lists no elements: refused, nothing run (#1873)",
     fixture: EXPORT,
     root: "system",

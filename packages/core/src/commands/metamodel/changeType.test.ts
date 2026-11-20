@@ -12,6 +12,7 @@ import {
   failure,
   openSmall,
   run,
+  useCounts,
 } from "../metamodel-commands.test-helper.js";
 
 type Changed = CommandOutput<"metamodel.changeType">;
@@ -204,16 +205,32 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
     );
     const meta = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
     expect(meta.uses).toEqual({
-      types: { hazard: 1, risk: 1, note: 1 },
+      types: [
+        { key: "hazard", count: 1 },
+        { key: "risk", count: 1 },
+        { key: "note", count: 1 },
+      ],
       // A property counts on every element whose file holds its key, of any type, also empty (AK8):
       // the system requirement of the fixture holds a title, the element of type gone a severity.
-      properties: { title: 5, severity: 3, likelihood: 1, remark: 1 },
+      properties: [
+        { key: "title", count: 5 },
+        { key: "severity", count: 3 },
+        { key: "likelihood", count: 1 },
+        { key: "remark", count: 1 },
+      ],
       // A fixed value counts on any element with it, also one of a type the metamodel does not have.
-      values: { severity: { low: 1, high: 1 } },
-      relations: { about: 1 },
+      values: [
+        { property: "severity", value: "low", count: 1 },
+        { property: "severity", value: "high", count: 1 },
+      ],
+      relations: [{ key: "about", count: 1 }],
       // A status counts on every element with it, of any type (AK8): also the note, which does not
       // have open, and the drafts of type gone and of the fixture's system requirement.
-      statuses: { draft: 3, open: 2, noted: 0 },
+      statuses: [
+        { key: "draft", count: 3 },
+        { key: "open", count: 2 },
+        { key: "noted", count: 0 },
+      ],
     });
   });
 
@@ -227,7 +244,7 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       ),
     );
     const meta = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
-    expect(meta.uses.properties["severity"]).toBe(3);
+    expect(useCounts(meta.uses.properties)["severity"]).toBe(3);
     const refused = await failure(workspace, "metamodel.changeProperty", {
       property: "severity",
       many: true,
@@ -243,7 +260,7 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       elements([1, "hazard", { status: "noted" }], [2, "gone", { status: "noted" }]),
     );
     const before = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
-    expect(before.uses.statuses["noted"]).toBe(2);
+    expect(useCounts(before.uses.statuses)["noted"]).toBe(2);
     // The note was the last type with noted; the definition stays, as both elements have it (SR-240 AK3).
     const removed = await run<CommandOutput<"metamodel.removeStatus">>(workspace, "metamodel.removeStatus", {
       type: "note",
@@ -252,7 +269,7 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
     expect(removed.kept).toMatchObject([{ kind: "status", key: "noted", count: 2 }]);
     const after = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
     expect(after.statuses.map((s) => s.key)).toContain("noted");
-    expect(after.uses.statuses["noted"]).toBe(2);
+    expect(useCounts(after.uses.statuses)["noted"]).toBe(2);
   });
 });
 

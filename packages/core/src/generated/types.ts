@@ -2577,18 +2577,45 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
-  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A property and a status count on elements of any type (SR-236 AK8), so a definition that stays after its last type lost it shows the number of elements that keep it (SR-240 AK3, SR-238 AK5). A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read (SR-236 AK7). Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0. */
+  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the element files on this machine that can be read; every definition is listed, 0 when unused. Each number is a number of elements: `element.list` with `selection.output` naming the number's field and entry gives the elements it counts (SR-224 AK4). A property and a status count on elements of any type (SR-236 AK8), so a definition that stays after its last type lost it shows the number of elements that keep it (SR-240 AK3, SR-238 AK5). A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read (SR-236 AK7). Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0. */
   readonly uses: {
-    /** Type key -> elements of the type. */
-    readonly types: Readonly<Record<string, number>>;
-    /** Property key -> elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value (SR-236 AK8): the use that locks a change of its value kind or several values. */
-    readonly properties: Readonly<Record<string, number>>;
-    /** Key of a property with choices -> choice key -> elements of any type whose value of the property is the choice or holds it (SR-236 AK7). */
-    readonly values: Readonly<Record<string, Readonly<Record<string, number>>>>;
-    /** Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list. */
-    readonly relations: Readonly<Record<string, number>>;
-    /** Status key -> elements of any type, also of a type the metamodel does not have, with that status (SR-236 AK8). */
-    readonly statuses: Readonly<Record<string, number>>;
+    /** Each type of `types`, in metamodel order, with the number of elements of the type. */
+    readonly types: readonly {
+      /** Key of the type. */
+      readonly key: Key;
+      /** Elements of the type. */
+      readonly count: number;
+    }[];
+    /** Each property of `properties`, in metamodel order, with the number of elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value (SR-236 AK8): the use that locks a change of its value kind or several values. */
+    readonly properties: readonly {
+      /** Key of the property. */
+      readonly key: Key;
+      /** Elements whose file holds the key of the property. */
+      readonly count: number;
+    }[];
+    /** Each fixed value of each property with choices, in metamodel order, with the number of elements of any type whose value of the property is the choice or holds it (SR-236 AK7). */
+    readonly values: readonly {
+      /** Key of the property. */
+      readonly property: Key;
+      /** Key of the choice. */
+      readonly value: Key;
+      /** Elements whose value of the property is the choice or holds it. */
+      readonly count: number;
+    }[];
+    /** Each relation kind of `relations`, in metamodel order, with the number of elements whose file holds its key: a relation of the kind or an empty list. */
+    readonly relations: readonly {
+      /** Key of the relation kind. */
+      readonly key: Key;
+      /** Elements whose file holds the key of the relation kind. */
+      readonly count: number;
+    }[];
+    /** Each status of `statuses`, in metamodel order, with the number of elements of any type, also of a type the metamodel does not have, with that status (SR-236 AK8). */
+    readonly statuses: readonly {
+      /** Key of the status. */
+      readonly key: Key;
+      /** Elements with the status. */
+      readonly count: number;
+    }[];
   };
 }
 
