@@ -12,15 +12,27 @@ import { resultLines } from "./result.js";
  * the details while "Show details" is on for it (SR-223 AK2) and its open groups of problems (SR-223 AK3).
  */
 export const linesOf = (
-  buffer: Pick<ResultBuffer, "command" | "output" | "details" | "unfolded">,
+  buffer: Pick<ResultBuffer, "command" | "output" | "details" | "unfolded"> &
+    Partial<Pick<ResultBuffer, "input" | "name" | "written">>,
   fields: readonly OutputField[] = [],
 ): ResultLine[] =>
-  (buffer.command === "trace.chain" ? chainLines : resultLines)(
-    buffer.output,
-    fields,
-    buffer.details === true,
-    buffer.unfolded,
-  );
+  buffer.command === "trace.chain"
+    ? chainLines(buffer.output, fields, buffer.details === true, buffer.unfolded)
+    : resultLines(
+        buffer.output,
+        fields,
+        buffer.details === true,
+        buffer.unfolded,
+        // The call a number of elements opens again as a list (SR-223 AK5).
+        buffer.input === undefined
+          ? undefined
+          : {
+              command: buffer.command,
+              input: buffer.input,
+              name: buffer.name ?? buffer.command,
+              ...(buffer.written === true ? { written: true } : {}),
+            },
+      );
 
 /** The whole output as the command line gives it with `--json` (`null` for none), with its line break. */
 export const outputJson = (output: unknown): string => `${JSON.stringify(output ?? null, null, 2)}\n`;

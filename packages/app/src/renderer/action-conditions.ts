@@ -1,6 +1,6 @@
 // Where the app's actions are available: the kind of the shown buffer and what it holds (`actions.ts` and its group modules).
-import type { MetamodelBuffer, ResultBuffer } from "./buffers.js";
-import { onlyOverview } from "./buffers.js";
+import type { ListBuffer, MetamodelBuffer, ResultBuffer } from "./buffers.js";
+import { answerOf, onlyOverview } from "./buffers.js";
 import type { ActionContext } from "./action-types.js";
 
 export const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
@@ -18,6 +18,11 @@ export const isOverview = (context: ActionContext): boolean => context.buffers[0
 export const shownResult = (context: ActionContext): ResultBuffer | undefined => {
   const shown = context.buffers[0];
   return shown?.kind === "result" && shown.output !== undefined ? shown : undefined;
+};
+/** The shown list of the answer of a command's output (SR-223 AK6, `answerOf`). */
+export const shownAnswerList = (context: ActionContext): ListBuffer | undefined => {
+  const shown = context.buffers[0];
+  return shown?.kind === "list" && answerOf(shown) !== undefined ? shown : undefined;
 };
 export const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;

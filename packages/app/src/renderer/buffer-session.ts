@@ -64,6 +64,8 @@ export type StoredBuffer =
       readonly steps: readonly FilterStep[];
       readonly sort?: readonly FilterSortKeyWithDefaults[];
       readonly matrix?: true;
+      /** "Show details" is on for a list of the answer of an output (SR-223 AK6, AK2). */
+      readonly details?: true;
     }
   /** The buffer of a perspective (SR-214 AK7): only its name, since it comes back as saved. */
   | { readonly kind: "perspective"; readonly name: string }
@@ -142,6 +144,8 @@ const storedSteps = (steps: readonly FilterStep[]): FilterStep[] =>
     label: step.label,
     ...(step.heading === undefined ? {} : { heading: step.heading }),
     selection: step.selection,
+    // A list from the output of a command stays one: it is saved neither as a perspective nor as a filter.
+    ...(step.output === true ? { output: true as const } : {}),
   }));
 
 /** What is stored of an element buffer: the element, the sort and the filter steps of a package page's elements, read-only. */
@@ -185,6 +189,7 @@ const storedList = (buffer: ListBuffer): StoredBuffer => {
     steps: storedSteps(kept.steps),
     ...(kept.sort === undefined ? {} : { sort: kept.sort }),
     ...(buffer.matrix === true ? { matrix: true as const } : {}),
+    ...(buffer.details === true ? { details: true as const } : {}),
   };
 };
 
@@ -257,6 +262,13 @@ const isSort = (value: unknown): value is readonly FilterSortKeyWithDefaults[] =
     (key) => isObject(key) && isText(key["by"]) && (key["order"] === "asc" || key["order"] === "desc"),
   );
 
+/** The `selection.output` of a list from the output of a command (SR-223 AK5, AK6): its command and input. */
+const isOutput = (value: unknown): boolean =>
+  isObject(value) &&
+  isText(value["command"]) &&
+  isObject(value["input"]) &&
+  (value["count"] === undefined || (isObject(value["count"]) && isText(value["count"]["field"])));
+
 const isStep = (value: unknown): value is FilterStep =>
   isObject(value) &&
   isText(value["label"]) &&
@@ -264,6 +276,7 @@ const isStep = (value: unknown): value is FilterStep =>
   isObject(value["selection"]) &&
   (value["selection"]["where"] === undefined || isObject(value["selection"]["where"])) &&
   (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"])) &&
+  (value["selection"]["output"] === undefined || isOutput(value["selection"]["output"])) &&
   (value["output"] === undefined || value["output"] === true);
 
 const isSteps = (value: unknown): value is readonly FilterStep[] =>
@@ -302,7 +315,13 @@ const parseList = (value: Fields): StoredBuffer | undefined => {
   const sort = optional("sort", value["sort"], isSort);
   const steps = value["steps"];
   return Array.isArray(steps) && steps.every(isStep) && sort !== undefined
-    ? { kind: "list", steps, ...sort, ...(value["matrix"] === true ? { matrix: true as const } : {}) }
+    ? {
+        kind: "list",
+        steps,
+        ...sort,
+        ...(value["matrix"] === true ? { matrix: true as const } : {}),
+        ...(value["details"] === true ? { details: true as const } : {}),
+      }
     : undefined;
 };
 
@@ -557,6 +576,12 @@ const rebuildElement = (
   };
 };
 
+/** A stored list again, with "Show details" when it was on (SR-223 AK6). */
+const restoredList = (stored: Extract<StoredBuffer, { readonly kind: "list" }>): ListBuffer => {
+  const list = filteredList(stored.steps, stored.sort, stored.matrix === true);
+  return stored.details === true ? { ...list, details: true } : list;
+};
+
 /** The buffer `stored` rebuilds; undefined when it cannot be shown again. */
 const rebuild = (
   stored: StoredBuffer,
@@ -568,7 +593,7 @@ const rebuild = (
     case "overview":
       return overviewBuffer();
     case "list":
-      return filteredList(stored.steps, stored.sort, stored.matrix === true);
+      return restoredList(stored);
     case "perspective":
       return perspectives.get(fold(stored.name));
     case "search":
