@@ -30,8 +30,13 @@ scenariosOf("metamodel.changeProperty", [
     input: { property: "remark", kind: "number" },
     expect: "error",
     check: (results) => {
-      for (const [access, { changed }] of Object.entries(results)) {
+      for (const [access, { outcome, changed }] of Object.entries(results)) {
         expect(changed, access).toEqual([]);
+        // file.faulty, not the use of the remark the hazard holds: the unreadable file is named first.
+        expect((outcome as { error: { code: string; details: unknown } }).error, access).toMatchObject({
+          code: "file.faulty",
+          details: { count: 1, files: [{ file: "elements/NO-broken.md" }] },
+        });
       }
     },
   },
