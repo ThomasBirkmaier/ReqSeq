@@ -50,7 +50,7 @@ Comment on the issue the PR closes with the merge commit and, for an SR, the tes
 
 ## Release
 
-A release x.y.z needs only steps 3 and 4; a release x.y with its milestone needs all four.
+A release x.y.z needs only steps 3 and 4, and its milestone, if one is planned, has no open issue; a release x.y with its milestone needs all four.
 
 1. The milestone's issues are closed, and `pnpm trace-check --require <the SRs its issues complete> --report trace-<milestone>.md` passes.
 2. Prepare the acceptance: what to try in the app or CLI, the `verification/` records with method Inspektion or Demonstration, and the known limitations. Count the keys three tasks take in the app and compare them with the last milestone: (1) open a given requirement, (2) all requirements of a need, (3) all requirements without a passed test; note the numbers (#362).
