@@ -31,6 +31,9 @@ const contentOf = (page: string): string =>
 /** The export date in the footer, which differs between calls only across midnight. */
 const DATE = [/exported \d{4}-\d{2}-\d{2}/gu];
 const GONE = "9d9d9d9d-1111-4222-8333-000000000002";
+const NEED = "aaaa1111-1111-4111-8111-00000000a001";
+const CHILD = "aaaa1111-1111-4111-8111-00000000c0de";
+const GRANDCHILD = "aaaa1111-1111-4111-8111-00000000c0df";
 
 scenariosOf("html.export", [
   {
@@ -379,6 +382,48 @@ scenariosOf("html.export", [
         expect(page).toContain("<p>See far (UNKNOWN-1a2b3c, repository vault, not accessible).</p>");
         expect(page).toContain(
           "<p>Given SR-1a2b3c (UNKNOWN-1a2b3c, repository vault, not accessible), then it shows.</p>",
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-r9s3]",
+    name: "the neighbourhood shows parents, children and incoming relations, each row a link to its element's page",
+    fixture: withFront(`derives-from:\n  - { id: ${NEED} }\n`, "Text.", {
+      "needs/N-1.md": `---\nid: ${NEED}\ntype: need\nstatus: approved\ntitle: See the wind\n---\n\nNeed.\n`,
+      "requirements/SR-1.md": `---\nid: ${CHILD}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nderives-from:\n  - { id: ${WIND} }\nbased-on:\n  - { id: ${WIND} }\n---\n\nGusts.\n`,
+    }),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[PAGE]));
+        const row = (id: string, shown: string, title: string, status: string): string =>
+          `<li><a href="../elements/${id}.html"><span>${shown}</span><span>${title}</span><span>${status}</span></a></li>`;
+        expect(page).toContain(
+          `<h3>Parents</h3><ul class="rq-nb">${row(NEED, "N-00a001", "See the wind", "approved")}</ul>` +
+            `<h3>Children</h3><ul class="rq-nb">${row(CHILD, "SR-00c0de", "Show gusts", "draft")}</ul>` +
+            `<h3>← Basis for</h3><ul class="rq-nb">${row(CHILD, "SR-00c0de", "Show gusts", "draft")}</ul>`,
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-kycg]",
+    name: "a child with an invalid status stands in the neighbourhood without a link, its own child after it",
+    fixture: withFront("", "Text.", {
+      "requirements/SR-1.md": `---\nid: ${CHILD}\ntype: system-requirement\nstatus: obsolete\ntitle: Show gusts\nderives-from:\n  - { id: ${WIND} }\n---\n\nGusts.\n`,
+      "requirements/SR-2.md": `---\nid: ${GRANDCHILD}\ntype: system-requirement\nstatus: draft\ntitle: Show peaks\nderives-from:\n  - { id: ${CHILD} }\n---\n\nPeaks.\n`,
+    }),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(contentOf(String(files[PAGE]))).toContain(
+          '<h3>Children</h3><ul class="rq-nb"><li><span><span>SR-00c0de</span><span>Show gusts</span><span>obsolete</span></span></li>' +
+            `<li style="--rq-level:1"><a href="../elements/${GRANDCHILD}.html"><span>SR-00c0df</span><span>Show peaks</span><span>draft</span></a></li></ul>`,
         );
       }
     },
