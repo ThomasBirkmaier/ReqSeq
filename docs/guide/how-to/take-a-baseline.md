@@ -75,7 +75,7 @@ A baseline needs committed files, so in your repository, after a commit:
 3. `reqseq baseline list` lists them with date and element count.
 4. `reqseq baseline get "Review 1"` lists each element with its state, its version in the baseline and, when it differs, the current one; `--with-evidence` adds the verification and validation status at the baseline (see the warning above).
 5. `reqseq baseline compare "Review 1" SR-c67baa` gives the commit of the baseline, the current one (`null` while uncommitted), and the command, such as `git -C . diff <from> <to> -- system-requirement/SR-…md`. A change to a relation such as `derives-from` does not make an element `changed` in `baseline get`; this diff shows it.
-6. `reqseq baseline changes` compares with the newest baseline (the latest date and time; `reqseq baseline changes "Review 1"` takes that one): the numbers of `baseline get`, the open hints of `hint list`, and under `next:` `hint confirm` when a hint can be confirmed, `baseline compare` when an element changed, and `baseline prepare`.
+6. `reqseq baseline changes` compares with the newest baseline (the latest date and time; `reqseq baseline changes --baseline "Review 1"` takes that one): the numbers of `baseline get`, the open hints of `hint list`, and under `next:` `hint confirm` when a hint can be confirmed, `baseline compare` when an element changed, and `baseline prepare`.
 7. `reqseq data export --baseline "Review 1"` gives the elements the baseline lists, as they are now.
 
 Two baselines are two files, so `git diff --no-index baselines/Review-1.yaml baselines/Review-2.yaml` shows which elements and versions differ.

@@ -16,7 +16,7 @@
 import path from "node:path";
 import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, commandErrorOrThrow, defineCommand } from "../../catalog.js";
-import { newestBaselines } from "../../baselines/index.js";
+import { foldName, newestBaselines } from "../../baselines/index.js";
 import type { BaselineSince, NextStep } from "../../generated/types.js";
 import { CONFIRMABLE_CODES } from "../../hints/index.js";
 import { namesField } from "../../model/index.js";
@@ -45,9 +45,6 @@ export const ranAs = async <T>(name: string, run: () => Promise<T>): Promise<T> 
   }
 };
 
-/** Names that fold to the same text name one baseline (as baseline.get finds it by name). */
-const fold = (name: string): string => name.normalize("NFC").toLowerCase();
-
 /**
  * How baseline.get is to find the baseline of `given` (see the file comment): the given text, the name of
  * the newest baseline or its file name, or undefined without a baseline. With the problems of baseline.list.
@@ -64,7 +61,7 @@ export const baselineRef = async (
   if (newest === undefined) {
     return { ref: undefined, list };
   }
-  const shared = list.baselines.filter((b) => fold(b.name) === fold(newest.name)).length > 1;
+  const shared = list.baselines.filter((b) => foldName(b.name) === foldName(newest.name)).length > 1;
   return { ref: shared ? path.posix.basename(newest.file) : newest.name, list };
 };
 

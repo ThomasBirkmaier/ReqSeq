@@ -240,18 +240,13 @@ const innerError = (error: CommandError): CommandError => {
 };
 
 /**
- * Whether an output schema requires the field `next`, a list of next steps (`common.schema.json#/$defs/nextStep`):
- * only then is `next` of an output read.
+ * Whether an output schema has the field `next`, a list of next steps (`common.schema.json#/$defs/nextStep`),
+ * required or not: only then is `next` of an output read.
  */
 const hasNextSteps = (output: unknown): boolean => {
-  const schema = output as { required?: unknown; properties?: { next?: { items?: { $ref?: unknown } } } };
+  const schema = output as { properties?: { next?: { items?: { $ref?: unknown } } } };
   const ref = schema.properties?.next?.items?.$ref;
-  return (
-    typeof ref === "string" &&
-    ref.endsWith("#/$defs/nextStep") &&
-    Array.isArray(schema.required) &&
-    schema.required.includes("next")
-  );
+  return typeof ref === "string" && ref.endsWith("#/$defs/nextStep");
 };
 
 /**
@@ -264,8 +259,11 @@ const withRunnableSteps = async (
   result: unknown,
   refused: (command: string) => boolean,
 ): Promise<unknown> => {
-  // `hasNextSteps`: the output has `next`.
-  const steps = (result as { readonly next: readonly NextStep[] }).next;
+  // `hasNextSteps`: the output may have `next`; an output without it is left as it is.
+  const steps = (result as { readonly next?: readonly NextStep[] }).next;
+  if (steps === undefined) {
+    return result;
+  }
   const here = (step: NextStep): boolean =>
     step.workspace === undefined || path.resolve(step.workspace) === path.resolve(workspace.root);
   const local = steps.filter(here);
