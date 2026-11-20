@@ -107,6 +107,36 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(text("Minibuffer")).toBe("test.none runs in the workspace /elsewhere: open it first");
   });
 
+  it("says a next step cannot run in its own workspace while that is read-only (SR-226 AK5)", async () => {
+    const fake = fakeBridge({
+      ...workspace(),
+      "workspace.status": () => ({ name: "Station", readOnly: true }),
+      "baseline.list": () => ({
+        baselines: [],
+        next: [{ command: "trace.affected", input: { ref: "uuid-2" }, open: [], workspace: "/w" }],
+      }),
+    });
+    fake.recentWorkspaces.mockResolvedValue([{ root: "/w", state: "open" }]);
+    const bridge = {
+      ...fake.bridge,
+      commands: () =>
+        Promise.resolve([
+          listing("baseline.list"),
+          listing("trace.affected", { effect: "write", whileReadOnly: "refuse" }),
+        ] as never),
+    };
+    await render(bridge);
+    await runCommand("List baselines");
+    const step = container.querySelector(".line.step");
+    if (step === null) {
+      throw new Error("No step");
+    }
+    await click(step);
+    await flush();
+    expect(text("Minibuffer")).toBe("Show affected elements cannot run here");
+    expect(calls(fake.invoke, "trace.affected")).toEqual([]);
+  });
+
   it("[SR-223/AK-gvv1] keeps the shown buffer after a write command and says its answer in the command line; a click on it opens the output, and the next message is no link", async () => {
     let written = 0;
     const fake = fakeBridge({

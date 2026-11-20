@@ -9,6 +9,7 @@ import type { ListBuffer } from "./buffers.js";
 import { answerOf } from "./buffers.js";
 import type { OutputField, ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
+import { NEXT_FIELD } from "./next-steps.js";
 
 type Rec = Readonly<Record<string, unknown>>;
 
@@ -69,8 +70,9 @@ export const outputParts = (
   if (origin === undefined || field === undefined || !isRecord(output)) {
     return { lines: [], details: new Map() };
   }
-  // The answer heads the list as its first step; its elements are the rows.
-  const { [field]: elements, answer: _answer, ...rest } = output;
+  // The answer heads the list as its first step; its elements are the rows. Next steps (SR-226 AK5) are lines of
+  // an output page only.
+  const { [field]: elements, answer: _answer, [NEXT_FIELD]: _next, ...rest } = output;
   const lines = resultLines(rest, fields, details, [], {
     command: origin.command,
     input: origin.input,

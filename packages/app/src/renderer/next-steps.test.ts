@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { CommandListing } from "../shared/protocol.js";
+import type { CommandListing, RecentWorkspaceEntry } from "../shared/protocol.js";
 import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
-import { isStepList, nextStepsOf, stepEntry, stepGiven, stepItemId, stepUnavailable } from "./next-steps.js";
+import {
+  isStepList,
+  nextStepsOf,
+  openRoot,
+  stepEntry,
+  stepGiven,
+  stepItemId,
+  stepUnavailable,
+} from "./next-steps.js";
 
 const listing = (name: string, title: string): CommandListing =>
   ({ name, title, arguments: [], input: { type: "object" } }) as unknown as CommandListing;
@@ -43,12 +51,36 @@ describe("next steps of an output (SR-226 AK5)", () => {
     ]);
   });
 
-  it("says why a step cannot run, with the workspace it runs in where it names one", () => {
-    expect(stepUnavailable({ command: "x", input: {}, open: [] }, "Create element")).toBe(
+  it("says why a step cannot run: open its workspace first only while another one or none is open", () => {
+    const here = { command: "x", input: {}, open: [], workspace: "/w" };
+    expect(stepUnavailable({ command: "x", input: {}, open: [] }, "Create element", "/w")).toBe(
       "Create element cannot run here",
     );
-    expect(stepUnavailable({ command: "x", input: {}, open: [], workspace: "/w" }, "Create element")).toBe(
+    expect(stepUnavailable(here, "Create element", undefined)).toBe(
       "Create element runs in the workspace /w: open it first",
     );
+    expect(stepUnavailable(here, "Create element", "/other")).toBe(
+      "Create element runs in the workspace /w: open it first",
+    );
+    // Its own workspace is open, read-only: no entry runs the write command, and opening it would not help.
+    expect(stepUnavailable(here, "Create element", "/w")).toBe("Create element cannot run here");
+  });
+
+  it("finds the root of the open workspace in the list of recent workspaces", async () => {
+    const list = (entries: readonly RecentWorkspaceEntry[]) => ({
+      name: undefined,
+      list: () => Promise.resolve(entries),
+      open: () => Promise.resolve({ ok: true as const }),
+    });
+    expect(
+      await openRoot(
+        list([
+          { root: "/w", state: "open" },
+          { root: "/v", state: "found" },
+        ]),
+      ),
+    ).toBe("/w");
+    expect(await openRoot(list([{ root: "/v", state: "found" }]))).toBeUndefined();
+    expect(await openRoot(undefined)).toBeUndefined();
   });
 });

@@ -60,7 +60,9 @@ test("[SR-226/AK-sfy2] the next steps of an output are its last lines with the n
   await expect(page.locator(".line").last()).toHaveText(/^Create element/);
   await window.screenshot({ path: path.join(SHOTS, "next-steps-light.png") });
 
-  // Enter on a step runs its command, and the command prompt asks its open inputs.
+  // Enter on a step runs its command, and the command prompt asks its open inputs. The steps of "Create workspace"
+  // give no known inputs; a step with known inputs, which the prompt does not ask again, is shown in
+  // `App-catalog-commands.test.ts` ("runs a next step of an output ... with its known inputs given").
   await page.focus();
   await window.keyboard.press("End");
   await expect(steps.nth(1)).toHaveAttribute("aria-selected", "true");

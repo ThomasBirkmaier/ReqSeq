@@ -2,9 +2,11 @@
 // output page shows as its last lines, each by the name the command prompt gives its command and with its key where
 // it has one (`appCommandEntry`). Choosing one runs that entry of the command prompt with the step's known inputs
 // given (`ActionContext.given`, as the matrix gives them, SR-199), so the prompt asks only the open ones (SR-108
-// AK6). Layout and lookup only: which steps an output names is core's (ADR-0002).
+// AK6). An app action that covers the command (`coveringAction`, such as "Connect AI agent") takes no given inputs:
+// it asks all of its inputs itself. Layout and lookup only: which steps an output names is core's (ADR-0002).
 import type { NextStep } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
+import type { WorkspaceControls } from "./workspaces.js";
 import { appCommandEntry, coveringAction } from "./command-entry.js";
 import type { Prefilled } from "./matrix-menu.js";
 
@@ -59,8 +61,16 @@ export const stepGiven = (step: NextStep): Prefilled[] =>
     label: typeof value === "string" ? value : JSON.stringify(value),
   }));
 
-/** What a choice of a step says when the command prompt has no entry that runs it now. */
-export const stepUnavailable = (step: NextStep, name: string): string =>
-  step.workspace === undefined
+/**
+ * What a choice of a step says when the command prompt has no entry that runs it now: "open it first" only while
+ * the step names a workspace that is not the open one (`open`: the root of the open workspace, undefined while none
+ * is open). In its own workspace, such as a write command in a read-only workspace, the step cannot run here.
+ */
+export const stepUnavailable = (step: NextStep, name: string, open: string | undefined): string =>
+  step.workspace === undefined || step.workspace === open
     ? `${name} cannot run here`
     : `${name} runs in the workspace ${step.workspace}: open it first`;
+
+/** The root of the open workspace, as the list of recent workspaces marks it; undefined while none is open. */
+export const openRoot = async (workspaces: WorkspaceControls | undefined): Promise<string | undefined> =>
+  (await workspaces?.list())?.find((entry) => entry.state === "open")?.root;

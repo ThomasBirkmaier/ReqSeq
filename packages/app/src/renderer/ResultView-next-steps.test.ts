@@ -35,6 +35,10 @@ describe("the lines of the next steps (SR-226 AK5)", () => {
   it("keeps a field `next` that holds no steps among the other lines", () => {
     expect(resultLines({ next: "Paste the setup" }).map((line) => line.kind)).toEqual(["text"]);
   });
+
+  it("shows no line for an empty list of next steps", () => {
+    expect(resultLines({ files: ["a.yaml"], next: [] }).map((line) => line.text)).toEqual(["1", "a.yaml"]);
+  });
 });
 
 describe("the next steps of an output page (SR-226 AK5)", () => {

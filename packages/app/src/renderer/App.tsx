@@ -59,7 +59,7 @@ import type { OpenedMenu } from "./context-menu.js";
 import { openEntries } from "./context-menu.js";
 import { menuContext } from "./entry-menu.js";
 import type { NextStep } from "./next-steps.js";
-import { stepEntry, stepGiven, stepItemId, stepUnavailable } from "./next-steps.js";
+import { openRoot, stepEntry, stepGiven, stepItemId, stepUnavailable } from "./next-steps.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useConnectAgent } from "./use-connect-agent.js";
 import { useCopyNotice } from "./use-copy-notice.js";
@@ -537,7 +537,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       (each) => each.id === stepItemId(step, catalog.current),
     );
     if (item === undefined) {
-      setEcho(stepUnavailable(step, stepEntry(step.command, catalog.current, context.mac).name));
+      const { name } = stepEntry(step.command, catalog.current, context.mac);
+      void openRoot(latest.current.workspaces).then((open) => {
+        setEcho(stepUnavailable(step, name, open));
+      });
     } else {
       item.run();
     }

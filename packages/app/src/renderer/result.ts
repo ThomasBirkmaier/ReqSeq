@@ -34,7 +34,7 @@ import {
 } from "./buffers.js";
 import { isTestCase, testCaseLines } from "./runs.js";
 import type { NextStep } from "./next-steps.js";
-import { NEXT_FIELD, isStepList, nextStepsOf } from "./next-steps.js";
+import { NEXT_FIELD, nextStepsOf } from "./next-steps.js";
 
 /**
  * One line of the result buffer; `open` is the element Enter or a click opens. A pair line opens `open`
@@ -775,9 +775,10 @@ export const resultLines = (
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
     const byPath = new Map(fields.map((field) => [field.path, field]));
-    // The next steps are the last lines (SR-226 AK5), after the rest of the output.
+    // The next steps are the last lines (SR-226 AK5), after the rest of the output; a list `next`, also an empty
+    // one, is never a line of its own.
     const { rest: page } = splitSummary(shown, names);
-    pageLines(isRecord(page) && isStepList(page[NEXT_FIELD]) ? withoutSteps(page) : page, {
+    pageLines(isRecord(page) && Array.isArray(page[NEXT_FIELD]) ? withoutSteps(page) : page, {
       sink,
       names,
       fields: byPath,
