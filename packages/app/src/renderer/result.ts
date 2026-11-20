@@ -8,7 +8,8 @@
 // buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
 // rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
 // `trace.chain` too); an entry of the field the catalog marks as the answer has its other fields below its row
-// (SR-223 AK6), a problem is one line with its element and message (with details its kind and technical
+// (SR-223 AK6), the values the catalog marks as the element's own only with "Show details", after the others
+// (SR-224 AK9), a problem is one line with its element and message (with details its kind and technical
 // values), several problems of one kind and severity are one group line with the title of their kind and their
 // count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
 // test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
@@ -554,7 +555,8 @@ const isAnswer = (fields: Fields, path: string): boolean =>
 
 /**
  * The row of an element record with its status; an entry of the answer of an output page has its other fields below
- * its row, the state of the entry (SR-223 AK6).
+ * its row, the state of the entry (SR-223 AK6). The values the catalog marks as the element's own (`elementValue`,
+ * SR-224 AK9) appear only with "Show details", after all other values of the entry.
  */
 const elementLines = (
   element: Element,
@@ -565,8 +567,16 @@ const elementLines = (
   item: boolean,
 ): void => {
   emit(walk, () => withStatus(elementLine(element, depth), value));
-  if (item && isAnswer(walk.fields, path)) {
-    fieldLines(value, depth + 1, path, walk, ROW_FIELDS);
+  if (!item || !isAnswer(walk.fields, path)) {
+    return;
+  }
+  const own = Object.keys(value).filter(
+    (key) => walk.fields.get(childOf(walk.fields, path, key).path)?.elementValue === true,
+  );
+  fieldLines(value, depth + 1, path, walk, new Set([...ROW_FIELDS, ...own]));
+  if (walk.details && own.length > 0) {
+    const values = Object.fromEntries(own.map((key) => [key, value[key]]));
+    fieldLines(values, depth + 1, path, { ...walk, detail: true });
   }
 };
 

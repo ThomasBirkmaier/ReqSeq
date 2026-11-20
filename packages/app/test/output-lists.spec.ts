@@ -213,7 +213,7 @@ test.describe("lists from outputs", () => {
     await expect(list(window)).not.toContainText("No elements");
   });
 
-  test("[SR-223/AK-qwkc] the evidence status stays an output page: each element's row with its verification status below it, the technical values with Show details", async () => {
+  test("[SR-223/AK-qwkc] the evidence status stays an output page: each element's row with its verification status below it, the element's own values only with Show details", async () => {
     running = await launchApp(await withRecord());
     const { window } = running;
     await run(window, "Show evidence status");
@@ -228,24 +228,34 @@ test.describe("lists from outputs", () => {
       (shown["elements"] as { shortId: string }[]).map((element) => element.shortId),
     );
     // Below the row of a requirement, without Show details: its verification status in the core, outdated by the
-    // record of an older version; the version and the file of the entry are technical.
-    const texts = await page.locator(".line").allTextContents();
-    const from = texts.findIndex((text) => text.startsWith("SR-00b001"));
-    const own = texts.slice(
-      from + 1,
-      texts.findIndex((text, at) => at > from && text.startsWith("SR-00b002")),
-    );
-    expect(own).toEqual(expect.arrayContaining(["Verification statusoutdated", "Typesystem-requirement"]));
-    expect(own.some((text) => text.startsWith("Version") || text.startsWith("File"))).toBe(false);
-    await page.locator(".line", { hasText: "Verification statusoutdated" }).scrollIntoViewIfNeeded();
-    await window.screenshot({ path: path.join(SHOTS, "sr-223-evidence-status-light.png") });
+    // record of an older version; the element's own values (type, repository, properties, relations: SR-224 AK9)
+    // and the technical ones are not there.
+    const below = async (): Promise<string[]> => {
+      const texts = await page.locator(".line").allTextContents();
+      const from = texts.findIndex((text) => text.startsWith("SR-00b001"));
+      return texts.slice(
+        from + 1,
+        texts.findIndex((text, at) => at > from && text.startsWith("SR-00b002")),
+      );
+    };
+    const own = await below();
+    expect(own).toContain("Verification statusoutdated");
+    const element = ["Type", "Repository", "Properties", "Relations", "Version", "File"];
+    expect(own.filter((text) => element.some((label) => text.startsWith(label)))).toEqual([]);
     await expect(page.locator(".line.detail")).toHaveCount(0);
     // The total is in the modeline (#276).
     await expect(modeline(window)).toContainText(String(shown["total"]));
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-evidence-status-light.png") });
+    // Show details: the element's own values after the entry's verification status; the same command hides them.
     await showDetails(window);
-    await expect(page.locator(".line.detail", { hasText: "File" }).first()).toBeVisible();
+    await expect(page.locator(".line.detail", { hasText: "Type" }).first()).toBeVisible();
+    const detailed = await below();
+    const at = (label: string): number => detailed.findIndex((text) => text.startsWith(label));
+    expect(at("Typesystem-requirement")).toBeGreaterThan(at("Verification statusoutdated"));
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-evidence-status-details-light.png") });
     await showDetails(window);
     await expect(page.locator(".line.detail")).toHaveCount(0);
+    await expect(page.locator(".line", { hasText: "Typesystem-requirement" })).toHaveCount(0);
     // Enter on a row opens its element.
     await rows.filter({ hasText: "SR-00b001" }).click();
     await expect(shownLayer(window).locator(".buffer.element")).toBeVisible();

@@ -17,6 +17,7 @@ interface OutputField {
   readonly technical?: true | "with-element";
   readonly normal?: unknown;
   readonly elements?: unknown;
+  readonly elementValue?: true;
 }
 
 interface ListedEntry {
@@ -183,5 +184,28 @@ describe("the catalog the API gives", () => {
     const without = commands.find((entry) => entry.name === "evidence.withoutPassedTest");
     expect(without?.outputFields.some((field) => field.elements === "answer")).toBe(true);
     expect(without?.staysOutputPage).toBeUndefined();
+  });
+
+  it("[SR-224/AK-cwyt] marks exactly type, version, repository, file, properties and relations of an evidence.status entry as the element's own values, and nothing else", () => {
+    const marked = commands.flatMap((entry) =>
+      entry.outputFields
+        .filter((field) => field.elementValue === true)
+        .map((field) => `${entry.name} ${field.path}`),
+    );
+    expect(marked.sort()).toEqual(
+      ["type", "version", "repository", "file", "properties", "relations"]
+        .map((name) => `evidence.status elements[].${name}`)
+        .sort(),
+    );
+    // Not its UUID, emergent mark, verification status, validation status, its reason or its problems.
+    const status = commands.find((entry) => entry.name === "evidence.status");
+    for (const name of ["id", "emergent", "verification", "validation", "validationReason", "problems"]) {
+      const field = status?.outputFields.find((f) => f.path === `elements[].${name}`);
+      expect(field, name).toBeDefined();
+      expect(field?.elementValue, name).toBeUndefined();
+    }
+    // No value of a baseline entry is one.
+    const baseline = commands.find((entry) => entry.name === "baseline.get");
+    expect(baseline?.outputFields.some((field) => field.elementValue !== undefined)).toBe(false);
   });
 });

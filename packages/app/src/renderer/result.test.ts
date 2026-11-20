@@ -444,16 +444,17 @@ describe("result lines", () => {
     expect(resultLines({ answer: { text: "a" } }).map((line) => line.label)).toEqual(["answer", "text"]);
   });
 
-  it("[SR-223/AK-qwkc] shows each entry of the answer as the row of its element and its other values below it, technical and normal ones with Show details", () => {
+  it("[SR-223/AK-qwkc] shows each entry of the answer as the row of its element and its own values below it; the element's own values only with Show details, after the others", () => {
     const fields: OutputField[] = [
       { path: "elements", title: "Elements", elements: "answer" },
       { path: "elements[].id", title: "Element", technical: true },
-      { path: "elements[].repository", title: "Repository" },
-      { path: "elements[].type", title: "Type" },
-      { path: "elements[].file", title: "File", technical: true },
+      { path: "elements[].repository", title: "Repository", elementValue: true },
+      { path: "elements[].type", title: "Type", elementValue: true },
+      { path: "elements[].file", title: "File", technical: true, elementValue: true },
       { path: "elements[].readOnly", title: "Read-only", normal: false },
       { path: "elements[].verification", title: "Verification status" },
       { path: "elements[].verification[].status", title: "Verification status" },
+      { path: "elements[].problems", title: "Problems" },
       { path: "others", title: "Others" },
     ] as OutputField[];
     const entry = element(1, {
@@ -462,31 +463,56 @@ describe("result lines", () => {
       file: "a.md",
       readOnly: false,
       verification: [{ status: "verified" }],
+      problems: [{ code: "x.y", severity: "warning", message: "Check it" }],
     });
+    // An element without status: the catalog marks everything else of it as its own, so it has only its row.
+    const plain = element(3, { file: "c.md" });
     const shown = (details: boolean) =>
-      resultLines({ elements: [entry], others: [element(2, { file: "b.md" })] }, fields, details).map(
+      resultLines({ elements: [entry, plain], others: [element(2, { file: "b.md" })] }, fields, details).map(
         (line) => [line.kind, line.depth, line.label, line.text, line.status, line.detail],
       );
     expect(shown(false)).toEqual([
-      ["text", 0, "Elements", "1", undefined, undefined],
+      ["text", 0, "Elements", "2", undefined, undefined],
       ["element", 1, "SR-000001 (SR-1)", "Title 1", "approved", undefined],
-      // Every value besides short ID, identifier, title and status (SR-223 AK6).
-      ["text", 2, "Repository", "spec", undefined, undefined],
-      ["text", 2, "Type", "need", undefined, undefined],
+      // What the entry gives beyond its element: the verification status, and its problems without details.
       ["text", 2, "Verification status", "1", undefined, undefined],
       ["text", 3, "Verification status", "verified", undefined, undefined],
+      ["text", 2, "Problems", "1", undefined, undefined],
+      ["problem", 3, "Warning", "Check it", "x.y", undefined],
+      ["element", 1, "SR-000003", "Title 3", undefined, undefined],
       // An element of another field is its row only.
       ["text", 0, "Others", "1", undefined, undefined],
       ["element", 1, "SR-000002", "Title 2", undefined, undefined],
     ]);
-    expect(shown(true).slice(1, 8)).toEqual([
+    // With details: the normal value in its place, then the element's own values after all others, as details.
+    expect(shown(true).slice(1, 12)).toEqual([
       ["element", 1, "SR-000001 (SR-1)", "Title 1", "approved", undefined],
-      ["text", 2, "Repository", "spec", undefined, undefined],
-      ["text", 2, "Type", "need", undefined, undefined],
-      ["text", 2, "File", "a.md", undefined, true],
       ["text", 2, "Read-only", "no", undefined, true],
       ["text", 2, "Verification status", "1", undefined, undefined],
       ["text", 3, "Verification status", "verified", undefined, undefined],
+      ["text", 2, "Problems", "1", undefined, undefined],
+      ["problem", 3, "Warning", "Check it", "x.y", undefined],
+      ["text", 2, "Repository", "spec", undefined, true],
+      ["text", 2, "Type", "need", undefined, true],
+      ["text", 2, "File", "a.md", undefined, true],
+      ["element", 1, "SR-000003", "Title 3", undefined, undefined],
+      ["text", 2, "Repository", "spec", undefined, true],
+    ]);
+  });
+
+  it("[SR-223/AK-qwkc] keeps every value of an entry below its row when the catalog marks none as the element's own, as for a baseline", () => {
+    const fields: OutputField[] = [
+      { path: "elements", title: "Elements", elements: "answer" },
+      { path: "elements[].repository", title: "Repository" },
+      { path: "elements[].state", title: "State" },
+    ] as OutputField[];
+    const lines = resultLines({ elements: [element(1, { state: "changed" })] }, fields);
+    expect(lines.map((line) => [line.depth, line.label, line.text])).toEqual([
+      [0, "Elements", "1"],
+      [1, "SR-000001", "Title 1"],
+      [2, "Repository", "spec"],
+      [2, "type", "need"],
+      [2, "State", "changed"],
     ]);
   });
 

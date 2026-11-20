@@ -4711,6 +4711,10 @@
                       }
                     ]
                   },
+                  "elementValue": {
+                    "const": true,
+                    "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry, from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values."
+                  },
                   "keys": {
                     "type": "array",
                     "description": "Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list. A field an entry does not have is left out of the object.",
@@ -31082,7 +31086,15 @@
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/element"
               },
-              "x-elements": "answer"
+              "x-elements": "answer",
+              "x-element-values": [
+                "type",
+                "version",
+                "repository",
+                "file",
+                "properties",
+                "relations"
+              ]
             },
             "total": {
               "x-elements": "elements",
@@ -31136,7 +31148,8 @@
           },
           {
             "path": "elements[].type",
-            "title": "Type"
+            "title": "Type",
+            "elementValue": true
           },
           {
             "path": "elements[].status",
@@ -31153,7 +31166,8 @@
           {
             "path": "elements[].version",
             "title": "Version",
-            "technical": true
+            "technical": true,
+            "elementValue": true
           },
           {
             "path": "elements[].versionDate",
@@ -31161,12 +31175,14 @@
           },
           {
             "path": "elements[].repository",
-            "title": "Repository"
+            "title": "Repository",
+            "elementValue": true
           },
           {
             "path": "elements[].file",
             "title": "File",
-            "technical": true
+            "technical": true,
+            "elementValue": true
           },
           {
             "path": "elements[].readOnly",
@@ -31207,11 +31223,13 @@
           },
           {
             "path": "elements[].properties",
-            "title": "Properties"
+            "title": "Properties",
+            "elementValue": true
           },
           {
             "path": "elements[].relations",
-            "title": "Relations"
+            "title": "Relations",
+            "elementValue": true
           },
           {
             "path": "elements[].relations[].kind",
