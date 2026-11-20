@@ -211,8 +211,9 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       // A fixed value counts on any element with it, also one of a type the metamodel does not have.
       values: { severity: { low: 1, high: 1 } },
       relations: { about: 1 },
-      // Open is not a status of a note: that element does not count for it.
-      statuses: { draft: 1, open: 1, noted: 0 },
+      // A status counts on every element with it, of any type (AK8): also the note, which does not
+      // have open, and the drafts of type gone and of the fixture's system requirement.
+      statuses: { draft: 3, open: 2, noted: 0 },
     });
   });
 
@@ -235,6 +236,23 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       reason: "in-use",
       uses: [{ kind: "property", key: "severity", count: 3 }],
     });
+  });
+
+  it("[SR-236/AK-wq1x] counts a status on an element of a type without it and of an unknown type, as metamodel.removeStatus names them when it keeps the definition", async () => {
+    const { workspace } = await openSmall(
+      elements([1, "hazard", { status: "noted" }], [2, "gone", { status: "noted" }]),
+    );
+    const before = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
+    expect(before.uses.statuses["noted"]).toBe(2);
+    // The note was the last type with noted; the definition stays, as both elements have it (SR-240 AK3).
+    const removed = await run<CommandOutput<"metamodel.removeStatus">>(workspace, "metamodel.removeStatus", {
+      type: "note",
+      status: "noted",
+    });
+    expect(removed.kept).toMatchObject([{ kind: "status", key: "noted", count: 2 }]);
+    const after = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
+    expect(after.statuses.map((s) => s.key)).toContain("noted");
+    expect(after.uses.statuses["noted"]).toBe(2);
   });
 });
 

@@ -123,17 +123,18 @@ scenariosOf("metamodel.get", [
     },
   },
   {
-    name: "counts a property on every element whose file holds its key, of any type (SR-236 AK8)",
+    name: "counts a property and a status on every element that holds them, of any type (SR-236 AK8)",
     tag: "[SR-236/AK-wq1x]",
     fixture: KEPT_DEFINITIONS,
     input: {},
     expect: "output",
     check: (results) => {
       for (const [access, { outcome }] of Object.entries(results)) {
-        // The hazard holds a remark, though hazards do not have the property.
-        expect((outcome as { output: MetamodelOutput }).output.uses.properties, access).toMatchObject({
-          remark: 1,
-        });
+        // The hazard holds a remark and is noted, though hazards have neither the property nor the
+        // status; the draft is the fixture's system requirement, of a type this metamodel does not have.
+        const { uses } = (outcome as { output: MetamodelOutput }).output;
+        expect(uses.properties, access).toMatchObject({ remark: 1 });
+        expect(uses.statuses, access).toEqual({ draft: 1, noted: 1 });
       }
     },
   },

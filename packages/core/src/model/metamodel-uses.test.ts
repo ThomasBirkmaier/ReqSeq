@@ -29,7 +29,8 @@ describe("metamodelUses and keys objects inherit", () => {
     const uses = await workspace.get(metamodelUsesState);
     expect(uses.values).toEqual({ severity: { low: 0, high: 0 } });
     expect(uses.relations).toEqual({ about: 0 });
-    expect(uses.statuses).toEqual({ draft: 0, open: 0, noted: 0 });
+    // Only the system requirement of the fixture, a draft, counts.
+    expect(uses.statuses).toEqual({ draft: 1, open: 0, noted: 0 });
     expect(typeof Object.keys).toBe("function");
     expect(Object.hasOwn({}, "constructor")).toBe(false);
   });
