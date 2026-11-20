@@ -163,20 +163,13 @@ describe("element.list from the output of a command (SR-224 AK5)", () => {
     expect(listed.total).toBe(1);
   });
 
-  it("is a selection of every command that takes one, except baseline.create", async () => {
+  it("is a selection of every command that takes one (baseline.create refuses it: create.test.ts)", async () => {
     const workspace = await open();
     const selection = { output: { command: "baseline.get", input: { baseline: "Release 1" } } };
     const facets = (await invoke("element.facets", { selection }, { workspace })) as {
       readonly total: number;
     };
     expect(facets.total).toBe(3);
-    const refused = await failure(invoke("baseline.create", { name: "Again", selection }, { workspace }));
-    expect(refused.toJSON()).toEqual({
-      code: "input.invalid",
-      message:
-        "selection.output: a baseline stores its selection, and a command output is no stored selection; leave it out",
-      details: { command: "baseline.create", fields: ["selection.output"] },
-    });
   });
 
   it("refuses a write command and a command without output elements, and names the inner input's fields", async () => {

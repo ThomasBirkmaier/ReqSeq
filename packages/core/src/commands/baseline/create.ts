@@ -9,11 +9,12 @@
 //   `where`) and its `view`, so a later change of the filter does not change the baseline. The
 //   views are the ones the selection was resolved with (`Selected.views`). When the input and the
 //   filter name different views, the elements apply in both (SR-101 AK2), which one stored view
-//   cannot say: refused with `input.invalid` (assumption of spec question #440 on SR-050 AK3); the
-//   same view is stored once.
-// - `selection.baseline` is refused: a baseline is not made of another one. So is `selection.output`
-//   (#1873), which is no form the file stores (ADR-0018 "selection"). `refusedSelection` holds these
-//   rules and the one of the views, for baseline.prepare too (SR-242 AK4).
+//   cannot say: refused with `input.invalid` (SR-050 AK8); the same view is stored once.
+// - `selection.baseline` is refused: a baseline is not made of another one. So is `selection.output`,
+//   which is no form the file stores (ADR-0018 "selection"); both before the selection is resolved,
+//   so also without elements or when the baseline or command does not exist or fails, and
+//   `selection.baseline` first (SR-050 AK9). `refusedSelection` holds these rules and the one of the
+//   views, for baseline.prepare too (SR-242 AK4).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createBaseline } from "../../baselines/index.js";

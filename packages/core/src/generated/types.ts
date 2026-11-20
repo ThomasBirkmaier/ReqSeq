@@ -5168,7 +5168,7 @@ export interface VariantExcludeOutput {
  */
 export interface BaselineCreateInput {
   readonly name: BaselineName;
-  /** Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline. */
+  /** Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline and not output, a command output (SR-050 AK9). */
   readonly selection: ElementSelection;
 }
 
