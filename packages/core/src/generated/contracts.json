@@ -4660,6 +4660,10 @@
               "const": true,
               "description": "A `write-files` command whose output carries content of its own, such as a plan, an import or an export result: the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
             },
+            "staysOutputPage": {
+              "const": true,
+              "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view: the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
+            },
             "outputFields": {
               "type": "array",
               "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref`. A definition already on the way to a field is not entered again.",
@@ -4774,6 +4778,20 @@
             }
           },
           "allOf": [
+            {
+              "if": {
+                "required": [
+                  "staysOutputPage"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "effect": {
+                    "const": "read"
+                  }
+                }
+              }
+            },
             {
               "if": {
                 "required": [
@@ -30819,6 +30837,7 @@
         "summary": "Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.",
         "details": "The verification status comes from the evidence records and, without own record, from the children, with the children that are missing; the validation status from the validation records. Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
         "effect": "read",
+        "staysOutputPage": true,
         "stage": 4,
         "implements": [
           "SR-031",
@@ -34397,6 +34416,7 @@
         "summary": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; with withEvidence also the verification and validation status at their version in the baseline.",
         "details": "With withEvidence: the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named. The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
         "effect": "read",
+        "staysOutputPage": true,
         "stage": 5,
         "implements": [
           "SR-051",

@@ -140,8 +140,9 @@ export const notSaved = async (context: CatalogContext, entry: Entry): Promise<b
 /**
  * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
  * window (SR-161, D-062), the output of a write command without `showsOutput` as a message (`reported`, SR-223
- * AK8), the output of a read command whose elements are its answer as a list of them under its answer (SR-223 AK6),
- * any other output in a result buffer (of a write command, one that is not asked again).
+ * AK8), the output of a read command whose elements are its answer as a list of them under its answer unless the
+ * catalog marks it `staysOutputPage` (SR-223 AK6), any other output in a result buffer (of a write command, one that
+ * is not asked again).
  */
 export const show = (
   context: CatalogContext,
@@ -180,19 +181,14 @@ export const show = (
 };
 
 /**
- * The catalog marks a field of the command's output as the elements of its answer (`x-elements: "answer"`), and each
- * of them is an element as a list row shows it, with its short ID and title. An answer whose entries are records of
- * another shape, such as the entries of a baseline with the state of each, which the page shows at its row
- * (`baseline.get`, SR-051 AK2, AK3), stays an output page: an assumption where SR-223 AK6 would hide the states
- * behind "Show details".
+ * The catalog marks a field of the command's output as the elements of its answer (`x-elements: "answer"`), and does
+ * not mark the command `staysOutputPage`: an output whose answer is the state of each entry, such as the change since
+ * a baseline or the verification status per view (`baseline.get`, `evidence.status`, SR-224 AK8), stays an output
+ * page with each entry's values below its row, also without entries (SR-223 AK6).
  */
-const listsElements = (command: Entry["command"]): boolean => {
-  const fields = command.outputFields ?? [];
-  const has = (path: string): boolean => fields.some((field) => field.path === path);
-  return fields.some(
-    (field) => field.elements === "answer" && has(`${field.path}[].shortId`) && has(`${field.path}[].title`),
-  );
-};
+const listsElements = (command: Entry["command"]): boolean =>
+  command.staysOutputPage !== true &&
+  (command.outputFields ?? []).some((field) => field.elements === "answer");
 
 /**
  * A write command the catalog does not mark `showsOutput` keeps the shown buffer (SR-223 AK8): the command

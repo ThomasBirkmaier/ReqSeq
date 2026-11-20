@@ -7,7 +7,8 @@
 // names are left out, and shown at their lines as details, in the second grey, while "Show details" is on for the
 // buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
 // rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
-// `trace.chain` too), a problem is one line with its element and message (with details its kind and technical
+// `trace.chain` too); an entry of the field the catalog marks as the answer has its other fields below its row
+// (SR-223 AK6), a problem is one line with its element and message (with details its kind and technical
 // values), several problems of one kind and severity are one group line with the title of their kind and their
 // count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
 // test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
@@ -519,7 +520,7 @@ const linesOf = (
   }
   const element = asElement(value);
   if (element !== undefined) {
-    emit(walk, () => withStatus(elementLine(element, depth), value));
+    elementLines(element, value, depth, path, walk, item);
     return;
   }
   const pair = pairOf(value, names);
@@ -541,8 +542,45 @@ const linesOf = (
   outlineLines(value, depth, label, path, walk, item);
 };
 
-/** The fields of a record, each at its path under its title, without those of their normal value (SR-223 AK7). */
-const fieldLines = (value: Rec, depth: number, path: string, walk: Walk, skip?: string): void => {
+/**
+ * The fields of an element entry its row shows or that name it (SR-223 AK6): its UUID, short ID, identifier, title
+ * and status.
+ */
+const ROW_FIELDS: ReadonlySet<string> = new Set(["id", "shortId", "identifier", "title", "status"]);
+
+/** The items at `path` (`elements[]`) are those of the field the catalog marks as the answer of the output. */
+const isAnswer = (fields: Fields, path: string): boolean =>
+  path.endsWith("[]") && fields.get(path.slice(0, -2))?.elements === "answer";
+
+/**
+ * The row of an element record with its status; an entry of the answer of an output page has its other fields below
+ * its row, the state of the entry (SR-223 AK6).
+ */
+const elementLines = (
+  element: Element,
+  value: Rec,
+  depth: number,
+  path: string,
+  walk: Walk,
+  item: boolean,
+): void => {
+  emit(walk, () => withStatus(elementLine(element, depth), value));
+  if (item && isAnswer(walk.fields, path)) {
+    fieldLines(value, depth + 1, path, walk, ROW_FIELDS);
+  }
+};
+
+/**
+ * The fields of a record, each at its path under its title, without those of their normal value (SR-223 AK7) and
+ * those of `skip`.
+ */
+const fieldLines = (
+  value: Rec,
+  depth: number,
+  path: string,
+  walk: Walk,
+  skip: ReadonlySet<string> = new Set(),
+): void => {
   const share = degreeShareOf(value);
   for (const [key, item] of Object.entries(value)) {
     const child = childOf(walk.fields, path, key);
@@ -550,12 +588,15 @@ const fieldLines = (value: Rec, depth: number, path: string, walk: Walk, skip?: 
     const detail =
       isNormal(walk.fields, child.path, item) ||
       (isTechnical(walk.fields, child.path, value) && !isNamed(item, walk.names));
-    if (key !== skip && (walk.details || !detail)) {
+    if (!skip.has(key) && (walk.details || !detail)) {
       const shown = key === "share" && share !== undefined ? degreePercent(share) : item;
       linesOf(shown, depth, child.label, child.path, detail ? { ...walk, detail: true } : walk);
     }
   }
 };
+
+/** The UUID of an entry `names` names, which its row stands for. */
+const ID_FIELD: ReadonlySet<string> = new Set(["id"]);
 
 /**
  * Any other record as an outline: under its label, or, as an item of a list whose `id` `names` names, under
@@ -572,7 +613,7 @@ const outlineLines = (
   const entry = item ? entryOf(value, walk.names) : undefined;
   if (entry !== undefined) {
     emit(walk, () => elementLine(entry, depth));
-    fieldLines(value, depth + 1, path, walk, "id");
+    fieldLines(value, depth + 1, path, walk, ID_FIELD);
     return;
   }
   if (label !== "") {

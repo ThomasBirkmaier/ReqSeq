@@ -444,6 +444,52 @@ describe("result lines", () => {
     expect(resultLines({ answer: { text: "a" } }).map((line) => line.label)).toEqual(["answer", "text"]);
   });
 
+  it("[SR-223/AK-qwkc] shows each entry of the answer as the row of its element and its other values below it, technical and normal ones with Show details", () => {
+    const fields: OutputField[] = [
+      { path: "elements", title: "Elements", elements: "answer" },
+      { path: "elements[].id", title: "Element", technical: true },
+      { path: "elements[].repository", title: "Repository" },
+      { path: "elements[].type", title: "Type" },
+      { path: "elements[].file", title: "File", technical: true },
+      { path: "elements[].readOnly", title: "Read-only", normal: false },
+      { path: "elements[].verification", title: "Verification status" },
+      { path: "elements[].verification[].status", title: "Verification status" },
+      { path: "others", title: "Others" },
+    ] as OutputField[];
+    const entry = element(1, {
+      identifier: "SR-1",
+      status: "approved",
+      file: "a.md",
+      readOnly: false,
+      verification: [{ status: "verified" }],
+    });
+    const shown = (details: boolean) =>
+      resultLines({ elements: [entry], others: [element(2, { file: "b.md" })] }, fields, details).map(
+        (line) => [line.kind, line.depth, line.label, line.text, line.status, line.detail],
+      );
+    expect(shown(false)).toEqual([
+      ["text", 0, "Elements", "1", undefined, undefined],
+      ["element", 1, "SR-000001 (SR-1)", "Title 1", "approved", undefined],
+      // Every value besides short ID, identifier, title and status (SR-223 AK6).
+      ["text", 2, "Repository", "spec", undefined, undefined],
+      ["text", 2, "Type", "need", undefined, undefined],
+      ["text", 2, "Verification status", "1", undefined, undefined],
+      ["text", 3, "Verification status", "verified", undefined, undefined],
+      // An element of another field is its row only.
+      ["text", 0, "Others", "1", undefined, undefined],
+      ["element", 1, "SR-000002", "Title 2", undefined, undefined],
+    ]);
+    expect(shown(true).slice(1, 8)).toEqual([
+      ["element", 1, "SR-000001 (SR-1)", "Title 1", "approved", undefined],
+      ["text", 2, "Repository", "spec", undefined, undefined],
+      ["text", 2, "Type", "need", undefined, undefined],
+      ["text", 2, "File", "a.md", undefined, true],
+      ["text", 2, "Read-only", "no", undefined, true],
+      ["text", 2, "Verification status", "1", undefined, undefined],
+      ["text", 3, "Verification status", "verified", undefined, undefined],
+    ]);
+  });
+
   it("ends an element row with the status its record gives, as a list row shows it (#276)", () => {
     expect(resultLines({ elements: [{ ...element(1), status: "draft" }] })[1]?.status).toBe("draft");
     // A record without a status, or with one that is no text, has none.

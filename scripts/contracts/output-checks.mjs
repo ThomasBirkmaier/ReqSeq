@@ -38,6 +38,13 @@ export const SHOWS_OUTPUT = new Set([
   "tool.guide",
 ]);
 
+/**
+ * The read commands whose answer is the state of each entry, which a list would show only on request, so the app
+ * keeps their output an output page (SR-224 AK8, D-078): the change since the baseline, the verification status per
+ * view. `evidence.withoutPassedTest` is not one: its answer is the selection of the requirements (SR-120 AK2).
+ */
+export const STAYS_OUTPUT_PAGE = new Set(["baseline.get", "evidence.status"]);
+
 const POSITION = "a position or size, not a number of elements";
 const CRITERIA = "counts acceptance criteria, not elements";
 const NODES =
@@ -395,7 +402,10 @@ function staleNotCounts(catalog, schemas, notCounts) {
   return errors;
 }
 
-/** `showsOutput` (SR-224 AK7) in both directions, and the marks a command file may not have. */
+/**
+ * `showsOutput` (SR-224 AK7) and `staysOutputPage` (SR-224 AK8) in both directions, and the marks a command file may
+ * not have.
+ */
 function checkEntry(cmd, fields) {
   const errors = [];
   const answers = fields.filter((field) => field.schema["x-elements"] === "answer");
@@ -410,6 +420,19 @@ function checkEntry(cmd, fields) {
   if (!SHOWS_OUTPUT.has(cmd.name) && cmd.showsOutput !== undefined) {
     errors.push(
       "showsOutput: only the write commands of SHOWS_OUTPUT in output-checks.mjs show their output (SR-224 AK7)",
+    );
+  }
+  if (
+    STAYS_OUTPUT_PAGE.has(cmd.name) &&
+    (cmd.effect !== "read" || cmd.staysOutputPage !== true || answers.length !== 1)
+  ) {
+    errors.push(
+      "staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
+    );
+  }
+  if (!STAYS_OUTPUT_PAGE.has(cmd.name) && cmd.staysOutputPage !== undefined) {
+    errors.push(
+      "staysOutputPage: only the read commands of STAYS_OUTPUT_PAGE in output-checks.mjs stay an output page (SR-224 AK8)",
     );
   }
   for (const mark of marksIn(cmd.input)) {

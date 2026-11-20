@@ -96,7 +96,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 
 ## App
 
-The app shows the result of the step: **Show evidence status** lists the requirements with their status, also for a file a pipeline writes while the app is open.
+In the app, **Show evidence status** shows each element's status per view under its row, also for a file a pipeline writes while the app is open.
 
 ## CLI
 

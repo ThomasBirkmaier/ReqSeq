@@ -2134,6 +2134,8 @@ export interface CommandCatalog {
     };
     /** A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880). */
     readonly showsOutput?: true;
+    /** A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries (SR-223 AK6). Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions. */
+    readonly staysOutputPage?: true;
     /** Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again. */
     readonly outputFields?: readonly {
       /** The field, from the root of the output: `levels[].elements.withChildren`, `[]` for the items of an array, `*` for the keys of a map. */

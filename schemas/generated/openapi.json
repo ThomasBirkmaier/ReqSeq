@@ -247,6 +247,10 @@
                             "const": true,
                             "description": "A `write-files` command whose output carries content of its own, such as a plan, an import or an export result: the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
                           },
+                          "staysOutputPage": {
+                            "const": true,
+                            "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view: the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
+                          },
                           "outputFields": {
                             "type": "array",
                             "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref`. A definition already on the way to a field is not entered again.",
@@ -365,6 +369,20 @@
                           }
                         },
                         "allOf": [
+                          {
+                            "if": {
+                              "required": [
+                                "staysOutputPage"
+                              ]
+                            },
+                            "then": {
+                              "properties": {
+                                "effect": {
+                                  "const": "read"
+                                }
+                              }
+                            }
+                          },
                           {
                             "if": {
                               "required": [

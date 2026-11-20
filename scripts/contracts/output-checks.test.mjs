@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { SHOWS_OUTPUT, checkOutputs } from "./output-checks.mjs";
+import { SHOWS_OUTPUT, STAYS_OUTPUT_PAGE, checkOutputs } from "./output-checks.mjs";
 import {
   TECHNICAL_DEFINITIONS,
   outputFieldsOf,
@@ -261,6 +261,30 @@ describe("checkOutputs", () => {
       "schemas/commands/reqif.import.json: showsOutput: true, since its output carries content of its own (SR-224 AK7)",
       "schemas/commands/element.update.json: showsOutput: only the write commands of SHOWS_OUTPUT in output-checks.mjs show their output (SR-224 AK7)",
       "schemas/commands/reqif.export.json: showsOutput: true, since its output carries content of its own (SR-224 AK7)",
+    ]);
+  });
+
+  it("[SR-224/AK-nhzq] holds staysOutputPage to the read commands whose answer is the state of each entry, in both directions", () => {
+    const answered = (name, extra = {}) => ({
+      ...read(
+        { ids: { title: "Elements", "x-elements": "answer", type: "array", items: { $ref: `${C}uuid` } } },
+        extra,
+      ),
+      name,
+    });
+    expect([...STAYS_OUTPUT_PAGE].sort()).toEqual(["baseline.get", "evidence.status"]);
+    expect(
+      errorsOf(answered("baseline.get", { staysOutputPage: true }), answered("evidence.withoutPassedTest")),
+    ).toEqual([]);
+    expect(
+      errorsOf(answered("baseline.get"), answered("evidence.withoutPassedTest", { staysOutputPage: true }), {
+        ...read({ problems }, { staysOutputPage: true }),
+        name: "evidence.status",
+      }),
+    ).toEqual([
+      "schemas/commands/baseline.get.json: staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
+      "schemas/commands/evidence.withoutPassedTest.json: staysOutputPage: only the read commands of STAYS_OUTPUT_PAGE in output-checks.mjs stay an output page (SR-224 AK8)",
+      "schemas/commands/evidence.status.json: staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
     ]);
   });
 

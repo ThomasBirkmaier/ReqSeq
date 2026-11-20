@@ -4,7 +4,8 @@
 // of all elements, with the values per element at its rows with "Show details". Such a list has the list's context
 // menu (SR-198 AK1) and its rows the element's (SR-197 AK1, AK4), it is never saved as a perspective or a saved
 // filter (SR-214 AK5, SR-219 AK8), it comes back after a restart (SR-115 AK4), and the records of older versions of
-// "Show affected elements" stand above it (SR-024 AK4). The light screenshots go to
+// "Show affected elements" stand above it (SR-024 AK4). The output of "Show evidence status", which the catalog marks
+// `staysOutputPage` (SR-224 AK8), stays an output page with each entry's values below its row. The light screenshots go to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import path from "node:path";
 import { readFile, rm } from "node:fs/promises";
@@ -210,6 +211,44 @@ test.describe("lists from outputs", () => {
     await expect(list(window).locator("h1")).toContainText(none);
     await expect(list(window).locator(".row")).toHaveCount(0);
     await expect(list(window)).not.toContainText("No elements");
+  });
+
+  test("[SR-223/AK-qwkc] the evidence status stays an output page: each element's row with its verification status below it, the technical values with Show details", async () => {
+    running = await launchApp(await withRecord());
+    const { window } = running;
+    await run(window, "Show evidence status");
+    const shown = await cli(running, ["evidence", "status"]);
+    const page = shownLayer(window).locator(".result.output");
+    // An output page under its answer (SR-223 AK1), no list of its elements.
+    await expect(page.locator("h1")).toHaveText(shown["answer"] as string);
+    await expect(list(window)).toHaveCount(0);
+    // Each entry is the row of its element, one level under the count of the entries.
+    const rows = page.locator('.line.element[data-depth="1"]');
+    await expect(rows.locator(".label")).toHaveText(
+      (shown["elements"] as { shortId: string }[]).map((element) => element.shortId),
+    );
+    // Below the row of a requirement, without Show details: its verification status in the core, outdated by the
+    // record of an older version; the version and the file of the entry are technical.
+    const texts = await page.locator(".line").allTextContents();
+    const from = texts.findIndex((text) => text.startsWith("SR-00b001"));
+    const own = texts.slice(
+      from + 1,
+      texts.findIndex((text, at) => at > from && text.startsWith("SR-00b002")),
+    );
+    expect(own).toEqual(expect.arrayContaining(["Verification statusoutdated", "Typesystem-requirement"]));
+    expect(own.some((text) => text.startsWith("Version") || text.startsWith("File"))).toBe(false);
+    await page.locator(".line", { hasText: "Verification statusoutdated" }).scrollIntoViewIfNeeded();
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-evidence-status-light.png") });
+    await expect(page.locator(".line.detail")).toHaveCount(0);
+    // The total is in the modeline (#276).
+    await expect(modeline(window)).toContainText(String(shown["total"]));
+    await showDetails(window);
+    await expect(page.locator(".line.detail", { hasText: "File" }).first()).toBeVisible();
+    await showDetails(window);
+    await expect(page.locator(".line.detail")).toHaveCount(0);
+    // Enter on a row opens its element.
+    await rows.filter({ hasText: "SR-00b001" }).click();
+    await expect(shownLayer(window).locator(".buffer.element")).toBeVisible();
   });
 
   test("[SR-197/AK-tzn9] [SR-198/AK-qc75] [SR-214/AK-bzs1] [SR-219/AK-zznw] a list from an output has the list's menu, its rows the element's, and it is never saved", async () => {

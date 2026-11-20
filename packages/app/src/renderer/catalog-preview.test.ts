@@ -62,7 +62,7 @@ describe("the output of a write command (SR-223 AK8)", () => {
     expect(dispatched).toEqual([]);
   });
 
-  it("[SR-223/AK-qwkc] shows the output of a read command whose elements are its answer as a list of them under its answer", () => {
+  it("[SR-223/AK-qwkc] shows the output of a read command whose elements are its answer as a list of them under its answer, unless the catalog marks it staysOutputPage", () => {
     const { context, dispatched } = setup([shown]);
     const related = { answer: "2 elements are related to SR-1.", elements: [], total: 0 };
     show(context, entry("trace.related"), { refs: ["SR-1"] }, related, 3);
@@ -81,11 +81,23 @@ describe("the output of a write command (SR-223 AK8)", () => {
     // Without an answer (a test catalog) the list is named by its command line.
     show(context, entry("trace.related"), {}, { elements: [] }, 3);
     expect(dispatched[1]).toMatchObject({ type: "open", buffer: { label: "Show related elements" } });
-    // The entries of a baseline are no element rows: its output page shows the state of each.
+    // The catalog marks the outputs whose answer is the state of each entry (SR-224 AK8): they stay an output page,
+    // with entries and without.
+    const status = {
+      answer: "Listed the verification status of 1 element.",
+      elements: [{ id: "u-1", repository: "spec", shortId: "SR-000001", title: "T", status: "approved" }],
+      total: 1,
+    };
+    show(context, entry("evidence.status"), {}, status, 3);
+    show(context, entry("evidence.status"), {}, { ...status, elements: [], total: 0 }, 3);
     show(context, entry("baseline.get"), { baseline: "R1" }, { answer: "R1", elements: [] }, 3);
-    expect(dispatched[2]).toMatchObject({
-      type: "open",
-      buffer: { kind: "result", command: "baseline.get" },
-    });
+    expect(dispatched.slice(2)).toMatchObject([
+      { type: "open", buffer: { kind: "result", command: "evidence.status", output: status } },
+      { type: "open", buffer: { kind: "result", command: "evidence.status" } },
+      { type: "open", buffer: { kind: "result", command: "baseline.get" } },
+    ]);
+    // An answer of the selection of requirements is a list (SR-120 AK2).
+    show(context, entry("evidence.withoutPassedTest"), {}, { answer: "a", elements: [], total: 0 }, 3);
+    expect(dispatched[5]).toMatchObject({ type: "open", buffer: { kind: "list", label: "a" } });
   });
 });
