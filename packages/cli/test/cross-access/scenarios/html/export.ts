@@ -587,7 +587,7 @@ scenariosOf("html.export", [
         expect(own).toContain("The display.");
         expect(own).toContain('<h2 id="elements">Elements</h2>');
         expect(own).toContain(
-          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td>Show wind speed</td><td>draft</td>`,
+          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td class="rq-title">Show wind speed</td><td class="rq-nowrap">draft</td>`,
         );
       }
     },
@@ -654,9 +654,9 @@ scenariosOf("html.export", [
         const href = /href="\.\.\/(baselines\/[0-9a-f]{12}\.html)">Release 2</u.exec(index)?.[1];
         const page = contentOf(String(files[`system/site/${String(href)}`]));
         expect(page).toContain('<h2 id="commits">Commits</h2>');
-        expect(page).toContain(`<h2 id="changed">Changed</h2><table>`);
+        expect(page).toContain(`<h2 id="changed">Changed (1)</h2><table>`);
         expect(page).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
-        expect(page).toContain('<h2 id="unchanged">Unchanged</h2>');
+        expect(page).toContain('<h2 id="unchanged">Unchanged (1)</h2>');
         expect(page).toContain("This baseline stores no selection");
       }
     },
