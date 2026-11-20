@@ -226,9 +226,11 @@ jobs:
       # 50,000), so an output change that breaks them shows in the pull request, not first in the nightly run. Linux
       # only and without network, like e2e above; about 1 minute. No times are asserted or recorded and no JUnit file
       # is written (vitest.perf.config.ts): the record and the evidence of tagged AKs come only from the full size.
+      # The bound of 4 minutes (about 1.5 on a slow runner) fails this step, not the whole job, when a perf file runs at
+      # full size here (#2074; packages/testkit/src/perf-files.test.ts checks that every file takes `perfSize`).
       - name: Performance suite assertions on a small workspace, without network (unshare -rn)
         if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
-        timeout-minutes: 10
+        timeout-minutes: 4
         env:
           REQSEQ_PERF_ELEMENTS: "500"
         run: |
