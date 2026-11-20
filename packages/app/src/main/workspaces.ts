@@ -17,9 +17,12 @@
 // list, read again for each request, or (`typed`) a typed folder path that core's lexical check takes
 // (absolute or `~`, no UNC path, no NUL, at most 4096 characters) before any file-system call, and only
 // when a folder from it upwards holds a workspace file: a renderer never opens a folder without a
-// workspace. Main makes no synchronous file-system call here (a hung share would freeze the window): the
-// keys are stored, and the existence checks are core's asynchronous, bounded ones.
+// workspace. Only "Create workspace" of the start buffer (SR-225 AK4, `createFolder`) opens one, and
+// only the folder the window has open or the person chose in the system folder dialog, never a path
+// the renderer names. Main makes no synchronous file-system call here (a hung share would freeze the
+// window): the keys are stored, and the existence checks are core's asynchronous, bounded ones.
 import os from "node:os";
+import path from "node:path";
 import type Electron from "electron";
 import type {
   findTypedWorkspace,
@@ -28,7 +31,12 @@ import type {
   typedWorkspaceFolder,
   workspaceExists,
 } from "@reqseq/core/recent-workspaces";
-import type { OpenWorkspaceResult, RecentWorkspaceEntry, SaveRequest } from "../shared/protocol.js";
+import type {
+  CreateFolderAnswer,
+  OpenWorkspaceResult,
+  RecentWorkspaceEntry,
+  SaveRequest,
+} from "../shared/protocol.js";
 import {
   MAX_ROOT_LENGTH,
   OPEN_WORKSPACE_CHANNEL,
@@ -63,8 +71,11 @@ export interface WorkspaceSwitch {
   readonly listedRoot: string | undefined;
   /** The root the core process opened, also a folder without a workspace; undefined while none is open. */
   readonly root: string | undefined;
-  /** Opens `folder` in the window in place of the open workspace; never rejects. */
-  open(folder: string, options: { readonly exact: boolean }): Promise<void>;
+  /**
+   * Opens `folder` in the window in place of the open workspace; never rejects. `exact`: the folder itself, which
+   * needs its workspace file; `itself`: the folder itself, with or without one; else the root found upwards.
+   */
+  open(folder: string, options: { readonly exact: boolean; readonly itself?: boolean }): Promise<void>;
 }
 
 /** The parts of the window's web contents the handlers use. */
@@ -99,6 +110,13 @@ export interface Workspaces {
    */
   openFolder(folder: string): Promise<OpenWorkspaceResult>;
   /**
+   * The folder for "Create workspace" of the start buffer (SR-225 AK4–AK6): the folder without a workspace the
+   * window has open, else the one `choose` gives (the system folder dialog; undefined when canceled), which is
+   * opened itself, never a workspace above it, once the window saved its unsaved input. A folder that is a
+   * workspace is opened as such (`existing`, AK6); the answer names a folder only by its name.
+   */
+  createFolder(choose: () => Promise<string | undefined>): Promise<CreateFolderAnswer>;
+  /**
    * Asks the window to save its unsaved input before it closes (SR-105 AK1, `close.ts`): whether all is
    * saved, or `timeout` after CLOSE_SAVE_TIMEOUT_MS, which the window is told (`expired` with `closing`).
    */
@@ -122,6 +140,7 @@ const UNSAVED: OpenWorkspaceResult = { ok: false, reason: "unsaved" };
 const TIMEOUT: OpenWorkspaceResult = { ok: false, reason: "timeout" };
 const BUSY: OpenWorkspaceResult = { ok: false, reason: "busy" };
 const NO_WORKSPACE: OpenWorkspaceResult = { ok: false, reason: "no-workspace" };
+const NOTHING: CreateFolderAnswer = { outcome: "nothing" };
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -209,7 +228,10 @@ export const handleWorkspaces = (
   // One switch at a time, from the request to save until the other workspace is open.
   let switching = false;
   /** Saves the window's input, then opens `folder` in place of the open workspace. */
-  const switchTo = async (folder: string, exact: boolean): Promise<OpenWorkspaceResult> => {
+  const switchTo = async (
+    folder: string,
+    how: { readonly exact: boolean; readonly itself?: boolean },
+  ): Promise<OpenWorkspaceResult> => {
     if (switching) {
       return BUSY;
     }
@@ -219,7 +241,7 @@ export const handleWorkspaces = (
       if (answer !== true) {
         return answer === "timeout" ? TIMEOUT : UNSAVED;
       }
-      await options.core.open(folder, { exact });
+      await options.core.open(folder, how);
       return OPENED;
     } finally {
       switching = false;
@@ -303,12 +325,41 @@ export const handleWorkspaces = (
         options.log(`The recent workspaces could not be read: ${messageOf(error)}`);
         return REFUSED;
       }
-      return typeof found === "string" ? switchTo(found, true) : found;
+      return typeof found === "string" ? switchTo(found, { exact: true }) : found;
     },
   );
 
+  /** The folder for "Create workspace" (`Workspaces.createFolder`). */
+  const createFolder = async (choose: () => Promise<string | undefined>): Promise<CreateFolderAnswer> => {
+    try {
+      const module = await recent();
+      // A folder without a workspace is open: it is the one, without a dialog (AK4).
+      const { root } = options.core;
+      if (root !== undefined && !(await module.workspaceExists(root))) {
+        return { outcome: "folder", name: path.basename(root), opening: false };
+      }
+      const folder = await choose();
+      if (folder === undefined) {
+        return NOTHING;
+      }
+      const existing = await module.workspaceExists(folder);
+      const result = await switchTo(folder, { exact: false, itself: true });
+      if (!result.ok) {
+        options.log(`Create workspace opened no folder: ${result.reason}`);
+        return NOTHING;
+      }
+      return existing
+        ? { outcome: "existing" }
+        : { outcome: "folder", name: path.basename(folder), opening: true };
+    } catch (error) {
+      options.log(`Create workspace opened no folder: ${messageOf(error)}`);
+      return NOTHING;
+    }
+  };
+
   return {
-    openFolder: (folder) => switchTo(folder, false),
+    openFolder: (folder) => switchTo(folder, { exact: false }),
+    createFolder,
     saveBeforeClose: () => saved(true),
   };
 };

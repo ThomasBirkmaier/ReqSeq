@@ -100,7 +100,8 @@ const ready = async (
   // one of them in this window, and answers whether its input is saved before a switch (SR-131), and
   // for the folders of a path typed in "Open workspace" (SR-143), and for a paste of the clipboard into
   // the focused field (SR-195 AK3), and to open the bundled documentation in the browser (SR-141), and for the
-  // folder dialog of File > Open Workspace… (SR-225 AK2, below): the eight channels it has to main.
+  // folder dialog of File > Open Workspace… and the folder for Create workspace (SR-225 AK2, AK4, below): the nine
+  // channels it has to main.
   handleCopy(electron, window.webContents);
   handleDocs(electron, window.webContents, docs);
   handleEdit(electron, window.webContents);
@@ -136,8 +137,21 @@ const ready = async (
       }
     }
   };
-  // "Open workspace…" of the start buffer shows the same dialog (SR-225 AK2).
-  handleFolderDialog(electron, window.webContents, openWorkspace);
+  // "Create workspace" of the start buffer (SR-225 AK4): the system folder dialog, where a new folder can be made.
+  const chooseFolder = async (): Promise<string | undefined> => {
+    const chosen = await electron.dialog.showOpenDialog(window, {
+      title: "Create Workspace",
+      buttonLabel: "Create",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    return chosen.canceled ? undefined : chosen.filePaths[0];
+  };
+  // "Open workspace…" of the start buffer shows the menu's dialog (SR-225 AK2), and its "Create workspace" the one
+  // above (AK4–AK6).
+  handleFolderDialog(electron, window.webContents, {
+    open: openWorkspace,
+    create: () => workspaces.createFolder(chooseFolder),
+  });
   electron.Menu.setApplicationMenu(
     electron.Menu.buildFromTemplate(
       menuTemplate(

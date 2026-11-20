@@ -27,6 +27,7 @@ describe("renderer entry", () => {
       copyText: () => Promise.resolve(true),
       pasteText: () => Promise.resolve(true),
       openFolderDialog: () => Promise.resolve(true),
+      chooseCreateFolder: () => Promise.resolve({ outcome: "nothing" as const }),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),

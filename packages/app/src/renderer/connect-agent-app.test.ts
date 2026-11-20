@@ -110,6 +110,7 @@ const fake = (open: boolean, recent: readonly string[] = [], output: unknown = C
     copyText,
     pasteText: () => Promise.resolve(true),
     openFolderDialog: () => Promise.resolve(true),
+    chooseCreateFolder: () => Promise.resolve({ outcome: "nothing" as const }),
     recentWorkspaces: () => Promise.resolve(recent.map((root) => ({ root, state: "found" as const }))),
     openWorkspace,
     listFolder: () => Promise.resolve({ name: "", entries: [] }),

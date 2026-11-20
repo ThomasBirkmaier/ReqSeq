@@ -92,7 +92,8 @@ import { useAgentStatus } from "./use-agent-status.js";
 import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
 import { useEchoLink } from "./use-echo-link.js";
 import { StartView } from "./StartView.js";
-import { CREATE_WORKSPACE_ITEM, runStart, startLines, startShown } from "./start-commands.js";
+import { runStart, startLines, startShown } from "./start-commands.js";
+import { INIT_COMMAND, askWorkspaceName, createRunner } from "./create-workspace.js";
 import type { StartCommand } from "./start-commands.js";
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
@@ -527,24 +528,47 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       .items.find((item) => item.id === CONNECT_AGENT_ACTION)
       ?.run();
   };
+  // "Create workspace" of the start buffer (SR-225 AK4–AK6, `create-workspace.ts`): main gives the folder, then
+  // the command prompt asks only the name there, with the catalog and context of the render it runs in.
+  const askNameNow = useRef<(initial: string) => void>(() => undefined);
+  askNameNow.current = (initial) => {
+    const command = catalog.current.find((listed) => listed.name === INIT_COMMAND);
+    if (command !== undefined) {
+      const reopen = (): void => {
+        ask(commands(true));
+      };
+      askWorkspaceName({ ...latest.current, revision: () => revisionNow.current, reopen }, command, initial);
+    }
+  };
+  const creator = useMemo(
+    () =>
+      createRunner({
+        choose: () => bridge.chooseCreateFolder(),
+        echo: setEcho,
+        catalogRead: () => catalogRead.current,
+        askName: (initial) => {
+          askNameNow.current(initial);
+        },
+      }),
+    [bridge, setEcho],
+  );
   // A line of the start buffer (SR-225 AK2, `start-commands.ts`); not while another workspace opens.
   const chooseStart = (command: StartCommand): void => {
     if (switchingNow.current) {
       return;
     }
-    void runStart(command, {
-      // Main refuses when the click or Enter is too long ago or a dialog is open: say so, not nothing.
+    runStart(command, {
       folderDialog: () => {
         void bridge.openFolderDialog().then((shown) => {
           if (!shown) {
+            // Main refuses when the click or Enter is too long ago or a dialog is open: say so, not nothing.
             setEcho(dialogRefusedMessage(macRef.current));
           }
         });
       },
-      createEntry: async () => {
-        await catalogRead.current;
+      createWorkspace: () => {
         beforeCommand();
-        return commands(false).items.find((item) => item.id === CREATE_WORKSPACE_ITEM)?.run;
+        creator.start();
       },
       connectAgent: connectFromModeline,
     });
@@ -586,13 +610,17 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     () =>
       bridge.on("workspace-changed", ({ reason }) => {
         steps.changed(reason);
+        creator.changed(reason);
       }),
-    [bridge, steps],
+    [bridge, steps, creator],
   );
   // Each status read sets a new `view`; "opened" does not reset it, so the first `view` after it is the new status.
   useEffect(() => {
     steps.shown(view?.name !== undefined);
-  }, [view, steps]);
+    if (view !== undefined) {
+      creator.shown(view.name);
+    }
+  }, [view, steps, creator]);
   const runStep = (step: NextStep): void => {
     if (switchingNow.current) {
       return;

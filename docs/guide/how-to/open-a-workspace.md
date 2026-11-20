@@ -11,16 +11,17 @@ A workspace is a folder with a `reqseq-workspace.yaml`, often the folder `spec/`
 
 Without a workspace the app shows three start commands, and the modeline says "No workspace is open." Click one, or select it with the arrow keys and Enter:
 
-- "Open workspace…" opens the folder dialog of your system, the same as Ctrl+O (⌘O on macOS) and "File > Open Workspace…" in the menu. On Windows and Linux the menu bar is hidden until you press Alt. Choose the workspace folder or any folder inside it: the app opens the nearest workspace from there upwards and shows it.
+- "Open workspace…" opens the folder dialog of your system, the same as Ctrl+O (⌘O on macOS) and "File > Open Workspace…" in the menu. On Windows and Linux the menu bar is hidden until you press Alt. Choose the workspace folder or any folder inside it: the app opens the nearest workspace from there upwards.
+- **Create workspace** opens the folder dialog, or takes the folder open without a workspace; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. A workspace folder opens as it is.
 - **Connect AI agent** asks for the workspace first, as [Connect an AI agent](/how-to/connect-an-ai-agent/) shows.
 
 Ctrl+Shift+P (⌘⇧P) opens the command prompt. Its entry "Open workspace" lists the workspaces you opened last, the most recent first, and narrows them as you type; one that no longer holds its workspace file is marked "not found". Or type an absolute path, starting with `/`, `~` or, on Windows, a drive letter such as `C:\`. Enter on the first line, "Open" with your path, opens the workspace of that folder or a folder above it. Below it the prompt suggests the folders that match the name after the last separator; Down and Enter put one into the path.
 
-The workspace you choose replaces the open one in the same window, after your unsaved input is saved.
+The chosen workspace replaces the open one, after your unsaved input is saved.
 
-To create a workspace, open a folder outside any workspace with Ctrl+O, then run **Create workspace** from the command prompt with `.` as the path and a name.
+From the command prompt, **Create workspace** asks for the path too.
 
-One level above a workspace, such as the root of the repository, the bottom line names the right one: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
+One level above a workspace, the bottom line names it: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
 
 To open a workspace when the app starts, give its folder with `--workspace`:
 
@@ -84,6 +85,6 @@ An MCP client starts `reqseq mcp` with `--workspace` and the absolute path of th
 { "name": "workspace_init", "arguments": { "path": "/path/to/weather/spec", "name": "Weather station" } }
 ```
 
-As in the API, the path is absolute or relative to the folder the server serves.
+The path works as in the API.
 
 The reference has the details of [workspace.init](/reference/commands/workspace-init/), [workspace.status](/reference/commands/workspace-status/) and [workspace.recent](/reference/commands/workspace-recent/).

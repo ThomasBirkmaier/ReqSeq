@@ -35,11 +35,21 @@ export const RESTART_WINDOW_MS = 60_000;
 /** How long a core process may take to close its workspace after `stop` before it is killed. */
 export const STOP_TIMEOUT_MS = 5_000;
 
+/**
+ * How a core process finds the root of its folder: `exact` (a root of the list of recent workspaces) the folder
+ * itself, which needs its workspace file; `itself` ("Create workspace" of the start buffer, SR-225 AK4) the folder
+ * itself, with or without one; else found upwards.
+ */
+export interface OpenOptions {
+  readonly exact?: boolean;
+  readonly itself?: boolean;
+}
+
 interface Running {
   readonly child: CoreChild;
   readonly folder: string;
-  /** The folder is a root of the list of recent workspaces: the core process opens it as it is. */
-  readonly exact: boolean;
+  /** How the core process finds the root of the folder (`OpenOptions`). */
+  readonly how: OpenOptions;
   /** The key of the open workspace in the list of recent workspaces, from the core process's `ready`. */
   key: string | undefined;
   /** Its root, when it belongs in that list (`ready` with `listed`). */
@@ -98,14 +108,14 @@ export class CoreProcess {
   /**
    * Opens `folder` in a new core process, after the current one stopped; the window is told. Opens run
    * one after the other, so two quick choices never leave a core process behind. With `exact` (a root of
-   * the list of recent workspaces) the core process opens the folder itself, never a workspace above it.
+   * the list of recent workspaces) or `itself` the core process opens the folder itself, never a workspace above it.
    */
-  open(folder: string, options: { readonly exact?: boolean } = {}): Promise<void> {
+  open(folder: string, options: OpenOptions = {}): Promise<void> {
     this.#opening = this.#opening
       .then(async () => {
         await this.stop();
         this.#stops = [];
-        this.#start(folder, options.exact === true);
+        this.#start(folder, options);
         this.#send("opened");
       })
       .catch((error: unknown) => {
@@ -157,7 +167,7 @@ export class CoreProcess {
     clearTimeout(timer);
   }
 
-  #start(folder: string, exact: boolean): void {
+  #start(folder: string, how: OpenOptions): void {
     const child = this.#options.fork();
     const files = new Map<number, (answer: FileAnswer) => void>();
     const exited = new Promise<void>((resolve) => {
@@ -175,7 +185,7 @@ export class CoreProcess {
     const running: Running = {
       child,
       folder,
-      exact,
+      how,
       key: undefined,
       listedRoot: undefined,
       root: undefined,
@@ -199,7 +209,12 @@ export class CoreProcess {
       files.get(id)?.(answer);
       files.delete(id);
     });
-    child.postMessage({ type: "open", folder, ...(exact ? { exact } : {}) });
+    child.postMessage({
+      type: "open",
+      folder,
+      ...(how.exact === true ? { exact: true } : {}),
+      ...(how.itself === true ? { itself: true } : {}),
+    });
   }
 
   /** The core process stopped by itself: start it again, unless it keeps stopping. */
@@ -215,7 +230,7 @@ export class CoreProcess {
       return;
     }
     this.#options.log(`The core process stopped with exit code ${String(code)}; starting it again`);
-    this.#start(running.folder, running.exact);
+    this.#start(running.folder, running.how);
     this.#send("restarted");
   }
 
