@@ -14,9 +14,12 @@ import {
   malformedNoParentHints,
   measure,
   noParentHints,
+  perfSize,
+  thresholdLimit,
   thresholdMessage,
   withoutNoParent,
   withoutParent,
+  withoutVerificationGaps,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
 import fs from "node:fs/promises";
@@ -58,8 +61,8 @@ import {
 import { standardModel, versionOf } from "./core-version.js";
 import type { FullList } from "../../src/commands/list.test-helper.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK3. */
 const OPEN_MS = 200;
 /** SR-082 AK5: the first open after the start. */
@@ -245,7 +248,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
     );
     expect(firstView.id).toBe(firstElement?.id);
-    expect(firstOpen.ms, thresholdMessage(firstOpen)).toBeLessThanOrEqual(FIRST_OPEN_MS);
+    expect(firstOpen.ms, thresholdMessage(firstOpen)).toBeLessThanOrEqual(thresholdLimit(FIRST_OPEN_MS));
     const element = tree.elements[Math.floor(ELEMENTS / 2)];
     const id = element?.id ?? "";
     const { result: view, measurement } = await measure(
@@ -268,7 +271,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     );
     expect(dated.versionDate).toBe(generatedDates.get(element?.repository ?? ""));
     expect({ ...dated, versionDate: undefined }).toEqual(view);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   it("[SR-082/AK-h27y] applies a saved filter through the catalog within 500 ms (SR-070, ThomasBirkmaier/ReqSeq-archive#228)", async () => {
@@ -303,7 +306,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     );
     expect(found.total).toBeGreaterThan(found.elements.length);
     expect(found.elements.every((e) => e.type === "system-requirement")).toBe(true);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   type Chain = CommandOutput<"trace.chain">;
@@ -441,16 +444,18 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
     );
     expect(index.relationsById.size).toBeGreaterThan(0);
-    expect(firstCall.ms, thresholdMessage(firstCall)).toBeLessThanOrEqual(RESULT_MS);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(firstCall.ms, thresholdMessage(firstCall)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records the carry of the incoming index over a change of CARRY_LIMIT elements (ThomasBirkmaier/ReqSeq-archive#273, no threshold)", async () => {
     const index = incomingFor(opened(), store, metamodel);
     // A change that rewrote every `step`-th element in place (the same content, new records), as
     // `updateElements` gives it; nothing is written.
-    const step = Math.floor(ELEMENTS / CARRY_LIMIT);
-    const chosen = store.elements.filter((_, i) => i % step === 0).slice(0, CARRY_LIMIT);
+    // CARRY_LIMIT elements, or all of a smaller run (#2037) with fewer elements than that.
+    const changed = Math.min(CARRY_LIMIT, ELEMENTS);
+    const step = Math.floor(ELEMENTS / changed);
+    const chosen = store.elements.filter((_, i) => i % step === 0).slice(0, changed);
     const copies = new Map(chosen.map((record) => [record, { ...record }]));
     const to: ElementStore = {
       ...store,
@@ -468,7 +473,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       ids: new Set(chosen.map((record) => record.id)),
       repositories: (store as LoadedStore).repositories,
     };
-    expect(update.ids.size).toBe(CARRY_LIMIT);
+    expect(update.ids.size).toBe(changed);
     const { result: carried } = await measure(
       `carry the incoming index over a change of ${String(CARRY_LIMIT)} elements (the limit, ThomasBirkmaier/ReqSeq-archive#273)`,
       () => carryIncomingIndex(index, update),
@@ -516,7 +521,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => affectedOutput(walked, context, { limit: walked.reached.size, offset: 0 }),
       { basis: "SR-024 AK1 (N-036; recorded; a page holds at most 5,000)" },
     );
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records the list of the elements the first need affects, from the output of trace.affected (SR-224 AK5, #1873)", async () => {
@@ -585,7 +590,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // Besides the generated requirements that got no derivation (SR-022 AK6, #659).
     expect(malformedNoParentHints(checked.problems)).toEqual([]);
     expect(noParentHints(checked.problems)).toHaveLength(withoutParent(tree.files));
-    const outdated = withoutNoParent(checked.problems);
+    // And the gaps of verification at the workspace file (SR-230 AK1, AK2).
+    const outdated = withoutVerificationGaps(withoutNoParent(checked.problems));
     expect(outdated.length).toBeGreaterThan(0);
     // Exactly the relations and references to it (17 = 10 + 7 in the generated workspace).
     const index = incomingFor(current, await current.get(elementStoreState), metamodel);
@@ -626,7 +632,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-020 (a check after a save; no threshold of its own)" },
     );
     expect(rechecked).toEqual(checked);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
 
     // Supersede a target of relations by its status (a save), then open it and one of its sources.
     const { source, target } = relationToTarget();
@@ -649,8 +655,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(pointing.problems).toContainEqual(
       expect.objectContaining({ code: "relation.target-superseded", targetId: target.id }),
     );
-    expect(supersededOpen.ms, thresholdMessage(supersededOpen)).toBeLessThanOrEqual(OPEN_MS);
-    expect(pointingOpen.ms, thresholdMessage(pointingOpen)).toBeLessThanOrEqual(OPEN_MS);
+    expect(supersededOpen.ms, thresholdMessage(supersededOpen)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
+    expect(pointingOpen.ms, thresholdMessage(pointingOpen)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   // After the test above: it changes a file too.
@@ -730,6 +736,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
     );
     expect(again.relationsById.size).toBe(fresh.relationsById.size);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 });

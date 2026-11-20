@@ -33,3 +33,5 @@ packages/docs/site/.astro/
 *.reqseq-tmp
 # Sandbox of `pnpm mutate` (Stryker, scripts/mutate/mutate.mjs)
 .stryker-tmp/
+# Vendor files of the HTML export (scripts/build/html-export-vendor.mjs), built by core's `build` and its tests
+packages/core/vendor/

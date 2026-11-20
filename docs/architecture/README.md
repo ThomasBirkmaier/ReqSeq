@@ -4,7 +4,7 @@ Status: written before the first implementation; §5 updated to the code on 2026
 
 ## 1. Goals
 
-ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-018, D-024).
+ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
 
 ### Quality goals
 

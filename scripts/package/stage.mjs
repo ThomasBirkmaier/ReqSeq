@@ -20,6 +20,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   buildInfoOf,
   hardLinkEntries,
@@ -179,6 +180,12 @@ async function stage() {
     renderLauncher(cmd, names, { crlf: true }),
   );
 
+  // What the HTML export copies into its folder (SR-231 AK5): the Mermaid bundle and KaTeX's styles, which core ships
+  // in `vendor/html-export/` (scripts/licenses/html-export.mjs).
+  const { VENDOR_NOTICES } = await import(
+    pathToFileURL(path.join(root, "packages", "core", "dist", "html-export", "notices.generated.js")).href
+  );
+  const extra = [...docs.notices, ...VENDOR_NOTICES];
   const notices = path.join(out, "THIRD_PARTY_NOTICES.txt");
   await fs.writeFile(
     notices,
@@ -187,7 +194,7 @@ async function stage() {
       scope: SCOPE,
       required: REQUIRED_NOTICES,
       title: `Third-party software in ${names.productName} ${version} (app, command line, MCP server and documentation)`,
-      extra: docs.notices,
+      extra,
     }),
   );
   // The CLI tarball has no resources/ folder: its own notices, of the command line and the documentation.
@@ -198,7 +205,7 @@ async function stage() {
       scope: SCOPE,
       required: [],
       title: `Third-party software in the ${names.productName} ${version} command line (CLI, MCP server and documentation)`,
-      extra: docs.notices,
+      extra,
     }),
   );
 

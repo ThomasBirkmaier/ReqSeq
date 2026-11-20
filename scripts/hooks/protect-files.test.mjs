@@ -11,6 +11,10 @@ describe("protect-files hook", () => {
   it("blocks generated files and spec elements", () => {
     expect(protectedReason("schemas/generated/openapi.json")).toMatch(/contracts:generate/);
     expect(protectedReason("packages/core/src/generated/types.ts")).toMatch(/contracts:generate/);
+    expect(protectedReason("packages/core/src/html-export/docs-theme.generated.ts")).toMatch(
+      /docs:export-theme/,
+    );
+    expect(protectedReason("packages/core/src/html-export/notices.generated.ts")).toMatch(/html-export\.mjs/);
     expect(protectedReason("spec/system-requirement/SR-036.md")).toMatch(/ReqSeq CLI/);
   });
 

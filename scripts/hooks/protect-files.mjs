@@ -10,6 +10,14 @@ const RULES = [
   { pattern: /^schemas\/generated\//, fix: "run `pnpm contracts:generate`" },
   { pattern: /^packages\/core\/src\/generated\//, fix: "run `pnpm contracts:generate`" },
   {
+    pattern: /^packages\/core\/src\/html-export\/docs-theme\.generated\.ts$/,
+    fix: "run `pnpm docs:export-theme` after the offline docs build",
+  },
+  {
+    pattern: /^packages\/core\/src\/html-export\/notices\.generated\.ts$/,
+    fix: "run `node scripts/licenses/html-export.mjs`",
+  },
+  {
     pattern: /^spec\/(?!metamodel\/|reqseq-workspace\.yaml$|README\.md$)/,
     fix: "use the ReqSeq CLI or MCP with `--workspace spec` (see the spec-change skill)",
   },

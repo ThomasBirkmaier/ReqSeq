@@ -472,6 +472,48 @@
           ],
           "additionalProperties": false
         },
+        "keptDefinition": {
+          "description": "A property or status definition that no type has any more and that stays, as elements of any type, also of a type the metamodel does not know, hold it.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string",
+              "enum": [
+                "property",
+                "status"
+              ],
+              "description": "property, or status."
+            },
+            "key": {
+              "title": "Key",
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "count": {
+              "title": "Elements holding it",
+              "type": "integer",
+              "minimum": 1,
+              "description": "The elements that have the status, or whose file holds the property key, also with an empty value; those of `elements`.",
+              "x-elements": "elements"
+            },
+            "elements": {
+              "title": "Elements holding it",
+              "type": "array",
+              "description": "The elements `count` counts, in store order.",
+              "items": {
+                "$ref": "#/$defs/common/$defs/countedElement"
+              },
+              "x-elements": true
+            }
+          },
+          "required": [
+            "kind",
+            "key",
+            "count",
+            "elements"
+          ],
+          "additionalProperties": false
+        },
         "elementName": {
           "description": "How an output names an element it gives elsewhere by UUID only, for people: its short ID, its identifier when it has one and its title, as element.list gives them.",
           "type": "object",
@@ -939,6 +981,8 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-not-written",
+            "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
@@ -949,6 +993,7 @@
             "reqif.source-value-chosen",
             "html.unsafe-content",
             "html.image-not-copied",
+            "html.formula-error",
             "html.foreign-file",
             "html.marker-entry-ignored",
             "html.cleanup-failed"
@@ -4239,7 +4284,7 @@
     {
       "name": "workspace_init",
       "title": "Create workspace",
-      "description": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+      "description": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -4270,6 +4315,11 @@
               }
             },
             "additionalProperties": false
+          },
+          "skill": {
+            "type": "boolean",
+            "default": true,
+            "description": "Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none."
           }
         },
         "additionalProperties": false,
@@ -4289,7 +4339,7 @@
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/outputPath",
-              "description": "Written file, relative to the workspace root."
+              "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
             }
           },
           "next": {
@@ -5938,7 +5988,7 @@
                 "items": {
                   "$ref": "#/$defs/common/$defs/key"
                 },
-                "description": "Properties whose definition was removed, as no other type has them."
+                "description": "Properties whose definition was removed, as no other type has them and no element holds them."
               },
               "statuses": {
                 "title": "Statuses",
@@ -5946,7 +5996,7 @@
                 "items": {
                   "$ref": "#/$defs/common/$defs/key"
                 },
-                "description": "Statuses whose definition was removed, as no other type has them."
+                "description": "Statuses whose definition was removed, as no other type has them and no element has them."
               }
             },
             "additionalProperties": false,
@@ -5954,7 +6004,20 @@
               "properties",
               "statuses"
             ],
-            "description": "The definitions removed with the type: its properties and statuses that no other type has."
+            "description": "The definitions removed with the type: its properties and statuses that no other type has and no element holds or has, never the initial status; those that stay are in `kept`."
+          },
+          "kept": {
+            "title": "Definitions kept",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/keptDefinition"
+            },
+            "description": "Properties and statuses that no type has any more once the type goes and whose definitions stay, as elements of other types, or of a type the metamodel does not know, hold them, properties first, in metamodel order; the initial status too, whose definition never goes.",
+            "x-key": [
+              "kind",
+              "key"
+            ],
+            "x-normal": []
           },
           "mentions": {
             "title": "Files naming a removed key",
@@ -6024,6 +6087,7 @@
           "answer",
           "type",
           "removed",
+          "kept",
           "mentions",
           "files",
           "versionsChanged",
@@ -6523,7 +6587,7 @@
     {
       "name": "metamodel_removeProperty",
       "title": "Remove property from type",
-      "description": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards.",
+      "description": "Remove a property from a type that has it itself, while no element of the type or of an inheriting type holds it; its definition goes when no type has it afterwards and no element of any type holds its key.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -6566,12 +6630,25 @@
           "definitionRemoved": {
             "title": "Definition removed",
             "type": "boolean",
-            "description": "true when no type had the property any more, so its definition was removed."
+            "description": "true when no type had the property any more and no element held its key, so its definition was removed."
           },
           "inheritedFrom": {
             "title": "Kept from",
             "$ref": "#/$defs/common/$defs/key",
             "description": "The parent type the type still has the property from, when it listed the property as well; absent otherwise."
+          },
+          "kept": {
+            "title": "Definitions kept",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/keptDefinition"
+            },
+            "description": "The property when no type has it any more and its definition stays, as the files of elements of any type hold its key; empty otherwise.",
+            "x-key": [
+              "kind",
+              "key"
+            ],
+            "x-normal": []
           },
           "mentions": {
             "title": "Files naming a removed key",
@@ -6642,6 +6719,7 @@
           "type",
           "property",
           "definitionRemoved",
+          "kept",
           "mentions",
           "files",
           "versionsChanged",
@@ -7431,8 +7509,21 @@
           "removed": {
             "title": "Definition removed",
             "type": "boolean",
-            "description": "true when no type has the status any more and its definition was removed.",
+            "description": "true when no type and no element has the status any more and its definition was removed.",
             "x-normal": false
+          },
+          "kept": {
+            "title": "Definitions kept",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/keptDefinition"
+            },
+            "description": "The status when no type has it any more and its definition stays, as elements of any type have it; empty otherwise.",
+            "x-key": [
+              "kind",
+              "key"
+            ],
+            "x-normal": []
           },
           "mentions": {
             "title": "Files naming a removed key",
@@ -7503,6 +7594,7 @@
           "type",
           "status",
           "removed",
+          "kept",
           "mentions",
           "files",
           "versionsChanged",
@@ -11245,7 +11337,7 @@
           },
           "target": {
             "$ref": "#/$defs/common/$defs/elementRef",
-            "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+            "description": "Confirm the open confirmable hints on relations and inline references that point at this element."
           },
           "all": {
             "type": "boolean",
@@ -11254,7 +11346,7 @@
           },
           "kind": {
             "type": "array",
-            "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+            "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
             "items": {
               "$ref": "#/$defs/common/$defs/problemCode"
             }

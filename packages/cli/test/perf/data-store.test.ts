@@ -21,6 +21,7 @@ import {
   defaultStandardModelFile,
   generateLargeWorkspace,
   measure,
+  perfSize,
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -28,8 +29,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 const MB = 1e6;
 
 type Metamodel = CommandOutput<"metamodel.get">;
