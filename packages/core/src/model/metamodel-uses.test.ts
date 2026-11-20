@@ -1,6 +1,6 @@
 // The use counts of metamodel definitions (SR-236 AK7, AK8) beyond what the metamodel commands show.
 import { describe, expect, it } from "vitest";
-import { SMALL_MODEL, elements, openSmall } from "../commands/metamodel-commands.test-helper.js";
+import { SMALL_MODEL, elements, openSmall, useCounts } from "../commands/metamodel-commands.test-helper.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { mentioningFiles, metamodelUsesState, unreadableElementFiles } from "./metamodel-uses.js";
@@ -13,7 +13,10 @@ describe("metamodelUses", () => {
       model,
     );
     expect((await workspace.get(metamodelState)).valid).toBe(true);
-    expect((await workspace.get(metamodelUsesState)).values).toEqual({ severity: { low: 2, high: 1 } });
+    expect(useCounts((await workspace.get(metamodelUsesState)).values)).toEqual({
+      "severity.low": 2,
+      "severity.high": 1,
+    });
   });
 });
 
@@ -27,17 +30,41 @@ describe("metamodelUses and keys objects inherit", () => {
       ]),
     );
     const uses = await workspace.get(metamodelUsesState);
-    expect(uses.values).toEqual({ severity: { low: 0, high: 0 } });
-    expect(uses.relations).toEqual({ about: 0 });
+    expect(useCounts(uses.values)).toEqual({ "severity.low": 0, "severity.high": 0 });
+    expect(useCounts(uses.relations)).toEqual({ about: 0 });
     // Only the system requirement of the fixture, a draft, counts.
-    expect(uses.statuses).toEqual({ draft: 1, open: 0, noted: 0 });
+    expect(useCounts(uses.statuses)).toEqual({ draft: 1, open: 0, noted: 0 });
     expect(typeof Object.keys).toBe("function");
     expect(Object.hasOwn({}, "constructor")).toBe(false);
   });
 
+  it("counts an element once for a fixed value its list holds twice, as the elements of the number", async () => {
+    const model = SMALL_MODEL.replace("    kind: choice\n", "    kind: choice\n    many: true\n");
+    const { workspace } = await openSmall(elements([1, "hazard", { severity: "[high, high]" }]), model);
+    expect(useCounts((await workspace.get(metamodelUsesState)).values)).toEqual({
+      "severity.low": 0,
+      "severity.high": 1,
+    });
+  });
+
+  it("lists a choice key written twice in one property once, with all its elements", async () => {
+    const model = SMALL_MODEL.replace(
+      "      - { key: high, name: High }\n",
+      "      - { key: high, name: High }\n      - { key: low, name: Low again }\n",
+    );
+    const { workspace } = await openSmall(elements([1, "hazard", { severity: "low" }]), model);
+    expect((await workspace.get(metamodelUsesState)).values).toEqual([
+      { property: "severity", value: "low", count: 1 },
+      { property: "severity", value: "high", count: 0 },
+    ]);
+  });
+
   it("counts a fixed value on an element of a type without the property", async () => {
     const { workspace } = await openSmall(elements([1, "note", { severity: "high" }]));
-    expect((await workspace.get(metamodelUsesState)).values).toEqual({ severity: { low: 0, high: 1 } });
+    expect(useCounts((await workspace.get(metamodelUsesState)).values)).toEqual({
+      "severity.low": 0,
+      "severity.high": 1,
+    });
   });
 });
 

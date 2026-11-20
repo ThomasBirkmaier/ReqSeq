@@ -19,6 +19,16 @@
 //   (SR-231 AK8), and the walks go on through it (AK6); an element without a page (several files share its UUID)
 //   is a row without a link as well.
 // - Without parents or children the section says so; without incoming links it has no such group.
+// - A repository of the workspace file that is not on this machine (SR-232 AK8, SR-006 AK2): a line naming the missing
+//   repositories in the order of the workspace file says that children from their elements may be missing, after the
+//   children and their bound note (in place of "No children" without one), and a last line of the section says the
+//   same of incoming relations and references, also without an incoming group. A derivation of the element or of a
+//   shown parent whose target lies in such a repository (`targetState` `inaccessible`) is a parent row without a link,
+//   as an outgoing relation names it (`UNKNOWN-<tail>, repository <name>, not accessible`, SR-006 AK1), with no
+//   outdated mark and no parents of its own; each target once, one level above the nearest shown element that points
+//   at it (the walk's order is by depth, so the first one found). A missing or ambiguous target, or one in a
+//   repository the workspace file does not name, stays out of the section (the relations section shows it). These
+//   rows and lines are not counted in the bound and have none.
 // - Bound: parents and children show the nearest `NEIGHBOURHOOD_LIMIT` elements each (breadth first, the walk's
 //   order), and say so only when the walk reached more (SR-232 AK5): each element counted once on its nearest level,
 //   also one with an invalid status, so every nearer level stands whole. The children's tree is drawn from the shown
@@ -30,7 +40,15 @@
 // - Cost: per page two bounded walks over the derivations and one step over the other links; the current versions
 //   and the names of the incoming groups are read once for the export (`neighbourhoodSource`).
 import type { ElementRecord, IncomingLink } from "../model/index.js";
-import { invalidStatuses, relationKeysOf, titleKeyOrEmpty } from "../model/index.js";
+import {
+  UNKNOWN_TYPE_PREFIX,
+  hasId,
+  invalidStatuses,
+  relationItems,
+  relationKeysOf,
+  targetState,
+  titleKeyOrEmpty,
+} from "../model/index.js";
 import type { NeighbourhoodContext, NeighbourhoodWalk, TraceContext, VersionLookup } from "../trace/index.js";
 import { edgeMarks, neighbourhoodContext, traceNeighbourhood } from "../trace/index.js";
 import type { WalkEdge } from "../trace/walk.js";
@@ -119,8 +137,67 @@ const row = (context: ElementPageContext, element: ElementRecord, level: number,
   const cells = `<span>${escapeHtml(shownId(context, element))}</span><span>${escapeHtml(typeof title === "string" ? title : "")}${marks}</span><span>${escapeHtml(typeof status === "string" ? status : "–")}</span>`;
   const invalid = typeof status === "string" && context.neighbourhood.invalid.has(status);
   const href = invalid ? undefined : context.links.href(element.id);
-  const content = href === undefined ? `<span>${cells}</span>` : `<a href="${escapeHtml(href)}">${cells}</a>`;
-  return `<li${level === 0 ? "" : ` style="--rq-level:${String(level)}"`}>${content}</li>`;
+  return item(
+    level,
+    href === undefined ? `<span>${cells}</span>` : `<a href="${escapeHtml(href)}">${cells}</a>`,
+  );
+};
+
+/** A list item of `content`, indented by `level`. */
+const item = (level: number, content: string): string =>
+  `<li${level === 0 ? "" : ` style="--rq-level:${String(level)}"`}>${content}</li>`;
+
+/** A parent in a repository that is not on this machine, and the depth it stands at (see the file comment). */
+interface InaccessibleParent {
+  readonly id: string;
+  readonly repository: string;
+  readonly depth: number;
+}
+
+/**
+ * The inaccessible targets of the derivations of `nodes` (the element and its shown parents, in walk order), each once
+ * at one depth past the first node that points at it (see the file comment).
+ */
+const inaccessibleParents = (
+  context: ElementPageContext,
+  nodes: readonly { readonly element: ElementRecord; readonly depth: number }[],
+): InaccessibleParent[] => {
+  const { layout, store, keys } = context.neighbourhood.derivations;
+  const found = new Map<string, InaccessibleParent>();
+  for (const { element, depth } of nodes) {
+    const targets = [...keys].flatMap(([key, relation]) =>
+      relationItems(key, relation, element.data[key]).flatMap(([, target]) =>
+        hasId(target) ? [target] : [],
+      ),
+    );
+    for (const target of targets) {
+      const state = targetState(layout, store, element.repository, target);
+      if (state.kind === "inaccessible" && !found.has(`${state.repository}\n${target.id}`)) {
+        found.set(`${state.repository}\n${target.id}`, {
+          id: target.id,
+          repository: state.repository,
+          depth: depth + 1,
+        });
+      }
+    }
+  }
+  return [...found.values()];
+};
+
+/** The row of an inaccessible parent: as an outgoing relation names it, without a link and without a status. */
+const inaccessibleRow = (context: ElementPageContext, parent: InaccessibleParent, level: number): string =>
+  item(
+    level,
+    `<span><span>${escapeHtml(`${UNKNOWN_TYPE_PREFIX}-${context.shortIds.tail(parent.id)}`)}</span><span>${escapeHtml(`repository ${parent.repository}, not accessible`)}</span><span></span></span>`,
+  );
+
+/** The line on the repositories not on this machine, where `what` may be missing (see the file comment); none without. */
+const missingLine = (context: ElementPageContext, what: string): string => {
+  const missing = context.layout.repositories.filter((r) => !r.available).map((r) => r.name);
+  if (missing.length === 0) {
+    return "";
+  }
+  return `<p class="rq-nb-none">${escapeHtml(`Repositories not on this machine: ${missing.join(", ")}. ${what} from their elements are not accessible and may be missing here.`)}</p>`;
 };
 
 /** Rows of one part, and whether the bound left some out. */
@@ -129,9 +206,14 @@ interface Part {
   readonly more: boolean;
 }
 
+/** A group with its rows, or the line `none` without one (nothing when `none` is empty). */
 const group = (heading: string, { rows, more }: Part, none: string): string =>
   `<h3>${escapeHtml(heading)}</h3>` +
-  (rows.length === 0 ? `<p class="rq-nb-none">${none}</p>` : `<ul class="rq-nb">${rows.join("")}</ul>`) +
+  (rows.length > 0
+    ? `<ul class="rq-nb">${rows.join("")}</ul>`
+    : none === ""
+      ? ""
+      : `<p class="rq-nb-none">${none}</p>`) +
   (more ? `<p class="rq-nb-none">Only the nearest ${String(NEIGHBOURHOOD_LIMIT)} are shown.</p>` : "");
 
 /** The elements of `walked` a page shows (the nearest, see the file comment), and whether the walk reached more. */
@@ -153,11 +235,19 @@ const parentRows = (context: ElementPageContext, up: NeighbourhoodWalk): Part =>
       notes.set(marks.target, list);
     }
   }
-  const top = Math.max(0, ...nodes.map((node) => node.depth));
-  // A stable sort: within a level, the order of the walk.
-  const rows = [...nodes]
-    .sort((a, b) => b.depth - a.depth)
-    .map((node) => row(context, node.element, top - node.depth, outdatedMark(notes.get(node.element) ?? [])));
+  const placed = [
+    ...nodes.map((node) => ({
+      depth: node.depth,
+      html: (level: number) => row(context, node.element, level, outdatedMark(notes.get(node.element) ?? [])),
+    })),
+    ...inaccessibleParents(context, up.result.nodes.slice(0, NEIGHBOURHOOD_LIMIT + 1)).map((parent) => ({
+      depth: parent.depth,
+      html: (level: number) => inaccessibleRow(context, parent, level),
+    })),
+  ];
+  const top = Math.max(0, ...placed.map((entry) => entry.depth));
+  // A stable sort: within a level, the order of the walk, then the inaccessible parents.
+  const rows = placed.sort((a, b) => b.depth - a.depth).map((entry) => entry.html(top - entry.depth));
   return { rows, more };
 };
 
@@ -230,11 +320,14 @@ export const neighbourhoodSection = (context: ElementPageContext, page: ElementP
   const [links] = traceNeighbourhood(incoming, page.record, { direction: "down", maxDepth: 1 }).walks as [
     NeighbourhoodWalk,
   ];
+  const children = missingLine(context, "Children");
   return [
     '<section class="rq-neighbourhood"><h2 id="neighbourhood">Neighbourhood</h2>',
     group("Parents", parentRows(context, up), "No parents"),
-    group("Children", childRows(context, page.record, down), "No children"),
+    group("Children", childRows(context, page.record, down), children === "" ? "No children" : ""),
+    children,
     ...incomingGroups(context, links),
+    missingLine(context, "Incoming relations and references"),
     "</section>",
   ].join("");
 };

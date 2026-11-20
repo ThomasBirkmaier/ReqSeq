@@ -81,9 +81,23 @@ const cachedWorkspace = (root: string): Workspace =>
 const recordWorkspace = (workspace: Workspace, key: string): Promise<unknown> =>
   recordOpenedWorkspace(workspace, { key });
 
-/** The root to open for `folder`: itself for an exact open, which needs its workspace file, else found upwards. */
-const rootOf = async (folder: string, exact: boolean): Promise<string | undefined> => {
-  if (!exact) {
+/** How the core process finds the root of the folder main sends. */
+interface OpenHow {
+  /** A root of the list of recent workspaces: the folder itself, which needs its workspace file. */
+  readonly exact: boolean;
+  /** The folder for "Create workspace" (SR-225 AK4): the folder itself, with or without one. */
+  readonly itself: boolean;
+}
+
+/**
+ * The workspace root to open for `folder`, undefined for a folder without a workspace: the folder itself for an
+ * exact open, which needs its workspace file, or for an `itself` open; else found upwards.
+ */
+const rootOf = async (folder: string, how: OpenHow): Promise<string | undefined> => {
+  if (how.itself) {
+    return (await workspaceExists(folder)) ? folder : undefined;
+  }
+  if (!how.exact) {
     return findWorkspaceRoot(folder);
   }
   if (!(await workspaceExists(folder))) {
@@ -102,8 +116,8 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
   /** The record in the list of recent workspaces; `stop` waits for it. */
   let recorded: Promise<unknown> = Promise.resolve();
 
-  const open = async (folder: string, exact: boolean): Promise<CoreHost> => {
-    const found = await rootOf(folder, exact);
+  const open = async (folder: string, how: OpenHow): Promise<CoreHost> => {
+    const found = await rootOf(folder, how);
     const root = found ?? folder;
     const workspace = openWorkspace(root);
     // The workspace loads only once the folders are watched, so a change during the load is seen.
@@ -138,7 +152,10 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
       case "open":
         // A workspace that cannot be opened ends the process; the main process starts it again or
         // tells the window that it keeps stopping.
-        host ??= open(request.folder, request.exact === true).catch((error: unknown) => {
+        host ??= open(request.folder, {
+          exact: request.exact === true,
+          itself: request.itself === true,
+        }).catch((error: unknown) => {
           options.log(
             `The background process of the app could not open the workspace: ${error instanceof Error ? error.message : String(error)}`,
           );

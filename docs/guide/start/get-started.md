@@ -36,7 +36,7 @@ next:
 
 ReqSeq never commits: put the folder under Git yourself.
 
-In the app: Ctrl+O and choose the folder, then run **Create workspace** in the command prompt (Ctrl+Shift+P). The command prompt at the bottom asks for the path (`.`) and the name. Details: [Open or create a workspace](/how-to/open-a-workspace/).
+In the app: click **Create workspace** and choose the folder; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. Details: [Open or create a workspace](/how-to/open-a-workspace/).
 
 ![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
 

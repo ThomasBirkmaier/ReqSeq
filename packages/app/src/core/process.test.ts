@@ -266,6 +266,32 @@ describe("serveCoreProcess", () => {
     expect(record).toHaveBeenCalledOnce();
   });
 
+  it("an itself open (Create workspace of the start buffer) opens the folder itself, with or without a workspace", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    const record = vi.fn(() => Promise.resolve());
+    const opened = start(undefined, record);
+    opened.parent.send({ type: "open", folder: fixture.root, itself: true });
+    await waitUntil(() => opened.parent.sent.length === 1);
+    expect(opened.parent.sent).toEqual([
+      { type: "ready", root: fixture.root, key: workspaceKey(fixture.root), listed: true },
+    ]);
+    opened.parent.send({ type: "stop" });
+    await waitUntil(() => opened.exit.mock.calls.length === 1);
+    // A folder inside it is opened as a folder without a workspace, never the workspace above it.
+    const inside = start(undefined, record);
+    const folder = path.join(fixture.root, "requirements");
+    inside.parent.send({ type: "open", folder, itself: true });
+    await waitUntil(() => inside.parent.sent.length === 1);
+    expect(inside.parent.sent).toEqual([
+      { type: "ready", root: folder, key: workspaceKey(folder), listed: false },
+    ]);
+    inside.parent.send({ type: "stop" });
+    await waitUntil(() => inside.exit.mock.calls.length === 1);
+    expect(inside.exit).toHaveBeenCalledWith(0);
+    expect(record).toHaveBeenCalledOnce();
+  });
+
   it("sends each access an agent makes through MCP on the copy to its windows (SR-117)", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(fixture);

@@ -6,7 +6,7 @@
 // - text: the element's text, formatted (SR-231 AK5);
 // - acceptance criteria (`section-criteria.ts`, AK2), each with the evidence records that bear its status (AK3);
 // - evidence records of a requirement without criteria (`section-evidence.ts`, AK3);
-// - properties (`section-properties.ts`, AK1): every other filled property as in the element file;
+// - properties (`section-properties.ts`, AK1): every other filled property with the value `element.get` gives for it;
 // - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
 // - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references;
 // - the elements of a package on its page (`section-package.ts`, SR-233 AK4);

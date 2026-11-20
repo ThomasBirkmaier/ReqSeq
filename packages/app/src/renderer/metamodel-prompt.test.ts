@@ -24,6 +24,10 @@ const used = (uses: Partial<MetamodelGetOutput["uses"]>): MetamodelGetOutput => 
   uses: { ...FIXTURE_METAMODEL.uses, ...uses },
 });
 
+/** `list` of `uses` with the number of `key` set to `count`. */
+const withCount = (list: MetamodelGetOutput["uses"]["types"], key: string, count: number) =>
+  list.map((entry) => (entry.key === key ? { key, count } : entry));
+
 /** A context over the overview whose `metamodel.get` gives `metamodel`, and the answers of the other commands. */
 const ready = (
   answers: Record<string, (input: Record<string, unknown>) => unknown> = {},
@@ -763,9 +767,12 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     const { context, asked, call } = ready(
       { "metamodel.changeProperty": () => OK },
       used({
-        types: { ...FIXTURE_METAMODEL.uses.types, decision: 4 },
-        properties: { ...FIXTURE_METAMODEL.uses.properties, component: 3 },
-        values: { component: { display: 2, sensor: 0 } },
+        types: withCount(FIXTURE_METAMODEL.uses.types, "decision", 4),
+        properties: withCount(FIXTURE_METAMODEL.uses.properties, "component", 3),
+        values: [
+          { property: "component", value: "display", count: 2 },
+          { property: "component", value: "sensor", count: 0 },
+        ],
       }),
     );
     start(context, "metamodel.changeProperty");
@@ -793,7 +800,7 @@ describe("the metamodel commands in the command prompt (SR-236)", () => {
     expect(item(type.items, "Prefix")).toMatchObject({ hint: "locked: 4 elements", inert: true });
     expect(item(type.items, "Abstract")).toMatchObject({ hint: "locked: 4 elements", inert: true });
     // Removing the abstract mark of a used type always works (SR-237 AK3).
-    const abstract = ready({}, used({ types: { ...FIXTURE_METAMODEL.uses.types, item: 2 } }));
+    const abstract = ready({}, used({ types: withCount(FIXTURE_METAMODEL.uses.types, "item", 2) }));
     start(abstract.context, "metamodel.changeType");
     await flush();
     await choose(abstract.asked, "Item");

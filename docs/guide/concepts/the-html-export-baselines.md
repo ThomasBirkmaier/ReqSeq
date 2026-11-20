@@ -2,7 +2,7 @@
 title: Baselines and variants in the HTML export
 description: How an HTML export shows each baseline, what changed since it, each variant against the core, and the variant comparison.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 An [HTML export](/concepts/the-html-export/) shows each baseline and each variant, and compares the variants with the core (SR-234). The navigation of every page names the page of all baselines, each baseline and the variant comparison, where there are any.

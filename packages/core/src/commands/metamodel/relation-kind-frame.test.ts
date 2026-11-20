@@ -74,7 +74,7 @@ describe("metamodel commands: the frame over the relation kind commands (SR-236)
       await run(workspace, command, input);
       const after = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
       expect(after.relations).not.toEqual(before.relations);
-      expect(after.uses.relations).toEqual(Object.fromEntries(after.relations.map((r) => [r.key, 0])));
+      expect(after.uses.relations).toEqual(after.relations.map((r) => ({ key: r.key, count: 0 })));
     },
   );
 

@@ -50,6 +50,25 @@ export const EDIT_CHANNEL = "reqseq:edit";
  */
 export const FOLDER_DIALOG_CHANNEL = "reqseq:folder-dialog";
 
+/**
+ * Renderer to main: the folder for "Create workspace" of the start buffer (SR-225 AK4–AK6). Main takes the folder
+ * without a workspace that the window has open, else shows the system folder dialog, under the input condition of
+ * FOLDER_DIALOG_CHANNEL, and opens the chosen folder itself, never a workspace above it. Answered with
+ * `CreateFolderAnswer` once the dialog is closed; the renderer sends nothing and gets no path back, only the name
+ * of the folder (`main/folder-dialog.ts`, `main/workspaces.ts`).
+ */
+export const CREATE_FOLDER_CHANNEL = "reqseq:create-folder";
+
+/**
+ * What main did for "Create workspace" of the start buffer: `refused` (no dialog shown), `nothing` (the dialog was
+ * canceled, or the folder could not be opened), `existing` (the chosen folder is a workspace, which main opens:
+ * AK6), or `folder` with its name: a folder without a workspace, which main opens (`opening`) or which the window
+ * has open already.
+ */
+export type CreateFolderAnswer =
+  | { readonly outcome: "refused" | "nothing" | "existing" }
+  | { readonly outcome: "folder"; readonly name: string; readonly opening: boolean };
+
 /** The edits EDIT_CHANNEL takes. */
 export type EditRequest = "paste";
 
@@ -331,6 +350,13 @@ export interface ReqSeqBridge {
    */
   openFolderDialog(): Promise<boolean>;
   /**
+   * The folder for "Create workspace" of the start buffer (SR-225 AK4–AK6): main takes the folder without a
+   * workspace the window has open, else shows the system folder dialog right after a click or Enter and opens the
+   * chosen folder itself. Never rejects; a refusal or an answer of another shape is `refused`. The renderer gets the
+   * folder's name, never its path.
+   */
+  chooseCreateFolder(): Promise<CreateFolderAnswer>;
+  /**
    * Opens the bundled documentation in the default browser (SR-141): the start page, or with `topic` (a catalog
    * command name or an action ID) its page. Never rejects; a refusal or an answer of another shape is a failure with
    * a message to show.
@@ -381,11 +407,17 @@ export type PortMessage =
 /**
  * Main to core process, over the parent port. `open` comes first and once; `connect` carries the port
  * of one window; `stop` closes the workspace and ends the process. An `exact` open (a root of the list of
- * recent workspaces) opens the folder itself as the root and fails when it holds no workspace file;
- * otherwise the root is found upwards (File > Open Workspace, `--workspace`).
+ * recent workspaces) opens the folder itself as the root and fails when it holds no workspace file; an `itself`
+ * open ("Create workspace" of the start buffer, SR-225 AK4) opens the folder itself as the root, with or without
+ * one; otherwise the root is found upwards (File > Open Workspace, `--workspace`).
  */
 export type CoreRequest =
-  | { readonly type: "open"; readonly folder: string; readonly exact?: boolean }
+  | {
+      readonly type: "open";
+      readonly folder: string;
+      readonly exact?: boolean;
+      readonly itself?: boolean;
+    }
   | { readonly type: "connect" }
   | { readonly type: "file"; readonly id: number; readonly url: string }
   | { readonly type: "stop" };
@@ -431,7 +463,12 @@ export const coreRequest = (value: unknown): CoreRequest | undefined => {
   switch (value["type"]) {
     case "open":
       return typeof value["folder"] === "string"
-        ? { type: "open", folder: value["folder"], ...(value["exact"] === true ? { exact: true } : {}) }
+        ? {
+            type: "open",
+            folder: value["folder"],
+            ...(value["exact"] === true ? { exact: true } : {}),
+            ...(value["itself"] === true ? { itself: true } : {}),
+          }
         : undefined;
     case "file":
       return typeof value["id"] === "number" && typeof value["url"] === "string"
@@ -645,6 +682,18 @@ const PROBLEMS: readonly unknown[] = ["missing", "unreadable", "invalid"] satisf
 
 /** A listing that says only that the path was refused. */
 export const REFUSED_LISTING: FolderListing = { name: "", entries: [], problem: "invalid" };
+
+/** An answer on CREATE_FOLDER_CHANNEL as main gives it, else `refused` (an answer of another shape). */
+export const createFolderAnswer = (value: unknown): CreateFolderAnswer => {
+  if (!isRecord(value)) {
+    return { outcome: "refused" };
+  }
+  const { outcome, name, opening } = value;
+  if (outcome === "folder" && typeof name === "string" && typeof opening === "boolean") {
+    return { outcome, name, opening };
+  }
+  return outcome === "nothing" || outcome === "existing" ? { outcome } : { outcome: "refused" };
+};
 
 /** The failure of an answer on DOCS_CHANNEL that is of no known shape. */
 export const DOCS_FAILED: OpenDocsResult = { ok: false, message: "The documentation could not be opened" };

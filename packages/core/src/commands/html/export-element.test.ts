@@ -188,6 +188,40 @@ describe("html.export shows every field of an element (SR-232 AK1)", () => {
     expect(need).toContain("<dt>Validation Criteria</dt><dd><ul><li><p>Pilots read it.</p></li></ul></dd>");
   });
 
+  it("[SR-232/AK-cj5d] shows each filled property of the element file with the value element.get gives, and of a list item with a text only that text", async () => {
+    const { fixture, workspace } = await open();
+    await fixture.write(
+      "requirements/SR-1d2e3f4a5b6c.md",
+      file(
+        GUSTS,
+        "system-requirement",
+        [
+          "title: Report gusts",
+          "customer-id: 00815",
+          'order-no: "00815"',
+          "notes:",
+          "  - { key: abcd, text: First note. }",
+          "  - Second note.",
+          "empty-value:",
+          'empty-text: ""',
+          "empty-list: []",
+          "",
+        ].join("\n"),
+        "Gusts.",
+      ),
+    );
+    const shown = (await invoke("element.get", { ref: GUSTS }, { workspace })) as {
+      readonly element: { readonly properties: Readonly<Record<string, unknown>> };
+    };
+    expect(shown.element.properties).toMatchObject({ "customer-id": 815, "order-no": "00815" });
+    await exported(workspace);
+    const gusts = await read(fixture, GUSTS);
+    expect(gusts).toContain(
+      '<section class="rq-properties"><h2 id="properties">Properties</h2><dl><dt>customer-id</dt><dd><p>815</p></dd><dt>order-no</dt><dd><p>00815</p></dd><dt>notes</dt><dd><ul><li><p>First note.</p></li><li><p>Second note.</p></li></ul></dd></dl></section>',
+    );
+    expect(gusts).not.toContain("<dt>empty-");
+  });
+
   it("[SR-232/AK-cj5d] says without status \u2013 and names no repository in a workspace of one", async () => {
     const { fixture, workspace } = await open({ fixture: "SR-001/two-elements" });
     await fixture.write(

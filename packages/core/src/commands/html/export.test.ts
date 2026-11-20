@@ -1,4 +1,4 @@
-// html.export (SR-231 AK1, AK3; SR-235 AK1, AK2, AK3, AK6): the folder it writes, what it refuses and
+// html.export (SR-231 AK1, AK3; SR-235 AK1, AK2, AK3, AK6; SR-006 AK2): the folder it writes, what it refuses and
 // what it leaves as it is.
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -110,6 +110,30 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  it("[SR-006/AK-q0f4] marks the export incomplete when a repository of the workspace is not on this machine", async () => {
+    const { fixture, workspace } = await open({
+      "reqseq-workspace.yaml": [
+        "reqseq-workspace: 1",
+        "name: Weather station",
+        "repositories:",
+        '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
+        '  - { name: vault, url: "git@git.example.com:ws/vault.git", path: ../vault }',
+        "metamodel: { repository: system, path: metamodel }",
+        "",
+      ].join("\n"),
+    });
+    const output = await exported(workspace, "site");
+    expect(output).toMatchObject({ pages: 2, incomplete: true });
+    expect(output.answer).toBe(
+      "Exported 2 element pages to site; incomplete, as a repository is not available.",
+    );
+    expect(await fs.readFile(fixture.path("site/index.html"), "utf8")).toContain(
+      "This export is incomplete:",
+    );
+    const { workspace: complete } = await open();
+    expect(await exported(complete, "site")).toMatchObject({ incomplete: false });
   });
 
   it("[SR-231/AK-z3tv] keeps the page of an element at the same file when its identifier, title and short ID change", async () => {

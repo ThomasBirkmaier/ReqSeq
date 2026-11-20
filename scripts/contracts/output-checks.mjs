@@ -353,6 +353,31 @@ function checkInteger(cmd, field, schemas, notCounts) {
       ];
 }
 
+/** Whether the values of a field's map, or of a map in them, are integers, which no check above sees as fields. */
+function mapsNumbers(schema, file, schemas, seen = new Set()) {
+  const values = target(schema, file, schemas);
+  if (seen.has(values.schema)) {
+    return false;
+  }
+  seen.add(values.schema);
+  const inner = values.schema.additionalProperties;
+  return (
+    isObject(inner) &&
+    (isInteger(inner, values.file, schemas) || mapsNumbers(inner, values.file, schemas, seen))
+  );
+}
+
+/**
+ * A number is never the value of a map (SR-224 AK4): a number of elements names its entry by the fields of a list
+ * (`x-key`), and a map's values are no field that could be marked or listed in `NOT_ELEMENT_COUNTS`.
+ */
+const checkMapNumbers = (field, schemas) =>
+  mapsNumbers(field.schema, field.file, schemas)
+    ? [
+        "a number as the value of a map: make it a list whose entries name their key (x-key) and mark the number",
+      ]
+    : [];
+
 /** `x-key` stands on an array: the names of fields of its item. */
 function checkKey(field, schemas) {
   const key = field.schema["x-key"];
@@ -379,6 +404,7 @@ function checkField(cmd, field, fields, schemas, notCounts) {
     ...checkNormal(field, schemas),
     ...marks,
     ...checkInteger(cmd, field, schemas, notCounts),
+    ...checkMapNumbers(field, schemas),
     ...checkKey(field, schemas),
   ];
 }

@@ -5,6 +5,7 @@ import type { CommandOutput } from "../../catalog.js";
 import { MEANINGS } from "../../metamodel/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { elements, openSmall, run, useCounts } from "../metamodel-commands.test-helper.js";
 
 type Output = CommandOutput<"metamodel.get">;
 
@@ -276,5 +277,45 @@ describe("metamodel.get", () => {
       "concerns",
       "refines",
     ]);
+  });
+});
+
+describe("metamodel.get: the elements of each use count (SR-224 AK4)", () => {
+  it("[SR-224/AK-h9kx] element.list gives exactly the elements each number of uses counts, by its entry", async () => {
+    const { workspace } = await openSmall(
+      elements(
+        [1, "hazard", { severity: "high", about: "[]" }],
+        [2, "risk", { status: "open", severity: "high" }],
+        [3, "note", { status: "open", remark: "x" }],
+      ),
+    );
+    const out = await run<Output>(workspace, "metamodel.get", {});
+    /** The UUID numbers of the elements `element.list` gives for the number `field` of the entry `key`. */
+    const counted = async (field: string, key: Record<string, string>): Promise<number[]> => {
+      const listed = await run<CommandOutput<"element.list">>(workspace, "element.list", {
+        selection: { output: { command: "metamodel.get", input: {}, count: { field, key: [key] } } },
+      });
+      expect(listed.incomplete ?? false, field).toBe(false);
+      return (listed.elements ?? []).map((e) => Number(e.id.slice(-12))).sort((a, b) => a - b);
+    };
+    // A type counts its own elements, not those of a type that extends it.
+    expect(await counted("uses.types[].count", { key: "hazard" })).toEqual([1]);
+    expect(useCounts(out.uses.types)).toEqual({ hazard: 1, risk: 1, note: 1 });
+    // The property and the fixed value are used by elements of two types; the unused value counts none.
+    expect(await counted("uses.properties[].count", { key: "severity" })).toEqual([1, 2]);
+    expect(useCounts(out.uses.properties)["severity"]).toBe(2);
+    expect(await counted("uses.values[].count", { property: "severity", value: "high" })).toEqual([1, 2]);
+    expect(await counted("uses.values[].count", { property: "severity", value: "low" })).toEqual([]);
+    expect(useCounts(out.uses.values)).toEqual({ "severity.low": 0, "severity.high": 2 });
+    // A relation kind counts an empty list.
+    expect(await counted("uses.relations[].count", { key: "about" })).toEqual([1]);
+    expect(useCounts(out.uses.relations)).toEqual({ about: 1 });
+    // A status counts on elements of any type: notes have no status open.
+    expect(await counted("uses.statuses[].count", { key: "open" })).toEqual([2, 3]);
+    expect(await counted("uses.statuses[].count", { key: "noted" })).toEqual([]);
+    expect(useCounts(out.uses.statuses)).toMatchObject({ open: 2, noted: 0 });
+    // A key that names no entry gives no elements, though elements hold it.
+    expect(await counted("uses.properties[].count", { key: "status" })).toEqual([]);
+    expect(await counted("uses.types[].count", { key: "system-requirement" })).toEqual([]);
   });
 });

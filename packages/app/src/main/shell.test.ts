@@ -6,6 +6,7 @@ import {
   COPY_CHANNEL,
   DOCS_CHANNEL,
   EDIT_CHANNEL,
+  CREATE_FOLDER_CHANNEL,
   FOLDER_DIALOG_CHANNEL,
   HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
@@ -289,9 +290,10 @@ describe("startShell", () => {
   it("[SR-128/AK-yqp3] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
-    // The eight channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
+    // The nine channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
     // into the focused field (SR-195), the folders of a typed path (SR-143), the recent workspaces and the
-    // answer whether the window saved before a switch (SR-131), and the folder dialog (SR-225 AK2).
+    // answer whether the window saved before a switch (SR-131), the folder dialog (SR-225 AK2) and the folder
+    // for Create workspace (AK4).
     expect([...ipcHandlers.keys()]).toEqual([
       COPY_CHANNEL,
       DOCS_CHANNEL,
@@ -300,6 +302,7 @@ describe("startShell", () => {
       RECENT_WORKSPACES_CHANNEL,
       OPEN_WORKSPACE_CHANNEL,
       FOLDER_DIALOG_CHANNEL,
+      CREATE_FOLDER_CHANNEL,
     ]);
     expect([...ipcListeners.keys()]).toEqual([SAVED_CHANNEL]);
     const copied = await ipcHandlers.get(COPY_CHANNEL)?.(
@@ -405,6 +408,28 @@ describe("startShell", () => {
       properties: ["openDirectory"],
     });
     expect(children[0]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
+  });
+
+  it("shows the system folder dialog for Create workspace of the start buffer, and opens the folder chosen itself", async () => {
+    const { electron, children, ipcHandlers, windows } = await start();
+    const contents = windows[0]?.webContents;
+    const ask = (): unknown =>
+      ipcHandlers.get(CREATE_FOLDER_CHANNEL)?.({ sender: contents, senderFrame: contents?.mainFrame });
+    // Without an input of the person first, nothing.
+    expect(await ask()).toEqual({ outcome: "refused" });
+    contents?.emit("input-event", {}, { type: "mouseUp", button: "left" });
+    electron.dialog.showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    expect(await ask()).toEqual({ outcome: "nothing" });
+    expect(electron.dialog.showOpenDialog.mock.calls[0]?.[1]).toEqual({
+      title: "Create Workspace",
+      buttonLabel: "Create",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    contents?.emit("input-event", {}, { type: "keyDown", key: "Enter" });
+    const chosen = path.join(path.sep, "no", "such", "Station");
+    electron.dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [chosen] });
+    expect(await ask()).toEqual({ outcome: "folder", name: "Station", opening: true });
+    expect(children[0]?.sent[0]).toEqual({ type: "open", folder: chosen, itself: true });
   });
 
   it("[SR-131/AK-nkm5] File > Open Workspace has the loaded window save its input first, and keeps the workspace when it could not", async () => {

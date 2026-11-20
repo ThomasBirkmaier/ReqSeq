@@ -77,6 +77,13 @@ describe("coreRequest: what the main process sends the core process", () => {
       exact: true,
     });
     expect(coreRequest({ type: "open", folder: "/w", exact: "yes" })).toEqual({ type: "open", folder: "/w" });
+    // The folder itself, for Create workspace of the start buffer (SR-225 AK4); only `true` counts.
+    expect(coreRequest({ type: "open", folder: "/w", itself: true })).toEqual({
+      type: "open",
+      folder: "/w",
+      itself: true,
+    });
+    expect(coreRequest({ type: "open", folder: "/w", itself: 1 })).toEqual({ type: "open", folder: "/w" });
     expect(coreRequest({ type: "connect", extra: 1 })).toEqual({ type: "connect" });
     expect(coreRequest({ type: "file", id: 4, url: "reqseq-file://a/b.png" })).toEqual({
       type: "file",

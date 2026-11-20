@@ -50,6 +50,10 @@
         "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
         "x-elements": true
       },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "A repository of the workspace is not on this machine, so the pages lack its elements, as the start page says (SR-006 AK2, SR-233 AK3)."
+      },
       "problems": {
         "title": "Problems",
         "type": "array",
@@ -60,6 +64,6 @@
       }
     },
     "additionalProperties": false,
-    "required": ["answer", "folder", "pages", "exportedElements", "removed", "problems"]
+    "required": ["answer", "folder", "pages", "exportedElements", "removed", "incomplete", "problems"]
   }
 }

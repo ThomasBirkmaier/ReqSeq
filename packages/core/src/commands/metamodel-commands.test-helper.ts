@@ -166,3 +166,14 @@ export const WITH_MISSING_REPOSITORY = [
 ].join("\n");
 
 export const WORKSPACE_FILE = "reqseq-workspace.yaml";
+
+/** A list of `metamodel.get uses` as its numbers by key, a fixed value by `<property>.<choice>`. */
+export const useCounts = (
+  list: readonly (
+    | { readonly key: string; readonly count: number }
+    | { readonly property: string; readonly value: string; readonly count: number }
+  )[],
+): Record<string, number> =>
+  Object.fromEntries(
+    list.map((entry) => ["key" in entry ? entry.key : `${entry.property}.${entry.value}`, entry.count]),
+  );

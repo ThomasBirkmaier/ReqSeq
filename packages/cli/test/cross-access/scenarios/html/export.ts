@@ -491,6 +491,26 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-232/AK-tndh]",
+    name: "the neighbourhood names a repository that is not on this machine and shows a parent there without a link",
+    fixture: withFront(`derives-from:\n  - { id: ${FAR}, repository: vault }\n`, "Text.", {
+      "reqseq-workspace.yaml": WITH_VAULT,
+    }),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      const line = (what: string): string =>
+        `<p class="rq-nb-none">Repositories not on this machine: vault. ${what} from their elements are not accessible and may be missing here.</p>`;
+      for (const { files } of Object.values(results)) {
+        expect(contentOf(String(files[PAGE]))).toContain(
+          '<h3>Parents</h3><ul class="rq-nb"><li><span><span>UNKNOWN-1a2b3c</span><span>repository vault, not accessible</span><span></span></span></li></ul>' +
+            `<h3>Children</h3>${line("Children")}${line("Incoming relations and references")}</section>`,
+        );
+      }
+    },
+  },
+  {
     tag: "[SR-233/AK-pmt8]",
     name: "a list per type with a row per element, the settings of search, filters and sorting, and its script",
     fixture: ONE_REPOSITORY,
@@ -525,6 +545,25 @@ scenariosOf("html.export", [
         expect(start).toContain(
           '<a href="lists/system-requirement.html">System Requirement</a></td><td>1</td>',
         );
+      }
+    },
+  },
+  {
+    tag: "[SR-006/AK-q0f4]",
+    name: "an export with a repository of the workspace not on this machine is marked incomplete",
+    fixture: { ...ONE_REPOSITORY, files: { "reqseq-workspace.yaml": WITH_VAULT } },
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { outcome, files } of Object.values(results)) {
+        expect(outcome).toMatchObject({
+          output: {
+            incomplete: true,
+            answer: "Exported 1 element page to site; incomplete, as a repository is not available.",
+          },
+        });
+        expect(String(files["site/index.html"])).toContain("This export is incomplete:");
       }
     },
   },

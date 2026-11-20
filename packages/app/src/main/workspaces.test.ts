@@ -483,3 +483,77 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(typeof module.findTypedWorkspace).toBe("function");
   });
 });
+
+describe("the folder for Create workspace of the start buffer (SR-225 AK4–AK6)", () => {
+  /** A core process with no workspace open. */
+  const none = (core: {
+    running: boolean;
+    key: string | undefined;
+    listedRoot: string | undefined;
+    root: string | undefined;
+  }): void => {
+    core.running = false;
+    core.key = undefined;
+    core.listedRoot = undefined;
+    core.root = undefined;
+  };
+
+  it("takes the folder without a workspace that the window has open, without a dialog", async () => {
+    const { core, module, workspaces } = setup({ exists: false });
+    core.key = undefined;
+    core.listedRoot = undefined;
+    core.root = path.join(path.sep, "req", "Station");
+    const choose = vi.fn(() => Promise.resolve("/other"));
+    expect(await workspaces.createFolder(choose)).toEqual({
+      outcome: "folder",
+      name: "Station",
+      opening: false,
+    });
+    expect(module.workspaceExists).toHaveBeenCalledWith(core.root);
+    expect(choose).not.toHaveBeenCalled();
+    expect(core.open).not.toHaveBeenCalled();
+  });
+
+  it("opens the chosen folder itself, also inside a workspace, and names it only by its name", async () => {
+    const { core, module, workspaces } = setup({ exists: false });
+    none(core);
+    const chosen = path.join(path.sep, "req", "station", "Buoy");
+    expect(await workspaces.createFolder(() => Promise.resolve(chosen))).toEqual({
+      outcome: "folder",
+      name: "Buoy",
+      opening: true,
+    });
+    expect(module.workspaceExists).toHaveBeenCalledExactlyOnceWith(chosen);
+    expect(core.open).toHaveBeenCalledExactlyOnceWith(chosen, { exact: false, itself: true });
+  });
+
+  it("opens a chosen folder that is a workspace as it is, and says so", async () => {
+    const { core, workspaces } = setup({ exists: true });
+    // A workspace is open: the dialog is shown all the same.
+    expect(await workspaces.createFolder(() => Promise.resolve("/req/buoy"))).toEqual({
+      outcome: "existing",
+    });
+    expect(core.open).toHaveBeenCalledExactlyOnceWith("/req/buoy", { exact: false, itself: true });
+  });
+
+  it("opens nothing when the dialog is canceled, the input is not saved, or the list module does not load", async () => {
+    const canceled = setup({ exists: false });
+    none(canceled.core);
+    expect(await canceled.workspaces.createFolder(() => Promise.resolve(undefined))).toEqual({
+      outcome: "nothing",
+    });
+    expect(canceled.core.open).not.toHaveBeenCalled();
+    const unsaved = setup({ exists: true });
+    unsaved.window.answer = false;
+    expect(await unsaved.workspaces.createFolder(() => Promise.resolve("/chosen"))).toEqual({
+      outcome: "nothing",
+    });
+    expect(unsaved.core.open).not.toHaveBeenCalled();
+    expect(unsaved.log).toHaveBeenCalledWith("Create workspace opened no folder: unsaved");
+    const failed = setup({ load: () => Promise.reject(new Error("no module")) });
+    expect(await failed.workspaces.createFolder(() => Promise.resolve("/chosen"))).toEqual({
+      outcome: "nothing",
+    });
+    expect(failed.log).toHaveBeenCalledWith("Create workspace opened no folder: no module");
+  });
+});
