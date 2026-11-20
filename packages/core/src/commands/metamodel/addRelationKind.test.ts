@@ -206,6 +206,7 @@ describe("metamodel commands: the frame as metamodel.addRelationKind shows it (S
   it("[SR-236/AK-n13v] makes the key from the name, or refuses and asks for one; properties and relation kinds count together", async () => {
     const { workspace } = await openSmall();
     expect((await add(workspace, { name: "Hängt ab von" })).relationKind.key).toBe("haengt-ab-von");
+    expect((await add(workspace, { name: "Déclenche" })).relationKind.key).toBe("declenche");
     expect((await add(workspace, { name: "Mitigates", key: "lowers" })).relationKind.key).toBe("lowers");
     for (const [name, key, why] of [
       ["2nd cause", "2nd-cause", "does not start with a letter"],

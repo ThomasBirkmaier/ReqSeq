@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { PROBLEM_TITLES } from "../problem-titles.js";
 // The texts users read are bundled without internal references (#642).
 import { userTexts } from "../../../../scripts/contracts/user-text.mjs";
 import {
@@ -172,11 +173,11 @@ describe("problem kind titles", () => {
       readonly $defs: { readonly problemCode: { readonly enum: readonly string[] } };
     };
     const codes = common.$defs.problemCode.enum;
-    expect(Object.keys(contractsBundle.problemTitles).sort()).toEqual([...codes].sort());
+    expect(Object.keys(PROBLEM_TITLES).sort()).toEqual([...codes].sort());
     for (const code of codes) {
-      expect(contractsBundle.problemTitles[code], code).toMatch(/^[A-Z0-9][^.!?]{0,39}$/);
+      expect(PROBLEM_TITLES[code], code).toMatch(/^[A-Z0-9][^.!?]{0,39}$/);
     }
-    expect(contractsBundle.problemTitles["relation.outdated"]).toBe("Outdated relation");
+    expect(PROBLEM_TITLES["relation.outdated"]).toBe("Outdated relation");
   });
 });
 

@@ -3,6 +3,7 @@ import { appCommandEntry } from "@reqseq/app";
 import { contractsBundle, createCommandRuntime, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { commandSlug } from "@reqseq/core/docs-site";
+import { problemTitle } from "@reqseq/core/problem-titles";
 import { inline } from "./markdown.js";
 import { codeAnchor, readProblemCodes } from "./codes.js";
 import { FORMATS, headingSlug, readExamples, schemaName } from "./formats.js";
@@ -112,7 +113,7 @@ describe("reference", () => {
         // A problem kind is headed by its title, its code below it (SR-224 AK6); an error by its code.
         const head =
           kind === "problem"
-            ? `### ${contractsBundle.problemTitles[code] ?? ""}\n\nCode: \`${code}\`\n\n`
+            ? `### ${problemTitle(code) ?? ""}\n\nCode: \`${code}\`\n\n`
             : `### \`${code}\`\n\n`;
         const entry = page.split(`<a id="${codeAnchor(code, kind)}"></a>\n\n${head}`)[1] ?? "";
         expect(entry, code).toMatch(/^\*\*Cause:\*\* \S[^\n]*\n\n\*\*Remedy:\*\* \S/);

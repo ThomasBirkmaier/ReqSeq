@@ -4,6 +4,8 @@
 // light screenshot goes to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS). "Show
 // details" (Ctrl+K D) shows the technical values and those equal to their normal value at their lines, per buffer
 // until it is closed (SR-223 AK2, AK7), and "Copy as JSON" copies the output as the CLI gives it (SR-223 AK9).
+// Several problems of one kind are one folded line with the title of their kind and their count, which Tab opens
+// and whose Enter opens the list of their elements (SR-223 AK3).
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
@@ -159,6 +161,88 @@ test.describe("the output page", () => {
     await expect(page.locator(".line.detail", { hasText: "Available" })).toContainText("yes");
     await expect(page.locator(".line.detail", { hasText: "Valid" })).toContainText("yes");
     await expect(page.locator(".line.detail", { hasText: "Problems" })).toContainText("0");
+  });
+
+  test("[SR-223/AK-d895] several problems of one kind are one folded line with their kind and count; Tab opens it, Enter lists their elements", async () => {
+    // fixtures/SR-016/unknown: five unknown properties of two elements, and one problem of each other kind.
+    running = await launchApp({ fixture: "SR-016/unknown" });
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await run(window, "Check workspace");
+    const page = shownLayer(window).locator(".result.output");
+    const group = page.locator(".line.group");
+    await expect(group).toHaveCount(1);
+    await expect(group.locator(".text")).toHaveText("▸Unknown property");
+    await expect(group.locator(".status")).toHaveText("5");
+    await expect(group).toHaveAttribute("aria-expanded", "false");
+    // Folded: none of its problems is shown, the other kinds are lines of their own.
+    await expect(page.locator(".line.problem", { hasText: "customer-id" })).toHaveCount(0);
+    await expect(page.locator(".line.problem")).toHaveCount(4);
+    // A problem without an element keeps its file in view; its kind is not shown.
+    await expect(
+      page.locator(".line.problem", { hasText: "evidence location" }).locator(".label"),
+    ).toHaveText("reqseq-workspace.yaml");
+    await expect(page).not.toContainText("element.unknown-property");
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-problem-group-light.png") });
+    // Tab on the group line opens it: each problem with its element and its reason.
+    const at = await page
+      .locator(".line")
+      .evaluateAll((lines) => lines.findIndex((line) => line.classList.contains("group")));
+    for (let step = 0; step <= at; step += 1) {
+      await window.keyboard.press("ArrowDown");
+    }
+    await expect(group).toHaveAttribute("data-cursor", "");
+    await window.keyboard.press("Tab");
+    await expect(group).toHaveAttribute("aria-expanded", "true");
+    const members = page.locator(".line.problem[data-depth='1']");
+    await expect(members).toHaveCount(5);
+    await expect(members.first().locator(".label")).toHaveText("SR-1b2c3d");
+    await expect(members.first().locator(".text")).toHaveText(
+      /^Property customer-id is not in the metamodel/u,
+    );
+    await expect(members.last().locator(".label")).toHaveText("UNKNOWN-8c9d0e");
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-problem-group-open-light.png") });
+    // Tab closes it again.
+    await window.keyboard.press("Tab");
+    await expect(members).toHaveCount(0);
+    // Enter opens the list of their elements, each once, as a list.
+    await window.keyboard.press("Enter");
+    const rows = shownLayer(window).locator(".buffer.list .row");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.filter({ hasText: "SR-1b2c3d" })).toHaveCount(1);
+    await expect(rows.filter({ hasText: "UNKNOWN-8c9d0e" })).toHaveCount(1);
+    await expect(window.getByLabel("Modeline")).toContainText("Unknown property");
+  });
+
+  test("[SR-223/AK-d895] a group of the copies of one UUID lists every copy, and a list from an output is not saved", async () => {
+    // fixtures/SR-088/copied-file/system: two files of one UUID, each with element.duplicate-id.
+    running = await launchApp({ fixture: "SR-088/copied-file/system" });
+    const { window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await run(window, "Check workspace");
+    const page = shownLayer(window).locator(".result.output");
+    const group = page.locator(".line.group");
+    await expect(group.locator(".status")).toHaveText("2");
+    await group.click();
+    // Both copies, never ref.ambiguous.
+    const rows = shownLayer(window).locator(".buffer.list .row");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.filter({ hasText: "(copy)" })).toHaveCount(1);
+    await expect(window.getByLabel("Modeline")).not.toContainText("ambiguous");
+    // A list from the output of a command offers neither "Save list as perspective" nor "… as saved filter".
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Save list as");
+    const saves = window.locator('.candidates [role="option"] .name', { hasText: /^Save list as/u });
+    await expect(saves).toHaveCount(0);
+    await window.keyboard.press("Escape");
+    // The list of all elements offers both, with the same keys.
+    await window.keyboard.press("ControlOrMeta+K");
+    await window.keyboard.press("l");
+    await expect(window.getByLabel("Modeline")).toContainText("All elements");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Save list as");
+    await expect(saves).toHaveText(["Save list as perspective", "Save list as saved filter"]);
+    await window.keyboard.press("Escape");
   });
 
   test("[SR-223/AK-jbgp] Copy as JSON puts the whole output on the clipboard as the CLI gives it with --json", async () => {

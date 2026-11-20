@@ -289,6 +289,7 @@ describe("buffer session (SR-115 AK4)", () => {
           { kind: "list", steps: [{ label: "x", heading: 1, selection: {} }] },
           { kind: "list", steps: [{ label: "x", selection: { where: "type" } }] },
           { kind: "list", steps: [{ label: "x", selection: { filter: 1 } }] },
+          { kind: "list", steps: [{ label: "x", selection: {}, output: "yes" }] },
           { kind: "list", steps: [], sort: [{ by: "title", order: "up" }] },
           { kind: "list", steps: [], sort: "title" },
           { kind: "search" },
