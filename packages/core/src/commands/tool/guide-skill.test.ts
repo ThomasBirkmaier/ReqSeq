@@ -17,6 +17,7 @@ import {
   SKILL_DESCRIPTION,
   SKILL_FILE,
   SKILL_NAME,
+  SKILL_PRECEDENCE,
   SKILL_WORKFLOWS,
   compareVersions,
   identifySkill,
@@ -217,6 +218,18 @@ describe("tool.guide with skill", () => {
     }
   });
 
+  it("[SR-229/AK-nrf2] says at its start, before the first workflow, that project rules take precedence over it and the agent guide", async () => {
+    const text = (await run(await folder(), { skill: true })).guide;
+    expect(SKILL_PRECEDENCE).toBe("Project rules take precedence over this skill and the agent guide.");
+    const body = text.slice(text.indexOf("\n---\n") + 5);
+    const at = body.indexOf(SKILL_PRECEDENCE);
+    expect(at).toBeGreaterThan(-1);
+    expect(at).toBeLessThan(body.indexOf("\n## "));
+    expect(body.indexOf(SKILL_PRECEDENCE, at + 1)).toBe(-1);
+    // It is the rule of AK5 that project rules go first, extended to the skill: the one rule the skill states.
+    expect(GUIDE_RULES).toContain("Project rules take precedence over the agent guide.");
+  });
+
   it("[SR-229/AK-qdn4] has the workflow to change the metamodel: propose, wait for the decision, run the command, check, read the guide again", async () => {
     const text = (await run(await folder(), { skill: true })).guide;
     const steps = new Map(workflows(text).map((s) => [s.heading, s.steps])).get("Change the metamodel") ?? [];
@@ -247,12 +260,14 @@ describe("tool.guide with skill", () => {
     }
     expect([...text.matchAll(/`[a-z]+_[A-Za-z]+`/g)].length).toBe(pairs.length);
     expect([...text.matchAll(/`reqseq /g)].length).toBe(pairs.length);
-    // No rule of the guide (SR-229 AK5, AK13), nor any sentence or clause of one, appears in the skill.
+    // No rule of the guide (SR-229 AK5, AK13), nor any sentence or clause of one, appears in the skill,
+    // apart from the sentence that project rules go first, which AK7 asks for at its start.
     const parts = [...GUIDE_RULES, ...GUIDE_WRITING_RULES].flatMap((rule) =>
       rule.split(/[.;:]\s+/).filter((part) => part.length > 30),
     );
     expect(parts.length).toBeGreaterThan(GUIDE_RULES.length + GUIDE_WRITING_RULES.length);
-    expect(parts.filter((part) => text.includes(part))).toEqual([]);
+    const rest = text.replace(SKILL_PRECEDENCE, "");
+    expect(parts.filter((part) => rest.includes(part))).toEqual([]);
     const pipeline = GUIDE_TAIL.lines({
       workspace: undefined,
       facts: { reason: "", noWorkspace: true },

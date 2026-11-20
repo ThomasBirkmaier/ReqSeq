@@ -1,10 +1,10 @@
 // Cross-access scenarios of tool.guide (SR-229), in addition to the default one (cross-access.test.ts): the
 // same input gives the same guide in every access, for both `names` and without a workspace, the same skill
-// file (AK7), and the same write of it in a workspace folder at the root of its Git repository (AK8). That
-// the API and the MCP server refuse a place outside the repositories (SR-142, the exception to SR-080 AK2)
-// is local-paths.test.ts. The MCP server instructions (AK17) are the same in every access and for a folder
-// with or without a workspace; that the MCP server sends them as its instructions is server.test.ts in
-// packages/mcp.
+// file, which says before its first workflow that project rules go first (AK7), and the same write of it in
+// a workspace folder at the root of its Git repository (AK8). That the API and the MCP server refuse a place
+// outside the repositories (SR-142, the exception to SR-080 AK2) is local-paths.test.ts. The MCP server
+// instructions (AK17) are the same in every access and for a folder with or without a workspace; that the
+// MCP server sends them as its instructions is server.test.ts in packages/mcp.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { ONE_REPOSITORY } from "../../fixtures.js";
@@ -12,6 +12,7 @@ import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 
 const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+const PRECEDENCE = "Project rules take precedence over this skill and the agent guide.";
 
 /** The start of the MCP server instructions, the same for every folder (SR-229 AK17). */
 const INSTRUCTIONS_START = "# Working with ReqSeq\n\nThese instructions hold only the rules.";
@@ -84,6 +85,10 @@ scenariosOf("tool.guide", [
         const text = "output" in outcome ? (outcome.output as { guide: string }).guide : "";
         if (!text.startsWith("---\nname: managing-requirements\n")) {
           throw new Error(`not the skill file: ${text.slice(0, 200)}`);
+        }
+        const precedence = text.indexOf(PRECEDENCE);
+        if (precedence === -1 || precedence > text.indexOf("\n## ")) {
+          throw new Error(`no precedence of project rules before the first workflow: ${text.slice(0, 600)}`);
         }
       }
     },

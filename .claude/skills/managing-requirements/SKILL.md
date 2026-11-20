@@ -4,12 +4,12 @@ description: "Works with needs, requirements, acceptance criteria, tests and evi
 metadata:
   generator: "ReqSeq"
   reqseq-version: "0.11.0"
-  reqseq-checksum: "sha256:17405a9d305c0847d6158d6c6cdc3ebd536b0852b505ad2e636e17bac8a6d456"
+  reqseq-checksum: "sha256:589c520de399b56d024bb858c32f7c1157c0e3960ef23ef0f5e52d2e1fbec62f"
 ---
 
 # Managing requirements with ReqSeq
 
-Each command is named as the MCP tool, then as the command-line call; both do the same. The rules for working with ReqSeq are in the agent guide and apply to every step; this skill does not repeat them.
+Project rules take precedence over this skill and the agent guide. Each command is named as the MCP tool, then as the command-line call; both do the same. The other rules for working with ReqSeq are in the agent guide and apply to every step; this skill does not repeat them.
 
 ## First
 
