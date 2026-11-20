@@ -349,7 +349,7 @@ scenariosOf("html.export", [
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files[PAGE]));
         const row = (id: string, shown: string, title: string, status: string): string =>
-          `<li style="--rq-level:0"><a class="rq-nb-row" href="../elements/${id}.html"><span class="rq-nb-id">${shown}</span><span class="rq-nb-title">${title}</span><span class="rq-nb-status">${status}</span></a></li>`;
+          `<li><a href="../elements/${id}.html"><span>${shown}</span><span>${title}</span><span>${status}</span></a></li>`;
         expect(page).toContain(
           `<h3>Parents</h3><ul class="rq-nb">${row(NEED, "N-00a001", "See the wind", "approved")}</ul>` +
             `<h3>Children</h3><ul class="rq-nb">${row(CHILD, "SR-00c0de", "Show gusts", "draft")}</ul>` +
@@ -371,8 +371,8 @@ scenariosOf("html.export", [
     check: (results) => {
       for (const { files } of Object.values(results)) {
         expect(contentOf(String(files[PAGE]))).toContain(
-          '<h3>Children</h3><ul class="rq-nb"><li style="--rq-level:0"><span class="rq-nb-row"><span class="rq-nb-id">SR-00c0de</span><span class="rq-nb-title">Show gusts</span><span class="rq-nb-status">obsolete</span></span></li>' +
-            `<li style="--rq-level:1"><a class="rq-nb-row" href="../elements/${GRANDCHILD}.html"><span class="rq-nb-id">SR-00c0df</span><span class="rq-nb-title">Show peaks</span><span class="rq-nb-status">draft</span></a></li></ul>`,
+          '<h3>Children</h3><ul class="rq-nb"><li><span><span>SR-00c0de</span><span>Show gusts</span><span>obsolete</span></span></li>' +
+            `<li style="--rq-level:1"><a href="../elements/${GRANDCHILD}.html"><span>SR-00c0df</span><span>Show peaks</span><span>draft</span></a></li></ul>`,
         );
       }
     },

@@ -122,11 +122,11 @@ const linked = (
   status: string,
   marks = "",
 ): string =>
-  `<li style="--rq-level:${String(level)}"><a class="rq-nb-row" href="../elements/${id}.html"><span class="rq-nb-id">${shown}</span><span class="rq-nb-title">${title}${marks}</span><span class="rq-nb-status">${status}</span></a></li>`;
+  `<li${level === 0 ? "" : ` style="--rq-level:${String(level)}"`}><a href="../elements/${id}.html"><span>${shown}</span><span>${title}${marks}</span><span>${status}</span></a></li>`;
 
 /** A row without a link. */
 const plain = (level: number, shown: string, title: string, status: string, marks = ""): string =>
-  `<li style="--rq-level:${String(level)}"><span class="rq-nb-row"><span class="rq-nb-id">${shown}</span><span class="rq-nb-title">${title}${marks}</span><span class="rq-nb-status">${status}</span></span></li>`;
+  `<li${level === 0 ? "" : ` style="--rq-level:${String(level)}"`}><span><span>${shown}</span><span>${title}${marks}</span><span>${status}</span></span></li>`;
 
 const outdated = (note: string): string => ` <span class="rq-outdated" title="${note}">link outdated</span>`;
 const REPEATED = ' <span class="rq-repeated">repeated</span>';
@@ -213,38 +213,90 @@ describe("html.export shows the neighbourhood of an element (SR-232 AK5)", () =>
   });
 });
 
+/** The neighbourhood section of ROOT in a workspace of ROOT, `parents` needs above it and `children` leaves below. */
+const boundedSection = async (count: number): Promise<{ parents: string; children: string }> => {
+  const many = Array.from({ length: count }, (_, n) => n + 100);
+  const extra = Object.fromEntries<string>([
+    ...many.map((n): [string, string] => [
+      `needs/N-${String(n)}.md`,
+      element(uuid(n), "need", `title: Need ${String(n)}\n`),
+    ]),
+    ...many.map((n): [string, string] => [
+      `requirements/SR-${String(n)}.md`,
+      element(uuid(n + 1000), "system-requirement", `title: Child ${String(n)}\n${derives(ROOT)}`),
+    ]),
+    [
+      "requirements/SR-6328cee88fb3.md",
+      element(ROOT, "system-requirement", `title: Show wind speed\n${derives(...many.map(uuid))}`),
+    ],
+    ["requirements/SR-1d2e3f4a5b6c.md", element(ONE, "system-requirement", "title: Alone\n")],
+  ]);
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-001/two-elements",
+    files: { "metamodel/standard-model.yaml": METAMODEL, ...extra },
+  });
+  onTestFinished(() => fixture.cleanup());
+  const workspace = new Workspace(fixture.root);
+  onTestFinished(() => workspace.close());
+  await exported(workspace);
+  const section = await sectionOf(fixture, ROOT);
+  return {
+    parents: section.slice(section.indexOf("<h3>Parents</h3>"), section.indexOf("<h3>Children</h3>")),
+    children: section.slice(section.indexOf("<h3>Children</h3>")),
+  };
+};
+
+const rowsIn = (part: string): number => part.split("<li").length - 1;
+const MORE = '</ul><p class="rq-nb-none">Only the nearest 100 are shown.</p>';
+
 describe("html.export bounds the parents and children of a page (SR-232 AK5)", () => {
   it("[SR-232/AK-r9s3] shows the nearest 100 parents and 100 children and says that there are more", async () => {
-    const many = Array.from({ length: 101 }, (_, n) => n + 100);
-    const extra = Object.fromEntries<string>([
-      ...many.map((n): [string, string] => [
-        `needs/N-${String(n)}.md`,
-        element(uuid(n), "need", `title: Need ${String(n)}\n`),
-      ]),
-      ...many.map((n): [string, string] => [
-        `requirements/SR-${String(n)}.md`,
-        element(uuid(n + 1000), "system-requirement", `title: Child ${String(n)}\n${derives(ROOT)}`),
-      ]),
-      [
-        "requirements/SR-6328cee88fb3.md",
-        element(ROOT, "system-requirement", `title: Show wind speed\n${derives(...many.map(uuid))}`),
-      ],
-    ]);
+    const { parents, children } = await boundedSection(101);
+    expect(rowsIn(parents)).toBe(100);
+    expect(parents).toContain(MORE);
+    expect(rowsIn(children)).toBe(100);
+    expect(children).toContain(MORE);
+  });
+
+  it("[SR-232/AK-r9s3] shows exactly 100 parents and 100 children without saying that there are more", async () => {
+    const { parents, children } = await boundedSection(100);
+    expect(rowsIn(parents)).toBe(100);
+    expect(rowsIn(children)).toBe(100);
+    expect(parents + children).not.toContain("are shown");
+  });
+
+  it("[SR-232/AK-r9s3] shows every direct child when repetitions below one of them make the tree long", async () => {
+    // ROOT -> A, B; C1..C50 under A and under D, D under A: 103 rows of 53 elements, B last.
+    const A = uuid(201);
+    const B = uuid(202);
+    const D = uuid(203);
+    const cs = Array.from({ length: 50 }, (_, n) => uuid(300 + n));
     const fixture = await createFixtureWorkspace({
       fixture: "SR-001/two-elements",
-      files: { ...files("approved"), ...extra },
+      files: {
+        "metamodel/standard-model.yaml": METAMODEL,
+        "requirements/SR-6328cee88fb3.md": element(ROOT, "system-requirement", "title: Show wind speed\n"),
+        "requirements/SR-1d2e3f4a5b6c.md": element(ONE, "system-requirement", "title: Alone\n"),
+        "requirements/A.md": element(A, "system-requirement", `title: A\n${derives(ROOT)}`),
+        "requirements/B.md": element(B, "system-requirement", `title: B\n${derives(ROOT)}`),
+        "requirements/D.md": element(D, "system-requirement", `title: D\n${derives(A)}`),
+        ...Object.fromEntries(
+          cs.map((id, n): [string, string] => [
+            `requirements/C${String(n)}.md`,
+            element(id, "system-requirement", `title: C${String(n)}\n${derives(A, D)}`),
+          ]),
+        ),
+      },
     });
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
     onTestFinished(() => workspace.close());
     await exported(workspace);
     const section = await sectionOf(fixture, ROOT);
-    const parents = section.slice(section.indexOf("<h3>Parents</h3>"), section.indexOf("<h3>Children</h3>"));
-    const children = section.slice(section.indexOf("<h3>Children</h3>"), section.indexOf("<h3>←"));
-    expect(parents.split("<li ").length - 1).toBe(100);
-    expect(parents).toContain('</ul><p class="rq-nb-none">Only 100 are shown.</p>');
-    expect(children.split("<li ").length - 1).toBe(100);
-    expect(children).toContain('</ul><p class="rq-nb-none">Only 100 are shown.</p>');
+    expect(rowsIn(section)).toBe(103);
+    expect(section.split(REPEATED).length - 1).toBe(50);
+    expect(section).toContain(`${linked(B, 0, "SR-000202", "B", "–")}</ul></section>`);
+    expect(section).not.toContain("are shown");
   });
 });
 
