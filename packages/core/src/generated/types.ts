@@ -2577,7 +2577,7 @@ export interface MetamodelGetOutput {
   /** The metamodel files that were read, in the order they were merged, faulty ones included: the repository of the metamodel and the path relative to it (#625). Empty when the folder is missing or has no metamodel files. */
   readonly files: readonly WorkspaceLocation[];
   readonly problems?: readonly Problem[];
-  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read (SR-236 AK7). Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0. */
+  /** The uses of each definition by the elements of the workspace, in any status (SR-236 AK7, AK8), counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A property and a status count on elements of any type (SR-236 AK8), so a definition that stays after its last type lost it shows the elements that keep it (SR-240 AK3, SR-238 AK5). A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read (SR-236 AK7). Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0. */
   readonly uses: {
     /** Type key -> elements of the type. */
     readonly types: Readonly<Record<string, number>>;
@@ -2587,7 +2587,7 @@ export interface MetamodelGetOutput {
     readonly values: Readonly<Record<string, Readonly<Record<string, number>>>>;
     /** Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list. */
     readonly relations: Readonly<Record<string, number>>;
-    /** Status key -> elements of a type that has the status, with that status (SR-236 AK7). */
+    /** Status key -> elements of any type, also of a type the metamodel does not have, with that status (SR-236 AK8). */
     readonly statuses: Readonly<Record<string, number>>;
   };
 }
