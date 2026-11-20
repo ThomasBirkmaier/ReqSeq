@@ -355,7 +355,7 @@ test.describe("perspectives in the app", () => {
     const { window } = running;
     await open(window, "By title");
     const saved = await loadedIds(window);
-    expect(saved).toHaveLength(6);
+    expect(saved).toEqual((await cliList(running, "By title")).ids);
     await command(window, "Ungroup list");
     await command(window, "Sort list", "ID");
     await answerOrder(window, "ascending");
