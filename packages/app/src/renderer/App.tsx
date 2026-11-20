@@ -70,7 +70,7 @@ import { usePrefix } from "./use-prefix.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
 import { NO_MARK, markStep } from "./follow-mark.js";
-import { stoppedMessage } from "../shared/open-hint.js";
+import { dialogRefusedMessage, stoppedMessage } from "../shared/open-hint.js";
 import type { Loaded } from "./app-parts.js";
 import {
   TitleBar,
@@ -533,8 +533,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       return;
     }
     void runStart(command, {
+      // Main refuses when the click or Enter is too long ago or a dialog is open: say so, not nothing.
       folderDialog: () => {
-        void bridge.openFolderDialog();
+        void bridge.openFolderDialog().then((shown) => {
+          if (!shown) {
+            setEcho(dialogRefusedMessage(macRef.current));
+          }
+        });
       },
       createEntry: async () => {
         await catalogRead.current;

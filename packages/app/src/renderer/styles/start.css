@@ -1,5 +1,6 @@
-/* The start buffer (SR-225 AK1): the start commands one below the other in the middle of the sheet, without a frame;
-   the key of "Open workspace…" is a muted side text after it. Greys only. */
+/* The start buffer (SR-225 AK1): the start commands one below the other in the middle of the sheet, without a frame,
+   subtle: the lines and the key of "Open workspace…" in the pale --faint, the hovered or selected line in --muted
+   on a light --select. Greys only. */
 .start {
   display: flex;
   align-items: center;
@@ -17,14 +18,16 @@
   justify-content: space-between;
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
-  cursor: default;
+  color: var(--faint);
+  cursor: pointer;
 }
 
-.start-line[aria-selected="true"] {
+.start-line[aria-selected="true"],
+.start-line:hover {
+  color: var(--muted);
   background: var(--select);
 }
 
 .start-key {
-  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

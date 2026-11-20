@@ -291,6 +291,8 @@ test.describe("without a workspace", () => {
       "Connect AI agent",
     ]);
     await expect(window.getByLabel("Modeline")).toHaveText("No workspace is open.");
+    // The pointer away from the lines, which a hover would mark.
+    await window.mouse.move(0, 0);
     await window.screenshot({ path: path.join(SHOTS, "start-buffer-light.png") });
     // The folder dialog of the operating system, answered here; the first line is chosen with Enter.
     await running.app.evaluate(({ dialog }, folder) => {

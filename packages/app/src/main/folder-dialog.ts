@@ -1,5 +1,5 @@
 // A channel from the renderer to the main process (ADR-0010): "show the folder dialog of File > Open Workspace…"
-// (SR-225 AK2, "Open workspace…" of the start buffer, which D-062 allows besides the menu). Main shows the dialog
+// (SR-225 AK2: "Open workspace…" of the start buffer opens the folder dialog as the menu item does). Main shows the dialog
 // and opens the chosen folder exactly as the menu item does (`open`); the renderer sends nothing and gets no path.
 //
 // The renderer is not trusted, so the dialog needs what a paste needs (`edit.ts`): a message from the main frame of

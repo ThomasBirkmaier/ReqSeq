@@ -21,6 +21,7 @@ const EDITOR = read("./editor/Editor.tsx");
 const TOKENS = [
   "text",
   "muted",
+  "faint",
   "rule",
   "edge",
   "sheet",
@@ -134,6 +135,19 @@ describe("the colours of the sheet", () => {
       expect(off).toBeLessThan(1.1);
       expect(ratio(at("select"), at("raised"))).toBeGreaterThanOrEqual(1.1);
       expect(ratio(at("rule"), at("raised"))).toBeGreaterThanOrEqual(1.1);
+    },
+  );
+
+  it.each(["light", "dark"] as const)(
+    "[SR-225/AK-d2gk] draws the start lines pale: --faint is quieter than --muted, yet stands off the sheet (%s)",
+    (scheme) => {
+      const at = (name: string): string => values(name)[scheme];
+      expect(ratio(at("faint"), at("sheet"))).toBeLessThan(ratio(at("muted"), at("sheet")));
+      expect(ratio(at("faint"), at("sheet"))).toBeGreaterThanOrEqual(2);
+      expect(ruleOf(".start-line")).toMatch(/color:\s*var\(--faint\);/);
+      expect(ruleOf('.start-line[aria-selected="true"], .start-line:hover')).toMatch(
+        /color:\s*var\(--muted\);\s*background:\s*var\(--select\);/,
+      );
     },
   );
 

@@ -104,12 +104,17 @@ describe("the start buffer", () => {
     // Enter on the selected line runs it again.
     await keyDown(buffer, "Enter");
     expect(openFolderDialog).toHaveBeenCalledTimes(2);
+    // Main refused (the input too long ago, or a dialog open): the command line says so.
+    openFolderDialog.mockResolvedValueOnce(false);
+    await keyDown(buffer, "Enter");
+    await flush();
+    expect(text("Minibuffer")).toBe("The folder dialog did not open. Press Ctrl+O to choose a folder.");
     // Create workspace: no folder is open, so the folder dialog opens one first.
     await keyDown(buffer, "ArrowDown");
     expect(buffer.getAttribute("aria-activedescendant")).toBe("start-1");
     await keyDown(buffer, "Enter");
     await flush();
-    expect(openFolderDialog).toHaveBeenCalledTimes(3);
+    expect(openFolderDialog).toHaveBeenCalledTimes(4);
     // Connect AI agent: its prompt asks the workspace first (SR-225 AK7).
     await keyDown(buffer, "ArrowDown");
     await keyDown(buffer, "Enter");

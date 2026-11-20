@@ -9,6 +9,9 @@
   color-scheme: light dark;
   --text: light-dark(#1f2328, #e6e8eb);
   --muted: light-dark(#606871, #9ca4ad);
+  /* The pale grey of the start buffer's lines (SR-225 AK1): quieter than --muted, grey on the sheet; no text a
+     reader must read elsewhere takes it (styles.test.ts). */
+  --faint: light-dark(#9aa1a9, #6b737c);
   --rule: light-dark(#e6e8eb, #30363d);
   --edge: light-dark(#8c959f, #6e7681);
   --sheet: light-dark(#ffffff, #16181b);

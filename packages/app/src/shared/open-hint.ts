@@ -22,6 +22,10 @@ export const noWorkspaceMessage = (mac: boolean): string =>
   `${NO_WORKSPACE_OPEN} Press ${folderKey(mac)} to choose a folder, or ` +
   `${shortcutLabel(COMMAND_SHORTCUT, mac)} for ${OPEN_WORKSPACE_ACTION}.`;
 
+/** What the command prompt says when main showed no folder dialog for the start buffer (SR-225 AK2). */
+export const dialogRefusedMessage = (mac: boolean): string =>
+  `The folder dialog did not open. Press ${folderKey(mac)} to choose a folder.`;
+
 /** The title of the catalog command `workspace.init`, which the command prompt offers in a folder without a workspace. */
 export const INIT_WORKSPACE_COMMAND = "Create workspace";
 
