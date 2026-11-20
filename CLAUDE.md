@@ -20,7 +20,7 @@ Skills are in `.claude/skills/<name>/SKILL.md`. A session that starts outside th
 
 ## Sources of truth
 
-- `spec/` is the specification, a ReqSeq workspace. It is German; where a quote is allowed (Repository text), quote it verbatim and do not translate. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change elements only with ReqSeq, in a PR of its own; the metamodel, the workspace file and `spec/README.md` are edited by hand (`spec-change`).
+- `spec/` is the specification, a ReqSeq workspace. It is German; where a quote is allowed (Repository text), quote it verbatim and do not translate. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change elements and the metamodel with ReqSeq (the metamodel commands of SR-236 to SR-240), in a PR of its own; the header comment of the metamodel, the workspace file and `spec/README.md` are edited by hand (`spec-change`).
 - Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision.
 - If a system requirement is unclear, incomplete or contradicts another one, open a `question` issue with the question and your assumption, and carry the assumption in the PR. When the product owner answers, the answer goes into the spec (`spec-change`), and the PR that closes the question names the element. Never resolve a spec question silently in code. Do not create component requirements; they come with the architecture (D-059).
 - The SR in `spec/` wins over an issue text; the PR says where they differ.
