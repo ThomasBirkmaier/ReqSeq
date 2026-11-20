@@ -17,6 +17,10 @@
 //   values; `null` for no value, which stays last in both orders. The identifier column ranks every row by
 //   `sortElements` (no identifier: by short ID after them), and descending reverses that order wholly, as SR-075 AK1
 //   says. Rows of equal rank keep the order of the page, so each call gives the same order.
+// - Change since a baseline (SR-233 AK2), when the workspace has one: the baselines newest first in `data-rq-list`
+//   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
+//   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column
+//   "Change since baseline" written `hidden` and empty: no baseline is chosen at first, so there is no comparison.
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, propertyWithMeaning } from "../metamodel/index.js";
@@ -39,6 +43,20 @@ export interface ListEntry {
   readonly element: DataExportElement;
   /** The number of its open hints. */
   readonly hints: number;
+}
+
+/** The values of the change since a baseline, in this order (SR-232 AK7, SR-051 AK2, AK3). */
+export const CHANGE_VALUES = ["changed", "added", "removed", "unchanged", "not in the baseline"] as const;
+
+/** The label of the column and filter of the change since a baseline. */
+export const CHANGE_LABEL = "Change since baseline";
+
+/** The baselines a list compares with (SR-233 AK2). */
+export interface ListCompare {
+  /** Each baseline as the choice names it, newest first. */
+  readonly baselines: readonly string[];
+  /** The index in `CHANGE_VALUES` of the change of `record` since each baseline, in the order of `baselines`. */
+  readonly changeOf: (record: ElementRecord) => readonly number[];
 }
 
 /** What the lists are built from. */
@@ -199,7 +217,13 @@ export const typeOrder = (metamodel: Metamodel): ((a: string, b: string) => numb
 };
 
 /** The list of `sorted`, all of type `type` with a page each, in the order of their identifier (see the file comment). */
-export const listPageOf = (context: ListContext, type: string, sorted: readonly ListEntry[]): ListPage => {
+export const listPageOf = (
+  context: ListContext,
+  type: string,
+  sorted: readonly ListEntry[],
+  compare?: ListCompare,
+): ListPage => {
+  const comparing = compare !== undefined && compare.baselines.length > 0 ? compare : undefined;
   const fields = fieldsOf(context, type, sorted);
   const facets = zip(
     fields,
@@ -240,8 +264,14 @@ export const listPageOf = (context: ListContext, type: string, sorted: readonly 
     },
   ];
   const settings = {
-    columns: columns.map(({ label, total }) => (total === undefined ? { label } : { label, total })),
+    columns: [
+      ...columns.map(({ label, total }) => (total === undefined ? { label } : { label, total })),
+      ...(comparing === undefined ? [] : [{ label: CHANGE_LABEL }]),
+    ],
     filters: facets.map(([field, known]) => ({ label: field.label, values: [...known, NONE] })),
+    ...(comparing === undefined
+      ? {}
+      : { compare: { label: CHANGE_LABEL, baselines: comparing.baselines, values: CHANGE_VALUES } }),
   };
   const rows = sorted.map((entry, row) => {
     const { element } = entry;
@@ -253,11 +283,18 @@ export const listPageOf = (context: ListContext, type: string, sorted: readonly 
       const own = field.values(entry).map((v) => known.indexOf(v.text));
       return own.length === 0 ? [known.length] : [...new Set(own)];
     });
-    const ranks = columns.map((column) => column.ranks[row]);
-    const cells = columns.map((column) => `<td>${column.cell(entry)}</td>`).join("");
-    return `<tr data-q="${escapeHtml(search)}" data-f="${attribute(indexes)}" data-s="${attribute(ranks)}">${cells}</tr>`;
+    const ranks = [...columns.map((column) => column.ranks[row]), ...(comparing === undefined ? [] : [null])];
+    const cells = [
+      ...columns.map((column) => `<td>${column.cell(entry)}</td>`),
+      ...(comparing === undefined ? [] : ["<td hidden></td>"]),
+    ].join("");
+    const change = comparing === undefined ? "" : ` data-b="${attribute(comparing.changeOf(entry.record))}"`;
+    return `<tr data-q="${escapeHtml(search)}" data-f="${attribute(indexes)}" data-s="${attribute(ranks)}"${change}>${cells}</tr>`;
   });
-  const head = columns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`).join("");
+  const head = [
+    ...columns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`),
+    ...(comparing === undefined ? [] : [`<th scope="col" hidden>${CHANGE_LABEL}</th>`]),
+  ].join("");
   const title = findType(context.metamodel, type)?.name ?? type;
   const body = [
     `<div class="rq-list" data-rq-list="${attribute(settings)}">`,
@@ -305,6 +342,7 @@ export const LIST_CSS = [
   ".rq-list tr.rq-group th { background: var(--sl-color-gray-6); font-weight: 600; }",
   ".rq-list-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 1rem; }",
   ".rq-list-bar input[type=search] { flex: 1 1 16rem; padding: 0.4rem 0.6rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem; background: var(--sl-color-black); color: var(--sl-color-white); }",
+  ".rq-compare { display: inline-flex; gap: 0.4rem; align-items: center; font-size: var(--sl-text-sm); }",
   ".rq-chip { position: relative; }",
   ".rq-chip > summary { list-style: none; cursor: pointer; border: 1px solid var(--sl-color-gray-5); border-radius: 999px; padding: 0.15rem 0.7rem; font-size: var(--sl-text-sm); }",
   ".rq-chip > summary::-webkit-details-marker { display: none; }",

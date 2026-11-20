@@ -1,9 +1,11 @@
 // html.export (SR-231, SR-235): the workspace as an HTML export in the folder `output`, written by
 // the html-export block (packages/core/docs/html-export.md). The path rule of the access (SR-142)
 // has refused an API or MCP target outside the repositories before this runs (SR-235 AK3).
-// No status is changed (D-030), no element file is written, and Git is only read (D-036). The start page names what
-// changed since the newest baseline (SR-233 AK3): the baseline with the latest date (at the same instant the later
-// file), counted as `baseline.get` counts it (`baselineCounts`).
+// No status is changed (D-030), no element file is written, and Git is only read (D-036). Every valid baseline is
+// passed as `baseline.get` gives it with all its rows (`baselineShown`), newest first: by date, at the same instant
+// the later file first, a date that does not parse as the earliest. The pages of the baselines, the change since each
+// on the element pages and in the lists (SR-232 AK7, SR-233 AK2, SR-234 AK1, AK2) and the counts of the newest one
+// on the start page (SR-233 AK3) come from them, with the warnings of `baseline.get` on each.
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -11,9 +13,9 @@ import type { CommandContext } from "../../catalog.js";
 import type { Baseline } from "../../baselines/index.js";
 import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
-import type { NewestBaseline } from "../../html-export/index.js";
+import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
 import { writeHtmlExport } from "../../html-export/index.js";
-import { baselineCounts } from "../baseline/get.js";
+import { baselineShown } from "../baseline/get.js";
 import { counted, problemsNote, sentence } from "../answer.js";
 
 /** `absolute` relative to the workspace `root` when it lies inside, else as it is. */
@@ -24,39 +26,43 @@ const shown = (root: string, absolute: string): string => {
     : relative.split(path.sep).join("/");
 };
 
-/**
- * The newest baseline and what changed since (see the file comment), undefined without one, with the warnings of
- * `baseline.get` on it.
- */
-const newestBaseline = async (
+/** The time of a baseline's date; a date that does not parse (a leap second, `…:60Z`) counts as the earliest. */
+const timeOf = (baseline: Baseline): number => {
+  const parsed = Date.parse(baseline.data.date);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+};
+
+/** Every valid baseline as `baseline.get` gives it, newest first (see the file comment), with its warnings. */
+const exportBaselines = async (
   ctx: CommandContext,
-): Promise<{ readonly newest: NewestBaseline | undefined; readonly problems: readonly Problem[] }> => {
+): Promise<{ readonly baselines: readonly ExportBaseline[]; readonly problems: readonly Problem[] }> => {
   const { baselines } = await workspaceBaselines(ctx.workspace);
-  let baseline: Baseline | undefined;
-  let latest = Number.NEGATIVE_INFINITY;
-  for (const candidate of baselines) {
-    // A date that does not parse (a leap second, `…:60Z`) counts as the earliest.
-    const parsed = Date.parse(candidate.data.date);
-    const time = Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
-    if (time >= latest) {
-      baseline = candidate;
-      latest = time;
-    }
+  // Files in file order: the later of two at the same instant comes first.
+  const ordered = baselines
+    .map((baseline, index) => ({ baseline, index, time: timeOf(baseline) }))
+    .sort((a, b) => b.time - a.time || b.index - a.index);
+  const shown: ExportBaseline[] = [];
+  const problems: Problem[] = [];
+  for (const { baseline } of ordered) {
+    const output = await baselineShown(ctx, baseline);
+    shown.push(output);
+    problems.push(...(output.problems ?? []));
   }
-  if (baseline === undefined) {
-    return { newest: undefined, problems: [] };
-  }
-  const { counts, selectionKnown, problems } = await baselineCounts(ctx, baseline);
-  return {
-    newest: {
-      name: baseline.name,
-      date: baseline.data.date,
-      changed: counts.changed,
-      added: counts.added,
-      selectionKnown,
-    },
-    problems,
-  };
+  return { baselines: shown, problems };
+};
+
+/** The newest baseline as the start page names it; undefined without one. */
+const newestOf = (baselines: readonly ExportBaseline[]): NewestBaseline | undefined => {
+  const [newest] = baselines;
+  return newest === undefined
+    ? undefined
+    : {
+        name: newest.name,
+        date: newest.date,
+        changed: newest.counts.changed,
+        added: newest.counts.added,
+        selectionKnown: newest.selectionKnown,
+      };
 };
 
 export default defineCommand({
@@ -70,12 +76,12 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"html.export">> => {
     const { workspace } = ctx;
     const target = path.resolve(workspace.root, input.output);
-    const { newest, problems } = await newestBaseline(ctx);
-    const result = await writeHtmlExport(
-      workspace,
-      target,
-      newest === undefined ? {} : { newestBaseline: newest },
-    );
+    const { baselines, problems } = await exportBaselines(ctx);
+    const newest = newestOf(baselines);
+    const result = await writeHtmlExport(workspace, target, {
+      baselines,
+      ...(newest === undefined ? {} : { newestBaseline: newest }),
+    });
     return {
       folder: shown(workspace.root, target),
       pages: result.pages,

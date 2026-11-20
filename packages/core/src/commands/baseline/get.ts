@@ -275,22 +275,18 @@ const shownBaseline = async (
 };
 
 /**
- * `baseline.get` of `baseline` without rows: its counts and warnings as the command gives them, for the start page of the HTML
- * export (SR-233 AK3).
+ * `baseline.get` of `baseline` with every row and without evidence, as the command gives it, for the pages of the HTML
+ * export (SR-232 AK7, SR-233 AK2, AK3, SR-234 AK1, AK2).
  */
-export const baselineCounts = async (
+export const baselineShown = async (
   ctx: CommandContext,
   baseline: Baseline,
-): Promise<
-  Pick<CommandOutput<typeof command>, "counts" | "selectionKnown"> & { readonly problems: readonly Problem[] }
-> => {
-  const { counts, selectionKnown, problems } = await shownBaseline(ctx, await selectedOf(ctx, baseline), {
-    limit: 0,
+): Promise<CommandOutput<typeof command>> =>
+  shownBaseline(ctx, await selectedOf(ctx, baseline), {
+    limit: Number.MAX_SAFE_INTEGER,
     offset: 0,
     withEvidence: false,
   });
-  return { counts, selectionKnown, problems: problems ?? [] };
-};
 
 export default defineCommand({
   name: command,

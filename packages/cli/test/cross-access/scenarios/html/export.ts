@@ -1,8 +1,69 @@
 // Cross-access scenarios of html.export, in addition to the default one (cross-access.test.ts).
+import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { expect } from "vitest";
+import type { Copy } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
-import { CRITERIA, HINTS, IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
+import { CRITERIA, EXPORT, HINTS, IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
+
+const execFileAsync = promisify(execFile);
+const ID = "61061061-0000-4000-8000-0000000000";
+
+/**
+ * In `system` of an EXPORT copy: the baseline „Release 2“ of SR-0000b1 and SR-0000b2 at HEAD, then a commit that
+ * changes the criterion of SR-0000b1, with fixed author and dates, so every copy gets the same commits; once. The
+ * fixture's „Release 1“ names a commit the repository does not have.
+ */
+const changedSinceBaseline = async ({ root }: Copy): Promise<void> => {
+  const date = "2026-11-03T10:00:00Z";
+  const git = (args: readonly string[]): Promise<{ stdout: string }> =>
+    execFileAsync("git", args, {
+      cwd: root,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "t",
+        GIT_AUTHOR_EMAIL: "t@example.com",
+        GIT_COMMITTER_NAME: "t",
+        GIT_COMMITTER_EMAIL: "t@example.com",
+        GIT_AUTHOR_DATE: date,
+        GIT_COMMITTER_DATE: date,
+      },
+    });
+  const file = path.join(root, "baselines", "Release-2.yaml");
+  if (
+    await fs.stat(file).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    return;
+  }
+  const head = (await git(["rev-parse", "HEAD"])).stdout.trim();
+  await fs.writeFile(
+    file,
+    "reqseq-baseline: 1\nname: Release 2\ndate: 2026-11-02T13:00:00Z\nrepositories:\n" +
+      `  - { name: system, commit: ${head} }\nelements:\n` +
+      `  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }\n` +
+      `  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }\n`,
+  );
+  const b1 = path.join(root, "requirements", "SR-0000000000b1.md");
+  await fs.writeFile(
+    b1,
+    (await fs.readFile(b1, "utf8")).replace("shows the speed.", "shows the speed in knots."),
+  );
+  await git(["commit", "-qam", "change"]);
+};
+
+/** The baseline export of the EXPORT fixture, as each scenario of SR-232 AK7, SR-233 AK2 and SR-234 takes it. */
+const BASELINE_EXPORT = {
+  fixture: EXPORT,
+  root: "system",
+  input: { output: "site" },
+  expect: "output",
+  prepare: changedSinceBaseline,
+} as const;
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const PAGE = `site/elements/${WIND}.html`;
@@ -505,6 +566,104 @@ scenariosOf("html.export", [
         expect(contentOf(list)).toContain("<table>");
         expect(contentOf(list)).not.toContain("rq-search");
         expect(list).toContain('src="../assets/list.js"');
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-232/AK-dywy]",
+    name: "an element page names the change since each baseline, with the field difference where Git has the commit",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[`system/site/elements/${ID}b1.html`]));
+        expect(page).toContain('<h2 id="since-baselines">Since baselines</h2>');
+        expect(page).toContain(
+          "Release 2</a> of 2026-11-02: changed; version in the baseline n1:697a2ad17ed49170",
+        );
+        expect(page).toContain("then it shows the speed in knots.</pre>");
+        expect(page).toContain(
+          "The difference is not available: the commit 61aa061aa061 of the baseline is not in the local Git history of repository system.",
+        );
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-233/AK-p6z2]",
+    name: "a list carries the change of each row since each baseline, in a column hidden until one is chosen",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const list = contentOf(String(files["system/site/lists/system-requirement.html"]));
+        expect(list).toContain(
+          "&quot;compare&quot;:{&quot;label&quot;:&quot;Change since baseline&quot;,&quot;baselines&quot;:[&quot;Release 2 (2026-11-02)&quot;,&quot;Release 1 (2026-10-23)&quot;]",
+        );
+        expect(list).toContain('<th scope="col" hidden>Change since baseline</th>');
+        expect(list).toContain('data-b="[0,0]"');
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-234/AK-vjfq]",
+    name: "a baseline page names its commits and its elements by change",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const index = String(files["system/site/baselines/index.html"]);
+        const href = /href="\.\.\/(baselines\/[0-9a-f]{12}\.html)">Release 2</u.exec(index)?.[1];
+        const page = contentOf(String(files[`system/site/${String(href)}`]));
+        expect(page).toContain('<h2 id="commits">Commits</h2>');
+        expect(page).toContain(`<h2 id="changed">Changed</h2><table>`);
+        expect(page).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
+        expect(page).toContain('<h2 id="unchanged">Unchanged</h2>');
+        expect(page).toContain("This baseline stores no selection");
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-234/AK-swvj]",
+    name: "the page of all baselines lists each with date and numbers, newest first",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const index = contentOf(String(files["system/site/baselines/index.html"]));
+        expect(index).toMatch(
+          /Release 2<\/a><\/td><td>2026-11-02T13:00:00Z<\/td><td>2<\/td><td>1<\/td>.*Release 1<\/a><\/td><td>2026-10-23T09:00:00Z<\/td><td>4<\/td>/u,
+        );
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-234/AK-k5g4]",
+    name: "the variant comparison shows the degree per view and the requirements whose status differs",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files["system/site/variants/index.html"]));
+        expect(page).toContain('<h2 id="verification-degree">Verification degree per view</h2>');
+        expect(page).toContain('<th scope="row">core</th>');
+        expect(page).toContain(`<th scope="row"><a href="../elements/${ID}c1.html">VAR-0000c1</a></th>`);
+        expect(page).toContain('<h2 id="differences">Requirements whose verification status differs</h2>');
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
+    tag: "[SR-234/AK-gzpr]",
+    name: "a variant page shows what it adds, replaces and excludes compared with the core, and its degree",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[`system/site/elements/${ID}c1.html`]));
+        expect(page).toContain('<h2 id="compared-with-the-core">Compared with the core</h2>');
+        expect(page).toContain(
+          `<h3 id="added">Adds</h3><ul><li><a href="../elements/${ID}b1.html">SR-0000b1 Show the wind speed</a></li></ul>`,
+        );
+        expect(page).toContain('<h2 id="verification-degree">Verification degree</h2>');
       }
     },
   },
