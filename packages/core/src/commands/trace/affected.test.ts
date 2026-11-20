@@ -159,7 +159,7 @@ describe("trace.affected (SR-024)", () => {
     expect(fromSpeed.affected.map((a) => a.shortId)).not.toContain("SR-00b005");
     // Nothing points at the storm warning.
     expect(await affected(workspace, { ref: STORMS })).toEqual({
-      answer: "0 elements are affected by a change of 5c0e1d2a-0024-4024-8024-00000000b004.",
+      answer: "0 elements are affected by a change of SR-00b004.",
       affected: [],
       total: 0,
       records: [],

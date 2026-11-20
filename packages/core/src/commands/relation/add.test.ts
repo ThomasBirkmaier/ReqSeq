@@ -122,8 +122,7 @@ describe("relation.add stores UUID and current version of the target in the sour
     const version = await versionOf(opened, SYSTEM_NEED.id);
     const out = await add(opened, { source: SR.id, kind: "derives-from", target: SYSTEM_NEED.id });
     expect(out).toEqual({
-      answer:
-        "Added a derives-from relation from 6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05 to 0c8a3e5f-2d1b-4f6e-8a9c-7b3d5e1f2a4c; 1 file written.",
+      answer: "Added a derives-from relation from SR-6e1f05 to N-1f2a4c; 1 file written.",
       files: [SR.file],
       problems: [],
     });
@@ -424,8 +423,7 @@ describe("relation.add gives a stored target without a valid version its current
     const version = await versionOf(opened, NEED.id);
     const out = await add(opened, { source: "SR-fffff1", kind: "derives-from", target: NEED.id });
     expect(out).toEqual({
-      answer:
-        "Added a derives-from relation from SR-fffff1 to 0b7c6e1a-1111-4222-8333-aaaaaaaaaaa1; 1 file written; 1 problem.",
+      answer: "Added a derives-from relation from SR-fffff1 to N-aaaaa1; 1 file written; 1 problem.",
       files: [MIGRATED.file],
       problems: [versionAdded(version, 7)],
     });
@@ -450,16 +448,14 @@ describe("relation.add gives a stored target without a valid version its current
     const version = await versionOf(opened, NEED.id);
     const out = await add(opened, { source: MIGRATED.id, kind: "derives-from", target: "N-aaaaa1" });
     expect(out).toEqual({
-      answer:
-        "Added a derives-from relation from 0b7c6e1a-1111-4222-8333-fffffffffff1 to N-aaaaa1; 1 file written; 1 problem.",
+      answer: "Added a derives-from relation from SR-fffff1 to N-aaaaa1; 1 file written; 1 problem.",
       files: [MIGRATED.file],
       problems: [versionAdded(version, 7)],
     });
     const after = await read(opened, MIGRATED.file);
     expect(after).toContain(`\n  - { id: ${NEED.id}, version: ${version}, title: Need one }\n---\n`);
     expect(await add(opened, { source: MIGRATED.id, kind: "derives-from", target: NEED.id })).toEqual({
-      answer:
-        "The derives-from relation from 0b7c6e1a-1111-4222-8333-fffffffffff1 to 0b7c6e1a-1111-4222-8333-aaaaaaaaaaa1 was there already; no file written.",
+      answer: "The derives-from relation from SR-fffff1 to N-aaaaa1 was there already; no file written.",
       files: [],
       problems: [],
     });
@@ -654,15 +650,13 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
   it("[SR-067/AK-skrd] gives no hint for a derivation that closes no cycle, or a relation of another meaning", async () => {
     const opened = await open(CYCLE);
     expect(await add(opened, { source: D.id, kind: "derives-from", target: CYCLE_NEED.id })).toEqual({
-      answer:
-        "Added a derives-from relation from 5e9c0a7d-2b4f-4c61-9d08-0b0000000004 to 5e9c0a7d-2b4f-4c61-9d08-0a0000000001; 1 file written.",
+      answer: "Added a derives-from relation from SR-000004 to N-a0000000001; 1 file written.",
       files: [D.file],
       problems: [],
     });
     // A supersedes D, which derives from A: no derivation, so no cycle.
     expect(await add(opened, { source: A.id, kind: "supersedes", target: D.id })).toEqual({
-      answer:
-        "Added a supersedes relation from 5e9c0a7d-2b4f-4c61-9d08-0b0000000001 to 5e9c0a7d-2b4f-4c61-9d08-0b0000000004; 1 file written.",
+      answer: "Added a supersedes relation from SR-b0000000001 to SR-000004; 1 file written.",
       files: [A.file],
       problems: [],
     });
@@ -680,8 +674,7 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     const before = await read(opened, LOGGED.file);
     const out = await add(opened, { source: LOGGED.id, kind: "derives-from", target: `${L}b00001` });
     expect(out).toEqual({
-      answer:
-        "Added a derives-from relation from 15200000-0000-4000-8000-000000c00003 to 15200000-0000-4000-8000-000000b00001; 1 file written; 1 problem.",
+      answer: "Added a derives-from relation from SR-c00003 to UC-b00001; 1 file written; 1 problem.",
       files: [LOGGED.file],
       problems: [
         {
@@ -717,7 +710,7 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     // SR-c00001 derives from two use cases already, one more than the limit.
     expect(await add(opened, { source: OVER.id, kind: "derives-from", target: `${L}b00001` })).toEqual({
       answer:
-        "The derives-from relation from 15200000-0000-4000-8000-000000c00001 to 15200000-0000-4000-8000-000000b00001 was there already; no file written; 1 problem.",
+        "The derives-from relation from SR-c00001 to UC-b00001 was there already; no file written; 1 problem.",
       files: [],
       problems: [
         expect.objectContaining({
@@ -732,8 +725,7 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     });
     // The need it has already counts toward no maximum: no hint.
     expect(await add(opened, { source: OVER.id, kind: "derives-from", target: `${L}a00001` })).toEqual({
-      answer:
-        "The derives-from relation from 15200000-0000-4000-8000-000000c00001 to 15200000-0000-4000-8000-000000a00001 was there already; no file written.",
+      answer: "The derives-from relation from SR-c00001 to N-a00001 was there already; no file written.",
       files: [],
       problems: [],
     });
@@ -747,22 +739,19 @@ describe("relation.add saves a relation over a limit and shows the hint of the c
     });
     // Within the limit: the first need of SR-c00003.
     expect(await add(opened, { source: LOGGED.id, kind: "derives-from", target: `${L}a00001` })).toEqual({
-      answer:
-        "Added a derives-from relation from 15200000-0000-4000-8000-000000c00003 to 15200000-0000-4000-8000-000000a00001; 1 file written.",
+      answer: "Added a derives-from relation from SR-c00003 to N-a00001; 1 file written.",
       files: [LOGGED.file],
       problems: [],
     });
     // SR-c00002 still lacks a need: a too-few is not a hint of relation.add.
     expect(await add(opened, { source: `${L}c00002`, kind: "derives-from", target: `${L}b00001` })).toEqual({
-      answer:
-        "Added a derives-from relation from 15200000-0000-4000-8000-000000c00002 to 15200000-0000-4000-8000-000000b00001; 1 file written.",
+      answer: "Added a derives-from relation from SR-c00002 to UC-b00001; 1 file written.",
       files: ["requirements/SR-000000c00002.md"],
       problems: [],
     });
     // SR-c00001 is over the use-case limit already; a second need does not repeat that hint.
     expect(await add(opened, { source: `${L}c00001`, kind: "derives-from", target: `${L}a00002` })).toEqual({
-      answer:
-        "Added a derives-from relation from 15200000-0000-4000-8000-000000c00001 to 15200000-0000-4000-8000-000000a00002; 1 file written.",
+      answer: "Added a derives-from relation from SR-c00001 to N-a00002; 1 file written.",
       files: ["requirements/SR-000000c00001.md"],
       problems: [],
     });

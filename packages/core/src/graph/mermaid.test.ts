@@ -36,7 +36,7 @@ describe("trace.mermaid", () => {
   it("[SR-151/AK-qv2x] writes each node with ID, type, title, marks and verification, each link as an edge from source to target with its kind and outdated, the element framed, bottom to top, no evidence", async () => {
     const out = await run("trace.mermaid", "SR-111/graph", { ref: S1 });
     expect({ ...out, mermaid: typeof out["mermaid"] }).toEqual({
-      answer: "Drew the graph of 5e111a7d-2b4f-4c61-9d08-0b0000000001 as a Mermaid flowchart.",
+      answer: "Drew the graph of SR-b0000000001 as a Mermaid flowchart.",
       mermaid: "string",
       truncated: false,
       incomplete: false,

@@ -39,14 +39,14 @@ const relatedOf = async (ctx: CommandContext, input: CommandInput<"trace.related
 
 export default defineCommand({
   name: "trace.related",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
       `Found ${paged(
         output.elements.length,
         output.total,
         input.direction === "children" ? "child" : "parent",
         input.direction,
-      )}${input.refs.length === 0 ? "" : ` of ${listed(input.refs)}`}`,
+      )}${input.refs.length === 0 ? "" : ` of ${listed(input.refs.map((ref) => names.element(ref)))}`}`,
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"trace.related">> => {

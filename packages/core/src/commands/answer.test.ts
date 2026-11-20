@@ -26,7 +26,7 @@ import { commands } from "./index.js";
 import traceChain from "./trace/chain.js";
 import traceGraph from "./trace/graph.js";
 import traceNeighbourhood from "./trace/neighbourhood.js";
-import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
+import { APPROVED, FILES, GUSTS, OBSOLETE, SCENARIOS, VARIANT, WIND } from "./scenarios.test-helper.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceAgents from "./workspace/agents.js";
 import workspaceConnectAgent from "./workspace/connectAgent.js";
@@ -50,7 +50,7 @@ const RELATIVE_TIME =
 
 /** The answer of `command` for `output` and `input`, as `invoke` builds it; types are named by their key. */
 const answerOf = (command: AnyCommand, output: unknown, input: unknown = {}): string =>
-  command.answer?.(output, input as never, { type: (key) => key }) ?? "";
+  command.answer?.(output, input as never, { type: (key) => key, element: (ref) => ref }) ?? "";
 
 describe("the answer of every command (SR-224 AK1)", () => {
   for (const [name, calls] of Object.entries(CALLS)) {
@@ -165,6 +165,51 @@ describe("answers of single commands", () => {
     expect(answerOf(traceNeighbourhood, { ...later, total: 3 }, { ref: "uuid-1" })).toBe(
       "The neighbourhood of SR-073 has 3 elements.",
     );
+  });
+
+  it("[SR-224/AK-cw40] the commands whose answer names elements of the input name them by short ID or identifier, also for a UUID as ref (#1998)", async () => {
+    const calls: readonly (readonly [string, Readonly<Record<string, unknown>>])[] = [
+      ["trace.affected", { ref: WIND }],
+      ["trace.mermaid", { ref: WIND }],
+      ["trace.related", { refs: [WIND, APPROVED], direction: "children" }],
+      ["relation.options", { ref: WIND }],
+      ["element.supersede", { ref: GUSTS, status: "obsolete", successor: WIND, relation: "supersedes" }],
+      ["variant.exclude", { variant: VARIANT, refs: [WIND] }],
+      ["evidence.record", { ...SCENARIOS["evidence.record"]?.[0], ref: WIND }],
+      ["evidence.list", { ref: WIND }],
+      ["relation.add", { source: GUSTS, kind: "replaces", target: OBSOLETE }],
+      ["relation.remove", { source: GUSTS, kind: "derives-from", target: WIND }],
+      ["variant.diff", { variant: VARIANT }],
+    ];
+    const answers: Record<string, string> = {};
+    for (const [name, input] of calls) {
+      const repository = await createFixtureWorkspace({
+        fixture: "SR-001/two-elements",
+        files: FILES,
+        git: true,
+      });
+      const workspace = new Workspace(repository.root);
+      onTestFinished(async () => {
+        await workspace.close();
+        await repository.cleanup();
+      });
+      const output = (await runtime.invoke(name, input, { workspace })) as { readonly answer: string };
+      answers[name] = output.answer;
+    }
+    expect(answers).toEqual({
+      "trace.affected": "4 elements are affected by a change of SR-e88fb3.",
+      "trace.mermaid": "Drew the graph of SR-e88fb3 as a Mermaid flowchart.",
+      "trace.related": "Found 4 children of SR-e88fb3 and N-aaaaaa.",
+      "relation.options": "SR-e88fb3 can get 6 relation kinds.",
+      "element.supersede":
+        "Superseded SR-4a5b6c with status obsolete, succeeded by SR-e88fb3; 2 files written.",
+      "variant.exclude": "Variant VAR-cccccc excludes SR-e88fb3; 1 file written.",
+      "evidence.record": "Recorded a verification with result passed for SR-e88fb3; 1 file written.",
+      "evidence.list": "Found 2 evidence records and 2 test cases of SR-e88fb3.",
+      "relation.add": "Added a replaces relation from SR-4a5b6c to SR-556666; 1 file written.",
+      "relation.remove": "Removed the derives-from relation from SR-4a5b6c to SR-e88fb3; 1 file written.",
+      "variant.diff": "Variant VAR-cccccc adds 0 requirements, replaces 0 and excludes 0.",
+    });
   });
 
   it("element.list counts the rows of `partial` as of `elements`", () => {
