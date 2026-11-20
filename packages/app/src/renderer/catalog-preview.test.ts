@@ -61,4 +61,31 @@ describe("the output of a write command (SR-223 AK8)", () => {
     expect(echoed.at(-1)).toBe("Created workspace B.");
     expect(dispatched).toEqual([]);
   });
+
+  it("[SR-223/AK-qwkc] shows the output of a read command whose elements are its answer as a list of them under its answer", () => {
+    const { context, dispatched } = setup([shown]);
+    const related = { answer: "2 elements are related to SR-1.", elements: [], total: 0 };
+    show(context, entry("trace.related"), { refs: ["SR-1"] }, related, 3);
+    expect(dispatched).toMatchObject([
+      {
+        type: "open",
+        buffer: {
+          kind: "list",
+          label: related.answer,
+          selection: { output: { command: "trace.related", input: { refs: ["SR-1"] } } },
+          // The output of this run, so the list need not run the command again for it.
+          answered: { output: related, revision: 3 },
+        },
+      },
+    ]);
+    // Without an answer (a test catalog) the list is named by its command line.
+    show(context, entry("trace.related"), {}, { elements: [] }, 3);
+    expect(dispatched[1]).toMatchObject({ type: "open", buffer: { label: "Show related elements" } });
+    // The entries of a baseline are no element rows: its output page shows the state of each.
+    show(context, entry("baseline.get"), { baseline: "R1" }, { answer: "R1", elements: [] }, 3);
+    expect(dispatched[2]).toMatchObject({
+      type: "open",
+      buffer: { kind: "result", command: "baseline.get" },
+    });
+  });
 });

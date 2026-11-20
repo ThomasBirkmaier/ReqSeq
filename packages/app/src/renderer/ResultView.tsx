@@ -4,7 +4,8 @@
 // under the titles of the catalog (`result.ts`); its technical values and those equal to their normal value only
 // while "Show details" is on for the buffer, as details in the second grey (SR-223 AK2, AK7). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
-// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). The problems of one kind
+// a problem, the two elements of a pair line side by side, read-only (SR-044 AK2), and the list of the elements a
+// number counts that the catalog marks as a number of elements (SR-223 AK5), each such number a line of its own. The problems of one kind
 // are a group line, folded at first (SR-223 AK3): Tab on it (SR-193 AK1), or a click on its triangle, opens and
 // closes it, Right opens and Left closes it, also from a line of the group, and Enter or a click elsewhere on it
 // opens the list of the elements of its problems (a group without elements opens and closes instead). The output of
@@ -15,7 +16,7 @@
 // The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4), and that of
 // `workspace.connectAgent` for a client the setup to copy (`ConnectAgentView.tsx`, SR-227 AK7).
 import { bufferMark, useHidden } from "./area-slot.js";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -59,8 +60,12 @@ const foldingOf = (
   return event.key === "Tab" ? line.unfolded !== true : event.key === "ArrowRight";
 };
 
-/** A line that opens something when chosen: an element, a pair, or a group of problems (SR-223 AK3). */
-const choosable = (line: ResultLine): boolean => line.open !== undefined || line.kind === "group";
+/**
+ * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), or a number of
+ * elements, which opens their list (SR-223 AK5).
+ */
+const choosable = (line: ResultLine): boolean =>
+  line.open !== undefined || line.kind === "group" || line.list !== undefined;
 
 /**
  * What the line under the answer says of an incomplete output (SR-223 AK1, SR-006 AK2): only the mark, since the
@@ -87,13 +92,25 @@ export const ResultView = ({
       linesOf(
         {
           command: buffer.command,
+          input: buffer.input,
+          name: buffer.name,
           output: buffer.output,
+          ...(buffer.written === true ? { written: true } : {}),
           ...(buffer.details === true ? { details: true } : {}),
           ...(buffer.unfolded === undefined ? {} : { unfolded: buffer.unfolded }),
         },
         fields,
       ),
-    [buffer.command, buffer.output, buffer.details, buffer.unfolded, fields],
+    [
+      buffer.command,
+      buffer.input,
+      buffer.name,
+      buffer.written,
+      buffer.output,
+      buffer.details,
+      buffer.unfolded,
+      fields,
+    ],
   );
   const answer = resultAnswer(buffer.output);
   const { incomplete } = resultSummary(buffer.output);
@@ -108,9 +125,12 @@ export const ResultView = ({
     }
   }, [buffer.key, buffer.output, hints, onData]);
 
+  // The call the shown output is the answer of: another one (after "Choose view") asks again, so each number of
+  // elements stands for the list it opens in the window's view (SR-223 AK5).
+  const answeredBy = useRef(call);
   useEffect(() => {
     // The output of a write command is never asked again: that would write again.
-    if (buffer.written === true || buffer.revision === revision) {
+    if (buffer.written === true || (buffer.revision === revision && answeredBy.current === call)) {
       return;
     }
     let live = true;
@@ -118,6 +138,7 @@ export const ResultView = ({
       if (!live) {
         return;
       }
+      answeredBy.current = call;
       const { error: _before, ...rest } = buffer;
       // In place: a result in the inactive area that reads again stays there (SR-115 AK3).
       dispatch({
@@ -158,6 +179,9 @@ export const ResultView = ({
       } else {
         dispatch({ type: "open", buffer: line.list });
       }
+    } else if (line?.list !== undefined) {
+      // A number of elements: the list of exactly those elements (SR-223 AK5).
+      dispatch({ type: "open", buffer: line.list });
     } else if (line?.open !== undefined) {
       dispatch(
         line.beside === undefined
@@ -230,7 +254,7 @@ export const ResultView = ({
             <div
               key={at}
               id={`${scope}result-${String(at)}`}
-              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}`}
+              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.kind !== "group" && line.list !== undefined ? " count" : ""}`}
               title={line.title}
               // Only a line that opens something is an option; a text line is shown, not chosen.
               {...(choosable(line) ? { role: "option", "aria-selected": at === cursor } : {})}

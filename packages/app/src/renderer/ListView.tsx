@@ -18,6 +18,8 @@
 // selection without them and once for only them, each in its own pages. The section row is an option of the
 // listbox like the others, so the mark reaches it; click, Enter and Tab toggle it, Right opens and Left
 // closes it (SR-193 AK1, AK2). A tree (SR-075) folds nothing.
+// A list of the answer of a command's output (SR-223 AK6, `output-list.ts`) reads that output too: its other fields
+// stand above the rows, and with "Show details" the values it gives per element under each row.
 import { bufferMark, useHidden, useHiddenUpdate, useReveal } from "./area-slot.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
@@ -30,7 +32,7 @@ import { useIdScope } from "./area-scope.js";
 import { folds, foldedSelections, useFoldCondition } from "./fold-statuses.js";
 import { useDrawnParts } from "./list-drawn.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName, fieldsInput, listHeading, listSort } from "./buffers.js";
+import { answerOf, bufferName, fieldsInput, listHeading, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightRanges, trimLead } from "./highlight.js";
 import type { ListGroup } from "./list-groups.js";
@@ -46,6 +48,9 @@ import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { FoldHead } from "./FoldSection.js";
 import { GROUPED } from "./list-menu.js";
 import { useResetOnAsk } from "./use-reset-on-ask.js";
+import type { OutputParts } from "./output-list.js";
+import { elementKey, outputParts, relabelled } from "./output-list.js";
+import type { OutputField, ResultLine } from "./result.js";
 import type { Row, Snippet } from "./rows.js";
 import {
   LIST_MAX,
@@ -92,6 +97,11 @@ export interface ListViewProps {
    * buffer. Set when the reader comes back to a page whose elements they used before.
    */
   readonly focusOnLoad?: boolean;
+  /**
+   * The fields of a command's output in the catalog (`outputFields`): a list of the answer of an output (SR-223
+   * AK6) shows the rest of the output above its rows and its values per element with "Show details".
+   */
+  readonly outputFields?: (command: string) => readonly OutputField[] | undefined;
 }
 
 /**
@@ -551,6 +561,137 @@ const ListTop = ({
   );
 };
 
+/**
+ * The output a list of the answer of an output lists (`answerOf`, SR-223 AK6), read again when the workspace
+ * changed; undefined for any other list, while it is read, or when its read failed (the rows say why).
+ */
+interface Answered {
+  readonly asked: string;
+  readonly output: unknown;
+  readonly revision: number;
+  readonly call: Call;
+}
+
+const useAnswered = (call: Call, buffer: ListBuffer | SearchBuffer, revision: number): unknown => {
+  const origin = buffer.kind === "list" ? answerOf(buffer) : undefined;
+  const asked = origin === undefined ? undefined : JSON.stringify(origin);
+  // The output of the run that opened the list stands until the workspace or the view changes (`answered`).
+  const opened = buffer.kind === "list" ? buffer.answered : undefined;
+  const [got, setGot] = useState<Answered | undefined>(() =>
+    asked === undefined || opened === undefined ? undefined : { asked, ...opened, call },
+  );
+  const current = got !== undefined && got.asked === asked && got.revision === revision && got.call === call;
+  useEffect(() => {
+    if (origin === undefined || asked === undefined || current) {
+      return undefined;
+    }
+    let live = true;
+    void call(origin.command as never, origin.input as never).then((answer) => {
+      if (live && answer.ok) {
+        setGot({ asked, output: answer.output, revision, call });
+      }
+    });
+    return () => {
+      live = false;
+    };
+    // `asked` holds the origin; `current` says whether what was read still holds.
+  }, [call, asked, revision, current]);
+  return got !== undefined && got.asked === asked ? got.output : undefined;
+};
+
+/**
+ * The lines of an output above the rows of the list of its answer (SR-223 AK6), as the output page shows them
+ * (`result.ts`), such as the records of older versions (SR-024 AK4); a line that opens something (an element, the
+ * list a number of elements counts, SR-223 AK5) opens it on a click. They are no rows of the list, and have the
+ * buffer's menu (SR-197 AK4).
+ */
+const OutputLines = ({
+  lines,
+  dispatch,
+}: {
+  readonly lines: readonly ResultLine[];
+  readonly dispatch: (action: BufferAction) => void;
+}): React.JSX.Element | null =>
+  lines.length === 0 ? null : (
+    <div className="result output output-lines" data-menu="buffer">
+      {lines.map((line, at) => {
+        const opens = line.list ?? line.open;
+        return (
+          <div
+            key={at}
+            className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.list === undefined ? "" : " count"}`}
+            data-depth={line.depth}
+            style={{ "--indent": `${String(line.depth * 1.25)}rem` } as React.CSSProperties}
+            {...(opens === undefined
+              ? {}
+              : {
+                  onClick: () => {
+                    dispatch({ type: "open", buffer: opens });
+                  },
+                })}
+          >
+            {line.label === "" ? null : <span className="label">{line.label}</span>}
+            <span className="text">{line.text}</span>
+            {line.status === undefined ? null : <span className="status">{line.status}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+/** With "Show details" (SR-223 AK6): the values the output gives for the element of a row, under the row. */
+const RowDetails = ({ lines }: { readonly lines: readonly ResultLine[] }): React.JSX.Element => (
+  <span className="row-details">
+    {lines.map((line, at) => (
+      <span
+        key={at}
+        className="row-detail"
+        style={{ "--indent": `${String(line.depth * 1.25)}rem` } as React.CSSProperties}
+      >
+        {line.label === "" ? null : <span className="label">{line.label}</span>}
+        <span className="text">{line.text}</span>
+      </span>
+    ))}
+  </span>
+);
+
+/**
+ * The list of the answer of an output without other steps (SR-223 AK6): without elements it shows only its answer,
+ * which heads it, and no "No elements".
+ */
+const onlyAnswer = (buffer: ListBuffer | SearchBuffer): boolean =>
+  buffer.kind === "list" && answerOf(buffer) !== undefined && buffer.steps.length === 1;
+
+/** The list says that it has no elements: a list or search without rows, not a part, not `onlyAnswer`. */
+const showsEmpty = (view: View, length: number, part: boolean, buffer: ListBuffer | SearchBuffer): boolean =>
+  view.status === "ok" && length === 0 && !part && !onlyAnswer(buffer);
+
+/** What a list of the answer of an output shows besides its rows (`outputParts`); undefined for another list. */
+const useOutputParts = (
+  call: Call,
+  buffer: ListBuffer | SearchBuffer,
+  revision: number,
+  outputFields: ListViewProps["outputFields"],
+  dispatch: (action: BufferAction) => void,
+): OutputParts | undefined => {
+  const answered = useAnswered(call, buffer, revision);
+  // The heading and the first step say the answer of the output read last (SR-223 AK6).
+  const latest = useRef(buffer);
+  latest.current = buffer;
+  useEffect(() => {
+    const list = latest.current;
+    const next = list.kind === "list" ? relabelled(list, answered) : undefined;
+    if (next !== undefined) {
+      dispatch({ type: "update", buffer: next });
+    }
+  }, [answered, dispatch]);
+  const origin = buffer.kind === "list" ? answerOf(buffer) : undefined;
+  const fields = origin === undefined ? undefined : outputFields?.(origin.command);
+  return buffer.kind !== "list" || fields === undefined || answered === undefined
+    ? undefined
+    : outputParts(buffer, answered, fields, buffer.details === true);
+};
+
 export const ListView = ({
   call,
   buffer,
@@ -563,8 +704,11 @@ export const ListView = ({
   part = false,
   onLeave,
   focusOnLoad = false,
+  outputFields,
 }: ListViewProps): React.JSX.Element => {
   const scope = useIdScope();
+  // A list of the answer of an output (SR-223 AK6): the rest of the output and its values per element.
+  const parts = useOutputParts(call, buffer, revision, outputFields, dispatch);
   // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
   const bufferAttribute = bufferMark(useHidden());
   const [view, setView] = useState<View>({ status: "loading" });
@@ -919,6 +1063,9 @@ export const ListView = ({
     keyed: boolean,
   ): React.JSX.Element => {
     const id = `${scope}row-${String(at)}`;
+    const details = parts?.details.get(
+      elementKey({ id: row.open.id, repository: row.open.repository, file: row.file }),
+    );
     // A row with a snippet is named by its ID, title and status; the snippet describes it (SR-174).
     const named =
       row.snippet === undefined
@@ -963,6 +1110,7 @@ export const ListView = ({
         {row.snippet === undefined ? null : (
           <SnippetLine key={row.snippet.text} id={`${id}-snippet`} snippet={row.snippet} />
         )}
+        {details === undefined ? null : <RowDetails lines={details} />}
       </div>
     );
   };
@@ -999,7 +1147,7 @@ export const ListView = ({
         rowAt(row, at, verificationAt(verified, row, at), groups === undefined),
       )}
       {section}
-      {view.status === "ok" && length === 0 && !part ? (
+      {showsEmpty(view, length, part, buffer) ? (
         <p className="quiet">{buffer.kind === "list" ? "No elements" : `No hits for ${buffer.query}`}</p>
       ) : null}
       {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
@@ -1038,6 +1186,7 @@ export const ListView = ({
               drawnPart("line", buffer.key);
             }}
           />
+          <OutputLines lines={parts?.lines ?? []} dispatch={dispatch} />
           {rowsAndNotes}
         </div>
       )}

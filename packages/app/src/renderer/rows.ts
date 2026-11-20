@@ -35,6 +35,8 @@ export interface Row {
   readonly titleMarks: readonly Range[];
   /** Where a search hit was found and one line around it (SR-174); none for a list or a hit without one. */
   readonly snippet?: Snippet;
+  /** The file of the element in its repository, where the output gives it: two copies of a UUID differ in it (SR-088). */
+  readonly file?: string;
 }
 
 /** A marked part of a text: UTF-16 code-unit offsets, `end` exclusive. */
@@ -88,6 +90,7 @@ export const rowOf = (
     readonly identifier?: string | undefined;
     readonly title: string;
     readonly status?: string | undefined;
+    readonly file?: string | undefined;
   },
   depth: number,
   terms: readonly string[],
@@ -107,6 +110,7 @@ export const rowOf = (
     markLabel,
     titleMarks: found.titleMarks,
     ...(found.snippet === undefined ? {} : { snippet: found.snippet }),
+    ...(element.file === undefined ? {} : { file: element.file }),
   };
 };
 
