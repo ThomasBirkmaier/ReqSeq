@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-The HTML export is a folder of pages for readers without ReqSeq ([Publish the workspace as HTML](/how-to/publish-the-workspace-as-html/)). Its start page, lists and package pages: [Lists and start page of the HTML export](/concepts/the-html-export-lists/).
+The HTML export is a folder of pages for readers without ReqSeq ([Publish the workspace as HTML](/how-to/publish-the-workspace-as-html/)).
 
 ## The page of an element
 
