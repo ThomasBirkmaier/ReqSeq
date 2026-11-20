@@ -1,11 +1,12 @@
 // The lines of the result buffer of `trace.chain` (SR-033): the lines of its output by shape
 // (`result.ts`), with the `evidence` of the chain under the element rows it belongs to instead of a list of
 // its own, as the CLI shows it. Under a requirement, each test case is a line "test case <class name> ›
-// <name>" (" · not executed" for one that has no execution, AK3), with one line per execution below it,
-// in core's order (newest first): "<date> · <result> · <item> · <evidence document>" (AK1); a record without a test
-// case is a line "record <date> · <method> · <result> · <item> · <evidence document>"; a record of a variant ends in
-// "variant <UUID>" (the output names no variants). The evidence document is text, never opened (offline): the record's
-// `evidenceSource` as core gives it (#821). An evidence item names its element by UUID
+// <name>" (" · not executed" for one that has no execution, AK3), with its executions below it as runs
+// (`runs.ts`, SR-223 AK4): "<date> · <result>" and the views where a variant is involved (AK1); the item under
+// test and the evidence document only with "Show details" (SR-223 AK2). A record without a test case is a line
+// "record <date> · <method> · <result> · <item> · <evidence document>"; a record of a variant ends in "variant
+// <title>", the title `names` gives (else its UUID). The evidence document is text, never opened (offline): the
+// record's `evidenceSource` as core gives it (#821). An evidence item names its element by UUID
 // and repository and belongs to a child (core gives none for a parent): it goes under the last row of that
 // element among the nodes, since the parents come before the children (an element of a cycle is both); one
 // whose element has no row (cut by the line limit) is not shown. The root's `validationRecords` (#646) are lines
@@ -16,7 +17,8 @@ import type { DataExportEvidenceRecord, DataExportTestCase } from "@reqseq/core"
 import { wholeReasonOf } from "./evidence-lines.js";
 import type { OutputField, ResultLine } from "./result.js";
 import { resultLines } from "./result.js";
-import { reasonLine } from "./variant-lines.js";
+import type { VariantTitle } from "./runs.js";
+import { joinedParts as joined, resultOf, testCaseLines } from "./runs.js";
 
 /** An item of `evidence` of `trace.chain`: the test cases and the records without test case of one element. */
 interface ChainEvidence {
@@ -38,16 +40,6 @@ const isChainEvidence = (value: unknown): value is ChainEvidence =>
 
 const keyOf = (id: string, repository: string): string => `${repository}\u0000${id}`;
 
-/** The given parts of a line, joined by " · ". */
-const joined = (parts: readonly (string | undefined)[]): string =>
-  parts.filter((part): part is string => part !== undefined).join(" · ");
-
-const resultOf = (record: DataExportEvidenceRecord): string =>
-  record.reason === undefined ? record.result : `${record.result}: ${reasonLine(record.reason)}`;
-
-const variantOf = (record: DataExportEvidenceRecord): string | undefined =>
-  record.variant === undefined ? undefined : `variant ${record.variant}`;
-
 const text = (depth: number, label: string, line: string, title?: string): ResultLine => ({
   kind: "text",
   depth,
@@ -56,32 +48,26 @@ const text = (depth: number, label: string, line: string, title?: string): Resul
   ...(title === undefined ? {} : { title }),
 });
 
-/** The lines of one element's evidence, at `depth`. */
-const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => [
-  ...evidence.testCases.flatMap((test) => [
-    text(
-      depth,
-      "test case",
-      joined([
-        test.className === undefined ? test.name : `${test.className} › ${test.name}`,
-        test.executed ? undefined : "not executed",
-      ]),
-    ),
-    ...test.executions.map((execution) =>
-      text(
-        depth + 1,
-        "",
-        joined([
-          execution.date,
-          resultOf(execution),
-          execution.item,
-          execution.evidenceSource,
-          variantOf(execution),
-        ]),
-        wholeReasonOf(execution),
-      ),
-    ),
-  ]),
+/** The titles of the variants the output names (`names`), by UUID. */
+const variantTitles = (output: Readonly<Record<string, unknown>>): VariantTitle => {
+  const names = Array.isArray(output["names"]) ? (output["names"] as readonly unknown[]) : [];
+  const byId = new Map<string, string>();
+  for (const name of names) {
+    if (isRecord(name) && typeof name["id"] === "string" && typeof name["title"] === "string") {
+      byId.set(name["id"], name["title"]);
+    }
+  }
+  return (id) => byId.get(id);
+};
+
+/** The lines of one element's evidence, at `depth`; `details`: with the details of each execution. */
+const evidenceLines = (
+  evidence: ChainEvidence,
+  depth: number,
+  title: VariantTitle,
+  details: boolean,
+): ResultLine[] => [
+  ...evidence.testCases.flatMap((test) => testCaseLines(test, depth, title, details)),
   ...evidence.records.map((record) =>
     text(
       depth,
@@ -92,7 +78,7 @@ const evidenceLines = (evidence: ChainEvidence, depth: number): ResultLine[] => 
         resultOf(record),
         record.item,
         record.evidenceSource,
-        variantOf(record),
+        record.variant === undefined ? undefined : `variant ${title(record.variant) ?? record.variant}`,
       ]),
       wholeReasonOf(record),
     ),
@@ -108,9 +94,10 @@ export const chainLines = (
   output: unknown,
   fields: readonly OutputField[] = [],
   details = false,
+  unfolded: readonly string[] = [],
 ): ResultLine[] => {
   if (!isRecord(output) || !Array.isArray(output["evidence"])) {
-    return resultLines(output, fields, details);
+    return resultLines(output, fields, details, unfolded);
   }
   const { evidence, validationRecords, ...rest } = output;
   // The root's validation records (#646), as records under the root row, labelled "validation".
@@ -123,7 +110,8 @@ export const chainLines = (
       byElement.set(keyOf(item.id, item.repository), item);
     }
   }
-  const lines = resultLines(rest, fields, details);
+  const lines = resultLines(rest, fields, details, unfolded);
+  const title = variantTitles(output);
   // The last row of each element among the nodes: the lines under the top-level key "nodes".
   const rowOf = new Map<string, number>();
   let rootRow: number | undefined;
@@ -162,6 +150,10 @@ export const chainLines = (
             ),
           )
         : [];
-    return [line, ...(item === undefined ? [] : evidenceLines(item, line.depth + 1)), ...validated];
+    return [
+      line,
+      ...(item === undefined ? [] : evidenceLines(item, line.depth + 1, title, details)),
+      ...validated,
+    ];
   });
 };

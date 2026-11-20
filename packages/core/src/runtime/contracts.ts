@@ -50,8 +50,6 @@ export interface ContractsBundle {
   readonly schemas: readonly JsonSchema[];
   readonly catalogMeta: JsonSchema;
   readonly catalog: unknown;
-  /** The title of every problem kind by its code (SR-224 AK6), from schemas/problem-codes.yaml. */
-  readonly problemTitles: Readonly<Record<string, string>>;
 }
 
 /** The schemas and the catalog of this version of ReqSeq. */

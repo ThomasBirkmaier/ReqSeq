@@ -8,7 +8,10 @@
 // buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
 // rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
 // `trace.chain` too), a problem is one line with its element and message (with details its kind and technical
-// values), everything else is a quiet indented outline. The share of a
+// values), several problems of one kind and severity are one group line with the title of their kind and their
+// count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
+// test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
+// outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, ThomasBirkmaier/ReqSeq-archive#592 Q3). A UUID the output names in `names` (ThomasBirkmaier/ReqSeq-archive#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
@@ -18,18 +21,23 @@
 // answer and go to the modeline (#276); the page says under the answer that an output is incomplete (SR-006
 // AK2). Layout only: nothing here knows a command, the titles and marks come from the catalog (ADR-0002).
 import type { CatalogEntry } from "@reqseq/core";
+import { problemTitle } from "@reqseq/core/problem-titles";
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
-import type { ElementBuffer } from "./buffers.js";
+import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { shownId, shownIdTitle } from "./id-title.js";
-import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
+import { elementBuffer, elementBufferOf, outputList, readOnlyBuffer } from "./buffers.js";
+import { isTestCase, testCaseLines } from "./runs.js";
 
 /**
  * One line of the result buffer; `open` is the element Enter or a click opens. A pair line opens `open`
  * and `beside` side by side.
  */
 export interface ResultLine {
-  /** A heading opens the problems of one severity (SR-223 AK1). */
-  readonly kind: "element" | "problem" | "text" | "pair" | "heading";
+  /**
+   * A heading opens the problems of one severity (SR-223 AK1); a group line stands for the problems of one kind
+   * (SR-223 AK3).
+   */
+  readonly kind: "element" | "problem" | "text" | "pair" | "heading" | "group";
   /** Indentation level, from 0. */
   readonly depth: number;
   /** The ID of an element row; for any other line the title of the field it stands under, or "". */
@@ -51,6 +59,12 @@ export interface ResultLine {
   readonly status?: string;
   /** A technical value, or one equal to its normal value, shown only with "Show details" (SR-223 AK2, AK7). */
   readonly detail?: true;
+  /** The key of the group of problems the line heads or, unfolded, belongs to (`groupKey`, SR-223 AK3). */
+  readonly group?: string;
+  /** A group line: whether it is open, so that its problems follow it. */
+  readonly unfolded?: boolean;
+  /** The list of the elements of a group's problems, which Enter or a click opens (SR-223 AK3). */
+  readonly list?: ListBuffer;
 }
 
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
@@ -83,6 +97,8 @@ interface Walk {
   readonly details: boolean;
   /** The lines being walked belong to a technical or normal value, shown only with "Show details". */
   readonly detail: boolean;
+  /** The keys of the groups of problems that are open (SR-223 AK3). */
+  readonly unfolded: ReadonlySet<string>;
 }
 
 /** An element as outputs give it: an ID, its repository, a short ID and a title. */
@@ -327,11 +343,21 @@ const leafLine = (value: unknown, depth: number, label: string, path: string, na
  * A problem's line (`problemLine`) at `path`, the path of its list; with "Show details" its kind at the end and
  * under it its technical values, each under its title (SR-223 AK2), such as the UUID of its element.
  */
-const problemLines = (problem: Rec, depth: number, headed: boolean, path: string, walk: Walk): void => {
+const problemLines = (
+  problem: Rec,
+  depth: number,
+  headed: boolean,
+  path: string,
+  walk: Walk,
+  group?: string,
+): void => {
   const kind = childOf(walk.fields, path, "code").path;
-  emit(walk, () =>
-    problemLine(problem, depth, headed, walk.details || !isTechnical(walk.fields, kind, problem)),
-  );
+  // In a group, the group line names the kind.
+  const shown = group === undefined && (walk.details || !isTechnical(walk.fields, kind, problem));
+  emit(walk, () => {
+    const line = problemLine(problem, depth, headed, shown);
+    return group === undefined ? line : { ...line, group };
+  });
   if (!walk.details) {
     return;
   }
@@ -346,6 +372,7 @@ const problemLines = (problem: Rec, depth: number, headed: boolean, path: string
         text: scalar(value),
         field: child.path,
         detail: true,
+        ...(group === undefined ? {} : { group }),
       }));
     }
   }
@@ -392,6 +419,13 @@ const linesOf = (
   }
   if (isProblem(value)) {
     problemLines(value, depth, false, path, walk);
+    return;
+  }
+  if (isTestCase(value)) {
+    // Its executions as runs (SR-223 AK4), each variant by the title `names` gives it.
+    for (const line of testCaseLines(value, depth, (id) => names.get(id)?.title, walk.details)) {
+      emit(walk, () => line);
+    }
     return;
   }
   outlineLines(value, depth, label, path, walk, item);
@@ -509,6 +543,73 @@ const splitSummary = (
   };
 };
 
+/** A problem of a top-level problem list with the path of its list, whose fields name what of it is technical. */
+interface Listed {
+  readonly problem: Rec;
+  readonly path: string;
+}
+
+/** The key of the group of the problems of one kind and severity (SR-223 AK3). */
+export const groupKey = (problem: Rec): string =>
+  `${String(problem["severity"])}\u0000${String(problem["code"])}`;
+
+/** The problems, in their order, by kind and severity: each group where its first problem stands. */
+const groupsOf = (problems: readonly Listed[]): (readonly [Listed, ...Listed[]])[] => {
+  const groups = new Map<string, [Listed, ...Listed[]]>();
+  for (const listed of problems) {
+    const key = groupKey(listed.problem);
+    const group = groups.get(key);
+    if (group === undefined) {
+      groups.set(key, [listed]);
+    } else {
+      group.push(listed);
+    }
+  }
+  return [...groups.values()];
+};
+
+/**
+ * Several problems of one kind (SR-223 AK3): one group line with the title of their kind (SR-224 AK6, its code
+ * where the app knows no title) and their count, which opens the list of their elements; with "Show details"
+ * the kind under it, as a detail. While it is open, each problem of the group follows it, one level in, with its
+ * element (else its file and line) and its reason.
+ */
+const groupLines = (group: readonly [Listed, ...Listed[]], walk: Walk): void => {
+  const [{ problem, path }] = group;
+  const code = String(problem["code"]);
+  const key = groupKey(problem);
+  const title = problemTitle(code) ?? code;
+  const unfolded = walk.unfolded.has(key);
+  const ids = [...new Set(group.flatMap(({ problem: each }) => str(each["elementId"]) ?? []))];
+  emit(walk, () => ({
+    kind: "group",
+    depth: 0,
+    label: "",
+    text: title,
+    status: String(group.length),
+    group: key,
+    unfolded,
+    ...(ids.length === 0 ? {} : { list: outputList(title, ids) }),
+  }));
+  if (walk.details) {
+    const kind = childOf(walk.fields, path, "code");
+    emit(walk, () => ({
+      kind: "text",
+      depth: 1,
+      label: kind.label,
+      text: code,
+      field: kind.path,
+      detail: true,
+      group: key,
+    }));
+  }
+  if (unfolded) {
+    for (const { problem: each, path: from } of group) {
+      problemLines(each, 1, true, from, walk, key);
+    }
+  }
+};
+
 /**
  * The problems of the top-level problem lists of an output first, a heading per severity, errors before
  * warnings before infos (SR-223 AK1); then the other fields.
@@ -525,13 +626,18 @@ const pageLines = (rest: unknown, walk: Walk): void => {
   // By severity, the order of the output kept within one (a stable sort).
   const problems = [...listed].sort((a, b) => rankOf(a.problem) - rankOf(b.problem));
   let heading: string | undefined;
-  for (const { problem, path } of problems) {
+  for (const group of groupsOf(problems)) {
+    const [{ problem, path }] = group;
     const [, , title] = SEVERITIES[rankOf(problem)] ?? ["", "", "Other problems"];
     if (title !== heading) {
       heading = title;
       emit(walk, () => ({ kind: "heading", depth: 0, label: "", text: title }));
     }
-    problemLines(problem, 0, true, path, walk);
+    if (group.length === 1) {
+      problemLines(problem, 0, true, path, walk);
+    } else {
+      groupLines(group, walk);
+    }
   }
   fieldLines(
     Object.fromEntries(Object.entries(rest).filter(([, value]) => !isProblemList(value))),
@@ -545,18 +651,27 @@ const pageLines = (rest: unknown, walk: Walk): void => {
  * The lines of an output (none while there is none), at most `MAX_RESULT_LINES` and a last one that counts the
  * rest; `fields` are the `outputFields` of its command, which give the titles, the normal values and what is
  * technical. Technical values and values equal to their normal value are left out, and shown as details while
- * `details` is on ("Show details", SR-223 AK2, AK7).
+ * `details` is on ("Show details", SR-223 AK2, AK7). `unfolded`: the keys of the groups of problems that are
+ * open (`groupKey`, SR-223 AK3).
  */
 export const resultLines = (
   output: unknown,
   fields: readonly OutputField[] = [],
   details = false,
+  unfolded: readonly string[] = [],
 ): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
     const byPath = new Map(fields.map((field) => [field.path, field]));
-    pageLines(splitSummary(shown, names).rest, { sink, names, fields: byPath, details, detail: false });
+    pageLines(splitSummary(shown, names).rest, {
+      sink,
+      names,
+      fields: byPath,
+      details,
+      detail: false,
+      unfolded: new Set(unfolded),
+    });
   }
   const { lines, rest } = sink;
   if (rest > 0) {

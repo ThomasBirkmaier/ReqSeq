@@ -11,6 +11,7 @@
 // control characters, Markdown escaped, cut), keys and prefixes appear only in code spans (their schema
 // patterns allow letters, digits and dashes only), no description of the metamodel is taken, and the facts
 // stand under a heading that says they are values.
+import type { CommandName } from "../../../catalog.js";
 import type { CatalogEntry } from "../../../runtime/contracts.js";
 import type { GuideCall, GuideNames } from "./calls.js";
 import { renderCall } from "./calls.js";
@@ -19,6 +20,7 @@ import type { GuideFacts, GuideType, GuideWorkspace } from "./facts.js";
 /** The rules of the guide (SR-229 AK5), word for word in every output. */
 export const GUIDE_RULES: readonly string[] = [
   "A person decides every status; the AI agent proposes a status change and sets it only to carry out an explicit decision.",
+  "A person decides every change to the metamodel; the AI agent proposes it and makes it only to carry out an explicit decision, and only through the metamodel commands, not through its files. If the metamodel cannot be read, the AI agent reports that and changes nothing.",
   "Before a change to the content of an element whose status is not the initial status of its type, the AI agent asks, unless a project rule allows the change.",
   "ReqSeq deletes no element; an element is superseded.",
   "The AI agent reads and changes elements through the commands, not through their files.",
@@ -47,8 +49,11 @@ export const GUIDE_WRITING_RULES: readonly string[] = [
   "The AI agent does not invent a value that nobody gave it; it asks and marks the value in the text as open until someone replies.",
 ];
 
-/** The longest guide with the standard model, in code points (SR-229 AK1). */
-export const GUIDE_MAX_LENGTH = 9000;
+/**
+ * The longest guide with the standard model and at most three evidence locations whose names in the guide
+ * are together at most 60 characters long, in code points (SR-229 AK1).
+ */
+export const GUIDE_MAX_LENGTH = 10000;
 
 /** The longest name from a workspace in the guide, and the longest reason, in code points. */
 const VALUE_MAX = 80;
@@ -215,6 +220,22 @@ const enrichCall = (context: GuideContext): GuideCall => ({
   input: { file: "<junit.xml>", item: "<item>", output: `${evidenceLocation(context)}/<run>.xml` },
 });
 
+/** The commands that change the metamodel (SR-236), which the metamodel section names (SR-229 AK15). */
+export const METAMODEL_CHANGES = [
+  "metamodel.addType",
+  "metamodel.changeType",
+  "metamodel.removeType",
+  "metamodel.addProperty",
+  "metamodel.changeProperty",
+  "metamodel.removeProperty",
+  "metamodel.addRelationKind",
+  "metamodel.changeRelationKind",
+  "metamodel.removeRelationKind",
+  "metamodel.addStatus",
+  "metamodel.changeStatus",
+  "metamodel.removeStatus",
+] as const satisfies readonly CommandName[];
+
 /** The sections of the guide, in their order. */
 export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { heading: "Values from this workspace", lines: workspaceLines },
@@ -222,7 +243,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     heading: "Impact check",
     lines: (context) => [
       `Before the AI agent creates an element or changes its content, or implements a requirement, it reads the element with the targets of its relations and references (${context.call({ command: "element.get", input: { ref: "<element>" } })}) and its open hints (${context.call({ command: "hint.list", input: { ref: "<element>" } })}), queries its affected elements (${context.call({ command: "trace.affected", input: { ref: "<element>" } })}) and searches for each new or changed term and for its identifier (${context.call({ command: "element.search", input: { query: "<term>" } })}); for a new element it queries the affected elements of the elements it will point to.`,
-      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, the rules below apply.`,
+      `It then reads what it found against the change, the directly affected elements first, with the evidence records of the element and the affected requirements (${context.call({ command: "evidence.list", input: { ref: "<requirement>" } })}) and the tests whose names carry their reference. It names what contradicts the change, what must change with it, and what it did not read or ReqSeq marks as incomplete. For a contradiction, see Rules.`,
     ],
   },
   {
@@ -279,7 +300,13 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     heading: "7. Workspace check",
     lines: (context) => [
-      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories, ${context.call({ command: "metamodel.get" })} its metamodel.`,
+      `${context.call({ command: "workspace.check" })} lists every problem with its fix; ${context.call({ command: "workspace.status" })} shows its repositories.`,
+    ],
+  },
+  {
+    heading: "Metamodel",
+    lines: (context) => [
+      `${context.call({ command: "metamodel.get" })} shows the metamodel. Change it only as the rules say, with one of these commands and the input it takes: ${METAMODEL_CHANGES.map((command) => context.call({ command })).join(", ")}.`,
     ],
   },
   {
@@ -292,11 +319,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   },
 ];
 
-/** The last section, after every section of the list (SR-229 AK11). */
+/** The last section, after every section of the list (SR-229 AK11), with the HTML export as a step (AK14). */
 export const GUIDE_TAIL: GuideSection = {
   heading: "In a pipeline",
   lines: (context) => [
-    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline does not replace the check before finishing a piece of work.`,
+    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as HTML pages: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
   ],
 };
 

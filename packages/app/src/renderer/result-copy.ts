@@ -9,16 +9,17 @@ import { resultLines } from "./result.js";
 
 /**
  * The lines of the buffer's output, as its view shows them, under the titles of `fields` (`outputFields`), with
- * the details while "Show details" is on for it (SR-223 AK2).
+ * the details while "Show details" is on for it (SR-223 AK2) and its open groups of problems (SR-223 AK3).
  */
 export const linesOf = (
-  buffer: Pick<ResultBuffer, "command" | "output" | "details">,
+  buffer: Pick<ResultBuffer, "command" | "output" | "details" | "unfolded">,
   fields: readonly OutputField[] = [],
 ): ResultLine[] =>
   (buffer.command === "trace.chain" ? chainLines : resultLines)(
     buffer.output,
     fields,
     buffer.details === true,
+    buffer.unfolded,
   );
 
 /** The whole output as the command line gives it with `--json` (`null` for none), with its line break. */

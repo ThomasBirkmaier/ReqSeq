@@ -102,14 +102,25 @@ describe("the lines of a trace chain", () => {
       "  SR-2|Show gusts",
       "  SR-1|Show wind speed",
       "    test case|tests.test_wind › test_speed",
-      "      |2026-10-22T09:00:00Z · failed · build-513 · system/evidence/ci/run-2.xml:4",
-      "      |2026-10-21T09:00:00Z · passed · build-512 · system/evidence/ci/run-1.xml:4",
+      "      |2026-10-22T09:00:00Z · failed",
+      "      |2026-10-21T09:00:00Z · passed",
       "  SR-2|Show gusts",
       "    test case|test_gusts · not executed",
       "    record|2026-10-20T14:00:00Z · inspection · passed · Sample B4 · reports/b4.pdf · variant uuid-v",
       "    record|2026-10-21T09:00:00Z · test · inconclusive: no pilot",
       "  SR-3|Show it",
     ]);
+    // With "Show details", the item under test and the evidence document of each execution (SR-033 AK1).
+    const details = chainLines(output, [], true).filter((line) => line.detail === true);
+    expect(details.map((line) => line.text)).toEqual([
+      "build-513 · system/evidence/ci/run-2.xml:4",
+      "build-512 · system/evidence/ci/run-1.xml:4",
+    ]);
+    // A variant the output names is named by its title.
+    const named = { ...output, names: [{ id: "uuid-v", shortId: "VAR-1", title: "Linux" }, "other"] };
+    expect(shown(named)).toContain(
+      "    record|2026-10-20T14:00:00Z · inspection · passed · Sample B4 · reports/b4.pdf · variant Linux",
+    );
   });
 
   it("gives a record line that cuts its reason the whole reason as its title (#862)", () => {
