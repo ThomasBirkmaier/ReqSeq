@@ -15226,6 +15226,10 @@
             },
             "x-elements": true
           },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "A repository of the workspace is not on this machine, so the pages lack its elements, as the start page says."
+          },
           "problems": {
             "title": "Problems",
             "type": "array",
@@ -15242,6 +15246,7 @@
           "pages",
           "exportedElements",
           "removed",
+          "incomplete",
           "problems"
         ]
       }

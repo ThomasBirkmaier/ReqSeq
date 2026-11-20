@@ -136,6 +136,8 @@ export interface HtmlExportResult {
     readonly repository: string;
   }[];
   readonly removed: number;
+  /** A repository of the workspace file is not on this machine, as the start page says (SR-006 AK2). */
+  readonly incomplete: boolean;
   readonly problems: readonly Problem[];
 }
 
@@ -709,6 +711,8 @@ export const writeHtmlExport = async (
   };
   const needs: Needs = { formulas: false, diagrams: false };
   const exported: { id: string; shortId: string; repository: string }[] = [];
+  // The repositories of the workspace file not on this machine: the start page names them (SR-006 AK2).
+  const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
   try {
     problems.push(
       ...store.elements
@@ -786,7 +790,7 @@ export const writeHtmlExport = async (
     await writeOverviews(folder, framed, { baselines, rowElement, views, entries, degree });
     const start = startPageBody({
       made,
-      missing: layout.repositories.filter((r) => !r.available).map((r) => r.name),
+      missing,
       degree,
       entries,
       types: typeCounts(metamodel, entries),
@@ -832,5 +836,12 @@ export const writeHtmlExport = async (
       message: "The staging folder .reqseq-export-staging could not be removed; remove it by hand",
     });
   }
-  return { folder: folder.folder, pages: exported.length, exported, removed, problems };
+  return {
+    folder: folder.folder,
+    pages: exported.length,
+    exported,
+    removed,
+    incomplete: missing.length > 0,
+    problems,
+  };
 };

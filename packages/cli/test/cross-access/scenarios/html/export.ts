@@ -549,6 +549,25 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-006/AK-q0f4]",
+    name: "an export with a repository of the workspace not on this machine is marked incomplete",
+    fixture: { ...ONE_REPOSITORY, files: { "reqseq-workspace.yaml": WITH_VAULT } },
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { outcome, files } of Object.values(results)) {
+        expect(outcome).toMatchObject({
+          output: {
+            incomplete: true,
+            answer: "Exported 1 element page to site; incomplete, as a repository is not available.",
+          },
+        });
+        expect(String(files["site/index.html"])).toContain("This export is incomplete:");
+      }
+    },
+  },
+  {
     tag: "[SR-233/AK-kh76]",
     name: "every page names each package, and the page of a package lists its elements",
     fixture: withFront(
