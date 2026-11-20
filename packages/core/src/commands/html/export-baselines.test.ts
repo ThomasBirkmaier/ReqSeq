@@ -366,9 +366,24 @@ describe("html.export: variants", () => {
     );
     expect(comparison).toContain(`VAR-0000c1 ${String(share(coast))} of ${String(coast.degree.total)}`);
     expect(comparison).toContain("VAR-0000c2");
-    // SR-0000b2 failed in the core, open in VAR-0000c1, excluded from VAR-0000c2; SR-0000e1 is open wherever it stands.
+    // A view that does not hold a requirement differs from one that gives it a status (#2140): SR-0000b1 stands in
+    // VAR-0000c1 only, SR-0000b3 in VAR-0000c2 only, SR-0000e1 (open wherever it stands) is replaced in VAR-0000c2,
+    // and SR-0000b2 is failed in the core, open in VAR-0000c1 and excluded from VAR-0000c2.
     expect(comparison).toContain(
-      "Requirements whose verification status differs Identifier Title core VAR-0000c1 VAR-0000c2 SR-0000b2 Show the gusts failed open – Commit",
+      "Requirements whose verification status differs Identifier Title core VAR-0000c1 VAR-0000c2 " +
+        "SR-0000b1 Show the wind speed not in the core outdated not in the variant " +
+        "SR-0000b2 Show the gusts failed open not in the variant " +
+        "SR-0000b3 Show the wind direction not in the core not in the variant open " +
+        "SR-0000e1 Heat the anemometer open open not in the variant Commit",
+    );
+    // Each status as a badge in the colour of its kind.
+    expect(await page(site, "variants/index.html")).toContain('<span class="sl-badge danger small');
+    // The sidebar names the comparison and the page of each variant.
+    const start = await page(site, "index.html");
+    expect(start).toContain('<a href="variants/index.html"');
+    expect(start).toContain(`<a href="elements/${ID}c1.html"`);
+    expect(start.indexOf(`<a href="elements/${ID}c2.html"`)).toBeGreaterThan(
+      start.indexOf(`<a href="elements/${ID}c1.html"`),
     );
   });
 

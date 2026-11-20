@@ -3,8 +3,9 @@
 // - `variants/index.html`, the variant comparison (AK3): the verification degree in the core and in each variant with a
 //   page (no invalid status, D-044), by identifier, as `evidence.degree` gives it for the whole workspace in that view
 //   (`selectionDegree`), with the number per verification status; below, the requirements with a page whose
-//   verification status differs between the views they stand in, by identifier, with the status in each view ("–"
-//   where the view does not hold it). A requirement in one view only differs from nothing.
+//   verification status differs between the views, by identifier, with the status in each view as a badge. A view
+//   that does not hold a requirement differs from one that gives it a status ("not in the core", "not in the
+//   variant"), so a requirement that stands in some views only is listed (#2140).
 // - On the page of a variant (AK4, `variantSection`): what it adds, replaces and excludes compared with the core as
 //   `variant.diff` gives it (the view rule of the variants block: `addedOf`, `replacedOf`, `excludedOf`), each element
 //   as a link where it has a page, and its verification degree. No comparison with other variants: a variant builds
@@ -12,7 +13,9 @@
 import type { DataExportVerificationDegree } from "../generated/types.js";
 import { degreePercent } from "../evidence/degree-text.js";
 import type { ElementRecord } from "../model/index.js";
+import { findType } from "../metamodel/index.js";
 import { titleKeyOrEmpty } from "../model/index.js";
+import { badge, verificationVariant } from "./element-badge.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import type { ListEntry } from "./list-page.js";
 import { identifierOf } from "./list-page.js";
@@ -68,13 +71,20 @@ export const variantsPageBody = (
     ...variants.map(({ entry, degree }) => degreeRow(viewLink(entry), degree)),
   ].join("")}</tbody></table>`;
   const views = ["core", ...variants.map(({ entry }) => entry.element.id)];
-  const differing = requirements.filter(({ element }) => {
-    const statuses = new Set(element.verification.map((v) => v.status));
-    return statuses.size > 1;
-  });
+  const statusIn = (element: RequirementEntry["element"], view: string): string | undefined =>
+    element.verification.find((v) => v.view === view)?.status;
+  const differing = requirements.filter(
+    ({ element }) => new Set(views.map((view) => statusIn(element, view))).size > 1,
+  );
+  const cell = (element: RequirementEntry["element"], view: string): string => {
+    const status = statusIn(element, view);
+    if (status !== undefined) {
+      return badge(status, verificationVariant(status));
+    }
+    return `<span class="rq-legend">${view === "core" ? "not in the core" : "not in the variant"}</span>`;
+  };
   const rows = differing.map(({ element }) => {
-    const status = (view: string): string => element.verification.find((v) => v.view === view)?.status ?? "–";
-    return `<tr><td><a href="../${elementPage(element.id)}">${escapeHtml(identifierOf(element))}</a></td><td>${escapeHtml(element.title)}</td>${views.map((v) => `<td>${escapeHtml(status(v))}</td>`).join("")}</tr>`;
+    return `<tr><td><a href="../${elementPage(element.id)}">${escapeHtml(identifierOf(element))}</a></td><td>${escapeHtml(element.title)}</td>${views.map((v) => `<td>${cell(element, v)}</td>`).join("")}</tr>`;
   });
   return [
     '<h2 id="verification-degree">Verification degree per view</h2>',
@@ -86,10 +96,17 @@ export const variantsPageBody = (
   ].join("");
 };
 
-/** An element as the pages of variants and baselines name it: identifier and title now, a link where it has a page. */
+/**
+ * An element as the pages of variants and baselines name it: identifier and title now, a link where it has a page; a
+ * package by its title only, as the Packages row of an element page names it.
+ */
 export const named = (context: ElementPageContext, record: ElementRecord): string => {
-  const identifier = context.shortIds.identifierOf(record);
   const title = record.data[titleKeyOrEmpty(context.metamodel)];
+  const isPackage = findType(context.metamodel, record.type)?.meaning === "package";
+  if (isPackage && typeof title === "string" && title !== "") {
+    return linked(title, context.links.href(record.id));
+  }
+  const identifier = context.shortIds.identifierOf(record);
   return linked(
     nameOf({
       shortId: context.shortIds.of(record),

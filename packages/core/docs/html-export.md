@@ -70,7 +70,7 @@ A target is named `identifier`, else short ID, and title (`links.ts`); one in a 
 
 - Lists (SR-233 AK1, AK5): one per type with an element with a page, except the types with the meaning package or variant, in the metamodel's order of types (`typeOrder`). The page is the whole table, so it stands without script. Each row carries its search text (`data-q`: identifier, short ID, title, NFC and lower case), the index of each of its values per filter (`data-f`) and its rank per column (`data-s`, the order of SR-075 AK1 through `sortValueOf`; `null` for no value; the identifier column ranks by `sortElements`). The table carries the labels of the columns and the values of each filter in ascending order with "–" last (`data-rq-list`). `assets/list.js` adds the search field, a chip per filter with the number of rows per value, a chip "Group", the chosen values as buttons and "Clear", and sort buttons in the column heads.
 - Start page (SR-233 AK3): the footer's text, a note per repository that is not here (SR-006 AK2), the verification degree in the core (`selectionDegree` over the store, as `evidence.degree` without selection), the requirements failed, outdated or open in the core, the elements with open hints, the counts of `baseline.get` for the newest baseline (latest date, at the same instant the later file; `html.export` reads it and passes it as `newestBaseline`, since the stored selection is resolved in the command layer), and the number of elements per type with a link to its list. The same repositories make the output's `incomplete` true, and the answer then ends with the note of `data.export` (SR-006 AK2).
-- Sidebar (SR-233 AK4, `page.ts`): the start page, then the groups "Lists" and "Packages" (by title, else short ID), each link to the page of the package, then "Baselines" (all baselines, then each) and "Variants" (the comparison) where there are some; the link of the page shown is marked current. Every page names its path (`PageInput.path`), from which `page` takes the depth.
+- Sidebar (SR-233 AK4, `page.ts`): the start page, then the groups "Lists" and "Packages" (by title, else short ID), each link to the page of the package, then "Baselines" (all baselines, then each) and "Variants" (the comparison, then each variant with a page by identifier) where there are some; the link of the page shown is marked current. Every page names its path (`PageInput.path`), from which `page` takes the depth.
 
 ## Baselines and the change since them (`baselines.ts`, `section-baselines.ts`, `model/files-at-commit.ts`, `model/field-difference.ts`)
 
@@ -82,7 +82,7 @@ A target is named `identifier`, else short ID, and title (`links.ts`); one in a 
 
 ## Variant comparison (`variants.ts`)
 
-`variants/index.html` (SR-234 AK3): the degree in the core and in each variant with a page, by identifier, with the number per verification status, then the requirements whose verification status differs between the views they stand in, with the status per view ("–" where a view does not hold it).
+`variants/index.html` (SR-234 AK3): the degree in the core and in each variant with a page, by identifier, with the number per verification status, then the requirements whose verification status differs between the views, with the status per view as a badge; a view that does not hold a requirement differs from one that gives it a status ("not in the core", "not in the variant"), so a requirement of some views only is listed.
 
 ## References and footer (`export.ts`)
 
