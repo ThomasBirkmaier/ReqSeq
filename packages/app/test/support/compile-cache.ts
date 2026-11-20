@@ -29,16 +29,26 @@ const ELECTRON = createRequire(import.meta.url)("electron") as string;
 /** Ends a hanging warm-up, which would otherwise hold the whole Electron step until the job's timeout. */
 const WARM_UP_LIMIT_MS = 60_000;
 
-/** Runs `reqseq --version` on `program` (Node, or Electron as Node: its V8 has a cache of its own). */
+/**
+ * Runs `reqseq --version` on `program` (Node, or Electron as Node: its V8 has a cache of its own). A failure
+ * says how long the call took, and whether the limit ended it or the process failed by itself: "Command
+ * failed" with an empty standard error, as in #2007, told neither.
+ */
 const warm = (program: string, env: NodeJS.ProcessEnv): Promise<void> =>
   new Promise((resolve, reject) => {
+    const started = Date.now();
     execFile(program, [CLI, "--version"], { env, timeout: WARM_UP_LIMIT_MS }, (error, _stdout, stderr) => {
       if (error === null) {
         resolve();
       } else {
+        const after = `after ${String(Date.now() - started)} ms`;
+        const how =
+          error.killed === true
+            ? `ended by the limit of ${String(WARM_UP_LIMIT_MS)} ms (${String(error.signal)}) ${after}`
+            : `failed with ${String(error.code ?? error.signal)} ${after}`;
         reject(
           new Error(
-            `reqseq --version on ${program} failed while warming the compile cache: ${error.message} ${stderr}`,
+            `reqseq --version on ${program} ${how} while warming the compile cache: ${error.message} ${stderr}`,
           ),
         );
       }
