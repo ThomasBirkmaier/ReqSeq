@@ -143,10 +143,15 @@ describe("change since a baseline on the element page (SR-232 AK7)", () => {
     ];
     const html = plain(baselinesSection({ ...ctx, since: since(old) }, page(now, "Same.")));
     expect(html).toContain("R of 2026-11-02: changed; version in the baseline n2:0000000000000001");
-    expect(html).toContain("Acceptance criterion AK1 (k1aa) Before Old. Now New.");
-    expect(html).toContain("Acceptance criterion AK2 (k2bb), removed Before Gone. Now none");
-    expect(html).toContain("Acceptance criterion AK2 (k3cc), added Before none Now Added with key.");
-    expect(html).toContain("Acceptance criterion AK3, added Before none Now Added without key.");
+    // One row per changed criterion, old and new wording as one word-level difference; the newest baseline open.
+    const raw = baselinesSection({ ...ctx, since: since(old) }, page(now, "Same."));
+    expect(raw).toContain('<details class="rq-since-baseline" open><summary><a href="../baselines/');
+    expect(raw).toContain(
+      '<dl class="rq-diff"><dt>Acceptance criterion AK1 (k1aa)</dt><dd><div class="rq-diff-text"><del>Old.</del><ins>New.</ins></div></dd>' +
+        '<dt>Acceptance criterion AK2 (k2bb), removed</dt><dd><div class="rq-diff-text"><del>Gone.</del></div></dd>' +
+        '<dt>Acceptance criterion AK2 (k3cc), added</dt><dd><div class="rq-diff-text"><ins>Added with key.</ins></div></dd>' +
+        '<dt>Acceptance criterion AK3, added</dt><dd><div class="rq-diff-text"><ins>Added without key.</ins></div></dd>',
+    );
     // A target the workspace does not have (or not in the element's repository) by its UUID; one it has by identifier
     // and title now (not the stored title), as a link to its page.
     expect(html).toContain("Relations removed Refines: SR-7 B now");

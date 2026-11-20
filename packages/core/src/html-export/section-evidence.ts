@@ -4,7 +4,8 @@
 // Each line names the test case (JUnit class name and name) or else the method, then the method beside a test case,
 // result, date as written and views. The records of one test case make one line with all their views when they share
 // result and date; else each view has its lines, in the order of the case's views, the core first (SR-223 AK4). A
-// record without test case is a line of its own. The records stand open, as the app shows them (SR-032 AK3).
+// record without test case is a line of its own. At a criterion the lines stand in a collapsed `<details>` that names
+// their number, so a long list does not push the next criterion down; it opens without JavaScript.
 // Validation records are not shown.
 import type { Display, EvidenceRecord } from "../evidence/index.js";
 import { instantOf } from "../evidence/index.js";
@@ -84,7 +85,7 @@ export const criterionEvidence = (
   const items = itemsOf(context, page, (row) => row.criterion === criterion);
   return items.length === 0
     ? ""
-    : `<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>${items.join("")}</ul></div>`;
+    : `<details class="rq-evidence"><summary>Evidence records (${String(items.length)})</summary><ul>${items.join("")}</ul></details>`;
 };
 
 /** The evidence records of a requirement without acceptance criteria; nothing without one. */
@@ -98,5 +99,7 @@ export const evidenceSection = (context: ElementPageContext, page: ElementPage):
 /** The styles of the evidence records. */
 export const EVIDENCE_CSS = [
   ".rq-legend { color: var(--sl-color-gray-3); font-size: var(--sl-text-xs); }",
-  ".rq-evidence-title { font-size: var(--sl-text-sm); font-weight: 600; }",
+  "details.rq-evidence { margin-top: 0.5rem; font-size: var(--sl-text-sm); }",
+  "details.rq-evidence > summary { cursor: pointer; color: var(--sl-color-text-accent); }",
+  ".rq-evidence code { white-space: normal; overflow-wrap: anywhere; }",
 ];
