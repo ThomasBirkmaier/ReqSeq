@@ -20,6 +20,7 @@ import {
   GUIDE_TAIL,
   GUIDE_WRITING_RULES,
   INSTALL_PAGE_TITLE,
+  INSTRUCTIONS_MAX_LENGTH,
   agentGuide,
   guideValue,
 } from "./guide/text.js";
@@ -401,6 +402,10 @@ describe("tool.guide", () => {
         expect(named.filter((name) => !runtime.commands.has(name))).toEqual([]);
       }
     }
+    // The MCP server instructions (AK17) name the guide and the commands of the rules section.
+    const instructions = namedCommands(await guide(roots[0] ?? "", { instructions: true }));
+    expect(instructions).toEqual(["tool.guide", "element.update", "element.setStatus", "element.supersede"]);
+    expect(instructions.filter((name) => !runtime.commands.has(name))).toEqual([]);
     expect(() => renderCall({ command: "nope.nothing" as "tool.guide" }, "cli", ENTRIES)).toThrow(
       "the guide names nope.nothing, which is not in the catalog",
     );
@@ -458,6 +463,88 @@ describe("tool.guide", () => {
         expect(body).not.toMatch(/github|gitlab|netlify|vercel|pages\.dev|cloudflare|host/i);
       }
     }
+  });
+});
+
+/** A metamodel of the standard model and `count` more types with long names. */
+const largeModel = (count: number): string => {
+  const letters = (i: number): string =>
+    String.fromCharCode(65 + (Math.floor(i / 26) % 26), 65 + (i % 26), 65 + Math.floor(i / 676));
+  const types = Array.from(
+    { length: count },
+    (_, i) =>
+      `  - key: extra-${String(i)}\n    name: ${"Extra requirement kind ".repeat(3)}${String(i)}\n    prefix: X${letters(i)}\n    properties: [title]\n    required: [title]\n`,
+  );
+  return STANDARD_MODEL_TEXT.replace("\ntypes:\n", `\ntypes:\n${types.join("")}`);
+};
+
+describe("tool.guide with instructions", () => {
+  it("[SR-229/AK-gzbz] gives the same MCP server instructions for every folder and every `names`: the title, the pointer to the guide and the guide's rules section with MCP tool names, at most 4,000 characters", async () => {
+    const roots = {
+      standard: await standard(),
+      empty: await folder(),
+      faultyWorkspaceFile: await folder({ "reqseq-workspace.yaml": "reqseq-workspace: 2\n" }),
+      brokenMetamodel: await folder({
+        "reqseq-workspace.yaml": workspaceFile(),
+        "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ {\n",
+      }),
+      largeMetamodel: await folder({
+        "reqseq-workspace.yaml": workspaceFile(),
+        "metamodel/standard-model.yaml": largeModel(500),
+      }),
+    };
+    // The large metamodel can be read: the guide gives its facts, not a reason.
+    const largeGuide = await guide(roots.largeMetamodel, { names: "mcp" });
+    expect(largeGuide).toContain("- Needs: Need");
+    expect(largeGuide).not.toContain("Reason:");
+    expect(largeModel(500).length).toBeGreaterThan(5 * STANDARD_MODEL_TEXT.length);
+    const text = await guide(roots.empty, { instructions: true });
+    for (const root of Object.values(roots)) {
+      for (const input of [{}, { names: "cli" }, { names: "mcp" }]) {
+        expect(await guide(root, { ...input, instructions: true })).toBe(text);
+      }
+    }
+    const [title, blank, pointer, ...rest] = text.split("\n");
+    expect([title, blank]).toEqual(["# Working with ReqSeq", ""]);
+    expect(pointer).toBe(
+      'These instructions hold only the rules. The agent guide names the values of this workspace or why they are missing, the steps with their commands, and the rules for writing requirements. Before the first step, the AI agent reads the agent guide with `tool_guide` with `{"names":"mcp"}` and follows it.',
+    );
+    // Then exactly the rules section, word for word as in the guide with MCP tool names.
+    const rules = section(await guide(roots.standard, { names: "mcp" }), "Rules");
+    expect(rest.join("\n")).toBe(`\n## Rules${rules.trimEnd()}\n`);
+    expect(sections(text).map((s) => s.heading)).toEqual(["Rules"]);
+    expect(text.endsWith(".\n")).toBe(true);
+    expect(text).not.toContain("`reqseq ");
+    expect(text).not.toContain("Station");
+    expect(text).not.toContain("Reason:");
+    expect(Array.from(text).length).toBeLessThanOrEqual(INSTRUCTIONS_MAX_LENGTH);
+    expect(INSTRUCTIONS_MAX_LENGTH).toBe(4000);
+  });
+
+  it("[SR-229/AK-gzbz] refuses instructions together with skill, naming the reason, and writes nothing", async () => {
+    const root = await standard();
+    for (const input of [
+      { instructions: true, skill: true },
+      { instructions: true, skill: true, write: true },
+    ]) {
+      const error = await invoke("tool.guide", input, { workspace: open(root) }).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(error).toMatchObject({
+        code: "input.invalid",
+        message: "Invalid input for tool.guide: instructions cannot be given with skill",
+        details: { errors: [{ field: "instructions", path: "/instructions" }] },
+      });
+    }
+    await expect(fs.stat(path.join(root, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("answers that it gave the MCP server instructions", () => {
+    const command = getCommandRuntime().commands.get("tool.guide");
+    expect(command?.answer?.({ guide: "x" }, { instructions: true } as never, {} as never)).toBe(
+      "Gave the MCP server instructions.",
+    );
   });
 });
 

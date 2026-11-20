@@ -42,7 +42,9 @@ const catalog = {
     entry("test.fail"),
     entry("test.wait"),
     entry("test.later", "write-files"),
-    entry("tool.guide", "read", { properties: { names: { enum: ["cli", "mcp"] } } }),
+    entry("tool.guide", "read", {
+      properties: { names: { enum: ["cli", "mcp"] }, instructions: { type: "boolean" } },
+    }),
   ],
 };
 
@@ -238,8 +240,10 @@ const runtime = createCommandRuntime({
     }),
     defineTestCommand({
       name: "tool.guide",
-      run: (ctx, input: { names?: string }) =>
-        Promise.resolve({ guide: `Guide for ${ctx.workspace.root} with ${String(input.names)} names` }),
+      run: (ctx, input: { names?: string; instructions?: boolean }) =>
+        Promise.resolve({
+          guide: `Guide for ${ctx.workspace.root} with ${String(input.names)} names, instructions ${String(input.instructions)}`,
+        }),
     }),
     defineTestCommand({
       name: "test.fail",
@@ -396,9 +400,11 @@ describe("serveMcp", () => {
     );
   });
 
-  it("sends the output of tool.guide with the MCP names as the instructions of its initialize result", async () => {
+  it("sends the output of tool.guide with instructions as the instructions of its initialize result", async () => {
     const { client } = await open();
-    expect(client.getInstructions()).toBe(`Guide for ${workspace.root} with mcp names`);
+    expect(client.getInstructions()).toBe(
+      `Guide for ${workspace.root} with undefined names, instructions true`,
+    );
   });
 
   it("ends when the input ends", async () => {
@@ -565,14 +571,15 @@ describe("callTool", () => {
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
   });
 
-  it("[SR-229/AK-p4y6] sends exactly the tool.guide output with the MCP tool names as its initialize instructions", async () => {
+  it("[SR-229/AK-gzbz] sends exactly the tool.guide output with instructions as its initialize instructions", async () => {
     const { instructions } = await productList();
-    const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
+    const guide = await getCommandRuntime().invoke("tool.guide", { instructions: true }, { workspace });
     expect(instructions).toBe((guide as { guide: string }).guide);
-    expect(instructions).toContain("`workspace_check`");
+    expect(instructions).toContain('`tool_guide` with `{"names":"mcp"}`');
+    expect(instructions).toContain("\n## Rules\n");
   });
 
-  it("[SR-229/AK-p4y6] sends the agent guide as instructions with a workspace and without one, never an empty text", async () => {
+  it("[SR-229/AK-gzbz] sends the same instructions with a workspace and without one, the rules without the guide's steps", async () => {
     const root = path.join(dir, "with-workspace");
     await fs.mkdir(root);
     const init = new Workspace(root);
@@ -582,15 +589,14 @@ describe("callTool", () => {
     onTestFinished(() => opened.close());
     const withWorkspace = (await productList(opened)).instructions ?? "";
     const without = (await productList()).instructions ?? "";
-    expect(withWorkspace).toContain("## Values from this workspace");
-    expect(withWorkspace).toContain("`element_create`");
-    expect(without).toContain("Reason: No reqseq-workspace.yaml");
-    for (const text of [withWorkspace, without]) {
-      expect(text.startsWith("# Working with ReqSeq\n")).toBe(true);
-    }
+    expect(withWorkspace).toBe(without);
+    expect(without.startsWith("# Working with ReqSeq\n")).toBe(true);
+    expect(without).not.toContain("## Values from this workspace");
+    expect(without).not.toContain("Reason:");
+    expect(without).toContain("`element_setStatus`");
   });
 
-  it("marks exactly the catalog entries with loadUpfront to load upfront, the commands of the agent guide among them (#1926)", async () => {
+  it("marks exactly the catalog entries with loadUpfront to load upfront, the commands of the agent guide and the instructions among them (#1926)", async () => {
     const { listed } = await productList();
     const upfront = listed.tools.filter((tool) => tool._meta?.["anthropic/alwaysLoad"] === true);
     const marked = getCommandRuntime().contracts.commands.filter((entry) => entry.loadUpfront === true);
@@ -598,8 +604,8 @@ describe("callTool", () => {
       marked.map((entry) => toolName(entry.name)).sort(),
     );
     expect(upfront.map((tool) => tool._meta)).toEqual(upfront.map(() => ({ "anthropic/alwaysLoad": true })));
-    // The server instructions are the agent guide, so an agent must have the schemas of the tools it names at
-    // once, and loadUpfront marks exactly those (#1926): the tools the guide names with a workspace, and tool_guide.
+    // The server instructions point to the agent guide, so an agent must have the schemas of the tools both name
+    // at once, and loadUpfront marks exactly those (#1926): the tools the guide names with a workspace, and tool_guide.
     await getCommandRuntime().invoke("workspace.init", { path: dir, name: "Station" }, { workspace });
     const guide = await getCommandRuntime().invoke("tool.guide", { names: "mcp" }, { workspace });
     const tools = new Set(listed.tools.map((tool) => tool.name));
@@ -609,6 +615,11 @@ describe("callTool", () => {
     expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
     // Without a workspace the guide also names tool_guide, to read it again.
     expect([...new Set([...named, "tool_guide"])].sort()).toEqual(upfront.map((tool) => tool.name).sort());
+    // Every tool the instructions name is among them (SR-229 AK17).
+    const { instructions } = await productList();
+    const instructed = [...(instructions ?? "").matchAll(/`([a-z]+_[A-Za-z]+)`/g)].map((match) => match[1]);
+    expect(instructed).toEqual(["tool_guide", "element_update", "element_setStatus", "element_supersede"]);
+    expect(instructed.filter((name) => !upfront.some((tool) => tool.name === name))).toEqual([]);
     expect(listed.tools.filter((tool) => tool._meta !== undefined)).toHaveLength(upfront.length);
     // The other tools' stub points at the filter grammar in this tool, so a client must load it upfront (#1927).
     expect(upfront.map((tool) => tool.name)).toContain(FILTER_GRAMMAR_TOOL);

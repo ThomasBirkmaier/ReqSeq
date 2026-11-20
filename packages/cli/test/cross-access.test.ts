@@ -1059,7 +1059,7 @@ const crashing = createCommandRuntime({
           input: { type: "object", additionalProperties: false },
           output: { type: "object" },
         },
-        // The MCP server takes its instructions from tool.guide before it serves (SR-229 AK1).
+        // The MCP server takes its instructions from tool.guide before it serves (SR-229 AK17).
         {
           name: "tool.guide",
           title: "Agent guide",

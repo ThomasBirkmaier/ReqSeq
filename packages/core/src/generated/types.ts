@@ -2517,14 +2517,16 @@ export interface ToolInfoOutput {
 }
 
 /**
- * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
  * Schema: `schemas/commands/tool.guide.json input`.
  */
 export interface ToolGuideInput {
-  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways. */
+  /** How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways, and with `instructions`, which names every command as MCP tool. */
   readonly names: "cli" | "mcp";
   /** Give the skill file instead of the agent guide. It reads nothing from the workspace, so it works without one. */
   readonly skill: boolean;
+  /** Give the MCP server instructions instead of the agent guide: only the rules, and the call that reads the guide. It reads nothing from the workspace, so it works without one. Not together with `skill`. */
+  readonly instructions: boolean;
   /** Also write the skill file into the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
   readonly write: boolean;
   /** Replace a skill file that ReqSeq did not write or that was changed since (needs `write`). */
@@ -2532,12 +2534,12 @@ export interface ToolGuideInput {
 }
 
 /**
- * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
   readonly answer: Answer;
-  /** The agent guide, or with `skill` the skill file, as Markdown, LF line endings and a final newline. */
+  /** The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
   /** The skill file `write` wrote; only with `write`. */
   readonly file?: {
