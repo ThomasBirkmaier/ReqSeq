@@ -2,9 +2,12 @@
 // #1537; `@reqseq/core/metamodel-graph`, this module imports only types): which box and which curve stand for
 // which field of `metamodel.get`. Pure display (ADR-0002 rule 3, SR-080 AK1): nothing is decided here, every word shown
 // is a value of the output or a word for a field ("extends", "Any type", "abstract", "any source").
-// - A node is one entry of `types`, in their order, with its name, prefix and every property of
-//   `properties` (own and inherited). A property is inherited when its key is among the `properties` of
-//   the type its `extends` names; that is the one reading of the output this module makes (review S2).
+// - A node is one entry of `types`, in their order, with its name, prefix, every property of
+//   `properties` (own and inherited) and every status of `statuses` (own and inherited), the initial and
+//   the invalid ones marked as their definitions say (SR-130 AK2). A property is inherited when its key is
+//   among the `properties` of the type its `extends` names; that is the one reading of the output this
+//   module makes (review S2). Its owner, the type that has it itself, is the farthest ancestor up the chain
+//   of `extends` that has it, so a menu on the property acts on that type (SR-199 AK6).
 // - A link is an `extends` value (to the parent), one pair of the `source-types` × `target-types` of a
 //   relation kind, or one target type of a property of kind `relation` that a type has as its own (ThomasBirkmaier/ReqSeq-archive#619
 //   Q1: drawn as curves, labelled with the property's name). A side that a relation kind or property
@@ -33,6 +36,16 @@ export interface BoxProperty {
   readonly key: string;
   readonly name: string;
   readonly inherited: boolean;
+  /** The key of the type that has it itself: the box's type, or the ancestor it inherits it from. */
+  readonly owner: string;
+}
+
+/** A status in the box of a type: its name (else its key), and whether it is the initial or an invalid one. */
+export interface BoxStatus {
+  readonly key: string;
+  readonly name: string;
+  readonly initial: boolean;
+  readonly invalid: boolean;
 }
 
 export interface TypeNode {
@@ -43,6 +56,7 @@ export interface TypeNode {
   readonly prefix: string;
   readonly abstract: boolean;
   readonly properties: readonly BoxProperty[];
+  readonly statuses: readonly BoxStatus[];
 }
 
 /** The node that stands for every type, on the side a relation kind or property does not restrict. */
@@ -51,6 +65,7 @@ export interface AnyNode {
   readonly any: true;
   readonly name: typeof ANY_NAME;
   readonly properties: readonly BoxProperty[];
+  readonly statuses: readonly BoxStatus[];
 }
 
 export type MetamodelNode = TypeNode | AnyNode;
@@ -134,8 +149,31 @@ const reading = (output: MetamodelGetOutput): Reading => {
   };
 };
 
+/**
+ * The type that has `property` itself, seen from `type`: up the chain of `extends` as long as the parent has
+ * it too (the same reading as `inheritedProperties`).
+ */
+const ownerOf = (
+  type: MetamodelGetOutput["types"][number],
+  property: string,
+  byKey: ReadonlyMap<string, MetamodelGetOutput["types"][number]>,
+): string => {
+  let owner = type;
+  const seen = new Set([type.key]);
+  for (;;) {
+    const parent = owner.extends === undefined ? undefined : byKey.get(owner.extends);
+    if (parent === undefined || seen.has(parent.key) || !parent.properties.includes(property)) {
+      return owner.key;
+    }
+    seen.add(parent.key);
+    owner = parent;
+  }
+};
+
 const typeNodes = (output: MetamodelGetOutput, read: Reading): TypeNode[] => {
   const names = new Map(output.properties.map((property) => [property.key, property.name]));
+  const statuses = new Map(output.statuses.map((status) => [status.key, status]));
+  const byKey = new Map(output.types.map((type) => [type.key, type]));
   return output.types.map((type): TypeNode => {
     const inherited = read.inherited(type);
     return {
@@ -149,7 +187,17 @@ const typeNodes = (output: MetamodelGetOutput, read: Reading): TypeNode[] => {
         key,
         name: names.get(key) ?? key,
         inherited: inherited.has(key),
+        owner: inherited.has(key) ? ownerOf(type, key, byKey) : type.key,
       })),
+      statuses: type.statuses.map((key) => {
+        const status = statuses.get(key);
+        return {
+          key,
+          name: status?.name ?? key,
+          initial: status?.initial === true,
+          invalid: status?.invalid === true,
+        };
+      }),
     };
   });
 };
@@ -216,7 +264,9 @@ export const metamodelGraph = (output: MetamodelGetOutput): MetamodelGraph => {
   const all = [...edges.values()];
   const any = all.some((edge) => edge.source === ANY_KEY || edge.target === ANY_KEY);
   return {
-    nodes: any ? [...types, { key: ANY_KEY, any: true, name: ANY_NAME, properties: [] }] : types,
+    nodes: any
+      ? [...types, { key: ANY_KEY, any: true, name: ANY_NAME, properties: [], statuses: [] }]
+      : types,
     edges: all,
   };
 };

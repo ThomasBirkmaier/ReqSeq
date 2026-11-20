@@ -89,6 +89,19 @@ describe("the element of the entry", () => {
     expect(menuContext(base, { hit: { place: "field", target } }).pressed).toBeUndefined();
   });
 
+  it("[SR-199/AK-r1q0] gives the metamodel commands the definition of the place pressed in the metamodel's graph", () => {
+    const target = {
+      closest: (selector: string) =>
+        selector === '[data-menu="metamodel-kind"]'
+          ? { getAttribute: (name: string) => (name === "data-given-kind" ? "refines" : "Refines") }
+          : null,
+    } as unknown as Element;
+    expect(menuContext(base, { hit: { place: "metamodel-kind", target } }).given).toEqual({
+      "metamodel.changeRelationKind": [{ field: "kind", value: "refines", label: "Refines" }],
+      "metamodel.removeRelationKind": [{ field: "kind", value: "refines", label: "Refines" }],
+    });
+  });
+
   it("in the prompt, is the marked one only where the buffer has no element of its own (`promptEntry`)", () => {
     for (const buffer of [listBuffer("All elements"), searchBuffer("wind"), overviewBuffer()]) {
       expect(promptEntry(buffer, entry)).toEqual({ entry });

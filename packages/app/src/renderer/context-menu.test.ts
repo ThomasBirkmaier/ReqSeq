@@ -126,8 +126,10 @@ describe("the menus of the graphs (SR-199 AK1, AK2)", () => {
     ]);
   });
 
-  it("[SR-199/AK-w4jd] has the text and the Mermaid copy on the metamodel's graph", () => {
-    expect(MENU_PLACES["metamodel-graph"].map((entry) => titles.get(entry.id))).toEqual([
+  it("[SR-199/AK-w4jd] has Add type, Add relation kind, the text and the Mermaid copy on the metamodel's graph", () => {
+    expect(MENU_PLACES["metamodel-graph"].map((entry) => titles.get(entry.id) ?? entry.id)).toEqual([
+      "command:metamodel.addType",
+      "command:metamodel.addRelationKind",
       "Show metamodel as text",
       "Copy graph as Mermaid",
     ]);

@@ -217,8 +217,10 @@ test.describe("the pages of the HTML export", () => {
     await expect(page.locator(".rq-render-error")).toHaveCount(2);
     await expect(page.locator(".rq-render-error").first()).toContainText("Error");
     await expect(page.locator(".rq-render-error").last()).toContainText("fill:url(https://example.org");
-    // The callout is the docs' aside, the table and the image copy are there.
-    await expect(page.locator("aside.starlight-aside--caution")).toContainText("Check the mast.");
+    // The callout is the docs' aside (not that of the open hints), the table and the image copy are there.
+    await expect(page.locator("aside.starlight-aside--caution:not(.rq-hints)")).toContainText(
+      "Check the mast.",
+    );
     await expect(page.locator("td", { hasText: "m/s" })).toHaveCSS("text-align", /right$/u);
     // Nothing of the unsafe content ran or loaded; it is text.
     expect(

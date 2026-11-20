@@ -9,6 +9,13 @@ import { ENTRY_MENU } from "./entry-menu.js";
 import { FIELD_MENU } from "./field-menu.js";
 import { LIST_MENU } from "./list-menu.js";
 import { MATRIX_CELL_MENU, MATRIX_TARGET_MENU } from "./matrix-menu.js";
+import {
+  METAMODEL_KIND_MENU,
+  METAMODEL_PROPERTY_MENU,
+  METAMODEL_SHEET_MENU,
+  METAMODEL_STATUS_MENU,
+  METAMODEL_TYPE_MENU,
+} from "./metamodel-menu.js";
 import { TEXT_MENU } from "./text-menu.js";
 
 /**
@@ -26,6 +33,10 @@ export type MenuPlace =
   | "list"
   | "graph"
   | "metamodel-graph"
+  | "metamodel-type"
+  | "metamodel-property"
+  | "metamodel-status"
+  | "metamodel-kind"
   | "matrix-cell"
   | "matrix-target";
 
@@ -126,9 +137,31 @@ export const MENU_PLACES: Readonly<Record<MenuPlace, readonly MenuEntry[]>> = {
   ],
 
   "metamodel-graph": [
-    // SR-199 AK2: the sheet of the metamodel's graph outside its types, with the Mermaid copy of SR-151.
+    // SR-199 AK2: the sheet of the metamodel's graph outside its types and labels, an inheritance curve and
+    // "Any type", with the Mermaid copy of SR-151 (`metamodel-menu.ts`).
+    ...METAMODEL_SHEET_MENU,
     { id: "metamodel-text" },
     { id: "copy-mermaid" },
+  ],
+
+  "metamodel-type": [
+    // SR-199 AK5: the name or the prefix of a type, the type given (`metamodel-menu.ts`).
+    ...METAMODEL_TYPE_MENU,
+  ],
+
+  "metamodel-property": [
+    // SR-199 AK6: a property row or the label line of a relation property, the property and its type given.
+    ...METAMODEL_PROPERTY_MENU,
+  ],
+
+  "metamodel-status": [
+    // SR-199 AK6: a status of a type, the status and the type given.
+    ...METAMODEL_STATUS_MENU,
+  ],
+
+  "metamodel-kind": [
+    // SR-199 AK7: the label line of a relation kind, the kind given.
+    ...METAMODEL_KIND_MENU,
   ],
 
   "matrix-cell": [

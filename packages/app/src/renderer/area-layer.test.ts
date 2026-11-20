@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
+import { NO_CHANGE } from "./metamodel-changes.js";
 import "../../../../scripts/test-support/dom-selection.mjs";
 // The layers of an area (SR-212 AK5): a view drawn in advance whose layer goes while its reads wait at the
 // gate sends none of them when the gate opens, so a held Alt+P leaves no reads behind; and one that read is not
@@ -79,6 +80,7 @@ const area = (gate: ReadGate, answered = false) => {
       onDrawn: () => undefined,
       typeNames: new Map(),
       kindNames: new Map(),
+      metamodelChange: NO_CHANGE,
       overview: {
         data: undefined,
         perspectives: [],

@@ -15,7 +15,7 @@ const words = (row: TextRow): string =>
           (property) =>
             `${property.name} ${property.key} ${property.value}${property.required ? " required" : ""}${property.content ? " counts to version" : ""}${property.inherited ? " (inherited)" : ""}`,
         ),
-        `statuses ${row.statuses.join(" · ")}`,
+        `statuses ${row.statuses.map((status) => status.name).join(" · ")}`,
       ].join(" | ");
 
 describe("metamodelText", () => {
