@@ -98,7 +98,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
   it("[SR-067/AK-tfcb] offers a subtype the kinds of its supertype, and a need and a variant only theirs", async () => {
     const ws = await open();
     expect(await options(ws, { ref: "swr-0000F1" })).toEqual({
-      answer: "swr-0000F1 can get 5 relation kinds.",
+      answer: "SWR-0000f1 can get 5 relation kinds.",
       kinds: [REFINES, DERIVES, BASED_ON, SUPERSEDES, REPLACES],
     });
     expect(await options(ws, { ref: "N-0000a1" })).toEqual({
@@ -173,7 +173,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
   it("[SR-067/AK-tfcb] offers no kind for an element whose type the metamodel does not know (SR-016 AK3)", async () => {
     const ws = await open({ ...FILTER, files: { "requirements/X-0000000000ee.md": GADGET } });
     expect(await options(ws, { ref: GADGET_ID })).toEqual({
-      answer: "69069069-0000-4000-8000-0000000000ee can get 0 relation kinds.",
+      answer: "UNKNOWN-0000ee can get 0 relation kinds.",
       kinds: [],
     });
     const error = await optionsError(ws, { ref: GADGET_ID, kind: "nope" });

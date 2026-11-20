@@ -89,11 +89,11 @@ const keptOutdated = async (
 
 export default defineCommand({
   name: "relation.add",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
       output.files.length === 0
-        ? `The ${input.kind} relation from ${input.source} to ${input.target} was there already`
-        : `Added a ${input.kind} relation from ${input.source} to ${input.target}`,
+        ? `The ${input.kind} relation from ${names.element(input.source)} to ${names.element(input.target)} was there already`
+        : `Added a ${input.kind} relation from ${names.element(input.source)} to ${names.element(input.target)}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

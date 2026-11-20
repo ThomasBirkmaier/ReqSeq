@@ -389,7 +389,7 @@ describe("reqseq binary", () => {
     });
     expect(removed.code).toBe(0);
     expect(JSON.parse(removed.stdout)).toEqual({
-      answer: `Removed the derives-from relation from SR-b0000000001 to ${D}; 1 file written.`,
+      answer: `Removed the derives-from relation from SR-b0000000001 to SR-000004; 1 file written.`,
       files: ["requirements/SR-0b0000000001.md"],
       problems: [],
     });

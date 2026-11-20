@@ -205,7 +205,13 @@ describe("the answer of metamodel.changeRelationKind", () => {
       missingRequired: 2,
       problems: [{}],
     };
-    expect(changeRelationKind.answer(output as never, { kind: "about" }, { type: (key) => key })).toBe(
+    expect(
+      changeRelationKind.answer(
+        output as never,
+        { kind: "about" },
+        { type: (key) => key, element: (ref) => ref },
+      ),
+    ).toBe(
       "Changed the relation kind About; 1 file written; 1 element with another version; 2 elements missing a required property; 1 problem.",
     );
   });

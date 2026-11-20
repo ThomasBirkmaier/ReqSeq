@@ -229,7 +229,7 @@ describe("lazyCommand", () => {
     const command = lazyCommand("workspace.status", () => Promise.resolve({ default: status }));
     const output = { name: "w" } as CommandOutput<"workspace.status">;
     const input = {} as CommandInput<"workspace.status">;
-    const names = { type: (key: string) => `${key} by name` };
+    const names = { type: (key: string) => `${key} by name`, element: (ref: string) => ref };
     expect(() => command.answer(output, input, names)).toThrow(
       "command workspace.status is asked for its answer before it ran",
     );
