@@ -5,7 +5,8 @@
 // passed as `baseline.get` gives it with all its rows (`baselineShown`), newest first: by date, at the same instant
 // the later file first, a date that does not parse as the earliest. The pages of the baselines, the change since each
 // on the element pages and in the lists (SR-232 AK7, SR-233 AK2, SR-234 AK1, AK2) and the counts of the newest one
-// on the start page (SR-233 AK3) come from them, with the warnings of `baseline.get` on each.
+// on the start page (SR-233 AK3) come from them, with the warnings of `baseline.get` on each. `incomplete`
+// (SR-006 AK2): a repository of the workspace file is not on this machine, as the start page says.
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -15,8 +16,9 @@ import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
 import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
 import { writeHtmlExport } from "../../html-export/index.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 import { baselineShown } from "../baseline/get.js";
-import { counted, problemsNote, sentence } from "../answer.js";
+import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 /** `absolute` relative to the workspace `root` when it lies inside, else as it is. */
 const shown = (root: string, absolute: string): string => {
@@ -74,6 +76,7 @@ export default defineCommand({
     sentence(
       `Exported ${counted(output.pages, "element page")} to ${output.folder}`,
       output.removed === 0 ? "" : `${counted(output.removed, "file")} of the earlier export removed`,
+      incompleteNote(output.incomplete),
       problemsNote(output.problems),
     ),
   run: async (ctx, input): Promise<CommandOutput<"html.export">> => {
@@ -90,6 +93,7 @@ export default defineCommand({
       pages: result.pages,
       exportedElements: [...result.exported],
       removed: result.removed,
+      incomplete: (await workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available),
       problems: [...problems, ...result.problems],
     };
   },

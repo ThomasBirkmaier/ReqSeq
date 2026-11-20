@@ -5674,6 +5674,8 @@ export interface HtmlExportOutput {
   readonly removed: number;
   /** The elements that got a page, in the order of the element store. */
   readonly exportedElements: readonly CountedElement[];
+  /** A repository of the workspace is not on this machine, so the pages lack its elements, as the start page says (SR-006 AK2, SR-233 AK3). */
+  readonly incomplete: Incomplete;
   readonly problems: readonly Problem[];
 }
 

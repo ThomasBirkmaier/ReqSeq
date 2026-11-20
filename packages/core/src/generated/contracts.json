@@ -38771,6 +38771,10 @@
               },
               "x-elements": true
             },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete",
+              "description": "A repository of the workspace is not on this machine, so the pages lack its elements, as the start page says."
+            },
             "problems": {
               "title": "Problems",
               "type": "array",
@@ -38787,6 +38791,7 @@
             "pages",
             "exportedElements",
             "removed",
+            "incomplete",
             "problems"
           ]
         },
@@ -38830,6 +38835,11 @@
           {
             "path": "exportedElements[].repository",
             "title": "Repository"
+          },
+          {
+            "path": "incomplete",
+            "title": "Incomplete",
+            "normal": false
           },
           {
             "path": "problems",
