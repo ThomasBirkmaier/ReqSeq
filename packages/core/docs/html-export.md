@@ -82,7 +82,7 @@ A target is named `identifier`, else short ID, and title (`links.ts`); one in a 
 
 ## Variant comparison (`variants.ts`)
 
-`variants/index.html` (SR-234 AK3): the degree in the core and in each variant with a page, by identifier, with the number per verification status, then the requirements whose verification status differs between the views, with the status per view as a badge; a view that does not hold a requirement differs from one that gives it a status ("not in the core", "not in the variant"), so a requirement of some views only is listed.
+`variants/index.html` (SR-234 AK3): the degree in the core and in each variant with a page, by identifier, with the number per verification status, then the requirements whose verification status differs between the views, with the status per view as a badge; a view that does not hold a requirement differs from one that gives it a status ("not in the core", "not in the variant"), so a requirement of some views only is listed. The pages of variants and baselines name an element by identifier and title, a package by its title only (`named`), as the Packages row does.
 
 ## References and footer (`export.ts`)
 

@@ -378,7 +378,11 @@ describe("html.export: variants", () => {
     );
     // Each status as a badge in the colour of its kind.
     expect(await page(site, "variants/index.html")).toContain('<span class="sl-badge danger small');
-    // The sidebar names the comparison and the page of each variant.
+  });
+
+  it("names the variant comparison and the page of each variant in the sidebar, by identifier", async () => {
+    const { ws } = await made();
+    const site = await exported(ws);
     const start = await page(site, "index.html");
     expect(start).toContain('<a href="variants/index.html"');
     expect(start).toContain(`<a href="elements/${ID}c1.html"`);
