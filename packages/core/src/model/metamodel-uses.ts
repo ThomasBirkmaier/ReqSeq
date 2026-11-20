@@ -14,7 +14,7 @@
 // - A status by each element with that status, of any type, also of a type the metamodel does not
 //   know (SR-236 AK8), so a definition that stays after `metamodel.removeStatus` shows the number of
 //   the elements that keep it (SR-240 AK3). Removing it from a type counts only the elements of the
-//   types that lose it (`lostUses`).
+//   types that lose it (`lostUses`), so that removal can succeed while the shown count is above 0.
 //
 // The counts cover the elements the store could read on this machine; a change that needs them is
 // refused while one may be missing (`refuseIncompleteStore`). `metamodelUsesState` keeps them until

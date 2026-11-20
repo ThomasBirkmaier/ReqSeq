@@ -211,8 +211,8 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
       // A fixed value counts on any element with it, also one of a type the metamodel does not have.
       values: { severity: { low: 1, high: 1 } },
       relations: { about: 1 },
-      // A status counts on every element with it, of any type (AK8): the note, which does not have
-      // open, and the drafts of type gone and of the fixture's system requirement.
+      // A status counts on every element with it, of any type (AK8): also the note, which does not
+      // have open, and the drafts of type gone and of the fixture's system requirement.
       statuses: { draft: 3, open: 2, noted: 0 },
     });
   });
