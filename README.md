@@ -25,10 +25,12 @@ Each command names what the metamodel still misses, such as `trace.no-parent` or
   <img src="docs/guide/images/ways-light.svg" alt="ReqSeq has four ways in that run the same commands with the same result: the desktop app for you, the reqseq command line for your agent, your CI and you, the MCP server for your AI agent, and a local HTTP API on loopback for scripts and tools. ReqSeq reads and writes the spec as Markdown files in spec/ of your Git repository, reads Git and never commits, and opens no network connections.">
 </picture>
 
+**Connect AI agent**, in the app or as `reqseq workspace connect-agent --client <client>`, prints the setup that lets your agent's client, such as Claude Code, VS Code, Codex CLI, Claude Desktop or Cursor, start the MCP server for your workspace. [Connect an AI agent](https://thomasbirkmaier.github.io/ReqSeq/how-to/connect-an-ai-agent/) shows each client.
+
 ## Get started
 
 1. Download the artifact for your system from the [latest release](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest) and unpack it. [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/) says how to check and start it, how to put the `reqseq` launcher on your path, and gives the MCP line for your agent on each system; ReqSeq needs `git` on the PATH.
-2. In an empty folder, these are the steps your agent runs, or you by hand. Use the short IDs that ReqSeq prints in place of `N-7fe707` and `SR-c67baa`:
+2. In an empty folder, these are the steps your agent runs, or you by hand. `workspace init` also writes the skill file `managing-requirements`, which tells Claude Code how to work with ReqSeq. Use the short IDs that ReqSeq prints in place of `N-7fe707` and `SR-c67baa`:
 
 ```sh
 reqseq --version
@@ -46,7 +48,11 @@ reqseq workspace check
 
 ![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](docs/guide/images/app-tour.gif)
 
-You can also do all of your requirements engineering by hand, without an agent: the desktop app works on the same files and offers every function the CLI and MCP offer, with the same result. One command prompt reaches each of them, and the app shows the graph, the traceability matrix and the evidence.
+You can also do all of your requirements engineering by hand, without an agent: the desktop app works on the same files and offers every function the CLI and MCP offer, with the same result. One command prompt reaches each of them, and the app shows the graph, the traceability matrix and the evidence. Without a workspace, it starts with "Open workspace…", **Create workspace** and **Connect AI agent**.
+
+## Share the requirements
+
+`reqseq html export <folder>`, or **Export HTML** in the app, writes the workspace as a folder of HTML pages that people read in a browser without ReqSeq, Git or network: a page per element with its acceptance criteria, evidence and neighbourhood, lists, baselines and a search. ReqSeq publishes nothing; where you put the folder decides who reads it. [Publish the workspace as HTML](https://thomasbirkmaier.github.io/ReqSeq/how-to/publish-the-workspace-as-html/) says more.
 
 ## More
 
