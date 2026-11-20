@@ -30,7 +30,7 @@ Each command names what the metamodel still misses, such as `trace.no-parent` or
 ## Get started
 
 1. Download the artifact for your system from the [latest release](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest) and unpack it. [Install ReqSeq](https://thomasbirkmaier.github.io/ReqSeq/how-to/install-reqseq/) says how to check and start it, how to put the `reqseq` launcher on your path, and gives the MCP line for your agent on each system; ReqSeq needs `git` on the PATH.
-2. In an empty folder, these are the steps your agent runs, or you by hand. `workspace init` also writes the skill file `managing-requirements`, which tells Claude Code how to work with ReqSeq. Use the short IDs that ReqSeq prints in place of `N-7fe707` and `SR-c67baa`:
+2. In an empty folder, these are the steps your agent runs, or you by hand. `workspace init` also writes the skill file `managing-requirements`, which tells Claude Code how to work with ReqSeq. In a workspace you already have, `reqseq tool guide --skill --write` writes it; a file there that ReqSeq did not write, or that was changed since, is replaced only with `--replace`. Use the short IDs that ReqSeq prints in place of `N-7fe707` and `SR-c67baa`:
 
 ```sh
 reqseq --version
