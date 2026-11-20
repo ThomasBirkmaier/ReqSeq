@@ -1,8 +1,8 @@
 {
   "name": "tool.guide",
   "title": "Agent guide",
-  "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.",
-  "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one. With `skill`, the output is the skill file `managing-requirements` in the format of Agent Skills: the workflows as numbered steps, each command as MCP tool and command-line call, no name of the metamodel, and the version of ReqSeq and a checksum in its frontmatter. With `write`, it is written to `.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository of the workspace folder, or in the workspace folder without Git; a file there that ReqSeq did not write, or that was changed since, is replaced only with `replace`. Through the API and the MCP server, a place outside the repositories of the workspace is refused with the command-line call that writes the file.",
+  "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.",
+  "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one. With `skill`, the output is the skill file `managing-requirements` in the format of Agent Skills: the workflows as numbered steps, each command as MCP tool and command-line call, no name of the metamodel, and the version of ReqSeq and a checksum in its frontmatter. With `write`, it is written to `.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository of the workspace folder, or in the workspace folder without Git; a file there that ReqSeq did not write, or that was changed since, is replaced only with `replace`. Through the API and the MCP server, a place outside the repositories of the workspace is refused with the command-line call that writes the file. With `instructions`, the output is what the MCP server sends as its instructions: the title of the guide, a paragraph that says to read the guide with `tool_guide` before the first step, and the rules section with MCP tool names; it reads nothing from the folder, so it is the same with or without a workspace, and is at most 4,000 characters long. `instructions` and `skill` cannot be given together.",
   "effect": "write-files",
   "whileReadOnly": "allow",
   "whileReadOnlyReason": "Writes only the skill file, which holds no name of the metamodel, so a missing or faulty metamodel does not stop it.",
@@ -21,6 +21,10 @@
       "complete": "boolean"
     },
     {
+      "field": "instructions",
+      "complete": "boolean"
+    },
+    {
       "field": "write",
       "complete": "boolean"
     },
@@ -35,12 +39,17 @@
       "names": {
         "enum": ["cli", "mcp"],
         "default": "cli",
-        "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways."
+        "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways, and with `instructions`, which names every command as MCP tool."
       },
       "skill": {
         "type": "boolean",
         "default": false,
         "description": "Give the skill file instead of the agent guide. It reads nothing from the workspace, so it works without one."
+      },
+      "instructions": {
+        "type": "boolean",
+        "default": false,
+        "description": "Give the MCP server instructions instead of the agent guide: only the rules, and the call that reads the guide. It reads nothing from the workspace, so it works without one. Not together with `skill`."
       },
       "write": {
         "type": "boolean",
@@ -63,7 +72,7 @@
         "title": "Agent guide",
         "type": "string",
         "contentMediaType": "text/markdown",
-        "description": "The agent guide, or with `skill` the skill file, as Markdown, LF line endings and a final newline."
+        "description": "The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline."
       },
       "file": {
         "title": "Skill file",

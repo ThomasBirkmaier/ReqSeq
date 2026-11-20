@@ -2600,7 +2600,7 @@
     "/v1/commands/tool.guide": {
       "post": {
         "operationId": "tool_guide",
-        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead. The MCP server sends the guide as its instructions.",
+        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.",
         "tags": [
           "tool"
         ],
@@ -2622,12 +2622,17 @@
                       "mcp"
                     ],
                     "default": "cli",
-                    "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways."
+                    "description": "How the guide names a command: `cli` as a call of the command line (`reqseq element create`), `mcp` as the name of the MCP tool (`element_create`). The calls for a pipeline stay command-line calls. Ignored with `skill`, which names every command both ways, and with `instructions`, which names every command as MCP tool."
                   },
                   "skill": {
                     "type": "boolean",
                     "default": false,
                     "description": "Give the skill file instead of the agent guide. It reads nothing from the workspace, so it works without one."
+                  },
+                  "instructions": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Give the MCP server instructions instead of the agent guide: only the rules, and the call that reads the guide. It reads nothing from the workspace, so it works without one. Not together with `skill`."
                   },
                   "write": {
                     "type": "boolean",
@@ -2660,7 +2665,7 @@
                       "title": "Agent guide",
                       "type": "string",
                       "contentMediaType": "text/markdown",
-                      "description": "The agent guide, or with `skill` the skill file, as Markdown, LF line endings and a final newline."
+                      "description": "The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline."
                     },
                     "file": {
                       "title": "Skill file",
