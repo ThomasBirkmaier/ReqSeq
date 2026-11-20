@@ -297,7 +297,7 @@ describe("evidence.list (SR-032)", () => {
     );
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
       answer:
-        "Found 1 evidence record and 0 test cases of 32032032-0000-4000-8000-0000000032a2; incomplete, as a repository is not available.",
+        "Found 1 evidence record and 0 test cases of SR-0032a2; incomplete, as a repository is not available.",
       records: [{ ...OTHER, baselines: [] }],
       bearing: [0],
       // The grouping is displayOf's (evidence/display.test.ts).
@@ -317,7 +317,7 @@ describe("evidence.list (SR-032)", () => {
     await workspace.replace(evidenceReadState, read, Promise.resolve(injected));
     expect(await list(workspace, { ref: A2 })).toEqual({
       answer:
-        "Found 1 evidence record and 0 test cases of 32032032-0000-4000-8000-0000000032a2; incomplete, as a repository is not available.",
+        "Found 1 evidence record and 0 test cases of SR-0032a2; incomplete, as a repository is not available.",
       records: [{ ...OTHER, baselines: ["Release 1.0", "Release 1.1"] }],
       bearing: [0],
       // The grouping is displayOf's (evidence/display.test.ts).

@@ -88,8 +88,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     const [before, target] = [await read(opened, GUSTS.file), await read(opened, WIND.file)];
     const out = await remove(opened, { source: GUSTS.id, kind: "derives-from", target: "SR-e88fb3" });
     expect(out).toEqual({
-      answer:
-        "Removed the derives-from relation from 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c to SR-e88fb3; 1 file written.",
+      answer: "Removed the derives-from relation from SR-4a5b6c to SR-e88fb3; 1 file written.",
       files: [GUSTS.file],
       problems: [],
     });
@@ -133,8 +132,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     const opened = await open();
     const before = await read(opened, WIND.file);
     expect(await remove(opened, { source: WIND.id, kind: "derives-from", target: GUSTS.id })).toEqual({
-      answer:
-        "Removed no derives-from relation from e8df96ea-a168-4d90-8d65-6328cee88fb3 to 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c; no file written; 1 problem.",
+      answer: "Removed no derives-from relation from SR-e88fb3 to SR-4a5b6c; no file written; 1 problem.",
       files: [],
       problems: [
         {
@@ -241,8 +239,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     expect(error.message).toContain("give the short ID of the target or repository");
     const out = await remove(opened, { source, kind: "refines", target: SENSOR_NEED, repository: "system" });
     expect(out).toEqual({
-      answer:
-        "Removed the refines relation from 6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05 to a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21; 1 file written.",
+      answer: "Removed the refines relation from SR-6e1f05 to N-5b3a21; 1 file written.",
       files: [SR],
       problems: [],
     });
@@ -302,7 +299,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     const text = await withItems("away");
     expect(await remove(opened, { source, kind: "refines", target: GONE, repository: "away" })).toEqual({
       answer:
-        "Removed the refines relation from 6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05 to 0b7c6e1a-1111-4222-8333-ffffffffffff; 1 file written.",
+        "Removed the refines relation from SR-6e1f05 to 0b7c6e1a-1111-4222-8333-ffffffffffff; 1 file written.",
       files: [SR],
       problems: [],
     });
@@ -325,7 +322,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     const out = await remove(opened, { source, kind: "refines", target: GONE });
     expect(out).toEqual({
       answer:
-        "Removed the refines relation from 6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05 to 0b7c6e1a-1111-4222-8333-ffffffffffff; 1 file written.",
+        "Removed the refines relation from SR-6e1f05 to 0b7c6e1a-1111-4222-8333-ffffffffffff; 1 file written.",
       files: [SR],
       problems: [],
     });

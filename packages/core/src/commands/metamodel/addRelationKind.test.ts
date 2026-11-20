@@ -231,7 +231,13 @@ describe("the answer of metamodel.addRelationKind", () => {
       missingRequired: 1,
       problems: [],
     };
-    expect(addRelationKind.answer(output as never, { name: "Causes" }, { type: (key) => key })).toBe(
+    expect(
+      addRelationKind.answer(
+        output as never,
+        { name: "Causes" },
+        { type: (key) => key, element: (ref) => ref },
+      ),
+    ).toBe(
       "Added the relation kind Causes; 1 file written; 2 elements with another version; 1 element now missing a required property.",
     );
   });

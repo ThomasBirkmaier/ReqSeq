@@ -4,6 +4,7 @@ import type { Style } from "../style.js";
 import { padTo, widthOf } from "../style.js";
 import type { Namer, Names, Rec } from "./common.js";
 import {
+  appendAll,
   countedElementsText,
   indent,
   isCountedElement,
@@ -12,6 +13,7 @@ import {
   isRecord,
   join,
   listOf,
+  maxOf,
   nameOn,
   namerOf,
   text,
@@ -80,7 +82,7 @@ export const valueLines = (
     return value ? ["incomplete: true (a repository of the workspace is not on this machine)"] : [];
   }
   if (isElement(value)) {
-    lifted.push(...listOf(value["problems"]));
+    appendAll(lifted, listOf(value["problems"]));
     const view = viewNamerOf([], names);
     return [
       style === undefined
@@ -185,9 +187,9 @@ const listedLines = (listed: readonly Listed[], name: Namer, view?: ViewNamer): 
     }
     lines.push(`${at}${join(elementLine(element, name, view), under)}`);
     // A search hit with its snippet (SR-174); none for an element of element.list.
-    lines.push(...indent(snippetLines(element), at));
+    appendAll(lines, indent(snippetLines(element), at));
     if (withText) {
-      lines.push(...indent(listedElementDetails(element), at));
+      appendAll(lines, indent(listedElementDetails(element), at));
     }
     before.add(keyOf(element["repository"], element["id"]));
   }
@@ -293,8 +295,14 @@ const terminalName = (row: Row, style: Style): string => {
 };
 
 const columnsOf = (rows: readonly Row[], style: Style): Columns => ({
-  name: Math.max(0, ...rows.map((row) => widthOf(terminalName(row, style)))),
-  status: Math.max(0, ...rows.map((row) => widthOf(text(row.element["status"])))),
+  name: maxOf(
+    rows.map((row) => widthOf(terminalName(row, style))),
+    0,
+  ),
+  status: maxOf(
+    rows.map((row) => widthOf(text(row.element["status"]))),
+    0,
+  ),
 });
 
 /** The fewest characters of a title worth cutting it to; with less room it stays whole and the line wraps. */

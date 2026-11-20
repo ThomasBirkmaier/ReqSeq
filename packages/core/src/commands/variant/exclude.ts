@@ -159,12 +159,12 @@ const undo = async (workspace: Workspace, input: Input): Promise<Output> => {
 
 export default defineCommand({
   name: "variant.exclude",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
       // What the variant file says afterwards; a requirement given twice or excluded already changes nothing.
       output.files.length === 0
-        ? `Variant ${input.variant} is unchanged`
-        : `Variant ${input.variant} ${input.undo ? "no longer excludes" : "excludes"} ${listed([...new Set(input.refs)])}`,
+        ? `Variant ${names.element(input.variant)} is unchanged`
+        : `Variant ${names.element(input.variant)} ${input.undo ? "no longer excludes" : "excludes"} ${listed([...new Set(input.refs.map((ref) => names.element(ref)))])}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

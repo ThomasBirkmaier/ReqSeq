@@ -15,8 +15,8 @@ import { counted, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "relation.options",
-  answer: (output, input) =>
-    sentence(`${input.ref} can get ${counted(output.kinds.length, "relation kind")}`),
+  answer: (output, input, names) =>
+    sentence(`${names.element(input.ref)} can get ${counted(output.kinds.length, "relation kind")}`),
   run: async (ctx, input): Promise<CommandOutput<"relation.options">> => {
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);

@@ -46,6 +46,20 @@ export const join = (...parts: readonly string[]): string => parts.filter((part)
 export const yamlOf = (value: unknown): string =>
   stringify(value, { lineWidth: 0, aliasDuplicateObjects: false });
 
+/**
+ * Appends `items` to `target` one by one: `target.push(...items)` passes every item as an argument
+ * and overflows the stack for a few hundred thousand lines (#1786).
+ */
+export const appendAll = <T>(target: T[], items: readonly T[]): void => {
+  for (const item of items) {
+    target.push(item);
+  }
+};
+
+/** The largest of `values`, at least `floor`, without spreading them into arguments (#1786). */
+export const maxOf = (values: readonly number[], floor: number): number =>
+  values.reduce((max, value) => (value > max ? value : max), floor);
+
 export const indent = (lines: readonly string[], by = "  "): string[] => lines.map((line) => `${by}${line}`);
 
 /** `value` when it is a list, else an empty one. */
