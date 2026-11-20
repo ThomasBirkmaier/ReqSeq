@@ -347,11 +347,16 @@ function checkInteger(cmd, field, schemas, notCounts) {
 }
 
 /** Whether the values of a field's map, or of a map in them, are integers, which no check above sees as fields. */
-function mapsNumbers(schema, file, schemas) {
+function mapsNumbers(schema, file, schemas, seen = new Set()) {
   const values = target(schema, file, schemas);
+  if (seen.has(values.schema)) {
+    return false;
+  }
+  seen.add(values.schema);
   const inner = values.schema.additionalProperties;
   return (
-    isObject(inner) && (isInteger(inner, values.file, schemas) || mapsNumbers(inner, values.file, schemas))
+    isObject(inner) &&
+    (isInteger(inner, values.file, schemas) || mapsNumbers(inner, values.file, schemas, seen))
   );
 }
 

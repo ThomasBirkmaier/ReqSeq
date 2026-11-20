@@ -47,6 +47,18 @@ describe("metamodelUses and keys objects inherit", () => {
     });
   });
 
+  it("lists a choice key written twice in one property once, with all its elements", async () => {
+    const model = SMALL_MODEL.replace(
+      "      - { key: high, name: High }\n",
+      "      - { key: high, name: High }\n      - { key: low, name: Low again }\n",
+    );
+    const { workspace } = await openSmall(elements([1, "hazard", { severity: "low" }]), model);
+    expect((await workspace.get(metamodelUsesState)).values).toEqual([
+      { property: "severity", value: "low", count: 1 },
+      { property: "severity", value: "high", count: 0 },
+    ]);
+  });
+
   it("counts a fixed value on an element of a type without the property", async () => {
     const { workspace } = await openSmall(elements([1, "note", { severity: "high" }]));
     expect(useCounts((await workspace.get(metamodelUsesState)).values)).toEqual({

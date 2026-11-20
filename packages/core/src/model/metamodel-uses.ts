@@ -122,8 +122,13 @@ export const metamodelUses = (store: ElementStore, metamodel: Metamodel): Metamo
   const uses = {
     types: metamodel.types.map(keyed),
     properties: metamodel.properties.map(keyed),
+    // A choice key written twice in one property is one fixed value, at its first place.
     values: metamodel.properties.flatMap((p) =>
-      (p.choices ?? []).map((c) => ({ property: p.key, value: c.key, count: 0 })),
+      [...new Set((p.choices ?? []).map((c) => c.key))].map((value) => ({
+        property: p.key,
+        value,
+        count: 0,
+      })),
     ),
     relations: metamodel.relations.map(keyed),
     statuses: metamodel.statuses.map(keyed),
