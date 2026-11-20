@@ -25,6 +25,9 @@ import {
   malformedNoParentHints,
   measure,
   noParentHints,
+  perfSize,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
   withEvidenceRecords,
   withoutNoParent,
@@ -35,8 +38,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-020 AK1. */
 const THRESHOLD_MS = 60_000;
 /** A version no element has: every relation and reference that stores it is outdated. */
@@ -139,7 +142,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       problems: Problem[];
       checkedElements: number;
     };
-    expect(answer).toMatch(/^Checked 50000 elements /);
+    expect(answer.startsWith(`Checked ${String(ELEMENTS)} elements `)).toBe(true);
     expect(orphans).toBeGreaterThan(0);
     expect(malformedNoParentHints(clean.problems)).toEqual([]);
     expect(noParentHints(clean.problems)).toHaveLength(orphans);
@@ -149,7 +152,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       problems: [],
       checkedElements: ELEMENTS,
     });
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(THRESHOLD_MS));
   }, 600_000);
 
   it("[SR-020/AK-srb3] checks a workspace in which every relation is outdated in at most 60 s", async () => {
@@ -180,7 +183,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       expect(outdatedProblems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual(
         [],
       );
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(THRESHOLD_MS));
     } finally {
       await outdated.cleanup();
       await fs.rm(own, { recursive: true, force: true });
@@ -214,7 +217,7 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       const open = out.problems.filter((p) => p.code === "evidence.open-requirements");
       expect(open).toHaveLength(1);
       expect(Number(open[0]?.message.split(" ")[0])).toBeGreaterThan(0);
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(THRESHOLD_MS));
     } finally {
       await recorded.cleanup();
       await fs.rm(own, { recursive: true, force: true });
@@ -233,9 +236,11 @@ describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-
       for (const repository of tree.repositories) {
         await merged.git(["tag", "base"], repository.folder);
       }
-      const changed = [tree.elements[1000], tree.elements[25_000], tree.elements[49_999]].filter(
-        (e) => e !== undefined,
-      );
+      const changed = [
+        tree.elements[scaledCount(1000)],
+        tree.elements[scaledCount(25_000)],
+        tree.elements[ELEMENTS - 1],
+      ].filter((e) => e !== undefined);
       for (const element of changed) {
         const folder = folders.get(element.repository) ?? "";
         const file = merged.path(`${folder}/${element.file}`);

@@ -4,9 +4,63 @@
 // asserts its threshold (see `thresholdMessage`), an untagged measurement only records its time.
 import fs from "node:fs/promises";
 import path from "node:path";
+import { DEFAULT_ELEMENTS, DEFAULT_RELATIONS } from "./large-workspace.js";
 
 /** Environment variable with the file that measurements are appended to (JSON lines). */
 export const PERF_RESULTS_ENV = "REQSEQ_PERF_RESULTS";
+
+/**
+ * Environment variable with the number of elements of the generated workspace (#2037). Unset or empty: the
+ * N-036 size, `DEFAULT_ELEMENTS`. A smaller size runs the suite's other assertions (counts, findings, output
+ * shapes) in minutes; such a run neither records times nor asserts a threshold (`perfSize`).
+ */
+export const PERF_ELEMENTS_ENV = "REQSEQ_PERF_ELEMENTS";
+
+/** The smallest size `PERF_ELEMENTS_ENV` takes: the generator writes at least one element of each of the six types. */
+export const MIN_PERF_ELEMENTS = 6;
+
+/** The workspace size of a performance test (`perfSize`). */
+export interface PerfSize {
+  readonly elements: number;
+  /** Relation targets: four per element, the ratio of N-036 (200,000 for 50,000). */
+  readonly relations: number;
+  /** The run is at the N-036 size: only such a run records times and asserts thresholds (ADR-0011). */
+  readonly full: boolean;
+}
+
+/**
+ * The workspace size of a performance test: the size `PERF_ELEMENTS_ENV` asks for, raised to `minimum` for a
+ * test whose data needs more elements than a small run gives, and never above the N-036 size. Throws on a
+ * value that is no whole number from `MIN_PERF_ELEMENTS` to `DEFAULT_ELEMENTS`.
+ */
+export const perfSize = (minimum = MIN_PERF_ELEMENTS): PerfSize => {
+  const raw = process.env[PERF_ELEMENTS_ENV];
+  const asked = raw === undefined || raw.trim() === "" ? DEFAULT_ELEMENTS : Number(raw);
+  if (!Number.isInteger(asked) || asked < MIN_PERF_ELEMENTS || asked > DEFAULT_ELEMENTS) {
+    throw new Error(
+      `${PERF_ELEMENTS_ENV} must be a whole number from ${String(MIN_PERF_ELEMENTS)} to ${String(DEFAULT_ELEMENTS)}: ${String(raw)}`,
+    );
+  }
+  const elements = Math.min(DEFAULT_ELEMENTS, Math.max(asked, minimum));
+  return {
+    elements,
+    relations: (elements * DEFAULT_RELATIONS) / DEFAULT_ELEMENTS,
+    full: asked === DEFAULT_ELEMENTS,
+  };
+};
+
+/**
+ * A count a test takes at the N-036 size (elements to change, a page far on, items of a pass), scaled to the
+ * size of `size` and rounded, at least 1. Unchanged at the N-036 size.
+ */
+export const scaledCount = (count: number, size: PerfSize = perfSize()): number =>
+  Math.max(1, Math.round((count * size.elements) / DEFAULT_ELEMENTS));
+
+/**
+ * The limit a test asserts a time against (ADR-0011): `ms` in a run at the N-036 size, none (infinity) in a
+ * smaller run, whose times say nothing about the threshold.
+ */
+export const thresholdLimit = (ms: number): number => (perfSize().full ? ms : Number.POSITIVE_INFINITY);
 
 export interface MeasureOptions {
   /** What the threshold comes from, e.g. `N-036, SR-082 AK2`. */
@@ -99,7 +153,8 @@ const record = async (name: string, ms: number, options: MeasureOptions): Promis
     ...(options.failed === undefined ? {} : { failed: options.failed }),
   };
   const file = process.env[PERF_RESULTS_ENV];
-  if (file !== undefined && file !== "") {
+  // A smaller run (`perfSize`) records nothing: the record verification/performance.md is of the N-036 size only.
+  if (file !== undefined && file !== "" && perfSize().full) {
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.appendFile(file, `${JSON.stringify(measurement)}\n`);
   }

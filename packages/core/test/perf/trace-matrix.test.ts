@@ -14,6 +14,8 @@ import {
   generateLargeWorkspace,
   measure,
   measureMedian,
+  perfSize,
+  thresholdLimit,
   thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -24,8 +26,8 @@ import { invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** Runs of an asserted time; the median counts. */
@@ -86,7 +88,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     // The standard model sets no minimum: counts only, no share (SR-153 AK2).
     expect(result.columns.every((c) => c.count > 0 && c.share === undefined)).toBe(true);
     expect(result.incomplete).toBe(false);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] gives the first page of all system requirements within 500 ms", async () => {
@@ -104,7 +106,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     expect(result.total).toBeGreaterThan(200);
     expect(result.rows).toHaveLength(200);
     expect(result.columns.map((c) => `${c.kind}/${c.direction}`)).toContain("derives-from/out");
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records the first page of all elements as a derivation tree", async () => {
@@ -159,7 +161,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
       expect(column?.expected).toBe(result.total);
       expect(column?.share).toBeDefined();
       expect(result.rows).toHaveLength(200);
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
     } finally {
       await limited.close();
       await fs.writeFile(file, model);

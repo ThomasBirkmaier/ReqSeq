@@ -5,7 +5,15 @@
 // are recorded only: a full listing of every child (the largest page, 5,000, page by page) with
 // versions read from the files and with the versions the workspace keeps.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  measure,
+  perfSize,
+  scaledCount,
+  thresholdLimit,
+  thresholdMessage,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { currentVersions, elementStoreState } from "../../src/model/index.js";
@@ -13,8 +21,8 @@ import { invoke } from "../../src/runtime/invoke.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** The largest page (catalog). */
@@ -81,9 +89,9 @@ describe("trace.related with 50,000 elements and 200,000 relations (SR-023, N-03
       { basis: "SR-082 AK4 (trace.related, the walk complete, one page built)", thresholdMs: RESULT_MS },
     );
     expect(page.elements).toHaveLength(200);
-    expect(page.total).toBeGreaterThan(10_000);
+    expect(page.total).toBeGreaterThan(scaledCount(10_000));
     expect(page.incomplete).toBe(false);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records a full listing of all children, the parents of requirements and children with kept versions", async () => {
