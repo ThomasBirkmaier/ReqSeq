@@ -174,6 +174,53 @@ describe("element.get", () => {
     });
   });
 
+  describe("the end of a target in a repository that is not on this machine", () => {
+    const GUSTS = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+    // Ends like the vault target 41b29219-…-ed3a9c39dbb8 in its last 7 digits, `c39dbb8`.
+    const LOCAL = "5e6f7a8b-9c0d-4e1f-8a2b-3c4d0c39dbb8";
+    const ALIKE = ["11111111-2222-4333-8444-aaaaaa123456", "55555555-6666-4777-8888-bbbbbb123456"];
+    const withTargets = (): FixtureOptions => ({
+      fixture: "SR-089/missing-targets",
+      files: {
+        "system/needs/N-3c4d0c39dbb8.md": `---\nid: ${LOCAL}\ntype: need\nstatus: draft\ntitle: Ends like a vault target\n---\n\nA local need.\n`,
+        "sensor/anemometer/SR-1e0f9a8b7c6d.md": [
+          "---",
+          `id: ${GUSTS}`,
+          "type: system-requirement",
+          "status: draft",
+          "title: Warn of gusts",
+          "based-on:",
+          "  - { id: 41b29219-7bc1-41c2-96a3-ed3a9c39dbb8, version: n1:5f3b4a1e0c9d2e71, repository: vault }",
+          ...ALIKE.map((id) => `  - { id: ${id}, version: n1:5f3b4a1e0c9d2e71, repository: vault }`),
+          "---",
+          "",
+          "Relations into a repository that is not on this machine.",
+          "",
+        ].join("\n"),
+      },
+    });
+
+    it("[SR-006/AK-fbb3] gives a target whose last 6 digits a local element's UUID ends with the smallest longer end; the local short ID stays", async () => {
+      const opened = await open(withTargets(), "system");
+      const element = await get(opened, { ref: GUSTS });
+      const shown = element.relations.filter((r) => r.kind === "based-on").map((r) => [r.id, r.shortId]);
+      expect(shown).toContainEqual(["41b29219-7bc1-41c2-96a3-ed3a9c39dbb8", "UNKNOWN-9c39dbb8"]);
+      expect((await get(opened, { ref: LOCAL })).shortId).toBe("N-39dbb8");
+    });
+
+    it("[SR-006/AK-fbb3] does not lengthen two targets in a missing repository against each other", async () => {
+      const opened = await open(withTargets(), "system");
+      const element = await get(opened, { ref: GUSTS });
+      const shown = element.relations
+        .filter((r) => ALIKE.includes(r.id))
+        .map((r) => [r.shortId, r.repository, r.accessible]);
+      expect(shown).toEqual([
+        ["UNKNOWN-123456", "vault", false],
+        ["UNKNOWN-123456", "vault", false],
+      ]);
+    });
+  });
+
   it("[SR-088/AK-d138] marks a relation to a UUID that two files share as ambiguous; that UUID itself is ambiguous", async () => {
     const opened = await open({ fixture: "SR-088/copied-file" }, "system");
     const element = await get(opened, { ref: "4f4f8db9-be88-4699-8641-6ae4d00fcab6" });
