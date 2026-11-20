@@ -59,6 +59,13 @@ describe("renderHuman: values", () => {
     expect(renderHuman(["a", "b"])).toBe("- a\n- b\n");
   });
 
+  it("prints any number of lines, more than fit into the arguments of one call (#1786)", () => {
+    const testCases = Array.from({ length: 300_000 }, (_, i) => `case ${String(i)}`);
+    const shown = renderHuman({ testCases }).split("\n");
+    expect(shown).toHaveLength(300_002);
+    expect(shown.at(-2)).toBe("  case 299999");
+  });
+
   it("writes a value that appears twice in full both times, without YAML anchors (an execution and last)", () => {
     const run = { item: "build-1" };
     expect(renderHuman({ testCases: [{ executions: [run], last: run }] })).toBe(
