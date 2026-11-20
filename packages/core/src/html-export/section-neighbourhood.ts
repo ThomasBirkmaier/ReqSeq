@@ -20,11 +20,12 @@
 //   is a row without a link as well.
 // - Without parents or children the section says so; without incoming links it has no such group.
 // - Bound: parents and children show the nearest `NEIGHBOURHOOD_LIMIT` elements each (breadth first, the walk's
-//   order), and say so only when the walk reached more, as the app's buffer does with its own bound (spec question
-//   #2078). The children's tree is drawn from the shown elements only: a link to one that is not shown is left out,
-//   a repetition of a shown one stays. A chain of 50,000 elements can reach tens of thousands of elements (N-036),
-//   and every element of it has a page: without the bound the pages of the performance suite's workspace come to
-//   about 29 GB. Each walk stops one element past the bound (`maxNodes`), so a page costs its bound, not its chain.
+//   order), and say so only when the walk reached more (SR-232 AK5): each element counted once on its nearest level,
+//   also one with an invalid status, so every nearer level stands whole. The children's tree is drawn from the shown
+//   elements only: a link to one that is not shown is left out, a repetition of a shown one stays. A chain of 50,000
+//   elements can reach tens of thousands of elements (N-036), and every element of it has a page: without the bound
+//   the pages of the performance suite's workspace come to about 29 GB. Each walk stops one element past the bound
+//   (`maxNodes`), so a page costs its bound, not its chain.
 //   The incoming links are one step and have no bound.
 // - Cost: per page two bounded walks over the derivations and one step over the other links; the current versions
 //   and the names of the incoming groups are read once for the export (`neighbourhoodSource`).

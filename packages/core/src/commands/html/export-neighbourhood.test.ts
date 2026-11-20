@@ -334,3 +334,144 @@ describe("html.export keeps elements with an invalid status in the neighbourhood
     expect(section).not.toContain(`href="../elements/${GONE}.html"`);
   });
 });
+
+/** The rows of one part: level, title (without marks), whether it links, and whether it is marked repeated. */
+const rowsOf = (part: string) =>
+  [
+    ...part.matchAll(
+      /<li(?: style="--rq-level:(\d+)")?>(<a [^>]*>|<span>)<span>[^<]*<\/span><span>([^<]*)(.*?)<\/li>/g,
+    ),
+  ].map(([, level, open, title, rest]) => ({
+    level: Number(level ?? 0),
+    title: String(title).trim(),
+    linked: String(open).startsWith("<a"),
+    repeated: String(rest).includes("rq-repeated"),
+  }));
+
+/** The files of a workspace whose element is ROOT, for the bound over two levels. */
+const twoLevelFiles = (): Record<string, string> => {
+  const range = (from: number, to: number): number[] =>
+    Array.from({ length: to - from + 1 }, (_, n) => n + from);
+  const status = (n: number): string => (n === 1 ? "status: obsolete\n" : "");
+  // Parents: P1..P59 and X above ROOT (P1 obsolete), Q_i above P_i, Q60 and X above P2: X lies on both levels.
+  const X = uuid(500);
+  // Children: C1..C59 and Y below ROOT (C1 obsolete), D_i below C_i, D60 below Y, Y also below C2.
+  const Y = uuid(800);
+  return {
+    "metamodel/standard-model.yaml": METAMODEL,
+    "requirements/SR-6328cee88fb3.md": element(
+      ROOT,
+      "system-requirement",
+      `title: Show wind speed\n${derives(...range(1, 59).map((n) => uuid(400 + n)), X)}`,
+    ),
+    "requirements/SR-1d2e3f4a5b6c.md": element(ONE, "system-requirement", "title: Alone\n"),
+    "needs/X.md": element(X, "need", "title: X\n"),
+    ...Object.fromEntries(
+      range(1, 59).map((n): [string, string] => [
+        `needs/P${String(n)}.md`,
+        element(
+          uuid(400 + n),
+          "need",
+          `${status(n)}title: P${String(n)}\n${derives(uuid(600 + n), ...(n === 2 ? [uuid(660), X] : []))}`,
+        ),
+      ]),
+    ),
+    ...Object.fromEntries(
+      range(1, 60).map((n): [string, string] => [
+        `needs/Q${String(n)}.md`,
+        element(uuid(600 + n), "need", `title: Q${String(n)}\n`),
+      ]),
+    ),
+    "requirements/Y.md": element(Y, "system-requirement", `title: Y\n${derives(ROOT, uuid(702))}`),
+    ...Object.fromEntries(
+      range(1, 59).map((n): [string, string] => [
+        `requirements/C${String(n)}.md`,
+        element(uuid(700 + n), "system-requirement", `${status(n)}title: C${String(n)}\n${derives(ROOT)}`),
+      ]),
+    ),
+    ...Object.fromEntries(
+      range(1, 60).map((n): [string, string] => [
+        `requirements/D${String(n)}.md`,
+        element(
+          uuid(900 + n),
+          "system-requirement",
+          `title: D${String(n)}\n${derives(n === 60 ? Y : uuid(700 + n))}`,
+        ),
+      ]),
+    ),
+  };
+};
+
+describe("html.export bounds the parents and children of a page by level (SR-232 AK5)", () => {
+  it("[SR-232/AK-r9s3] shows every element of the first level and leaves out only elements of the second, an element of both levels counted once on the first and one with an invalid status counted", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements", files: twoLevelFiles() });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await exported(workspace);
+    const section = await sectionOf(fixture, ROOT);
+    const parentsPart = section.slice(
+      section.indexOf("<h3>Parents</h3>"),
+      section.indexOf("<h3>Children</h3>"),
+    );
+    const childrenPart = section.slice(section.indexOf("<h3>Children</h3>"));
+    const firstParents = [...Array.from({ length: 59 }, (_, n) => `P${String(n + 1)}`), "X"];
+    const firstChildren = [...Array.from({ length: 59 }, (_, n) => `C${String(n + 1)}`), "Y"];
+
+    // Parents: the topmost shown level (Q) at 0, the direct parents at 1. 60 + 60 elements, X once on level 1;
+    // 100 shown: all 60 direct parents (the obsolete P1 among them, without a link) and 40 of the second level.
+    const parents = rowsOf(parentsPart);
+    expect(parents).toHaveLength(100);
+    expect(new Set(parents.map((r) => r.title)).size).toBe(100);
+    expect(parents.filter((r) => r.level === 1).map((r) => r.title)).toEqual(firstParents);
+    expect(parents.filter((r) => r.level === 0)).toHaveLength(40);
+    expect(parents.filter((r) => r.level === 0).every((r) => r.title.startsWith("Q"))).toBe(true);
+    expect(parents.find((r) => r.title === "P1")).toMatchObject({ linked: false });
+    expect(parentsPart).toContain(MORE);
+
+    // Children (in the walk's order, not by number): 60 + 60 elements, Y once on level 0 (its place under C2 is a repetition); 100 shown: all 60 direct
+    // children (the obsolete C1 among them, without a link) and 40 of the second level.
+    const children = rowsOf(childrenPart);
+    const placed = children.filter((r) => !r.repeated);
+    expect(placed).toHaveLength(100);
+    expect(new Set(placed.map((r) => r.title)).size).toBe(100);
+    expect(placed.filter((r) => r.level === 0).map((r) => r.title)).toEqual(
+      expect.arrayContaining(firstChildren),
+    );
+    expect(placed.filter((r) => r.level === 0)).toHaveLength(60);
+    expect(placed.filter((r) => r.level === 1)).toHaveLength(40);
+    expect(placed.filter((r) => r.level === 1).every((r) => r.title.startsWith("D"))).toBe(true);
+    expect(children.filter((r) => r.repeated).map((r) => r.title)).toEqual(["Y"]);
+    expect(children.find((r) => r.title === "C1")).toMatchObject({ linked: false });
+    expect(childrenPart).toContain(MORE);
+  });
+
+  it("[SR-232/AK-r9s3] shows every incoming relation, also more than 100", async () => {
+    const users = Array.from({ length: 120 }, (_, n) => uuid(2000 + n));
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-001/two-elements",
+      files: {
+        "metamodel/standard-model.yaml": METAMODEL,
+        "requirements/SR-6328cee88fb3.md": element(ROOT, "system-requirement", "title: Show wind speed\n"),
+        "requirements/SR-1d2e3f4a5b6c.md": element(ONE, "system-requirement", "title: Alone\n"),
+        ...Object.fromEntries(
+          users.map((id, n): [string, string] => [
+            `requirements/U${String(n)}.md`,
+            element(id, "system-requirement", `title: U${String(n)}\nbased-on:\n  - { id: ${ROOT} }\n`),
+          ]),
+        ),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await exported(workspace);
+    const section = await sectionOf(fixture, ROOT);
+    const incoming = section.slice(section.indexOf("<h3>← Basis for</h3>"));
+    expect(new Set(rowsOf(incoming).map((r) => r.title))).toEqual(
+      new Set(users.map((_, n) => `U${String(n)}`)),
+    );
+    expect(rowsOf(incoming)).toHaveLength(120);
+    expect(section).not.toContain("are shown");
+  });
+});
