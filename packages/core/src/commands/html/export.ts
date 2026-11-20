@@ -42,13 +42,16 @@ const exportBaselines = async (
     .map((baseline, index) => ({ baseline, index, time: timeOf(baseline) }))
     .sort((a, b) => b.time - a.time || b.index - a.index);
   const shown: ExportBaseline[] = [];
-  const problems: Problem[] = [];
+  // A problem several baselines give (two naming the same commit) once, in the order first given.
+  const problems = new Map<string, Problem>();
   for (const { baseline } of ordered) {
     const output = await baselineShown(ctx, baseline);
     shown.push(output);
-    problems.push(...(output.problems ?? []));
+    for (const problem of output.problems ?? []) {
+      problems.set(JSON.stringify(problem), problem);
+    }
   }
-  return { baselines: shown, problems };
+  return { baselines: shown, problems: [...problems.values()] };
 };
 
 /** The newest baseline as the start page names it; undefined without one. */

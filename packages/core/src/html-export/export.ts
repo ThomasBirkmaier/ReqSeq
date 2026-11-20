@@ -36,8 +36,16 @@ import { findType, metamodelState, propertyWithMeaning } from "../metamodel/inde
 import { selectionDegree } from "../evidence/index.js";
 import { listHints } from "../hints/index.js";
 import { NO_RANKS, compareSortValues, sortValueOf } from "../query/index.js";
-import type { ElementRecord, ElementStore, ImageLink, ShortIds, StateReader } from "../model/index.js";
+import type {
+  ElementRecord,
+  ElementStore,
+  FilesAtCommit,
+  ImageLink,
+  ShortIds,
+  StateReader,
+} from "../model/index.js";
 import {
+  fieldDifference,
   filesAtCommit,
   UNKNOWN_TYPE_PREFIX,
   currentFormsOf,
@@ -92,7 +100,7 @@ import {
   dayOf,
   rowElementOf,
 } from "./baselines.js";
-import type { Before, SinceBaseline } from "./section-baselines.js";
+import type { Difference, SinceBaseline } from "./section-baselines.js";
 import type { VariantView } from "./variants.js";
 import { VARIANTS_PAGE, isRequirementEntry, variantsPageBody } from "./variants.js";
 import { CHANGE_VALUES } from "./list-page.js";
@@ -467,58 +475,78 @@ const SHOWN_CHANGES: ReadonlySet<string> = new Set(["changed", "added", "removed
 const differs = (row: BaselineRow): boolean =>
   row.state === "changed" || (row.state === "removed" && row.current !== undefined);
 
+/** The differing rows of `baseline` with the copy of the store each names, by repository. */
+const differingRows = (
+  store: ElementStore,
+  baseline: ExportBaseline,
+): Map<string, { row: BaselineRow; record: ElementRecord }[]> => {
+  const byRepository = new Map<string, { row: BaselineRow; record: ElementRecord }[]>();
+  for (const row of baseline.elements) {
+    // A differing row names a copy of the store, in its repository.
+    const record = differs(row)
+      ? store.byId.get(row.id)?.find((r) => r.repository === row.repository)
+      : undefined;
+    if (record !== undefined) {
+      const rows = byRepository.get(record.repository) ?? [];
+      rows.push({ row, record });
+      byRepository.set(record.repository, rows);
+    }
+  }
+  return byRepository;
+};
+
+/** Why an element of repository `name` has no file at `commit` (`found`: what `filesAtCommit` gave, if asked). */
+const whyNone = (name: string, commit: string, found: FilesAtCommit | undefined): string =>
+  found === undefined
+    ? `the baseline names no commit of repository ${name}`
+    : !found.known
+      ? `Git cannot read repository ${name} (${found.detail})`
+      : found.kind === "no-commit"
+        ? `the commit ${commit.slice(0, 12)} of the baseline is not in the local Git history of repository ${name}`
+        : `no file of repository ${name} held the element at the commit ${commit.slice(0, 12)} of the baseline`;
+
 /**
- * The content of the element of each differing row at its baseline's commit in its repository (`filesAtCommit`, one
- * pass per baseline and repository), or why it is not available.
+ * The field difference of the element of each differing row since its baseline: its file at the baseline's commit in
+ * its repository (`filesAtCommit`, one pass per baseline and repository) against its file now, or why it is not
+ * available. Only the difference is kept, not the files (N-036).
  */
-const beforeOf = async (
+const differencesOf = async (
   layout: WorkspaceLayout,
+  metamodel: Metamodel,
   store: ElementStore,
   baselines: readonly ExportBaseline[],
-): Promise<Map<BaselineRow, Before>> => {
-  const before = new Map<BaselineRow, Before>();
+): Promise<Map<BaselineRow, Difference>> => {
+  const differences = new Map<BaselineRow, Difference>();
   for (const baseline of baselines) {
-    const byRepository = new Map<string, { row: BaselineRow; record: ElementRecord }[]>();
-    for (const row of baseline.elements) {
-      // A differing row names a copy of the store, in its repository.
-      const record = differs(row)
-        ? store.byId.get(row.id)?.find((r) => r.repository === row.repository)
-        : undefined;
-      if (record !== undefined) {
-        const rows = byRepository.get(record.repository) ?? [];
-        rows.push({ row, record });
-        byRepository.set(record.repository, rows);
-      }
-    }
+    const byRepository = differingRows(store, baseline);
     for (const { name, folder } of layout.repositories) {
-      const rows = byRepository.get(name);
-      if (rows === undefined) {
-        continue;
-      }
+      const rows = byRepository.get(name) ?? [];
       const commit = baseline.repositories.find((r) => r.name === name)?.commit;
       const found =
-        commit === undefined
+        commit === undefined || rows.length === 0
           ? undefined
           : await filesAtCommit(
               folder,
               commit,
               rows.map(({ record }) => ({ file: record.file, id: record.id })),
             );
-      const why =
-        found === undefined
-          ? `the baseline names no commit of repository ${name}`
-          : !found.known
-            ? `Git cannot read repository ${name} (${found.detail})`
-            : found.kind === "no-commit"
-              ? `the commit ${String(commit).slice(0, 12)} of the baseline is not in the local Git history of repository ${name}`
-              : `no file of repository ${name} held the element at the commit ${String(commit).slice(0, 12)} of the baseline`;
-      rows.forEach(({ row }, index) => {
-        const file = found?.known === true && found.kind === "found" ? found.files[index] : undefined;
-        before.set(row, file ?? { unavailable: why });
-      });
+      const files = found?.known === true && found.kind === "found" ? found.files : [];
+      for (const [index, { row, record }] of rows.entries()) {
+        const file = files[index];
+        const text =
+          file === undefined ? undefined : await readElementText(folder, record.file, record.snapshot);
+        differences.set(
+          row,
+          file === undefined
+            ? { unavailable: whyNone(name, String(commit), found) }
+            : text === undefined
+              ? { unavailable: `the file ${record.file} changed since it was read` }
+              : fieldDifference(metamodel, file, { type: record.type, data: record.data, text }),
+        );
+      }
     }
   }
-  return before;
+  return differences;
 };
 
 /** What each variant with a page adds, replaces and excludes, and its verification degree (SR-234 AK4). */
@@ -546,12 +574,13 @@ const variantViews = async (
 
 /**
  * What the pages take from the baselines (SR-232 AK7, SR-233 AK2, SR-234 AK1): the rows of an element in each, newest
- * first, with its content at a differing baseline's commit; the change of a list row since each; and how a baseline's
+ * first, with the field difference since a differing baseline; the change of a list row since each; and how a baseline's
  * page names the element of a row.
  */
 const baselineSite = async (
   context: {
     readonly layout: WorkspaceLayout;
+    readonly metamodel: Metamodel;
     readonly store: ElementStore;
     readonly shortIds: ShortIds;
     readonly titleKey: string;
@@ -564,19 +593,19 @@ const baselineSite = async (
   readonly compare: ListCompare;
   readonly rowElement: (row: BaselineRow) => RowElement;
 }> => {
-  const { layout, store } = context;
+  const { layout, metamodel, store } = context;
   const baselines = given ?? [];
   const rowsBy = baselines.map(
     (b) => new Map(b.elements.map((row) => [copyKey(row.id, row.repository), row])),
   );
-  const before = await beforeOf(layout, store, baselines);
+  const differences = await differencesOf(layout, metamodel, store, baselines);
   const since = (record: ElementRecord): SinceBaseline[] =>
     baselines.flatMap((baseline, index) => {
       const row = rowsBy[index]?.get(copyKey(record.id, record.repository));
-      const old = row === undefined ? undefined : before.get(row);
+      const difference = row === undefined ? undefined : differences.get(row);
       return row === undefined || !SHOWN_CHANGES.has(row.state)
         ? []
-        : [{ baseline, row, ...(old === undefined ? {} : { before: old }) }];
+        : [{ baseline, row, ...(difference === undefined ? {} : { difference }) }];
     });
   const compare: ListCompare = {
     baselines: baselines.map((b) => `${b.name} (${dayOf(b.date)})`),
@@ -665,7 +694,7 @@ export const writeHtmlExport = async (
   );
   const withPage = new Set([...paged, ...stubbed]);
   const { baselines, since, compare, rowElement } = await baselineSite(
-    { layout, store, shortIds, titleKey, withPage },
+    { layout, metamodel, store, shortIds, titleKey, withPage },
     options.baselines,
   );
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];

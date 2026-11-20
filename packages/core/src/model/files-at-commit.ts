@@ -4,7 +4,8 @@
 //
 // - The commit is resolved in the repository; one it does not have (not fetched, beyond a shallow clone) is
 //   `no-commit`.
-// - Each element's file is read at the commit at the path it has now. Only for the elements whose path did not hold
+// - Each element's file is read at the commit at the path it has now, where git can name that path (`isGitPath`; an
+//   element at another path is looked for as a moved one). Only for the elements whose path did not hold
 //   them there, the element files changed since (`changedPaths`, which names a moved file at its old and its new path)
 //   are read through the same object reader, and the one whose frontmatter has the UUID is the element's file then,
 //   as `fileSince` finds it. An element no file held at the commit has none.
@@ -89,10 +90,12 @@ export const filesAtCommit = async (
   const at = resolved.commit;
   const reader = openObjectReader(folder);
   try {
+    // Only paths git can name are asked for (`isGitPath`); an element at another path has no file at the commit by its
+    // path now, and is looked for among the changed files.
     const own = await holders(
       reader,
       at,
-      asked.map((a) => a.file),
+      asked.flatMap((a) => (isGitPath(a.file) ? [a.file] : [])),
     );
     if (!("length" in own)) {
       return own;

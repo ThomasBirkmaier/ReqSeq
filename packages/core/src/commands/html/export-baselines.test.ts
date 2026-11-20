@@ -12,9 +12,15 @@ import type { HTMLElement, HTMLSelectElement } from "happy-dom";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
+import * as files from "../../files/index.js";
 import { listScript } from "../../html-export/list-script.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+
+vi.mock("../../files/index.js", async (importOriginal) => {
+  const original = await importOriginal<typeof files>();
+  return { ...original, readElementText: vi.fn(original.readElementText) };
+});
 
 const ID = "61061061-0000-4000-8000-0000000000";
 const V = { a1: "n1:9d97d0ccf9b75591", b1: "n1:697a2ad17ed49170", b2: "n1:077d46fbf1a6a93d" };
@@ -124,6 +130,8 @@ const call = async <N extends CommandName>(
 const exported = async (ws: FixtureWorkspace): Promise<string> => {
   const out = await call(ws, "html.export", { output: ws.path("site") });
   expect(out.problems.filter((p) => p.severity === "error")).toEqual([]);
+  // A warning several baselines give (the same commit named twice) is given once.
+  expect(new Set(out.problems.map((p) => JSON.stringify(p))).size).toBe(out.problems.length);
   return ws.path("site");
 };
 
@@ -195,6 +203,19 @@ describe("html.export: change since a baseline on the element page", () => {
     );
     // A baseline that neither lists nor adds the element: not named.
     expect(text(await page(site, `elements/${ID}d1.html`))).not.toContain("Since baselines");
+  });
+
+  it("says the difference is not available when the element file changed since it was read", async () => {
+    const { ws } = await made();
+    // The first text read is that of the first differing row, before the pages are written.
+    vi.mocked(files.readElementText).mockResolvedValueOnce(undefined);
+    const site = await exported(ws);
+    const pages = await Promise.all(
+      [`${ID}a1`, `${ID}b1`].map(async (id) => text(await page(site, `elements/${id}.html`))),
+    );
+    expect(pages.join(" ")).toMatch(
+      /The difference is not available: the file \S+ changed since it was read\./u,
+    );
   });
 });
 

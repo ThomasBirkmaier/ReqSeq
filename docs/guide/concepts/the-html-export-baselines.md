@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-An [HTML export](/concepts/the-html-export/) shows each baseline and each variant, and compares the variants with the core (SR-234). The navigation of every page names the page of all baselines, each baseline and the variant comparison.
+An [HTML export](/concepts/the-html-export/) shows each baseline and each variant, and compares the variants with the core (SR-234). The navigation of every page names the page of all baselines, each baseline and the variant comparison, where there are any.
 
 ## Baselines
 

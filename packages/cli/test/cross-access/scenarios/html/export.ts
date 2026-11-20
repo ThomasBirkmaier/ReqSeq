@@ -659,11 +659,11 @@ scenariosOf("html.export", [
     check: (results) => {
       for (const { files } of Object.values(results)) {
         const page = contentOf(String(files[`system/site/elements/${ID}c1.html`]));
-        expect(page).toContain('<h2 id="compared-with-the-core">Compared with the core</h2>');
+        expect(page).toContain('<h2 id="variant-compared-with-the-core">Compared with the core</h2>');
         expect(page).toContain(
-          `<h3 id="added">Adds</h3><ul><li><a href="../elements/${ID}b1.html">SR-0000b1 Show the wind speed</a></li></ul>`,
+          `<h3 id="variant-added">Adds</h3><ul><li><a href="../elements/${ID}b1.html">SR-0000b1 Show the wind speed</a></li></ul>`,
         );
-        expect(page).toContain('<h2 id="verification-degree">Verification degree</h2>');
+        expect(page).toContain('<h2 id="variant-verification-degree">Verification degree</h2>');
       }
     },
   },

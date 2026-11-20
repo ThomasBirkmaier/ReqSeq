@@ -6,7 +6,8 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { DataExportElement } from "../generated/types.js";
 import { metamodelState } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, FileAtCommit, ShortIds } from "../model/index.js";
+import type { ElementContent, ElementRecord, ElementStore, ShortIds } from "../model/index.js";
+import { fieldDifference } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { ExportBaseline } from "./baselines.js";
 import { baselinePageBody, rowElementOf } from "./baselines.js";
@@ -18,9 +19,10 @@ import { degreeSentence, variantSection, variantsPageBody } from "./variants.js"
 
 const A = "23400000-0000-4000-8000-0000000000a1";
 const B = "23400000-0000-4000-8000-0000000000b1";
+const C = "23400000-0000-4000-8000-0000000000c1";
 
-const record = (id: string, data: Record<string, unknown>): ElementRecord =>
-  ({ id, type: "system-requirement", repository: "system", file: "a.md", data }) as unknown as ElementRecord;
+const record = (id: string, data: Record<string, unknown>, repository = "system"): ElementRecord =>
+  ({ id, type: "system-requirement", repository, file: "a.md", data }) as unknown as ElementRecord;
 
 const CHANGED: ExportBaseline["elements"][number] = {
   id: B,
@@ -104,20 +106,24 @@ describe("baseline page (SR-234 AK1)", () => {
 });
 
 describe("change since a baseline on the element page (SR-232 AK7)", () => {
-  it("[SR-232/AK-dywy] names changed, added and removed criteria, targets the workspace lacks, and no change", async () => {
+  it("[SR-232/AK-dywy] names changed, added and removed criteria, targets as they are now or by UUID, and no change", async () => {
     const now = record(B, {
       "spec-id": "SR-7",
+      title: "B now",
       "acceptance-criteria": [
         { key: "k1aa", text: "New." },
         { key: "k3cc", text: "Added with key." },
         "Added without key.",
       ],
       refines: [{ id: A, version: "n2:1" }],
-      "derives-from": [{ id: B, repository: "system" }],
+      "derives-from": [
+        { id: B, repository: "system", title: "Stored title" },
+        { id: C, title: "Twin elsewhere" },
+      ],
     });
-    const ctx = await context([now]);
-    const old: FileAtCommit = {
-      path: "a.md",
+    // C is only in another repository: a relation without repository does not reach it.
+    const ctx = await context([now, record(C, { title: "C now" }, "other")]);
+    const old: ElementContent = {
       type: "system-requirement",
       data: {
         "acceptance-criteria": [
@@ -128,19 +134,27 @@ describe("change since a baseline on the element page (SR-232 AK7)", () => {
       },
       text: "Same.",
     };
-    const since = (before: FileAtCommit) => () => [{ baseline: BASELINE, row: CHANGED, before }];
+    const since = (before: ElementContent) => () => [
+      {
+        baseline: BASELINE,
+        row: CHANGED,
+        difference: fieldDifference(ctx.metamodel, before, { type: now.type, data: now.data, text: "Same." }),
+      },
+    ];
     const html = plain(baselinesSection({ ...ctx, since: since(old) }, page(now, "Same.")));
     expect(html).toContain("R of 2026-11-02: changed; version in the baseline n2:0000000000000001");
     expect(html).toContain("Acceptance criterion AK1 (k1aa) Before Old. Now New.");
     expect(html).toContain("Acceptance criterion AK2 (k2bb), removed Before Gone. Now none");
     expect(html).toContain("Acceptance criterion AK2 (k3cc), added Before none Now Added with key.");
     expect(html).toContain("Acceptance criterion AK3, added Before none Now Added without key.");
-    // A target the workspace does not have by its UUID; one it has by identifier, as a link to its page.
-    expect(html).toContain("Relations removed Refines: SR-7");
-    expect(html).toContain(`Relations added Refines: ${A} Derives from: SR-7`);
+    // A target the workspace does not have (or not in the element's repository) by its UUID; one it has by identifier
+    // and title now (not the stored title), as a link to its page.
+    expect(html).toContain("Relations removed Refines: SR-7 B now");
+    expect(html).toContain(`Relations added Refines: ${A} Derives from: SR-7 B now Derives from: ${C}`);
+    expect(html).not.toContain("Stored title");
     expect(baselinesSection(ctx, page(now, "Same."))).toBe("");
     expect(baselinesSection({ ...ctx, since: since(old) }, page(now, "Same."))).toContain(
-      `<a href="../elements/${B}.html">SR-7</a>`,
+      `<a href="../elements/${B}.html">SR-7 B now</a>`,
     );
     const same = { ...old, data: now.data };
     expect(plain(baselinesSection({ ...ctx, since: since(same) }, page(now, "Same.")))).toContain(

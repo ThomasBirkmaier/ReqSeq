@@ -1,5 +1,6 @@
 // `filesAtCommit` (SR-232 AK7): the files of elements at a commit, also at an old path, none where no file held the
-// element, `no-commit` for a commit the repository does not have, and the unknown answer of each git call that fails.
+// element or at a path git cannot name, `no-commit` for a commit the repository does not have, and the unknown answer
+// of each git call that fails.
 // The export's use of it: commands/html/export-baselines.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -83,5 +84,27 @@ describe("filesAtCommit", () => {
       };
     });
     expect(await at()).toBe(UNKNOWN);
+  });
+
+  it("gives no file for an element at a path git cannot name, and still reads the others", async () => {
+    const ws = await createFixtureWorkspace({
+      files: {
+        " drafts/a.md": `---\nid: ${A}\ntype: x\n---\n`,
+        "b.md": `---\nid: ${B}\ntype: y\n---\n`,
+      },
+      git: true,
+    });
+    onTestFinished(() => ws.cleanup());
+    const first = await ws.head();
+    expect(
+      await filesAtCommit(ws.root, first, [
+        { file: " drafts/a.md", id: A },
+        { file: "b.md", id: B },
+      ]),
+    ).toEqual({
+      known: true,
+      kind: "found",
+      files: [undefined, { path: "b.md", type: "y", data: { id: B, type: "y" }, text: "" }],
+    });
   });
 });

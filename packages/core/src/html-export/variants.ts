@@ -86,8 +86,8 @@ export const variantsPageBody = (
   ].join("");
 };
 
-/** An element as the variant's page names it, a link where it has a page. */
-const named = (context: ElementPageContext, record: ElementRecord): string => {
+/** An element as the pages of variants and baselines name it: identifier and title now, a link where it has a page. */
+export const named = (context: ElementPageContext, record: ElementRecord): string => {
   const identifier = context.shortIds.identifierOf(record);
   const title = record.data[titleKeyOrEmpty(context.metamodel)];
   return linked(
@@ -118,12 +118,12 @@ export const variantSection = (context: ElementPageContext, page: ElementPage): 
           .join("")}</tbody></table>`;
   return [
     '<section class="rq-variant">',
-    '<h2 id="verification-degree">Verification degree</h2>',
+    '<h2 id="variant-verification-degree">Verification degree</h2>',
     `<p>${escapeHtml(degreeSentence(view.degree))}</p>`,
-    '<h2 id="compared-with-the-core">Compared with the core</h2>',
-    `<h3 id="added">Adds</h3>${list(view.added)}`,
-    `<h3 id="replaced">Replaces</h3>${replaced}`,
-    `<h3 id="excluded">Excludes</h3>${list(view.excluded)}`,
+    '<h2 id="variant-compared-with-the-core">Compared with the core</h2>',
+    `<h3 id="variant-added">Adds</h3>${list(view.added)}`,
+    `<h3 id="variant-replaced">Replaces</h3>${replaced}`,
+    `<h3 id="variant-excluded">Excludes</h3>${list(view.excluded)}`,
     "</section>",
   ].join("");
 };
