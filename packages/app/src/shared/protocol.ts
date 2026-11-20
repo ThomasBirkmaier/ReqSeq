@@ -10,7 +10,7 @@ export const WORKSPACE_CHANNEL = "reqseq:workspace";
 
 /**
  * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`
- * when the text was copied, else `false`. One of the six channels from the renderer to the main
+ * when the text was copied, else `false`. One of the channels from the renderer to the main
  * process, each with the sender check of `main/sender.ts`.
  */
 export const COPY_CHANNEL = "reqseq:copy";
@@ -41,6 +41,14 @@ export const LIST_FOLDER_CHANNEL = "reqseq:list-folder";
  * main pasted, else `false` (`main/edit.ts`).
  */
 export const EDIT_CHANNEL = "reqseq:edit";
+
+/**
+ * Renderer to main: show the folder dialog of File > Open Workspace… (SR-225 AK2, "Open workspace…" of the start
+ * buffer). Main opens the chosen folder as the menu does; the window learns it as `workspace-changed`. Answered
+ * `true` when main showed the dialog, else `false` (`main/folder-dialog.ts`). The renderer sends nothing and gets
+ * no path back.
+ */
+export const FOLDER_DIALOG_CHANNEL = "reqseq:folder-dialog";
 
 /** The edits EDIT_CHANNEL takes. */
 export type EditRequest = "paste";
@@ -316,6 +324,12 @@ export interface ReqSeqBridge {
    * when main refused or could not, never rejects; the renderer gets no clipboard content from it.
    */
   pasteText(): Promise<boolean>;
+  /**
+   * Shows the folder dialog of File > Open Workspace… and opens the chosen folder as the menu does (SR-225 AK2):
+   * main does it, right after a click or Enter. Resolves `false` when main refused or could not, never rejects; the
+   * renderer gets no path from it.
+   */
+  openFolderDialog(): Promise<boolean>;
   /**
    * Opens the bundled documentation in the default browser (SR-141): the start page, or with `topic` (a catalog
    * command name or an action ID) its page. Never rejects; a refusal or an answer of another shape is a failure with

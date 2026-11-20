@@ -4,7 +4,8 @@
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`, among them
 // `swipe`, a swipe macOS reported to the window (SR-163 AK4). The facilities of the window ask the main
 // process: `copyText` writes the clipboard (SR-128), `pasteText` has main paste it into the focused field
-// (SR-195 AK3), `openDocs` opens the bundled documentation in the browser and `onHelp` hears Help > ReqSeq
+// (SR-195 AK3), `openFolderDialog` has main show the folder dialog of File > Open Workspace… (SR-225 AK2),
+// `openDocs` opens the bundled documentation in the browser and `onHelp` hears Help > ReqSeq
 // Documentation (SR-141), `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open
 // one of them, or the workspace of a typed folder, in the window (SR-131), `listFolder` lists the folders
 // of a path typed there (SR-143 AK1), and `onSave` sets what saves the window's unsaved input when main
@@ -26,6 +27,7 @@ import {
   DOCS_CHANNEL,
   DOCS_FAILED,
   EDIT_CHANNEL,
+  FOLDER_DIALOG_CHANNEL,
   HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
@@ -222,6 +224,14 @@ export const createBridge = (ipc: IpcRendererLike, mac = isMac(navigator.platfor
       try {
         const request: EditRequest = "paste";
         return (await ipc.invoke(EDIT_CHANNEL, request)) === true;
+      } catch {
+        return false;
+      }
+    },
+    // Main answers `true` when it showed the folder dialog; the chosen folder stays in main (SR-225 AK2).
+    openFolderDialog: async () => {
+      try {
+        return (await ipc.invoke(FOLDER_DIALOG_CHANNEL)) === true;
       } catch {
         return false;
       }

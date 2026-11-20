@@ -70,7 +70,7 @@ import { usePrefix } from "./use-prefix.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 import type { MarkState, PendingMark } from "./follow-mark.js";
 import { NO_MARK, markStep } from "./follow-mark.js";
-import { stoppedMessage } from "../shared/open-hint.js";
+import { dialogRefusedMessage, stoppedMessage } from "../shared/open-hint.js";
 import type { Loaded } from "./app-parts.js";
 import {
   TitleBar,
@@ -91,6 +91,9 @@ import { useMetamodelModel, useWorkspaceStatus } from "./use-workspace-status.js
 import { useAgentStatus } from "./use-agent-status.js";
 import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
 import { useEchoLink } from "./use-echo-link.js";
+import { StartView } from "./StartView.js";
+import { CREATE_WORKSPACE_ITEM, runStart, startLines, startShown } from "./start-commands.js";
+import type { StartCommand } from "./start-commands.js";
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEchoLine] = useState("");
@@ -524,6 +527,28 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       .items.find((item) => item.id === CONNECT_AGENT_ACTION)
       ?.run();
   };
+  // A line of the start buffer (SR-225 AK2, `start-commands.ts`); not while another workspace opens.
+  const chooseStart = (command: StartCommand): void => {
+    if (switchingNow.current) {
+      return;
+    }
+    void runStart(command, {
+      // Main refuses when the click or Enter is too long ago or a dialog is open: say so, not nothing.
+      folderDialog: () => {
+        void bridge.openFolderDialog().then((shown) => {
+          if (!shown) {
+            setEcho(dialogRefusedMessage(macRef.current));
+          }
+        });
+      },
+      createEntry: async () => {
+        await catalogRead.current;
+        beforeCommand();
+        return commands(false).items.find((item) => item.id === CREATE_WORKSPACE_ITEM)?.run;
+      },
+      connectAgent: connectFromModeline,
+    });
+  };
   // A next step of an output (SR-226 AK5) runs the entry of the command prompt for its command, as a choice in the
   // context menu does, with its known inputs given, so the prompt asks only the open ones; not while another
   // workspace opens. A step that names another workspace than the open one, or one while none is open, opens it
@@ -916,6 +941,13 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       <TitleBar shown={context.mac} title={windowTitle(view)} />
       <main className="sheet" aria-label="Sheet" ref={sheet} inert={switching}>
         <FoldStatuses.Provider value={folded}>
+          {startShown(view, shownAreas.length) ? (
+            <StartView
+              lines={startLines(context.mac)}
+              focus={prompt === undefined && about === undefined}
+              onChoose={chooseStart}
+            />
+          ) : null}
           {shownAreas.map((area) => (
             <BufferArea
               key={area.side}

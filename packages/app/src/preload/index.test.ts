@@ -20,6 +20,7 @@ describe("preload entry", () => {
       "onHelp",
       "onSave",
       "openDocs",
+      "openFolderDialog",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",

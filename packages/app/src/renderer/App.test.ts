@@ -50,6 +50,7 @@ describe("App", () => {
       on: () => () => undefined,
       copyText: () => Promise.resolve(true),
       pasteText: () => Promise.resolve(true),
+      openFolderDialog: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),
@@ -157,14 +158,14 @@ describe("App", () => {
     expect(text("Minibuffer")).toBe("No documentation in /opt/reqseq/docs");
   });
 
-  it("says why no workspace is open, and then has no buffer and no shortcut but the command prompt", async () => {
+  it("says why no workspace is open, and then has only the start buffer and no shortcut but the command prompt", async () => {
     const { bridge, invoke } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
-    expect(text("Modeline")).toBe("No workspace");
+    expect(text("Modeline")).toBe("No workspace is open.");
     expect(text("Minibuffer")).toBe(
       "No workspace is open. Press Ctrl+O to choose a folder, or Ctrl+Shift+P for Open workspace.",
     );
-    expect(shownOne('[role="listbox"]')).toBeNull();
+    expect(shownAll('[role="listbox"]').map((list) => list.getAttribute("aria-label"))).toEqual(["Start"]);
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
     expect(shownOne("input")).toBeNull();
@@ -436,7 +437,7 @@ describe("App", () => {
     // No workspace: no names either.
     handlers["workspace.status"] = () => NO_WORKSPACE;
     await change("opened");
-    expect(text("Modeline")).toBe("No workspace");
+    expect(text("Modeline")).toBe("No workspace is open.");
   });
 
   it("jumps to an element that core finds by its title", async () => {
@@ -630,8 +631,9 @@ describe("App", () => {
     await render(bridge);
     handlers["workspace.status"] = () => NO_WORKSPACE;
     await change("opened");
-    expect(shownOne('[role="listbox"]')).toBeNull();
-    expect(text("Modeline")).toBe("No workspace");
+    expect(shownOne('[aria-label="Overview"]')).toBeNull();
+    expect(shownOne('[aria-label="Start"]')).not.toBeNull();
+    expect(text("Modeline")).toBe("No workspace is open.");
     expect(document.title).toBe("ReqSeq");
   });
 

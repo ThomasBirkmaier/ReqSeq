@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import type { FixtureWorkspace, RunningApp } from "./support/app.js";
+import { copyFixture, launchApp } from "./support/app.js";
 
 declare global {
   interface Window {
@@ -100,6 +100,7 @@ test.describe("on a fixture workspace", () => {
       "onHelp",
       "onSave",
       "openDocs",
+      "openFolderDialog",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",
@@ -262,7 +263,7 @@ test.describe("without a workspace", () => {
   });
 
   test("says that none is open and which keys open one", async () => {
-    await expect(running.window.getByLabel("Modeline")).toHaveText("No workspace");
+    await expect(running.window.getByLabel("Modeline")).toHaveText("No workspace is open.");
     await expect(running.window.getByLabel("Minibuffer")).toHaveText(NO_WORKSPACE_MESSAGE);
     await running.window.screenshot({ path: path.join(SHOTS, "no-workspace-light.png") });
     expect(await invoke(running, "workspace.status", {})).toEqual({
@@ -277,6 +278,30 @@ test.describe("without a workspace", () => {
       "Open documentation",
       "Open workspace",
     ]);
+  });
+
+  test("[SR-225/AK-d2gk] [SR-225/AK-s5p9] [SR-225/AK-tgvr] the start buffer shows the start commands, and Open workspace… opens the folder dialog and then the overview", async () => {
+    const station: FixtureWorkspace = await copyFixture({ fixture: "SR-004/one-repository" });
+    folders.push(path.dirname(station.root));
+    const { window } = running;
+    const start = window.getByRole("listbox", { name: "Start" });
+    await expect(start.getByRole("option")).toHaveText([
+      `Open workspace…${process.platform === "darwin" ? "⌘O" : "Ctrl+O"}`,
+      "Create workspace",
+      "Connect AI agent",
+    ]);
+    await expect(window.getByLabel("Modeline")).toHaveText("No workspace is open.");
+    // The pointer away from the lines, which a hover would mark.
+    await window.mouse.move(0, 0);
+    await window.screenshot({ path: path.join(SHOTS, "start-buffer-light.png") });
+    // The folder dialog of the operating system, answered here; the first line is chosen with Enter.
+    await running.app.evaluate(({ dialog }, folder) => {
+      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [folder] });
+    }, station.root);
+    await start.press("Enter");
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await expect(start).toHaveCount(0);
+    await expect(window).toHaveTitle("Weather station - ReqSeq");
   });
 
   test("[SR-226/AK-sz63] [SR-229/AK-x7d8] a folder without a workspace, chosen in the folder dialog, says how to create one there, and Create workspace there shows the overview", async () => {

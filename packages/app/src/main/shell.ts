@@ -7,6 +7,7 @@ import { handleCopy } from "./clipboard.js";
 import type { Docs } from "./docs.js";
 import { docs as documentation, handleDocs } from "./docs.js";
 import { handleEdit } from "./edit.js";
+import { handleFolderDialog } from "./folder-dialog.js";
 import { guardClose } from "./close.js";
 import { reloadWhenGone } from "./renderer-gone.js";
 import { forwardSwipes } from "./swipe.js";
@@ -98,8 +99,8 @@ const ready = async (
   // The renderer asks for a copy to the clipboard (SR-128), for the workspaces opened last and to open
   // one of them in this window, and answers whether its input is saved before a switch (SR-131), and
   // for the folders of a path typed in "Open workspace" (SR-143), and for a paste of the clipboard into
-  // the focused field (SR-195 AK3), and to open the bundled documentation in the browser (SR-141): the seven
-  // channels it has to main.
+  // the focused field (SR-195 AK3), and to open the bundled documentation in the browser (SR-141), and for the
+  // folder dialog of File > Open Workspace… (SR-225 AK2, below): the eight channels it has to main.
   handleCopy(electron, window.webContents);
   handleDocs(electron, window.webContents, docs);
   handleEdit(electron, window.webContents);
@@ -135,6 +136,8 @@ const ready = async (
       }
     }
   };
+  // "Open workspace…" of the start buffer shows the same dialog (SR-225 AK2).
+  handleFolderDialog(electron, window.webContents, openWorkspace);
   electron.Menu.setApplicationMenu(
     electron.Menu.buildFromTemplate(
       menuTemplate(
