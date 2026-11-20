@@ -203,8 +203,12 @@ describe("the answer of metamodel.removeRelationKind", () => {
       missingRequired: 0,
       problems: [{}],
     };
-    expect(removeRelationKind.answer(output as never, { kind: "about" }, { type: (key) => key })).toBe(
-      "Removed the relation kind about; 1 file written; 3 elements with another version; 1 problem.",
-    );
+    expect(
+      removeRelationKind.answer(
+        output as never,
+        { kind: "about" },
+        { type: (key) => key, element: (ref) => ref },
+      ),
+    ).toBe("Removed the relation kind about; 1 file written; 3 elements with another version; 1 problem.");
   });
 });

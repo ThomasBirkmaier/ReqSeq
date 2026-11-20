@@ -8,9 +8,9 @@ import { filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "element.supersede",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `Superseded ${input.ref} with status ${input.status}${input.successor === undefined ? "" : `, succeeded by ${input.successor}`}`,
+      `Superseded ${names.element(input.ref)} with status ${input.status}${input.successor === undefined ? "" : `, succeeded by ${names.element(input.successor)}`}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),

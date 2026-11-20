@@ -71,10 +71,11 @@ export interface CommandDefinition<In, Out> {
    * The answer of an output (SR-224 AK1): one English sentence on what the command found,
    * counted or did, built from the output (with the short IDs `invoke` adds) and the input alone, so it
    * is the same through every access; no time relative to reading it. `invoke` puts it first in the
-   * output as `answer`. `names` names what the metamodel defines as people read it. Every product
-   * command has one (`CatalogCommand`). It is optional only for the commands of a test-only catalog
-   * (`defineTestCommand`), whose output schemas need no `answer`: without it `invoke` gives the output as
-   * `run` returns it, which the output schemas of the product catalog, all requiring `answer`, refuse.
+   * output as `answer`. `names` names what the metamodel defines, and the elements of the input, as
+   * people read them. Every product command has one (`CatalogCommand`). It is optional only for the
+   * commands of a test-only catalog (`defineTestCommand`), whose output schemas need no `answer`:
+   * without it `invoke` gives the output as `run` returns it, which the output schemas of the product
+   * catalog, all requiring `answer`, refuse.
    */
   answer?(output: Out, input: In, names: AnswerNames): string;
 }
@@ -86,6 +87,16 @@ export interface CommandDefinition<In, Out> {
 export interface AnswerNames {
   /** The name of the type `key` in the metamodel; the key itself for a type it does not have. */
   type(key: string): string;
+  /**
+   * The element `ref` names (a UUID, short ID or identifier, with the `repository` and `file` of `copy`
+   * when the command takes them, as `resolveRef` does) as a sentence names it: by its identifier, else
+   * its short ID, so a UUID and a short ID give the same sentence (#1998); `ref` as given when it names
+   * no one element, or the states the command resolved it with are no longer there.
+   */
+  element(
+    ref: string,
+    copy?: { readonly repository?: string | undefined; readonly file?: string | undefined },
+  ): string;
 }
 
 /** What `outputElements` gives: the elements, each once, in any order, and whether the output is `incomplete` (SR-006 AK2). */

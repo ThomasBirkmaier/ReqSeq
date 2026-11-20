@@ -111,8 +111,8 @@ describe("the answer of metamodel.changeStatus", () => {
       missingRequired: 0,
       problems: [{}],
     };
-    expect(changeStatus.answer(output as never, { status: "open" }, { type: (key) => key })).toBe(
-      "Changed the status Open; 1 element has this status; 1 file written; 1 problem.",
-    );
+    expect(
+      changeStatus.answer(output as never, { status: "open" }, { type: (key) => key, element: (ref) => ref }),
+    ).toBe("Changed the status Open; 1 element has this status; 1 file written; 1 problem.");
   });
 });

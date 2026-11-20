@@ -1,6 +1,7 @@
 // "Show changes since baseline" on the built app (SR-241 AK2): the open hints of the output show like the
 // problems of any output (SR-223 AK3), several of one kind as one folded line with the title of their kind and
-// their count, which Tab opens to each hint with its element and reason. The light screenshot goes to
+// their count, which Tab opens to each hint with its element and reason; each count of "Hints per kind" shows
+// the title of its kind. The light screenshot goes to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,11 @@ test.describe("Show changes since baseline", () => {
     // The other kinds are a line each; no code is shown.
     await expect(page.locator(".line.problem")).toHaveCount(3);
     await expect(page).not.toContainText("element.unknown-property");
+    // Each count of "Hints per kind" shows the title of its kind, as its group line does (#2073).
+    const count = page.locator(".line.text", {
+      has: window.locator(".text", { hasText: /^Unknown property$/u }),
+    });
+    await expect(count.locator(".status")).toHaveText("5");
     await window.screenshot({ path: path.join(SHOTS, "sr-241-changes-hints-light.png") });
     // Tab on the group line opens it: each hint with its element and its reason.
     const at = await page

@@ -37,9 +37,9 @@ const startOf = async (
 
 export default defineCommand({
   name: "trace.affected",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `${output.total === 1 ? "1 element is" : `${String(output.total)} elements are`} affected by a change of ${input.ref}`,
+      `${output.total === 1 ? "1 element is" : `${String(output.total)} elements are`} affected by a change of ${names.element(input.ref, { repository: input.repository, file: input.file })}`,
       output.records.length === 0
         ? ""
         : `${counted(output.records.length, "evidence record")} of an older version`,

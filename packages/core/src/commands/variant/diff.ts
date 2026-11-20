@@ -38,9 +38,9 @@ import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "variant.diff",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `Variant ${input.variant} adds ${counted(output.added.length, "requirement")}, replaces ${String(output.replaced.length)} and excludes ${String(output.excluded.length)}`,
+      `Variant ${names.element(input.variant)} adds ${counted(output.added.length, "requirement")}, replaces ${String(output.replaced.length)} and excludes ${String(output.excluded.length)}`,
       problemsNote(output.problems),
       incompleteNote(output.incomplete),
     ),

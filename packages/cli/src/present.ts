@@ -87,7 +87,7 @@ import type { Style, Terminal } from "./style.js";
 import { PLAIN, styleOf } from "./style.js";
 import { chainLines, isChain } from "./present/chain.js";
 import type { Rec } from "./present/common.js";
-import { isElement, isProblem, isRecord, listOf, namesIn, yamlOf } from "./present/common.js";
+import { appendAll, isElement, isProblem, isRecord, listOf, namesIn, yamlOf } from "./present/common.js";
 import { criterionReferencesIn } from "./present/element.js";
 import { graphNodeLines, isGraphWithEvidence } from "./present/evidence.js";
 import { elementsKey, groupedListLines, treeListLines, treeListOf, valueLines } from "./present/list.js";
@@ -174,23 +174,23 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
   const lifted: unknown[] = [];
   const chain = isChain(rest);
   if (chain) {
-    lines.push(...chainLines(rest, namesIn(rest)));
+    appendAll(lines, chainLines(rest, namesIn(rest)));
   }
   const shown = chain
     ? new Set(["root", "nodes", "edges", "gaps", "evidence", "validationRecords", "unresolved"])
     : new Set<string>();
   if (isMatrix(rest)) {
     // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.
-    lines.push(...matrixColumnLines(rest));
+    appendAll(lines, matrixColumnLines(rest));
     if (rest["evidence"] !== undefined) {
-      lines.push(...valueLines("evidence", rest["evidence"], details, lifted, namesIn(rest)));
+      appendAll(lines, valueLines("evidence", rest["evidence"], details, lifted, namesIn(rest)));
     }
-    lines.push(...matrixRowLines(rest, namesIn(rest)));
+    appendAll(lines, matrixRowLines(rest, namesIn(rest)));
     shown.add("columns");
     shown.add("evidence");
     shown.add("rows");
   }
-  lines.push(...nodeListLines(rest, shown, style));
+  appendAll(lines, nodeListLines(rest, shown, style));
   // The findings left out are said after the problems (`problemsEnd`).
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");
@@ -205,12 +205,13 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
   next.keys.forEach((key) => shown.add(key));
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
-      lines.push(
-        ...valueLines(key, value, details, lifted, names, style, key === "element" ? references : undefined),
+      appendAll(
+        lines,
+        valueLines(key, value, details, lifted, names, style, key === "element" ? references : undefined),
       );
     }
   }
-  lines.push(...pageNote(rest));
+  appendAll(lines, pageNote(rest));
   return `${lines.map((line) => `${line}\n`).join("")}${problemsText(problems, lifted, rest, style ?? PLAIN)}${next.text}`;
 }
 
