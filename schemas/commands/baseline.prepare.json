@@ -1,0 +1,98 @@
+{
+  "name": "baseline.prepare",
+  "title": "Prepare baseline",
+  "summary": "Before a baseline: the problems of the workspace check, the verification degree of a selection, the requirements without a passed test and the changes since the newest baseline, with Create baseline as the next step (SR-242).",
+  "details": "The problems are those of workspace.check for the whole workspace, also when a selection is given. The degree is that of evidence.degree for the selection, the number without a passed test that of evidence.withoutPassedTest for the selection's view, and the changes those of baseline.get for the newest baseline, as Show changes since baseline takes it. Create baseline is named with the selection given and only the name open, also when the check found errors; it is left out for a baseline or a command output as the selection, and for a saved filter with another view than its own, which baseline.create refuses, and while the workspace is read-only (SR-226 AK6). Nothing else is checked of whether the baseline can be created, and no command is blocked. Only reads.",
+  "effect": "read",
+  "stage": 5,
+  "implements": ["SR-242"],
+  "arguments": [{ "field": "selection", "complete": "selection" }],
+  "input": {
+    "type": "object",
+    "properties": {
+      "selection": {
+        "$ref": "../common.schema.json#/$defs/selection",
+        "description": "The elements of the baseline to come, as element.list takes them; without it the whole workspace. Its view (else its saved filter's, else the core) is the view of the degree."
+      }
+    },
+    "additionalProperties": false
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "answer": { "$ref": "../common.schema.json#/$defs/answer" },
+      "problems": {
+        "title": "Problems",
+        "type": "array",
+        "description": "The problems of workspace.check with its default input.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/problem"
+        },
+        "x-normal": []
+      },
+      "wholeWorkspace": {
+        "title": "Problems of the whole workspace",
+        "type": "boolean",
+        "description": "Given with a selection: the problems are those of the whole workspace, not of the selection (SR-242 AK1)."
+      },
+      "degree": {
+        "title": "Verification degree",
+        "$ref": "../data-export.schema.json#/$defs/verificationDegree",
+        "description": "The verification degree of the selection, as evidence.degree gives it (SR-037)."
+      },
+      "view": {
+        "title": "View",
+        "$ref": "../common.schema.json#/$defs/viewId",
+        "description": "core, or the variant of the selection's view (else of its saved filter's): the view of `degree` and `withoutPassedTest`."
+      },
+      "withoutPassedTest": {
+        "x-elements": "selection",
+        "title": "Without a passed test",
+        "type": "integer",
+        "minimum": 0,
+        "description": "Requirements of the whole `view` without a passed test, not only of the selection, as `total` of evidence.withoutPassedTest for that view (SR-120)."
+      },
+      "baseline": {
+        "$ref": "../common.schema.json#/$defs/baselineSince",
+        "description": "The newest baseline and its elements per state, as baseline.get gives them; left out when the workspace has no baseline."
+      },
+      "baselineFiles": {
+        "title": "Baseline files",
+        "type": "object",
+        "description": "The files that are no valid baseline, as baseline.list names them, apart from the problems of the check; left out when there is none.",
+        "properties": {
+          "problems": {
+            "title": "Problems",
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["problems"]
+      },
+      "next": {
+        "title": "Next steps",
+        "description": "Create baseline and, when there is a baseline, Show changes since baseline, as the details say (SR-242 AK4).",
+        "type": "array",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/nextStep"
+        }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete"
+      },
+      "names": {
+        "title": "Named elements",
+        "type": "array",
+        "description": "The variant of `view`, as evidence.degree names it, and that of the baseline's view. Left out in the core.",
+        "items": {
+          "$ref": "../common.schema.json#/$defs/elementName"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "required": ["answer", "problems", "degree", "view", "withoutPassedTest", "next"]
+  }
+}

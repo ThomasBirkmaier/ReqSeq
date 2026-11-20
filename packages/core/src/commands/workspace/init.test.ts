@@ -213,6 +213,20 @@ describe("workspace.init", () => {
     );
   });
 
+  it("[SR-226/AK-t0mt] leaves out creating an element while the new workspace is read-only, its metamodel repository not here", async () => {
+    const ws = await createFixtureWorkspace({ files: { "system/.keep": "" } });
+    onTestFinished(() => ws.cleanup());
+    const root = ws.path("system");
+    const out = await init(open(ws.root), {
+      path: root,
+      name: "W",
+      metamodel: { repository: "metamodel", path: "model" },
+    });
+    expect(out.next).toEqual([
+      { command: "workspace.connectAgent", input: {}, open: ["client"], workspace: root },
+    ]);
+  });
+
   it("refuses a folder that is a workspace already, and changes nothing", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     onTestFinished(() => ws.cleanup());

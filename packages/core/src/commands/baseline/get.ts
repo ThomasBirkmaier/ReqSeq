@@ -26,7 +26,13 @@
 //   `outputElements` those of the rows of every page (AK5).
 // - Both read the files on disk: a repository whose HEAD is not the baseline's commit is a
 //   `baseline.repository-commit-differs` warning first (`commitDifferences`, #668).
-import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
+import type {
+  CommandContext,
+  CommandInput,
+  CommandOutput,
+  OutputCount,
+  OutputElements,
+} from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { Baseline, ShowRequest } from "../../baselines/index.js";
 import {
@@ -206,6 +212,31 @@ const incompleteOf = async (
   (await workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available) ||
   selected?.incomplete === true;
 
+/**
+ * The elements of each state of `counts` (SR-224 AK4): incomplete only for a state that counts an entry
+ * without an element in the workspace (`missing`, `inaccessible`). baseline.changes and baseline.prepare give
+ * theirs by it.
+ */
+export const countedOfBaseline = async (
+  ctx: CommandContext,
+  input: CommandInput<typeof command>,
+  count: OutputCount,
+): Promise<OutputElements> => {
+  const { baseline, selected } = await baselineOf(ctx, input);
+  const state = count.field.slice("counts.".length) as Parameters<typeof stateElements>[2];
+  const { elements, absent } = await stateElements(
+    ctx.workspace,
+    {
+      baseline,
+      metamodel: await ctx.workspace.get(metamodelState),
+      store: selected?.store ?? (await ctx.workspace.get(elementStoreState)),
+      selected: selected?.elements,
+    },
+    state,
+  );
+  return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
+};
+
 export default defineCommand({
   name: command,
   answer: (output) => {
@@ -260,21 +291,5 @@ export default defineCommand({
     // An entry without an element in the workspace is no row of a list: the list says it is incomplete (#1932).
     return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
   },
-  // The elements of each state of `counts` (SR-224 AK4): incomplete only for a state that counts an entry
-  // without an element in the workspace (`missing`, `inaccessible`).
-  countedElements: async (ctx, input, count) => {
-    const { baseline, selected } = await baselineOf(ctx, input);
-    const state = count.field.slice("counts.".length) as Parameters<typeof stateElements>[2];
-    const { elements, absent } = await stateElements(
-      ctx.workspace,
-      {
-        baseline,
-        metamodel: await ctx.workspace.get(metamodelState),
-        store: selected?.store ?? (await ctx.workspace.get(elementStoreState)),
-        selected: selected?.elements,
-      },
-      state,
-    );
-    return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
-  },
+  countedElements: countedOfBaseline,
 });

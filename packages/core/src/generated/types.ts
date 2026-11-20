@@ -711,6 +711,43 @@ export type Duration = number;
 export type OutputPath = string;
 
 /**
+ * A baseline and its elements per state since it, as baseline.get gives them for it (SR-051): the same numbers over all pages.
+ * Schema: `schemas/common.schema.json#/$defs/baselineSince`.
+ */
+export interface BaselineSince {
+  /** Name of the baseline. */
+  readonly name: string;
+  /** Relative to the workspace root, / as separator. */
+  readonly file: OutputPath;
+  /** The repository that holds the file. */
+  readonly repository: string;
+  readonly date: IsoDateTime;
+  /** The view of the stored selection; left out for the core. */
+  readonly view?: ViewId;
+  /** The file stores a selection. Without it no element is added or removed, and `counts` has no `added` and `removed` (SR-051 AK2). */
+  readonly selectionKnown: boolean;
+  /** Elements per state over all pages, as `counts` of baseline.get. */
+  readonly counts: {
+    /** Elements unchanged since the baseline. */
+    readonly unchanged: number;
+    /** Elements changed since the baseline. */
+    readonly changed: number;
+    /** Elements superseded since the baseline. */
+    readonly superseded: number;
+    /** Elements that left the selection since the baseline; left out without a stored selection. */
+    readonly removed?: number;
+    /** Elements that joined the selection since the baseline; left out without a stored selection. */
+    readonly added?: number;
+    /** Elements of the baseline that are not found. */
+    readonly missing: number;
+    /** Elements of the baseline in a repository that is not on this machine. */
+    readonly inaccessible: number;
+  };
+  /** In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check. */
+  readonly problems?: readonly Problem[];
+}
+
+/**
  * A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.
  * Schema: `schemas/common.schema.json#/$defs/nextStep`.
  */
@@ -5292,6 +5329,84 @@ export interface BaselineCompareOutput {
 }
 
 /**
+ * Input of `baseline.changes` as `run` gets it: validated, properties with a `default` filled in. What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output (SR-241).
+ * Schema: `schemas/commands/baseline.changes.json input`.
+ */
+export interface BaselineChangesInput {
+  /** Name of a baseline, or its file name (with or without .yaml); without it the newest baseline (SR-241 AK1). */
+  readonly baseline?: string;
+  /** Hints of the page, as hint.list; hintTotal and hintKinds count all. */
+  readonly limit: number;
+  /** Hints skipped before the page, in the order of `hints`. */
+  readonly offset: number;
+}
+
+/**
+ * Output of `baseline.changes`. What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output (SR-241).
+ * Schema: `schemas/commands/baseline.changes.json output`.
+ */
+export interface BaselineChangesOutput {
+  readonly answer: Answer;
+  /** The baseline compared with and its elements per state, as baseline.get gives them; left out when the workspace has no baseline. */
+  readonly baseline?: BaselineSince;
+  /** The open hints of the whole workspace, as hint.list gives them without a filter, whatever the baseline selects: one page of `limit` hints from `offset`. */
+  readonly hints: readonly Problem[];
+  /** The number of open hints per kind, as `kinds` of hint.list without a filter (SR-026 AK6); empty without an open hint. */
+  readonly hintKinds: readonly {
+    readonly code: ProblemCode;
+    /** Open hints of this kind. */
+    readonly count: number;
+  }[];
+  /** All open hints, as `total` of hint.list without a filter. */
+  readonly hintTotal: number;
+  /** The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline. */
+  readonly problems?: readonly Problem[];
+  /** Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
+  readonly next: readonly NextStep[];
+  readonly incomplete?: Incomplete;
+  /** The variant of the baseline's view, as baseline.get names it. Left out in the core. */
+  readonly names?: readonly ElementName[];
+}
+
+/**
+ * Input of `baseline.prepare` as `run` gets it: validated, properties with a `default` filled in. Before a baseline: the problems of the workspace check, the verification degree of a selection, the requirements without a passed test and the changes since the newest baseline, with Create baseline as the next step (SR-242).
+ * Schema: `schemas/commands/baseline.prepare.json input`.
+ */
+export interface BaselinePrepareInput {
+  /** The elements of the baseline to come, as element.list takes them; without it the whole workspace. Its view (else its saved filter's, else the core) is the view of the degree. */
+  readonly selection?: ElementSelection;
+}
+
+/**
+ * Output of `baseline.prepare`. Before a baseline: the problems of the workspace check, the verification degree of a selection, the requirements without a passed test and the changes since the newest baseline, with Create baseline as the next step (SR-242).
+ * Schema: `schemas/commands/baseline.prepare.json output`.
+ */
+export interface BaselinePrepareOutput {
+  readonly answer: Answer;
+  /** The problems of workspace.check with its default input. */
+  readonly problems: readonly Problem[];
+  /** Given with a selection: the problems are those of the whole workspace, not of the selection (SR-242 AK1). */
+  readonly wholeWorkspace?: boolean;
+  /** The verification degree of the selection, as evidence.degree gives it (SR-037). */
+  readonly degree: DataExportVerificationDegree;
+  /** core, or the variant of the selection's view (else of its saved filter's): the view of `degree` and `withoutPassedTest`. */
+  readonly view: ViewId;
+  /** Requirements of the whole `view` without a passed test, not only of the selection, as `total` of evidence.withoutPassedTest for that view (SR-120). */
+  readonly withoutPassedTest: number;
+  /** The newest baseline and its elements per state, as baseline.get gives them; left out when the workspace has no baseline. */
+  readonly baseline?: BaselineSince;
+  /** The files that are no valid baseline, as baseline.list names them, apart from the problems of the check; left out when there is none. */
+  readonly baselineFiles?: {
+    readonly problems: readonly Problem[];
+  };
+  /** Create baseline and, when there is a baseline, Show changes since baseline, as the details say (SR-242 AK4). */
+  readonly next: readonly NextStep[];
+  readonly incomplete?: Incomplete;
+  /** The variant of `view`, as evidence.degree names it, and that of the baseline's view. Left out in the core. */
+  readonly names?: readonly ElementName[];
+}
+
+/**
  * Input of `reqif.analyze` as `run` gets it: validated, properties with a `default` filled in. Preview the import of a ReqIF file: types, attributes and values without mapping; for a repeated delivery the new, changed and dropped requirements and the conflicts with local changes; the losses. Writes nothing.
  * Schema: `schemas/commands/reqif.analyze.json input`.
  */
@@ -5606,6 +5721,8 @@ export interface CommandTypes {
   readonly "baseline.list": { readonly input: BaselineListInput; readonly output: BaselineListOutput };
   readonly "baseline.get": { readonly input: BaselineGetInput; readonly output: BaselineGetOutput };
   readonly "baseline.compare": { readonly input: BaselineCompareInput; readonly output: BaselineCompareOutput };
+  readonly "baseline.changes": { readonly input: BaselineChangesInput; readonly output: BaselineChangesOutput };
+  readonly "baseline.prepare": { readonly input: BaselinePrepareInput; readonly output: BaselinePrepareOutput };
   readonly "reqif.analyze": { readonly input: ReqifAnalyzeInput; readonly output: ReqifAnalyzeOutput };
   readonly "reqif.import": { readonly input: ReqifImportInput; readonly output: ReqifImportOutput };
   readonly "reqif.saveMapping": { readonly input: ReqifSaveMappingInput; readonly output: ReqifSaveMappingOutput };

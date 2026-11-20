@@ -1,12 +1,17 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
 // workspace; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
-// (SR-226 AK2).
+// (SR-226 AK2), without those the new workspace refuses while it is read-only (AK6).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT, metamodelState } from "../../metamodel/index.js";
+import {
+  STANDARD_MODEL_FILE,
+  STANDARD_MODEL_TEXT,
+  metamodelState,
+  runnableSteps,
+} from "../../metamodel/index.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
 import { filesNote, problemsNote, sentence } from "../answer.js";
@@ -42,8 +47,9 @@ export default defineCommand({
       const metamodel = await created.get(metamodelState);
       return {
         files: [...files],
-        // The next steps run in the new workspace (SR-226 AK2), named by its absolute path.
-        next: afterInitSteps(root),
+        // The next steps run in the new workspace (SR-226 AK2), named by its absolute path; while it is
+        // read-only (an own metamodel that is not there yet), without those it refuses then (AK6).
+        next: await runnableSteps(created, afterInitSteps(root)),
         problems: [...layout.problems, ...metamodel.problems],
       };
     } finally {

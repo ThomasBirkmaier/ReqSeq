@@ -6,7 +6,13 @@
 // view (ThomasBirkmaier/ReqSeq-archive#588). Nothing is written (D-030). `countedElements` gives the
 // requirements of `degree.total` and of each `degree.counts.*` (SR-224 AK4) in the same view, by the rule
 // the degree counts with (`degreeElements`).
-import type { CommandOutput } from "../../catalog.js";
+import type {
+  CommandContext,
+  CommandInput,
+  CommandOutput,
+  OutputCount,
+  OutputElements,
+} from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   degreeFieldElements,
@@ -23,6 +29,23 @@ import { counted, incompleteNote, sentence, viewNamed } from "../answer.js";
 import { degreePercent } from "../../evidence/degree-text.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
+
+/** The requirements of `degree.total` and of each `degree.counts.*` (SR-224 AK4); baseline.prepare gives its own by it. */
+export const countedOfDegree = async (
+  ctx: CommandContext,
+  input: CommandInput<"evidence.degree">,
+  count: OutputCount,
+): Promise<OutputElements> => {
+  const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.degree");
+  const view = selected.views[0] ?? CORE;
+  const by = await selectionDegreeElements(ctx.workspace, selected.elements, view);
+  const read = await ctx.workspace.get(evidenceReadState);
+  return {
+    elements: degreeFieldElements(by, count.field.slice("degree.".length)),
+    incomplete: selected.incomplete || read.incomplete,
+    view,
+  };
+};
 
 export default defineCommand({
   name: "evidence.degree",
@@ -47,15 +70,5 @@ export default defineCommand({
       ...namesField(namesOf(selected, variantIdsOf(id))),
     };
   },
-  countedElements: async (ctx, input, count) => {
-    const selected = await resolveSelection(ctx, input.selection ?? {}, "evidence.degree");
-    const view = selected.views[0] ?? CORE;
-    const by = await selectionDegreeElements(ctx.workspace, selected.elements, view);
-    const read = await ctx.workspace.get(evidenceReadState);
-    return {
-      elements: degreeFieldElements(by, count.field.slice("degree.".length)),
-      incomplete: selected.incomplete || read.incomplete,
-      view,
-    };
-  },
+  countedElements: countedOfDegree,
 });

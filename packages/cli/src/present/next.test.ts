@@ -42,6 +42,22 @@ describe("next steps as calls (SR-226)", () => {
     expect(callOf({ command: "no.such", input: {}, open: [] }, site)).toBe("no.such");
   });
 
+  it("gives a known selection by its part flags, else as --input (SR-242 AK4)", () => {
+    const create = (selection: object): string =>
+      callOf({ command: "baseline.create", input: { selection }, open: ["name"] }, site);
+    expect(create({ filter: "Release 1", view: "VAR-c1" })).toBe(
+      "reqseq baseline create <name> --filter 'Release 1' --view VAR-c1",
+    );
+    expect(create({ ids: ["SR-1", "SR-2"], where: { status: ["draft"] } })).toBe(
+      `reqseq baseline create <name> --ids SR-1 --ids SR-2 --where '{"status":["draft"]}'`,
+    );
+    // The whole workspace, and an item no flag takes, as the input itself.
+    expect(create({})).toBe(`reqseq baseline create <name> --input '{"selection":{}}'`);
+    expect(create({ ids: [{ id: "SR-1", repository: "r" }] })).toBe(
+      `reqseq baseline create <name> --input '{"selection":{"ids":[{"id":"SR-1","repository":"r"}]}}'`,
+    );
+  });
+
   it("lists the steps with the titles of their commands, and only the shape of steps counts", () => {
     const steps = [
       { command: "workspace.init", input: {}, open: ["path", "name"] },

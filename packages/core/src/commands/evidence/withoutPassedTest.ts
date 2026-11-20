@@ -9,7 +9,7 @@
 // „alle Requirements“), so the command prompt runs it without asking (AK1). `incomplete` (SR-006 AK2): a
 // repository of the workspace, or of an evidence location, is not on this machine. Only the page is
 // prepared and built (N-036); nothing is written (D-030).
-import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandInput, CommandOutput, OutputElements } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
   evidenceReadState,
@@ -45,6 +45,16 @@ const listedOf = async (ctx: CommandContext, input: CommandInput<"evidence.witho
   return { selected, view, listed: withoutPassedTest(status.source, selected.elements, view, inView) };
 };
 
+/** Every requirement of the list over all pages (SR-224 AK5); baseline.prepare gives the elements of its number by it. */
+export const listedWithoutPassedTest = async (
+  ctx: CommandContext,
+  input: CommandInput<"evidence.withoutPassedTest">,
+): Promise<OutputElements> => {
+  const { selected, listed } = await listedOf(ctx, input);
+  const read = await ctx.workspace.get(evidenceReadState);
+  return { elements: listed, incomplete: selected.incomplete || read.incomplete };
+};
+
 export default defineCommand({
   name: "evidence.withoutPassedTest",
   answer: (output) =>
@@ -76,9 +86,5 @@ export default defineCommand({
       ),
     };
   },
-  outputElements: async (ctx, input) => {
-    const { selected, listed } = await listedOf(ctx, input);
-    const read = await ctx.workspace.get(evidenceReadState);
-    return { elements: listed, incomplete: selected.incomplete || read.incomplete };
-  },
+  outputElements: listedWithoutPassedTest,
 });

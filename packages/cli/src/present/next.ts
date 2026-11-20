@@ -4,6 +4,7 @@
 // workspace than the current folder's. Pure layout: which steps there are is core's (ADR-0002).
 import path from "node:path";
 import type { CatalogEntry, NextStep } from "@reqseq/core";
+import type { InputField } from "../fields.js";
 import { inputFields, kebab } from "../fields.js";
 import { isRecord } from "./common.js";
 
@@ -60,6 +61,35 @@ const typedPath = (value: string, cwd: string): string => {
   return relative.startsWith("..") || path.isAbsolute(relative) ? value : relative;
 };
 
+/**
+ * The flags of a known object field with part flags (a selection, #149): each part as its flag (`--filter
+ * Release`, `--ids a --ids b`, `--where '<json>'`), or, when a part has no flag or the object is empty, the
+ * field as `--input '<json>'`, so that the call gives the same input.
+ */
+const partTokens = (
+  field: InputField,
+  value: Readonly<Record<string, unknown>>,
+  platform: NodeJS.Platform,
+): string[] => {
+  const tokens: string[] = [];
+  let whole = Object.keys(value).length === 0;
+  for (const [name, part] of Object.entries(value)) {
+    const flag = field.parts.find((p) => p.path.length === 1 && p.path[0] === name && p.role !== "key");
+    const items = Array.isArray(part) ? part : [part];
+    if (flag?.role === "condition") {
+      tokens.push(`--${flag.flag}`, quoted(JSON.stringify(part), platform));
+    } else if (
+      flag !== undefined &&
+      items.every((item) => typeof item === "string" || typeof item === "number")
+    ) {
+      tokens.push(...items.flatMap((item) => [`--${flag.flag}`, quoted(String(item), platform)]));
+    } else {
+      whole = true;
+    }
+  }
+  return whole ? ["--input", quoted(JSON.stringify({ [field.name]: value }), platform)] : tokens;
+};
+
 /** The call of one step; the command name itself when this command line does not know it. */
 export const callOf = (step: NextStep, site: CallSite): string => {
   const entry = site.commands.find((candidate) => candidate.name === step.command);
@@ -89,16 +119,23 @@ export const callOf = (step: NextStep, site: CallSite): string => {
       asFlags.add(field.name);
     }
   }
-  for (const field of fields.filter((f) => f.use !== "positional" || asFlags.has(f.name))) {
+  /** The flags of a field given as flags: its value, its parts, or `<field>` when it is open. */
+  const flagTokens = (field: InputField): string[] => {
     const value = valueOf(field);
     const known = step.input[field.name];
     if (typeof known === "boolean") {
-      tokens.push(known ? `--${field.flag}` : `--no-${field.flag}`);
-    } else if (value !== undefined) {
-      tokens.push(`--${field.flag}`, value);
-    } else if (step.open.includes(field.name)) {
-      tokens.push(`--${field.flag}`, `<${field.flag}>`);
+      return [known ? `--${field.flag}` : `--no-${field.flag}`];
     }
+    if (field.use === "parts" && isRecord(known)) {
+      return partTokens(field, known, site.platform);
+    }
+    if (value !== undefined) {
+      return [`--${field.flag}`, value];
+    }
+    return step.open.includes(field.name) ? [`--${field.flag}`, `<${field.flag}>`] : [];
+  };
+  for (const field of fields.filter((f) => f.use !== "positional" || asFlags.has(f.name))) {
+    tokens.push(...flagTokens(field));
   }
   const workspace =
     step.workspace === undefined || path.relative(site.cwd, step.workspace) === ""

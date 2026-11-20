@@ -8,10 +8,12 @@
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
 import { lazyCommand } from "../catalog.js";
+import baselineChanges from "./baseline/changes.js";
 import baselineCompare from "./baseline/compare.js";
 import baselineCreate from "./baseline/create.js";
 import baselineGet from "./baseline/get.js";
 import baselineList from "./baseline/list.js";
+import baselinePrepare from "./baseline/prepare.js";
 import dataExport from "./data/export.js";
 import dataStore from "./data/store.js";
 import elementAddAttachment from "./element/addAttachment.js";
@@ -81,10 +83,12 @@ import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
 export const commands: readonly AnyCommand[] = [
+  baselineChanges,
   baselineCompare,
   baselineCreate,
   baselineGet,
   baselineList,
+  baselinePrepare,
   dataExport,
   dataStore,
   elementAddAttachment,

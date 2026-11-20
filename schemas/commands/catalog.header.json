@@ -74,6 +74,8 @@
     "baseline.list",
     "baseline.get",
     "baseline.compare",
+    "baseline.changes",
+    "baseline.prepare",
     "reqif.analyze",
     "reqif.import",
     "reqif.saveMapping",

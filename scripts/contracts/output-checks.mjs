@@ -106,6 +106,8 @@ export const NOT_ELEMENT_COUNTS = new Map([
   ["trace.graph evidence[].results.skipped", "counts test results"],
   ["hint.list kinds[].count", "counts hints"],
   ["hint.list total", "counts hints"],
+  ["baseline.changes hintKinds[].count", "counts hints"],
+  ["baseline.changes hintTotal", "counts hints"],
   ["evidence.list display.rows[].criterion", "the number of an acceptance criterion"],
   ["evidence.record criteria[].criterion", "the number of an acceptance criterion"],
   ["evidence.enrichJunit testCases", "counts test cases"],
