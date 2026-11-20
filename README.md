@@ -52,7 +52,7 @@ You can also do all of your requirements engineering by hand, without an agent: 
 
 ## Share the requirements
 
-`reqseq html export <folder>`, or **Export HTML** in the app, writes the workspace as a folder of HTML pages that people read in a browser without ReqSeq, Git or network: a page per element with its acceptance criteria, evidence and neighbourhood, lists, baselines and a search. ReqSeq publishes nothing; where you put the folder decides who reads it. [Publish the workspace as HTML](https://thomasbirkmaier.github.io/ReqSeq/how-to/publish-the-workspace-as-html/) says more.
+`reqseq html export <folder>`, or **Export HTML** in the app, writes the workspace as a folder of HTML pages that people read in a browser without ReqSeq, Git or network: a page per element with its acceptance criteria, evidence and neighbourhood, lists, baselines and a search. ReqSeq publishes nothing; where you put the folder decides who reads it. [Publish the workspace as HTML](https://thomasbirkmaier.github.io/ReqSeq/how-to/publish-the-workspace-as-html/) says more. ReqSeq's own specification is published this way with each release: [thomasbirkmaier.github.io/ReqSeq/spec](https://thomasbirkmaier.github.io/ReqSeq/spec/).
 
 ## More
 

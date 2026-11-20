@@ -165,16 +165,25 @@ describe("html.export: change since a baseline on the element page", () => {
   it("[SR-232/AK-dywy] names the change since each baseline with its version, and the field difference where Git has the commit", async () => {
     const { ws, firstDate } = await made();
     const site = await exported(ws);
-    const b1 = text(await page(site, `elements/${ID}b1.html`));
+    const b1Html = await page(site, `elements/${ID}b1.html`);
+    const b1 = text(b1Html);
     expect(b1).toContain(`Release 2 of 2026-11-02: changed; version in the baseline ${V.b1} of ${firstDate}`);
-    // The file moved since: its old path holds the old text.
-    expect(b1).toContain("Text Before b1: valid for VAR-0000c1");
-    expect(b1).toContain("Now b1: now valid for VAR-0000c1");
-    // The fixture's metamodel gives the criteria no meaning: they are a property that counts to the version.
-    expect(b1).toContain(
-      "Acceptance Criteria Before - Given wind, when the station measures it, then it shows the speed. Now - Given wind, when the station measures it, then it shows the speed in knots.",
+    // Each baseline with a difference is collapsible, the newest open; one row per changed field, word by word. The
+    // file moved since: its old path holds the old text.
+    expect(b1Html).toContain(
+      '<details class="rq-since-baseline" open><summary><a href="../baselines/488e33aa4e6d.html">Release 2</a> of 2026-11-02: changed;',
     );
-    expect(b1).toContain("Requirement Type Before functional Now performance");
+    expect(b1Html).toContain(
+      '<dl class="rq-diff"><dt>Text</dt><dd><div class="rq-diff-text">b1: <ins>now </ins>valid for VAR-0000c1',
+    );
+    expect(b1Html).toMatch(/<details class="rq-since-baseline"><summary><a href="[^"]+">Release 1<\/a>/u);
+    // The fixture's metamodel gives the criteria no meaning: they are a property that counts to the version.
+    expect(b1Html).toContain(
+      '<dt>Acceptance Criteria</dt><dd><div class="rq-diff-text">- Given wind, when the station measures it, then it shows the <del>speed.</del><ins>speed in knots.</ins></div></dd>',
+    );
+    expect(b1Html).toContain(
+      '<dt>Requirement Type</dt><dd><div class="rq-diff-text"><del>functional</del><ins>performance</ins></div></dd>',
+    );
     // The relation added is named; the new stored version of N-0000a1 is no difference.
     expect(b1).toContain("Relations added Derives from: SR-0000b3 Show the wind direction");
     expect(b1).not.toContain("Relations removed");
@@ -186,9 +195,12 @@ describe("html.export: change since a baseline on the element page", () => {
     expect(b3).toContain("Release 2 of 2026-11-02: added; the baseline does not list it");
     expect(b3).toContain("Release 1 of 2026-10-23: changed; version in the baseline n1:1111111111111111");
     // Removed and changed: the difference too; no file held SR-0000b5 at the commit.
-    const a1 = text(await page(site, `elements/${ID}a1.html`));
+    const a1Html = await page(site, `elements/${ID}a1.html`);
+    const a1 = text(a1Html);
     expect(a1).toContain("Release 2 of 2026-11-02: removed;");
-    expect(a1).toContain("Text Before a1: the need every requirement derives from. Now a1: the changed need");
+    expect(a1Html).toContain(
+      '<div class="rq-diff-text">a1: the <ins>changed </ins>need every requirement derives from.',
+    );
     expect(text(await page(site, `elements/${ID}b5.html`))).toContain(
       "The difference is not available: no file of repository system held the element at the commit",
     );

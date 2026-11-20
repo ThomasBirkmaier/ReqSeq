@@ -11,6 +11,7 @@ This file is the starting point. It holds the rules that apply to every change, 
 | a change to `spec/` | skill `spec-change` |
 | a wish, a question or a bug that could change an element in `spec/`, before the first question, mockup or card | skill `spec-change` (its steps) and Issues below |
 | fixing a bug against an AK | Issues below (bugs take the short path) |
+| a step with ReqSeq's commands on `spec/` | skill `managing-requirements` (ReqSeq writes it; `spec-change` and the evidence rule under Traceability go first) |
 | every push | skill `verify` |
 | opening, reviewing or merging a PR, or a release | skill `merge` |
 | architecture work | `docs/architecture/README.md` and the ADRs of your area |

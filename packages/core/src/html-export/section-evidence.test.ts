@@ -73,9 +73,9 @@ describe("evidence records at a criterion (SR-232 AK3)", () => {
       1,
     );
     expect(html).toBe(
-      '<div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul>' +
+      '<details class="rq-evidence"><summary>Evidence records (2)</summary><ul>' +
         '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · passed · 2026-11-02 · core</span></li>' +
-        '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · failed · 2026-11-02 · v</span></li></ul></div>',
+        '<li><code dir="auto">station &gt; shows wind</code> <span class="rq-legend">test · failed · 2026-11-02 · v</span></li></ul></details>',
     );
   });
 });

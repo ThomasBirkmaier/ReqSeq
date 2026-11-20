@@ -73,6 +73,19 @@ const foldingOf = (
   return event.key === "Tab" ? line.unfolded !== true : event.key === "ArrowRight";
 };
 
+/** The classes of a line: its kind and its marks. */
+const lineClass = (line: ResultLine): string =>
+  [
+    "line",
+    line.kind,
+    line.itemStart === true ? "item-start" : "",
+    line.detail === true ? "detail" : "",
+    line.kind !== "group" && line.list !== undefined ? "count" : "",
+    line.block === true ? "block" : "",
+  ]
+    .filter((part) => part !== "")
+    .join(" ");
+
 /**
  * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), a number of
  * elements, which opens their list (SR-223 AK5), or a next step, which runs (SR-226 AK5).
@@ -270,7 +283,7 @@ export const ResultView = ({
             <div
               key={at}
               id={`${scope}result-${String(at)}`}
-              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.kind !== "group" && line.list !== undefined ? " count" : ""}`}
+              className={lineClass(line)}
               title={line.title}
               // Only a line that opens something is an option; a text line is shown, not chosen.
               {...(choosable(line) ? { role: "option", "aria-selected": at === cursor } : {})}
