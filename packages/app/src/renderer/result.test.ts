@@ -853,6 +853,32 @@ describe("result view", () => {
     ]);
   });
 
+  it("[SR-229/AK-p4y6] shows a text of several lines, such as the agent guide, whole with its line breaks", async () => {
+    const guide = "# Working with ReqSeq\n\nReqSeq keeps needs and requirements.\n";
+    const output = { answer: "Wrote the agent guide with commands named for MCP.", guide, short: "one line" };
+    await act(async () => {
+      root.render(
+        createElement(ResultView, {
+          call: vi.fn<Call>(),
+          buffer: resultBuffer("tool.guide", { names: "mcp" }, "Agent guide", output, 0),
+          revision: 0,
+          dispatch: vi.fn(),
+          onData: vi.fn(),
+          onEcho: vi.fn(),
+          fields: [
+            { path: "guide", title: "Agent guide" },
+            { path: "short", title: "Short" },
+          ],
+        }),
+      );
+      await Promise.resolve();
+    });
+    const block = container.querySelector(".result.output .line.block");
+    expect(block?.querySelector(".label")?.textContent).toBe("Agent guide");
+    expect(block?.querySelector(".text")?.textContent).toBe(guide);
+    expect(container.querySelectorAll(".result.output .line.block")).toHaveLength(1);
+  });
+
   it("takes the fields of its command from the views of its area", async () => {
     const buffer = resultBuffer("trace.affected", {}, "Affected", { count: 2 }, 0);
     const outputFields = vi.fn(() => [{ path: "count", title: "Affected elements" }]);
