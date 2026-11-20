@@ -7,7 +7,7 @@
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "The pages show the types and statuses of the metamodel, which is missing or faulty.",
   "stage": 6,
-  "implements": ["SR-231", "SR-235"],
+  "implements": ["SR-231", "SR-232", "SR-233", "SR-234", "SR-235"],
   "arguments": [{ "field": "output", "complete": "folder" }],
   "input": {
     "type": "object",

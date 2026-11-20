@@ -36,8 +36,17 @@ import { findType, metamodelState, propertyWithMeaning } from "../metamodel/inde
 import { selectionDegree } from "../evidence/index.js";
 import { listHints } from "../hints/index.js";
 import { NO_RANKS, compareSortValues, sortValueOf } from "../query/index.js";
-import type { ElementRecord, ElementStore, ImageLink, ShortIds, StateReader } from "../model/index.js";
+import type {
+  ElementRecord,
+  ElementStore,
+  FilesAtCommit,
+  ImageLink,
+  ShortIds,
+  StateReader,
+} from "../model/index.js";
 import {
+  fieldDifference,
+  filesAtCommit,
   UNKNOWN_TYPE_PREFIX,
   currentFormsOf,
   currentVersions,
@@ -55,6 +64,7 @@ import {
 import { PRODUCT_VERSION } from "../product.js";
 import { traceContext } from "../trace/index.js";
 import type { Workspace } from "../runtime/workspace.js";
+import { viewRuleIn, viewRuleIndexOf, variantsOf } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import {
   DEFAULT_FOLDERS,
@@ -68,7 +78,7 @@ import { escapeHtml, renderMarkdown } from "./markdown.js";
 import { NOTICES_FILE, noticesText } from "./notices.js";
 import type { Navigation } from "./page.js";
 import { ASSETS, DOCS_CSS, OWN_CSS, page } from "./page.js";
-import type { ListContext, ListEntry, ListPage } from "./list-page.js";
+import type { ListCompare, ListContext, ListEntry, ListPage } from "./list-page.js";
 import { LIST_SCRIPT, listPageOf, listsOf, sortedByIdentifier, typeOrder } from "./list-page.js";
 import { listScript } from "./list-script.js";
 import type { NewestBaseline } from "./start-page.js";
@@ -81,6 +91,19 @@ import { elementPageBody } from "./element-page.js";
 import { elementPage, pageLinks } from "./links.js";
 import { neighbourhoodSource } from "./section-neighbourhood.js";
 import { stubPageBody } from "./stub-page.js";
+import type { BaselineRow, ExportBaseline, RowElement } from "./baselines.js";
+import {
+  BASELINES_PAGE,
+  baselinePage,
+  baselinePageBody,
+  baselinesPageBody,
+  dayOf,
+  rowElementOf,
+} from "./baselines.js";
+import type { Difference, SinceBaseline } from "./section-baselines.js";
+import type { VariantView } from "./variants.js";
+import { VARIANTS_PAGE, isRequirementEntry, variantsPageBody } from "./variants.js";
+import { CHANGE_VALUES } from "./list-page.js";
 import type { PageScriptSettings } from "./page-script.js";
 import { pageScript, scriptOf, themeScript } from "./page-script.js";
 import {
@@ -147,6 +170,8 @@ export interface HtmlExportOptions {
   readonly vendor?: string;
   /** The newest baseline and what changed since (`html.export` gives it); none: the workspace has no baseline. */
   readonly newestBaseline?: NewestBaseline;
+  /** Every baseline as `baseline.get` gives it with all its rows, newest first (`html.export` gives them). */
+  readonly baselines?: readonly ExportBaseline[];
 }
 
 /** The docs' token that gives each colour role of a diagram (`DIAGRAM_COLOURS`). */
@@ -401,6 +426,8 @@ const siteOf = async (
   context: ListContext,
   data: readonly ElementData[],
   paged: ReadonlySet<ElementRecord>,
+  compare: ListCompare,
+  more: Navigation,
 ): Promise<{
   readonly entries: readonly ListEntry[];
   readonly lists: readonly ListPage[];
@@ -420,7 +447,7 @@ const siteOf = async (
       })),
   );
   const lists = listsOf(context, entries).map(({ type, entries: listed }) =>
-    listPageOf(context, type, listed),
+    listPageOf(context, type, listed, compare),
   );
   const packages = packagesWithMembers(metamodel, entries);
   const navigation: Navigation = [
@@ -432,9 +459,204 @@ const siteOf = async (
         label: packageLabel(entry),
       })),
     },
+    ...more,
   ];
   const members = new Map([...packages].map(([entry, listed]) => [entry.element.id, listed]));
   return { entries, lists, navigation, members };
+};
+
+/** The key of an element copy in the rows of a baseline. */
+const copyKey = (id: string, repository: string | undefined): string => `${id}\n${String(repository)}`;
+
+/** The changes an element page names for a baseline: those of a baseline that lists the element or adds it. */
+const SHOWN_CHANGES: ReadonlySet<string> = new Set(["changed", "added", "removed", "unchanged"]);
+
+/** Whether a row's version differs from the one in the baseline, so its page shows the field difference (SR-232 AK7). */
+const differs = (row: BaselineRow): boolean =>
+  row.state === "changed" || (row.state === "removed" && row.current !== undefined);
+
+/** The differing rows of `baseline` with the copy of the store each names, by repository. */
+const differingRows = (
+  store: ElementStore,
+  baseline: ExportBaseline,
+): Map<string, { row: BaselineRow; record: ElementRecord }[]> => {
+  const byRepository = new Map<string, { row: BaselineRow; record: ElementRecord }[]>();
+  for (const row of baseline.elements) {
+    // A differing row names a copy of the store, in its repository.
+    const record = differs(row)
+      ? store.byId.get(row.id)?.find((r) => r.repository === row.repository)
+      : undefined;
+    if (record !== undefined) {
+      const rows = byRepository.get(record.repository) ?? [];
+      rows.push({ row, record });
+      byRepository.set(record.repository, rows);
+    }
+  }
+  return byRepository;
+};
+
+/** Why an element of repository `name` has no file at `commit` (`found`: what `filesAtCommit` gave, if asked). */
+const whyNone = (name: string, commit: string, found: FilesAtCommit | undefined): string =>
+  found === undefined
+    ? `the baseline names no commit of repository ${name}`
+    : !found.known
+      ? `Git cannot read repository ${name} (${found.detail})`
+      : found.kind === "no-commit"
+        ? `the commit ${commit.slice(0, 12)} of the baseline is not in the local Git history of repository ${name}`
+        : `no file of repository ${name} held the element at the commit ${commit.slice(0, 12)} of the baseline`;
+
+/**
+ * The field difference of the element of each differing row since its baseline: its file at the baseline's commit in
+ * its repository (`filesAtCommit`, one pass per baseline and repository) against its file now, or why it is not
+ * available. Only the difference is kept, not the files (N-036).
+ */
+const differencesOf = async (
+  layout: WorkspaceLayout,
+  metamodel: Metamodel,
+  store: ElementStore,
+  baselines: readonly ExportBaseline[],
+): Promise<Map<BaselineRow, Difference>> => {
+  const differences = new Map<BaselineRow, Difference>();
+  for (const baseline of baselines) {
+    const byRepository = differingRows(store, baseline);
+    for (const { name, folder } of layout.repositories) {
+      const rows = byRepository.get(name) ?? [];
+      const commit = baseline.repositories.find((r) => r.name === name)?.commit;
+      const found =
+        commit === undefined || rows.length === 0
+          ? undefined
+          : await filesAtCommit(
+              folder,
+              commit,
+              rows.map(({ record }) => ({ file: record.file, id: record.id })),
+            );
+      const files = found?.known === true && found.kind === "found" ? found.files : [];
+      for (const [index, { row, record }] of rows.entries()) {
+        const file = files[index];
+        const text =
+          file === undefined ? undefined : await readElementText(folder, record.file, record.snapshot);
+        differences.set(
+          row,
+          file === undefined
+            ? { unavailable: whyNone(name, String(commit), found) }
+            : text === undefined
+              ? { unavailable: `the file ${record.file} changed since it was read` }
+              : fieldDifference(metamodel, file, { type: record.type, data: record.data, text }),
+        );
+      }
+    }
+  }
+  return differences;
+};
+
+/** What each variant with a page adds, replaces and excludes, and its verification degree (SR-234 AK4). */
+const variantViews = async (
+  workspace: Workspace,
+  metamodel: Metamodel,
+  store: ElementStore,
+  paged: ReadonlySet<ElementRecord>,
+): Promise<Map<ElementRecord, VariantView>> => {
+  const views = new Map<ElementRecord, VariantView>();
+  const variants = variantsOf(store, metamodel).filter((r) => paged.has(r));
+  const index = viewRuleIndexOf(workspace, store, metamodel);
+  for (const variant of variants) {
+    const view = { kind: "variant", variant } as const;
+    const rule = viewRuleIn(index, view);
+    views.set(variant, {
+      added: rule.addedOf(),
+      replaced: rule.replacedOf(),
+      excluded: rule.excludedOf(),
+      degree: await selectionDegree(workspace, store.elements, view),
+    });
+  }
+  return views;
+};
+
+/**
+ * What the pages take from the baselines (SR-232 AK7, SR-233 AK2, SR-234 AK1): the rows of an element in each, newest
+ * first, with the field difference since a differing baseline; the change of a list row since each; and how a baseline's
+ * page names the element of a row.
+ */
+const baselineSite = async (
+  context: {
+    readonly layout: WorkspaceLayout;
+    readonly metamodel: Metamodel;
+    readonly store: ElementStore;
+    readonly shortIds: ShortIds;
+    readonly titleKey: string;
+    readonly withPage: ReadonlySet<ElementRecord>;
+  },
+  given: readonly ExportBaseline[] | undefined,
+): Promise<{
+  readonly baselines: readonly ExportBaseline[];
+  readonly since: (record: ElementRecord) => SinceBaseline[];
+  readonly compare: ListCompare;
+  readonly rowElement: (row: BaselineRow) => RowElement;
+}> => {
+  const { layout, metamodel, store } = context;
+  const baselines = given ?? [];
+  const rowsBy = baselines.map(
+    (b) => new Map(b.elements.map((row) => [copyKey(row.id, row.repository), row])),
+  );
+  const differences = await differencesOf(layout, metamodel, store, baselines);
+  const since = (record: ElementRecord): SinceBaseline[] =>
+    baselines.flatMap((baseline, index) => {
+      const row = rowsBy[index]?.get(copyKey(record.id, record.repository));
+      const difference = row === undefined ? undefined : differences.get(row);
+      return row === undefined || !SHOWN_CHANGES.has(row.state)
+        ? []
+        : [{ baseline, row, ...(difference === undefined ? {} : { difference }) }];
+    });
+  const compare: ListCompare = {
+    baselines: baselines.map((b) => `${b.name} (${dayOf(b.date)})`),
+    changeOf: (record) =>
+      rowsBy.map((rows) => {
+        const at = (CHANGE_VALUES as readonly string[]).indexOf(
+          String(rows.get(copyKey(record.id, record.repository))?.state),
+        );
+        return at < 0 ? CHANGE_VALUES.length - 1 : at;
+      }),
+  };
+  return { baselines, since, compare, rowElement: rowElementOf(context) };
+};
+
+/** The page of all baselines, a page per baseline and the variant comparison, each where there is one (SR-234). */
+const writeOverviews = async (
+  folder: ExportFolder,
+  framed: (path: string, title: string, body: string, own: Needs) => string,
+  site: {
+    readonly baselines: readonly ExportBaseline[];
+    readonly rowElement: (row: BaselineRow) => RowElement;
+    readonly views: ReadonlyMap<ElementRecord, VariantView>;
+    readonly entries: readonly ListEntry[];
+    readonly degree: Awaited<ReturnType<typeof selectionDegree>>;
+  },
+): Promise<void> => {
+  const { baselines, rowElement, views, entries, degree } = site;
+  if (baselines.length > 0) {
+    await folder.write(
+      BASELINES_PAGE,
+      framed(BASELINES_PAGE, "Baselines", baselinesPageBody(baselines), NO_NEEDS),
+    );
+  }
+  for (const baseline of baselines) {
+    const at = baselinePage(baseline);
+    await folder.write(
+      at,
+      framed(at, `Baseline ${baseline.name}`, baselinePageBody(baseline, rowElement), NO_NEEDS),
+    );
+  }
+  if (views.size > 0) {
+    const variants = entries.flatMap((entry) => {
+      const view = views.get(entry.record);
+      return view === undefined ? [] : [{ entry, degree: view.degree }];
+    });
+    const requirements = entries.filter(isRequirementEntry);
+    await folder.write(
+      VARIANTS_PAGE,
+      framed(VARIANTS_PAGE, "Variant comparison", variantsPageBody(degree, variants, requirements), NO_NEEDS),
+    );
+  }
 };
 
 /** Writes the HTML export of `workspace` into the absolute folder `target` (see the file comment). */
@@ -471,6 +693,10 @@ export const writeHtmlExport = async (
     store.elements.filter((r) => isInvalid(r) && !shared.has(r.id) && folder.earlier.has(elementPage(r.id))),
   );
   const withPage = new Set([...paged, ...stubbed]);
+  const { baselines, since, compare, rowElement } = await baselineSite(
+    { layout, metamodel, store, shortIds, titleKey, withPage },
+    options.baselines,
+  );
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];
   const reference = referenceResolver(layout, store, shortIds, withPage);
   const pageContext: Omit<ElementPageContext, "members"> = {
@@ -498,13 +724,38 @@ export const writeHtmlExport = async (
     );
     const shown = store.elements.filter((r) => withPage.has(r));
     const data = await elementDataOf(workspace, { layout, metamodel, store, shortIds }, shown);
+    const views = await variantViews(workspace, metamodel, store, paged);
+    const more: Navigation = [
+      {
+        label: "Baselines",
+        links:
+          baselines.length === 0
+            ? []
+            : [
+                { path: BASELINES_PAGE, label: "All baselines" },
+                ...baselines.map((b) => ({ path: baselinePage(b), label: b.name })),
+              ],
+      },
+      {
+        label: "Variants",
+        links: views.size === 0 ? [] : [{ path: VARIANTS_PAGE, label: "Variant comparison" }],
+      },
+    ];
     const { entries, lists, navigation, members } = await siteOf(
       workspace,
       { metamodel, store, shortIds },
       data,
       paged,
+      compare,
+      more,
     );
-    const context: PageContext = { folder, layout, page: { ...pageContext, members }, problems, reference };
+    const context: PageContext = {
+      folder,
+      layout,
+      page: { ...pageContext, members, since, variants: views },
+      problems,
+      reference,
+    };
     const framed = (
       path: string,
       title: string,
@@ -531,10 +782,12 @@ export const writeHtmlExport = async (
     for (const list of lists) {
       await folder.write(list.path, framed(list.path, list.title, list.body, NO_NEEDS, [LIST_SCRIPT]));
     }
+    const degree = await selectionDegree(workspace, store.elements, { kind: "core" });
+    await writeOverviews(folder, framed, { baselines, rowElement, views, entries, degree });
     const start = startPageBody({
       made,
       missing: layout.repositories.filter((r) => !r.available).map((r) => r.name),
-      degree: await selectionDegree(workspace, store.elements, { kind: "core" }),
+      degree,
       entries,
       types: typeCounts(metamodel, entries),
       lists,
