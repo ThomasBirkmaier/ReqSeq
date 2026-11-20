@@ -26,4 +26,4 @@ based-on:
   - { id: 6adc6920-0efc-478d-b91c-4ca42caaa8a8, version: n2:e84656cd8b820df6, title: Paket als Element }
 ---
 
-Das Tool muss für jede Funktion, die eine Auswahl verarbeitet, die Auswahl über Filter, gespeicherten Filter, Paket, Baseline, Variante, die Ausgabe eines Befehls oder eine Liste von IDs bilden lassen.
+Das Tool muss für jede Funktion, die eine Auswahl verarbeitet, die Auswahl über Filter, gespeicherten Filter, Paket, Baseline, Variante, die Ausgabe eines Befehls oder eine Liste von IDs bilden lassen. Ausgenommen ist das Anlegen einer Baseline: Es lehnt eine Baseline und die Ausgabe eines Befehls als Auswahl ab (SR-050 AK9) und einen gespeicherten Filter zusammen mit einer anderen Sicht als seiner (SR-050 AK8).
