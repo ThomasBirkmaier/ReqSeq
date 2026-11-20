@@ -385,8 +385,9 @@ describe("result lines", () => {
   });
 
   it("puts the problems of the output first, errors before warnings before infos, each under its heading", () => {
+    // Each of its own kind: several problems of one kind are a group (SR-223 AK3).
     const problem = (severity: string, message: string, extra: object = {}) => ({
-      code: `x.${severity}`,
+      code: `x.${message}`,
       severity,
       message,
       ...extra,

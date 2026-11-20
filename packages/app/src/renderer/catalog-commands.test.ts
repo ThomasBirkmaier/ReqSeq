@@ -256,6 +256,21 @@ describe("catalog commands in the command prompt", () => {
     }
   });
 
+  it("[SR-133/AK-w23t] in a read-only workspace offers and finds Agent guide, which writes the skill file, and no write command the tool refuses", () => {
+    for (const buffer of [shown, list]) {
+      const context = { ...setup([buffer]).context, readOnly: true };
+      const offered = catalogItems(context, CATALOG, ACTIONS);
+      const ids = new Set(offered.map((choice) => choice.id));
+      const refused = CATALOG.filter((c) => c.whileReadOnly === "refuse").map((c) => `command:${c.name}`);
+      expect(refused.length).toBeGreaterThan(10);
+      expect(refused.filter((id) => ids.has(id))).toEqual([]);
+      // SR-229 AK8: the skill file is written while the tool refuses other writes (SR-011 AK3).
+      expect(ids.has("command:tool.guide")).toBe(true);
+      const { items } = commandPrompt(context, undefined, offered);
+      expect(rank(items, (choice) => choice.name, "Agent guide")[0]?.item.name).toBe("Agent guide");
+    }
+  });
+
   it("[SR-108/AK-bs83] finds a catalog command by its initials and with one slip among the first three", () => {
     const { context } = setup([list]);
     const items = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items;
