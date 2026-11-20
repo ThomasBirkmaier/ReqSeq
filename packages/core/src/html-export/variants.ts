@@ -15,7 +15,7 @@ import { degreePercent } from "../evidence/degree-text.js";
 import type { ElementRecord } from "../model/index.js";
 import { findType } from "../metamodel/index.js";
 import { titleKeyOrEmpty } from "../model/index.js";
-import { badge, verificationVariant } from "./element-badge.js";
+import { verificationBadge } from "./badge.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import type { ListEntry } from "./list-page.js";
 import { identifierOf } from "./list-page.js";
@@ -79,7 +79,7 @@ export const variantsPageBody = (
   const cell = (element: RequirementEntry["element"], view: string): string => {
     const status = statusIn(element, view);
     if (status !== undefined) {
-      return badge(status, verificationVariant(status));
+      return verificationBadge(status);
     }
     return `<span class="rq-legend">${view === "core" ? "not in the core" : "not in the variant"}</span>`;
   };

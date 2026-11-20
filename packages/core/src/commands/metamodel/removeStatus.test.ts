@@ -234,7 +234,11 @@ describe("the answer of metamodel.removeStatus", () => {
       problems: [{}],
     };
     expect(
-      removeStatus.answer(output as never, { type: "note", status: "open" }, { type: (key) => key }),
+      removeStatus.answer(
+        output as never,
+        { type: "note", status: "open" },
+        { type: (key) => key, element: (ref) => ref },
+      ),
     ).toBe("Removed the status open from the type note; 1 file written; 1 problem.");
   });
 });

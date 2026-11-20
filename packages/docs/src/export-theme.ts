@@ -6,12 +6,16 @@
 // - the stylesheet the page links, the print one inside `@media print`;
 // - the page frame, parsed with parse5: Starlight's header, sidebar pane with its menu button, theme selects,
 //   content panel and footer with their scoped classes; every `<script>` and `<template>` removed, the social links,
-//   the table of contents and the links to the previous and next page left out, and the sidebar pane without
+//   the links to the previous and next page left out, and the sidebar pane without
 //   `popover` (the export's script sets it below the docs' breakpoint, as Starlight's does). The docs' search field
 //   (`Search.astro`) stays with its scoped classes, without the address of its index and `hidden`: the export's
 //   script shows it and searches the export's own index (SR-231 AK7). Slots
-//   take the site title and its link, the sidebar, the page title, the content and the footer, so neither the
-//   docs' version nor their `href="/"` lands in the file;
+//   take the site title and its link, the sidebar, the table of contents, the page title, the content and the
+//   footer, so neither the docs' version nor their `href="/"` lands in the file;
+// - the table of contents ("On this page") of the right column apart, its list emptied for the export's entries: only
+//   the panel the docs show on wide screens, since the one for narrow screens opens only with Starlight's script;
+//   a page without sections leaves out the whole column, as the docs do;
+// - the scoped class of Starlight's badge (`.sl-badge:where(.astro-…)` in the stylesheet), for the export's badges;
 // - Starlight's licence, which the export's notices name.
 //
 // It fails when a landmark is missing, or when the frame or the stylesheet keeps an address outside the page, so a
@@ -19,14 +23,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { DefaultTreeAdapterMap } from "parse5";
-import { defaultTreeAdapter, parse, serialize } from "parse5";
+import { defaultTreeAdapter, parse, serialize, serializeOuter } from "parse5";
 
 type Node = DefaultTreeAdapterMap["childNode"];
 type Element = DefaultTreeAdapterMap["element"];
 type ParentNode = DefaultTreeAdapterMap["parentNode"];
 
 /** The slots of the frame, in the order they appear. */
-export const SLOTS = ["home", "siteTitle", "sidebar", "title", "content", "footer"] as const;
+export const SLOTS = ["home", "siteTitle", "sidebar", "toc", "title", "content", "footer"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 export interface DocsTheme {
@@ -39,6 +43,12 @@ export interface DocsTheme {
   readonly frame: readonly string[];
   /** The scoped class of the sidebar's list, for the entries the export writes. */
   readonly sidebarScope: string;
+  /** The right column with the table of contents: the text before and after its entries. */
+  readonly toc: readonly [string, string];
+  /** The scoped class of the list of the table of contents, for the entries the export writes. */
+  readonly tocScope: string;
+  /** The scoped class of Starlight's badge, for the badges the export writes. */
+  readonly badgeScope: string;
 }
 
 export interface Notice {
@@ -49,6 +59,7 @@ export interface Notice {
 }
 
 const MARK = (slot: Slot): string => `@@reqseq-slot:${slot}@@`;
+const TOC_ENTRIES = "@@reqseq-toc-entries@@";
 
 const attribute = (element: Element, name: string): string | undefined =>
   element.attrs.find((a) => a.name === name)?.value;
@@ -114,10 +125,32 @@ const outsideAddresses = (frame: string): string[] => [
   ),
 ];
 
+/**
+ * The right column of `body` with its wide-screen table of contents and the list's entries replaced by a mark, and
+ * the list's scoped class; the column itself becomes the slot `toc` (see the file comment).
+ */
+const tocOf = (body: Element): { markup: string; scope: string } => {
+  const column = landmark(body, "right column", (e) => classes(e).includes("right-sidebar-container"));
+  for (const narrow of elements(column).filter((e) => classes(e).includes("lg:sl-hidden"))) {
+    defaultTreeAdapter.detachNode(narrow);
+  }
+  const panel = landmark(column, "table of contents", (e) => e.tagName === "starlight-toc");
+  const list = landmark(panel, "table of contents list", (e) => e.tagName === "ul");
+  const scope = classes(list).find((c) => /^astro-[a-z0-9]+$/u.test(c));
+  if (scope === undefined) {
+    throw new Error("export-theme: the list of the table of contents has no scoped class");
+  }
+  list.childNodes = [text(list, TOC_ENTRIES)];
+  const holder = landmark(body, "right column holder", (e) => e.childNodes.includes(column));
+  const markup = serializeOuter(column);
+  holder.childNodes = holder.childNodes.map((c) => (c === column ? text(holder, MARK("toc")) : c));
+  return { markup, scope };
+};
+
 /** The frame and the stylesheet links of the offline docs page `html` (see the file comment). */
 export const themeOfPage = (
   html: string,
-): { theme: Omit<DocsTheme, "stylesheet">; styles: { href: string; print: boolean }[] } => {
+): { theme: Omit<DocsTheme, "stylesheet" | "badgeScope">; styles: { href: string; print: boolean }[] } => {
   const document = parse(html);
   const root = landmark(document, "<html>", (e) => e.tagName === "html");
   const head = landmark(root, "<head>", (e) => e.tagName === "head");
@@ -136,12 +169,12 @@ export const themeOfPage = (
       name === "template" ||
       name === "starlight-lang-select" ||
       cls.includes("social-icons") ||
-      cls.includes("right-sidebar-container") ||
       cls.includes("pagination-links")
     ) {
       defaultTreeAdapter.detachNode(element);
     }
   }
+  const toc = tocOf(body);
   const search = landmark(body, "search field", (e) => e.tagName === "reqseq-search");
   search.attrs = [...search.attrs.filter((a) => a.name !== "data-index"), { name: "hidden", value: "" }];
   const title = landmark(body, "site title", (e) => e.tagName === "a" && classes(e).includes("site-title"));
@@ -179,11 +212,12 @@ export const themeOfPage = (
     "footer",
   );
   const serialized = serialize(body);
-  const outside = outsideAddresses(serialized);
+  const outside = outsideAddresses(serialized + toc.markup);
   if (outside.length > 0) {
     throw new Error(`export-theme: the frame keeps addresses outside the page: ${outside.join(", ")}`);
   }
   const frame = serialized.split(/@@reqseq-slot:(\w+)@@/u);
+  const tocParts = toc.markup.split(TOC_ENTRIES);
   const order = frame.filter((_, i) => i % 2 === 1);
   if (order.join(" ") !== SLOTS.join(" ")) {
     throw new Error(`export-theme: the slots are ${order.join(", ")}, not ${SLOTS.join(", ")}`);
@@ -194,6 +228,8 @@ export const themeOfPage = (
       bodyAttributes: attributesOf(body, []),
       frame,
       sidebarScope,
+      toc: [String(tocParts[0]), String(tocParts[1])],
+      tocScope: toc.scope,
     },
     styles,
   };
@@ -220,6 +256,15 @@ export const stylesheetOf = async (
   return css;
 };
 
+/** The scoped class of Starlight's badge in `stylesheet`; fails without one. */
+export const badgeScopeOf = (stylesheet: string): string => {
+  const scope = /\.sl-badge:where\(\.(astro-[a-z0-9]+)\)/u.exec(stylesheet)?.[1];
+  if (scope === undefined) {
+    throw new Error("export-theme: the stylesheet has no scoped style of Starlight's badge");
+  }
+  return scope;
+};
+
 /** The TypeScript module of `theme` and `notice`. */
 export const themeModule = (theme: DocsTheme, notice: Notice): string =>
   [
@@ -230,6 +275,9 @@ export const themeModule = (theme: DocsTheme, notice: Notice): string =>
     `export const DOCS_BODY_ATTRIBUTES = ${JSON.stringify(theme.bodyAttributes)};`,
     `export const DOCS_FRAME: readonly string[] = ${JSON.stringify(theme.frame)};`,
     `export const DOCS_SIDEBAR_SCOPE = ${JSON.stringify(theme.sidebarScope)};`,
+    `export const DOCS_TOC: readonly [string, string] = ${JSON.stringify(theme.toc)};`,
+    `export const DOCS_TOC_SCOPE = ${JSON.stringify(theme.tocScope)};`,
+    `export const DOCS_BADGE_SCOPE = ${JSON.stringify(theme.badgeScope)};`,
     `export const STARLIGHT_NOTICE = ${JSON.stringify(notice)} as const;`,
     "",
   ].join("\n");
@@ -259,7 +307,7 @@ export const buildThemeModule = async (paths: ThemePaths): Promise<string> => {
   };
   const licence = await fs.readFile(path.join(paths.starlight, "LICENSE"), "utf8");
   return themeModule(
-    { ...theme, stylesheet },
+    { ...theme, stylesheet, badgeScope: badgeScopeOf(stylesheet) },
     {
       name: "@astrojs/starlight",
       version: manifest.version,

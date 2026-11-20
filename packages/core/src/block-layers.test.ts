@@ -174,7 +174,14 @@ const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set([
   "next-steps",
   "generated",
 ]);
-const RUNTIME_ENTRY = new Set(["invoke", "warm", "element-short-ids", "local-path-fields", "output-count"]);
+const RUNTIME_ENTRY = new Set([
+  "invoke",
+  "warm",
+  "element-short-ids",
+  "local-path-fields",
+  "output-count",
+  "answer-names",
+]);
 const RUNTIME_STATE = new Set(["workspace", "settled", "contracts", "input-errors", "internal-cause"]);
 const BLOCK_FOLDERS: ReadonlySet<string> = new Set(
   LAYERS.flat().filter((unit) => unit !== "runtime entry" && unit !== "runtime state"),

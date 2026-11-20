@@ -45,9 +45,9 @@ const NO_DISPLAY: ElementDisplay = { bearing: [], display: { shared: {}, rows: [
 
 export default defineCommand({
   name: "evidence.list",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
-      `Found ${counted(output.records.length, "evidence record")} and ${counted(output.testCases.length, "test case")} of ${input.ref}`,
+      `Found ${counted(output.records.length, "evidence record")} and ${counted(output.testCases.length, "test case")} of ${names.element(input.ref, { repository: input.repository, file: input.file })}`,
       problemsNote(output.problems),
       incompleteNote(output.incomplete),
     ),

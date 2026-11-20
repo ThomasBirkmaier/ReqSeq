@@ -4,12 +4,12 @@
 // - fields (`section-fields.ts`, AK1): type, identifier, short ID, status, packages, verification or validation status;
 // - open hints (`section-hints.ts`, AK4): as `hint.list` gives them, above the text;
 // - text: the element's text, formatted (SR-231 AK5);
+// - the elements of a package on its page, below its text (`section-package.ts`, SR-233 AK4);
 // - acceptance criteria (`section-criteria.ts`, AK2), each with the evidence records that bear its status (AK3);
 // - evidence records of a requirement without criteria (`section-evidence.ts`, AK3);
 // - properties (`section-properties.ts`, AK1): every other filled property with the value `element.get` gives for it;
 // - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
 // - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references;
-// - the elements of a package on its page (`section-package.ts`, SR-233 AK4);
 // - on the page of a variant, what it adds, replaces and excludes and its verification degree (`variants.ts`,
 //   SR-234 AK4);
 // - the change since each baseline (`section-baselines.ts`, AK7).
@@ -76,12 +76,12 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     fieldsSection(context, page),
     hintsSection(page),
     `<section class="rq-text">${await page.markdown(page.text, "Text")}</section>`,
+    packageSection(context, page),
     await criteriaSection(context, page),
     evidenceSection(context, page),
     await propertiesSection(context, page),
     relationsSection(context, page),
     neighbourhoodSection(context, page),
-    packageSection(context, page),
     variantSection(context, page),
     baselinesSection(context, page),
   ].join("");

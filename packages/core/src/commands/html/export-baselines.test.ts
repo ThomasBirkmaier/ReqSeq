@@ -8,7 +8,7 @@
 import { readFile } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import type { HTMLElement, HTMLSelectElement } from "happy-dom";
+import type { HTMLElement, HTMLInputElement } from "happy-dom";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
@@ -245,16 +245,19 @@ describe("html.export: lists compared with a baseline", () => {
     expect(document.querySelector(".rq-list thead th:last-child")?.textContent).toBe("Change since baseline");
     listScript();
     expect(head()).not.toContain("Change since baseline");
-    const select = document.querySelector(".rq-baseline") as unknown as HTMLSelectElement;
-    expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+    // The chip "Compare" offers the baselines, newest first, "No baseline" chosen.
+    const compare = document.querySelector('[data-chip="compare"]') as unknown as HTMLElement;
+    expect([...compare.querySelectorAll("label")].map((o) => o.textContent)).toEqual([
       "No baseline",
       "Release 2 (2026-11-02)",
       "Release 1 (2026-10-23)",
       "Sensor (2026-10-01)",
     ]);
+    expect((compare.querySelector('[data-baseline="-1"]') as unknown as HTMLInputElement).checked).toBe(true);
     const choose = (value: string): void => {
-      select.value = value;
-      select.dispatchEvent(new window.Event("change", { bubbles: true }));
+      const radio = compare.querySelector(`[data-baseline="${value}"]`) as unknown as HTMLInputElement;
+      radio.checked = true;
+      radio.dispatchEvent(new window.Event("change", { bubbles: true }));
     };
     const changes = (): Record<string, string> =>
       Object.fromEntries(
@@ -276,7 +279,7 @@ describe("html.export: lists compared with a baseline", () => {
       "SR-0000e1": "removed",
     });
     const chip = [...document.querySelectorAll("[data-chip]")].find(
-      (c) => c.querySelector("summary")?.textContent === "Change since baseline",
+      (c) => c.querySelector(".rq-chip-values")?.getAttribute("aria-label") === "Change since baseline",
     ) as unknown as HTMLElement;
     expect(chip.hidden).toBe(false);
     expect([...chip.querySelectorAll("label")].map((l) => l.textContent)).toEqual([
@@ -304,6 +307,18 @@ describe("html.export: lists compared with a baseline", () => {
     expect(head()).not.toContain("Change since baseline");
     expect(chip.hidden).toBe(true);
     expect(Object.keys(changes())).toHaveLength(5);
+    // The chosen baseline stands in the line of the filters; removing it there, or "Clear", ends the comparison.
+    choose("0");
+    const token = document.querySelector('.rq-tokens [data-remove="baseline"]') as unknown as HTMLElement;
+    expect(token.textContent).toBe("Compared with Release 2 (2026-11-02) ×");
+    expect(compare.querySelector("summary")?.textContent).toBe("Compare 1");
+    token.click();
+    expect(head()).not.toContain("Change since baseline");
+    expect((compare.querySelector('[data-baseline="-1"]') as unknown as HTMLInputElement).checked).toBe(true);
+    choose("1");
+    (document.querySelector(".rq-clear") as unknown as HTMLElement).click();
+    expect(head()).not.toContain("Change since baseline");
+    expect(compare.querySelector("summary")?.textContent).toBe("Compare");
   });
 });
 
@@ -314,21 +329,23 @@ describe("html.export: baseline pages", () => {
     const index = await page(site, "baselines/index.html");
     const release2 = await page(site, baselineHref(index, "Release 2"));
     const shown = text(release2);
-    expect(shown).toContain("Name Release 2 Date 2026-11-02T13:00:00Z");
+    expect(shown).toContain(
+      "6 elements in the baseline. Since then 1 changed, 1 added, 3 removed, 1 superseded. Name Release 2 Date 2026-11-02T13:00:00Z",
+    );
     expect(shown).toContain(`Commits Repository Commit system ${first} sensor ${sensor}`);
     expect(shown).toContain(
-      `Changed Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
+      `Changed (1) Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
     );
     expect(shown).toContain(
-      "Added Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
+      "Added (1) Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
     );
     expect(shown).toContain(
-      `Removed Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
+      `Removed (3) Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
     );
     expect(shown).toContain(
-      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
+      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged (1) Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
     );
-    expect(shown).toContain("Superseded Identifier Title Status SR-0000b4 Show the wind obsolete");
+    expect(shown).toContain("Superseded (1) Identifier Title Status SR-0000b4 Show the wind obsolete");
     expect(release2).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
     expect(release2).not.toContain(`elements/${ID}b4.html`);
     expect(shown).not.toContain("stores no selection");
@@ -337,8 +354,10 @@ describe("html.export: baseline pages", () => {
     expect(release1).toContain(
       "This baseline stores no selection, so no element counts as added or removed.",
     );
-    expect(release1).toContain("Added None. Removed None.");
-    expect(release1).toContain(`Not in the workspace UUID Repository Why ${ID}ff no element file holds it`);
+    expect(release1).toContain("Added (0) None. Removed (0) None.");
+    expect(release1).toContain(
+      `Not in the workspace (1) UUID Repository Why ${ID}ff no element file holds it`,
+    );
   });
 
   it("[SR-234/AK-swvj] lists every baseline with date, number of elements and of changed ones, newest first", async () => {

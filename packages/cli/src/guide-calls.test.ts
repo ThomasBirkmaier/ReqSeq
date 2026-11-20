@@ -167,6 +167,67 @@ describe("the command-line calls of the agent guide", () => {
     );
   });
 
+  it("[SR-229/AK-j7mz] give each command of the MCP server instructions an input its schema takes, only commands of the catalog", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-instructions-cli-"));
+    onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+    // The commands that change elements need a workspace to run in.
+    const init = new Workspace(root);
+    await getCommandRuntime().invoke("workspace.init", { path: root, name: "Station" }, { workspace: init });
+    await init.close();
+    const workspace = new Workspace(root);
+    onTestFinished(() => workspace.close());
+    const output = await getCommandRuntime().invoke("tool.guide", { instructions: true }, { workspace });
+    const text = (output as { guide: string }).guide;
+    const calls = [...text.matchAll(/`([a-z]+)_([A-Za-z]+)`(?: with `([^`]+)`)?/g)].map((m) => ({
+      command: `${m[1] ?? ""}.${m[2] ?? ""}` as CommandName,
+      input: JSON.parse(m[3] ?? "{}") as object,
+    }));
+    expect(calls.map((call) => call.command)).toEqual([
+      "tool.guide",
+      "element.update",
+      "element.setStatus",
+      "element.supersede",
+    ]);
+    expect(calls.filter((call) => !getCommandRuntime().commands.has(call.command))).toEqual([]);
+    // A runtime of the catalog checks each input against its schema before the recording command runs.
+    const received: string[] = [];
+    const runtime = createCommandRuntime({
+      contracts: loadContracts(),
+      validateOutput: false,
+      commands: [...new Set(calls.map((call) => call.command))].map((name) =>
+        defineTestCommand({
+          name,
+          run: () => {
+            received.push(name);
+            return Promise.resolve({});
+          },
+        }),
+      ),
+    });
+    for (const call of calls) {
+      await runtime.invoke(call.command, call.input, { workspace, access: "mcp" });
+    }
+    expect(received).toEqual(calls.map((call) => call.command));
+  });
+
+  it("[SR-229/AK-gzbz] prints the MCP server instructions with --instructions, as --json and the MCP server give them", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-instructions-text-"));
+    onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+    let text = "";
+    await runCli({
+      argv: ["tool", "guide", "--instructions", "--names", "cli"],
+      cwd: root,
+      stdin: Readable.from([]),
+      stdout: { write: (chunk: string) => ((text += chunk), true) },
+      stderr: sink(),
+    });
+    const workspace = new Workspace(root);
+    onTestFinished(() => workspace.close());
+    const output = await getCommandRuntime().invoke("tool.guide", { instructions: true }, { workspace });
+    expect(text).toBe((output as { guide: string }).guide);
+    expect(text).toContain('`tool_guide` with `{"names":"mcp"}`');
+  });
+
   it("prints the guide as Markdown, unchanged, as --json gives it", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-guide-text-"));
     onTestFinished(() => fs.rm(root, { recursive: true, force: true }));

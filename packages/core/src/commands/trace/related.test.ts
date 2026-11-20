@@ -175,7 +175,7 @@ describe("trace.related (SR-023)", () => {
     expect(ids(await related(opened, { refs: [D], direction: "parents", maxDepth: 1 }))).toEqual([C]);
     // A need derives from nothing.
     expect(await related(opened, { refs: [N1], direction: "parents" })).toEqual({
-      answer: "Found 0 parents of 2302a0de-0000-4000-8000-0000000000a1.",
+      answer: "Found 0 parents of N-0000a1.",
       elements: [],
       total: 0,
       incomplete: false,

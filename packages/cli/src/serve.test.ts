@@ -13,6 +13,7 @@ import {
   defineWorkspaceState,
   getCommandRuntime,
   loadContracts,
+  Workspace,
 } from "@reqseq/core";
 import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -46,7 +47,7 @@ const runtimeFor = (names: readonly string[]): CommandRuntime =>
     validateOutput: true,
     commands: [
       defineTestCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
-      // The MCP server sends the output of tool.guide as its instructions (SR-229 AK1).
+      // The MCP server sends the output of tool.guide with instructions as its instructions (SR-229 AK17).
       defineTestCommand({ name: "tool.guide", run: () => Promise.resolve({ guide: "Test guide" }) }),
       defineTestCommand({
         name: "test.closeFails",
@@ -335,7 +336,7 @@ describe("reqseq mcp", () => {
     await client.close();
   });
 
-  it("[SR-229/AK-hyqj] starts in a folder without a workspace, with the guide that names the reason as its instructions", async () => {
+  it("[SR-229/AK-gzbz] starts in a folder without a workspace, with the MCP server instructions of tool.guide", async () => {
     // Outside the fixture, whose workspace file the command line would find above the folder.
     const empty = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-empty-"));
     onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
@@ -355,8 +356,11 @@ describe("reqseq mcp", () => {
     toServer.end();
     expect(await exit).toBe(EXIT.ok);
     await client.close();
-    expect(instructions).toContain("Reason: No reqseq-workspace.yaml in the workspace folder.");
-    expect(instructions).toContain("`workspace_init`");
+    const folder = new Workspace(empty);
+    onTestFinished(() => folder.close());
+    const expected = await product.invoke("tool.guide", { instructions: true }, { workspace: folder });
+    expect(instructions).toBe((expected as { guide: string }).guide);
+    expect(instructions).toContain('`tool_guide` with `{"names":"mcp"}`');
   });
 
   it("stops at the signal", async () => {
