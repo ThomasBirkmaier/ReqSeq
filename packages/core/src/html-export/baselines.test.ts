@@ -15,7 +15,7 @@ import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { pageLinks } from "./links.js";
 import type { NeighbourhoodSource } from "./section-neighbourhood.js";
 import { baselinesSection } from "./section-baselines.js";
-import { degreeSentence, variantSection, variantsPageBody } from "./variants.js";
+import { degreeSentence, named, variantSection, variantsPageBody } from "./variants.js";
 
 const A = "23400000-0000-4000-8000-0000000000a1";
 const B = "23400000-0000-4000-8000-0000000000b1";
@@ -228,5 +228,15 @@ describe("variants (SR-234 AK3, AK4)", () => {
       page(variant, ""),
     );
     expect(plain(html)).toContain("Adds SR-b1 Replaces None. Excludes None.");
+  });
+
+  it("names a package by its title once, and one without title by its identifier", async () => {
+    const ctx = await context([]);
+    const pkg = (title?: string): ElementRecord => ({
+      ...record(C, { "spec-id": "Wind", ...(title === undefined ? {} : { title }) }),
+      type: "package",
+    });
+    expect(named(ctx, pkg("Wind and weather"))).toBe("Wind and weather");
+    expect(named(ctx, pkg())).toBe("Wind");
   });
 });

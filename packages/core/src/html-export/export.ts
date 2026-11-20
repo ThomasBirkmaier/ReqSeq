@@ -35,7 +35,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState, propertyWithMeaning } from "../metamodel/index.js";
 import { selectionDegree } from "../evidence/index.js";
 import { listHints } from "../hints/index.js";
-import { NO_RANKS, compareSortValues, sortValueOf } from "../query/index.js";
+import { NO_RANKS, compareSortValues, sortElements, sortValueOf } from "../query/index.js";
 import type {
   ElementRecord,
   ElementStore,
@@ -562,15 +562,22 @@ const differencesOf = async (
   return differences;
 };
 
-/** What each variant with a page adds, replaces and excludes, and its verification degree (SR-234 AK4). */
+/**
+ * What each variant with a page adds, replaces and excludes, and its verification degree (SR-234 AK4), in the order of
+ * their identifier, as the sidebar lists them.
+ */
 const variantViews = async (
   workspace: Workspace,
-  metamodel: Metamodel,
-  store: ElementStore,
+  context: ListContext,
   paged: ReadonlySet<ElementRecord>,
 ): Promise<Map<ElementRecord, VariantView>> => {
+  const { metamodel, store, shortIds } = context;
   const views = new Map<ElementRecord, VariantView>();
-  const variants = variantsOf(store, metamodel).filter((r) => paged.has(r));
+  const variants = sortElements(
+    { command: "html.export", metamodel, store, shortIds },
+    variantsOf(store, metamodel).filter((r) => paged.has(r)),
+    [{ by: "identifier", order: "asc" }],
+  ).elements;
   const index = viewRuleIndexOf(workspace, store, metamodel);
   for (const variant of variants) {
     const view = { kind: "variant", variant } as const;
@@ -739,7 +746,7 @@ export const writeHtmlExport = async (
     );
     const shown = store.elements.filter((r) => withPage.has(r));
     const data = await elementDataOf(workspace, { layout, metamodel, store, shortIds }, shown);
-    const views = await variantViews(workspace, metamodel, store, paged);
+    const views = await variantViews(workspace, { metamodel, store, shortIds }, paged);
     const more: Navigation = [
       {
         label: "Baselines",
@@ -753,7 +760,16 @@ export const writeHtmlExport = async (
       },
       {
         label: "Variants",
-        links: views.size === 0 ? [] : [{ path: VARIANTS_PAGE, label: "Variant comparison" }],
+        links:
+          views.size === 0
+            ? []
+            : [
+                { path: VARIANTS_PAGE, label: "Variant comparison" },
+                ...[...views.keys()].map((variant) => ({
+                  path: elementPage(variant.id),
+                  label: headingOf(metamodel, variant, titleKeyOrEmpty(metamodel), shortIds),
+                })),
+              ],
       },
     ];
     const { entries, lists, navigation, members } = await siteOf(
