@@ -3,9 +3,11 @@
 // property row, a status, the label line of a relation property or of a relation kind offers the commands of
 // that place, and each opens the command prompt with the definition given. "Add status to type" run from the
 // menu writes the metamodel, the graph and the text mark the new status until the next metamodel command in
-// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go through Chromium's input (Playwright's mouse). The light
+// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing; a command that
+// writes nothing and a failed open keep the mark, opening a workspace clears it. Right-clicks go through Chromium's input (Playwright's mouse). The light
 // screenshot goes to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
@@ -39,6 +41,51 @@ const chooseOn = async (target: Locator, entries: readonly string[], name: strin
 /** The texts of the places marked as the last change. */
 const changed = (window: Page): Promise<string[]> => window.locator(".changed").allTextContents();
 
+/** Shows the metamodel as a graph through the command prompt, once it is laid out. */
+const showMetamodel = async (window: Page): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type("Show metamodel");
+  await expect(marked(window)).toHaveText("Show metamodel");
+  await window.keyboard.press("Enter");
+  await expect(window.locator(".metamodel")).toHaveAttribute("data-laid-out", "6");
+};
+
+/** Gives the type `type` (named `name`) the name `to` with "Change type definition" from its menu. */
+const renameType = async (window: Page, type: string, name: string, to: string): Promise<void> => {
+  await chooseOn(
+    box(window, type).locator(".mm-name"),
+    [
+      "Add property to type",
+      "Add status to type",
+      "Change type definition",
+      "Add relation kind",
+      "Remove type",
+    ],
+    "Change type definition",
+  );
+  await expect(label(window)).toHaveText(`Change type definition ${name} · Change:`);
+  await window.keyboard.type("Name");
+  await expect(marked(window)).toHaveText("Name");
+  await window.keyboard.press("Enter");
+  await expect(input(window)).toHaveValue(name);
+  await window.keyboard.press("ControlOrMeta+A");
+  await window.keyboard.type(to);
+  await window.keyboard.press("Enter");
+  await expect(label(window)).toBeHidden();
+};
+
+/** Opens the workspace at the typed folder `folder` with "Open workspace" (SR-131 AK5). */
+const openWorkspace = async (window: Page, folder: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type("Open workspace");
+  await expect(marked(window)).toHaveText("Open workspace");
+  await window.keyboard.press("Enter");
+  await expect(label(window)).toHaveText("Workspace");
+  await window.keyboard.type(folder);
+  await expect(marked(window)).toHaveText(`Open ${folder}`);
+  await window.keyboard.press("Enter");
+};
+
 test.describe("the context menus of the metamodel's graph (SR-199)", () => {
   let running: RunningApp;
 
@@ -46,11 +93,7 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     running = await launchApp({ fixture: "SR-130/metamodel" }, { colorScheme: "light" });
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type("Show metamodel");
-    await expect(marked(window)).toHaveText("Show metamodel");
-    await window.keyboard.press("Enter");
-    await expect(window.locator(".metamodel")).toHaveAttribute("data-laid-out", "6");
+    await showMetamodel(window);
   });
 
   test.afterEach(async () => {
@@ -164,6 +207,27 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
       "Remove status from type",
     );
     await expect(box(window, "decision").locator('[data-status="pending"]')).toHaveCount(0);
+    expect(await changed(window)).toEqual([]);
+  });
+
+  test("[SR-130/AK-wb12] a command that writes nothing and a failed open keep the mark, and opening a workspace, also the same one, clears it", async () => {
+    const { window } = running;
+    await renameType(window, "decision", "Decision", "Ruling");
+    // The mark comes with the answer, the new name when the metamodel is read again.
+    await expect(window.locator(".changed")).toHaveText(["RulingD"]);
+    // The same name again writes no file: the mark of the last change stays, none for Package.
+    await renameType(window, "package", "Package", "Package");
+    await expect(window.getByLabel("Minibuffer")).toContainText("no file written");
+    expect(await changed(window)).toEqual(["RulingD"]);
+    // A folder without a workspace opens nothing (SR-131 AK5): the mark stays.
+    await openWorkspace(window, os.tmpdir());
+    await expect(window.getByLabel("Minibuffer")).toHaveText(/stays open$/u);
+    expect(await changed(window)).toEqual(["RulingD"]);
+    // A folder of the open workspace opens it again, on the overview; its metamodel has no mark.
+    await openWorkspace(window, path.join(running.workspace?.root ?? "", "model"));
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await showMetamodel(window);
+    await expect(box(window, "decision").locator(".mm-name")).toHaveText("Ruling");
     expect(await changed(window)).toEqual([]);
   });
 });

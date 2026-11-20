@@ -3,7 +3,8 @@
 // name, prefix and key, "abstract", its parent, its properties with value kind, "required" and "counts to
 // version" (the inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
 // source and target types, and a line per limit under it (SR-152); then the problems of the output. Greys only (D-062).
-// The last change of the metamodel made in the app is marked as in the graph (`marks`, SR-130 AK7).
+// The last change of the metamodel made in the app is marked as in the graph (`marks`, SR-130 AK7): a type's
+// head and its own "extends" row, a property row, a status, and a relation kind's line and its limit rows.
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
 // Ctrl+P, Page Up and Page Down, Home and End move the mark. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
@@ -37,7 +38,8 @@ const TypeSection = ({
       {row.abstract ? <span className="mm-note">abstract</span> : null}
     </div>
     {row.parent === undefined ? null : (
-      <div className="mm-fact" data-parent="">
+      // The type's own parent row: a changed parent does not mark the row of a type that extends it.
+      <div className={marked("mm-fact", marks.type(row.type))} data-parent="">
         <span className="mm-fact-name">extends</span> <span className="mm-fact-value">{row.parent}</span>
       </div>
     )}
@@ -104,7 +106,7 @@ const RelationLine = ({
     </div>
     {row.limits.map((limit, at) => (
       // Two limits can read the same (type names are not unique), so the place keys the line.
-      <div key={at} className="mm-fact" data-limit="">
+      <div key={at} className={marked("mm-fact", marks.kind(row.relation))} data-limit="">
         <span className="mm-fact-name">limit</span> <span className="mm-fact-value">{limit}</span>
       </div>
     ))}

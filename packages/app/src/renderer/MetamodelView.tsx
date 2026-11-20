@@ -105,14 +105,19 @@ const linePlace = (
   };
 };
 
-/** Whether a label line shows the last change: its kind, or its property from the type of its curve. */
-const lineChanged = (link: MetamodelLink, source: MetamodelNode | undefined, marks: ChangeMarks): boolean =>
-  link.link === "relation"
-    ? marks.kind(link.kind)
-    : link.link === "property" &&
-      source !== undefined &&
-      !source.any &&
-      marks.property(source.type, link.property);
+/**
+ * Whether a label line shows the last change: its kind, its property from the type of its curve, or the
+ * "extends" of the type the curve starts at (its own parent, not the "extends" of a type extending it).
+ */
+const lineChanged = (link: MetamodelLink, source: MetamodelNode | undefined, marks: ChangeMarks): boolean => {
+  if (link.link === "relation") {
+    return marks.kind(link.kind);
+  }
+  if (source === undefined || source.any) {
+    return false;
+  }
+  return link.link === "extends" ? marks.type(source.type) : marks.property(source.type, link.property);
+};
 
 /** A label line's key among the lines of its edge: one per kind or property, one inheritance. */
 const lineKey = (link: MetamodelLink): string =>
