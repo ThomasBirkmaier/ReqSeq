@@ -2,7 +2,7 @@
 import path from "node:path";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
+import { CRITERIA, HINTS, IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const PAGE = `site/elements/${WIND}.html`;
@@ -284,6 +284,38 @@ scenariosOf("html.export", [
         expect(page).toContain("<p>Given wind, then it shows.</p>");
         expect(page).toContain(
           '<strong>AK2</strong> <span class="rq-criterion-status">open</span></p><p>Given calm, then 0 shows.</p>',
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-z2fm]",
+    name: "an acceptance criterion lists the evidence records that bear its status",
+    fixture: CRITERIA,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files["site/elements/31313131-0000-4000-8000-3131310000e3.html"]));
+        expect(page).toContain(
+          '<p>Given a reading, then it shows.</p><div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div>',
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-q95d]",
+    name: "an element's open hints stand above its text",
+    fixture: HINTS,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files["site/elements/26a0b000-0000-4000-8000-0000000000b2.html"]));
+        expect(page).toContain(
+          '<p class="starlight-aside__title" aria-hidden="true">Open hints</p><div class="starlight-aside__content"><ul><li>Required property Acceptance Criteria (acceptance-criteria) of type System Requirement (system-requirement) has no value; ReqSeq changes no file</li></ul></div></aside><section class="rq-text">',
         );
       }
     },

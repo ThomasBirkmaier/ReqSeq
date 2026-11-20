@@ -153,8 +153,11 @@ describe("html.export shows every field of an element (SR-232 AK1)", () => {
         row("Verification status in the core", "not in the core", "not in the core"),
         row("Verification status in VAR-00c001 (VAR-1)", "open", "open"),
         "</dl>",
-        '<section class="rq-text"><p>The station shows the wind speed.</p></section>',
       ].join(""),
+    );
+    // Then the text, after the open hints (SR-232 AK4).
+    expect(wind).toContain(
+      '</aside><section class="rq-text"><p>The station shows the wind speed.</p></section>',
     );
     // Every other filled property as in the file; a relation property as links.
     expect(wind).toContain(
@@ -205,7 +208,7 @@ describe("html.export shows the acceptance criteria (SR-232 AK2)", () => {
     // Keys: each criterion copies its reference for test names.
     const keyed = await read(fixture, "31313131-0000-4000-8000-3131310000e3");
     expect(keyed).toContain(
-      '<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status">verified</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kred]" aria-label="Copy criterion reference [SR-0000e3/AK-kred]" title="Copy criterion reference [SR-0000e3/AK-kred]" hidden></button></p><p>Given a reading, then it shows.</p></li>',
+      '<li><p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status">verified</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kred]" aria-label="Copy criterion reference [SR-0000e3/AK-kred]" title="Copy criterion reference [SR-0000e3/AK-kred]" hidden></button></p><p>Given a reading, then it shows.</p>',
     );
     expect(keyed).toContain(
       '<strong>AK3</strong> <code>kfro</code> <span class="rq-criterion-status">outdated</span><button type="button" class="rq-copy" data-copy="[SR-0000e3/AK-kfro]"',

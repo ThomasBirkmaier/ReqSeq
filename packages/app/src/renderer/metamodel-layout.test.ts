@@ -4,6 +4,8 @@ import type { MetamodelEdge, MetamodelGraph, TypeNode } from "@reqseq/core/metam
 import { metamodelGraph } from "@reqseq/core/metamodel-graph";
 import type { MetamodelLayout, PlacedType } from "./metamodel-layout.js";
 import {
+  STATUS_LINE,
+  STATUS_TOP,
   TYPE_HEADER,
   TYPE_LINE,
   TYPE_PAD,
@@ -11,6 +13,7 @@ import {
   estimate,
   freeSpot,
   labelSize,
+  statusRows,
   typeWidth,
   layoutMetamodel,
 } from "./metamodel-layout.js";
@@ -89,7 +92,9 @@ const typeNode = (key: string, properties = 0): TypeNode => ({
     key: `p${String(index)}`,
     name: `P${String(index)}`,
     inherited: false,
+    owner: key,
   })),
+  statuses: [],
 });
 
 const edge = (source: string, target: string, name = `${source}-${target}`): MetamodelEdge => ({
@@ -104,16 +109,21 @@ const graphOf = (keys: readonly string[], edges: readonly MetamodelEdge[]): Meta
 });
 
 describe("layoutMetamodel", () => {
-  it("[SR-130/AK-s795] places every parent and every target type above, each node as tall as its properties, a loop beside its node and every label on its curve", () => {
+  it("[SR-130/AK-s795] places every parent and every target type above, each node as tall as its properties and its row of statuses, a loop beside its node and every label on its curve", () => {
     const graph = metamodelGraph(FIXTURE_METAMODEL);
     const layout = layoutMetamodel(graph);
+    const statuses = STATUS_TOP + STATUS_LINE;
     expect(layout.nodes.map((placed) => [placed.key, placed.width, placed.height])).toEqual([
-      ["type:item", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + TYPE_LINE],
-      ["type:requirement", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + 3 * TYPE_LINE],
-      ["type:software-requirement", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + 4 * TYPE_LINE],
-      ["type:decision", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + TYPE_LINE],
+      ["type:item", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + TYPE_LINE + statuses],
+      ["type:requirement", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + 3 * TYPE_LINE + statuses],
+      ["type:software-requirement", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + 4 * TYPE_LINE + statuses],
+      ["type:decision", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + TYPE_LINE + statuses],
+      // Package has no status: no row.
       ["type:package", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER + TYPE_LINE],
       ["any", TYPE_WIDTH, 2 * TYPE_PAD + TYPE_HEADER],
+    ]);
+    expect(box(layout, "type:item").statusRows.map((row) => row.map((status) => status.key))).toEqual([
+      ["draft", "approved", "retired"],
     ]);
     // No two boxes overlap.
     for (const a of layout.nodes) {
@@ -252,9 +262,17 @@ describe("layoutMetamodel", () => {
     const tens = (text: string): number => text.length * 10;
     expect(typeWidth(wide, tens)).toBe(300 + 8 + 80 + 8 + 30 + 18 + 4);
     expect(typeWidth({ ...wide, abstract: false }, tens)).toBe(300 + 8 + 30 + 18 + 4);
-    const property = { ...typeNode("t"), properties: [{ key: "p", name: "P".repeat(40), inherited: true }] };
+    const property = {
+      ...typeNode("t"),
+      properties: [{ key: "p", name: "P".repeat(40), inherited: true, owner: "t" }],
+    };
     expect(typeWidth(property, tens)).toBe(400 + 18 + 4);
-    expect(typeWidth({ key: "any", any: true, name: "Any type", properties: [] }, tens)).toBe(TYPE_WIDTH);
+    // A status tag is its name with border and padding (10 px).
+    const status = { key: "s", name: "S".repeat(40), initial: false, invalid: false };
+    expect(typeWidth({ ...typeNode("t"), statuses: [status] }, tens)).toBe(400 + 10 + 18 + 4);
+    expect(typeWidth({ key: "any", any: true, name: "Any type", properties: [], statuses: [] }, tens)).toBe(
+      TYPE_WIDTH,
+    );
     expect(typeWidth(typeNode("t"), estimate)).toBe(TYPE_WIDTH);
     // The layout places a box with that width, and a label with the width of its widest line.
     const layout = layoutMetamodel(
@@ -263,5 +281,33 @@ describe("layoutMetamodel", () => {
     );
     expect(layout.nodes[0]?.width).toBe(typeWidth(wide, tens));
     expect(layout.paths[0]?.label.width).toBe(90 + 8 + 4);
+  });
+
+  it("puts the statuses side by side and starts a new row where the next tag does not fit, the initial one measured in its own font", () => {
+    const fonts: string[] = [];
+    const tens = (text: string, font: string): number => {
+      fonts.push(font);
+      return text.length * 10;
+    };
+    const status = (key: string, length: number, initial = false) => ({
+      key,
+      name: "s".repeat(length),
+      initial,
+      invalid: false,
+    });
+    // Room 224 - 18 = 206: tags of 60 + 4 + 60 + 4 + 60 = 188 fit, a fourth does not.
+    const node = {
+      ...typeNode("t"),
+      statuses: [status("a", 5, true), status("b", 5), status("c", 5), status("d", 5)],
+    };
+    expect(statusRows(node, 224, tens).map((row) => row.map((given) => given.key))).toEqual([
+      ["a", "b", "c"],
+      ["d"],
+    ]);
+    expect(fonts.slice(0, 2)).toEqual(["initial", "status"]);
+    expect(statusRows(typeNode("t"), 224, tens)).toEqual([]);
+    // The layout makes the box as tall as its rows.
+    const layout = layoutMetamodel({ nodes: [node], edges: [] }, tens);
+    expect(layout.nodes[0]?.height).toBe(2 * TYPE_PAD + TYPE_HEADER + STATUS_TOP + 2 * STATUS_LINE);
   });
 });

@@ -17,6 +17,7 @@ import { IdScope } from "./area-scope.js";
 import type { ListViewProps } from "./ListView.js";
 import { ListView } from "./ListView.js";
 import { MatrixView } from "./MatrixView.js";
+import type { MetamodelChange } from "./metamodel-changes.js";
 import { MetamodelView } from "./MetamodelView.js";
 import type { BufferData } from "./modeline.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
@@ -107,6 +108,8 @@ export interface AreaViews {
   readonly typeNames: ReadonlyMap<string, string>;
   /** The names of the relation kinds and relation properties by their key, from the metamodel (SR-154). */
   readonly kindNames: ReadonlyMap<string, string>;
+  /** The last change of the metamodel made in the app, which the metamodel buffer marks (SR-130 AK7). */
+  readonly metamodelChange: MetamodelChange;
   /** What the overview shows (`useOverview`), read while an area shows it. */
   readonly overview: {
     readonly data: OverviewData | undefined;
@@ -217,6 +220,7 @@ const BufferView = ({
         onEcho={onEcho}
         onDrawn={onDrawn}
         split={split}
+        changed={views.metamodelChange}
       />
     );
   }

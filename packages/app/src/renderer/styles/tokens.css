@@ -25,7 +25,8 @@
   --agent-connected: light-dark(#1a7f37, #3fb950);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --outside-change: light-dark(#ebeef1, #292e34);
-  /* A mark in the input of the command prompt (SR-215 AK3): a grey of its own, not the selection's. */
+  /* A mark in the input of the command prompt (SR-215 AK3), and the last change of the metamodel (SR-130
+     AK7): a grey of its own, not the selection's. */
   --mark: light-dark(#e3e5e8, #383e46);
   /* The dimmed backdrop behind the card of the command line (SR-182); the text behind it keeps 4.5:1. */
   --dim: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 12%));

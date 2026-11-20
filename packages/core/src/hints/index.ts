@@ -38,4 +38,4 @@ export {
   sinceBaselineProblems,
 } from "./since-baseline.js";
 export type { HintFilter } from "./list.js";
-export { HINT_STATES, hintsOf, isHint, listHints, resolveHintFilter } from "./list.js";
+export { HINT_STATES, hintsByElement, hintsOf, isHint, listHints, resolveHintFilter } from "./list.js";
