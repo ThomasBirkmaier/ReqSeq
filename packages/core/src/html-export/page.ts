@@ -29,7 +29,7 @@ export const ASSETS = {
 /** The docs' stylesheet, as the export writes it. */
 export const DOCS_CSS = DOCS_STYLESHEET;
 
-/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page. */
+/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs. */
 export const OWN_CSS = [
   ".rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
@@ -37,6 +37,7 @@ export const OWN_CSS = [
   ".rq-diagram-image { display: block; max-width: 100%; height: auto; }",
   ".sl-markdown-content .katex-display { overflow-x: auto; overflow-y: hidden; }",
   ...ELEMENT_PAGE_CSS,
+  "reqseq-search[hidden], .rq-search-more[hidden] { display: none; }",
   "",
 ].join("\n");
 

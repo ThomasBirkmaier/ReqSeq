@@ -205,12 +205,35 @@ describe("metamodel.get names the uses of each definition (SR-236 AK8)", () => {
     const meta = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
     expect(meta.uses).toEqual({
       types: { hazard: 1, risk: 1, note: 1 },
-      properties: { title: 3, severity: 2, likelihood: 1, remark: 1 },
+      // A property counts on every element whose file holds its key, of any type, also empty (AK8):
+      // the system requirement of the fixture holds a title, the element of type gone a severity.
+      properties: { title: 5, severity: 3, likelihood: 1, remark: 1 },
       // A fixed value counts on any element with it, also one of a type the metamodel does not have.
       values: { severity: { low: 1, high: 1 } },
       relations: { about: 1 },
       // Open is not a status of a note: that element does not count for it.
       statuses: { draft: 1, open: 1, noted: 0 },
+    });
+  });
+
+  it("[SR-236/AK-wq1x] counts a property on an element of another type, of an unknown type and with an empty value, as the refusal of its value kind does", async () => {
+    const { workspace } = await openSmall(
+      elements(
+        [1, "note", { severity: "high" }],
+        [2, "gone", { severity: '""' }],
+        [3, "hazard", { severity: "low" }],
+        [4, "hazard"],
+      ),
+    );
+    const meta = await run<CommandOutput<"metamodel.get">>(workspace, "metamodel.get", {});
+    expect(meta.uses.properties["severity"]).toBe(3);
+    const refused = await failure(workspace, "metamodel.changeProperty", {
+      property: "severity",
+      many: true,
+    });
+    expect(refused.details).toMatchObject({
+      reason: "in-use",
+      uses: [{ kind: "property", key: "severity", count: 3 }],
     });
   });
 });

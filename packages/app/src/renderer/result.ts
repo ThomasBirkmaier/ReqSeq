@@ -25,7 +25,13 @@ import { problemTitle } from "@reqseq/core/problem-titles";
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { shownId, shownIdTitle } from "./id-title.js";
-import { elementBuffer, elementBufferOf, outputList, readOnlyBuffer } from "./buffers.js";
+import {
+  elementBuffer,
+  elementBufferOf,
+  outputList,
+  outputSelectionList,
+  readOnlyBuffer,
+} from "./buffers.js";
 import { isTestCase, testCaseLines } from "./runs.js";
 
 /**
@@ -63,8 +69,22 @@ export interface ResultLine {
   readonly group?: string;
   /** A group line: whether it is open, so that its problems follow it. */
   readonly unfolded?: boolean;
-  /** The list of the elements of a group's problems, which Enter or a click opens (SR-223 AK3). */
+  /**
+   * The list Enter or a click opens: of the elements of a group's problems (SR-223 AK3), or of the elements a number
+   * of the output counts (SR-223 AK5, `countList`).
+   */
   readonly list?: ListBuffer;
+}
+
+/**
+ * The call an output is the answer of, which a number of elements in it opens again as a list (SR-223 AK5): its
+ * command and input, the name of its buffer, and whether it wrote (a write is never run again).
+ */
+export interface ResultOrigin {
+  readonly command: string;
+  readonly input: Readonly<Record<string, unknown>>;
+  readonly name: string;
+  readonly written?: boolean;
 }
 
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
@@ -99,6 +119,12 @@ interface Walk {
   readonly detail: boolean;
   /** The keys of the groups of problems that are open (SR-223 AK3). */
   readonly unfolded: ReadonlySet<string>;
+  /** The call of the output, for the lists its numbers of elements open (SR-223 AK5); none: they open nothing. */
+  readonly origin?: ResultOrigin;
+  /** The whole output, where a number of a write command finds the elements it counts. */
+  readonly root: unknown;
+  /** The items of the lists the walk is in, outermost first: the entries a number is keyed by (`x-key`). */
+  readonly items: readonly Rec[];
 }
 
 /** An element as outputs give it: an ID, its repository, a short ID and a title. */
@@ -378,6 +404,85 @@ const problemLines = (
   }
 };
 
+/** The value at the dotted `path` of `value` (`a.b`, a leading dot allowed); undefined where it has none. */
+const dig = (value: unknown, path: string): unknown =>
+  path
+    .split(".")
+    .filter((part) => part !== "")
+    .reduce<unknown>((at, part) => (isRecord(at) ? at[part] : undefined), value);
+
+/**
+ * The UUIDs of the elements at `path` of a write command's output, a field the catalog marks as the list a number
+ * counts (`x-elements`); each `[]` of it is the item of that list the walk is in (`Walk.items`).
+ */
+const idsAt = (path: string, walk: Walk): string[] => {
+  const parts = path.split("[]");
+  const found = parts.reduce<unknown>(
+    (_at, part, level) => dig(level === 0 ? walk.root : walk.items[level - 1], part),
+    undefined,
+  );
+  return Array.isArray(found)
+    ? found.flatMap((each: unknown) =>
+        typeof each === "string" ? [each] : (str(isRecord(each) ? each["id"] : undefined) ?? []),
+      )
+    : [];
+};
+
+/**
+ * The list of the elements a number of the output counts, which the catalog marks `x-elements` with the lists
+ * or `selection` (SR-223 AK5): of a read command `selection.output` with the number (`count`: its field and, per
+ * list it is in, the fields of its entry the catalog names, `x-key`), so the list holds exactly what the command
+ * line, API and MCP give for it; of a write command, which is never run again, the elements of the lists the
+ * catalog names in its own output. Its label is the name of the output's buffer, the values that name the entry
+ * (not the technical ones) and the title of the number. Undefined for any other value, or without the call.
+ */
+const countList = (value: unknown, path: string, title: string, walk: Walk): ListBuffer | undefined => {
+  const field = walk.fields.get(path);
+  const elements = field?.elements;
+  const { origin, items } = walk;
+  const keys = field?.keys ?? [];
+  if (
+    typeof value !== "number" ||
+    origin === undefined ||
+    elements === undefined ||
+    elements === true ||
+    elements === "answer" ||
+    keys.length !== items.length
+  ) {
+    return undefined;
+  }
+  const lists = path.split("[]");
+  const key = keys.map((names, level) => {
+    const item = items[level] ?? {};
+    return Object.fromEntries(
+      names.filter((name) => Object.hasOwn(item, name)).map((name) => [name, item[name]]),
+    );
+  });
+  const naming = key.flatMap((entry, level) => {
+    const list = lists.slice(0, level + 1).join("[]");
+    return Object.entries(entry).flatMap(([name, each]) =>
+      typeof each === "string" && walk.fields.get(`${list}[].${name}`)?.technical !== true ? [each] : [],
+    );
+  });
+  const label = [origin.name, ...naming, title].join(" · ");
+  if (origin.written === true) {
+    const ids =
+      typeof elements === "string" ? [] : [...new Set(elements.flatMap((each) => idsAt(each, walk)))];
+    return ids.length === 0 ? undefined : outputList(label, ids);
+  }
+  return outputSelectionList(label, {
+    command: origin.command,
+    input: origin.input,
+    count: { field: path, ...(keys.length === 0 ? {} : { key }) },
+  });
+};
+
+/** The line of a value with the list its number of elements opens (`countList`), if it is one. */
+const counted = (line: ResultLine, value: unknown, path: string, walk: Walk): ResultLine => {
+  const list = countList(value, path, line.label, walk);
+  return list === undefined ? line : { ...line, list };
+};
+
 /**
  * The lines of `value` at `path` (`""` the output itself), under `label` (`""` none). `item`: the value is an
  * item of a list (an entry whose `id` names an element is that element's row).
@@ -399,12 +504,13 @@ const linesOf = (
     const items = isProblemList(value) ? bySeverity(value) : (value as readonly unknown[]);
     const itemPath = `${path}[]`;
     for (const each of items) {
-      linesOf(each, label === "" ? depth : depth + 1, "", itemPath, walk, true);
+      const inside = isRecord(each) ? { ...walk, items: [...walk.items, each] } : walk;
+      linesOf(each, label === "" ? depth : depth + 1, "", itemPath, inside, true);
     }
     return;
   }
   if (!isRecord(value)) {
-    emit(walk, () => leafLine(value, depth, label, path, names));
+    emit(walk, () => counted(leafLine(value, depth, label, path, names), value, path, walk));
     return;
   }
   const element = asElement(value);
@@ -659,6 +765,7 @@ export const resultLines = (
   fields: readonly OutputField[] = [],
   details = false,
   unfolded: readonly string[] = [],
+  origin?: ResultOrigin,
 ): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
@@ -671,6 +778,9 @@ export const resultLines = (
       details,
       detail: false,
       unfolded: new Set(unfolded),
+      ...(origin === undefined ? {} : { origin }),
+      root: output,
+      items: [],
     });
   }
   const { lines, rest } = sink;

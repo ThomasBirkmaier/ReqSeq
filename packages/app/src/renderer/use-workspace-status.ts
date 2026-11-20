@@ -114,6 +114,8 @@ export interface StatusParts extends Pick<
   readonly setAbout: Setter<AboutInfo | undefined>;
   /** Ends a message's link to an output, and keeps the message (`use-echo-link.ts`). */
   readonly endEchoLink: () => void;
+  /** Drops the mark of the last metamodel change (SR-130 AK7): another workspace opened. Absent: nothing. */
+  readonly clearMetamodelChange?: () => void;
 }
 
 export const useWorkspaceStatus = (parts: StatusParts): void => {
@@ -210,6 +212,10 @@ export const useWorkspaceStatus = (parts: StatusParts): void => {
       const back =
         reason === undefined && currentKey !== undefined ? takeDrafts(windowStorage, currentKey) : undefined;
       startBuffers(reason, result.ok);
+      // Another workspace starts without the mark of a metamodel change (SR-130 AK7).
+      if (reason === "opened") {
+        parts.clearMetamodelChange?.();
+      }
       rescopeDrafts(currentKey);
       started ||= currentKey !== undefined;
       restoreBuffers(currentKey, asked, back);

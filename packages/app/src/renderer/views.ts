@@ -69,7 +69,27 @@ const isRecord = (value: unknown): value is Input => typeof value === "object" &
  */
 export const selectionInView = (selection: object | undefined, view: string): Input => {
   const given = (selection ?? {}) as Input;
-  return given["view"] !== undefined || given["ids"] !== undefined ? given : { ...given, view };
+  if (given["view"] !== undefined || given["ids"] !== undefined) {
+    return given;
+  }
+  // The command of `selection.output` runs in the window's view unless its input names one (SR-223 AK5), and the
+  // selection holds in the view its command ran in: core refuses a number counted in another view.
+  const output = given["output"];
+  if (!isRecord(output) || typeof output["command"] !== "string" || !isRecord(output["input"])) {
+    return { ...given, view };
+  }
+  const input = withView(output["command"], output["input"], view);
+  return { ...given, view: viewOf(output["command"], input) ?? view, output: { ...output, input } };
+};
+
+/** The view `input` of `name` names: its field `view`, or its selection's; undefined where it names none. */
+const viewOf = (name: string, input: Input): string | undefined => {
+  const named = AS_FIELD.has(name)
+    ? input["view"]
+    : IN_SELECTION.has(name) && isRecord(input["selection"])
+      ? input["selection"]["view"]
+      : undefined;
+  return typeof named === "string" ? named : undefined;
 };
 
 /**

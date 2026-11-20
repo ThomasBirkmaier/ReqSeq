@@ -21,6 +21,8 @@ import { docsEcho } from "./docs-help.js";
 import { saveFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice } from "./fold-statuses.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
+import type { MetamodelChange } from "./metamodel-changes.js";
+import { changeOf } from "./metamodel-changes.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { matrixSpot, readOnlyNow } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
@@ -80,6 +82,8 @@ export interface ContextParts {
   readonly perspectiveUse: PerspectiveUseState;
   readonly foldChoice: FoldChoice;
   readonly setFoldChoice: Setter<FoldChoice>;
+  /** Keeps the last change of the metamodel made in the app, which the metamodel buffer marks (SR-130 AK7). */
+  readonly setMetamodelChange: Setter<MetamodelChange>;
 }
 
 export const actionContext = (parts: ContextParts): ActionContext => {
@@ -97,7 +101,7 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     setShownView,
     setRevision,
   } = parts;
-  const { perspectiveUse, foldChoice, setFoldChoice } = parts;
+  const { perspectiveUse, foldChoice, setFoldChoice, setMetamodelChange } = parts;
   return {
     workspace: view?.name !== undefined,
     readOnly: readOnlyNow(view),
@@ -147,6 +151,12 @@ export const actionContext = (parts: ContextParts): ActionContext => {
       });
     },
     notify,
+    metamodelChanged: (command, output) => {
+      const change = changeOf(command, output);
+      if (change !== undefined) {
+        setMetamodelChange(change);
+      }
+    },
     // The bundled documentation in the browser (SR-141): main serves it on loopback and opens the page.
     docs: (topic) => {
       void bridge.openDocs(topic).then((result) => {
@@ -253,6 +263,8 @@ export interface ViewParts {
   readonly switchSaves: number;
   readonly typeNames: ReadonlyMap<string, string>;
   readonly kindNames: ReadonlyMap<string, string>;
+  /** The last change of the metamodel made in the app (SR-130 AK7). */
+  readonly metamodelChange: MetamodelChange;
   readonly overview: Omit<AreaViews["overview"], "recent" | "openPerspective">;
   readonly recent: readonly RecentEntry[];
   readonly latest: RefObject<ActionContext>;
@@ -277,7 +289,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
   const { viewCall, revision, seen, outside, dispatch, onData, setEcho, onDrawn, gate, ready } = parts;
   const { leavesClean, stopped, drop, switchSaves, typeNames, kindNames, overview, recent, latest } = parts;
   const { forgetName, call, copy, ask, context, titles, drafts, onDraft, keepOf, setElementControls } = parts;
-  const { packages, variantTypes, properties, catalog } = parts;
+  const { packages, variantTypes, properties, catalog, metamodelChange } = parts;
   const openTarget = (id: string, repository?: string): void => {
     // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
     // A reference names the repository when the link has one.
@@ -315,6 +327,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
     switchSaves,
     typeNames,
     kindNames,
+    metamodelChange,
     // A row of a perspective opens it as "Open perspective" does, and counts as its use (SR-118 AK7).
     overview: {
       ...overview,

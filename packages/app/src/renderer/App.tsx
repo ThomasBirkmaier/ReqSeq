@@ -51,6 +51,8 @@ import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { FoldStatuses, foldCondition, loadFoldChoice } from "./fold-statuses.js";
 import type { FoldChoice, FoldStatus } from "./fold-statuses.js";
+import type { MetamodelChange } from "./metamodel-changes.js";
+import { NO_CHANGE } from "./metamodel-changes.js";
 import { commandPromptKey } from "./command-entry.js";
 import { ContextMenuLayer } from "./ContextMenu.js";
 import type { OpenedMenu } from "./context-menu.js";
@@ -190,6 +192,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const perspectiveUse = usePerspectiveUse(appStorage);
   // The order Next and Previous buffer walk (SR-115 AK5), and the buffer they switched to last.
   const walk = useRef<Walk>(NO_WALK);
+  // The last change of the metamodel made in the app, marked until the next one (SR-130 AK7); another
+  // workspace starts without one (`clearMetamodelChange` of `useWorkspaceStatus`).
+  const [metamodelChange, setMetamodelChange] = useState<MetamodelChange>(NO_CHANGE);
   // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
   // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
   // what is still to be restored.
@@ -249,6 +254,9 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     setSession,
     setEcho,
     leavingWrites,
+    clearMetamodelChange: () => {
+      setMetamodelChange(NO_CHANGE);
+    },
     setSwitchSaves,
     macRef,
     setView,
@@ -425,6 +433,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     perspectiveUse,
     foldChoice,
     setFoldChoice,
+    setMetamodelChange,
   });
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
@@ -828,6 +837,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     switchSaves,
     typeNames,
     kindNames,
+    metamodelChange,
     overview,
     recent,
     latest,

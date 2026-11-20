@@ -64,6 +64,12 @@ export const KEPT_DEFINITIONS: FixtureOptions = {
     ].join("\n"),
   },
 };
+
+/** KEPT_DEFINITIONS with an element file whose YAML header cannot be read (SR-008 AK1). */
+export const UNREADABLE_ELEMENT: FixtureOptions = {
+  ...KEPT_DEFINITIONS,
+  files: { ...KEPT_DEFINITIONS.files, "elements/NO-broken.md": "---\nid: [\n---\n" },
+};
 /** SR-004/one-repository with the delivery and the saved mapping of fixtures/SR-053/delivery (SR-053). */
 export const DELIVERY: FixtureOptions = {
   ...ONE_REPOSITORY,

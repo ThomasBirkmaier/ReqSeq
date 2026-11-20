@@ -233,3 +233,36 @@
 .row .snippet .where {
   color: var(--muted);
 }
+
+/* A list of the answer of an output (SR-223 AK6): the rest of the output above the rows, laid out as on the output
+   page (`result.css`), without its padding; a gap sets it apart from the rows. */
+.list .output-lines {
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+/* With "Show details" (SR-223 AK6): the values the output gives for the element under its row, across the row, in
+   the second grey; each under its title in the column of the IDs, a UUID or a path in the monospace font. */
+.row .row-details {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row .row-detail {
+  display: contents;
+}
+
+.row .row-detail > .label {
+  grid-column: 1;
+  padding-left: var(--indent, 0rem);
+  overflow-wrap: anywhere;
+}
+
+.row .row-detail > .text {
+  grid-column: 2 / -1;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}

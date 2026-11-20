@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SMALL_MODEL, elements, openSmall } from "../commands/metamodel-commands.test-helper.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import { mentioningFiles, metamodelUsesState } from "./metamodel-uses.js";
+import { mentioningFiles, metamodelUsesState, unreadableElementFiles } from "./metamodel-uses.js";
 
 describe("metamodelUses", () => {
   it("counts each fixed value an element with several values holds, and no unknown one", async () => {
@@ -49,5 +49,33 @@ describe("mentioningFiles", () => {
       repositories: [{ name: "system", available: false, folder: "/nowhere" }],
     } as unknown as WorkspaceLayout;
     expect(await mentioningFiles(layout, new Set(["note"]))).toEqual([]);
+  });
+});
+
+describe("unreadableElementFiles", () => {
+  it("takes the errors at a file, each file once, by repository and path; warnings and errors without a file stay out", () => {
+    const at = (severity: "error" | "warning", file?: string, repository?: string) => ({
+      code: "file.invalid-yaml" as const,
+      severity,
+      message: "m",
+      ...(file === undefined ? {} : { file }),
+      ...(repository === undefined ? {} : { repository }),
+    });
+    expect(
+      unreadableElementFiles([
+        at("error", "b.md", "system"),
+        at("error", "b.md", "system"),
+        at("warning", "c.md", "system"),
+        at("error"),
+        at("error", "a.md", "system"),
+        at("error", "z.md", "product"),
+        at("error", "loose.md"),
+      ]),
+    ).toEqual([
+      { repository: "", file: "loose.md" },
+      { repository: "product", file: "z.md" },
+      { repository: "system", file: "a.md" },
+      { repository: "system", file: "b.md" },
+    ]);
   });
 });

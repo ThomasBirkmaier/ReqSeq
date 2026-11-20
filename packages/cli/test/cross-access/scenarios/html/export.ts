@@ -2,7 +2,7 @@
 import path from "node:path";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
+import { CRITERIA, HINTS, IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const PAGE = `site/elements/${WIND}.html`;
@@ -31,6 +31,9 @@ const contentOf = (page: string): string =>
 /** The export date in the footer, which differs between calls only across midnight. */
 const DATE = [/exported \d{4}-\d{2}-\d{2}/gu];
 const GONE = "9d9d9d9d-1111-4222-8333-000000000002";
+const NEED = "aaaa1111-1111-4111-8111-00000000a001";
+const CHILD = "aaaa1111-1111-4111-8111-00000000c0de";
+const GRANDCHILD = "aaaa1111-1111-4111-8111-00000000c0df";
 
 scenariosOf("html.export", [
   {
@@ -198,6 +201,25 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-231/AK-c1hj]",
+    name: "every page has the search field, and the index file names each element with a page and its title",
+    fixture: withText("Text."),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files["site/assets/search-index.js"]).toMatch(
+          new RegExp(`^globalThis\\.reqseqSearchIndex = .*"Show wind speed",0,"${WIND}"`, "u"),
+        );
+        expect(files["site/assets/reqseq.js"]).toContain("function searchScript(");
+        for (const file of ["site/index.html", PAGE]) {
+          expect(files[file]).toMatch(/<reqseq-search class="astro-\w+" hidden="">/u);
+        }
+      }
+    },
+  },
+  {
     tag: "[SR-231/AK-hmbc]",
     name: "the footer names the commit of the main repository and the date, and the page asks for noindex",
     fixture: ONE_REPOSITORY,
@@ -288,6 +310,38 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-232/AK-z2fm]",
+    name: "an acceptance criterion lists the evidence records that bear its status",
+    fixture: CRITERIA,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files["site/elements/31313131-0000-4000-8000-3131310000e3.html"]));
+        expect(page).toContain(
+          '<p>Given a reading, then it shows.</p><div class="rq-evidence"><p class="rq-evidence-title">Evidence records</p><ul><li>inspection <span class="rq-legend">passed · 2026-11-02T10:00:00Z · core</span></li></ul></div>',
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-q95d]",
+    name: "an element's open hints stand above its text",
+    fixture: HINTS,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files["site/elements/26a0b000-0000-4000-8000-0000000000b2.html"]));
+        expect(page).toContain(
+          '<p class="starlight-aside__title" aria-hidden="true">Open hints</p><div class="starlight-aside__content"><ul><li>Required property Acceptance Criteria (acceptance-criteria) of type System Requirement (system-requirement) has no value; ReqSeq changes no file</li></ul></div></aside><section class="rq-text">',
+        );
+      }
+    },
+  },
+  {
     tag: "[SR-231/AK-q4mj]",
     name: "an element that had a page and became invalid gets a short page with its successor",
     fixture: withFront(
@@ -328,6 +382,48 @@ scenariosOf("html.export", [
         expect(page).toContain("<p>See far (UNKNOWN-1a2b3c, repository vault, not accessible).</p>");
         expect(page).toContain(
           "<p>Given SR-1a2b3c (UNKNOWN-1a2b3c, repository vault, not accessible), then it shows.</p>",
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-r9s3]",
+    name: "the neighbourhood shows parents, children and incoming relations, each row a link to its element's page",
+    fixture: withFront(`derives-from:\n  - { id: ${NEED} }\n`, "Text.", {
+      "needs/N-1.md": `---\nid: ${NEED}\ntype: need\nstatus: approved\ntitle: See the wind\n---\n\nNeed.\n`,
+      "requirements/SR-1.md": `---\nid: ${CHILD}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nderives-from:\n  - { id: ${WIND} }\nbased-on:\n  - { id: ${WIND} }\n---\n\nGusts.\n`,
+    }),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[PAGE]));
+        const row = (id: string, shown: string, title: string, status: string): string =>
+          `<li><a href="../elements/${id}.html"><span>${shown}</span><span>${title}</span><span>${status}</span></a></li>`;
+        expect(page).toContain(
+          `<h3>Parents</h3><ul class="rq-nb">${row(NEED, "N-00a001", "See the wind", "approved")}</ul>` +
+            `<h3>Children</h3><ul class="rq-nb">${row(CHILD, "SR-00c0de", "Show gusts", "draft")}</ul>` +
+            `<h3>← Basis for</h3><ul class="rq-nb">${row(CHILD, "SR-00c0de", "Show gusts", "draft")}</ul>`,
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-kycg]",
+    name: "a child with an invalid status stands in the neighbourhood without a link, its own child after it",
+    fixture: withFront("", "Text.", {
+      "requirements/SR-1.md": `---\nid: ${CHILD}\ntype: system-requirement\nstatus: obsolete\ntitle: Show gusts\nderives-from:\n  - { id: ${WIND} }\n---\n\nGusts.\n`,
+      "requirements/SR-2.md": `---\nid: ${GRANDCHILD}\ntype: system-requirement\nstatus: draft\ntitle: Show peaks\nderives-from:\n  - { id: ${CHILD} }\n---\n\nPeaks.\n`,
+    }),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(contentOf(String(files[PAGE]))).toContain(
+          '<h3>Children</h3><ul class="rq-nb"><li><span><span>SR-00c0de</span><span>Show gusts</span><span>obsolete</span></span></li>' +
+            `<li style="--rq-level:1"><a href="../elements/${GRANDCHILD}.html"><span>SR-00c0df</span><span>Show peaks</span><span>draft</span></a></li></ul>`,
         );
       }
     },
