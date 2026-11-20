@@ -62,6 +62,51 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(query("label").textContent).toBe("Command");
   });
 
+  it("runs a next step of an output from the command prompt with its known inputs given (SR-226 AK5)", async () => {
+    const fake = fakeBridge({
+      ...workspace(),
+      "baseline.list": () => ({
+        baselines: [],
+        next: [
+          { command: "trace.affected", input: {}, open: ["ref"] },
+          { command: "trace.affected", input: { ref: "uuid-2" }, open: [] },
+          { command: "test.none", input: {}, open: [], workspace: "/elsewhere" },
+        ],
+      }),
+      "trace.affected": () => ({ elements: [], total: 0 }),
+    });
+    const bridge = {
+      ...fake.bridge,
+      commands: () => Promise.resolve([listing("baseline.list"), listing("trace.affected")] as never),
+    };
+    await render(bridge);
+    await runCommand("List baselines");
+    const steps = (): Element[] => [...container.querySelectorAll(".line.step")];
+    const step = (at: number): Element => {
+      const line = steps()[at];
+      if (line === undefined) {
+        throw new Error(`No step ${String(at)}`);
+      }
+      return line;
+    };
+    expect(steps().map((line) => line.textContent)).toEqual([
+      "Show affected elements",
+      "Show affected elements",
+      "test.none",
+    ]);
+    // An open input: the command prompt asks it.
+    await click(step(0));
+    expect(query("label").textContent).toBe("Show affected elements · ref:");
+    await keyDown(query("input"), "Escape");
+    // Every input known: the command runs with it.
+    await click(step(1));
+    expect(calls(fake.invoke, "trace.affected")).toEqual([{ ref: "uuid-2" }]);
+    await runCommand("List baselines");
+    // No entry of the command prompt runs it here: the command line says where it runs.
+    await click(step(2));
+    expect(text("Minibuffer")).toBe("test.none runs in the workspace /elsewhere: open it first");
+  });
+
   it("[SR-223/AK-gvv1] keeps the shown buffer after a write command and says its answer in the command line; a click on it opens the output, and the next message is no link", async () => {
     let written = 0;
     const fake = fakeBridge({

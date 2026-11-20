@@ -19,6 +19,7 @@ The user documentation lists these keys on its generated page "Keyboard shortcut
 | Ctrl/Cmd+T | On a list: show it as a traceability matrix (SR-125); on the matrix: back to the list; on a package page: its members as a matrix; on the metamodel: graph and text (SR-130), the selected type kept. On macOS only Cmd+T; the physical Ctrl+T stays CodeMirror's "transpose" in the text editor |
 | Right, Left (matrix) | Step through the row element and the relations of the selected row; Enter or a click opens the element there |
 | Tab, Right, Left, Enter (group of problems on an output page) | Tab on the group line opens or closes it (SR-223 AK3, SR-193 AK1), Right opens it, Left closes it, also from one of its problem lines; Enter or a click opens the list of the elements of its problems, a click on its triangle opens or closes it (`ResultView.tsx`) |
+| Enter (next step on an output page) | Runs its command with the known inputs; the command prompt asks the open ones (SR-226 AK5, `ResultView.tsx`); a click does the same |
 | Enter, Tab, Right, Left (folded section row) | Open or close the folded statuses at the end of a list (SR-201): Enter and Tab toggle, Right opens, Left closes |
 | Right, Left | In the neighbourhood: open the tree row (shows its children), close it or go to the parent row |
 | Up, Down, Page Up, Page Down, Home, End | Select a row (on a package page, Down on the page enters its elements). A fresh list has no row selected: the first Down selects the first row, and Enter opens the first row |

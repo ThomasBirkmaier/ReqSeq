@@ -33,6 +33,8 @@ import {
   readOnlyBuffer,
 } from "./buffers.js";
 import { isTestCase, testCaseLines } from "./runs.js";
+import type { NextStep } from "./next-steps.js";
+import { NEXT_FIELD, isStepList, nextStepsOf } from "./next-steps.js";
 
 /**
  * One line of the result buffer; `open` is the element Enter or a click opens. A pair line opens `open`
@@ -43,7 +45,7 @@ export interface ResultLine {
    * A heading opens the problems of one severity (SR-223 AK1); a group line stands for the problems of one kind
    * (SR-223 AK3).
    */
-  readonly kind: "element" | "problem" | "text" | "pair" | "heading" | "group";
+  readonly kind: "element" | "problem" | "text" | "pair" | "heading" | "group" | "step";
   /** Indentation level, from 0. */
   readonly depth: number;
   /** The ID of an element row; for any other line the title of the field it stands under, or "". */
@@ -74,6 +76,8 @@ export interface ResultLine {
    * of the output counts (SR-223 AK5, `countList`).
    */
   readonly list?: ListBuffer;
+  /** A step line (SR-226 AK5): the next step Enter or a click runs; its text is the name of the step's command. */
+  readonly step?: NextStep;
 }
 
 /**
@@ -771,7 +775,9 @@ export const resultLines = (
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
     const byPath = new Map(fields.map((field) => [field.path, field]));
-    pageLines(splitSummary(shown, names).rest, {
+    // The next steps are the last lines (SR-226 AK5), after the rest of the output.
+    const { rest: page } = splitSummary(shown, names);
+    pageLines(isRecord(page) && isStepList(page[NEXT_FIELD]) ? withoutSteps(page) : page, {
       sink,
       names,
       fields: byPath,
@@ -792,8 +798,23 @@ export const resultLines = (
       text: `${String(rest)} more line${rest === 1 ? "" : "s"}`,
     });
   }
+  const steps = nextStepsOf(output);
+  if (steps.length > 0) {
+    const title = fields.find((field) => field.path === NEXT_FIELD)?.title ?? NEXT_STEPS;
+    lines.push({ kind: "heading", depth: 0, label: "", text: title });
+    for (const step of steps) {
+      lines.push({ kind: "step", depth: 0, label: "", text: step.command, step });
+    }
+  }
   return lines;
 };
+
+/** The heading of the next steps when the catalog gives their field no title. */
+export const NEXT_STEPS = "Next steps";
+
+/** The output without its next steps, which stand under their own heading at the end. */
+const withoutSteps = (page: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> =>
+  Object.fromEntries(Object.entries(page).filter(([key]) => key !== NEXT_FIELD));
 
 /** The summary fields of an output (`splitSummary`) the modeline shows. */
 export const resultSummary = (output: unknown): ResultSummary => {

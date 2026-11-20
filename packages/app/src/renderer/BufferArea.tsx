@@ -27,6 +27,7 @@ import type { OutsideChanges } from "./outside-marks.js";
 import type { PerspectiveRow, RecentRow } from "./overview.js";
 import type { RecentEntry } from "./recent.js";
 import type { OutputField } from "./result.js";
+import type { NextSteps } from "./ResultView.js";
 import { ResultView } from "./ResultView.js";
 import type { DrawnBy, Neighbour } from "./neighbours.js";
 import type { Area, WindowAction } from "./window-layout.js";
@@ -48,6 +49,8 @@ export const LoadingView = ({
   readonly onCopy?: (label: string, text: string) => void;
   /** The fields of a command's output in the catalog, whose titles an output page shows (SR-223 AK1). */
   readonly outputFields?: AreaViews["outputFields"];
+  /** How the next steps of an output are named and run (SR-226 AK5). */
+  readonly nextSteps?: NextSteps;
 }): React.JSX.Element => {
   const shared = {
     call: props.call,
@@ -68,6 +71,7 @@ export const LoadingView = ({
         buffer={buffer}
         {...shared}
         {...(fields === undefined ? {} : { fields })}
+        {...(props.nextSteps === undefined ? {} : { steps: props.nextSteps })}
       />
     );
   }
@@ -102,6 +106,8 @@ export interface AreaViews {
   readonly onCopy: (label: string, text: string) => void;
   /** The fields of the output of `command` in the catalog (`outputFields`); undefined while it is not read. */
   readonly outputFields: (command: string) => readonly OutputField[] | undefined;
+  /** How the next steps of an output are named and run from its page (SR-226 AK5). */
+  readonly nextSteps: NextSteps;
   /** A view cannot draw its buffer: a switch in motion to it starts (SR-212, `buffer-slide.ts`). */
   readonly onDrawn: (key: string) => void;
   /** The names of the types by their key, from the metamodel. */
@@ -236,6 +242,7 @@ const BufferView = ({
       onDrawn={onDrawn}
       onCopy={views.onCopy}
       outputFields={views.outputFields}
+      nextSteps={views.nextSteps}
     />
   );
 };

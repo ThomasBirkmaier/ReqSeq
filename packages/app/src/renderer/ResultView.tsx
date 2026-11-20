@@ -14,7 +14,9 @@
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
 // shows what they give); the output of a write command stays as it came (ThomasBirkmaier/ReqSeq-archive#85).
 // The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4), and that of
-// `workspace.connectAgent` for a client the setup to copy (`ConnectAgentView.tsx`, SR-227 AK7).
+// `workspace.connectAgent` for a client the setup to copy (`ConnectAgentView.tsx`, SR-227 AK7). The next steps an
+// output names are its last lines, each with the name of its command and its key where it has one; Enter or a
+// click runs it with its known inputs, and the command prompt asks the open ones (`next-steps.ts`, SR-226 AK5).
 import { bufferMark, useHidden } from "./area-slot.js";
 import { useEffect, useMemo, useRef } from "react";
 import { useIdScope } from "./area-scope.js";
@@ -26,6 +28,7 @@ import { agentSetupOf } from "./connect-agent.js";
 import { ConnectAgentView } from "./ConnectAgentView.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
+import type { NextStep, StepEntry } from "./next-steps.js";
 import type { OutputField, ResultLine } from "./result.js";
 import { resultAnswer, resultSummary } from "./result.js";
 import { linesOf } from "./result-copy.js";
@@ -42,6 +45,16 @@ export interface ResultViewProps {
   readonly onCopy?: (label: string, text: string) => void;
   /** The fields of the command's output in the catalog (`outputFields`): their titles and normal values. */
   readonly fields?: readonly OutputField[];
+  /** How a next step is named and run (SR-226 AK5); absent: its line names the command and runs nothing. */
+  readonly steps?: NextSteps;
+}
+
+/** What the output page takes of the window for the next steps of an output (SR-226 AK5). */
+export interface NextSteps {
+  /** The name the command prompt gives `command`, and its key where it has one. */
+  readonly entry: (command: string) => StepEntry;
+  /** Runs the step from the command prompt with its known inputs given. */
+  readonly run: (step: NextStep) => void;
 }
 
 /**
@@ -61,11 +74,11 @@ const foldingOf = (
 };
 
 /**
- * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), or a number of
- * elements, which opens their list (SR-223 AK5).
+ * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), a number of
+ * elements, which opens their list (SR-223 AK5), or a next step, which runs (SR-226 AK5).
  */
 const choosable = (line: ResultLine): boolean =>
-  line.open !== undefined || line.kind === "group" || line.list !== undefined;
+  line.open !== undefined || line.kind === "group" || line.list !== undefined || line.step !== undefined;
 
 /**
  * What the line under the answer says of an incomplete output (SR-223 AK1, SR-006 AK2): only the mark, since the
@@ -82,6 +95,7 @@ export const ResultView = ({
   onEcho,
   onCopy,
   fields,
+  steps,
 }: ResultViewProps): React.JSX.Element => {
   const scope = useIdScope();
   // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
@@ -173,7 +187,9 @@ export const ResultView = ({
 
   const open = (at: number): void => {
     const line = lines[at];
-    if (line?.kind === "group" && line.group !== undefined) {
+    if (line?.step !== undefined) {
+      steps?.run(line.step);
+    } else if (line?.kind === "group" && line.group !== undefined) {
       if (line.list === undefined) {
         fold(line.group, line.unfolded !== true, at);
       } else {
@@ -286,8 +302,10 @@ export const ResultView = ({
                   </span>
                   {line.text}
                 </span>
-              ) : (
+              ) : line.step === undefined ? (
                 <span className="text">{line.text}</span>
+              ) : (
+                <StepText entry={steps?.entry(line.step.command) ?? { name: line.text }} />
               )}
               {line.status === undefined ? null : <span className="status">{line.status}</span>}
             </div>
@@ -297,3 +315,11 @@ export const ResultView = ({
     </div>
   );
 };
+
+/** The name of a step's command and, at the right edge, its key where it has one (SR-226 AK5). */
+const StepText = ({ entry }: { readonly entry: StepEntry }): React.JSX.Element => (
+  <>
+    <span className="text">{entry.name}</span>
+    {entry.key === undefined ? null : <kbd className="status">{entry.key}</kbd>}
+  </>
+);

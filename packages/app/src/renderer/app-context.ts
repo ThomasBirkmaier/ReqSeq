@@ -26,10 +26,12 @@ import { changeOf } from "./metamodel-changes.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { matrixSpot, readOnlyNow } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
+import { stepEntry } from "./next-steps.js";
 import type { PackageModel } from "./package-page.js";
 import { openPerspective } from "./perspective-actions.js";
 import type { RecentEntry } from "./recent.js";
 import type { ReferenceTitles } from "./reference-titles.js";
+import type { NextSteps } from "./ResultView.js";
 import type { Theme } from "./theme.js";
 import type { Follow } from "./use-follow.js";
 import type { PerspectiveUseState } from "./use-perspectives.js";
@@ -283,13 +285,15 @@ export interface ViewParts {
   readonly properties: PropertyModel;
   /** The catalog as the window read it, for the titles of an output's fields (SR-223 AK1). */
   readonly catalog: RefObject<readonly CommandListing[]>;
+  /** Runs a next step of an output from the command prompt (SR-226 AK5). */
+  readonly runStep: NextSteps["run"];
 }
 
 export const areaViews = (parts: ViewParts): AreaViews => {
   const { viewCall, revision, seen, outside, dispatch, onData, setEcho, onDrawn, gate, ready } = parts;
   const { leavesClean, stopped, drop, switchSaves, typeNames, kindNames, overview, recent, latest } = parts;
   const { forgetName, call, copy, ask, context, titles, drafts, onDraft, keepOf, setElementControls } = parts;
-  const { packages, variantTypes, properties, catalog, metamodelChange } = parts;
+  const { packages, variantTypes, properties, catalog, metamodelChange, runStep } = parts;
   const openTarget = (id: string, repository?: string): void => {
     // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
     // A reference names the repository when the link has one.
@@ -318,6 +322,7 @@ export const areaViews = (parts: ViewParts): AreaViews => {
     onEcho: setEcho,
     onCopy: copy,
     outputFields: (command) => catalog.current.find((entry) => entry.name === command)?.outputFields,
+    nextSteps: { entry: (command) => stepEntry(command, catalog.current, context.mac), run: runStep },
     onDrawn,
     gate,
     ready,
