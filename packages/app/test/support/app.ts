@@ -435,6 +435,43 @@ const reportFailure = async (
   }
 };
 
+/**
+ * How long the app may take to start: from the launch until the window has the first answer of the core
+ * process. A start takes about a second, but the Windows runner stalled once for three minutes, in which every
+ * start took about 20 s; the first wait of the test, bounded by the expect timeout of 15 s, then failed (#1671).
+ * The start is bounded on its own, by half the test timeout.
+ */
+const START_WAIT_MS = SLOW_CI ? 60_000 : 30_000;
+
+/**
+ * Waits until the app has started: its page has loaded and shows the first `workspace.status` answer of the core
+ * process, which fills the modeline (`ModelineBar.tsx`), also for a start without a workspace or with one that
+ * does not open. Fails after START_WAIT_MS with the state of the window.
+ */
+const waitForStart = async (app: ElectronApplication, window: Page, launched: number): Promise<void> => {
+  try {
+    await window
+      .getByLabel("Modeline")
+      .locator(".parts")
+      .waitFor({ state: "attached", timeout: Math.max(1, START_WAIT_MS - (Date.now() - launched)) });
+  } catch (error) {
+    const state = await within(
+      app.evaluate(({ BrowserWindow }) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        return contents === undefined
+          ? "no window"
+          : `page ${contents.getURL()}, ${contents.isLoading() ? "loading" : "loaded"}, title ${contents.getTitle()}`;
+      }),
+      CALL_WAIT_MS,
+      (failed: unknown) => `main does not answer (${String(failed)})`,
+    );
+    await app.close();
+    throw new Error(`The app did not start within ${String(START_WAIT_MS)} ms (#1671): ${state}.`, {
+      cause: error,
+    });
+  }
+};
+
 /** The state of an app that did not end after its window was closed, for the error of the test. */
 const hangState = async (app: ElectronApplication, window: Page, stderr: string): Promise<string> => {
   const windows = await within(
@@ -579,6 +616,7 @@ export const launchApp = async (
     LOCALAPPDATA: home,
     ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
   };
+  const launched = Date.now();
   const app = await electron.launch({
     executablePath: ELECTRON,
     args: [
@@ -634,6 +672,7 @@ export const launchApp = async (
     await app.close();
     throw new Error(`The app uses the user data folder ${used}, not the test's ${userData}`);
   }
+  await waitForStart(app, window, launched);
   let discard = false;
   // Whether the app ended: its process ended, or its code did and the process is shutting down (a test of
   // quitting ends it itself).
