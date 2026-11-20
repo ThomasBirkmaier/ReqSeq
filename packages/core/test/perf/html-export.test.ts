@@ -8,6 +8,7 @@ import {
   generateLargeWorkspace,
   measurePeakMemory,
   memoryIncrease,
+  perfSize,
   recordValue,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -17,8 +18,9 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set,
+// as on a pull request (#2074).
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 const BASIS = "SR-231, N-036: HTML export of 50,000 elements (recorded, no limit in the spec)";
 /** A first export writes 50,000 pages; the suite's 600 s per test must not stop it. */
 const EXPORT_TIMEOUT_MS = 1_800_000;
