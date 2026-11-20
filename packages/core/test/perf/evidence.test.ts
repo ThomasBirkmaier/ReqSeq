@@ -24,7 +24,10 @@ import {
   measure,
   measurePeakMemory,
   memoryIncrease,
+  perfSize,
   recordValue,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -54,8 +57,8 @@ import { workspaceLayoutState } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
 import type { Output } from "../../src/commands/list.test-helper.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK3. */
 const OPEN_MS = 200;
 /** SR-082 AK5: the first open after the start. */
@@ -233,8 +236,10 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
       requirements - evidence.automated.length - evidence.manual.length,
     );
     expect(without.total).toBeLessThan(requirements / 2);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
-    expect(withoutEvidence.ms, thresholdMessage(withoutEvidence)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(withoutEvidence.ms, thresholdMessage(withoutEvidence)).toBeLessThanOrEqual(
+      thresholdLimit(RESULT_MS),
+    );
   });
 
   it("records the filter without evidence as the first filter after the start: no current version read (SR-069 AK3, #439)", async () => {
@@ -273,7 +278,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(warm).toEqual(cold);
     expect(warm.total).toBeGreaterThan(evidence.validated.length / 4);
     expect(warm.total).toBeLessThan(evidence.validated.length);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records evidence.status pages of the system requirements and of the needs (SR-031, SR-034, SR-038)", async () => {
@@ -303,17 +308,19 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     // A page of needs reads no version batch of its own (SR-038 plan §11); the first page of the
     // requirements read one for the recorded children below its parents (SR-034).
     expect((await ws().get(verificationState)).versionBatches()).toBe(1);
+    // The largest page (5,000); a smaller run (#2037) has fewer system requirements than that.
+    const lastPage = Math.min(MAX_LIMIT, byType("system-requirement").length);
     const { result: last } = await measure(
       "evidence.status, last page (5,000) of the system requirements",
       () =>
         run("evidence.status", {
           ...requirements,
-          limit: MAX_LIMIT,
-          offset: byType("system-requirement").length - MAX_LIMIT,
+          limit: lastPage,
+          offset: byType("system-requirement").length - lastPage,
         }),
       { basis: `SR-031 (a page of the largest size; ${COMPARE_AK4})`, ...COMPARED },
     );
-    expect(last.elements).toHaveLength(MAX_LIMIT);
+    expect(last.elements).toHaveLength(lastPage);
   });
 
   it("records element.list of the open requirements of the degree, by its number (SR-224 AK4, #1915)", async () => {
@@ -513,9 +520,9 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
       },
     );
     expect(afterDeep.id).toBe(top);
-    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(FIRST_OPEN_MS);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
-    expect(afterChange.ms, thresholdMessage(afterChange)).toBeLessThanOrEqual(OPEN_MS);
+    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(thresholdLimit(FIRST_OPEN_MS));
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
+    expect(afterChange.ms, thresholdMessage(afterChange)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   it("[SR-082/AK-tndr] opens a need with validation records within 200 ms on its first open (SR-038)", async () => {
@@ -533,7 +540,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     );
     expect(shown.id).toBe(need);
     expect(shown.validation).toBeDefined();
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   it("[SR-082/AK-tndr] opens an automated requirement within 200 ms on its first open (SR-031)", async () => {
@@ -549,7 +556,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     );
     expect(shown.id).toBe(leaf);
     expect(shown.verification?.[0]?.status).toBeDefined();
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   it("[SR-082/AK-tndr] opens a requirement within 200 ms right after recording evidence for it (SR-030)", async () => {
@@ -585,7 +592,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     );
     expect(shown.verification?.[0]?.status).toBe("verified");
     expect(ws().peek(evidenceReadState)).toBe(replaced);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 
   it("[SR-082/AK-h27y] computes a chain with the evidence of each node within 500 ms (SR-033)", async () => {
@@ -605,10 +612,12 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     expect(both.nodes).toHaveLength(200);
     expect(both.evidence.length).toBeGreaterThan(0);
     expect(down.evidence.length).toBeGreaterThan(0);
-    expect(both.total).toBeGreaterThan(40_200);
+    expect(both.total).toBeGreaterThan(scaledCount(40_200));
+    // 40,000 at N-036, where the total is above 40,200; a full page before the end in a smaller run (#2037).
+    const deepOffset = Math.min(40_000, both.total - 200);
     const { result: deep } = await measure(
       "trace.chain of the first need with evidence per node, page (200) at offset 40,000",
-      () => chainOf({ offset: 40_000 }),
+      () => chainOf({ offset: deepOffset }),
       { basis: `SR-033 plan review S1c (${COMPARE_AK4})`, ...COMPARED },
     );
     expect(deep.nodes).toHaveLength(200);
@@ -621,8 +630,8 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
       { basis },
     );
     await recordMemory("trace.chain of the first need, page of 5,000", peak, basis);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
-    expect(downward.ms, thresholdMessage(downward)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(downward.ms, thresholdMessage(downward)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records evidence.coverage, evidence.degree and data.export of the whole workspace (SR-036, SR-037)", async () => {
