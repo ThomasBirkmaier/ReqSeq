@@ -6,7 +6,7 @@ import { escapeHtml } from "./markdown.js";
 export type BadgeVariant = "default" | "note" | "tip" | "success" | "caution" | "danger";
 
 /** `label` as a small badge of `variant`. */
-export const badge = (label: string, variant: BadgeVariant = "default"): string =>
+export const badge = (label: string, variant: BadgeVariant): string =>
   `<span class="sl-badge ${variant} small astro-qnj5uuvn">${escapeHtml(label)}</span>`;
 
 const VERIFICATION: Readonly<Record<string, BadgeVariant>> = {

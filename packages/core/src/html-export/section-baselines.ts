@@ -8,7 +8,7 @@
 // struck through, added words marked), and the relations added and removed, each target named as it is now where the
 // workspace has it (resolved from the element's repository), else by its UUID. Without that commit in the local
 // history (not fetched, a shallow clone), or where Git cannot tell, the page says the difference is not available, and
-// why. Each baseline with a difference is a `<details>` (the newest open, the others collapsed), so it works without
+// why. Each baseline with a difference is a `<details>` (the newest such baseline open, the others collapsed), so it works without
 // JavaScript.
 import type { ChangedRelation, ElementRecord, FieldDifference } from "../model/index.js";
 import { fieldName, resolveTarget } from "../model/index.js";
@@ -95,7 +95,9 @@ export const baselinesSection = (context: ElementPageContext, page: ElementPage)
   if (since.length === 0) {
     return "";
   }
-  const items = since.map((entry, index) => {
+  // The first baseline with a difference stands open, the others collapsed.
+  const first = since.find((entry) => entry.difference !== undefined);
+  const items = since.map((entry) => {
     const { baseline, difference } = entry;
     const head = `<a href="../${baselinePage(baseline)}">${escapeHtml(baseline.name)}</a> of ${escapeHtml(dayOf(baseline.date))}: ${escapeHtml(changeText(entry))}`;
     if (difference === undefined) {
@@ -105,7 +107,7 @@ export const baselinesSection = (context: ElementPageContext, page: ElementPage)
       "unavailable" in difference
         ? `<p>The difference is not available: ${escapeHtml(difference.unavailable)}.</p>`
         : differenceHtml(context, page.record, difference);
-    return `<details class="rq-since-baseline"${index === 0 ? " open" : ""}><summary>${head}</summary>${shown}</details>`;
+    return `<details class="rq-since-baseline"${entry === first ? " open" : ""}><summary>${head}</summary>${shown}</details>`;
   });
   return `<section class="rq-since"><h2 id="since-baselines">Since baselines</h2>${items.join("")}</section>`;
 };

@@ -1,6 +1,7 @@
 // The word-level difference of two wordings on an element page (SR-232 AK7): the old wording with each removed run of
-// words in `<del>` and each added run in `<ins>`, the rest as written; every part escaped (SR-235). Words are the runs
-// between white space, and white space is kept as written. The common start and end are cut off first; when the rest
+// words in `<del>` and each added run in `<ins>`, the rest as written; every part escaped (SR-235). A word is a run
+// without white space together with the white space after it, so a rewritten phrase is one mark; words are compared
+// without that white space, and an unchanged word shows with the white space of the new wording. The common start and end are cut off first; when the rest
 // is too long to compare word by word (more than `LIMIT` pairs of words), it shows as removed and added as a whole, so
 // the export stays fast for long texts (N-036).
 import { escapeHtml } from "./markdown.js";
@@ -8,7 +9,11 @@ import { escapeHtml } from "./markdown.js";
 /** At most this many pairs of words are compared after the common start and end are cut off. */
 export const LIMIT = 250_000;
 
-const wordsOf = (text: string): string[] => text.split(/(\s+)/u).filter((part) => part !== "");
+const wordsOf = (text: string): string[] => text.match(/\s+|\S+\s*/gu) ?? [];
+
+/** Whether two words are the same, white space after them aside. */
+const same = (a: string | undefined, b: string | undefined): boolean =>
+  String(a).trimEnd() === String(b).trimEnd();
 
 /**
  * The lengths of the longest common runs of words of `a` from `i` and `b` from `j`, at `i * (b.length + 1) + j`. Every
@@ -19,10 +24,9 @@ const commonLengths = (a: readonly string[], b: readonly string[]): Uint32Array 
   const table = new Uint32Array((a.length + 1) * width);
   for (let i = a.length - 1; i >= 0; i -= 1) {
     for (let j = b.length - 1; j >= 0; j -= 1) {
-      table[i * width + j] =
-        a[i] === b[j]
-          ? Number(table[(i + 1) * width + j + 1]) + 1
-          : Math.max(Number(table[(i + 1) * width + j]), Number(table[i * width + j + 1]));
+      table[i * width + j] = same(a[i], b[j])
+        ? Number(table[(i + 1) * width + j + 1]) + 1
+        : Math.max(Number(table[(i + 1) * width + j]), Number(table[i * width + j + 1]));
     }
   }
   return table;
@@ -44,8 +48,8 @@ const middleParts = (a: readonly string[], b: readonly string[]): Part[] => {
   let i = 0;
   let j = 0;
   while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i] === b[j]) {
-      parts.push(["same", String(a[i])]);
+    if (i < a.length && j < b.length && same(a[i], b[j])) {
+      parts.push(["same", String(b[j])]);
       i += 1;
       j += 1;
     } else if (
@@ -67,21 +71,21 @@ export const wordDiff = (before: string, after: string): string => {
   const a = wordsOf(before);
   const b = wordsOf(after);
   let start = 0;
-  while (start < a.length && start < b.length && a[start] === b[start]) {
+  while (start < a.length && start < b.length && same(a[start], b[start])) {
     start += 1;
   }
   let end = 0;
   while (
     end < a.length - start &&
     end < b.length - start &&
-    a[a.length - 1 - end] === b[b.length - 1 - end]
+    same(a[a.length - 1 - end], b[b.length - 1 - end])
   ) {
     end += 1;
   }
   const parts: Part[] = [
-    ["same", a.slice(0, start).join("")],
+    ["same", b.slice(0, start).join("")],
     ...middleParts(a.slice(start, a.length - end), b.slice(start, b.length - end)),
-    ["same", a.slice(a.length - end).join("")],
+    ["same", b.slice(b.length - end).join("")],
   ];
   // Each change makes one mark of its removed and one of its added words, the removed first.
   let html = "";
