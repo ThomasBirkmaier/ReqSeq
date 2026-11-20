@@ -390,20 +390,21 @@ test.describe("the previous and the next buffer drawn in advance", () => {
     await window.keyboard.press("Alt+KeyP");
     await expect(shownLayer(window).locator("article h1")).toHaveText("See the gusts");
     expect(naming(await requests.sent(), NEED.id).map((request) => request.name)).toContain("element.get");
-    const drawnAhead = await highlighted(window);
-    expect(drawnAhead).toEqual(["Title"]);
+    await expect.poll(() => highlighted(window)).toEqual(["Title"]);
     // Its own neighbours are drawn in advance again after this switch.
     await expect.poll(() => hiddenViews(window)).toContain(`SR-0000b1 ${SPEED.title}`);
     // The same as a fresh open: closed, changed outside again, opened with Ctrl+P.
     await command(window, "Close buffer");
     await expect(shownLayer(window).locator("article h1")).toHaveText(SPEED.title);
-    await retitle(running, "See the storm");
-    await expect
-      .poll(async () => (await running.cli(["element", "get", NEED.id])).stdout)
-      .toContain("See the storm");
     await expect.poll(() => hiddenTitle(window)).toEqual([]);
+    // Opened as soon as the window shows the new title, without a CLI poll first: only a read within `FRESH_MS` of the
+    // change is highlighted (#2031).
+    await retitle(running, "See the storm");
+    await expect(
+      shownLayer(window).getByRole("group", { name: "Parents" }).getByRole("link", { name: "See the storm" }),
+    ).toBeVisible();
     await open(window, "See the storm");
-    expect(await highlighted(window)).toEqual(drawnAhead);
+    await expect.poll(() => highlighted(window)).toEqual(["Title"]);
   });
 
   test("[SR-212/AK-tfck] an element scrolled, left and returned shows the position of a fresh open", async () => {
