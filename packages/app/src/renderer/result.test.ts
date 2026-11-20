@@ -484,9 +484,11 @@ describe("result lines", () => {
       ["text", 0, "Others", "1", undefined, undefined],
       ["element", 1, "SR-000002", "Title 2", undefined, undefined],
     ]);
-    // With details: the normal value in its place, then the element's own values after all others, as details.
-    expect(shown(true).slice(1, 12)).toEqual([
+    // With details: the UUID and the normal value in their places, then the element's own values after all others,
+    // as details.
+    expect(shown(true).slice(1, 14)).toEqual([
       ["element", 1, "SR-000001 (SR-1)", "Title 1", "approved", undefined],
+      ["text", 2, "Element", "uuid-1", undefined, true],
       ["text", 2, "Read-only", "no", undefined, true],
       ["text", 2, "Verification status", "1", undefined, undefined],
       ["text", 3, "Verification status", "verified", undefined, undefined],
@@ -496,8 +498,50 @@ describe("result lines", () => {
       ["text", 2, "Type", "need", undefined, true],
       ["text", 2, "File", "a.md", undefined, true],
       ["element", 1, "SR-000003", "Title 3", undefined, undefined],
+      ["text", 2, "Element", "uuid-3", undefined, true],
       ["text", 2, "Repository", "spec", undefined, true],
     ]);
+  });
+
+  it("[SR-223/AK-qwkc] shows the row of every entry of the answer past MAX_RESULT_LINES, each with one line that counts its values not shown", () => {
+    const fields: OutputField[] = [
+      { path: "elements", title: "Elements", elements: "answer" },
+      { path: "elements[].id", title: "Element", technical: true },
+      { path: "elements[].type", title: "Type", elementValue: true },
+      { path: "elements[].verification", title: "Verification status" },
+      { path: "elements[].verification[].view", title: "View", technical: true },
+      { path: "elements[].verification[].status", title: "Verification status" },
+      { path: "elements[].verification[].criteria", title: "Criteria" },
+    ] as OutputField[];
+    const views = ["core", "v-1", "v-2", "v-3"];
+    const entries = Array.from({ length: 200 }, (_, n) =>
+      element(n + 1, {
+        status: "approved",
+        verification: views.map((view) => ({
+          view,
+          status: "open",
+          criteria: { verified: 0, total: 3, notVerified: ["AK1", "AK2", "AK3"] },
+        })),
+      }),
+    );
+    for (const details of [false, true]) {
+      const lines = resultLines({ elements: entries }, fields, details);
+      const rows = lines.filter((line) => line.kind === "element" && line.depth === 1);
+      expect(rows.map((row) => row.label)).toEqual(entries.map((entry) => entry.shortId));
+      // The values below the rows fill the page up to the limit; then each row has one line that counts its own.
+      const more = lines.filter((line) => line.depth === 2 && line.text.endsWith(" more lines"));
+      expect(more.length).toBeGreaterThan(100);
+      // No line of the page counts lines past the limit: each entry counts its own, under its row.
+      expect(lines.filter((line) => line.depth !== 2 && line.text.endsWith("more lines"))).toEqual([]);
+      // The first entry shows all its lines; the last one counts the same number, one line under its row.
+      const [first = -1, second = -1] = rows.slice(0, 2).map((row) => lines.indexOf(row));
+      const below = second - first - 1;
+      expect(below).toBeGreaterThan(details ? 13 : 9);
+      expect(lines.slice(-2)).toEqual([
+        expect.objectContaining({ kind: "element", label: "SR-00000200" }),
+        { kind: "text", depth: 2, label: "", text: `${String(below)} more lines` },
+      ]);
+    }
   });
 
   it("[SR-223/AK-qwkc] keeps every value of an entry below its row when the catalog marks none as the element's own, as for a baseline", () => {

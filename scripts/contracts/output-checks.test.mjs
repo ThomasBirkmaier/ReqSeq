@@ -295,6 +295,34 @@ describe("checkOutputs", () => {
     ]);
   });
 
+  it("[SR-223/AK-qwkc] needs shortId and title on the entries of an answer the app lists, unless the command stays an output page", () => {
+    const answer = (properties, extra = {}) =>
+      read(
+        {
+          elements: {
+            title: "Elements",
+            "x-elements": "answer",
+            type: "array",
+            items: {
+              type: "object",
+              properties: { id: { title: "Element", $ref: `${C}uuid` }, ...properties },
+            },
+          },
+        },
+        extra,
+      );
+    const named = {
+      shortId: { title: "Short ID", type: "string" },
+      title: { title: "Title", type: "string" },
+    };
+    const state = { state: { title: "State", type: "string" } };
+    expect(errorsOf(answer(named))).toEqual([]);
+    expect(errorsOf({ ...answer(state, { staysOutputPage: true }), name: "baseline.get" })).toEqual([]);
+    expect(errorsOf(answer(state), answer({ title: named.title }))).toEqual([
+      "schemas/commands/x.read.json: output elements: the app lists the answer as rows, so its entries need shortId and title, or the command is staysOutputPage (SR-223 AK6)",
+    ]);
+  });
+
   it("[SR-224/AK-cwyt] holds x-element-values to the entries of evidence.status, exactly its six values, in both directions", () => {
     const OWN = ["type", "version", "repository", "file", "properties", "relations"];
     const entry = {
@@ -302,7 +330,7 @@ describe("checkOutputs", () => {
       properties: {
         id: { title: "Element", $ref: `${C}uuid` },
         ...Object.fromEntries(
-          [...OWN, "verification"].map((name) => [
+          [...OWN, "verification", "shortId", "title"].map((name) => [
             name,
             { title: `${name[0].toUpperCase()}${name.slice(1)}`, type: "string" },
           ]),

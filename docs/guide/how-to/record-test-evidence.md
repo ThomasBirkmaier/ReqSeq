@@ -26,13 +26,13 @@ evidence:
 
 Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the item under test. A file a pipeline writes shows up within seconds.
 
-A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the status too. **Show evidence status** shows it per view under each element's row, **Show evidence coverage** counts per level.
+A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the verification status too. **Show evidence status** shows it per view under each requirement's row, **Show evidence coverage** counts per level.
 
 ![A requirement whose test failed: its badge "Core: failed (0 of 1 criteria, AK1 not verified)" and below it its failed evidence record.](../images/app-verification-badges.png)
 
 ## CLI
 
-The commands start from a new workspace; in yours, use your own short IDs.
+The commands start from a new workspace; in yours, use your short IDs.
 
 ```sh
 reqseq workspace init . "Weather station"

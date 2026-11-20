@@ -96,7 +96,10 @@ export interface ResultOrigin {
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
 export type OutputField = NonNullable<CatalogEntry["outputFields"]>[number];
 
-/** The most lines shown; an output beyond it ends with a line that says how many more there are. */
+/**
+ * The most lines shown; an output beyond it ends with a line that says how many more there are. The rows of the
+ * entries of the answer are shown beyond it, each with one line that counts its lines not shown (SR-223 AK6).
+ */
 export const MAX_RESULT_LINES = 2000;
 
 type Rec = Readonly<Record<string, unknown>>;
@@ -543,20 +546,42 @@ const linesOf = (
   outlineLines(value, depth, label, path, walk, item);
 };
 
-/**
- * The fields of an element entry its row shows or that name it (SR-223 AK6): its UUID, short ID, identifier, title
- * and status.
- */
-const ROW_FIELDS: ReadonlySet<string> = new Set(["id", "shortId", "identifier", "title", "status"]);
+/** The values of an element entry its row shows (SR-223 AK6): its short ID, identifier, title and status. */
+const ENTRY_ROW_FIELDS: ReadonlySet<string> = new Set(["shortId", "identifier", "title", "status"]);
 
 /** The items at `path` (`elements[]`) are those of the field the catalog marks as the answer of the output. */
 const isAnswer = (fields: Fields, path: string): boolean =>
   path.endsWith("[]") && fields.get(path.slice(0, -2))?.elements === "answer";
 
+/** "1 more line", "2464 more lines": the lines past `MAX_RESULT_LINES` that are not shown. */
+const moreLines = (count: number): string => `${String(count)} more line${count === 1 ? "" : "s"}`;
+
+/** Adds a line also past `MAX_RESULT_LINES`, marked as a detail inside a value "Show details" shows. */
+const always = (walk: Walk, line: ResultLine): void => {
+  walk.sink.lines.push(walk.detail ? { ...line, detail: true } : line);
+};
+
+/**
+ * An entry of the answer of an output page: its row, written also past `MAX_RESULT_LINES`, since every entry stands
+ * as the row of its element (SR-223 AK6), and the lines `below` writes up to the limit; past it, one line under the
+ * row counts the entry's lines that are not shown.
+ */
+const entryLines = (walk: Walk, row: ResultLine, below: () => void): void => {
+  always(walk, row);
+  const before = walk.sink.rest;
+  below();
+  const hidden = walk.sink.rest - before;
+  if (hidden > 0) {
+    walk.sink.rest = before;
+    always(walk, { kind: "text", depth: row.depth + 1, label: "", text: moreLines(hidden) });
+  }
+};
+
 /**
  * The row of an element record with its status; an entry of the answer of an output page has its other fields below
- * its row, the state of the entry (SR-223 AK6). The values the catalog marks as the element's own (`elementValue`,
- * SR-224 AK9) appear only with "Show details", after all other values of the entry.
+ * its row, the state of the entry (SR-223 AK6). Its UUID, technical, shows with "Show details" as text: its row
+ * already opens it. The values the catalog marks as the element's own (`elementValue`, SR-224 AK9) appear only with
+ * "Show details", after all other values of the entry.
  */
 const elementLines = (
   element: Element,
@@ -566,18 +591,32 @@ const elementLines = (
   walk: Walk,
   item: boolean,
 ): void => {
-  emit(walk, () => withStatus(elementLine(element, depth), value));
+  const row = withStatus(elementLine(element, depth), value);
   if (!item || !isAnswer(walk.fields, path)) {
+    emit(walk, () => row);
     return;
   }
   const own = Object.keys(value).filter(
     (key) => walk.fields.get(childOf(walk.fields, path, key).path)?.elementValue === true,
   );
-  fieldLines(value, depth + 1, path, walk, new Set([...ROW_FIELDS, ...own]));
-  if (walk.details && own.length > 0) {
-    const values = Object.fromEntries(own.map((key) => [key, value[key]]));
-    fieldLines(values, depth + 1, path, { ...walk, detail: true });
-  }
+  entryLines(walk, row, () => {
+    const id = childOf(walk.fields, path, "id");
+    if (walk.details) {
+      emit(walk, () => ({
+        kind: "text",
+        depth: depth + 1,
+        label: id.label,
+        text: element.id,
+        field: id.path,
+        detail: true,
+      }));
+    }
+    fieldLines(value, depth + 1, path, walk, new Set([...ENTRY_ROW_FIELDS, "id", ...own]));
+    if (walk.details && own.length > 0) {
+      const values = Object.fromEntries(own.map((key) => [key, value[key]]));
+      fieldLines(values, depth + 1, path, { ...walk, detail: true });
+    }
+  });
 };
 
 /**
@@ -622,8 +661,16 @@ const outlineLines = (
 ): void => {
   const entry = item ? entryOf(value, walk.names) : undefined;
   if (entry !== undefined) {
-    emit(walk, () => elementLine(entry, depth));
-    fieldLines(value, depth + 1, path, walk, ID_FIELD);
+    const below = (): void => {
+      fieldLines(value, depth + 1, path, walk, ID_FIELD);
+    };
+    if (isAnswer(walk.fields, path)) {
+      // An entry of the answer, such as one of a baseline: its row also past the limit (SR-223 AK6).
+      entryLines(walk, elementLine(entry, depth), below);
+    } else {
+      emit(walk, () => elementLine(entry, depth));
+      below();
+    }
     return;
   }
   if (label !== "") {
@@ -847,7 +894,7 @@ export const resultLines = (
       kind: "text",
       depth: 0,
       label: "",
-      text: `${String(rest)} more line${rest === 1 ? "" : "s"}`,
+      text: moreLines(rest),
     });
   }
   const steps = nextStepsOf(output);

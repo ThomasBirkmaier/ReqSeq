@@ -17,7 +17,7 @@ Run the line once per JUnit file, each with its own `--output` name, for example
 
 On a runner whose system is a variant, add `--variant core --variant <variant> --skip-not-in-view`: a result counts where its requirement applies, and one that applies in neither is left out ([Record evidence for a variant](/how-to/record-evidence-for-a-variant/)).
 
-The enriched file counts only once it is committed in the evidence folder: let the pipeline commit it where it may push to the requirements repository (`git add evidence/ci && git commit -m "Test results of $BUILD"`). ReqSeq never commits. A file kept only as a pipeline artifact is read once it is copied there.
+The enriched file counts only once it is committed in the evidence folder: let the pipeline commit it where it may push to the requirements repository (`git add evidence/ci && git commit -m "Test results of $BUILD"`). ReqSeq never commits. A file kept only as a pipeline artifact counts once copied there.
 
 **GitHub Actions** (both snippets run the step when a test failed too, so a failure is recorded):
 
@@ -96,7 +96,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 
 ## App
 
-In the app, **Show evidence status** shows each element's status per view under its row, also for a file a pipeline writes while the app is open.
+In the app, **Show evidence status** shows each requirement's verification status per view, and a need's validation status, under its row, also for a file a pipeline writes while the app is open.
 
 ## CLI
 

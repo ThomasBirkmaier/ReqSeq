@@ -184,7 +184,8 @@ export const show = (
  * The catalog marks a field of the command's output as the elements of its answer (`x-elements: "answer"`), and does
  * not mark the command `staysOutputPage`: an output whose answer is the state of each entry, such as the change since
  * a baseline or the verification status per view (`baseline.get`, `evidence.status`, SR-224 AK8), stays an output
- * page with each entry's values below its row, also without entries (SR-223 AK6).
+ * page with each entry's values below its row, also without entries (SR-223 AK6). `output-checks.mjs` makes sure the
+ * entries of every other answer are element rows, with a short ID and a title.
  */
 const listsElements = (command: Entry["command"]): boolean =>
   command.staysOutputPage !== true &&

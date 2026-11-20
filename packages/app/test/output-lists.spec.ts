@@ -231,12 +231,18 @@ test.describe("lists from outputs", () => {
     // record of an older version; the element's own values (type, repository, properties, relations: SR-224 AK9)
     // and the technical ones are not there.
     const below = async (): Promise<string[]> => {
-      const texts = await page.locator(".line").allTextContents();
-      const from = texts.findIndex((text) => text.startsWith("SR-00b001"));
-      return texts.slice(
-        from + 1,
-        texts.findIndex((text, at) => at > from && text.startsWith("SR-00b002")),
+      // Each line with whether it is the row of an entry, so the slice ends at the next entry's row.
+      const lines = await page.locator(".line").evaluateAll((all) =>
+        all.map((line) => ({
+          text: line.textContent,
+          entry: line.classList.contains("element") && line.getAttribute("data-depth") === "1",
+        })),
       );
+      const from = lines.findIndex((line) => line.entry && line.text.startsWith("SR-00b001"));
+      const to = lines.findIndex((line, at) => at > from && line.entry);
+      expect(from).toBeGreaterThanOrEqual(0);
+      expect(to).toBeGreaterThanOrEqual(0);
+      return lines.slice(from + 1, to).map((line) => line.text);
     };
     const own = await below();
     expect(own).toContain("Verification statusoutdated");
@@ -256,7 +262,7 @@ test.describe("lists from outputs", () => {
     await showDetails(window);
     await expect(page.locator(".line.detail")).toHaveCount(0);
     await expect(page.locator(".line", { hasText: "Typesystem-requirement" })).toHaveCount(0);
-    // Enter on a row opens its element.
+    // A click on a row opens its element.
     await rows.filter({ hasText: "SR-00b001" }).click();
     await expect(shownLayer(window).locator(".buffer.element")).toBeVisible();
   });

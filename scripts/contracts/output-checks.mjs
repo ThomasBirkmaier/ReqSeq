@@ -457,6 +457,23 @@ function checkEntry(cmd, fields) {
       "showsOutput: only the write commands of SHOWS_OUTPUT in output-checks.mjs show their output (SR-224 AK7)",
     );
   }
+  errors.push(...outputPageErrors(cmd, fields, answers), ...elementValueErrors(cmd, fields, answers));
+  for (const mark of marksIn(cmd.input)) {
+    errors.push(`input${mark}: marks are for outputs`);
+  }
+  if (cmd.outputFields !== undefined) {
+    errors.push("outputFields: written by generate.mjs into the generated catalog only");
+  }
+  return errors;
+}
+
+/**
+ * `staysOutputPage` (SR-224 AK8) in both directions, and the entries of an answer the app lists as element rows,
+ * with a short ID and a title (SR-223 AK6): a record of another shape keeps its values only on an output page. A list
+ * of UUIDs is listed by `element.list`.
+ */
+function outputPageErrors(cmd, fields, answers) {
+  const errors = [];
   if (
     STAYS_OUTPUT_PAGE.has(cmd.name) &&
     (cmd.effect !== "read" || cmd.staysOutputPage !== true || answers.length !== 1)
@@ -470,12 +487,16 @@ function checkEntry(cmd, fields) {
       "staysOutputPage: only the read commands of STAYS_OUTPUT_PAGE in output-checks.mjs stay an output page (SR-224 AK8)",
     );
   }
-  errors.push(...elementValueErrors(cmd, fields, answers));
-  for (const mark of marksIn(cmd.input)) {
-    errors.push(`input${mark}: marks are for outputs`);
+  const [answer] = answers;
+  if (answer === undefined || cmd.staysOutputPage === true) {
+    return errors;
   }
-  if (cmd.outputFields !== undefined) {
-    errors.push("outputFields: written by generate.mjs into the generated catalog only");
+  const entryFields = fields.filter((field) => field.path.startsWith(`${answer.path}[].`));
+  const has = (name) => entryFields.some((field) => field.path === `${answer.path}[].${name}`);
+  if (entryFields.length > 0 && !(has("shortId") && has("title"))) {
+    errors.push(
+      `output ${answer.path}: the app lists the answer as rows, so its entries need shortId and title, or the command is staysOutputPage (SR-223 AK6)`,
+    );
   }
   return errors;
 }
