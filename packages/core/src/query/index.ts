@@ -50,8 +50,9 @@ export type { Grouping, GroupHead } from "./group.js";
 export { checkGroupKey, groupUnavailable, groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";
 export type { Selected, SelectionContext, StoredSelection } from "./selection.js";
-export { sortElements } from "./sort.js";
-export type { SortContext, SortedElements, TreePlace } from "./sort.js";
+export { NO_RANKS, compareSortValues, ranksOf, sortElements, sortValueOf } from "./sort.js";
+export type { SortContext, SortValue, SortedElements, TreePlace } from "./sort.js";
+export { valuesOf } from "./context.js";
 export {
   SEARCH_FIELDS,
   SearchBuildCancelled,

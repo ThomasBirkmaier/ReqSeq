@@ -47,6 +47,7 @@ const context = (metamodel: Partial<Metamodel> = {}): ElementPageContext => ({
   layout: { repositories: [] },
   links: pageLinks(new Set([ID])),
   neighbourhood: {} as NeighbourhoodSource,
+  members: new Map(),
 });
 
 const page = (data: Omit<ElementData, "record">): ElementPage => ({

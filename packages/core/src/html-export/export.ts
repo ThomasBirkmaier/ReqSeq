@@ -31,7 +31,11 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ExportFolder } from "../files/index.js";
 import { imageExtension, openExportFolder, readElementText, readFileSnapshot } from "../files/index.js";
-import { metamodelState } from "../metamodel/index.js";
+import type { Metamodel } from "../metamodel/index.js";
+import { findType, metamodelState, propertyWithMeaning } from "../metamodel/index.js";
+import { selectionDegree } from "../evidence/index.js";
+import { listHints } from "../hints/index.js";
+import { NO_RANKS, compareSortValues, sortValueOf } from "../query/index.js";
 import type { ElementRecord, ElementStore, ImageLink, ShortIds, StateReader } from "../model/index.js";
 import {
   UNKNOWN_TYPE_PREFIX,
@@ -62,7 +66,13 @@ import {
 import type { ImageOutcome, ReferenceOutcome } from "./markdown.js";
 import { escapeHtml, renderMarkdown } from "./markdown.js";
 import { NOTICES_FILE, noticesText } from "./notices.js";
+import type { Navigation } from "./page.js";
 import { ASSETS, DOCS_CSS, OWN_CSS, page } from "./page.js";
+import type { ListContext, ListEntry, ListPage } from "./list-page.js";
+import { LIST_SCRIPT, listPageOf, listsOf, sortedByIdentifier, typeOrder } from "./list-page.js";
+import { listScript } from "./list-script.js";
+import type { NewestBaseline } from "./start-page.js";
+import { startPageBody } from "./start-page.js";
 import { COPY_SCRIPT, copyScript } from "./copy-script.js";
 import type { ElementData } from "./element-data.js";
 import { elementDataOf } from "./element-data.js";
@@ -135,6 +145,8 @@ export interface HtmlExportOptions {
   readonly state?: StateReader;
   /** The vendor folder (`vendor.ts`); default the one of this installation. */
   readonly vendor?: string;
+  /** The newest baseline and what changed since (`html.export` gives it); none: the workspace has no baseline. */
+  readonly newestBaseline?: NewestBaseline;
 }
 
 /** The docs' token that gives each colour role of a diagram (`DIAGRAM_COLOURS`). */
@@ -274,7 +286,7 @@ const referenceResolver =
     return { text: true };
   };
 
-/** The footer of every page (see the file comment). */
+/** The text of the footer of every page (see the file comment). */
 const footerOf = async (
   workspace: Workspace,
   layout: WorkspaceLayout,
@@ -298,7 +310,7 @@ const footerOf = async (
   const clean = states.every((s) => s.state.commit !== undefined && s.state.dirty === false);
   const date = (options.now ?? (() => new Date()))().toISOString().slice(0, 10);
   const named = commit === undefined ? "no commit" : `Commit ${commit.slice(0, 12)}${clean ? "" : "-dirty"}`;
-  return `<span class="rq-footer">${escapeHtml(`${named} · exported ${date} with ReqSeq ${PRODUCT_VERSION}`)}</span>`;
+  return `${named} · exported ${date} with ReqSeq ${PRODUCT_VERSION}`;
 };
 
 /** The heading of the page of `record`: its identifier, then its title when it has one. */
@@ -318,6 +330,113 @@ const writeVendorAssets = async (folder: ExportFolder, vendor: VendorFiles, need
   }
 };
 
+const NO_NEEDS: Needs = { formulas: false, diagrams: false };
+
+/** The key of the hints of an element copy. */
+const hintKey = (id: string, repository: string | undefined): string => `${id}\n${String(repository)}`;
+
+/** The number of open hints (`hint.list`) of each element copy, by `hintKey`. */
+const hintCounts = async (workspace: Workspace): Promise<ReadonlyMap<string, number>> => {
+  const { hints } = await listHints(workspace, { limit: Number.MAX_SAFE_INTEGER, offset: 0 });
+  const counts = new Map<string, number>();
+  for (const hint of hints) {
+    // A hint on an evidence record names the element's own repository apart from the record's (`problemElement`).
+    const key = hintKey(String(hint.elementId), hint.elementRepository ?? hint.repository);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+};
+
+/** A package as the sidebar names it: its title, else its short ID. */
+const packageLabel = ({ element }: ListEntry): string =>
+  element.title === "" ? element.shortId : element.title;
+
+/**
+ * The packages with a page (elements of a type with the meaning package), by title, each with the elements of
+ * `entries` whose property with the meaning `packages` names it, in the order of `entries` (SR-233 AK4).
+ */
+const packagesWithMembers = (
+  metamodel: Metamodel,
+  entries: readonly ListEntry[],
+): Map<ListEntry, ListEntry[]> => {
+  const key = propertyWithMeaning(metamodel, "packages")?.key;
+  const packages = entries
+    .filter(({ record }) => findType(metamodel, record.type)?.meaning === "package")
+    .map((entry) => ({ entry, sort: sortValueOf(packageLabel(entry), NO_RANKS) }))
+    .sort((a, b) => compareSortValues(a.sort, b.sort));
+  const byId = new Map(packages.map(({ entry }) => [entry.element.id, entry]));
+  const members = new Map<ListEntry, ListEntry[]>(packages.map(({ entry }) => [entry, []]));
+  for (const entry of entries) {
+    const named = entry.element.relations.filter((r) => r.property === true && r.kind === key);
+    for (const id of new Set(named.map((r) => r.id))) {
+      const owner = byId.get(id);
+      if (owner !== undefined) {
+        members.get(owner)?.push(entry);
+      }
+    }
+  }
+  return members;
+};
+
+/** The number of `entries` per type, in the order of the metamodel's types, an unknown type after them by its key. */
+const typeCounts = (
+  metamodel: Metamodel,
+  entries: readonly ListEntry[],
+): { readonly type: string; readonly name: string; readonly count: number }[] => {
+  const counts = new Map<string, number>();
+  for (const { record } of entries) {
+    counts.set(record.type, (counts.get(record.type) ?? 0) + 1);
+  }
+  return [...counts]
+    .sort(([a], [b]) => typeOrder(metamodel)(a, b))
+    .map(([type, count]) => ({ type, name: findType(metamodel, type)?.name ?? type, count }));
+};
+
+/**
+ * What the pages of the export share besides the element pages: the elements with a page (`paged`) as the lists show
+ * them, by identifier; the lists; the sidebar; and the elements of each package by its UUID.
+ */
+const siteOf = async (
+  workspace: Workspace,
+  context: ListContext,
+  data: readonly ElementData[],
+  paged: ReadonlySet<ElementRecord>,
+): Promise<{
+  readonly entries: readonly ListEntry[];
+  readonly lists: readonly ListPage[];
+  readonly navigation: Navigation;
+  readonly members: ReadonlyMap<string, readonly ListEntry[]>;
+}> => {
+  const { metamodel } = context;
+  const hints = await hintCounts(workspace);
+  const entries = sortedByIdentifier(
+    context,
+    data
+      .filter(({ record }) => paged.has(record))
+      .map(({ record, element }) => ({
+        record,
+        element,
+        hints: hints.get(hintKey(record.id, record.repository)) ?? 0,
+      })),
+  );
+  const lists = listsOf(context, entries).map(({ type, entries: listed }) =>
+    listPageOf(context, type, listed),
+  );
+  const packages = packagesWithMembers(metamodel, entries);
+  const navigation: Navigation = [
+    { label: "Lists", links: lists.map((list) => ({ path: list.path, label: list.title })) },
+    {
+      label: "Packages",
+      links: [...packages.keys()].map((entry) => ({
+        path: elementPage(entry.element.id),
+        label: packageLabel(entry),
+      })),
+    },
+  ];
+  const members = new Map([...packages].map(([entry, listed]) => [entry.element.id, listed]));
+  return { entries, lists, navigation, members };
+};
+
 /** Writes the HTML export of `workspace` into the absolute folder `target` (see the file comment). */
 export const writeHtmlExport = async (
   workspace: Workspace,
@@ -333,7 +452,8 @@ export const writeHtmlExport = async (
   await refuseGitAt(target, target);
   await refuseDataFolder(layout, target);
   const vendor = await readVendor(options.vendor);
-  const footer = await footerOf(workspace, layout, store, options);
+  const made = await footerOf(workspace, layout, store, options);
+  const footer = `<span class="rq-footer">${escapeHtml(made)}</span>`;
   const [versions, trace] = await Promise.all([currentVersions(workspace), traceContext(workspace)]);
   const invalid = invalidStatuses(metamodel);
   const titleKey = titleKeyOrEmpty(metamodel);
@@ -353,7 +473,7 @@ export const writeHtmlExport = async (
   const withPage = new Set([...paged, ...stubbed]);
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];
   const reference = referenceResolver(layout, store, shortIds, withPage);
-  const pageContext: ElementPageContext = {
+  const pageContext: Omit<ElementPageContext, "members"> = {
     metamodel,
     store,
     shortIds,
@@ -361,55 +481,66 @@ export const writeHtmlExport = async (
     links: pageLinks(new Set([...withPage].map((r) => r.id))),
     neighbourhood: neighbourhoodSource(trace, (record) => currentFormsOf(versions, record)),
   };
-  const context: PageContext = { folder, layout, page: pageContext, problems, reference };
   const needs: Needs = { formulas: false, diagrams: false };
   const exported: { id: string; shortId: string; repository: string }[] = [];
   try {
-    for (const record of store.elements) {
-      if (!isInvalid(record) && shared.has(record.id)) {
-        problems.push({
+    problems.push(
+      ...store.elements
+        .filter((record) => !isInvalid(record) && shared.has(record.id))
+        .map((record): Problem => ({
           code: "element.duplicate-id",
           severity: "error",
           message: `No page: several element files have the UUID ${record.id}; give the copy a new UUID`,
           repository: record.repository,
           file: record.file,
           elementId: record.id,
-        });
-      }
-    }
+        })),
+    );
     const shown = store.elements.filter((r) => withPage.has(r));
-    for (const data of await elementDataOf(workspace, { layout, metamodel, store, shortIds }, shown)) {
-      const { record } = data;
+    const data = await elementDataOf(workspace, { layout, metamodel, store, shortIds }, shown);
+    const { entries, lists, navigation, members } = await siteOf(
+      workspace,
+      { metamodel, store, shortIds },
+      data,
+      paged,
+    );
+    const context: PageContext = { folder, layout, page: { ...pageContext, members }, problems, reference };
+    const framed = (
+      path: string,
+      title: string,
+      body: string,
+      own: Needs,
+      scripts: readonly string[] = [],
+    ): string => page({ title, siteTitle: layout.name, path, navigation, body, footer, ...own, scripts });
+    for (const { record, ...rest } of data) {
       const title = headingOf(record, titleKey, shortIds);
       if (stubbed.has(record)) {
-        const body = stubPageBody(context.page, data);
-        await folder.write(
-          elementPage(record.id),
-          page({ title, siteTitle: layout.name, depth: 1, body, footer, formulas: false, diagrams: false }),
-        );
+        const body = stubPageBody(context.page, { record, ...rest });
+        await folder.write(elementPage(record.id), framed(elementPage(record.id), title, body, NO_NEEDS));
         continue;
       }
-      const { html, needs: own } = await elementHtml(context, record, data);
+      const { html, needs: own } = await elementHtml(context, record, { record, ...rest });
       needs.formulas ||= own.formulas;
       needs.diagrams ||= own.diagrams;
       await folder.write(
         elementPage(record.id),
-        page({ title, siteTitle: layout.name, depth: 1, body: html, footer, ...own, scripts: [COPY_SCRIPT] }),
+        framed(elementPage(record.id), title, html, own, [COPY_SCRIPT]),
       );
       exported.push({ id: record.id, shortId: shortIds.of(record), repository: record.repository });
     }
-    await folder.write(
-      "index.html",
-      page({
-        title: layout.name,
-        siteTitle: layout.name,
-        depth: 0,
-        body: `<p>Element pages: ${String(exported.length)}</p>`,
-        footer,
-        formulas: false,
-        diagrams: false,
-      }),
-    );
+    for (const list of lists) {
+      await folder.write(list.path, framed(list.path, list.title, list.body, NO_NEEDS, [LIST_SCRIPT]));
+    }
+    const start = startPageBody({
+      made,
+      missing: layout.repositories.filter((r) => !r.available).map((r) => r.name),
+      degree: await selectionDegree(workspace, store.elements, { kind: "core" }),
+      entries,
+      types: typeCounts(metamodel, entries),
+      lists,
+      baseline: options.newestBaseline,
+    });
+    await folder.write("index.html", framed("index.html", layout.name, start, NO_NEEDS));
     await folder.write(ASSETS.docs, DOCS_CSS);
     await folder.write(ASSETS.own, OWN_CSS);
     await folder.write(ASSETS.theme, scriptOf(themeScript));
@@ -419,6 +550,7 @@ export const writeHtmlExport = async (
     );
     await folder.write(SEARCH_INDEX, searchIndexScript(searchEntries(paged, metamodel, shortIds, titleKey)));
     await folder.write(COPY_SCRIPT, scriptOf(copyScript));
+    await folder.write(LIST_SCRIPT, scriptOf(listScript));
     await writeVendorAssets(folder, vendor, needs);
     await folder.write(NOTICES_FILE, noticesText());
   } catch (error) {

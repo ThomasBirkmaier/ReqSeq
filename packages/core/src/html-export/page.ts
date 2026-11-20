@@ -14,6 +14,8 @@ import {
   DOCS_STYLESHEET,
 } from "./docs-theme.generated.js";
 import { ELEMENT_PAGE_CSS } from "./element-page.js";
+import { LIST_CSS } from "./list-page.js";
+import { START_PAGE_CSS } from "./start-page.js";
 import { escapeHtml } from "./markdown.js";
 
 /** The files every page links, relative to the export folder. */
@@ -29,7 +31,7 @@ export const ASSETS = {
 /** The docs' stylesheet, as the export writes it. */
 export const DOCS_CSS = DOCS_STYLESHEET;
 
-/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs. */
+/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs, the lists and the start page. */
 export const OWN_CSS = [
   ".rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
@@ -38,6 +40,8 @@ export const OWN_CSS = [
   ".sl-markdown-content .katex-display { overflow-x: auto; overflow-y: hidden; }",
   ...ELEMENT_PAGE_CSS,
   "reqseq-search[hidden], .rq-search-more[hidden] { display: none; }",
+  ...LIST_CSS,
+  ...START_PAGE_CSS,
   "",
 ].join("\n");
 
@@ -60,8 +64,6 @@ export interface PageInput {
   readonly title: string;
   /** The name of the workspace, the site title of every page. */
   readonly siteTitle: string;
-  /** How many folders below the export folder the page lies (0 for `index.html`). */
-  readonly depth: number;
   /** The content, already HTML. */
   readonly body: string;
   /** The footer, already HTML. */
@@ -69,23 +71,49 @@ export interface PageInput {
   readonly formulas: boolean;
   readonly diagrams: boolean;
   /** Further scripts of the folder the page loads after the page script, relative to the export folder. */
-  readonly scripts?: readonly string[];
+  readonly scripts: readonly string[];
+  /** The page relative to the export folder, `/` as separator: the sidebar marks it as the current page. */
+  readonly path: string;
+  /** The groups of the sidebar below the start page (SR-233 AK4). */
+  readonly navigation: Navigation;
 }
 
-/** The sidebar: the start page, marked as the current page on itself. */
-const sidebar = (up: string, current: boolean): string => {
+/** A link of the sidebar: a page relative to the export folder and its label. */
+export interface NavigationLink {
+  readonly path: string;
+  readonly label: string;
+}
+
+/** The groups of the sidebar, each with its links, in the order shown. */
+export type Navigation = readonly { readonly label: string; readonly links: readonly NavigationLink[] }[];
+
+const CARET =
+  '<svg aria-hidden="true" class="caret" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg>';
+
+/**
+ * The sidebar: the start page, then each group of `navigation` open with its links (Starlight's markup of a group),
+ * the link of the page `path` marked as the current page.
+ */
+const sidebar = (up: string, path: string, navigation: Navigation): string => {
   const scope = DOCS_SIDEBAR_SCOPE;
-  const here = current ? ' aria-current="page"' : "";
-  return `<ul class="top-level ${scope}"><li class="${scope}"><a href="${up}index.html"${here} class="large ${scope}"><span class="${scope}">Start page</span></a></li></ul>`;
+  const link = ({ path: target, label }: NavigationLink, large: boolean): string =>
+    `<li class="${scope}"><a href="${up}${escapeHtml(target)}"${target === path ? ' aria-current="page"' : ""} class="${large ? "large " : ""}${scope}"><span class="${scope}">${escapeHtml(label)}</span></a></li>`;
+  const groups = navigation
+    .filter((group) => group.links.length > 0)
+    .map(
+      (group) =>
+        `<li class="${scope}"><details open class="${scope}"><summary class="${scope}"><span class="group-label ${scope}"><span class="large ${scope}">${escapeHtml(group.label)}</span></span>${CARET.replace('class="caret"', `class="caret ${scope}"`)}</summary><ul class="${scope}">${group.links.map((l) => link(l, false)).join("")}</ul></details></li>`,
+    );
+  return `<ul class="top-level ${scope}">${link({ path: "index.html", label: "Start page" }, true)}${groups.join("")}</ul>`;
 };
 
 /** The page as HTML. */
 export const page = (input: PageInput): string => {
-  const up = "../".repeat(input.depth);
+  const up = "../".repeat(input.path.split("/").length - 1);
   const slots: Readonly<Record<string, string>> = {
     home: `${up}index.html`,
     siteTitle: escapeHtml(input.siteTitle),
-    sidebar: sidebar(up, input.depth === 0),
+    sidebar: sidebar(up, input.path, input.navigation),
     title: escapeHtml(input.title),
     content: input.body,
     footer: input.footer,
@@ -109,7 +137,7 @@ export const page = (input: PageInput): string => {
     `<body ${DOCS_BODY_ATTRIBUTES}>${frame}`,
     ...(input.diagrams ? [`<script src="${up}${ASSETS.mermaid}"></script>`] : []),
     `<script src="${up}${ASSETS.page}"></script>`,
-    ...(input.scripts ?? []).map((script) => `<script src="${up}${script}"></script>`),
+    ...input.scripts.map((script) => `<script src="${up}${script}"></script>`),
     "</body>",
     "</html>",
     "",
