@@ -23,7 +23,7 @@ const remove = (workspace: Parameters<typeof run>[0], input: Record<string, unkn
   run<Removed>(workspace, "metamodel.removeProperty", input);
 
 describe("metamodel.removeProperty removes a property from a type (SR-238 AK5)", () => {
-  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, naming it (assumption of #1990)", async () => {
+  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, naming it (SR-008 AK3)", async () => {
     const { workspace, read } = await openSmall({ "elements/E-broken.md": "---\nid: [\n---\n" });
     const refused = await failure(workspace, "metamodel.removeProperty", {
       type: "note",
