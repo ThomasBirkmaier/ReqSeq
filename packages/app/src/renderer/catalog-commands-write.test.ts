@@ -68,16 +68,14 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     ).toEqual(["tool.guide", "hint.confirm"]);
   });
 
-  it("runs Agent guide, a write command since it can write the skill file, and shows the guide text", async () => {
+  it("[SR-229/AK-nsmz] runs Agent guide at once without asking an argument, and shows the guide text", async () => {
     const guide = "# Working with ReqSeq\n\nReqSeq keeps needs.\n";
     const { context, asked, call, dispatched } = setup([list], { "tool.guide": () => ({ guide }) });
     start(context, "tool.guide");
-    // As a write command without a required argument it asks its first one, `names`, first.
-    const names = await last(asked);
-    expect(names.label).toBe("Agent guide · names:");
-    item(names.items, "cli").run();
     await flush();
-    expect(call).toHaveBeenCalledWith("tool.guide", { names: "cli" });
+    // A write command without a required argument asks its first one, except Agent guide (RUNS_AT_ONCE).
+    expect(asked).toEqual([]);
+    expect(call).toHaveBeenCalledWith("tool.guide", {});
     expect(dispatched.at(-1)).toMatchObject({
       type: "open",
       buffer: { kind: "result", command: "tool.guide", output: { guide } },

@@ -59,8 +59,8 @@ export default defineCommand({
         : input.instructions
           ? "Gave the MCP server instructions"
           : input.skill
-            ? "Wrote the skill file for an AI agent"
-            : `Wrote the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
+            ? "Gave the skill file for an AI agent without writing it"
+            : `Gave the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
     ),
   run: async (ctx, input): Promise<CommandOutput<"tool.guide">> => {
     if (input.instructions && input.skill) {

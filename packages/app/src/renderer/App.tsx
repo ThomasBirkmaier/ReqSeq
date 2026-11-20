@@ -62,6 +62,7 @@ import type { NextStep } from "./next-steps.js";
 import { stepEntry, stepGiven, stepItemId, stepRunner, stepUnavailable } from "./next-steps.js";
 import { useContextMenu } from "./use-context-menu.js";
 import { useConnectAgent } from "./use-connect-agent.js";
+import { writeSkill } from "./write-skill.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import type { AboutInfo } from "./about.js";
 import { AboutLayer } from "./AboutWindow.js";
@@ -395,6 +396,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   const builder = useRef<(command: BuiltCommand, from: ActionContext) => void>(() => undefined);
   // "Connect AI agent" (SR-227, SR-225 AK7): set below, where the command prompt it goes back to is.
   const connector = useRef<(from: ActionContext) => void>(() => undefined);
+  // "Write skill file" (SR-229 AK16): set below, where the command prompt it goes back to is.
+  const skillWriter = useRef<(from: ActionContext) => void>(() => undefined);
   // The context of the actions (`app-context.ts`); what is declared further down is read when called.
   const context = actionContext({
     view,
@@ -432,6 +435,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     catalog,
     builder,
     connector,
+    skillWriter,
     follow,
     shownView,
     setShownView,
@@ -515,6 +519,21 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     context.workspace,
   );
+  skillWriter.current = (from) => {
+    // After the read of the catalog, if it still runs.
+    void (catalogRead.current ?? Promise.resolve()).then(() => {
+      writeSkill(
+        {
+          ...from,
+          revision: () => revisionNow.current,
+          reopen: () => {
+            ask(commands(true));
+          },
+        },
+        catalog.current,
+      );
+    });
+  };
   // The connected agent at the right of the modeline, while a workspace is open (SR-228, `use-agent-status.ts`).
   const agent = useAgentStatus(bridge, view?.name !== undefined && !stopped);
   // A click on "No agent connected" or "Connect AI agent" (SR-228 AK3) runs the entry of the command prompt, as a

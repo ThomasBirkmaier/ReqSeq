@@ -9,6 +9,7 @@ import { workspacePrompt } from "./workspaces.js";
 import type { Choice, Prompt, PromptFill, ActionContext, ViewControls, Action } from "./action-types.js";
 import { hasWorkspace } from "./action-conditions.js";
 import { CONNECT_AGENT, CONNECT_AGENT_ACTION, CONNECT_AI_AGENT } from "./connect-agent.js";
+import { AGENT_GUIDE, WRITE_SKILL_ACTION, WRITE_SKILL_FILE } from "./write-skill.js";
 
 /**
  * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
@@ -96,6 +97,18 @@ export const APP_ACTIONS: readonly Action[] = [
     available: (context: ActionContext): boolean => context.connectAgent !== undefined,
     run: (context: ActionContext): void => {
       context.connectAgent?.(context);
+    },
+  },
+  {
+    // "Agent guide" with fixed input, beside the entry of the catalog command, so it covers nothing and has its own
+    // description (SR-229 AK16, SR-210 AK5, SR-139 AK6); also while the tool refuses writes (AK8).
+    id: WRITE_SKILL_ACTION,
+    title: WRITE_SKILL_FILE,
+    description: "Write the skill file for AI agents into the repository of the workspace.",
+    runs: [{ where: "with skill and write", command: AGENT_GUIDE }],
+    available: (context: ActionContext): boolean => context.workspace && context.writeSkill !== undefined,
+    run: (context: ActionContext): void => {
+      context.writeSkill?.(context);
     },
   },
   {

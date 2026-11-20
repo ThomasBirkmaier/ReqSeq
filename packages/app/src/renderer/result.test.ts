@@ -855,7 +855,7 @@ describe("result view", () => {
 
   it("[SR-229/AK-p4y6] shows a text of several lines, such as the agent guide, whole with its line breaks", async () => {
     const guide = "# Working with ReqSeq\n\nReqSeq keeps needs and requirements.\n";
-    const output = { answer: "Wrote the agent guide with commands named for MCP.", guide, short: "one line" };
+    const output = { answer: "Gave the agent guide with commands named for MCP.", guide, short: "one line" };
     await act(async () => {
       root.render(
         createElement(ResultView, {

@@ -495,6 +495,11 @@ export interface ActionContext {
    * after the workspace (SR-225 AK7). Absent: the window offers it not.
    */
   readonly connectAgent?: (context: ActionContext) => void;
+  /**
+   * "Write skill file" (SR-229 AK16, `write-skill.ts`) in `context`: runs `tool.guide` with `skill` and `write`
+   * at once. Absent: the window offers it not.
+   */
+  readonly writeSkill?: (context: ActionContext) => void;
 }
 
 /** The catalog commands a builder runs (SR-219 AK1): "New perspective" and "New saved filter". */
