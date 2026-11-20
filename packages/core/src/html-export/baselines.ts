@@ -4,15 +4,19 @@
 // - `baselines/index.html` (AK2): each baseline with name (a link to its page), date, the number of its elements (the
 //   entries of its file) and the number of changed elements, in the order given.
 // - `baselines/<12 hex>.html` (AK1), named by the SHA-256 of the baseline file's repository and path, so the address
-//   stays while the file does: name, date and the commit per repository, then its elements in the groups changed,
-//   added, removed and unchanged (SR-051 AK2, AK3), each with identifier (a link to the page), title, status, and the
-//   version in the baseline with its date; the superseded elements in a group of their own with identifier, title and
-//   status without a link (D-044); the entries no element of the workspace holds (missing, or in a repository that is
-//   not here, SR-006) by UUID. Without stored selection the page says that nothing counts as added or removed.
+//   stays while the file does: name, date and the commit per repository, a line with the number of its elements and
+//   what changed since, then its elements in the groups changed, added, removed and unchanged (SR-051 AK2, AK3), each
+//   heading with its number, each element with identifier (a link to the page), title, status, and the version in the
+//   baseline with its date; the superseded elements in a group of their own with identifier, title and status
+//   without a link (D-044); the entries no element of the workspace holds (missing, or in a repository that is not
+//   here, SR-006) by UUID. The rows of a group stand by identifier in the order of SR-075 AK1 (digit runs as
+//   numbers), and the tables wrap long values within the content's width (#2139). Without stored selection the page
+//   says that nothing counts as added or removed.
 import type { BaselineGetOutput } from "../generated/types.js";
 import { sha256 } from "../files/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import { identifierField } from "../model/index.js";
+import { compareNatural } from "../query/index.js";
 import { elementPage } from "./links.js";
 import { escapeHtml } from "./markdown.js";
 
@@ -101,11 +105,37 @@ const GROUPS = [
 const versionCell = (row: BaselineRow): string =>
   row.version === undefined
     ? "–"
-    : escapeHtml(
+    : `<code>${escapeHtml(row.version)}</code>${
         row.versionDate === undefined || row.versionDate === null
-          ? row.version
-          : `${row.version} of ${dayOf(row.versionDate)}`,
-      );
+          ? ""
+          : ` of ${escapeHtml(dayOf(row.versionDate))}`
+      }`;
+
+/** `rows` by the identifier of their element (`element(row).name`), digit runs as numbers (SR-075 AK1). */
+const byIdentifier = (
+  rows: readonly BaselineRow[],
+  element: (row: BaselineRow) => RowElement,
+): BaselineRow[] =>
+  rows
+    .map((row) => ({ row, name: element(row).name.toLowerCase() }))
+    .sort((a, b) => compareNatural(a.name, b.name))
+    .map(({ row }) => row);
+
+/** "1 element" or "2 elements". */
+const elementsText = (count: number): string => `${String(count)} ${count === 1 ? "element" : "elements"}`;
+
+/** The line on the number of elements of `baseline` and what changed since. */
+const summaryOf = (baseline: ExportBaseline): string => {
+  const { counts } = baseline;
+  const since = [
+    `${String(counts.changed)} changed`,
+    ...(baseline.selectionKnown
+      ? [`${String(counts.added)} added`, `${String(counts.removed)} removed`]
+      : []),
+    `${String(counts.superseded)} superseded`,
+  ];
+  return `${elementsText(entriesOf(baseline))} in the baseline. Since then ${since.join(", ")}.`;
+};
 
 /** A table of `rows`, or nothing without one. */
 const table = (heads: readonly string[], rows: readonly string[]): string =>
@@ -126,10 +156,17 @@ export const baselinePageBody = (
     const shown = element(row);
     const name = escapeHtml(shown.name);
     const cell = linked && shown.href !== undefined ? `<a href="../${shown.href}">${name}</a>` : name;
-    return `<td>${cell}</td><td>${escapeHtml(shown.title)}</td><td>${escapeHtml(shown.status)}</td>`;
+    return `<td class="rq-nowrap">${cell}</td><td class="rq-title">${escapeHtml(shown.title)}</td><td class="rq-nowrap">${escapeHtml(shown.status)}</td>`;
   };
+  const of = (states: readonly string[]): BaselineRow[] =>
+    byIdentifier(
+      baseline.elements.filter((row) => states.includes(row.state)),
+      element,
+    );
+  const heading = (id: string, label: string, count: number): string =>
+    `<h2 id="${id}">${escapeHtml(`${label} (${String(count)})`)}</h2>`;
   const groups = GROUPS.map(([state, label]) => {
-    const rows = baseline.elements.filter((row) => row.state === state);
+    const rows = of([state]);
     const body =
       rows.length === 0
         ? "<p>None.</p>"
@@ -137,11 +174,12 @@ export const baselinePageBody = (
             ["Identifier", "Title", "Status", "Version in the baseline"],
             rows.map((row) => `<tr>${named(row, true)}<td>${versionCell(row)}</td></tr>`),
           );
-    return `<h2 id="${state}">${label}</h2>${body}`;
+    return `${heading(state, label, rows.length)}${body}`;
   });
-  const superseded = baseline.elements.filter((row) => row.state === "superseded");
-  const absent = baseline.elements.filter((row) => row.state === "missing" || row.state === "inaccessible");
+  const superseded = of(["superseded"]);
+  const absent = of(["missing", "inaccessible"]);
   return [
+    `<div class="rq-baseline"><p class="rq-summary">${escapeHtml(summaryOf(baseline))}</p>`,
     `<dl class="rq-fields"><dt>Name</dt><dd>${escapeHtml(baseline.name)}</dd><dt>Date</dt><dd>${escapeHtml(baseline.date)}</dd></dl>`,
     `<h2 id="commits">Commits</h2>${commits}`,
     baseline.selectionKnown
@@ -150,18 +188,32 @@ export const baselinePageBody = (
     ...groups,
     superseded.length === 0
       ? ""
-      : `<h2 id="superseded">Superseded</h2>${table(
+      : `${heading("superseded", "Superseded", superseded.length)}${table(
           ["Identifier", "Title", "Status"],
           superseded.map((row) => `<tr>${named(row, false)}</tr>`),
         )}`,
     absent.length === 0
       ? ""
-      : `<h2 id="not-found">Not in the workspace</h2>${table(
+      : `${heading("not-found", "Not in the workspace", absent.length)}${table(
           ["UUID", "Repository", "Why"],
           absent.map(
             (row) =>
               `<tr><td><code>${escapeHtml(row.id)}</code></td><td>${escapeHtml(row.repository ?? "")}</td><td>${row.state === "inaccessible" ? "repository not on this machine" : "no element file holds it"}</td></tr>`,
           ),
         )}`,
+    "</div>",
   ].join("");
 };
+
+/**
+ * The styles of a baseline's page and of the elements of a package: their tables as wide as the content and no wider,
+ * long values wrapped anywhere, a title kept at least 10rem wide, identifier and status in one line (#2139); the
+ * summary line in the docs' larger text.
+ */
+export const BASELINE_PAGE_CSS = [
+  ".rq-baseline table:not(:where(.not-content *)), .rq-package table:not(:where(.not-content *)) { display: table; width: 100%; }",
+  ".rq-baseline td, .rq-package td, .rq-baseline td code { overflow-wrap: anywhere; }",
+  ".rq-baseline td.rq-title, .rq-package td.rq-title { min-width: 10rem; }",
+  ".rq-baseline td.rq-nowrap, .rq-package td.rq-nowrap { white-space: nowrap; }",
+  ".rq-summary { font-size: var(--sl-text-lg); color: var(--sl-color-white); }",
+];

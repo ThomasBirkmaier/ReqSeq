@@ -15,7 +15,7 @@ import type { Baseline } from "../../baselines/index.js";
 import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
 import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
-import { writeHtmlExport } from "../../html-export/index.js";
+import { baselinePage, writeHtmlExport } from "../../html-export/index.js";
 import { baselineShown } from "../baseline/get.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
@@ -63,6 +63,7 @@ const newestOf = (baselines: readonly ExportBaseline[]): NewestBaseline | undefi
     : {
         name: newest.name,
         date: newest.date,
+        page: baselinePage(newest),
         changed: newest.counts.changed,
         added: newest.counts.added,
         selectionKnown: newest.selectionKnown,

@@ -119,6 +119,24 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       expect(page).toMatch(/<button popovertarget="starlight__sidebar" class="sl-menu-button[^"]*"/u);
       expect(page).toContain('<sl-sidebar-pane id="starlight__sidebar"');
     }
+    // The docs' right column "On this page" on a page with sections, with Overview and a link to each section;
+    // a page without sections has none, as on the docs site.
+    const start = await read(site, "index.html");
+    expect(start).toMatch(/^<html [^>]* data-has-toc>$/mu);
+    const toc = String(/<starlight-toc[^]*?<\/starlight-toc>/u.exec(start)?.[0]);
+    expect(
+      [...toc.matchAll(/<a href="#([^"]+)"[^>]*><span[^>]*>([^<]*)</gu)].map((m) => [m[1], m[2]]),
+    ).toEqual([
+      ["_top", "Overview"],
+      ["verification-degree", "Verification degree"],
+      ["not-verified", "Failed, outdated or open requirements"],
+      ["open-hints", "Elements with open hints"],
+      ["since-baseline", "Since the newest baseline"],
+      ["types", "Elements by type"],
+    ]);
+    const list = await read(site, "lists/system-requirement.html");
+    expect(list).not.toContain("right-sidebar-container");
+    expect(list).not.toContain("data-has-toc");
     expect(await read(site, "assets/reqseq.js")).toContain('matchMedia("(min-width: 50em)")');
     expect(await read(site, "assets/theme.js")).toContain("prefers-color-scheme: light");
   });

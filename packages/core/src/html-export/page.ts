@@ -5,14 +5,18 @@
 // formula also takes the fonts of `assets/katex.css`, which are `data:` URLs; a page with a diagram also takes
 // inline styles, since Mermaid measures text in a temporary SVG with a `<style>` element (the app has the same
 // rule). Content never yields a `<style>`. `noindex` asks search engines not to take the page. Every address is
-// relative and names a file of the folder.
+// relative and names a file of the folder. A page with sections has the docs' right column "On this page" with a link
+// to each, shown on wide screens as on the docs site, without a script (#2139).
 import {
   DOCS_BODY_ATTRIBUTES,
   DOCS_FRAME,
   DOCS_HTML_ATTRIBUTES,
   DOCS_SIDEBAR_SCOPE,
   DOCS_STYLESHEET,
+  DOCS_TOC,
+  DOCS_TOC_SCOPE,
 } from "./docs-theme.generated.js";
+import { BASELINE_PAGE_CSS } from "./baselines.js";
 import { ELEMENT_PAGE_CSS } from "./element-page.js";
 import { LIST_CSS } from "./list-page.js";
 import { START_PAGE_CSS } from "./start-page.js";
@@ -28,10 +32,13 @@ export const ASSETS = {
   mermaid: "assets/mermaid.js",
 } as const;
 
+/** The table of contents takes no room below the docs' wide breakpoint, where the docs show it only with a script. */
+const TOC_CSS = ["@media (width < 72rem) { :root[data-has-toc] { --sl-mobile-toc-height: 0rem; } }"];
+
 /** The docs' stylesheet, as the export writes it. */
 export const DOCS_CSS = DOCS_STYLESHEET;
 
-/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs, the lists and the start page. */
+/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs, the lists, the start page, the baseline pages and the table of contents. */
 export const OWN_CSS = [
   ".rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
@@ -42,6 +49,8 @@ export const OWN_CSS = [
   "reqseq-search[hidden], .rq-search-more[hidden] { display: none; }",
   ...LIST_CSS,
   ...START_PAGE_CSS,
+  ...BASELINE_PAGE_CSS,
+  ...TOC_CSS,
   "",
 ].join("\n");
 
@@ -107,13 +116,40 @@ const sidebar = (up: string, path: string, navigation: Navigation): string => {
   return `<ul class="top-level ${scope}">${link({ path: "index.html", label: "Start page" }, true)}${groups.join("")}</ul>`;
 };
 
+/**
+ * The sections of `body` for the table of contents: each `<h2>` with an `id` and no other attribute, as the export's
+ * sections write them (a heading of an element's text has no `id`, a footnote heading also a class), its text the label.
+ */
+export const sectionsOf = (body: string): { readonly id: string; readonly label: string }[] =>
+  [...body.matchAll(/<h2 id="([^"]+)">([^]*?)<\/h2>/gu)].map((m) => ({
+    id: String(m[1]),
+    label: String(m[2]).replaceAll(/<[^>]*>/gu, ""),
+  }));
+
+/**
+ * The right column "On this page" of the docs (`DOCS_TOC`), with "Overview" and then each section of `body`, or
+ * nothing for a page without sections, as the docs leave it out.
+ */
+const tocOf = (body: string): string => {
+  const sections = sectionsOf(body);
+  if (sections.length === 0) {
+    return "";
+  }
+  const scope = DOCS_TOC_SCOPE;
+  const entry = ({ id, label }: { readonly id: string; readonly label: string }): string =>
+    `<li style="--depth: 0;" class="${scope}"><a href="#${id}" style="--depth: 0;" class="${scope}"><span style="--depth: 0;" class="${scope}">${label}</span></a></li>`;
+  return `${DOCS_TOC[0]}${[{ id: "_top", label: "Overview" }, ...sections].map(entry).join("")}${DOCS_TOC[1]}`;
+};
+
 /** The page as HTML. */
 export const page = (input: PageInput): string => {
   const up = "../".repeat(input.path.split("/").length - 1);
+  const toc = tocOf(input.body);
   const slots: Readonly<Record<string, string>> = {
     home: `${up}index.html`,
     siteTitle: escapeHtml(input.siteTitle),
     sidebar: sidebar(up, input.path, input.navigation),
+    toc,
     title: escapeHtml(input.title),
     content: input.body,
     footer: input.footer,
@@ -122,7 +158,7 @@ export const page = (input: PageInput): string => {
   const frame = DOCS_FRAME.map((part, index) => (index % 2 === 0 ? part : String(slots[part]))).join("");
   return [
     "<!doctype html>",
-    `<html ${DOCS_HTML_ATTRIBUTES}>`,
+    `<html ${DOCS_HTML_ATTRIBUTES}${toc === "" ? "" : " data-has-toc"}>`,
     "<head>",
     '<meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${pagePolicy(input)}">`,

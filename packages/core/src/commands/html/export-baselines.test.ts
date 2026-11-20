@@ -302,21 +302,23 @@ describe("html.export: baseline pages", () => {
     const index = await page(site, "baselines/index.html");
     const release2 = await page(site, baselineHref(index, "Release 2"));
     const shown = text(release2);
-    expect(shown).toContain("Name Release 2 Date 2026-11-02T13:00:00Z");
+    expect(shown).toContain(
+      "6 elements in the baseline. Since then 1 changed, 1 added, 3 removed, 1 superseded. Name Release 2 Date 2026-11-02T13:00:00Z",
+    );
     expect(shown).toContain(`Commits Repository Commit system ${first} sensor ${sensor}`);
     expect(shown).toContain(
-      `Changed Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
+      `Changed (1) Identifier Title Status Version in the baseline SR-0000b1 Show the wind speed draft ${V.b1} of ${firstDate}`,
     );
     expect(shown).toContain(
-      "Added Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
+      "Added (1) Identifier Title Status Version in the baseline SR-0000b3 Show the wind direction draft –",
     );
     expect(shown).toContain(
-      `Removed Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
+      `Removed (3) Identifier Title Status Version in the baseline N-0000a1 Know the wind draft ${V.a1}`,
     );
     expect(shown).toContain(
-      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
+      `SR-0000b5 Show the pressure draft n1:5555555555555555 SR-0000e1 Heat the anemometer draft n1:31d60ac7c791e279 of 2026-01-01 Unchanged (1) Identifier Title Status Version in the baseline SR-0000b2 Show the gusts draft ${V.b2}`,
     );
-    expect(shown).toContain("Superseded Identifier Title Status SR-0000b4 Show the wind obsolete");
+    expect(shown).toContain("Superseded (1) Identifier Title Status SR-0000b4 Show the wind obsolete");
     expect(release2).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
     expect(release2).not.toContain(`elements/${ID}b4.html`);
     expect(shown).not.toContain("stores no selection");
@@ -325,8 +327,10 @@ describe("html.export: baseline pages", () => {
     expect(release1).toContain(
       "This baseline stores no selection, so no element counts as added or removed.",
     );
-    expect(release1).toContain("Added None. Removed None.");
-    expect(release1).toContain(`Not in the workspace UUID Repository Why ${ID}ff no element file holds it`);
+    expect(release1).toContain("Added (0) None. Removed (0) None.");
+    expect(release1).toContain(
+      `Not in the workspace (1) UUID Repository Why ${ID}ff no element file holds it`,
+    );
   });
 
   it("[SR-234/AK-swvj] lists every baseline with date, number of elements and of changed ones, newest first", async () => {
