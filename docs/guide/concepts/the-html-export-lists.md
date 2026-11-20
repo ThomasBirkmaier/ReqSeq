@@ -2,7 +2,7 @@
 title: Lists and start page of the HTML export
 description: How readers of an HTML export find elements through the start page, a list per type and the package pages.
 sidebar:
-  order: 4
+  order: 5
 ---
 
 Readers of an [HTML export](/concepts/the-html-export/) find elements through the start page, a list per type and the package pages; the navigation of every page names each package (SR-233 AK4), and also the start page and each list.

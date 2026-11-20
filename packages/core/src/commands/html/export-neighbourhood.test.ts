@@ -1,6 +1,6 @@
-// html.export, the neighbourhood on an element's page (SR-232 AK5, AK6): parents up to the top, children as a tree with
-// repetitions, incoming relations and references by kind, outdated links marked, and elements with an invalid status
-// without a link while the chain goes on through them.
+// html.export, the neighbourhood on an element's page (SR-232 AK5, AK6, AK8): parents up to the top, children as a tree
+// with repetitions, incoming relations and references by kind, outdated links marked, elements with an invalid status
+// without a link while the chain goes on through them, and the repositories that are not on this machine.
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -213,8 +213,24 @@ describe("html.export shows the neighbourhood of an element (SR-232 AK5)", () =>
   });
 });
 
-/** The neighbourhood section of ROOT in a workspace of ROOT, `parents` needs above it and `children` leaves below. */
-const boundedSection = async (count: number): Promise<{ parents: string; children: string }> => {
+/** A workspace file that lists `vault` and `archive`, which are not on this machine, after `system` (SR-006). */
+const WITH_MISSING =
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
+  '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
+  '  - { name: archive, url: "ssh://example.com/archive.git", path: ../archive }\n' +
+  "metamodel: { repository: system, path: metamodel }\n";
+const FAR = "bbbb2222-2222-4222-8222-0000001a2b3c";
+const FAR_TOO = "bbbb2222-2222-4222-8222-0000004d5e6f";
+
+/**
+ * The neighbourhood section of ROOT in a workspace of ROOT, `parents` needs above it and `children` leaves below;
+ * with `missing`, the workspace file of WITH_MISSING and a derivation of ROOT to FAR in `vault` as well.
+ */
+const boundedSection = async (
+  count: number,
+  missing = false,
+): Promise<{ parents: string; children: string }> => {
   const many = Array.from({ length: count }, (_, n) => n + 100);
   const extra = Object.fromEntries<string>([
     ...many.map((n): [string, string] => [
@@ -227,8 +243,13 @@ const boundedSection = async (count: number): Promise<{ parents: string; childre
     ]),
     [
       "requirements/SR-6328cee88fb3.md",
-      element(ROOT, "system-requirement", `title: Show wind speed\n${derives(...many.map(uuid))}`),
+      element(
+        ROOT,
+        "system-requirement",
+        `title: Show wind speed\n${derives(...many.map(uuid))}${missing ? `  - { id: ${FAR}, repository: vault }\n` : ""}`,
+      ),
     ],
+    ...(missing ? [["reqseq-workspace.yaml", WITH_MISSING] as [string, string]] : []),
     ["requirements/SR-1d2e3f4a5b6c.md", element(ONE, "system-requirement", "title: Alone\n")],
   ]);
   const fixture = await createFixtureWorkspace({
@@ -473,5 +494,100 @@ describe("html.export bounds the parents and children of a page by level (SR-232
     );
     expect(rowsOf(incoming)).toHaveLength(120);
     expect(section).not.toContain("are shown");
+  });
+});
+
+/** The line on the missing repositories of WITH_MISSING, where `what` may be missing. */
+const missingLine = (what: string): string =>
+  `<p class="rq-nb-none">Repositories not on this machine: vault, archive. ${what} from their elements are not accessible and may be missing here.</p>`;
+
+/** A parent row in a missing repository (SR-006 AK1). */
+const inaccessible = (level: number, shown: string, repository: string): string =>
+  plain(level, shown, `repository ${repository}, not accessible`, "");
+
+describe("html.export names the repositories that are not on this machine in the neighbourhood (SR-232 AK8)", () => {
+  /** A workspace of WITH_MISSING with `files`. */
+  const missingWorkspace = async (files: Record<string, string>) => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-001/two-elements",
+      files: { "metamodel/standard-model.yaml": METAMODEL, "reqseq-workspace.yaml": WITH_MISSING, ...files },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await exported(workspace);
+    return fixture;
+  };
+
+  it("[SR-232/AK-tndh] names the missing repositories after the children and as the last line, and shows each inaccessible parent once above the nearest element that points at it, without a link", async () => {
+    const fixture = await missingWorkspace({
+      "needs/N-2.md": element(
+        SUB,
+        "need",
+        `status: approved\ntitle: Wind\nderives-from:\n  - { id: ${FAR_TOO}, repository: archive }\n  - { id: ${FAR}, repository: vault, ${STALE} }\n`,
+      ),
+      // ROOT points at FAR itself and through SUB; at a missing target, one in an unknown repository, an ambiguous
+      // one and an item without a target, which stay out.
+      "requirements/SR-6328cee88fb3.md": element(
+        ROOT,
+        "system-requirement",
+        `status: approved\ntitle: Show wind speed\nderives-from:\n  - { id: ${SUB} }\n  - { id: ${FAR}, repository: vault }\n  - { id: ${GONE} }\n  - { id: ${BASE}, repository: nowhere }\n  - { id: ${TOP} }\n  - { repository: vault }\n`,
+      ),
+      "requirements/SR-1d2e3f4a5b6c.md": element(
+        ONE,
+        "system-requirement",
+        `status: approved\ntitle: Show gusts\n${derives(ROOT)}`,
+      ),
+      "requirements/SR-10.md": element(
+        USER,
+        "system-requirement",
+        `status: draft\ntitle: Log wind\nbased-on:\n  - { id: ${ROOT} }\n`,
+      ),
+      "needs/N-1.md": element(TOP, "need", "status: approved\ntitle: Weather\n"),
+      "needs/N-1-copy.md": element(TOP, "need", "status: approved\ntitle: Weather copy\n"),
+    });
+    expect(await sectionOf(fixture, ROOT)).toBe(
+      [
+        '<section class="rq-neighbourhood"><h2 id="neighbourhood">Neighbourhood</h2>',
+        '<h3>Parents</h3><ul class="rq-nb">',
+        inaccessible(0, "UNKNOWN-4d5e6f", "archive"),
+        linked(SUB, 1, "N-000002", "Wind", "approved"),
+        inaccessible(1, "UNKNOWN-1a2b3c", "vault"),
+        "</ul>",
+        '<h3>Children</h3><ul class="rq-nb">',
+        linked(ONE, 0, "SR-4a5b6c", "Show gusts", "approved"),
+        "</ul>",
+        missingLine("Children"),
+        '<h3>← Basis for</h3><ul class="rq-nb">',
+        linked(USER, 0, "SR-000010", "Log wind", "draft"),
+        "</ul>",
+        missingLine("Incoming relations and references"),
+        "</section>",
+      ].join(""),
+    );
+  });
+
+  it("[SR-232/AK-tndh] names the missing repositories in place of saying that there are no children, and also without incoming links", async () => {
+    const fixture = await missingWorkspace({
+      "requirements/SR-6328cee88fb3.md": element(ROOT, "system-requirement", "title: Show wind speed\n"),
+      "requirements/SR-1d2e3f4a5b6c.md": element(ONE, "system-requirement", "title: Alone\n"),
+    });
+    expect(await sectionOf(fixture, ROOT)).toBe(
+      [
+        '<section class="rq-neighbourhood"><h2 id="neighbourhood">Neighbourhood</h2>',
+        '<h3>Parents</h3><p class="rq-nb-none">No parents</p><h3>Children</h3>',
+        missingLine("Children"),
+        missingLine("Incoming relations and references"),
+        "</section>",
+      ].join(""),
+    );
+  });
+
+  it("[SR-232/AK-tndh] names the missing repositories after the note on the nearest 100 and does not count an inaccessible parent among them", async () => {
+    const { parents, children } = await boundedSection(101, true);
+    expect(rowsIn(parents)).toBe(101);
+    expect(parents).toContain(`${inaccessible(0, "UNKNOWN-1a2b3c", "vault")}${MORE}`);
+    expect(rowsIn(children)).toBe(100);
+    expect(children).toContain(`${MORE}${missingLine("Children")}`);
   });
 });
