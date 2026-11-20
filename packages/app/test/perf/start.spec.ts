@@ -15,7 +15,8 @@
 // Ctrl+K L ("List all elements") from its keydown until the list shows its first row. Playwright's attach does not
 // hold the app back: `launchApp` gives Electron's `executablePath`, so Playwright adds no loader that delays
 // `ready`, and the times are taken in the window, not when Playwright has connected. Its attach (until
-// `launchApp` gives the window) is recorded on its own.
+// `launchApp` gives the window, which it does once the window shows the first `workspace.status` answer, #1671) is
+// recorded on its own.
 // Perspectives (SR-118 AK6, AK8): the overview counts up to ten after it stands. A workspace with perspectives is
 // inside the Given of AK1, so a test of its own, untagged and not asserted, records the start until usable with ten
 // of them against the threshold of AK1 (a time over it opens the perf issue), and the time until the overview shows
@@ -122,7 +123,7 @@ const timeOf = async (handle: JSHandle<number | false>): Promise<number> => {
 
 /** The parts of a start, in ms. */
 interface Start {
-  /** From the launch until Playwright has attached and `launchApp` gives the window; runs beside the app's start. */
+  /** From the launch until Playwright has attached and the window shows the first `workspace.status` answer (`launchApp`). */
   readonly attach: number;
   /** From the launch until the overview shows its counts of all elements. */
   readonly overview: number;

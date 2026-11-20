@@ -435,6 +435,80 @@ const reportFailure = async (
   }
 };
 
+/**
+ * How long the app may take to start: from the launch until the window has the first answer of the core
+ * process, half the test timeout (none when the test has none). A start takes about a second, but the Windows
+ * runner stalled once for three minutes, in which every start took about 20 s; the first wait of the test, bounded
+ * by the expect timeout of 15 s, then failed (#1671). So the start is bounded on its own.
+ */
+const startWaitMs = (): number => {
+  try {
+    return test.info().timeout / 2;
+  } catch {
+    return 30_000;
+  }
+};
+
+/**
+ * Waits until the app has started: its page has loaded and shows the first `workspace.status` answer of the core
+ * process, which fills the modeline (`ModelineBar.tsx`), also for a start without a workspace or with one that
+ * does not open. Gives undefined, or after `bound` ms why the app did not start, with the state of its window.
+ */
+const waitForStart = async (
+  app: ElectronApplication,
+  window: Page,
+  launched: number,
+  bound: number,
+): Promise<string | undefined> => {
+  try {
+    await window
+      .getByLabel("Modeline")
+      .locator(".parts")
+      .waitFor({
+        state: "attached",
+        timeout: bound === 0 ? 0 : Math.max(1, bound - (Date.now() - launched)),
+      });
+    return undefined;
+  } catch (error) {
+    const state = await within(
+      app.evaluate(({ BrowserWindow }) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        return contents === undefined
+          ? "no window"
+          : `page ${contents.getURL()}, ${contents.isLoading() ? "loading" : "loaded"}, title ${contents.getTitle()}`;
+      }),
+      CALL_WAIT_MS,
+      (failed: unknown) => `main does not answer (${String(failed)})`,
+    );
+    return `The app did not start within ${String(bound)} ms (#1671): ${state}. ${error instanceof Error ? (error.message.split("\n")[0] ?? "") : String(error)}`;
+  }
+};
+
+/**
+ * Waits for the start of the app (`waitForStart`). An app that did not start ends: what it showed and logged
+ * goes into the job log, as for a failed test (`close`), the app ends without waiting on a main process that
+ * does not answer, `leftover.cleanup` removes the folders of the start, and the error says why.
+ */
+const started = async (
+  app: ElectronApplication,
+  window: Page,
+  launched: number,
+  leftover: {
+    readonly mainLog: () => string;
+    readonly rendererLog: readonly string[];
+    readonly cleanup: () => Promise<void>;
+  },
+): Promise<void> => {
+  const notStarted = await waitForStart(app, window, launched, startWaitMs());
+  if (notStarted === undefined) {
+    return;
+  }
+  process.stderr.write(await diagnosis(window, leftover.mainLog(), leftover.rendererLog));
+  await within(app.close(), CLOSE_WAIT_MS, () => undefined);
+  await leftover.cleanup();
+  throw new Error(notStarted);
+};
+
 /** The state of an app that did not end after its window was closed, for the error of the test. */
 const hangState = async (app: ElectronApplication, window: Page, stderr: string): Promise<string> => {
   const windows = await within(
@@ -579,6 +653,7 @@ export const launchApp = async (
     LOCALAPPDATA: home,
     ...(options.validateOutput === false ? {} : { REQSEQ_VALIDATE_OUTPUT: "1" }),
   };
+  const launched = Date.now();
   const app = await electron.launch({
     executablePath: ELECTRON,
     args: [
@@ -634,6 +709,16 @@ export const launchApp = async (
     await app.close();
     throw new Error(`The app uses the user data folder ${used}, not the test's ${userData}`);
   }
+  await started(app, window, launched, {
+    mainLog: () => stderr,
+    rendererLog,
+    cleanup: async () => {
+      if (kept === undefined) {
+        await workspace?.cleanup();
+        await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
+      }
+    },
+  });
   let discard = false;
   // Whether the app ended: its process ended, or its code did and the process is shutting down (a test of
   // quitting ends it itself).
