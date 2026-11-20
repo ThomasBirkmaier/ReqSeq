@@ -216,9 +216,12 @@ describe("html.export shows the neighbourhood of an element (SR-232 AK5)", () =>
 describe("html.export bounds the parents and children of a page (SR-232 AK5)", () => {
   it("[SR-232/AK-r9s3] shows the nearest 100 parents and 100 children and says that there are more", async () => {
     const many = Array.from({ length: 101 }, (_, n) => n + 100);
-    const extra = Object.fromEntries([
-      ...many.map((n) => [`needs/N-${String(n)}.md`, element(uuid(n), "need", `title: Need ${String(n)}\n`)]),
-      ...many.map((n) => [
+    const extra = Object.fromEntries<string>([
+      ...many.map((n): [string, string] => [
+        `needs/N-${String(n)}.md`,
+        element(uuid(n), "need", `title: Need ${String(n)}\n`),
+      ]),
+      ...many.map((n): [string, string] => [
         `requirements/SR-${String(n)}.md`,
         element(uuid(n + 1000), "system-requirement", `title: Child ${String(n)}\n${derives(ROOT)}`),
       ]),
