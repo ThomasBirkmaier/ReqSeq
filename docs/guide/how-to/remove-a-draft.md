@@ -87,14 +87,15 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 2 elements and found 4 warnings.
+Checked 2 elements and found 3 warnings and 2 info.
 ok: true
 ...
 warning  trace.no-parent  SR-c67baa  ...
-warning  evidence.no-location  ...
+...
+info  evidence.open-requirements  ...
 ```
 
-No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last warning says that the workspace file names no evidence location yet, so no test result counts ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
+No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last info counts the requirements without a passed test ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 
 ## API
 

@@ -4,12 +4,18 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
+import type { CommandCatalog } from "../../generated/types.js";
 import { STANDARD_MODEL_TEXT } from "../../metamodel/index.js";
+import { contractsBundle } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WORKSPACE_FILE } from "../../workspace/index.js";
+import { skillFile } from "../tool/guide/skill.js";
 
 type Output = CommandOutput<"workspace.init">;
+
+/** The skill file in a workspace folder without Git (D-079). */
+const SKILL = ".claude/skills/managing-requirements/SKILL.md";
 
 /** An empty temporary folder (the fixture without files), removed after the test. */
 const emptyFolder = async (): Promise<FixtureWorkspace> => {
@@ -50,16 +56,21 @@ describe("workspace.init", () => {
     expect(other.next).toEqual(nextIn(path.join(ws.root, "sub")));
   });
 
-  it("[SR-014/AK-yh7s] creates the standard model as metamodel files in an empty folder", async () => {
+  it("[SR-014/AK-yh7s] [SR-229/AK-x7d8] creates the standard model as metamodel files in an empty folder, with the skill file", async () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
-      answer: "Created workspace Weather station; 3 files written.",
-      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      answer: "Created workspace Weather station; 4 files written.",
+      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", SKILL],
       next: nextIn(ws.root),
       problems: [],
     });
-    expect(await listFiles(ws.root)).toEqual([".gitignore", "metamodel/standard-model.yaml", WORKSPACE_FILE]);
+    expect(await listFiles(ws.root)).toEqual([
+      SKILL,
+      ".gitignore",
+      "metamodel/standard-model.yaml",
+      WORKSPACE_FILE,
+    ]);
     // The temp files and the local file stay out of Git (#271, #1456).
     expect(await fs.readFile(ws.path(".gitignore"), "utf8")).toBe("*.reqseq-tmp\n.reqseq/local.yaml\n");
     // The metamodel file is the shipped standard model, byte for byte.
@@ -76,6 +87,9 @@ describe("workspace.init", () => {
         "metamodel:",
         `  repository: ${name}`,
         "  path: metamodel",
+        "evidence:",
+        `  - repository: ${name}`,
+        "    path: evidence",
         "",
       ].join("\n"),
     );
@@ -106,6 +120,90 @@ describe("workspace.init", () => {
     expect(metamodel.statuses.map((s) => s.key)).toEqual(["draft", "approved", "obsolete"]);
   });
 
+  it("[SR-230/AK-x4g5] names the folder evidence in the main repository as the evidence location", async () => {
+    const ws = await emptyFolder();
+    const workspace = open(ws.root);
+    await init(workspace, { path: ws.root, name: "W" });
+    const status = (await invoke("workspace.status", {}, { workspace })) as CommandOutput<"workspace.status">;
+    // The folder itself is created with the first record (`evidence.folder-missing` is info).
+    expect(status.evidence).toEqual([
+      { repository: path.basename(ws.root), path: "evidence", available: false, folder: "evidence" },
+    ]);
+  });
+
+  it("[SR-229/AK-x7d8] writes the skill file at the root of the Git repository and lists it, or none with skill false", async () => {
+    const ws = await emptyFolder();
+    // A `.git` folder that `workTreeOf` takes for a repository, without running git.
+    await fs.mkdir(ws.path(".git/objects"), { recursive: true });
+    await fs.mkdir(ws.path(".git/refs"), { recursive: true });
+    await fs.writeFile(ws.path(".git/HEAD"), "ref: refs/heads/main\n");
+    const workspace = open(ws.root);
+    const out = await init(workspace, { path: "spec", name: "W" });
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", `../${SKILL}`]);
+    expect(out.problems).toEqual([]);
+    const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
+    expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(skillFile(ENTRIES));
+    // A second workspace in the same repository finds ReqSeq's own file the same and does not list it.
+    const again = await init(workspace, { path: "other", name: "O" });
+    expect(again.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(again.problems).toEqual([]);
+    // `skill: false` writes none.
+    const plain = await emptyFolder();
+    const none = await init(open(plain.root), { path: plain.root, name: "N", skill: false });
+    expect(none.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(none.problems).toEqual([]);
+    await expect(fs.lstat(plain.path(".claude"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("[SR-229/AK-x7d8] keeps a skill file ReqSeq did not write, creates the workspace and says why", async () => {
+    const ws = await createFixtureWorkspace({ files: { [SKILL]: "my own skill\n" } });
+    onTestFinished(() => ws.cleanup());
+    const out = await init(open(ws.root), { path: ws.root, name: "W" });
+    expect(out).toMatchObject({ answer: "Created workspace W; 3 files written; 1 problem." });
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(out.problems).toEqual([
+      {
+        code: "workspace.skill-not-written",
+        severity: "warning",
+        message: `Not written: the skill file ${SKILL} was not written by ReqSeq; ReqSeq replaces it only on request: \`reqseq tool guide --skill --write --replace\``,
+        file: SKILL,
+      },
+    ]);
+    expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe("my own skill\n");
+  });
+
+  it("[SR-014/AK-yh7s] [SR-229/AK-x7d8] leaves ReqSeq's own unchanged skill file of an older or a newer version as it is and does not list it", async () => {
+    const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
+    for (const version of ["0.0.1", "99.0.0"]) {
+      const own = skillFile(ENTRIES, version);
+      const ws = await createFixtureWorkspace({ files: { [SKILL]: own } });
+      onTestFinished(() => ws.cleanup());
+      const out = await init(open(ws.root), { path: ws.root, name: "W" });
+      expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+      expect(out.problems).toEqual([]);
+      expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(own);
+    }
+  });
+
+  it("[SR-014/AK-yh7s] [SR-229/AK-x7d8] keeps ReqSeq's own skill file that was edited since, creates the workspace and says why", async () => {
+    const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
+    // The checksum in the frontmatter no longer matches the content.
+    const edited = `${skillFile(ENTRIES)}One more line of our own.\n`;
+    const ws = await createFixtureWorkspace({ files: { [SKILL]: edited } });
+    onTestFinished(() => ws.cleanup());
+    const out = await init(open(ws.root), { path: ws.root, name: "W" });
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(out.problems).toEqual([
+      {
+        code: "workspace.skill-not-written",
+        severity: "warning",
+        message: `Not written: the skill file ${SKILL} was changed since ReqSeq wrote it; ReqSeq replaces it only on request: \`reqseq tool guide --skill --write --replace\``,
+        file: SKILL,
+      },
+    ]);
+    expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(edited);
+  });
+
   it("resets the workspace of the call when the new folder is its root under another spelling", async () => {
     const ws = await createFixtureWorkspace({
       files: {
@@ -130,12 +228,13 @@ describe("workspace.init", () => {
     expect(out.problems).toEqual([]);
   });
 
-  it("[SR-014/AK-yh7s] takes a relative path from the workspace root (API, MCP) and writes nothing to Git", async () => {
+  it("[SR-014/AK-yh7s] [SR-229/AK-x7d8] takes a relative path from the workspace root (API, MCP) and writes nothing to Git", async () => {
     const ws = await createFixtureWorkspace({ files: { "new/.keep": "" } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: "new", name: "New" });
-    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", SKILL]);
     expect(await listFiles(ws.root)).toEqual([
+      `new/${SKILL}`,
       "new/.gitignore",
       "new/.keep",
       "new/metamodel/standard-model.yaml",
@@ -170,8 +269,8 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
     expect(out).toEqual({
-      answer: "Created workspace W; 3 files written.",
-      files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      answer: "Created workspace W; 4 files written.",
+      files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore", SKILL],
       next: nextIn(ws.root),
       problems: [],
     });
@@ -179,8 +278,8 @@ describe("workspace.init", () => {
     const root = await emptyFolder();
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
     expect(atRoot).toEqual({
-      answer: "Created workspace W; 3 files written.",
-      files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+      answer: "Created workspace W; 4 files written.",
+      files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore", SKILL],
       next: nextIn(root.root),
       problems: [],
     });
@@ -194,7 +293,7 @@ describe("workspace.init", () => {
       name: "W",
       metamodel: { repository: "metamodel", path: "model" },
     });
-    expect(out.files).toEqual([WORKSPACE_FILE, ".gitignore"]);
+    expect(out.files).toEqual([WORKSPACE_FILE, ".gitignore", SKILL]);
     expect(out.problems).toEqual([
       {
         code: "workspace.repository-missing",
@@ -209,7 +308,7 @@ describe("workspace.init", () => {
       },
     ]);
     expect(await fs.readFile(ws.path(`system/${WORKSPACE_FILE}`), "utf8")).toContain(
-      'repositories:\n  - name: system\n    url: ""\n    main: true\n  - name: metamodel\n    url: ""\nmetamodel:\n  repository: metamodel\n  path: model\n',
+      'repositories:\n  - name: system\n    url: ""\n    main: true\n  - name: metamodel\n    url: ""\nmetamodel:\n  repository: metamodel\n  path: model\nevidence:\n  - repository: system\n    path: evidence\n',
     );
   });
 
@@ -295,6 +394,7 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     await init(open(ws.root), { path: "spec", name: "W" });
     expect(await listFiles(ws.root)).toEqual([
+      `spec/${SKILL}`,
       "spec/.gitignore",
       "spec/metamodel/standard-model.yaml",
       "spec/reqseq-workspace.yaml",

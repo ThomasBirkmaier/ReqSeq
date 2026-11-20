@@ -7,7 +7,7 @@
 // no time, so nothing is asserted against a threshold (N-036 is the basis); correctness is asserted
 // as usual.
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, perfSize, scaledCount, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
@@ -16,10 +16,10 @@ import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** The selection of SR-071 in this suite. */
-const SELECTED = 1000;
+const SELECTED = scaledCount(1000);
 
 type Output = CommandOutput<"element.bulkUpdate">;
 

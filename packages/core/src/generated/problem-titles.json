@@ -76,6 +76,7 @@
     "workspace.metamodel-mismatch": "Different metamodel in a repository",
     "workspace.invalid": "Invalid workspace file",
     "workspace.not-watched": "Folder not watched",
+    "workspace.skill-not-written": "Skill file not written",
     "workspace.skill-older-version": "Skill file of an older ReqSeq version",
     "git.unavailable": "Git cannot read the repository",
     "git.revision-missing": "Missing commit",

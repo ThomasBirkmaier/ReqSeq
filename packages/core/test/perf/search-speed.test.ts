@@ -47,7 +47,10 @@ import {
   generateLargeWorkspace,
   measure,
   measureMedian,
+  perfSize,
   recordValue,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -71,8 +74,8 @@ import { Workspace } from "../../src/runtime/workspace.js";
 import { costliestParts, withCompounds } from "./compounds.test-helper.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-098 AK1. */
 const SEARCH_MS = 300;
 /** Runs per term; the median counts. */
@@ -339,13 +342,13 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
           "SR-098 AK1 (recorded: built with the index, after a carry, or by the first search of a one-shot process)",
       },
     );
-    expect(keyed.get("k001")?.length).toBeGreaterThan(10_000);
+    expect(keyed.get("k001")?.length).toBeGreaterThan(scaledCount(10_000));
     const slowest = Math.max(...singles);
     await recordValue(`element.search: slowest single run of ${String(singles.length)}`, slowest, {
       basis: "SR-098 AK1 (recorded: single runs include GC and scheduler pauses)",
     });
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -370,13 +373,17 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
           runs: RUNS,
         },
       );
-      expect(result.hits).toHaveLength(limit);
+      // A full page: at N-036 1,000 texts hold each word; a smaller run (#2037) has fewer than 500.
+      const holding = tree.elements.filter(
+        (_, n) => n % LONG_EVERY === (word === LONG_WORD ? 0 : LONG_EVERY / 2),
+      );
+      expect(result.hits).toHaveLength(Math.min(limit, holding.length));
       expect(result.hits.every((hit) => hit.snippet?.text.includes(`the ${word} holds`) === true)).toBe(true);
       expect(result.hits.some((hit) => /[*[\]()]/u.test(hit.snippet?.text ?? ""))).toBe(false);
       measurements.push(measurement);
     }
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -393,7 +400,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ["th", "status", 0],
       ["th", "package", 0],
       ["th", "requirement-type", 0],
-      ["th", "package", 20_000],
+      ["th", "package", scaledCount(20_000)],
       ["the station shall", "package", 0],
     ] as const) {
       const { result, measurement } = await measureMedian(
@@ -412,7 +419,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       measurements.push(measurement);
     }
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -454,7 +461,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       measurements.push(measurement);
     }
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -498,7 +505,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ),
     ).toBe(true);
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -538,12 +545,12 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
           "SR-098 AK1 (recorded: built with the index, after a carry, or by the first search of a one-shot process)",
       },
     );
-    expect(table?.others.get("battery level")?.length).toBeGreaterThan(50);
+    expect(table?.others.get("battery level")?.length).toBeGreaterThan(scaledCount(50));
     // The German word finds every element whose title holds the noun, though none holds the word.
     const german = await search("Ladestand der Batterie");
     expect(german.total).toBe((await search('"battery level"')).total);
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -614,7 +621,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       { query: tail, limit: 500 },
       { workspace: open },
     )) as Search;
-    expect(found.total).toBeGreaterThan(1000);
+    expect(found.total).toBeGreaterThan(scaledCount(1000));
     expect(
       found.hits.every((hit) =>
         (hit.snippet?.marks ?? []).every(
@@ -623,7 +630,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
       ),
     ).toBe(true);
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -667,7 +674,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     const times: number[] = [];
     const partTimes: number[] = [];
     for (let n = 0; n < saves; n++) {
-      const record = store.elements[100 + n * 1000];
+      const record = store.elements[100 + n * scaledCount(1000)];
       if (record === undefined) {
         throw new Error("no element");
       }
@@ -700,7 +707,9 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
         thresholdMs: SEARCH_MS,
       },
     );
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
-    expect(partMeasurement.ms, thresholdMessage(partMeasurement)).toBeLessThanOrEqual(SEARCH_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
+    expect(partMeasurement.ms, thresholdMessage(partMeasurement)).toBeLessThanOrEqual(
+      thresholdLimit(SEARCH_MS),
+    );
   });
 });
