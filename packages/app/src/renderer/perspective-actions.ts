@@ -248,11 +248,16 @@ export const savePerspective = async (
 /**
  * The list "Save list as perspective" saves: the shown list, unless it is in the matrix (which shows no
  * groups), lists nothing, or the workspace is read-only (`perspective.save` refuses then). The hits of a
- * search and the elements of a package page are no list buffer (SR-214 rationale).
+ * search and the elements of a package page are no list buffer (SR-214 rationale), and a list from the output of a
+ * command (a step `output`, SR-223 AK3) is not saved (SR-214 AK5, SR-219 AK8).
  */
 const savableList = (context: ActionContext): ListBuffer | undefined => {
   const [shown] = context.buffers;
-  return context.workspace && context.readOnly !== true && listing(shown) && !inMatrix(shown)
+  return context.workspace &&
+    context.readOnly !== true &&
+    listing(shown) &&
+    !shown.steps.some((step) => step.output === true) &&
+    !inMatrix(shown)
     ? shown
     : undefined;
 };
