@@ -95,6 +95,8 @@ const SELECTION_TOOLS: readonly string[] = [
   "data_export",
   "data_store",
   "baseline_create",
+  // Takes the selection of the baseline it prepares (SR-242).
+  "baseline_prepare",
   // Export profiles of a mapping hold a selection (SR-059 AK3); ADR-0009 counted it in.
   "reqif_saveMapping",
   // Listed since it is implemented (SR-052): it exports a selection (SR-101).

@@ -41,6 +41,8 @@ export const IN_SELECTION: ReadonlySet<string> = new Set([
   "evidence.coverage",
   "evidence.degree",
   "data.export",
+  // Counts the degree of its selection in the view shown, and names that selection for Create baseline (SR-242).
+  "baseline.prepare",
 ]);
 
 /**
