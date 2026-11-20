@@ -71,6 +71,11 @@ export interface ResultLine {
   readonly detail?: true;
   /** The key of the group of problems the line heads or, unfolded, belongs to (`groupKey`, SR-223 AK3). */
   readonly group?: string;
+  /**
+   * A text of several lines, such as the Markdown of the agent guide: shown whole under its title, its line
+   * breaks kept, instead of one line cut at the edge (#2141).
+   */
+  readonly block?: true;
   /** A group line: whether it is open, so that its problems follow it. */
   readonly unfolded?: boolean;
   /**
@@ -368,7 +373,14 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number, t
 const leafLine = (value: unknown, depth: number, label: string, path: string, names: Names): ResultLine => {
   const named = typeof value === "string" ? names.get(value) : undefined;
   if (named === undefined) {
-    return { kind: "text", depth, label, text: scalar(value), ...(label === "" ? {} : { field: path }) };
+    return {
+      kind: "text",
+      depth,
+      label,
+      text: scalar(value),
+      ...(label === "" ? {} : { field: path }),
+      ...(typeof value === "string" && value.includes("\n") ? { block: true } : {}),
+    };
   }
   const row = elementLine(named, depth);
   return label === "" ? row : { ...row, label: `${label}: ${row.label}` };
