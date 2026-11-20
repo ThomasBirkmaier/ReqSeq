@@ -13,6 +13,7 @@ import {
   DOCS_SIDEBAR_SCOPE,
   DOCS_STYLESHEET,
 } from "./docs-theme.generated.js";
+import { ELEMENT_PAGE_CSS } from "./element-page.js";
 import { escapeHtml } from "./markdown.js";
 
 /** The files every page links, relative to the export folder. */
@@ -28,13 +29,14 @@ export const ASSETS = {
 /** The docs' stylesheet, as the export writes it. */
 export const DOCS_CSS = DOCS_STYLESHEET;
 
-/** The export's own styles, after the docs' ones: facts, errors in the docs' grey, diagrams, formulas, the search field hidden until its script runs. */
+/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs. */
 export const OWN_CSS = [
-  ".rq-facts, .rq-render-error { color: var(--sl-color-gray-3); }",
+  ".rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
   "div.rq-render-error { margin-top: 0.5rem; }",
   ".rq-diagram-image { display: block; max-width: 100%; height: auto; }",
   ".sl-markdown-content .katex-display { overflow-x: auto; overflow-y: hidden; }",
+  ...ELEMENT_PAGE_CSS,
   "reqseq-search[hidden], .rq-search-more[hidden] { display: none; }",
   "",
 ].join("\n");
@@ -66,6 +68,8 @@ export interface PageInput {
   readonly footer: string;
   readonly formulas: boolean;
   readonly diagrams: boolean;
+  /** Further scripts of the folder the page loads after the page script, relative to the export folder. */
+  readonly scripts?: readonly string[];
 }
 
 /** The sidebar: the start page, marked as the current page on itself. */
@@ -105,6 +109,7 @@ export const page = (input: PageInput): string => {
     `<body ${DOCS_BODY_ATTRIBUTES}>${frame}`,
     ...(input.diagrams ? [`<script src="${up}${ASSETS.mermaid}"></script>`] : []),
     `<script src="${up}${ASSETS.page}"></script>`,
+    ...(input.scripts ?? []).map((script) => `<script src="${up}${script}"></script>`),
     "</body>",
     "</html>",
     "",

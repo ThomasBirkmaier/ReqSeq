@@ -2,7 +2,7 @@
 import path from "node:path";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
-import { IDENTIFIERS, ONE_REPOSITORY } from "../../fixtures.js";
+import { IDENTIFIERS, ONE_REPOSITORY, WITH_VAULT } from "../../fixtures.js";
 
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const PAGE = `site/elements/${WIND}.html`;
@@ -13,6 +13,17 @@ const withText = (body: string) => ({
     "requirements/SR-6328cee88fb3.md": `---\nid: ${WIND}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n---\n\n${body}\n`,
   },
 });
+
+/** ONE_REPOSITORY with the frontmatter lines `front` and the text `body` for its requirement, and `files`. */
+const withFront = (front: string, body: string, files: Readonly<Record<string, string>> = {}) => ({
+  ...ONE_REPOSITORY,
+  files: {
+    "requirements/SR-6328cee88fb3.md": `---\nid: ${WIND}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\n${front}---\n\n${body}\n`,
+    ...files,
+  },
+});
+const OLD = "0b7c6e1a-1111-4222-8333-444455556666";
+const FAR = "7f7f7f7f-1111-4222-8333-0000001a2b3c";
 
 /** The content of a page: what its content slot holds, without the docs' frame and the page scripts. */
 const contentOf = (page: string): string =>
@@ -244,6 +255,99 @@ scenariosOf("html.export", [
             expect(files[target], `${file}: ${address}`).toBeDefined();
           }
         }
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-cj5d]",
+    name: "an element's page lists type, short ID, status, packages and verification status, each with a copy button",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[PAGE]));
+        for (const [label, value] of [
+          ["Type", "System Requirement"],
+          ["Short ID", "SR-e88fb3"],
+          ["Status", "draft"],
+          ["Packages", "–"],
+          ["Verification status in the core", "open"],
+        ] as const) {
+          expect(page).toContain(
+            `<dt>${label}</dt><dd class="rq-copyable"><span class="rq-value">${value}</span><button type="button" class="rq-copy" data-copy="${value}"`,
+          );
+        }
+        expect(files["site/assets/copy.js"]).toContain("navigator");
+      }
+    },
+  },
+  {
+    tag: "[SR-232/AK-zr5v]",
+    name: "an acceptance criterion shows number, key, text and status and copies its reference for test names",
+    fixture: withFront(
+      "requirement-type: functional\nacceptance-criteria:\n  - key: kred\n    text: Given wind, then it shows.\n  - Given calm, then 0 shows.\n",
+      "Text.",
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = contentOf(String(files[PAGE]));
+        expect(page).toContain(
+          '<p class="rq-criterion rq-copyable"><strong>AK1</strong> <code>kred</code> <span class="rq-criterion-status">open</span><button type="button" class="rq-copy" data-copy="[SR-e88fb3/AK-kred]"',
+        );
+        expect(page).toContain("<p>Given wind, then it shows.</p>");
+        expect(page).toContain(
+          '<strong>AK2</strong> <span class="rq-criterion-status">open</span></p><p>Given calm, then 0 shows.</p>',
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-q4mj]",
+    name: "an element that had a page and became invalid gets a short page with its successor",
+    fixture: withFront(
+      `supersedes:\n  - { id: ${OLD}, version: n1:0000000000000000 }\n`,
+      `See [rain](reqseq:${OLD}).`,
+      {
+        "requirements/SR-444455556666.md": `---\nid: ${OLD}\ntype: system-requirement\nstatus: obsolete\ntitle: Show rain\n---\n\nRain.\n`,
+        "site/reqseq-html-export.yaml": `reqseq-html-export: 1\nfiles:\n  - elements/${OLD}.html\n`,
+        [`site/elements/${OLD}.html`]: "old\n",
+      },
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const stub = contentOf(String(files[`site/elements/${OLD}.html`]));
+        expect(stub).toContain("<dt>Title</dt><dd>Show rain</dd><dt>Status</dt><dd>obsolete</dd>");
+        expect(stub).toContain(`<li><a href="../elements/${WIND}.html">SR-e88fb3 Show wind speed</a></li>`);
+        expect(files[PAGE]).toContain(`<a href="../elements/${OLD}.html">rain</a>`);
+      }
+    },
+  },
+  {
+    tag: "[SR-231/AK-wkbf]",
+    name: "a reference into a repository that is not on this machine is its link text with the note of SR-006 AK1",
+    fixture: withFront(
+      `acceptance-criteria:\n  - "Given [SR-1a2b3c](reqseq:${FAR}?repository=vault), then it shows."\n`,
+      `See [far](reqseq:${FAR}?repository=vault).`,
+      { "reqseq-workspace.yaml": WITH_VAULT },
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const page = String(files[PAGE]);
+        expect(page).toContain("<p>See far (UNKNOWN-1a2b3c, repository vault, not accessible).</p>");
+        expect(page).toContain(
+          "<p>Given SR-1a2b3c (UNKNOWN-1a2b3c, repository vault, not accessible), then it shows.</p>",
+        );
       }
     },
   },

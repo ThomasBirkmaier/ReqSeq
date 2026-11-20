@@ -20,7 +20,9 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit"
 import {
   generateLargeWorkspace,
   measureMedian,
+  perfSize,
   recordValue,
+  thresholdLimit,
   thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -36,8 +38,10 @@ import { Workspace } from "../../src/runtime/workspace.js";
 import { costliestParts, withCompounds } from "./compounds.test-helper.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set,
+// at least 2,000 elements: the generated titles draw verb, noun and place at random, and `TYPED` needs one title
+// with "report", "humidity" and "in the log".
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize(2000);
 /** SR-108 AK5. */
 const PROMPT_MS = 100;
 /** Runs per prefix; the median counts. */
@@ -174,7 +178,7 @@ describe("the command prompt's search with 50,000 elements (SR-108 AK5, N-036)",
       },
     );
     for (const measurement of measurements) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(PROMPT_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(PROMPT_MS));
     }
   };
 

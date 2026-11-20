@@ -20,9 +20,14 @@
 // for the hints of a variant with a baseline, 4–5 s at N-036 (ThomasBirkmaier/ReqSeq-archive#259, `hints.md` "Cost").
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
+  DEFAULT_EXCLUSIONS,
+  DEFAULT_REPLACEMENTS,
   generateLargeWorkspace,
   measure,
   measureMedian,
+  perfSize,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -44,11 +49,12 @@ import { isCoreRequirement, viewRuleOf } from "../../src/variants/index.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
-const WITH_BASELINE = 50;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set,
+// at least 1,000 elements: two variants (0.2 % of the elements), one with baselines and one without.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize(1000);
+const WITH_BASELINE = scaledCount(50);
 const OLDER_OF_A = 19;
-const CHANGED_IN_A = 5000;
+const CHANGED_IN_A = scaledCount(5000);
 const LIST_MS = 1000;
 const CHECK_MS = 10_000;
 const GET_MS = 200;
@@ -91,7 +97,10 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
       version,
       elements: ELEMENTS,
       relations: RELATIONS,
-      variantRules: {},
+      variantRules: {
+        exclusions: scaledCount(DEFAULT_EXCLUSIONS),
+        replacements: scaledCount(DEFAULT_REPLACEMENTS),
+      },
     });
     fixture = await writeLargeWorkspace(tree);
     cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-since-baseline-cache-"));
@@ -157,7 +166,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
       { basis: BASIS, thresholdMs: LIST_MS },
     );
     expect(result).toHaveLength(CHANGED_IN_A);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(LIST_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(LIST_MS));
   });
 
   it("gives the since-baseline part of workspace.check for every variant within 10 s", async () => {
@@ -168,7 +177,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
       { basis: BASIS, thresholdMs: CHECK_MS },
     );
     expect(result).toHaveLength(CHANGED_IN_A);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(CHECK_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(CHECK_MS));
   });
 
   it("shows variant A with 5,000 since-baseline hints in a running server within 200 ms (SR-082 AK3)", async () => {
@@ -183,7 +192,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     expect(
       result.element.problems?.filter((p) => p.code === "variant.core-changed-since-baseline"),
     ).toHaveLength(CHANGED_IN_A);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(GET_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(GET_MS));
   });
 
   it("keeps element.get of A within 200 ms after a save elsewhere, and saves A at most 75 ms slower than a variant without a baseline", async () => {
@@ -203,7 +212,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     expect(
       result.element.problems?.filter((p) => p.code === "variant.core-changed-since-baseline"),
     ).toHaveLength(CHANGED_IN_A);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(GET_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(GET_MS));
     // A save of any variant here takes some 150 ms without these hints (the store, the view rules);
     // the bound is on what A's baseline adds: its hints carried over and shown again.
     // Each save is made on the bytes the one before wrote (#269); the first hash is read before.
@@ -233,7 +242,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
       runs: SAVES,
     });
     expect(saved.measurement.ms, thresholdMessage(saved.measurement)).toBeLessThanOrEqual(
-      plain.measurement.ms + SAVE_EXTRA_MS,
+      thresholdLimit(plain.measurement.ms + SAVE_EXTRA_MS),
     );
   });
 
@@ -251,12 +260,14 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
         thresholdMs: GET_MS,
       },
     );
-    expect(own.measurement.ms, thresholdMessage(own.measurement)).toBeLessThanOrEqual(GET_MS);
+    expect(own.measurement.ms, thresholdMessage(own.measurement)).toBeLessThanOrEqual(thresholdLimit(GET_MS));
     const typed = await measure(
       `hint.list --type ${core.type}, baselines present`,
       () => list({ type: [core.type] }),
       { basis: "SR-026 AK2, SR-103", thresholdMs: TYPE_MS },
     );
-    expect(typed.measurement.ms, thresholdMessage(typed.measurement)).toBeLessThanOrEqual(TYPE_MS);
+    expect(typed.measurement.ms, thresholdMessage(typed.measurement)).toBeLessThanOrEqual(
+      thresholdLimit(TYPE_MS),
+    );
   });
 });

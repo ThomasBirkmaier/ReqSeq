@@ -5,7 +5,7 @@
 // not for every file (a literal pathspec per file costs time per commit, folder entry and path).
 // No SR sets a limit for the date, so the time is recorded only (ADR-0011).
 import type { FixtureWorkspace, HistoryCommitSpec } from "@reqseq/testkit";
-import { createFixtureWorkspace, measure } from "@reqseq/testkit";
+import { createFixtureWorkspace, measure, scaledCount } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parseFileBytes } from "../../src/files/index.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
@@ -17,13 +17,13 @@ import { Workspace } from "../../src/runtime/workspace.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
 /** Element files, all in `requirements/`. */
-const FILES = 2_000;
+const FILES = scaledCount(2_000);
 /** Commits after the first; every third one merges the side commit before it. */
-const COMMITS = 3_000;
+const COMMITS = scaledCount(3_000);
 /** Element files each side or main commit changes. */
 const CHANGED = 5;
-/** Files dated in one call. */
-const DATED = 300;
+/** Files dated in one call. Files, commits and dated files scale with the size of the run (#2037). */
+const DATED = scaledCount(300);
 
 const hex = (n: number, width: number): string => n.toString(16).padStart(width, "0");
 const idOf = (i: number): string => `${hex(i, 8)}-0000-4000-8000-${hex(i, 12)}`;

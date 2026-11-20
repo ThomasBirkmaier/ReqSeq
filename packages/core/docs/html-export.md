@@ -7,12 +7,13 @@
 | Path | What |
 | --- | --- |
 | `index.html` | Start page |
-| `elements/<uuid>.html` | One page per element without an invalid status (D-044). The UUID never changes (D-017), so a link keeps opening the element when its identifier, title or short ID change (SR-231 AK3). |
+| `elements/<uuid>.html` | One page per element without an invalid status (D-044). The UUID never changes (D-017), so a link keeps opening the element when its identifier, title or short ID change (SR-231 AK3). An element with an invalid status whose page the earlier export wrote (`ExportFolder.earlier`) gets the short page of SR-231 AK8 there. |
 | `images/<uuid>-<n><ext>` | Copies of the images of the element's texts; `<ext>` from the type the bytes are (`imageExtension`), never from the file name. |
 | `assets/docs.css` | The stylesheet of the shipped docs (`docs-theme.generated.ts`, SR-231 AK4) |
 | `assets/reqseq.css` | The export's own styles (`OWN_CSS`): the grey of the element facts and of errors, the drawn diagrams, and scrolling of a wide display formula |
 | `assets/theme.js`, `assets/reqseq.js` | The page scripts (`page-script.ts`, `search.ts`): the theme before the first paint; the theme selects, the menu, the diagrams and the search |
 | `assets/search-index.js` | The search index (`search.ts`, SR-231 AK7), loaded on the first open of the search |
+| `assets/copy.js` | The script of the copy buttons of element pages (`copy-script.ts`) |
 | `assets/katex.css`, `assets/mermaid.js` | Only when a page needs them: KaTeX's stylesheet with its woff2 fonts as `data:` URLs, and the Mermaid bundle (`vendor.ts`) |
 | `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle and Starlight (`notices.ts`) |
 | `reqseq-html-export.yaml` | The marker file (`schemas/html-export-marker.schema.json`) |
@@ -41,9 +42,21 @@ A Mermaid block that passes `mermaidRisk` and the bounds of `diagramOverLimit` i
 
 The vendor files (`packages/core/vendor/html-export/`, git-ignored, in core's `files`) are written by `scripts/build/html-export-vendor.mjs` in core's build: Mermaid bundled from its ESM against the lockfile into one script (Mermaid's own bundle carries older KaTeX, DOMPurify and marked out of reach of the lockfile), failing on `eval`, `new Function` and a dynamic `import`, and KaTeX's stylesheet with its fonts inlined. No input names the folder; a missing file is `internal` before anything is written. `scripts/licenses/html-export.mjs` attributes every source of the bundle's map and writes `notices.generated.ts`; `licenses:check` runs it with `--check`.
 
+## Element page (`element-page.ts`, `element-data.ts`, `section-*.ts`, `stub-page.ts`)
+
+`element-data.ts` reads what the pages show besides the texts in one batch (N-036): each element as `listElements` gives it (properties as in the file, own and successor relations with the state of the other end), with `withEvidenceStatus`, `criterionReferencesOf` (SR-205 AK1) and `criterionStatusesByView` (the status of each acceptance criterion per view from own records, SR-031; open without one, also when children decide the element's status). `elementPageBody` makes one call per section, each in a module of its own:
+
+- `section-fields.ts` (SR-232 AK1): type, identifier, short ID, status ("–" without one), packages, the repository when there is more than one, the verification status in the core ("not in the core") and in each variant it applies in, the validation status; each row with a copy button.
+- the text;
+- `section-criteria.ts` (AK2), none without criteria: number, criterion key, text (formatted when the property is Markdown, else as written), the status (alone for the core only, else per view) and a copy button with the reference, none without one;
+- `section-properties.ts` (AK1): every other filled property in file order, also unknown ones by key; Markdown formatted, each item of a list too; a relation property as links;
+- `section-relations.ts` (AK1): the outgoing relations by relation kind.
+
+A target is named `identifier`, else short ID, and title (`links.ts`); one in a repository that is not here is `UNKNOWN-<tail>, repository <name>, not accessible` (SR-006 AK1); a missing, ambiguous or unknown-repository one names its UUID and why. The copy buttons are written `hidden`; `assets/copy.js` shows them and writes the value with the Clipboard API, or selects it where that is missing or refused. `stub-page.ts` (SR-231 AK8): identifier, short ID, title, status and a link to each successor (SR-072 AK3); it is not in `exportedElements`, which lists and search come from.
+
 ## References and footer (`export.ts`)
 
-A `reqseq:` reference links `../elements/<uuid>.html` when its target has a page; a target with an invalid status, a missing one or a UUID of several files gives the link text alone; a target in a repository that is not on this computer gives the link text and `UNKNOWN-<tail>, repository <name>, not accessible` (SR-231 AK6, SR-006 AK1). The footer names the commit of the main repository with `-dirty` by the rules of `data.export` (SR-062 AK1), or "no commit", the date of the export (UTC) and the ReqSeq version (SR-231 AK9).
+A `reqseq:` reference, in the text and in every Markdown property including each acceptance criterion, links `../elements/<uuid>.html` when its target has a page or a short page; a target with an invalid status and no short page, a missing one, one in a repository the workspace file does not name or a UUID of several files gives the link text alone; a target in a repository that is not on this computer gives the link text and `UNKNOWN-<tail>, repository <name>, not accessible` (SR-231 AK6, SR-006 AK1). The footer names the commit of the main repository with `-dirty` by the rules of `data.export` (SR-062 AK1), or "no commit", the date of the export (UTC) and the ReqSeq version (SR-231 AK9).
 
 ## Safe content (`markdown.ts`, `svg.ts`)
 

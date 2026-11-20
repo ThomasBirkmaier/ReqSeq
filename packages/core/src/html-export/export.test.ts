@@ -51,7 +51,7 @@ describe("html.export with images and Markdown properties", () => {
       `<img src="../images/${WIND}-0.png" alt="ok"> <img src="../images/${WIND}-0.png" alt="ok again"> ![gone](img/gone.png) ![text](img/notes.png) ![link](img/link.png) ![trap](img/trap.svg) <img src="../images/${WIND}-5.svg" alt="plain"> doc ![dir](img/)`,
     );
     expect(page).toContain(
-      `<section><h2>Rationale</h2><p>Seen on the mast. &lt;b&gt;bold&lt;/b&gt; <img src="../images/${WIND}-0.png" alt="m"></p></section>`,
+      `<dt>Rationale</dt><dd><p>Seen on the mast. &lt;b&gt;bold&lt;/b&gt; <img src="../images/${WIND}-0.png" alt="m"></p></dd>`,
     );
     expect(await fs.readFile(fixture.path(`site/images/${WIND}-0.png`))).toEqual(PNG);
     expect((await fs.readdir(fixture.path("site/images"))).sort()).toEqual([
@@ -133,7 +133,9 @@ describe("html.export with images and Markdown properties", () => {
     expect(output.pages).toBe(2);
     expect(
       await fs.readFile(fixture.path("site/elements/0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa.html"), "utf8"),
-    ).toMatch(/>UNKNOWN-aaaaaa<\/h1>[\s\S]*<p class="rq-facts">memo<\/p>/u);
+    ).toMatch(
+      />UNKNOWN-aaaaaa<\/h1>[\s\S]*<dt>Type<\/dt><dd class="rq-copyable"><span class="rq-value">memo<\/span>/u,
+    );
     expect(output.problems.map((p) => [p.code, p.file])).toEqual([
       ["file.invalid-yaml", "requirements/broken.md"],
       ["element.duplicate-id", "copy/SR-6328cee88fb3.md"],
