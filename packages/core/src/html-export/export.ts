@@ -340,11 +340,22 @@ const footerOf = async (
   return `${named} · exported ${date} with ReqSeq ${PRODUCT_VERSION}`;
 };
 
-/** The heading of the page of `record`: its identifier, then its title when it has one. */
-const headingOf = (record: ElementRecord, titleKey: string, shortIds: ShortIds): string => {
+/**
+ * The heading of the page of `record`: its identifier, then its title when it has one; a package (a type with the
+ * meaning package) by its title alone, as the sidebar names it (SR-233 AK4, #2139).
+ */
+const headingOf = (
+  metamodel: Metamodel,
+  record: ElementRecord,
+  titleKey: string,
+  shortIds: ShortIds,
+): string => {
   const title = record.data[titleKey];
   const name = identifierField(shortIds, record).identifier ?? shortIds.of(record);
-  return typeof title === "string" && title !== "" ? `${name} ${title}` : name;
+  if (typeof title !== "string" || title === "") {
+    return name;
+  }
+  return findType(metamodel, record.type)?.meaning === "package" ? title : `${name} ${title}`;
 };
 
 /** KaTeX's stylesheet and the Mermaid bundle, each only when a page needs it. */
@@ -768,7 +779,7 @@ export const writeHtmlExport = async (
       scripts: readonly string[] = [],
     ): string => page({ title, siteTitle: layout.name, path, navigation, body, footer, ...own, scripts });
     for (const { record, ...rest } of data) {
-      const title = headingOf(record, titleKey, shortIds);
+      const title = headingOf(metamodel, record, titleKey, shortIds);
       if (stubbed.has(record)) {
         const body = stubPageBody(context.page, { record, ...rest });
         await folder.write(elementPage(record.id), framed(elementPage(record.id), title, body, NO_NEEDS));

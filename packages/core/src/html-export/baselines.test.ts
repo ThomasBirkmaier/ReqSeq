@@ -77,15 +77,51 @@ const plain = (html: string): string =>
     .trim();
 
 describe("baseline page (SR-234 AK1)", () => {
+  it("[SR-234/AK-vjfq] sorts each group by identifier with digit runs as numbers, counts it, and sums the baseline up", () => {
+    const names = new Map([
+      ["u10", "SR-10"],
+      ["u9", "sr-9"],
+      ["u2", "N-2"],
+      ["u9b", "SR-9"],
+      ["u9c", "SR-9"],
+    ]);
+    const rows = ["u10", "u9", "u2", "u9b", "u9c"].map((id) => ({ ...CHANGED, id }));
+    const body = plain(
+      baselinePageBody(
+        {
+          ...BASELINE,
+          selectionKnown: false,
+          elements: rows,
+          counts: { ...BASELINE.counts, changed: 5, superseded: 1, inaccessible: 0 },
+          total: 5,
+        },
+        (row) => ({ name: String(names.get(row.id)), title: "", status: "–", href: undefined }),
+      ),
+    );
+    expect(body).toMatch(
+      /^5 elements in the baseline\. Since then 5 changed, 1 superseded\. .* Changed \(5\) Identifier Title Status Version in the baseline N-2 – .* SR-9 – .* SR-9 – .* sr-9 – .* SR-10 – /u,
+    );
+    expect(
+      plain(
+        baselinePageBody({ ...BASELINE, elements: [], total: 1 }, () => ({
+          name: "",
+          title: "",
+          status: "",
+          href: undefined,
+        })),
+      ),
+    ).toMatch(/^1 element in the baseline\. Since then 1 changed, 0 added, 0 removed, 0 superseded\./u);
+  });
+
   it("[SR-234/AK-vjfq] shows a version without date, and an entry in a repository that is not here", () => {
     const body = plain(
       baselinePageBody(BASELINE, () => ({ name: "SR-b1", title: "T", status: "draft", href: undefined })),
     );
     expect(body).toContain(
-      "Changed Identifier Title Status Version in the baseline SR-b1 T draft n2:0000000000000001 Added",
+      "Changed (1) Identifier Title Status Version in the baseline SR-b1 T draft n2:0000000000000001 Added (0)",
     );
     expect(body).toContain(
-      `Not in the workspace UUID Repository Why ${A} remote repository not on this machine`,
+      `Not in the workspace (1) UUID Repository Why ${A} remote repository not on this machine`,
     );
     // A row whose copy the store does not hold, and an element without status, by its UUID and "–".
     const named = rowElementOf({
