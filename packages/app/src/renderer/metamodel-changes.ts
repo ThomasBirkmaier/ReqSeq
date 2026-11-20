@@ -1,16 +1,21 @@
 // The last change of the metamodel made in the app (SR-130 AK7): after a metamodel command succeeds in the
 // command prompt (`metamodel-prompt.ts`), the graph and the text mark every place where a definition it
-// added or changed appears, until the next such command or until the app ends. Pure display (ADR-0002): the
-// definitions are the ones the command's output names; this module only says where they are shown.
-// - "Add type" and "Change type definition": the type (`type`), at its head and its section.
+// added or changed appears, until the next such command, until a workspace is opened or until the app ends.
+// Pure display (ADR-0002): the definitions are the ones the command's output names; this module only says
+// where they are shown. Only the places that show the definition itself, never one where another definition
+// names it (the "extends" of a type that extends it, a source, target or limit type of a relation kind).
+// - "Add type" and "Change type definition": the type (`type`), at its head, its own "extends" row and the
+//   "extends" label of its curve to its parent.
 // - "Add property to type": the property in that type and in the types that inherit it from there.
 // - "Change property definition": the property wherever it is shown, also its curves.
-// - "Add relation kind" and "Change relation kind": the kind (`relationKind`), its label lines and its row.
+// - "Add relation kind" and "Change relation kind": the kind (`relationKind`), its label lines, its row and
+//   its limit rows.
 // - "Add status to type": the status in that type, in the types that inherit it from there, and in the other
 //   types that have it now (`alsoTypes`).
 // - "Change status definition": the status wherever it is shown, and the one that lost the initial mark
 //   (`previousInitial`).
-// - A removal marks nothing; a command that does not change the metamodel leaves the marks as they are.
+// - A removal marks nothing; a command that does not change the metamodel, or whose output names no written
+//   file (`files`), leaves the marks as they are.
 import type { CommandTypes, MetamodelGetOutput } from "@reqseq/core";
 
 /** The definitions the last metamodel command added or changed, and where each counts. */
@@ -28,10 +33,20 @@ export const NO_CHANGE: MetamodelChange = { types: [], properties: [], statuses:
 type Out<Name extends keyof CommandTypes> = CommandTypes[Name]["output"];
 
 /**
- * What the output of `command` added or changed; undefined for a command that changes no metamodel, which
- * leaves the marks as they are.
+ * What the output of `command` added or changed; undefined for a command that changes no metamodel, and for
+ * a metamodel command whose output names no written file (`files` empty or missing), which both leave the
+ * marks as they are.
  */
 export const changeOf = (command: string, output: unknown): MetamodelChange | undefined => {
+  const change = definitionsOf(command, output);
+  // Every metamodel command's output has `files`; read it as possibly missing all the same.
+  const files = (output as Partial<Pick<Out<"metamodel.addType">, "files">> | undefined)?.files;
+  // A command that wrote no file (the same value confirmed) changed nothing: the marks stay.
+  return change === undefined || files === undefined || files.length === 0 ? undefined : change;
+};
+
+/** What a metamodel command names as added or changed, whether or not it wrote a file. */
+const definitionsOf = (command: string, output: unknown): MetamodelChange | undefined => {
   switch (command) {
     case "metamodel.addType":
     case "metamodel.changeType":

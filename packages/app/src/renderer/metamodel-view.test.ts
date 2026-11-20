@@ -11,7 +11,7 @@ import * as layoutModule from "./metamodel-layout.js";
 import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-test-data.js";
 import { MetamodelView } from "./MetamodelView.js";
 import type { MetamodelChange } from "./metamodel-changes.js";
-import { NO_CHANGE } from "./metamodel-changes.js";
+import { NO_CHANGE, changeOf } from "./metamodel-changes.js";
 import { menuEntries, placeAt } from "./context-menu.js";
 import type { MenuPlace } from "./context-menu.js";
 import { metamodelGiven } from "./metamodel-menu.js";
@@ -686,5 +686,98 @@ describe("MetamodelView's last change (SR-130 AK7)", () => {
     root = createRoot(container);
     await mount(asCall(fakeCall()));
     expect(container.querySelectorAll(".changed")).toHaveLength(0);
+  });
+
+  /** Shows `output` again in a fresh root, as graph or text, with `change` as the last change. */
+  const remount = async (
+    output: MetamodelGetOutput,
+    change: MetamodelChange,
+    view: "graph" | "text" = "graph",
+  ): Promise<void> => {
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await mount(asCall(fakeCall(() => output)), metamodelBuffer(view), change);
+  };
+  /** The source type of each marked label line of `selector`. */
+  const changedLines = (selector: string): string[] =>
+    [...container.querySelectorAll<HTMLElement>(`.mm-line${selector}.changed`)].map(
+      (line) => line.closest<HTMLElement>(".mm-label")?.dataset["source"] ?? "",
+    );
+  /** The row of each marked text line of `selector`. */
+  const changedRows = (selector: string): string[] =>
+    [...container.querySelectorAll<HTMLElement>(`${selector}.changed`)].map(
+      (line) => line.closest<HTMLElement>("[data-row]")?.dataset["row"] ?? "",
+    );
+  const written = { files: [{ repository: "system", path: "metamodel/standard-model.yaml" }] };
+
+  it("[SR-130/AK-wb12] marks a type's own extends row and label and a relation kind's limit rows, not where another definition names them", async () => {
+    const limited: MetamodelGetOutput = {
+      ...FIXTURE_METAMODEL,
+      relations: FIXTURE_METAMODEL.relations.map((relation) =>
+        relation.key === "delegates-to"
+          ? { ...relation, limits: [{ "target-type": "software-requirement", max: 1 }] }
+          : relation.key === "replaces"
+            ? { ...relation, limits: [{ "target-type": "requirement", min: 1 }] }
+            : relation,
+      ),
+    };
+    const change: MetamodelChange = { ...NO_CHANGE, types: ["requirement"], kinds: ["delegates-to"] };
+    await remount(limited, change);
+    // The type's own curve to its parent, not the curve of the type that extends it.
+    expect(changedLines(".extends")).toEqual(["type:requirement"]);
+    expect(changedIn(".mm-head")).toEqual(["requirement:System RequirementSR"]);
+    await remount(limited, change, "text");
+    expect(changedRows("[data-parent]")).toEqual(["type:requirement"]);
+    // The limits of the changed kind; the limit of another kind that names the changed type stays unmarked.
+    expect(changedRows("[data-limit]")).toEqual(["relation:delegates-to"]);
+    expect(changedRows(".mm-text-head")).toEqual(["type:requirement", "relation:delegates-to"]);
+  });
+
+  it("[SR-130/AK-wb12] marks a property with relations on the curves of its types and only the definition the command names", async () => {
+    // A changed property with relations: its label line on the curve from the type that has it.
+    await remount(FIXTURE_METAMODEL, { ...NO_CHANGE, properties: [{ key: "packages" }] });
+    expect(changedLines('[data-property="packages"]')).toEqual(["type:requirement"]);
+    // Given to a type: only in that type and the types extending it, so not on the curve of another type.
+    await remount(FIXTURE_METAMODEL, {
+      ...NO_CHANGE,
+      properties: [{ key: "packages", type: "software-requirement" }],
+    });
+    expect(changedIn(".mm-property")).toEqual(["software-requirement:Package"]);
+    expect(changedLines("")).toEqual([]);
+    // "Add property to type" marks the property, not the type's head.
+    await remount(
+      FIXTURE_METAMODEL,
+      changeOf("metamodel.addProperty", { type: "decision", property: { key: "title" }, ...written }) ??
+        NO_CHANGE,
+    );
+    expect(changedIn(".mm-property")).toEqual(["decision:Title"]);
+    expect(changedIn(".mm-head")).toEqual([]);
+    // "Add type" marks the type, not its title property row.
+    await remount(
+      FIXTURE_METAMODEL,
+      changeOf("metamodel.addType", { type: { key: "decision" }, ...written }) ?? NO_CHANGE,
+    );
+    expect(changedIn(".mm-head")).toEqual(["decision:DecisionD"]);
+    expect(changedIn(".mm-property")).toEqual([]);
+    // The status that loses the initial mark is marked with the one that got it, in graph and text.
+    const initial =
+      changeOf("metamodel.changeStatus", {
+        status: { key: "approved" },
+        previousInitial: "draft",
+        ...written,
+      }) ?? NO_CHANGE;
+    await remount(FIXTURE_METAMODEL, initial);
+    expect(changedIn(".mm-status")).toEqual([
+      "item:Draft",
+      "item:Approved",
+      "requirement:Draft",
+      "requirement:Approved",
+      "software-requirement:Draft",
+      "software-requirement:Approved",
+    ]);
+    await remount(FIXTURE_METAMODEL, initial, "text");
+    expect(changedIn(".mm-text-status").length).toBe(6);
   });
 });
