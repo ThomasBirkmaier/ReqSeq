@@ -88,11 +88,8 @@ describe("the command-line calls of the agent guide", () => {
     onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
     const init = new Workspace(root);
     await getCommandRuntime().invoke("workspace.init", { path: root, name: "Station" }, { workspace: init });
+    // workspace.init names the evidence location `evidence` (SR-230 AK4), which the guide's steps name.
     await init.close();
-    await fs.appendFile(
-      path.join(root, "reqseq-workspace.yaml"),
-      "evidence:\n  - { repository: main, path: evidence }\n",
-    );
     const steps = (text: string): string => text.slice(0, text.indexOf("## In a pipeline"));
     const cli = [...steps(await guideOf(root, "cli")).matchAll(/`(reqseq [^`]+)`/g)].map((m) => m[1] ?? "");
     const mcp = [
@@ -103,8 +100,27 @@ describe("the command-line calls of the agent guide", () => {
     }));
     expect(cli.length).toBe(mcp.length);
     expect(cli.length).toBeGreaterThan(8);
+    // The metamodel section names the commands that change the metamodel without input (SR-229 AK15): a
+    // name, not a call, so the agent gives each the input its schema asks for. Only calls are run here.
+    const required = (command: CommandName): boolean => {
+      const input = loadContracts().entry(command)?.input;
+      return Array.isArray(input?.["required"]) && input["required"].length > 0;
+    };
+    const isCall = mcp.map((call) => Object.keys(call.input).length > 0 || !required(call.command));
+    const names = mcp.filter((_, i) => isCall[i] !== true).map((call) => call.command);
+    expect(names).toHaveLength(12);
+    expect(names.every((name) => /^metamodel\.(add|change|remove)[A-Z]/.test(name))).toBe(true);
+    expect(cli.filter((_, i) => isCall[i] !== true)).toEqual(
+      names.map(
+        (name) => `reqseq metamodel ${name.slice(10).replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`,
+      ),
+    );
 
-    await sameCalls(root, cli, mcp);
+    await sameCalls(
+      root,
+      cli.filter((_, i) => isCall[i] === true),
+      mcp.filter((_, i) => isCall[i] === true),
+    );
   });
 
   it("[SR-229/AK-j7mz] give each command of the skill file the input its MCP form names", async () => {

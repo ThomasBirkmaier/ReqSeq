@@ -9,6 +9,7 @@ import {
   elementBuffer,
   filteredList,
   graphBuffer,
+  outputSelectionList,
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
@@ -289,6 +290,7 @@ describe("buffer session (SR-115 AK4)", () => {
           { kind: "list", steps: [{ label: "x", heading: 1, selection: {} }] },
           { kind: "list", steps: [{ label: "x", selection: { where: "type" } }] },
           { kind: "list", steps: [{ label: "x", selection: { filter: 1 } }] },
+          { kind: "list", steps: [{ label: "x", selection: {}, output: "yes" }] },
           { kind: "list", steps: [], sort: [{ by: "title", order: "up" }] },
           { kind: "list", steps: [], sort: "title" },
           { kind: "search" },
@@ -371,6 +373,32 @@ describe("buffer session (SR-115 AK4)", () => {
       buffers: [{ kind: "result", command: "evidence.list", input: {}, name: "x", details: "yes" } as never],
     };
     expect((await restoreSession(odd, names.call, CATALOG)).buffers[0]).not.toHaveProperty("details");
+  });
+
+  it("[SR-115/AK-qtv5] keeps a list from the output of a command, with its selection output and Show details, over a restart", async () => {
+    const output = { command: "trace.affected", input: { ref: "SR-1" } };
+    const list = { ...outputSelectionList("2 elements are affected.", output), details: true as const };
+    const counted = outputSelectionList("Open", { ...output, count: { field: "total" } });
+    const storage = memory();
+    saveSession(() => storage, "key", sessionText([list, counted]));
+    const restored = await restoreSession(
+      loadSession(() => storage, "key"),
+      names.call,
+      CATALOG,
+    );
+    expect(restored.buffers).toEqual([list, counted]);
+    // A stored output that is no command call is no step.
+    const odd: StoredSession = {
+      buffers: [
+        { kind: "list", steps: [{ label: "x", selection: { output: { command: 1, input: {} } } }] } as never,
+        {
+          kind: "list",
+          steps: [{ label: "y", selection: { output: { command: "c", input: {}, count: 2 } } }],
+        } as never,
+      ],
+    };
+    saveSession(() => storage, "odd", JSON.stringify(odd));
+    expect(loadSession(() => storage, "odd").buffers).toEqual([]);
   });
 
   it("[SR-115/AK-qtv5] leaves out an element that is gone and a result that is no implemented read command", async () => {

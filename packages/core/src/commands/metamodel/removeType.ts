@@ -4,7 +4,8 @@
 //
 // - Refused, with every reason at once: a type that extends it, a relation kind that names it in
 //   `source-types`, `target-types` or a limit, a property that names it in `target-types`, and the
-//   elements of the type (SR-236 AK7).
+//   elements of the type (SR-236 AK7); and while a repository is not on this machine or the store
+//   cannot read an element file (SR-008 AK3).
 // - Dropped with it (SR-238 AK5, SR-240 AK3): its own properties that no other type lists, and the
 //   statuses it has that no other type has, except the initial status. A type without a status list
 //   has every status, so a status is dropped only while every other type has a list without it.
@@ -22,7 +23,7 @@ import {
   keptDefinitions,
   keptNote,
   mentioningFiles,
-  refuseMissingRepositories,
+  refuseIncompleteStore,
   refuseUses,
   shortIdState,
   useOf,
@@ -118,7 +119,7 @@ export default defineCommand({
           },
         );
       }
-      refuseMissingRepositories(layout, COMMAND);
+      refuseIncompleteStore(layout, store, COMMAND);
       const held = keptDefinitions(store, shortIds, unhadWithout(metamodel, input.type));
       // The initial status's definition never goes; `kept` names it while elements have it (SR-240 AK3).
       const initial = new Set(metamodel.statuses.filter((s) => s.initial === true).map((s) => s.key));

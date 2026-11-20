@@ -109,7 +109,7 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       const page = await read(site, file);
       expect(page).toContain(`<link rel="stylesheet" href="${up}assets/docs.css">`);
       expect(page).toContain(`<script src="${up}assets/theme.js"></script>\n</head>`);
-      expect(page).toMatch(new RegExp(`<script src="${up}assets/reqseq\\.js"></script>\\n</body>`, "u"));
+      expect(page).toMatch(new RegExp(`<script src="${up}assets/reqseq\\.js"></script>\\n`, "u"));
       // Two theme selects (dark, light, auto), as the docs have: in the header and in the menu.
       expect(page.match(/<starlight-theme-select>/gu)).toHaveLength(2);
       expect(page).toContain('<option value="dark"');
@@ -164,9 +164,9 @@ describe("html.export formats texts (SR-231 AK5)", () => {
     expect(page).toContain("<pre><code>flowchart LR\n  click A");
     expect(page.match(/data-rq-diagram/gu)).toHaveLength(1);
     // The library lies once in the folder; the page loads it and KaTeX's stylesheet with its fonts as data: URLs.
-    expect(await fs.readFile(path.join(site, "assets/mermaid.js"))).toEqual(
-      await fs.readFile(path.join(VENDOR_FOLDER, "mermaid.js")),
-    );
+    // Compared with `Buffer.equals`: `toEqual` walks the 3.4 MB bundle byte by byte and takes seconds (#2061).
+    const mermaid = await fs.readFile(path.join(site, "assets/mermaid.js"));
+    expect(mermaid.equals(await fs.readFile(path.join(VENDOR_FOLDER, "mermaid.js")))).toBe(true);
     expect(page).toContain('<script src="../assets/mermaid.js"></script>');
     expect(page).toContain('<link rel="stylesheet" href="../assets/katex.css">');
     const katex = await read(site, "assets/katex.css");
@@ -269,7 +269,9 @@ describe("html.export keeps every address in the folder (SR-231 AK2)", () => {
       new Set([
         "index.html",
         `elements/${GUSTS}.html`,
+        `elements/${WIND}.html`,
         `images/${WIND}-0.png`,
+        "assets/copy.js",
         "assets/docs.css",
         "assets/reqseq.css",
         "assets/katex.css",

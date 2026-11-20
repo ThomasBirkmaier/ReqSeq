@@ -1,6 +1,7 @@
 // The context menu of the graph and the matrix (SR-199) on the built app: on the sheet of an element's graph
 // outside its nodes the graph's depth, relation kinds and "Copy graph as Mermaid" (AK1), on the metamodel's
-// graph "Show metamodel as text" and "Copy graph as Mermaid" (AK2); in a cell of the matrix "Create relation"
+// graph, an inheritance and "Any type" "Add type", "Add relation kind", "Show metamodel as text" and "Copy
+// graph as Mermaid" (AK2); in a cell of the matrix "Create relation"
 // with the row and the column given (AK3); on a connected element in a cell "Remove relation" after the
 // entries of the element (AK4). Right-clicks go through Chromium's input (Playwright's mouse), so the `contextmenu` is the one a
 // person's click gives.
@@ -149,20 +150,36 @@ test.describe("the context menu of the graph and the matrix", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-199/AK-w4jd] the sheet of the metamodel's graph has Show metamodel as text and Copy graph as Mermaid", async () => {
+  test("[SR-199/AK-w4jd] the sheet of the metamodel's graph, an inheritance and Any type have Add type, Add relation kind, Show metamodel as text and Copy graph as Mermaid", async () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
     await fromCommandLine(window, "Show metamodel");
     const sheet = window.locator(".metamodel");
     await expect(sheet).toHaveAttribute("data-laid-out", /[1-9]/u);
+    const sheetMenu = [
+      "Add type",
+      "Add relation kind",
+      "Show metamodel as text",
+      "Copy graph as Mermaid",
+      ALL,
+    ];
     await rightClick(sheet, await emptyPoint(sheet));
-    expect(await entryNames(window)).toEqual(["Show metamodel as text", "Copy graph as Mermaid", ALL]);
+    expect(await entryNames(window)).toEqual(sheetMenu);
     await window.keyboard.press("Escape");
-    // A type box is no part of the sheet: the buffer's menu (SR-194 AK6).
-    await rightClick(window.locator(".mm-type").first());
-    expect((await entryNames(window))[0]).toBe("Go to element or buffer");
+    for (const place of [window.locator("[data-any]"), window.locator(".mm-line[data-extends]").first()]) {
+      await rightClick(place);
+      expect(await entryNames(window)).toEqual(sheetMenu);
+      await window.keyboard.press("Escape");
+    }
+    // "Add type" asks its name in the command prompt.
+    await rightClick(sheet, await emptyPoint(sheet));
+    await choose(window, "Add type");
+    await expect(label(window)).toHaveText("Add type · Name:");
+    // Escape goes back to the command prompt, and a second one closes it.
     await window.keyboard.press("Escape");
+    await window.keyboard.press("Escape");
+    await expect(label(window)).toBeHidden();
     await rightClick(sheet, await emptyPoint(sheet));
     await choose(window, "Show metamodel as text");
     await expect(window.locator(".metamodel-text")).toBeVisible();

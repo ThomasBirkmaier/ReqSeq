@@ -20,6 +20,7 @@ import {
   NO_ROW,
   elementBuffer,
   filteredList,
+  outputSelectionList,
   overviewBuffer,
   resultBuffer,
   searchBuffer,
@@ -877,6 +878,27 @@ describe("save element and edit text", () => {
     const failed = { ...info, output: undefined, error: "x" };
     expect(action("show-details").available(setup([failed]).context)).toBe(false);
     action("show-details").run(setup([failed]).context);
+  });
+
+  it("[SR-223/AK-qwkc] Show details on a list of the answer of an output turns the values per element on and off", () => {
+    const list = outputSelectionList("2 elements are affected.", { command: "trace.affected", input: {} });
+    expect(action("show-details").available(setup([list]).context)).toBe(true);
+    const on = setup([list]);
+    action("show-details").run(on.context);
+    expect(on.dispatched).toContainEqual({ type: "update", buffer: { ...list, details: true } });
+    expect(on.echoed).toEqual(["Details shown"]);
+    const off = setup([{ ...list, details: true }]);
+    action("show-details").run(off.context);
+    expect(off.dispatched).toContainEqual({ type: "update", buffer: list });
+    expect(off.echoed).toEqual(["Details hidden"]);
+    // The list of all elements and the list of a number have no details.
+    expect(action("show-details").available(setup([filteredList([])]).context)).toBe(false);
+    const counted = outputSelectionList("Open", {
+      command: "evidence.degree",
+      input: {},
+      count: { field: "x" },
+    });
+    expect(action("show-details").available(setup([counted]).context)).toBe(false);
   });
 
   it("Show details keeps the selected line, the second element row of a baseline, and drops a hidden one", () => {

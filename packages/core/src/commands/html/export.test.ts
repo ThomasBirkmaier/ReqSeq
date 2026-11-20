@@ -73,9 +73,11 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
     expect(output.answer).toBe("Exported 2 element pages to site.");
     const files = await tree(fixture.path("site"));
     expect(Object.keys(files).sort()).toEqual([
+      "assets/copy.js",
       "assets/docs.css",
       "assets/reqseq.css",
       "assets/reqseq.js",
+      "assets/search-index.js",
       "assets/theme.js",
       `elements/${GUSTS}.html`,
       `elements/${WIND}.html`,
@@ -92,9 +94,11 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
         "# Written by ReqSeq html.export; lists the files of this export. Do not edit.",
         "reqseq-html-export: 1",
         "files:",
+        '  - "assets/copy.js"',
         '  - "assets/docs.css"',
         '  - "assets/reqseq.css"',
         '  - "assets/reqseq.js"',
+        '  - "assets/search-index.js"',
         '  - "assets/theme.js"',
         `  - "elements/${GUSTS}.html"`,
         `  - "elements/${WIND}.html"`,

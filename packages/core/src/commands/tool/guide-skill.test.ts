@@ -24,7 +24,7 @@ import {
   skillFile,
 } from "./guide/skill.js";
 import { SKILL_READ_MAX, readSkillFile, skillLocation, writeSkillFile } from "./guide/skill-file.js";
-import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES } from "./guide/text.js";
+import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES, METAMODEL_CHANGES } from "./guide/text.js";
 
 const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
 const NO_PERMISSIONS = process.platform === "win32" || process.getuid?.() === 0;
@@ -144,7 +144,7 @@ relations:
 `;
 
 describe("tool.guide with skill", () => {
-  it("[SR-229/AK-nrf2] gives the skill file managing-requirements with its description, the guide step, the four workflows as numbered steps, version and checksum", async () => {
+  it("[SR-229/AK-nrf2] gives the skill file managing-requirements with its description, the guide step, the five workflows as numbered steps, version and checksum", async () => {
     const text = (await run(await folder(), { skill: true })).guide;
     expect(text).toBe(skillFile(ENTRIES));
     // Agent Skills frontmatter: name, a description of at most 1,024 characters, metadata.
@@ -173,6 +173,7 @@ describe("tool.guide with skill", () => {
       "Implement a requirement up to its evidence",
       "Check before finishing",
       "Change an element whose status is not the initial status",
+      "Change the metamodel",
     ]);
     for (const { steps } of sections) {
       expect(steps.length).toBeGreaterThan(0);
@@ -214,6 +215,26 @@ describe("tool.guide with skill", () => {
     for (const command of ["workspace.check", "evidence.degree", "evidence.withoutPassedTest"]) {
       expect(finish).toContain(`\`${mcpToolName(command)}\` or \`${commandLineName(command)}\``);
     }
+  });
+
+  it("[SR-229/AK-qdn4] has the workflow to change the metamodel: propose, wait for the decision, run the command, check, read the guide again", async () => {
+    const text = (await run(await folder(), { skill: true })).guide;
+    const steps = new Map(workflows(text).map((s) => [s.heading, s.steps])).get("Change the metamodel") ?? [];
+    expect(steps).toHaveLength(5);
+    const [propose, decide, carry, check, again] = steps;
+    expect(propose).toContain(
+      "Read the metamodel (`metamodel_get` or `reqseq metamodel get`), then propose the change with its rationale",
+    );
+    expect(decide).toContain("Wait for the person's explicit decision");
+    for (const command of METAMODEL_CHANGES) {
+      expect(carry).toContain(`\`${mcpToolName(command)}\` with `);
+      expect(carry).toContain(`\`${commandLineName(command)} `);
+    }
+    expect(carry).toContain(
+      '`metamodel_addType` with `{"name":"<name>","prefix":"<prefix>"}` or `reqseq metamodel add-type',
+    );
+    expect(check).toContain("`workspace_check` or `reqseq workspace check`");
+    expect(again).toContain("Read the agent guide again (`tool_guide` or `reqseq tool guide`)");
   });
 
   it("[SR-229/AK-nrf2] names every command both ways and repeats neither the rules nor the pipeline paragraph", async () => {
@@ -555,13 +576,42 @@ describe("tool.guide with write", () => {
     },
   );
 
-  it("needs a workspace to write, and writes while the metamodel cannot be read", async () => {
+  it("needs a workspace to write", async () => {
     expect((await refusal(await folder(), WRITE)).code).toBe("workspace.not-found");
-    const faulty = await folder({
-      "reqseq-workspace.yaml": WORKSPACE_FILE,
-      "metamodel/model.yaml": "types: [",
-    });
-    expect((await run(faulty, WRITE)).file?.action).toBe("created");
+  });
+
+  /**
+   * While the metamodel of `root` cannot be read, a write command is refused (SR-011 AK3, AK4) and the
+   * skill file is written by the rules of SR-229 AK8: created, then left, a foreign file only replaced with `replace`.
+   */
+  const writesWhileReadOnly = async (root: string): Promise<void> => {
+    const status = (await invoke(
+      "workspace.status",
+      {},
+      { workspace: open(root) },
+    )) as CommandOutput<"workspace.status">;
+    expect(status.readOnly).toBe(true);
+    await expect(
+      invoke("element.create", { type: "requirement", title: "Wind" }, { workspace: open(root) }),
+    ).rejects.toMatchObject({ code: "workspace.read-only" });
+    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "created" });
+    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "unchanged" });
+    await fs.writeFile(skillAt(root), "# Mine\n");
+    const error = await refusal(root, WRITE);
+    expect(error.code).toBe("file.exists");
+    expect(await read(root)).toBe("# Mine\n");
+    expect((await run(root, { ...WRITE, replace: true })).file?.action).toBe("replaced");
+    expect(await read(root)).toBe((await run(root, { skill: true })).guide);
+  };
+
+  it("[SR-229/AK-v09f] [SR-011/AK-jt29] writes the skill file while a metamodel file is faulty and other write commands are refused", async () => {
+    await writesWhileReadOnly(
+      await folder({ "reqseq-workspace.yaml": WORKSPACE_FILE, "metamodel/model.yaml": "types: [" }),
+    );
+  });
+
+  it("[SR-229/AK-v09f] [SR-011/AK-vhvd] writes the skill file while the metamodel folder is missing and other write commands are refused", async () => {
+    await writesWhileReadOnly(await folder({ "reqseq-workspace.yaml": WORKSPACE_FILE }));
   });
 });
 

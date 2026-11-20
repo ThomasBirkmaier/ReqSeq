@@ -13,7 +13,7 @@ import {
 } from "./export-theme.js";
 
 const BODY = `<a href="#_top" class="sl-skip-link">Skip</a>
-<header><a href="/" class="site-title astro-x"><span>ReqSeq 1.2</span></a><reqseq-search></reqseq-search>
+<header><a href="/" class="site-title astro-x"><span>ReqSeq 1.2</span></a><reqseq-search data-index="/ReqSeq/search-index.json" class="astro-s"><input></reqseq-search>
 <div class="social-icons"><a href="https://github.com/x">GitHub</a></div><starlight-lang-select></starlight-lang-select>
 <starlight-theme-select><select><option value="auto">Auto</option></select></starlight-theme-select></header>
 <nav><button class="sl-menu-button" popovertarget="starlight__sidebar">Menu</button>
@@ -30,7 +30,7 @@ const page = (
   `<!doctype html><html lang="en" dir="ltr" data-theme="dark" data-has-toc><head>${head}</head><body class="b" data-ready>${body}</body></html>`;
 
 describe("themeOfPage (SR-231 AK4)", () => {
-  it("takes the frame with its slots and the stylesheets, without scripts, search, links out or popover", () => {
+  it("takes the frame with its slots, the hidden search field and the stylesheets, without scripts, links out or popover", () => {
     const { theme, styles } = themeOfPage(page());
     expect(styles).toEqual([
       { href: "/_astro/a.css", print: false },
@@ -44,7 +44,7 @@ describe("themeOfPage (SR-231 AK4)", () => {
     for (const gone of [
       "<script",
       "<template",
-      "reqseq-search",
+      "data-index",
       "social-icons",
       "lang-select",
       "right-sidebar",
@@ -57,11 +57,15 @@ describe("themeOfPage (SR-231 AK4)", () => {
     expect(frame).toContain('class="sl-menu-button"');
     expect(frame).toContain('<sl-sidebar-pane id="starlight__sidebar"><div><span>Docs</span>');
     expect(frame).toContain("<starlight-theme-select>");
+    expect(frame).toContain('<reqseq-search class="astro-s" hidden=""><input></reqseq-search>');
   });
 
   it("fails on a missing landmark, a missing stylesheet or scope, an address out of the page and slots out of order", () => {
     expect(() => themeOfPage(page(BODY.replace("sl-menu-button", "x")))).toThrow("has no menu button");
     expect(() => themeOfPage(page(BODY, ""))).toThrow("links no stylesheet");
+    expect(() => themeOfPage(page(BODY.replaceAll("reqseq-search", "x-search")))).toThrow(
+      "has no search field",
+    );
     expect(() => themeOfPage(page(BODY.replace(" astro-sdl5bin4", "")))).toThrow("no scoped class");
     expect(() => themeOfPage(page(BODY.replace("<nav>", '<nav><img src="/logo.svg">')))).toThrow(
       "addresses outside the page: /logo.svg",

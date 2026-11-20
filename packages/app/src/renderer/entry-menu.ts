@@ -8,6 +8,7 @@ import type { Buffer, ElementBuffer } from "./buffers.js";
 import { graphBuffer, neighbourhoodBuffer, showBuffer } from "./buffers.js";
 import type { MenuEntry, MenuHit, MenuPlace } from "./context-menu.js";
 import { matrixGiven } from "./matrix-menu.js";
+import { metamodelGiven } from "./metamodel-menu.js";
 
 /**
  * The entries of an element (SR-197 AK1), in this order at every place. The matrix's connected elements
@@ -57,7 +58,8 @@ export const menuContext = (
   if (menu === undefined) {
     return context;
   }
-  const given = matrixGiven(menu.hit.place, context.matrix, kindNames);
+  const given =
+    matrixGiven(menu.hit.place, context.matrix, kindNames) ?? metamodelGiven(menu.hit.place, menu.hit.target);
   const entry = ENTRY_PLACES.has(menu.hit.place) ? context.marked : undefined;
   const pressed = menu.hit.place === "field-property" ? menu.hit.target : undefined;
   return entry === undefined && given === undefined && pressed === undefined

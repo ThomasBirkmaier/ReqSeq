@@ -4,8 +4,8 @@
 //
 // - Name, description, maximum entries, target types, Markdown, part of the version and meaning
 //   change at any time (SR-238 AK2); the workspace check reports values that no longer fit.
-// - `kind` and `many` change only while no element file of a type with the property holds its key
-//   (SR-238 AK3, SR-236 AK7). A new kind removes the fields that do not belong to it, and
+// - `kind` and `many` change only while no element file holds its key, of any type, also with an
+//   empty value (SR-238 AK3, SR-236 AK7: `propertyUse`, the count `metamodel.get` shows). A new kind removes the fields that do not belong to it, and
 //   `many: false` removes `max-items`, which the loader allows on lists only (`dropped`).
 // - Fixed values (only of kind `choice`): added at the end of `choices`, changed in name and
 //   description, removed only while no element has the value (SR-238 AK4). The fixed values a new
@@ -13,7 +13,8 @@
 // - `type` with `required`: true adds the key to the type's own `required`; false takes it out of
 //   there and, when the type would lose the property, adds it to its own `properties`. A requirement
 //   a parent type gives is refused, naming that type.
-// - A change that needs a count is refused while a repository is not on this machine (SR-236 AK7).
+// - A change that needs a count is refused while a repository is not on this machine or the store
+//   cannot read an element file (SR-236 AK7, SR-008 AK3, `refuseIncompleteStore`).
 import { isDeepStrictEqual } from "node:util";
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
@@ -48,7 +49,7 @@ import type { ElementStore, ShortIds } from "../../model/index.js";
 import {
   mentioningFiles,
   propertyUse,
-  refuseMissingRepositories,
+  refuseIncompleteStore,
   refuseUses,
   shortIdState,
   valueUse,
@@ -266,11 +267,11 @@ const checked = (
     : (input.removeChoices ?? []);
   const added = newChoices(choicesAfter(own, input), input.addChoices ?? []);
   if (kindChanges || manyChanges || removedChoices.length > 0) {
-    refuseMissingRepositories(uses.layout, COMMAND);
+    refuseIncompleteStore(uses.layout, uses.store, COMMAND);
   }
-  const { metamodel, store, shortIds } = uses;
+  const { store, shortIds } = uses;
   refuseUses(`Property ${own.key} keeps its kind, several values and fixed values while elements use them`, [
-    ...(kindChanges || manyChanges ? [propertyUse(store, shortIds, metamodel, own.key)] : []),
+    ...(kindChanges || manyChanges ? [propertyUse(store, shortIds, own.key)] : []),
     ...removedChoices.map((choice) => valueUse(store, shortIds, own.key, choice)),
   ]);
   return { dropped, removedChoices, added };

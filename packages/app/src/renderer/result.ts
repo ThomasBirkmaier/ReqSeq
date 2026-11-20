@@ -8,7 +8,10 @@
 // buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
 // rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
 // `trace.chain` too), a problem is one line with its element and message (with details its kind and technical
-// values), everything else is a quiet indented outline. The share of a
+// values), several problems of one kind and severity are one group line with the title of their kind and their
+// count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
+// test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
+// outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, ThomasBirkmaier/ReqSeq-archive#592 Q3). A UUID the output names in `names` (ThomasBirkmaier/ReqSeq-archive#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
@@ -18,18 +21,29 @@
 // answer and go to the modeline (#276); the page says under the answer that an output is incomplete (SR-006
 // AK2). Layout only: nothing here knows a command, the titles and marks come from the catalog (ADR-0002).
 import type { CatalogEntry } from "@reqseq/core";
+import { problemTitle } from "@reqseq/core/problem-titles";
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
-import type { ElementBuffer } from "./buffers.js";
+import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { shownId, shownIdTitle } from "./id-title.js";
-import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
+import {
+  elementBuffer,
+  elementBufferOf,
+  outputList,
+  outputSelectionList,
+  readOnlyBuffer,
+} from "./buffers.js";
+import { isTestCase, testCaseLines } from "./runs.js";
 
 /**
  * One line of the result buffer; `open` is the element Enter or a click opens. A pair line opens `open`
  * and `beside` side by side.
  */
 export interface ResultLine {
-  /** A heading opens the problems of one severity (SR-223 AK1). */
-  readonly kind: "element" | "problem" | "text" | "pair" | "heading";
+  /**
+   * A heading opens the problems of one severity (SR-223 AK1); a group line stands for the problems of one kind
+   * (SR-223 AK3).
+   */
+  readonly kind: "element" | "problem" | "text" | "pair" | "heading" | "group";
   /** Indentation level, from 0. */
   readonly depth: number;
   /** The ID of an element row; for any other line the title of the field it stands under, or "". */
@@ -51,6 +65,26 @@ export interface ResultLine {
   readonly status?: string;
   /** A technical value, or one equal to its normal value, shown only with "Show details" (SR-223 AK2, AK7). */
   readonly detail?: true;
+  /** The key of the group of problems the line heads or, unfolded, belongs to (`groupKey`, SR-223 AK3). */
+  readonly group?: string;
+  /** A group line: whether it is open, so that its problems follow it. */
+  readonly unfolded?: boolean;
+  /**
+   * The list Enter or a click opens: of the elements of a group's problems (SR-223 AK3), or of the elements a number
+   * of the output counts (SR-223 AK5, `countList`).
+   */
+  readonly list?: ListBuffer;
+}
+
+/**
+ * The call an output is the answer of, which a number of elements in it opens again as a list (SR-223 AK5): its
+ * command and input, the name of its buffer, and whether it wrote (a write is never run again).
+ */
+export interface ResultOrigin {
+  readonly command: string;
+  readonly input: Readonly<Record<string, unknown>>;
+  readonly name: string;
+  readonly written?: boolean;
 }
 
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
@@ -83,6 +117,14 @@ interface Walk {
   readonly details: boolean;
   /** The lines being walked belong to a technical or normal value, shown only with "Show details". */
   readonly detail: boolean;
+  /** The keys of the groups of problems that are open (SR-223 AK3). */
+  readonly unfolded: ReadonlySet<string>;
+  /** The call of the output, for the lists its numbers of elements open (SR-223 AK5); none: they open nothing. */
+  readonly origin?: ResultOrigin;
+  /** The whole output, where a number of a write command finds the elements it counts. */
+  readonly root: unknown;
+  /** The items of the lists the walk is in, outermost first: the entries a number is keyed by (`x-key`). */
+  readonly items: readonly Rec[];
 }
 
 /** An element as outputs give it: an ID, its repository, a short ID and a title. */
@@ -327,11 +369,21 @@ const leafLine = (value: unknown, depth: number, label: string, path: string, na
  * A problem's line (`problemLine`) at `path`, the path of its list; with "Show details" its kind at the end and
  * under it its technical values, each under its title (SR-223 AK2), such as the UUID of its element.
  */
-const problemLines = (problem: Rec, depth: number, headed: boolean, path: string, walk: Walk): void => {
+const problemLines = (
+  problem: Rec,
+  depth: number,
+  headed: boolean,
+  path: string,
+  walk: Walk,
+  group?: string,
+): void => {
   const kind = childOf(walk.fields, path, "code").path;
-  emit(walk, () =>
-    problemLine(problem, depth, headed, walk.details || !isTechnical(walk.fields, kind, problem)),
-  );
+  // In a group, the group line names the kind.
+  const shown = group === undefined && (walk.details || !isTechnical(walk.fields, kind, problem));
+  emit(walk, () => {
+    const line = problemLine(problem, depth, headed, shown);
+    return group === undefined ? line : { ...line, group };
+  });
   if (!walk.details) {
     return;
   }
@@ -346,9 +398,89 @@ const problemLines = (problem: Rec, depth: number, headed: boolean, path: string
         text: scalar(value),
         field: child.path,
         detail: true,
+        ...(group === undefined ? {} : { group }),
       }));
     }
   }
+};
+
+/** The value at the dotted `path` of `value` (`a.b`, a leading dot allowed); undefined where it has none. */
+const dig = (value: unknown, path: string): unknown =>
+  path
+    .split(".")
+    .filter((part) => part !== "")
+    .reduce<unknown>((at, part) => (isRecord(at) ? at[part] : undefined), value);
+
+/**
+ * The UUIDs of the elements at `path` of a write command's output, a field the catalog marks as the list a number
+ * counts (`x-elements`); each `[]` of it is the item of that list the walk is in (`Walk.items`).
+ */
+const idsAt = (path: string, walk: Walk): string[] => {
+  const parts = path.split("[]");
+  const found = parts.reduce<unknown>(
+    (_at, part, level) => dig(level === 0 ? walk.root : walk.items[level - 1], part),
+    undefined,
+  );
+  return Array.isArray(found)
+    ? found.flatMap((each: unknown) =>
+        typeof each === "string" ? [each] : (str(isRecord(each) ? each["id"] : undefined) ?? []),
+      )
+    : [];
+};
+
+/**
+ * The list of the elements a number of the output counts, which the catalog marks `x-elements` with the lists
+ * or `selection` (SR-223 AK5): of a read command `selection.output` with the number (`count`: its field and, per
+ * list it is in, the fields of its entry the catalog names, `x-key`), so the list holds exactly what the command
+ * line, API and MCP give for it; of a write command, which is never run again, the elements of the lists the
+ * catalog names in its own output. Its label is the name of the output's buffer, the values that name the entry
+ * (not the technical ones) and the title of the number. Undefined for any other value, or without the call.
+ */
+const countList = (value: unknown, path: string, title: string, walk: Walk): ListBuffer | undefined => {
+  const field = walk.fields.get(path);
+  const elements = field?.elements;
+  const { origin, items } = walk;
+  const keys = field?.keys ?? [];
+  if (
+    typeof value !== "number" ||
+    origin === undefined ||
+    elements === undefined ||
+    elements === true ||
+    elements === "answer" ||
+    keys.length !== items.length
+  ) {
+    return undefined;
+  }
+  const lists = path.split("[]");
+  const key = keys.map((names, level) => {
+    const item = items[level] ?? {};
+    return Object.fromEntries(
+      names.filter((name) => Object.hasOwn(item, name)).map((name) => [name, item[name]]),
+    );
+  });
+  const naming = key.flatMap((entry, level) => {
+    const list = lists.slice(0, level + 1).join("[]");
+    return Object.entries(entry).flatMap(([name, each]) =>
+      typeof each === "string" && walk.fields.get(`${list}[].${name}`)?.technical !== true ? [each] : [],
+    );
+  });
+  const label = [origin.name, ...naming, title].join(" · ");
+  if (origin.written === true) {
+    const ids =
+      typeof elements === "string" ? [] : [...new Set(elements.flatMap((each) => idsAt(each, walk)))];
+    return ids.length === 0 ? undefined : outputList(label, ids);
+  }
+  return outputSelectionList(label, {
+    command: origin.command,
+    input: origin.input,
+    count: { field: path, ...(keys.length === 0 ? {} : { key }) },
+  });
+};
+
+/** The line of a value with the list its number of elements opens (`countList`), if it is one. */
+const counted = (line: ResultLine, value: unknown, path: string, walk: Walk): ResultLine => {
+  const list = countList(value, path, line.label, walk);
+  return list === undefined ? line : { ...line, list };
 };
 
 /**
@@ -372,12 +504,13 @@ const linesOf = (
     const items = isProblemList(value) ? bySeverity(value) : (value as readonly unknown[]);
     const itemPath = `${path}[]`;
     for (const each of items) {
-      linesOf(each, label === "" ? depth : depth + 1, "", itemPath, walk, true);
+      const inside = isRecord(each) ? { ...walk, items: [...walk.items, each] } : walk;
+      linesOf(each, label === "" ? depth : depth + 1, "", itemPath, inside, true);
     }
     return;
   }
   if (!isRecord(value)) {
-    emit(walk, () => leafLine(value, depth, label, path, names));
+    emit(walk, () => counted(leafLine(value, depth, label, path, names), value, path, walk));
     return;
   }
   const element = asElement(value);
@@ -392,6 +525,13 @@ const linesOf = (
   }
   if (isProblem(value)) {
     problemLines(value, depth, false, path, walk);
+    return;
+  }
+  if (isTestCase(value)) {
+    // Its executions as runs (SR-223 AK4), each variant by the title `names` gives it.
+    for (const line of testCaseLines(value, depth, (id) => names.get(id)?.title, walk.details)) {
+      emit(walk, () => line);
+    }
     return;
   }
   outlineLines(value, depth, label, path, walk, item);
@@ -509,6 +649,73 @@ const splitSummary = (
   };
 };
 
+/** A problem of a top-level problem list with the path of its list, whose fields name what of it is technical. */
+interface Listed {
+  readonly problem: Rec;
+  readonly path: string;
+}
+
+/** The key of the group of the problems of one kind and severity (SR-223 AK3). */
+export const groupKey = (problem: Rec): string =>
+  `${String(problem["severity"])}\u0000${String(problem["code"])}`;
+
+/** The problems, in their order, by kind and severity: each group where its first problem stands. */
+const groupsOf = (problems: readonly Listed[]): (readonly [Listed, ...Listed[]])[] => {
+  const groups = new Map<string, [Listed, ...Listed[]]>();
+  for (const listed of problems) {
+    const key = groupKey(listed.problem);
+    const group = groups.get(key);
+    if (group === undefined) {
+      groups.set(key, [listed]);
+    } else {
+      group.push(listed);
+    }
+  }
+  return [...groups.values()];
+};
+
+/**
+ * Several problems of one kind (SR-223 AK3): one group line with the title of their kind (SR-224 AK6, its code
+ * where the app knows no title) and their count, which opens the list of their elements; with "Show details"
+ * the kind under it, as a detail. While it is open, each problem of the group follows it, one level in, with its
+ * element (else its file and line) and its reason.
+ */
+const groupLines = (group: readonly [Listed, ...Listed[]], walk: Walk): void => {
+  const [{ problem, path }] = group;
+  const code = String(problem["code"]);
+  const key = groupKey(problem);
+  const title = problemTitle(code) ?? code;
+  const unfolded = walk.unfolded.has(key);
+  const ids = [...new Set(group.flatMap(({ problem: each }) => str(each["elementId"]) ?? []))];
+  emit(walk, () => ({
+    kind: "group",
+    depth: 0,
+    label: "",
+    text: title,
+    status: String(group.length),
+    group: key,
+    unfolded,
+    ...(ids.length === 0 ? {} : { list: outputList(title, ids) }),
+  }));
+  if (walk.details) {
+    const kind = childOf(walk.fields, path, "code");
+    emit(walk, () => ({
+      kind: "text",
+      depth: 1,
+      label: kind.label,
+      text: code,
+      field: kind.path,
+      detail: true,
+      group: key,
+    }));
+  }
+  if (unfolded) {
+    for (const { problem: each, path: from } of group) {
+      problemLines(each, 1, true, from, walk, key);
+    }
+  }
+};
+
 /**
  * The problems of the top-level problem lists of an output first, a heading per severity, errors before
  * warnings before infos (SR-223 AK1); then the other fields.
@@ -525,13 +732,18 @@ const pageLines = (rest: unknown, walk: Walk): void => {
   // By severity, the order of the output kept within one (a stable sort).
   const problems = [...listed].sort((a, b) => rankOf(a.problem) - rankOf(b.problem));
   let heading: string | undefined;
-  for (const { problem, path } of problems) {
+  for (const group of groupsOf(problems)) {
+    const [{ problem, path }] = group;
     const [, , title] = SEVERITIES[rankOf(problem)] ?? ["", "", "Other problems"];
     if (title !== heading) {
       heading = title;
       emit(walk, () => ({ kind: "heading", depth: 0, label: "", text: title }));
     }
-    problemLines(problem, 0, true, path, walk);
+    if (group.length === 1) {
+      problemLines(problem, 0, true, path, walk);
+    } else {
+      groupLines(group, walk);
+    }
   }
   fieldLines(
     Object.fromEntries(Object.entries(rest).filter(([, value]) => !isProblemList(value))),
@@ -545,18 +757,31 @@ const pageLines = (rest: unknown, walk: Walk): void => {
  * The lines of an output (none while there is none), at most `MAX_RESULT_LINES` and a last one that counts the
  * rest; `fields` are the `outputFields` of its command, which give the titles, the normal values and what is
  * technical. Technical values and values equal to their normal value are left out, and shown as details while
- * `details` is on ("Show details", SR-223 AK2, AK7).
+ * `details` is on ("Show details", SR-223 AK2, AK7). `unfolded`: the keys of the groups of problems that are
+ * open (`groupKey`, SR-223 AK3).
  */
 export const resultLines = (
   output: unknown,
   fields: readonly OutputField[] = [],
   details = false,
+  unfolded: readonly string[] = [],
+  origin?: ResultOrigin,
 ): ResultLine[] => {
   const sink: Sink = { lines: [], rest: 0 };
   if (output !== undefined) {
     const { names, shown } = namesOf(output);
     const byPath = new Map(fields.map((field) => [field.path, field]));
-    pageLines(splitSummary(shown, names).rest, { sink, names, fields: byPath, details, detail: false });
+    pageLines(splitSummary(shown, names).rest, {
+      sink,
+      names,
+      fields: byPath,
+      details,
+      detail: false,
+      unfolded: new Set(unfolded),
+      ...(origin === undefined ? {} : { origin }),
+      root: output,
+      items: [],
+    });
   }
   const { lines, rest } = sink;
   if (rest > 0) {

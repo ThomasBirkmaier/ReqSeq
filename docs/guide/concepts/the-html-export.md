@@ -1,0 +1,20 @@
+---
+title: The HTML export
+description: What the pages of an HTML export show, how they look, and how they link elements.
+sidebar:
+  order: 3
+---
+
+The HTML export is a folder of pages for readers without ReqSeq ([Publish the workspace as HTML](/how-to/publish-the-workspace-as-html/)).
+
+## The page of an element
+
+An element's page starts with a list of its type, identifier, short ID, status (without one "–") and packages, the repository when the workspace has more than one, and for a requirement its verification status in the core and in each variant it applies in ("not in the core" when the core does not hold it), for a need its validation status; each row has a copy button. Then come its open hints, as `hint.list` gives them (SR-232 AK4), its text, its acceptance criteria, each with its number, criterion key, text (formatted when the metamodel marks the property as Markdown) and verification status and a copy button for its reference in test names such as `[SR-036/AK-k7f3]` (none for a criterion without one, SR-205 AK1) and the evidence records that bear that status, each with its test case or method, result, date and views, one execution in several views as one line (SR-232 AK3, SR-223 AK4), every other filled property as in the element file, and its outgoing relations by relation kind (SR-232 AK1, AK2). A record without criterion stands under each criterion; without criteria, records stand at the requirement (SR-232 AK3). A target links its page or short page, else shows its name without link; a target in a repository that is not on this computer shows `UNKNOWN-<tail>, repository <name>, not accessible` (SR-006 AK1); a target that is missing, that several files share or whose repository the workspace file does not name shows its UUID and the reason.
+
+The neighbourhood follows: parents, children (at most 100 each) and incoming links (SR-232 AK5, AK6).
+
+An element with a page in an earlier export and now an invalid status keeps a short page at that address, with its identifier, short ID, title and status and a link to each successor; it is in no list and not in the search (SR-231 AK8, SR-072 AK3).
+
+## Look, references and footer
+
+The pages look like this documentation: a switch for dark and light, and below the width where this documentation changes its layout, the navigation as a menu (SR-231 AK4). Ctrl+K (⌘K on macOS) opens the search, which links the elements whose identifier, short ID or title holds each typed word, in any case, also as a word part, offline (SR-231 AK7); it needs JavaScript. Formulas are set at export, Mermaid diagrams drawn by the library in the folder, and tables, task lists, callouts and images are formatted. A formula or diagram with an error shows its source, then the error (SR-231 AK5); a formula with an error is also named as the problem `html.formula-error`. A reference in the text, a Markdown property or an acceptance criterion links its target's page or short page; to a target with an invalid status and no short page, one that is missing, or one in a repository the workspace file does not name, only its link text is left, and a reference to a target in a repository that is not on this computer shows its link text followed by `(UNKNOWN-<tail>, repository <name>, not accessible)`, `<tail>` being the UUID's last six digits (SR-231 AK6, SR-006 AK1). The footer of every page names the commit of the main repository, with `-dirty` unless every repository on this computer has a known commit and no uncommitted change to the files the pages come from (SR-062 AK1), or "no commit" without Git, and the date of the export; each page asks search engines with `noindex` not to list it (SR-231 AK9).

@@ -7,6 +7,8 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from 
 import {
   generateLargeWorkspace,
   measureMedian,
+  perfSize,
+  thresholdLimit,
   thresholdMessage,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -18,8 +20,8 @@ import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import type { FullList } from "../../src/commands/list.test-helper.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** The filter budget of SR-082 AK4. */
 const RESULT_MS = 500;
 /** The budget of opening an element (SR-082), which the facets of the shown element follow (SR-132). */
@@ -67,7 +69,7 @@ describe("element.facets with 50,000 elements (ThomasBirkmaier/ReqSeq-archive#42
     expect(result.total).toBe(ELEMENTS);
     expect(result.types.reduce((sum, t) => sum + t.count, 0)).toBe(ELEMENTS);
     expect(result.properties.length).toBeGreaterThan(0);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("gives the facets of the system requirements within 500 ms", async () => {
@@ -79,7 +81,7 @@ describe("element.facets with 50,000 elements (ThomasBirkmaier/ReqSeq-archive#42
       { basis, thresholdMs: RESULT_MS, runs: RUNS },
     );
     expect(result.total).toBeGreaterThan(0);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   // SR-132: the app asks for the facets of the shown element, by its short ID, to know which of its values
@@ -107,6 +109,6 @@ describe("element.facets with 50,000 elements (ThomasBirkmaier/ReqSeq-archive#42
       },
     );
     expect(result.total).toBe(1);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(OPEN_MS));
   });
 });

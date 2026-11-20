@@ -106,7 +106,7 @@ describe("metamodel commands: the frame as metamodel.removeRelationKind shows it
     expect(await read(MODEL)).toBe(SMALL_MODEL);
   });
 
-  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, as it may hold the key, and names the file (#1990)", async () => {
+  it("[SR-236/AK-bm7r] refuses while an element file cannot be read, as it may hold the key, and names the file (SR-008 AK3)", async () => {
     // Unclosed quote: the frontmatter does not parse, and the file still holds `about`.
     const broken = `---\nid: ${uuid(9)}\ntype: note\ntitle: "Unclosed\nabout: []\n---\n`;
     const { workspace, read } = await openSmall({
@@ -118,6 +118,7 @@ describe("metamodel commands: the frame as metamodel.removeRelationKind shows it
       "file.faulty",
       {
         command: "metamodel.removeRelationKind",
+        count: 1,
         files: [{ repository: "system", file: "elements/E-000000000009.md" }],
       },
     ]);

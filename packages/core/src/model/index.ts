@@ -106,8 +106,7 @@ export {
   metamodelUses,
   metamodelUsesState,
   propertyUse,
-  refuseMissingRepositories,
-  refuseUnreadableFiles,
+  refuseIncompleteStore,
   refuseUses,
   useOf,
   valueUse,
@@ -231,7 +230,7 @@ export {
   titleKeyOrEmpty,
 } from "./view.js";
 export type { ElementViewInput, LinkInput, ListedElementInput } from "./view.js";
-export type { ListOptions } from "./list.js";
+export type { ListContext, ListOptions } from "./list.js";
 export { listElements } from "./list.js";
 export { namesField, namesOf, namesOfRecords } from "./names.js";
 export type { NameContext } from "./names.js";

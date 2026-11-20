@@ -3,21 +3,26 @@
 // memory, no file read (N-036 names no threshold here). Every element counts, in any status (D-045).
 //
 // - A type is used by each element of that type.
-// - A property by each element of a type that has it (own or inherited) whose file holds its key,
-//   also with an empty value.
+// - A property by each element, of any type, also of a type the metamodel does not know, whose file
+//   holds its key, also with an empty value: the use `metamodel.get` shows (SR-236 AK8) and the one
+//   that locks its value kind and several values (`propertyUse`). Removing it from a type counts
+//   only the elements of the types that lose it (`lostUses`), so that removal can succeed while
+//   the shown count is above 0.
 // - A fixed value (a choice) by each element whose value of the property is it or, for several
 //   values, holds it, whatever the element's type.
 // - A relation kind by each element whose file holds its key: a relation of the kind, or an empty list.
 // - A status by each element of a type that has it with that status.
 //
-// The counts cover the elements of the repositories on this machine; a change that needs them is
-// refused while one is missing (below). `metamodelUsesState` keeps them until the store or the
-// metamodel is replaced, as `metamodel.get` is asked at almost every step of the command prompt.
+// The counts cover the elements the store could read on this machine; a change that needs them is
+// refused while one may be missing (`refuseIncompleteStore`). `metamodelUsesState` keeps them until
+// the store or the metamodel is replaced, as `metamodel.get` is asked at almost every step of the
+// command prompt.
 //
 // A refusal names the number and the first 20 elements by short ID (code-unit order). A change that
-// needs a count is refused while a repository of the workspace is not on this machine, as its
-// elements are not known (`file.folder-missing`). The saved filters, perspectives and mapping files
-// that name a removed key are listed, never changed (`mentioningFiles`).
+// needs a count is refused while a repository of the workspace is not on this machine
+// (`file.folder-missing`) or the store cannot read an element file (`file.faulty`), as the elements
+// there are not known. The saved filters, perspectives and mapping files that name a removed key are
+// listed, never changed (`mentioningFiles`).
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { listFolderFiles, readYamlFile } from "../files/index.js";
@@ -26,6 +31,7 @@ import { findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { settingLocation } from "../workspace/index.js";
+import type { Problem } from "../generated/types.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -54,7 +60,7 @@ export interface Use {
   readonly elements: readonly string[];
 }
 
-/** How many elements a refusal names. */
+/** How many elements, or element files, a refusal names. */
 export const USES_NAMED = 20;
 
 const zeros = (keys: readonly { readonly key: string }[]): Record<string, number> =>
@@ -87,15 +93,14 @@ const bump = (counts: Record<string, number>, key: string): void => {
 const countElement = (uses: MetamodelUses, element: ElementRecord, type: EffectiveType | undefined): void => {
   if (type !== undefined) {
     bump(uses.types, type.key);
-    for (const key of type.properties.filter((k) => holdsKey(element, k))) {
-      bump(uses.properties, key);
-    }
     const status = element.data["status"];
     if (typeof status === "string" && type.statuses.includes(status)) {
       bump(uses.statuses, status);
     }
   }
   for (const key of Object.keys(element.data)) {
+    // A property counts on every element whose file holds its key, whatever its type (SR-236 AK8).
+    bump(uses.properties, key);
     bump(uses.relations, key);
     // A fixed value counts on every element with the value, whatever its type (SR-236 AK7).
     const counts = Object.hasOwn(uses.values, key) ? uses.values[key] : undefined;
@@ -151,18 +156,12 @@ export const useOf = (
 };
 
 /**
- * The use of the property `key` (SR-236 AK7): each element of a type that has it, own or inherited,
- * whose file holds the key, also with an empty value.
+ * The use of the property `key` that locks a change of its value kind or several values (SR-236
+ * AK7): each element, of any type, also of a type the metamodel does not know, whose file holds the
+ * key, also with an empty value. The same number as `metamodel.get` shows (SR-236 AK8).
  */
-export const propertyUse = (
-  store: ElementStore,
-  shortIds: ShortIds,
-  metamodel: Metamodel,
-  key: string,
-): Use => {
-  const types = new Set(metamodel.effectiveTypes.filter((t) => t.properties.includes(key)).map((t) => t.key));
-  return useOf(store, shortIds, "property", key, (e) => types.has(e.type) && holdsKey(e, key));
-};
+export const propertyUse = (store: ElementStore, shortIds: ShortIds, key: string): Use =>
+  useOf(store, shortIds, "property", key, (e) => holdsKey(e, key));
 
 /**
  * The use of the fixed value `choice` of the property `property` (SR-236 AK7): each element whose
@@ -238,7 +237,7 @@ export interface Kept {
  * that stay (SR-238 AK5, SR-240 AK3, SR-237 AK5): one stays while an element has the status or holds
  * the property key in its file, also with an empty value, whatever its type, also a type the
  * metamodel does not know. The store holds the elements of every repository of the workspace (a
- * missing one is refused before, `refuseMissingRepositories`). `kept` keeps the order of the input,
+ * missing one is refused before, `refuseIncompleteStore`). `kept` keeps the order of the input,
  * properties first.
  */
 export const keptDefinitions = (
@@ -307,11 +306,50 @@ export const refuseUses = (what: string, uses: readonly Use[], named: readonly s
   });
 };
 
+/** An element file the store cannot read, by its repository and its path relative to it. */
+export interface UnreadableFile {
+  readonly repository: string;
+  readonly file: string;
+}
+
+/** -1, 0 or 1 as `a` comes before, with or after `b` in code-unit order. */
+const units = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /**
- * Refuses a change that needs a use count while a repository of the workspace is not on this
- * machine: its elements are not known (SR-236 AK7). `file.folder-missing` names the repository.
+ * The element files the store cannot read, by repository and path, each once: an error at a file
+ * (faulty YAML header, conflict markers, an invalid `id` or `type`, a folder that cannot be listed,
+ * SR-008 AK1, AK2), also when its header does not show whether it is an element, as `reqif.import`
+ * counts them (SR-053 AK3).
  */
-export const refuseMissingRepositories = (layout: WorkspaceLayout, command: string): void => {
+export const unreadableElementFiles = (problems: readonly Problem[]): readonly UnreadableFile[] => {
+  const files = new Map<string, UnreadableFile>();
+  for (const { severity, repository, file } of problems) {
+    if (severity === "error" && file !== undefined) {
+      const at = { repository: repository ?? "", file };
+      files.set(JSON.stringify([at.repository, at.file]), at);
+    }
+  }
+  return [...files.values()].sort((a, b) => units(a.repository, b.repository) || units(a.file, b.file));
+};
+
+/** `file` in a message: `repository:path`. */
+const fileText = ({ repository, file }: UnreadableFile): string => `${repository}:${file}`;
+
+/**
+ * Refuses a change that needs a use count while the elements of the workspace are not all known
+ * (SR-236 AK7, SR-008 AK3), and writes nothing:
+ *
+ * - while a repository of the workspace is not on this machine: `file.folder-missing` names the
+ *   repository, also when an element file cannot be read as well;
+ * - while the store cannot read an element file, which may hold the definition: `file.faulty` names
+ *   the number of these files (`details.count`) and the first 20 by repository and path
+ *   (`details.files`, each with repository and path), as `reqif.import` refuses (SR-053 AK3).
+ */
+export const refuseIncompleteStore = (
+  layout: WorkspaceLayout,
+  store: ElementStore,
+  command: string,
+): void => {
   const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
   if (missing.length > 0) {
     throw new CommandError(
@@ -320,21 +358,14 @@ export const refuseMissingRepositories = (layout: WorkspaceLayout, command: stri
       { command, repository: missing[0], repositories: missing },
     );
   }
-};
-
-/**
- * Refuses a change that needs a use count while the store cannot read an element file (an error at
- * a file: faulty YAML, conflict markers, an invalid `id` or `type`, SR-008): the file may hold the
- * definition (SR-236 AK7). `file.faulty` names the files, as `reqif.import` refuses (SR-053 AK3).
- * Assumption of question #1990.
- */
-export const refuseUnreadableFiles = (store: ElementStore, command: string): void => {
-  const unreadable = store.problems.filter((p) => p.severity === "error" && p.file !== undefined);
+  const unreadable = unreadableElementFiles(store.problems);
   if (unreadable.length > 0) {
+    const named = unreadable.slice(0, USES_NAMED);
+    const count = unreadable.length;
     throw new CommandError(
       "file.faulty",
-      `${command} needs every element to count the uses, and ${unreadable.map((p) => String(p.file)).join(", ")} cannot be read as elements; nothing is written. Fix them first.`,
-      { command, files: unreadable.map(({ repository, file }) => ({ repository, file })) },
+      `${command} needs every element to count the uses, and ${String(count)} element ${count === 1 ? "file" : "files"} cannot be read (${named.map(fileText).join(", ")}${count > named.length ? ", …" : ""}); nothing is written. Fix them first.`,
+      { command, count, files: named },
     );
   }
 };

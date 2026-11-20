@@ -4,7 +4,11 @@
 // under the titles of the catalog (`result.ts`); its technical values and those equal to their normal value only
 // while "Show details" is on for the buffer, as details in the second grey (SR-223 AK2, AK7). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
-// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). The output of
+// a problem, the two elements of a pair line side by side, read-only (SR-044 AK2), and the list of the elements a
+// number counts that the catalog marks as a number of elements (SR-223 AK5), each such number a line of its own. The problems of one kind
+// are a group line, folded at first (SR-223 AK3): Tab on it (SR-193 AK1), or a click on its triangle, opens and
+// closes it, Right opens and Left closes it, also from a line of the group, and Enter or a click elsewhere on it
+// opens the list of the elements of its problems (a group without elements opens and closes instead). The output of
 // `trace.chain` has its evidence under the elements it belongs to and the validation records of its root
 // under the root row (`chain-lines.ts`, SR-033, #646). When the
 // workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
@@ -12,7 +16,7 @@
 // The output of `hint.list` is the hint list, grouped by kind (`HintListView.tsx`, SR-026 AK4), and that of
 // `workspace.connectAgent` for a client the setup to copy (`ConnectAgentView.tsx`, SR-227 AK7).
 import { bufferMark, useHidden } from "./area-slot.js";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -22,7 +26,7 @@ import { agentSetupOf } from "./connect-agent.js";
 import { ConnectAgentView } from "./ConnectAgentView.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import type { OutputField } from "./result.js";
+import type { OutputField, ResultLine } from "./result.js";
 import { resultAnswer, resultSummary } from "./result.js";
 import { linesOf } from "./result-copy.js";
 import type { WindowAction } from "./window-layout.js";
@@ -39,6 +43,29 @@ export interface ResultViewProps {
   /** The fields of the command's output in the catalog (`outputFields`): their titles and normal values. */
   readonly fields?: readonly OutputField[];
 }
+
+/**
+ * What `event` does to the group of `line`: open it (`true`), close it (`false`), or nothing (undefined). Tab on a
+ * group line opens and closes it (SR-193 AK1); Right opens it, and Left closes it, also from one of its lines.
+ */
+const foldingOf = (
+  event: Pick<React.KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
+  line: ResultLine,
+): boolean | undefined => {
+  const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+  const keys = line.kind === "group" ? ["Tab", "ArrowLeft", "ArrowRight"] : ["ArrowLeft"];
+  if (!plain || line.group === undefined || !keys.includes(event.key)) {
+    return undefined;
+  }
+  return event.key === "Tab" ? line.unfolded !== true : event.key === "ArrowRight";
+};
+
+/**
+ * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), or a number of
+ * elements, which opens their list (SR-223 AK5).
+ */
+const choosable = (line: ResultLine): boolean =>
+  line.open !== undefined || line.kind === "group" || line.list !== undefined;
 
 /**
  * What the line under the answer says of an incomplete output (SR-223 AK1, SR-006 AK2): only the mark, since the
@@ -65,12 +92,25 @@ export const ResultView = ({
       linesOf(
         {
           command: buffer.command,
+          input: buffer.input,
+          name: buffer.name,
           output: buffer.output,
+          ...(buffer.written === true ? { written: true } : {}),
           ...(buffer.details === true ? { details: true } : {}),
+          ...(buffer.unfolded === undefined ? {} : { unfolded: buffer.unfolded }),
         },
         fields,
       ),
-    [buffer.command, buffer.output, buffer.details, fields],
+    [
+      buffer.command,
+      buffer.input,
+      buffer.name,
+      buffer.written,
+      buffer.output,
+      buffer.details,
+      buffer.unfolded,
+      fields,
+    ],
   );
   const answer = resultAnswer(buffer.output);
   const { incomplete } = resultSummary(buffer.output);
@@ -85,9 +125,12 @@ export const ResultView = ({
     }
   }, [buffer.key, buffer.output, hints, onData]);
 
+  // The call the shown output is the answer of: another one (after "Choose view") asks again, so each number of
+  // elements stands for the list it opens in the window's view (SR-223 AK5).
+  const answeredBy = useRef(call);
   useEffect(() => {
     // The output of a write command is never asked again: that would write again.
-    if (buffer.written === true || buffer.revision === revision) {
+    if (buffer.written === true || (buffer.revision === revision && answeredBy.current === call)) {
       return;
     }
     let live = true;
@@ -95,6 +138,7 @@ export const ResultView = ({
       if (!live) {
         return;
       }
+      answeredBy.current = call;
       const { error: _before, ...rest } = buffer;
       // In place: a result in the inactive area that reads again stays there (SR-115 AK3).
       dispatch({
@@ -112,9 +156,33 @@ export const ResultView = ({
     };
   }, [call, buffer, revision, dispatch, onEcho]);
 
+  /** Opens (`open`) or closes the group `key`; the cursor goes to `at`, its group line. */
+  const fold = (key: string, open: boolean, at: number): void => {
+    const others = (buffer.unfolded ?? []).filter((each) => each !== key);
+    const { unfolded: _before, ...rest } = buffer;
+    const unfolded = open ? [...others, key] : others;
+    dispatch({
+      type: "update",
+      buffer: { ...rest, ...(unfolded.length === 0 ? {} : { unfolded }), cursor: at },
+    });
+  };
+
+  /** The group line of the group `key`. */
+  const headOf = (key: string): number =>
+    lines.findIndex((line) => line.kind === "group" && line.group === key);
+
   const open = (at: number): void => {
     const line = lines[at];
-    if (line?.open !== undefined) {
+    if (line?.kind === "group" && line.group !== undefined) {
+      if (line.list === undefined) {
+        fold(line.group, line.unfolded !== true, at);
+      } else {
+        dispatch({ type: "open", buffer: line.list });
+      }
+    } else if (line?.list !== undefined) {
+      // A number of elements: the list of exactly those elements (SR-223 AK5).
+      dispatch({ type: "open", buffer: line.list });
+    } else if (line?.open !== undefined) {
       dispatch(
         line.beside === undefined
           ? { type: "open", buffer: line.open }
@@ -127,7 +195,12 @@ export const ResultView = ({
     // The keys of the lines and Ctrl+N/P (SR-122); Cmd+P, and Ctrl+P while no line is selected, are the
     // window's "Go to", as are the other shortcuts.
     const to = rowTarget(event, cursor, lines.length);
-    if (to !== undefined) {
+    const line = lines[cursor];
+    const folding = line === undefined ? undefined : foldingOf(event, line);
+    if (line?.group !== undefined && folding !== undefined) {
+      event.preventDefault();
+      fold(line.group, folding, line.kind === "group" ? cursor : headOf(line.group));
+    } else if (to !== undefined) {
       event.preventDefault();
       dispatch({ type: "cursor", key: buffer.key, cursor: Math.max(0, Math.min(lines.length - 1, to)) });
     } else if (event.key === "Enter") {
@@ -164,7 +237,9 @@ export const ResultView = ({
       role="group"
       aria-label={buffer.name}
       aria-activedescendant={
-        lines[cursor]?.open === undefined ? undefined : `${scope}result-${String(cursor)}`
+        lines[cursor] === undefined || !choosable(lines[cursor])
+          ? undefined
+          : `${scope}result-${String(cursor)}`
       }
       {...bufferAttribute}
       tabIndex={0}
@@ -179,10 +254,11 @@ export const ResultView = ({
             <div
               key={at}
               id={`${scope}result-${String(at)}`}
-              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}`}
+              className={`line ${line.kind}${line.itemStart === true ? " item-start" : ""}${line.detail === true ? " detail" : ""}${line.kind !== "group" && line.list !== undefined ? " count" : ""}`}
               title={line.title}
-              // Only a line that opens an element is an option; a text line is shown, not chosen.
-              {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}
+              // Only a line that opens something is an option; a text line is shown, not chosen.
+              {...(choosable(line) ? { role: "option", "aria-selected": at === cursor } : {})}
+              {...(line.kind === "group" ? { "aria-expanded": line.unfolded === true } : {})}
               data-cursor={at === cursor ? "" : undefined}
               data-depth={line.depth}
               // Only the title is indented, so the values of all depths stand in one column (`result.css`).
@@ -193,7 +269,26 @@ export const ResultView = ({
               }}
             >
               {line.label === "" ? null : <span className="label">{line.label}</span>}
-              <span className="text">{line.text}</span>
+              {line.kind === "group" ? (
+                <span className="text">
+                  <span
+                    className="fold-mark"
+                    aria-hidden="true"
+                    onClick={(event) => {
+                      // The triangle opens and closes the group; the rest of the line opens its list.
+                      event.stopPropagation();
+                      if (line.group !== undefined) {
+                        fold(line.group, line.unfolded !== true, at);
+                      }
+                    }}
+                  >
+                    {line.unfolded === true ? "▾" : "▸"}
+                  </span>
+                  {line.text}
+                </span>
+              ) : (
+                <span className="text">{line.text}</span>
+              )}
               {line.status === undefined ? null : <span className="status">{line.status}</span>}
             </div>
           ))}

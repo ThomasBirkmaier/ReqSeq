@@ -418,7 +418,7 @@
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
-        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "tags": [
           "workspace"
         ],
@@ -456,6 +456,11 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "skill": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none."
                   }
                 },
                 "additionalProperties": false,
@@ -483,7 +488,7 @@
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/outputPath",
-                        "description": "Written file, relative to the workspace root."
+                        "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
                       }
                     },
                     "next": {
@@ -2947,7 +2952,7 @@
                             "minimum": 0
                           },
                           "title": "Properties",
-                          "description": "Property key -> elements of a type that has the property whose file holds its key, also with an empty value."
+                          "description": "Property key -> elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value: the use that locks a change of its value kind or several values."
                         },
                         "values": {
                           "title": "Fixed values",
@@ -2959,7 +2964,7 @@
                               "minimum": 0
                             }
                           },
-                          "description": "Key of a property with choices -> choice key -> elements of a type that has the property whose value is the choice or holds it."
+                          "description": "Key of a property with choices -> choice key -> elements of any type whose value of the property is the choice or holds it."
                         },
                         "relations": {
                           "type": "object",
@@ -2977,7 +2982,7 @@
                             "minimum": 0
                           },
                           "title": "Statuses",
-                          "description": "Status key -> elements with the status."
+                          "description": "Status key -> elements of a type that has the status, with that status."
                         }
                       },
                       "additionalProperties": false,
@@ -2988,7 +2993,7 @@
                         "relations",
                         "statuses"
                       ],
-                      "description": "The uses of each definition by the elements of the workspace, in any status, counted over the repositories on this machine; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while the count is above 0, and while a repository of the workspace is not on this machine."
+                      "description": "The uses of each definition by the elements of the workspace, in any status, counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read. Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0."
                     }
                   },
                   "additionalProperties": false,
@@ -4419,11 +4424,11 @@
                       "choice",
                       "relation"
                     ],
-                    "description": "New value kind; only while no element file of a type with the property holds its key."
+                    "description": "New value kind; only while no element file of any type holds its key, also with an empty value."
                   },
                   "many": {
                     "type": "boolean",
-                    "description": "true: the property holds a list of values; false removes the line. Only while no element file of a type with the property holds its key."
+                    "description": "true: the property holds a list of values; false removes the line. Only while no element file of any type holds its key, also with an empty value."
                   },
                   "maxItems": {
                     "anyOf": [
@@ -21308,6 +21313,7 @@
               "workspace.metamodel-mismatch",
               "workspace.invalid",
               "workspace.not-watched",
+              "workspace.skill-not-written",
               "workspace.skill-older-version",
               "git.unavailable",
               "git.revision-missing",

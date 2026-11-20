@@ -11,6 +11,8 @@ export {
 } from "./by-element.js";
 export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
 export { bearingRecords } from "./bearing.js";
+export { elementDisplay } from "./element-display.js";
+export type { ElementDisplay } from "./element-display.js";
 export type { Display, DisplayInput } from "./display.js";
 export { displayOf } from "./display.js";
 export {
@@ -83,12 +85,13 @@ export type {
 } from "./status.js";
 export {
   verificationOf,
+  criterionStatusesByView,
   verificationState,
   withEvidenceStatus,
   workspaceStatus,
   workspaceStatusOf,
 } from "./verification.js";
-export type { VersionReader, ViewHolder, WorkspaceStatus } from "./verification.js";
+export type { VersionReader, ViewCriterionStatuses, ViewHolder, WorkspaceStatus } from "./verification.js";
 export { variantIdsOf, verificationNameIds } from "./names.js";
 export { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./matrix.js";
 export type { MatrixRowEvidence, MatrixTestCase, MatrixTestCaseMark } from "./matrix.js";

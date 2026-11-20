@@ -19,13 +19,25 @@ export interface FilterStep {
   readonly label: string;
   /** What the heading of the list says for this step instead of the label: the name of a type (SR-148). */
   readonly heading?: string;
-  readonly selection: Pick<ElementSelection, "where" | "filter">;
+  readonly selection: Pick<ElementSelection, "where" | "filter" | "output">;
   /**
    * The selection of a perspective (SR-214 AK2): the first step of its buffer, which "Clear list filter"
    * and "Clear all list filters" never take back.
    */
   readonly perspective?: true;
+  /**
+   * The step selects the elements of a part of a command's output, such as a group of problems (SR-223 AK3): a
+   * list with it is a list from the output of a command, which is saved neither as a perspective nor as a saved
+   * filter (SR-214 AK5, SR-219 AK8).
+   */
+  readonly output?: true;
 }
+
+/**
+ * The elements of a command's output as a selection gives them (`selection.output`, SR-224 AK4, AK5): its answer, or
+ * with `count` the elements one number of it counts, exactly as the command line, API and MCP give them.
+ */
+export type OutputSelection = NonNullable<ElementSelection["output"]>;
 
 /** A perspective as `perspective.list` gives it. */
 export type ListedPerspective = CommandTypes["perspective.list"]["output"]["perspectives"][number];
@@ -85,6 +97,17 @@ export interface ListBuffer extends ListQuery {
   readonly cursor: number;
   /** The list is the buffer of a perspective (SR-214), keyed by its name (`perspectiveKey`). */
   readonly perspective?: PerspectiveOrigin;
+  /**
+   * "Show details" is on (SR-223 AK6, AK2): a list of the answer of a command's output (`answerOf`) shows at each row
+   * the values the output gives for its element besides the row. It holds for this buffer until it is closed.
+   */
+  readonly details?: true;
+  /**
+   * The output a list of the answer of an output was opened from, with the revision of the workspace it is of
+   * (SR-223 AK6): the list shows it until the workspace changes, instead of running the command once more. Not
+   * stored with the session.
+   */
+  readonly answered?: { readonly output: unknown; readonly revision: number };
 }
 
 /**
@@ -196,6 +219,11 @@ export interface ResultBuffer {
    * value. It holds for this buffer until it is closed, also when the same command opens it again.
    */
   readonly details?: true;
+  /**
+   * The groups of problems that are open (SR-223 AK3), by their key (`groupKey` of `result.ts`); none at first,
+   * so every group is shown folded.
+   */
+  readonly unfolded?: readonly string[];
 }
 
 /** How far a graph goes from its element: a number of levels, or the whole chain (SR-111 AK2). */
@@ -340,6 +368,16 @@ export const NO_ROW = -1;
 
 export const overviewBuffer = (): OverviewBuffer => ({ kind: "overview", key: OVERVIEW_KEY, cursor: NO_ROW });
 
+/**
+ * The key of a list whose first step selects the elements of a command's output (`selection.output`): a buffer of its
+ * own per command, input and number, as a result buffer is one per command and input, so a filter keeps it and
+ * opening the same again shows it; undefined for any other list, which is the one list buffer (`LIST_KEY`).
+ */
+const outputKeyOf = (steps: readonly FilterStep[]): string | undefined => {
+  const output = steps[0]?.selection.output;
+  return output === undefined ? undefined : `list:output:${JSON.stringify(output)}`;
+};
+
 /** Exactly one buffer is open and it is the overview: there is nothing to close. */
 export const onlyOverview = (buffers: Buffers): boolean =>
   buffers.length === 1 && buffers[0]?.kind === "overview";
@@ -353,7 +391,7 @@ const makeList = (
   perspective?: PerspectiveOrigin,
 ): ListBuffer => ({
   kind: "list",
-  key: perspective === undefined ? LIST_KEY : perspectiveKey(perspective.name),
+  key: perspective === undefined ? (outputKeyOf(steps) ?? LIST_KEY) : perspectiveKey(perspective.name),
   label,
   steps,
   cursor: NO_ROW,
@@ -411,9 +449,30 @@ export const perspectiveBuffer = (perspective: PerspectiveOrigin): ListBuffer =>
   return group === undefined ? list : { ...list, group };
 };
 
-/** The steps of a list that its filter actions can take back: all but the selection of a perspective. */
+/**
+ * The steps of a list that its filter actions can take back: all but the selection of a perspective and the elements
+ * of a command's output (`FilterStep.output`: a group of problems, a number, the answer, SR-223 AK3, AK5, AK6), which
+ * stand first in their buffer.
+ */
 export const ownSteps = (steps: readonly FilterStep[]): number =>
-  steps.filter((step) => step.perspective !== true).length;
+  steps.filter((step) => step.perspective !== true && step.output !== true).length;
+
+/**
+ * The list of the elements of a command's output (SR-223 AK5, AK6): one step from the output of a command
+ * (`FilterStep.output`) under `label` (the answer of the output, or what its number counts), whose selection is
+ * `selection.output`, so the list holds exactly the elements the command line, API and MCP give for it, also both
+ * copies of a UUID in two repositories (SR-088), and further filter steps add to it.
+ */
+export const outputSelectionList = (label: string, output: OutputSelection): ListBuffer => {
+  const steps: FilterStep[] = [{ label, selection: { output }, output: true }];
+  return makeList(label, steps, selectionOf(steps), undefined, false);
+};
+
+/** The output a list lists the answer of (SR-223 AK6): its first step's `selection.output` without a number. */
+export const answerOf = (list: ListBuffer): OutputSelection | undefined => {
+  const output = list.steps[0]?.selection.output;
+  return output === undefined || output.count !== undefined ? undefined : output;
+};
 
 /** A list with one step: the selection under its label (or every element, without a selection). */
 export const listBuffer = (
@@ -422,6 +481,19 @@ export const listBuffer = (
   sort?: readonly FilterSortKeyWithDefaults[],
 ): ListBuffer =>
   makeList(label, selection === undefined ? [] : [{ label, selection }], selection, sort, false);
+
+/**
+ * The list of the elements with one of the UUIDs `ids` (SR-223 AK3), in every repository and also every copy of
+ * one (SR-088), under `label`: one step from the output of a command (`FilterStep.output`) whose condition is the
+ * frontmatter key `id`, so further filter steps add to it. No selection by `ids`, which refuses a UUID that names
+ * more than one element (`ref.ambiguous`).
+ */
+export const outputList = (label: string, ids: readonly string[]): ListBuffer => {
+  const steps: FilterStep[] = [
+    { label, selection: { where: { property: "id", op: "in", value: [...ids] } }, output: true },
+  ];
+  return makeList(label, steps, selectionOf(steps), undefined, false);
+};
 
 /**
  * What the steps select together (SR-124 AK1): the conditions of all steps in order, one alone as it
@@ -433,9 +505,11 @@ export const selectionOf = (steps: readonly FilterStep[]): ElementSelection | un
     step.selection.where === undefined ? [] : [step.selection.where],
   );
   const filter = steps.find((step) => step.selection.filter !== undefined)?.selection.filter;
+  const output = steps.find((step) => step.selection.output !== undefined)?.selection.output;
   const [only] = conditions;
   const where = conditions.length > 1 ? { all: conditions } : only;
   const selection: ElementSelection = {
+    ...(output === undefined ? {} : { output }),
     ...(filter === undefined ? {} : { filter }),
     ...(where === undefined ? {} : { where }),
   };
@@ -494,12 +568,15 @@ export const listOf = (
  * The same list with some parts of its query changed (other steps, another sort or grouping), from its
  * first row; the other parts, the mode and the perspective stay (SR-124, SR-149 AK3).
  */
-export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer =>
-  listOf(
+export const withQuery = (list: ListBuffer, change: QueryChange): ListBuffer => {
+  const changed = listOf(
     changeQuery(queryOf(list), change, list.perspective === undefined ? listView(list) : "list"),
     listView(list),
     list.perspective,
   );
+  // "Show details" holds for the buffer (SR-223 AK2), which a filter keeps (`outputKeyOf`).
+  return list.details === true && changed.key === list.key ? { ...changed, details: true } : changed;
+};
 
 /**
  * The same list in matrix mode, or (`on` false) as a list. The row and everything else stay, unless the
