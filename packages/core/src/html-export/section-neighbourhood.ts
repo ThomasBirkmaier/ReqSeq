@@ -18,8 +18,13 @@
 //   (SR-231 AK8), and the walks go on through it (AK6); an element without a page (several files share its UUID)
 //   is a row without a link as well.
 // - Without parents or children the section says so; without incoming links it has no such group.
-// - Cost: per page the walks of its chain over the derivations and one step over every link; the current versions
-//   are read once for the export (`NeighbourhoodSource.versionOf`).
+// - Bound: parents and children show the nearest `NEIGHBOURHOOD_LIMIT` rows each, and say so when there are more,
+//   as the app's buffer does with its own bound. A chain of 50,000 elements can reach tens of thousands of
+//   elements (N-036), and every element of it has a page: without the bound the pages of the performance suite's
+//   workspace come to about 29 GB. Each walk stops at the bound (`maxNodes`), so a page costs its bound, not its
+//   chain. The incoming links are one step and have no bound.
+// - Cost: per page two bounded walks over the derivations and one step over every link; the current versions are
+//   read once for the export (`NeighbourhoodSource.versionOf`).
 import type { Metamodel } from "../metamodel/index.js";
 import { keyDefinition } from "../metamodel/index.js";
 import type { ElementRecord, IncomingLink } from "../model/index.js";
@@ -31,6 +36,9 @@ import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { escapeHtml } from "./markdown.js";
 
 type Edge = WalkEdge<IncomingLink>;
+
+/** The most parents and the most rows of children a page shows (see the file comment). */
+export const NEIGHBOURHOOD_LIMIT = 100;
 
 /** What the section reads besides the page (see the file comment). */
 export interface NeighbourhoodSource {
@@ -91,12 +99,19 @@ const row = (context: ElementPageContext, element: ElementRecord, level: number,
   return `<li style="--rq-level:${String(level)}">${content}</li>`;
 };
 
-const group = (heading: string, rows: readonly string[], none: string): string =>
+/** Rows of one part, and whether the bound left some out. */
+interface Part {
+  readonly rows: readonly string[];
+  readonly more: boolean;
+}
+
+const group = (heading: string, { rows, more }: Part, none: string): string =>
   `<h3>${escapeHtml(heading)}</h3>` +
-  (rows.length === 0 ? `<p class="rq-nb-none">${none}</p>` : `<ul class="rq-nb">${rows.join("")}</ul>`);
+  (rows.length === 0 ? `<p class="rq-nb-none">${none}</p>` : `<ul class="rq-nb">${rows.join("")}</ul>`) +
+  (more ? `<p class="rq-nb-none">Only ${String(NEIGHBOURHOOD_LIMIT)} are shown.</p>` : "");
 
 /** The parents, the topmost level first (see the file comment). */
-const parentRows = (context: ElementPageContext, up: NeighbourhoodWalk): string[] => {
+const parentRows = (context: ElementPageContext, up: NeighbourhoodWalk): Part => {
   const notes = new Map<ElementRecord, string[]>();
   for (const edge of up.result.edges) {
     const marks = marksOf(context, up, edge);
@@ -104,16 +119,18 @@ const parentRows = (context: ElementPageContext, up: NeighbourhoodWalk): string[
       notes.set(marks.target, [...(notes.get(marks.target) ?? []), marks.note]);
     }
   }
-  const parents = up.result.nodes.slice(1);
+  // The nearest first: the walk is breadth first.
+  const parents = up.result.nodes.slice(1, NEIGHBOURHOOD_LIMIT + 1);
   const top = Math.max(0, ...parents.map((node) => node.depth));
   // A stable sort: within a level, the order of the walk.
-  return [...parents]
+  const rows = [...parents]
     .sort((a, b) => b.depth - a.depth)
     .map((node) => row(context, node.element, top - node.depth, outdatedMark(notes.get(node.element) ?? [])));
+  return { rows, more: up.result.cut || up.result.nodes.length > NEIGHBOURHOOD_LIMIT + 1 };
 };
 
 /** The children of `root` as a tree, depth first in walk order (see the file comment). */
-const childRows = (context: ElementPageContext, root: ElementRecord, down: NeighbourhoodWalk): string[] => {
+const childRows = (context: ElementPageContext, root: ElementRecord, down: NeighbourhoodWalk): Part => {
   const below = new Map<ElementRecord, Edge[]>();
   for (const edge of down.result.edges) {
     below.set(edge.from, [...(below.get(edge.from) ?? []), edge]);
@@ -128,7 +145,7 @@ const childRows = (context: ElementPageContext, root: ElementRecord, down: Neigh
     }
   };
   push(root, 0);
-  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+  for (let next = stack.pop(); next !== undefined && rows.length <= NEIGHBOURHOOD_LIMIT; next = stack.pop()) {
     const { edge, level } = next;
     const marks = marksOf(context, down, edge);
     const repeated = marks.repeated ? ' <span class="rq-repeated">repeated</span>' : "";
@@ -137,7 +154,11 @@ const childRows = (context: ElementPageContext, root: ElementRecord, down: Neigh
       push(edge.to, level + 1);
     }
   }
-  return rows;
+  // One row past the bound tells that there are more.
+  return {
+    rows: rows.slice(0, NEIGHBOURHOOD_LIMIT),
+    more: down.result.cut || rows.length > NEIGHBOURHOOD_LIMIT,
+  };
 };
 
 /** The name of the group of an incoming `link`, or undefined for a derivation (see the file comment). */
@@ -167,17 +188,17 @@ const incomingGroups = (context: ElementPageContext, incoming: NeighbourhoodWalk
       ]);
     }
   }
-  return [...groups].map(([name, rows]) => group(`← ${name}`, rows, ""));
+  return [...groups].map(([name, rows]) => group(`← ${name}`, { rows, more: false }, ""));
 };
 
 /** The section of the neighbourhood (see the file comment). */
 export const neighbourhoodSection = (context: ElementPageContext, page: ElementPage): string => {
   const { derivations, every } = context.neighbourhood;
   // `both` gives the up walk, then the down walk; `down` the down walk alone.
-  const [up, down] = traceNeighbourhood(derivations, page.record, { direction: "both" }).walks as [
-    NeighbourhoodWalk,
-    NeighbourhoodWalk,
-  ];
+  const [up, down] = traceNeighbourhood(derivations, page.record, {
+    direction: "both",
+    maxNodes: NEIGHBOURHOOD_LIMIT,
+  }).walks as [NeighbourhoodWalk, NeighbourhoodWalk];
   const [incoming] = traceNeighbourhood(every, page.record, { direction: "down", maxDepth: 1 }).walks as [
     NeighbourhoodWalk,
   ];

@@ -213,6 +213,38 @@ describe("html.export shows the neighbourhood of an element (SR-232 AK5)", () =>
   });
 });
 
+describe("html.export bounds the parents and children of a page (SR-232 AK5)", () => {
+  it("[SR-232/AK-r9s3] shows the nearest 100 parents and 100 children and says that there are more", async () => {
+    const many = Array.from({ length: 101 }, (_, n) => n + 100);
+    const extra = Object.fromEntries([
+      ...many.map((n) => [`needs/N-${String(n)}.md`, element(uuid(n), "need", `title: Need ${String(n)}\n`)]),
+      ...many.map((n) => [
+        `requirements/SR-${String(n)}.md`,
+        element(uuid(n + 1000), "system-requirement", `title: Child ${String(n)}\n${derives(ROOT)}`),
+      ]),
+      [
+        "requirements/SR-6328cee88fb3.md",
+        element(ROOT, "system-requirement", `title: Show wind speed\n${derives(...many.map(uuid))}`),
+      ],
+    ]);
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-001/two-elements",
+      files: { ...files("approved"), ...extra },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await exported(workspace);
+    const section = await sectionOf(fixture, ROOT);
+    const parents = section.slice(section.indexOf("<h3>Parents</h3>"), section.indexOf("<h3>Children</h3>"));
+    const children = section.slice(section.indexOf("<h3>Children</h3>"), section.indexOf("<h3>←"));
+    expect(parents.split("<li ").length - 1).toBe(100);
+    expect(parents).toContain('</ul><p class="rq-nb-none">Only 100 are shown.</p>');
+    expect(children.split("<li ").length - 1).toBe(100);
+    expect(children).toContain('</ul><p class="rq-nb-none">Only 100 are shown.</p>');
+  });
+});
+
 describe("html.export keeps elements with an invalid status in the neighbourhood (SR-232 AK6)", () => {
   it("[SR-232/AK-kycg] shows a parent and a child with an invalid status with identifier, title and status without a link, and their parents and children after them", async () => {
     // OLD had a page in the earlier export, so it has a short page now (SR-231 AK8): still no link.
