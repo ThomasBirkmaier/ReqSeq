@@ -265,6 +265,15 @@ export {
 export { changedFiles, restrictTo, treeAt } from "./changed.js";
 export { fileSince } from "./file-since.js";
 export type { FileSince } from "./file-since.js";
+export { filesAtCommit } from "./files-at-commit.js";
+export type { AskedFile, FileAtCommit, FilesAtCommit } from "./files-at-commit.js";
+export { fieldDifference, fieldName } from "./field-difference.js";
+export type {
+  ChangedCriterion,
+  ChangedRelation,
+  ElementContent,
+  FieldDifference,
+} from "./field-difference.js";
 export { NO_COMMIT_TEXT, repositoryCommit } from "./repository-commit.js";
 export type { NoCommitReason, RepositoryCommit } from "./repository-commit.js";
 export {
