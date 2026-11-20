@@ -75,6 +75,7 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
     expect(Object.keys(files).sort()).toEqual([
       "assets/copy.js",
       "assets/docs.css",
+      "assets/list.js",
       "assets/reqseq.css",
       "assets/reqseq.js",
       "assets/theme.js",
@@ -82,11 +83,11 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
       `elements/${WIND}.html`,
       "index.html",
       "licenses/THIRD-PARTY-NOTICES.txt",
+      "lists/system-requirement.html",
       MARKER,
     ]);
     expect(files[`elements/${WIND}.html`]).toMatch(/<h1 id="_top"[^>]*>SR-e88fb3 Show wind speed<\/h1>/u);
     expect(files[`elements/${WIND}.html`]).toContain("<p>The station shows the current wind speed.</p>");
-    expect(files["index.html"]).toContain("<p>Element pages: 2</p>");
     expect(JSON.stringify(files)).not.toContain(OLD);
     expect(files[MARKER]).toBe(
       [
@@ -95,6 +96,7 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
         "files:",
         '  - "assets/copy.js"',
         '  - "assets/docs.css"',
+        '  - "assets/list.js"',
         '  - "assets/reqseq.css"',
         '  - "assets/reqseq.js"',
         '  - "assets/theme.js"',
@@ -102,6 +104,7 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
         `  - "elements/${WIND}.html"`,
         '  - "index.html"',
         '  - "licenses/THIRD-PARTY-NOTICES.txt"',
+        '  - "lists/system-requirement.html"',
         "",
       ].join("\n"),
     );

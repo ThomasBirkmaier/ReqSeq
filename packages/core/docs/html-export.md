@@ -6,13 +6,15 @@
 
 | Path | What |
 | --- | --- |
-| `index.html` | Start page |
+| `index.html` | Start page (`start-page.ts`, SR-233 AK3) |
+| `lists/<type key>.html` | The list of a type (`list-page.ts`, SR-233 AK1, AK5) |
 | `elements/<uuid>.html` | One page per element without an invalid status (D-044). The UUID never changes (D-017), so a link keeps opening the element when its identifier, title or short ID change (SR-231 AK3). An element with an invalid status whose page the earlier export wrote (`ExportFolder.earlier`) gets the short page of SR-231 AK8 there. |
 | `images/<uuid>-<n><ext>` | Copies of the images of the element's texts; `<ext>` from the type the bytes are (`imageExtension`), never from the file name. |
 | `assets/docs.css` | The stylesheet of the shipped docs (`docs-theme.generated.ts`, SR-231 AK4) |
 | `assets/reqseq.css` | The export's own styles (`OWN_CSS`): the grey of the element facts and of errors, the drawn diagrams, and scrolling of a wide display formula |
 | `assets/theme.js`, `assets/reqseq.js` | The page scripts (`page-script.ts`): the theme before the first paint; the theme selects, the menu and the diagrams |
 | `assets/copy.js` | The script of the copy buttons of element pages (`copy-script.ts`) |
+| `assets/list.js` | The script of the lists (`list-script.ts`): search, filters, sorting, grouping |
 | `assets/katex.css`, `assets/mermaid.js` | Only when a page needs them: KaTeX's stylesheet with its woff2 fonts as `data:` URLs, and the Mermaid bundle (`vendor.ts`) |
 | `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle and Starlight (`notices.ts`) |
 | `reqseq-html-export.yaml` | The marker file (`schemas/html-export-marker.schema.json`) |
@@ -41,9 +43,18 @@ The vendor files (`packages/core/vendor/html-export/`, git-ignored, in core's `f
 - the text;
 - `section-criteria.ts` (AK2), none without criteria: number, criterion key, text (formatted when the property is Markdown, else as written), the status (alone for the core only, else per view) and a copy button with the reference, none without one;
 - `section-properties.ts` (AK1): every other filled property in file order, also unknown ones by key; Markdown formatted, each item of a list too; a relation property as links;
-- `section-relations.ts` (AK1): the outgoing relations by relation kind.
+- `section-relations.ts` (AK1): the outgoing relations by relation kind;
+- `section-package.ts` (SR-233 AK4): on the page of a package, the elements with a page that name it, by identifier, with identifier, title, status and verification status in the core.
 
 A target is named `identifier`, else short ID, and title (`links.ts`); one in a repository that is not here is `UNKNOWN-<tail>, repository <name>, not accessible` (SR-006 AK1); a missing, ambiguous or unknown-repository one names its UUID and why. The copy buttons are written `hidden`; `assets/copy.js` shows them and writes the value with the Clipboard API, or selects it where that is missing or refused. `stub-page.ts` (SR-231 AK8): identifier, short ID, title, status and a link to each successor (SR-072 AK3); it is not in `exportedElements`, which lists and search come from.
+
+## Lists, start page and sidebar (`list-page.ts`, `list-script.ts`, `start-page.ts`, `page.ts`)
+
+`export.ts` builds what these pages share once (`siteOf`): the elements with a page as list entries (`ListEntry`: the data of `element-data.ts` and the number of open hints of `hint.list`), by identifier (`sortElements`); the lists; the packages with their members; and the sidebar.
+
+- Lists (SR-233 AK1, AK5): one per type with an element with a page, except the types with the meaning package or variant, in the metamodel's order of types (`typeOrder`). The page is the whole table, so it stands without script. Each row carries its search text (`data-q`: identifier, short ID, title, NFC and lower case), the index of each of its values per filter (`data-f`) and its rank per column (`data-s`, the order of SR-075 AK1 through `sortValueOf`; `null` for no value; the identifier column ranks by `sortElements`). The table carries the labels of the columns and the values of each filter in ascending order with "–" last (`data-rq-list`). `assets/list.js` adds the search field, a chip per filter with the number of rows per value, a chip "Group", the chosen values as buttons and "Clear", and sort buttons in the column heads.
+- Start page (SR-233 AK3): the footer's text, a note per repository that is not here (SR-006 AK2), the verification degree in the core (`selectionDegree` over the store, as `evidence.degree` without selection), the requirements failed, outdated or open in the core, the elements with open hints, the counts of `baseline.get` for the newest baseline (latest date, at the same instant the later file; `html.export` reads it and passes it as `newestBaseline`, since the stored selection is resolved in the command layer), and the number of elements per type with a link to its list.
+- Sidebar (SR-233 AK4, `page.ts`): the start page, then the groups "Lists" and "Packages" (by title, else short ID), each link to the page of the package; the link of the page shown is marked current. Every page names its path (`PageInput.path`), from which `page` takes the depth.
 
 ## References and footer (`export.ts`)
 

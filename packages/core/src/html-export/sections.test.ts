@@ -45,6 +45,7 @@ const context = (metamodel: Partial<Metamodel> = {}): ElementPageContext => ({
   shortIds: {} as ShortIds,
   layout: { repositories: [] },
   links: pageLinks(new Set([ID])),
+  members: new Map(),
 });
 
 const page = (data: Omit<ElementData, "record">): ElementPage => ({

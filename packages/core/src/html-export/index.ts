@@ -2,3 +2,4 @@
 export { MARKER, writeHtmlExport } from "./export.js";
 export { elementPage } from "./links.js";
 export type { HtmlExportResult } from "./export.js";
+export type { NewestBaseline } from "./start-page.js";

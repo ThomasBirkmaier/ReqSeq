@@ -5,16 +5,19 @@
 // - text: the element's text, formatted (SR-231 AK5);
 // - acceptance criteria (`section-criteria.ts`, AK2);
 // - properties (`section-properties.ts`, AK1): every other filled property as in the element file;
-// - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind.
+// - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
+// - the elements of a package on its page (`section-package.ts`, SR-233 AK4).
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { COPY_CSS } from "./copy-script.js";
 import type { ElementData } from "./element-data.js";
+import type { ListEntry } from "./list-page.js";
 import type { PageLinks } from "./links.js";
 import { CRITERIA_CSS, criteriaSection } from "./section-criteria.js";
 import { FIELDS_CSS, fieldsSection } from "./section-fields.js";
 import { propertiesSection } from "./section-properties.js";
+import { packageSection } from "./section-package.js";
 import { relationsSection } from "./section-relations.js";
 
 /** What every page of an element is built from. */
@@ -24,6 +27,8 @@ export interface ElementPageContext {
   readonly shortIds: ShortIds;
   readonly layout: Pick<WorkspaceLayout, "repositories">;
   readonly links: PageLinks;
+  /** The elements with a page of each package, by the package's UUID, by identifier (`section-package.ts`). */
+  readonly members: ReadonlyMap<string, readonly ListEntry[]>;
 }
 
 /** One element's page. */
@@ -47,4 +52,5 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     await criteriaSection(context, page),
     await propertiesSection(context, page),
     relationsSection(context, page),
+    packageSection(context, page),
   ].join("");
