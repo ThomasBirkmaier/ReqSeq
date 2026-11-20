@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadContracts } from "./load.mjs";
-import { SHOWS_OUTPUT, checkOutputs } from "./output-checks.mjs";
+import { ELEMENT_VALUES, SHOWS_OUTPUT, STAYS_OUTPUT_PAGE, checkOutputs } from "./output-checks.mjs";
 import {
   TECHNICAL_DEFINITIONS,
   outputFieldsOf,
@@ -267,6 +267,116 @@ describe("checkOutputs", () => {
       "schemas/commands/reqif.import.json: showsOutput: true, since its output carries content of its own (SR-224 AK7)",
       "schemas/commands/element.update.json: showsOutput: only the write commands of SHOWS_OUTPUT in output-checks.mjs show their output (SR-224 AK7)",
       "schemas/commands/reqif.export.json: showsOutput: true, since its output carries content of its own (SR-224 AK7)",
+    ]);
+  });
+
+  it("[SR-224/AK-nhzq] holds staysOutputPage to the read commands whose answer is the state of each entry, in both directions", () => {
+    const answered = (name, extra = {}) => ({
+      ...read(
+        { ids: { title: "Elements", "x-elements": "answer", type: "array", items: { $ref: `${C}uuid` } } },
+        extra,
+      ),
+      name,
+    });
+    expect([...STAYS_OUTPUT_PAGE].sort()).toEqual(["baseline.get", "evidence.status"]);
+    expect(
+      errorsOf(answered("baseline.get", { staysOutputPage: true }), answered("evidence.withoutPassedTest")),
+    ).toEqual([]);
+    expect(
+      errorsOf(answered("baseline.get"), answered("evidence.withoutPassedTest", { staysOutputPage: true }), {
+        ...read({ problems }, { staysOutputPage: true }),
+        name: "evidence.status",
+      }),
+    ).toEqual([
+      "schemas/commands/baseline.get.json: staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
+      "schemas/commands/evidence.withoutPassedTest.json: staysOutputPage: only the read commands of STAYS_OUTPUT_PAGE in output-checks.mjs stay an output page (SR-224 AK8)",
+      "schemas/commands/evidence.status.json: staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
+      "schemas/commands/evidence.status.json: x-element-values on its answer field: exactly type, version, repository, file, properties, relations (SR-224 AK9)",
+    ]);
+  });
+
+  it("[SR-223/AK-qwkc] needs shortId and title on the entries of an answer the app lists, unless the command stays an output page", () => {
+    const answer = (properties, extra = {}) =>
+      read(
+        {
+          elements: {
+            title: "Elements",
+            "x-elements": "answer",
+            type: "array",
+            items: {
+              type: "object",
+              properties: { id: { title: "Element", $ref: `${C}uuid` }, ...properties },
+            },
+          },
+        },
+        extra,
+      );
+    const named = {
+      shortId: { title: "Short ID", type: "string" },
+      title: { title: "Title", type: "string" },
+    };
+    const state = { state: { title: "State", type: "string" } };
+    expect(errorsOf(answer(named))).toEqual([]);
+    expect(errorsOf({ ...answer(state, { staysOutputPage: true }), name: "baseline.get" })).toEqual([]);
+    expect(errorsOf(answer(state), answer({ title: named.title }))).toEqual([
+      "schemas/commands/x.read.json: output elements: the app lists the answer as rows, so its entries need shortId and title, or the command is staysOutputPage (SR-223 AK6)",
+    ]);
+  });
+
+  it("[SR-224/AK-cwyt] holds x-element-values to the entries of evidence.status, exactly its six values, in both directions", () => {
+    const OWN = ["type", "version", "repository", "file", "properties", "relations"];
+    const entry = {
+      type: "object",
+      properties: {
+        id: { title: "Element", $ref: `${C}uuid` },
+        ...Object.fromEntries(
+          [...OWN, "verification", "shortId", "title"].map((name) => [
+            name,
+            { title: `${name[0].toUpperCase()}${name.slice(1)}`, type: "string" },
+          ]),
+        ),
+      },
+    };
+    const status = (marks, name = "evidence.status", other = {}) => ({
+      ...read(
+        {
+          elements: { title: "Elements", "x-elements": "answer", type: "array", items: entry, ...marks },
+          other: { title: "Other", type: "array", items: entry, ...other },
+        },
+        STAYS_OUTPUT_PAGE.has(name) ? { staysOutputPage: true } : {},
+      ),
+      name,
+    });
+    expect(ELEMENT_VALUES).toEqual(new Map([["evidence.status", OWN]]));
+    const good = status({ "x-element-values": OWN });
+    expect(errorsOf(good)).toEqual([]);
+    // The catalog marks exactly these six fields of an entry.
+    expect(
+      resolvedOutputFields(good.output, schemas)
+        .filter((field) => field.elementValue === true)
+        .map((field) => field.path),
+    ).toEqual(OWN.map((name) => `elements[].${name}`));
+    expect(
+      errorsOf(status({ "x-element-values": ["type"] }), status({ "x-element-values": OWN }, "baseline.get")),
+    ).toEqual([
+      "schemas/commands/evidence.status.json: x-element-values on its answer field: exactly type, version, repository, file, properties, relations (SR-224 AK9)",
+      "schemas/commands/baseline.get.json: output elements: x-element-values only on the answer field of the commands of ELEMENT_VALUES in output-checks.mjs (SR-224 AK9)",
+    ]);
+    // Only on the answer field.
+    expect(
+      errorsOf(status({ "x-element-values": OWN }, "evidence.status", { "x-element-values": OWN })),
+    ).toEqual([
+      "schemas/commands/evidence.status.json: output other: x-element-values only on the answer field of the commands of ELEMENT_VALUES in output-checks.mjs (SR-224 AK9)",
+    ]);
+    // Each named value is a field of the entries.
+    const { file: _file, ...withoutFile } = entry.properties;
+    const lacking = status({ "x-element-values": OWN });
+    lacking.output.properties.elements.items = { type: "object", properties: withoutFile };
+    expect(errorsOf(lacking)).toEqual([
+      "schemas/commands/evidence.status.json: x-element-values names file, which is no field of the entries of elements",
+    ]);
+    expect(errorsOf(status({ "x-element-values": OWN }, "x.read"))).toEqual([
+      "schemas/commands/x.read.json: output elements: x-element-values only on the answer field of the commands of ELEMENT_VALUES in output-checks.mjs (SR-224 AK9)",
     ]);
   });
 

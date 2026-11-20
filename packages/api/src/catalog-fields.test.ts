@@ -1,6 +1,7 @@
 // The command catalog as the API gives it (`GET /v1/commands`) carries every output field with its title and marks
-// (SR-224 AK3) and the commands that show their output (SR-224 AK7). The test reads only the answer, never the schema
-// files: the catalog resolves the definitions into `outputFields` (ADR-0002 rule 1).
+// (SR-224 AK3), the commands that show their output (SR-224 AK7) and those that stay an output page (SR-224 AK8).
+// The test reads only the answer, never the schema files: the catalog resolves the definitions into `outputFields`
+// (ADR-0002 rule 1).
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -15,12 +16,15 @@ interface OutputField {
   readonly title?: string;
   readonly technical?: true | "with-element";
   readonly normal?: unknown;
+  readonly elements?: unknown;
+  readonly elementValue?: true;
 }
 
 interface ListedEntry {
   readonly name: string;
   readonly effect: string;
   readonly showsOutput?: true;
+  readonly staysOutputPage?: true;
   readonly output: Readonly<Record<string, unknown>>;
   readonly outputFields: readonly OutputField[];
 }
@@ -167,5 +171,41 @@ describe("the catalog the API gives", () => {
     expect(commands.filter((entry) => entry.effect === "read" && entry.showsOutput !== undefined)).toEqual(
       [],
     );
+  });
+
+  it("[SR-224/AK-nhzq] marks exactly baseline.get and evidence.status as staying an output page, not evidence.withoutPassedTest", () => {
+    expect(
+      commands
+        .filter((entry) => entry.staysOutputPage === true)
+        .map((entry) => entry.name)
+        .sort(),
+    ).toEqual(["baseline.get", "evidence.status"]);
+    // Their answer is the state of each entry; that of evidence.withoutPassedTest is the selection (SR-120 AK2).
+    const without = commands.find((entry) => entry.name === "evidence.withoutPassedTest");
+    expect(without?.outputFields.some((field) => field.elements === "answer")).toBe(true);
+    expect(without?.staysOutputPage).toBeUndefined();
+  });
+
+  it("[SR-224/AK-cwyt] marks exactly type, version, repository, file, properties and relations of an evidence.status entry as the element's own values, and nothing else", () => {
+    const marked = commands.flatMap((entry) =>
+      entry.outputFields
+        .filter((field) => field.elementValue === true)
+        .map((field) => `${entry.name} ${field.path}`),
+    );
+    expect(marked.sort()).toEqual(
+      ["type", "version", "repository", "file", "properties", "relations"]
+        .map((name) => `evidence.status elements[].${name}`)
+        .sort(),
+    );
+    // Not its UUID, emergent mark, verification status, validation status, its reason or its problems.
+    const status = commands.find((entry) => entry.name === "evidence.status");
+    for (const name of ["id", "emergent", "verification", "validation", "validationReason", "problems"]) {
+      const field = status?.outputFields.find((f) => f.path === `elements[].${name}`);
+      expect(field, name).toBeDefined();
+      expect(field?.elementValue, name).toBeUndefined();
+    }
+    // No value of a baseline entry is one.
+    const baseline = commands.find((entry) => entry.name === "baseline.get");
+    expect(baseline?.outputFields.some((field) => field.elementValue !== undefined)).toBe(false);
   });
 });

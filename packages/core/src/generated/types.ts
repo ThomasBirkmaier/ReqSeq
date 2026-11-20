@@ -2134,6 +2134,8 @@ export interface CommandCatalog {
     };
     /** A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880). */
     readonly showsOutput?: true;
+    /** A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries (SR-223 AK6). Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions. */
+    readonly staysOutputPage?: true;
     /** Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again. */
     readonly outputFields?: readonly {
       /** The field, from the root of the output: `levels[].elements.withChildren`, `[]` for the items of an array, `*` for the keys of a map. */
@@ -2146,6 +2148,8 @@ export interface CommandCatalog {
       readonly normal?: unknown;
       /** `answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4). */
       readonly elements?: true | "answer" | "selection" | readonly string[];
+      /** A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values (SR-223 AK6). */
+      readonly elementValue?: true;
       /** Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object. */
       readonly keys?: readonly (readonly string[])[];
     }[];

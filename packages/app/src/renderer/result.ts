@@ -7,7 +7,9 @@
 // names are left out, and shown at their lines as details, in the second grey, while "Show details" is on for the
 // buffer (SR-223 AK2, AK7); a technical UUID that `names` names is its element's row, never a detail. Elements are
 // rows that open, with the status their record gives at the end, as a list row shows it (#276; the rows of
-// `trace.chain` too), a problem is one line with its element and message (with details its kind and technical
+// `trace.chain` too); an entry of the field the catalog marks as the answer has its other fields below its row
+// (SR-223 AK6), the values the catalog marks as the element's own only with "Show details", after the others
+// (SR-224 AK9), a problem is one line with its element and message (with details its kind and technical
 // values), several problems of one kind and severity are one group line with the title of their kind and their
 // count (SR-223 AK3), which opens to their lines and whose Enter or click opens the list of their elements, a
 // test case is a line with its executions as runs (`runs.ts`, SR-223 AK4), everything else is a quiet indented
@@ -94,7 +96,10 @@ export interface ResultOrigin {
 /** A field of an output as the catalog describes it (`outputFields`, SR-224 AK3). */
 export type OutputField = NonNullable<CatalogEntry["outputFields"]>[number];
 
-/** The most lines shown; an output beyond it ends with a line that says how many more there are. */
+/**
+ * The most lines shown; an output beyond it ends with a line that says how many more there are. The rows of the
+ * entries of the answer are shown beyond it, each with one line that counts its lines not shown (SR-223 AK6).
+ */
 export const MAX_RESULT_LINES = 2000;
 
 type Rec = Readonly<Record<string, unknown>>;
@@ -519,7 +524,7 @@ const linesOf = (
   }
   const element = asElement(value);
   if (element !== undefined) {
-    emit(walk, () => withStatus(elementLine(element, depth), value));
+    elementLines(element, value, depth, path, walk, item);
     return;
   }
   const pair = pairOf(value, names);
@@ -541,8 +546,90 @@ const linesOf = (
   outlineLines(value, depth, label, path, walk, item);
 };
 
-/** The fields of a record, each at its path under its title, without those of their normal value (SR-223 AK7). */
-const fieldLines = (value: Rec, depth: number, path: string, walk: Walk, skip?: string): void => {
+/** The values of an element entry its row shows (SR-223 AK6): its short ID, identifier, title and status. */
+const ENTRY_ROW_FIELDS: ReadonlySet<string> = new Set(["shortId", "identifier", "title", "status"]);
+
+/** The items at `path` (`elements[]`) are those of the field the catalog marks as the answer of the output. */
+const isAnswer = (fields: Fields, path: string): boolean =>
+  path.endsWith("[]") && fields.get(path.slice(0, -2))?.elements === "answer";
+
+/** "1 more line", "2464 more lines": the lines past `MAX_RESULT_LINES` that are not shown. */
+const moreLines = (count: number): string => `${String(count)} more line${count === 1 ? "" : "s"}`;
+
+/** Adds a line also past `MAX_RESULT_LINES`, marked as a detail inside a value "Show details" shows. */
+const always = (walk: Walk, line: ResultLine): void => {
+  walk.sink.lines.push(walk.detail ? { ...line, detail: true } : line);
+};
+
+/**
+ * An entry of the answer of an output page: its row, written also past `MAX_RESULT_LINES`, since every entry stands
+ * as the row of its element (SR-223 AK6), and the lines `below` writes up to the limit; past it, one line under the
+ * row counts the entry's lines that are not shown.
+ */
+const entryLines = (walk: Walk, row: ResultLine, below: () => void): void => {
+  always(walk, row);
+  const before = walk.sink.rest;
+  below();
+  const hidden = walk.sink.rest - before;
+  if (hidden > 0) {
+    walk.sink.rest = before;
+    always(walk, { kind: "text", depth: row.depth + 1, label: "", text: moreLines(hidden) });
+  }
+};
+
+/**
+ * The row of an element record with its status; an entry of the answer of an output page has its other fields below
+ * its row, the state of the entry (SR-223 AK6). Its UUID, technical, shows with "Show details" as text: its row
+ * already opens it. The values the catalog marks as the element's own (`elementValue`, SR-224 AK9) appear only with
+ * "Show details", after all other values of the entry.
+ */
+const elementLines = (
+  element: Element,
+  value: Rec,
+  depth: number,
+  path: string,
+  walk: Walk,
+  item: boolean,
+): void => {
+  const row = withStatus(elementLine(element, depth), value);
+  if (!item || !isAnswer(walk.fields, path)) {
+    emit(walk, () => row);
+    return;
+  }
+  const own = Object.keys(value).filter(
+    (key) => walk.fields.get(childOf(walk.fields, path, key).path)?.elementValue === true,
+  );
+  entryLines(walk, row, () => {
+    const id = childOf(walk.fields, path, "id");
+    if (walk.details) {
+      emit(walk, () => ({
+        kind: "text",
+        depth: depth + 1,
+        label: id.label,
+        text: element.id,
+        field: id.path,
+        detail: true,
+      }));
+    }
+    fieldLines(value, depth + 1, path, walk, new Set([...ENTRY_ROW_FIELDS, "id", ...own]));
+    if (walk.details && own.length > 0) {
+      const values = Object.fromEntries(own.map((key) => [key, value[key]]));
+      fieldLines(values, depth + 1, path, { ...walk, detail: true });
+    }
+  });
+};
+
+/**
+ * The fields of a record, each at its path under its title, without those of their normal value (SR-223 AK7) and
+ * those of `skip`.
+ */
+const fieldLines = (
+  value: Rec,
+  depth: number,
+  path: string,
+  walk: Walk,
+  skip: ReadonlySet<string> = new Set(),
+): void => {
   const share = degreeShareOf(value);
   for (const [key, item] of Object.entries(value)) {
     const child = childOf(walk.fields, path, key);
@@ -550,12 +637,15 @@ const fieldLines = (value: Rec, depth: number, path: string, walk: Walk, skip?: 
     const detail =
       isNormal(walk.fields, child.path, item) ||
       (isTechnical(walk.fields, child.path, value) && !isNamed(item, walk.names));
-    if (key !== skip && (walk.details || !detail)) {
+    if (!skip.has(key) && (walk.details || !detail)) {
       const shown = key === "share" && share !== undefined ? degreePercent(share) : item;
       linesOf(shown, depth, child.label, child.path, detail ? { ...walk, detail: true } : walk);
     }
   }
 };
+
+/** The UUID of an entry `names` names, which its row stands for. */
+const ID_FIELD: ReadonlySet<string> = new Set(["id"]);
 
 /**
  * Any other record as an outline: under its label, or, as an item of a list whose `id` `names` names, under
@@ -571,8 +661,16 @@ const outlineLines = (
 ): void => {
   const entry = item ? entryOf(value, walk.names) : undefined;
   if (entry !== undefined) {
-    emit(walk, () => elementLine(entry, depth));
-    fieldLines(value, depth + 1, path, walk, "id");
+    const below = (): void => {
+      fieldLines(value, depth + 1, path, walk, ID_FIELD);
+    };
+    if (isAnswer(walk.fields, path)) {
+      // An entry of the answer, such as one of a baseline: its row also past the limit (SR-223 AK6).
+      entryLines(walk, elementLine(entry, depth), below);
+    } else {
+      emit(walk, () => elementLine(entry, depth));
+      below();
+    }
     return;
   }
   if (label !== "") {
@@ -796,7 +894,7 @@ export const resultLines = (
       kind: "text",
       depth: 0,
       label: "",
-      text: `${String(rest)} more line${rest === 1 ? "" : "s"}`,
+      text: moreLines(rest),
     });
   }
   const steps = nextStepsOf(output);

@@ -303,11 +303,14 @@ test.describe("baselines in the app", () => {
     });
   });
 
-  test("[SR-051/AK-c0xb] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added; without stored selection no added and it says so", async () => {
+  test("[SR-051/AK-c0xb] [SR-223/AK-qwkc] baseline.get marks SR-X changed, SR-Y superseded, SR-Z added, on an output page below each row; without stored selection no added and it says so", async () => {
     const { ws } = await changedSince();
     running = await launchIn(ws, "system");
     const { window } = running;
     await runOnBaseline(window, "Show baseline", "Release 2");
+    // SR-223 AK6: the catalog marks it staysOutputPage, so it is an output page, no list of its elements.
+    await expect(shownLayer(window).locator(".result.output h1")).toBeVisible();
+    await expect(shownLayer(window).locator(".buffer.list")).toHaveCount(0);
     const lines = await resultLines(window);
     // A stored selection is the normal value: no line says it (SR-223 AK7).
     expect(lines.filter((line) => line.startsWith("Selection stored"))).toEqual([]);
