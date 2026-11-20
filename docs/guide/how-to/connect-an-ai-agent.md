@@ -16,7 +16,7 @@ An agent works with ReqSeq through its client, which starts the MCP server (`req
 | Cursor | `cursor` | a JSON block and the file on this system it belongs in |
 | Other | `other` | a JSON block in the common `mcpServers` form |
 
-On Windows the command is for PowerShell. Run Claude Code's command in the folder where you start Claude Code. Under it, the output names the call of `tool guide --skill --write` for the workspace, with the same absolute paths, which writes the skill file `managing-requirements` for Claude Code. The call also works in a workspace that has no skill file yet; a file there that ReqSeq did not write, or that was changed since, is replaced only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
+On Windows the command is for PowerShell. Run Claude Code's command in the folder where you start Claude Code. Under it, the output names the call of `tool guide --skill --write` for the workspace, with the same absolute paths, which writes the skill file `managing-requirements` for Claude Code. In a workspace without the skill file, the call writes it; a file there that ReqSeq did not write, or that was changed since, is overwritten only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
 
 The setup holds as long as ReqSeq stays where it is: after a move, print it again. On macOS, an app that was not moved after the download runs from a place the system gives it for this start only, and gets no setup: move `ReqSeq.app` to `/Applications` first. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
