@@ -8,8 +8,11 @@
 // - evidence records of a requirement without criteria (`section-evidence.ts`, AK3);
 // - properties (`section-properties.ts`, AK1): every other filled property as in the element file;
 // - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
-// - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references.
-// - the elements of a package on its page (`section-package.ts`, SR-233 AK4).
+// - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references;
+// - the elements of a package on its page (`section-package.ts`, SR-233 AK4);
+// - on the page of a variant, what it adds, replaces and excludes and its verification degree (`variants.ts`,
+//   SR-234 AK4);
+// - the change since each baseline (`section-baselines.ts`, AK7).
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -26,6 +29,10 @@ import { NEIGHBOURHOOD_CSS, neighbourhoodSection } from "./section-neighbourhood
 import { propertiesSection } from "./section-properties.js";
 import { packageSection } from "./section-package.js";
 import { relationsSection } from "./section-relations.js";
+import type { SinceOf } from "./section-baselines.js";
+import { BASELINES_CSS, baselinesSection } from "./section-baselines.js";
+import type { VariantView } from "./variants.js";
+import { variantSection } from "./variants.js";
 
 /** What every page of an element is built from. */
 export interface ElementPageContext {
@@ -37,6 +44,10 @@ export interface ElementPageContext {
   readonly neighbourhood: NeighbourhoodSource;
   /** The elements with a page of each package, by the package's UUID, by identifier (`section-package.ts`). */
   readonly members: ReadonlyMap<string, readonly ListEntry[]>;
+  /** The rows of an element in the baselines, newest first (`section-baselines.ts`); none without baselines. */
+  readonly since?: SinceOf;
+  /** What each variant with a page adds, replaces and excludes, and its degree (`variants.ts`). */
+  readonly variants?: ReadonlyMap<ElementRecord, VariantView>;
 }
 
 /** One element's page. */
@@ -56,6 +67,7 @@ export const ELEMENT_PAGE_CSS = [
   ...CRITERIA_CSS,
   ...EVIDENCE_CSS,
   ...NEIGHBOURHOOD_CSS,
+  ...BASELINES_CSS,
 ];
 
 /** The content of `page` (see the file comment). */
@@ -70,4 +82,6 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     relationsSection(context, page),
     neighbourhoodSection(context, page),
     packageSection(context, page),
+    variantSection(context, page),
+    baselinesSection(context, page),
   ].join("");

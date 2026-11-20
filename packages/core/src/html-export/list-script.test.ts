@@ -65,7 +65,7 @@ afterEach(() => {
 
 describe("list script (SR-233 AK1)", () => {
   it("adds the search field, the filters and the sort buttons, and searches identifier and title ignoring case", () => {
-    const { box, one, rows, search } = page();
+    const { box, one, rows, search, fire } = page();
     expect(one(".rq-search").getAttribute("aria-label")).toBe("Filter by identifier, short ID or title");
     expect([...box.querySelectorAll("th button")].map((b) => b.textContent)).toEqual([
       "Identifier",
@@ -81,6 +81,9 @@ describe("list script (SR-233 AK1)", () => {
     search("none");
     expect(rows()).toEqual([]);
     expect(one(".rq-list-count").textContent).toBe("0 of 3 elements");
+    // A list without baselines: a change event of the search field changes nothing.
+    fire(one(".rq-search"), "change");
+    expect(rows()).toEqual([]);
   });
 
   it("filters with or within a filter and and between filters, each value with its number of rows", () => {

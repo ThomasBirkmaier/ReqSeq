@@ -1,10 +1,12 @@
-// The context menus of the metamodel's graph (SR-199 AK5 to AK7) and the mark of the last change (SR-130 AK7)
+// The context menus of the metamodel's graph (SR-199 AK5 to AK8) and the mark of the last change (SR-130 AK7)
 // on the built app, on a copy of fixtures/SR-130/metamodel: a right-click on the name or prefix of a type, a
 // property row, a status, the label line of a relation property or of a relation kind offers the commands of
-// that place, and each opens the command prompt with the definition given. "Add status to type" run from the
+// that place, and each opens the command prompt with the definition given. The four Remove entries run at
+// once; a refused one writes no file and the echo line says core's reason (AK8). "Add status to type" run from the
 // menu writes the metamodel, the graph and the text mark the new status until the next metamodel command in
-// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go through Chromium's input (Playwright's mouse). The light
-// screenshot goes to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
+// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go
+// through Chromium's input (Playwright's mouse). The two light screenshots, the marked status and a refused
+// removal, go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +40,35 @@ const chooseOn = async (target: Locator, entries: readonly string[], name: strin
 
 /** The texts of the places marked as the last change. */
 const changed = (window: Page): Promise<string[]> => window.locator(".changed").allTextContents();
+
+const echo = (window: Page): Locator => window.locator(".minibuffer .echo");
+const TYPE_MENU = [
+  "Add property to type",
+  "Add status to type",
+  "Change type definition",
+  "Add relation kind",
+  "Remove type",
+];
+const PROPERTY_MENU = ["Change property definition", "Remove property from type"];
+const STATUS_MENU = ["Change status definition", "Remove status from type"];
+const KIND_MENU = ["Change relation kind", "Remove relation kind"];
+
+/** The content of every file of the workspace at `root`, by its path; a file gone since the listing is left out. */
+const filesOf = async (root: string): Promise<Record<string, string>> => {
+  const entries = await fsp.readdir(root, { recursive: true, withFileTypes: true });
+  const files: Record<string, string> = {};
+  for (const entry of entries.filter((candidate) => candidate.isFile())) {
+    const file = path.join(entry.parentPath, entry.name);
+    try {
+      files[path.relative(root, file)] = await fsp.readFile(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  return files;
+};
 
 test.describe("the context menus of the metamodel's graph (SR-199)", () => {
   let running: RunningApp;
@@ -114,6 +145,77 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     );
     await expect(label(window)).toHaveText("Change relation kind Delegates to · Change:");
     await window.keyboard.press("Escape");
+  });
+
+  test("[SR-199/AK-r608] each Remove entry runs at once, without a step of the command prompt, and removes an unused definition", async () => {
+    const { window } = running;
+    // The fixture has no unused type: one is added through the CLI.
+    const added = await running.cli(["metamodel", "add-type", "Note", "NT"]);
+    expect(added.code, added.stderr).toBe(0);
+    await expect(box(window, "note")).toBeVisible();
+    await chooseOn(box(window, "note").locator(".mm-name"), TYPE_MENU, "Remove type");
+    await expect(box(window, "note")).toHaveCount(0);
+    await expect(echo(window)).toHaveText(/^Removed the type note/u);
+    await expect(label(window)).toHaveCount(0);
+    // A property the type has itself and no element holds.
+    const component = box(window, "software-requirement").locator('.mm-property[data-property="component"]');
+    await chooseOn(component, PROPERTY_MENU, "Remove property from type");
+    await expect(component).toHaveCount(0);
+    await expect(echo(window)).toHaveText(
+      /^Removed the property component from the type software-requirement/u,
+    );
+    await expect(label(window)).toHaveCount(0);
+    // A status of the type's own list that no element has.
+    const decided = box(window, "decision").locator('.mm-status[data-status="decided"]');
+    await chooseOn(decided, STATUS_MENU, "Remove status from type");
+    await expect(decided).toHaveCount(0);
+    await expect(echo(window)).toHaveText(/^Removed the status decided from the type decision/u);
+    await expect(label(window)).toHaveCount(0);
+    // A relation kind no element file holds.
+    const kind = window.locator('.mm-line[data-kind="delegates-to"]');
+    await chooseOn(kind, KIND_MENU, "Remove relation kind");
+    await expect(kind).toHaveCount(0);
+    await expect(echo(window)).toHaveText(/^Removed the relation kind delegates-to/u);
+    await expect(label(window)).toHaveCount(0);
+  });
+
+  test("[SR-199/AK-r608] a refused removal writes nothing, and the command prompt says why", async () => {
+    const { window } = running;
+    const root = running.workspace?.root;
+    expect(root).toBeDefined();
+    if (root === undefined) {
+      return;
+    }
+    const before = await filesOf(root);
+    // An inherited status (SR-240 AK3): Retired comes from the list of Item.
+    await chooseOn(
+      box(window, "software-requirement").locator('.mm-status[data-status="retired"]'),
+      STATUS_MENU,
+      "Remove status from type",
+    );
+    await expect(echo(window)).toHaveText(
+      "Type software-requirement has the status retired from the status list of type item; remove it there",
+    );
+    await expect(label(window)).toHaveCount(0);
+    await fsp.mkdir(SHOTS, { recursive: true });
+    await window.screenshot({ path: path.join(SHOTS, "sr-199-remove-refused-light.png") });
+    // A type relation kinds name (SR-237 AK5).
+    await chooseOn(box(window, "software-requirement").locator(".mm-name"), TYPE_MENU, "Remove type");
+    await expect(echo(window)).toHaveText(
+      /^Type software-requirement cannot be removed: relation kind derives-from has it as source type/u,
+    );
+    // A use: the decision of the fixture holds Title.
+    await chooseOn(
+      box(window, "decision").locator('.mm-property[data-property="title"]'),
+      PROPERTY_MENU,
+      "Remove property from type",
+    );
+    await expect(echo(window)).toHaveText(/^Property title stays in type decision while elements hold it/u);
+    await expect(label(window)).toHaveCount(0);
+    expect(await filesOf(root)).toEqual(before);
+    await expect(box(window, "software-requirement").locator('[data-status="retired"]')).toHaveCount(1);
+    await expect(box(window, "software-requirement")).toBeVisible();
+    await expect(box(window, "decision").locator('.mm-property[data-property="title"]')).toBeVisible();
   });
 
   test("[SR-130/AK-wb12] the graph and the text mark a status added in the app until the next metamodel command, not a change through the CLI or by hand, and nothing after a removal", async () => {

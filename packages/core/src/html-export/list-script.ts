@@ -10,7 +10,11 @@
 // - the chosen values and grouping as buttons that remove them, and "Clear", which removes everything;
 // - a button in each column head that sorts by it (`data-s`, the ranks of SR-075 AK1), again for descending: no value
 //   stays last in both orders, except in a column marked `total` (the identifier), whose descending order is the
-//   ascending one reversed. Rows of equal rank keep the order of the page.
+//   ascending one reversed. Rows of equal rank keep the order of the page;
+// - when the list compares with baselines (`compare`, SR-233 AK2), a choice of the baseline, "No baseline" at first:
+//   with a baseline chosen, the last column (written hidden) shows each row's change since it (`data-b`) and sorts in
+//   the order of its values, and a chip filters by it; with none, the column and the chip are hidden and their
+//   choice is cleared. The chip offers no grouping.
 
 // Core has no DOM types (its `lib` is ES only), so the script takes what it uses from `globalThis` as these. The page
 // holds every element the script asks for with `querySelector`.
@@ -44,6 +48,11 @@ interface Browser {
 interface Settings {
   readonly columns: readonly { readonly label: string; readonly total?: true }[];
   readonly filters: readonly { readonly label: string; readonly values: readonly string[] }[];
+  readonly compare?: {
+    readonly label: string;
+    readonly baselines: readonly string[];
+    readonly values: readonly string[];
+  };
 }
 
 /** `assets/list.js` (see the file comment). */
@@ -62,10 +71,21 @@ export function listScript(): void {
       q: String(tr.dataset["q"]),
       f: JSON.parse(String(tr.dataset["f"])) as number[][],
       s: JSON.parse(String(tr.dataset["s"])) as (number | null)[],
+      b: JSON.parse(tr.dataset["b"] ?? "[]") as number[],
     }));
     type Row = (typeof rows)[number];
-    const filters = settings.filters.map((filter, f) => ({ ...filter, f, chosen: new Set<number>() }));
+    const comparing = settings.compare;
+    const filters = [
+      ...settings.filters,
+      ...(comparing === undefined ? [] : [{ label: comparing.label, values: comparing.values }]),
+    ].map((filter, f) => ({ ...filter, f, chosen: new Set<number>() }));
     type Filter = (typeof filters)[number];
+    // The filter and the column of the change since the chosen baseline, the last of each.
+    const change = comparing === undefined ? undefined : filters[filters.length - 1];
+    const changeColumn = settings.columns.length - 1;
+    for (const row of rows) {
+      row.f.push([]);
+    }
     const state: { q: string; sort: number; dir: number; group: Filter | undefined } = {
       q: "",
       sort: -1,
@@ -78,21 +98,48 @@ export function listScript(): void {
           `<details class="rq-chip" data-chip="${String(f)}"><summary></summary><div class="rq-chip-values" role="group" aria-label="${escape(label)}"></div></details>`,
       )
       .join("");
-    const groups = [{ label: "No grouping", f: -1 }, ...filters]
+    const groups = [{ label: "No grouping", f: -1 }, ...filters.filter((filter) => filter !== change)]
       .map(
         ({ label, f }) =>
           `<label><input type="radio" name="rq-group" data-group="${String(f)}"${f === -1 ? " checked" : ""}>${escape(label)}</label>`,
       )
       .join("");
+    const choice =
+      comparing === undefined
+        ? ""
+        : `<label class="rq-compare">Compare with <select class="rq-baseline" aria-label="Compare with baseline"><option value="-1" selected>No baseline</option>${comparing.baselines.map((name, b) => `<option value="${String(b)}">${escape(name)}</option>`).join("")}</select></label>`;
     count.insertAdjacentHTML(
       "beforebegin",
-      `<div class="rq-list-bar not-content"><input type="search" class="rq-search" autocomplete="off" placeholder="Filter by identifier, short ID or title" aria-label="Filter by identifier, short ID or title">${chips}<details class="rq-chip" data-chip="group"><summary>Group</summary><div class="rq-chip-values" role="group" aria-label="Group">${groups}</div></details><button type="button" class="rq-clear" hidden>Clear</button></div><div class="rq-tokens not-content"></div>`,
+      `<div class="rq-list-bar not-content">${choice}<input type="search" class="rq-search" autocomplete="off" placeholder="Filter by identifier, short ID or title" aria-label="Filter by identifier, short ID or title">${chips}<details class="rq-chip" data-chip="group"><summary>Group</summary><div class="rq-chip-values" role="group" aria-label="Group">${groups}</div></details><button type="button" class="rq-clear" hidden>Clear</button></div><div class="rq-tokens not-content"></div>`,
     );
     const heads = [...box.querySelectorAll("thead th")];
     heads.forEach((th, c) => {
       th.innerHTML = `<button type="button" data-sort="${String(c)}">${escape(th.textContent)}</button>`;
     });
     const search = box.querySelector(".rq-search");
+    if (change !== undefined) {
+      box.querySelector(`[data-chip="${String(change.f)}"]`).hidden = true;
+    }
+
+    /** Shows the change since baseline `b` (-1: none) in its column and the filter `filter` (see the file comment). */
+    const setBaseline = (filter: Filter, b: number): void => {
+      filter.chosen.clear();
+      const on = b >= 0;
+      box.querySelector(`[data-chip="${String(filter.f)}"]`).hidden = !on;
+      // The list has the column of the change as its last.
+      box.querySelector("thead th:last-child").hidden = !on;
+      if (!on && state.sort === changeColumn) {
+        state.sort = -1;
+      }
+      for (const row of rows) {
+        const value = on ? row.b[b] : undefined;
+        row.f[filter.f] = value === undefined ? [] : [value];
+        row.s[changeColumn] = value ?? null;
+        const cell = row.tr.querySelector("td:last-child");
+        cell.hidden = !on;
+        cell.textContent = value === undefined ? "" : String(filter.values[value]);
+      }
+    };
     const clear = box.querySelector(".rq-clear");
     const tokens = box.querySelector(".rq-tokens");
 
@@ -229,6 +276,9 @@ export function listScript(): void {
         }
       } else if (target.dataset["group"] !== undefined) {
         setGroup(Number(target.dataset["group"]));
+        draw();
+      } else if (change !== undefined && target.closest(".rq-baseline") !== null) {
+        setBaseline(change, Number(target.value));
         draw();
       }
     });
