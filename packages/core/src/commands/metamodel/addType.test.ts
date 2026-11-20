@@ -269,11 +269,10 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
     );
     // An umlaut written as a base letter and a combining mark counts as the umlaut (NFC).
     expect((await add(workspace, { name: "Müll", prefix: "MU" })).type.key).toBe("muell");
-    expect((await add(workspace, { name: "Café Order", prefix: "CO" })).type.key).toBe("caf-order");
-    // Only A–Z and a–z are letters: İ lower-cases to i and a mark, yet is another character; the
-    // Kelvin sign is the letter K in NFC.
+    // Other letters with a diacritic lose it (İ is I and a dot); the Kelvin sign is the letter K.
+    expect((await add(workspace, { name: "Café Order", prefix: "CO" })).type.key).toBe("cafe-order");
     expect((await add(workspace, { name: "\u0130ris \u212Aelvin", prefix: "IK" })).type.key).toBe(
-      "ris-kelvin",
+      "iris-kelvin",
     );
     expect((await add(workspace, { name: "Line\u2028Break", prefix: "LB" })).type.name).toBe(
       "Line\u2028Break",
