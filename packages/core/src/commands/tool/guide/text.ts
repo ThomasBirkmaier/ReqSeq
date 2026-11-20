@@ -319,11 +319,17 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   },
 ];
 
+/**
+ * The heading of the installation guide's page for the command line (SR-076 AK1) in the docs of this version,
+ * `docs/guide/how-to/install-reqseq.md`; fixed text, not read from the bundled documentation (SR-229 AK11).
+ */
+export const INSTALL_PAGE_TITLE = "Install ReqSeq";
+
 /** The last section, after every section of the list (SR-229 AK11), with the HTML export as a step (AK14). */
 export const GUIDE_TAIL: GuideSection = {
   heading: "In a pipeline",
   lines: (context) => [
-    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as HTML pages: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
+    `If the Git repository has a pipeline, the full workspace check and enriching the test results can run as its steps: ${context.cli({ command: "workspace.check" })} and ${context.cli(enrichCall(context))}. The ReqSeq command line must be installed in the pipeline for these steps; the installation guide in the bundled documentation of every release says how, on the page "${INSTALL_PAGE_TITLE}". An exit code other than 0 fails the step; without a chosen severity, the check exits with such a code only on problems of severity error. The pipeline must keep the enriched file in an evidence location, because ReqSeq does not commit. The pipeline can publish the elements as HTML pages: ${context.cli({ command: "html.export", input: { output: "<folder>" } })}. The pipeline does not replace the check before finishing a piece of work.`,
   ],
 };
 

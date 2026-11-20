@@ -19,6 +19,7 @@ import {
   GUIDE_SECTIONS,
   GUIDE_TAIL,
   GUIDE_WRITING_RULES,
+  INSTALL_PAGE_TITLE,
   agentGuide,
   guideValue,
 } from "./guide/text.js";
@@ -425,11 +426,24 @@ describe("tool.guide", () => {
           "must keep the enriched file in an evidence location, because ReqSeq does not commit",
         );
         expect(body).toContain("The pipeline does not replace the check before finishing a piece of work.");
+        expect(body).toContain(
+          'The ReqSeq command line must be installed in the pipeline for these steps; the installation guide in the bundled documentation of every release says how, on the page "Install ReqSeq".',
+        );
         expect(body).not.toMatch(
           /github|gitlab|jenkins|azure|bitbucket|circleci|\.ya?ml|\$\{?[A-Z_]+|\bCI_/i,
         );
       }
     }
+  });
+
+  it("[SR-229/AK-sf0b] names the installation page by the title it carries in the docs of this version, a page that describes installing in a pipeline", async () => {
+    const page = await fs.readFile(
+      new URL("../../../../../docs/guide/how-to/install-reqseq.md", import.meta.url),
+      "utf8",
+    );
+    const title = /^---\r?\n(?:.*\r?\n)*?title: (.+?)\r?\n/.exec(page)?.[1];
+    expect(title).toBe(INSTALL_PAGE_TITLE);
+    expect(page).toMatch(/^.*\bpipeline\b.*\binstall\b.*`npm install [^`]+`/im);
   });
 
   it("[SR-229/AK-q8kq] names the HTML export as a pipeline step that publishes the elements as pages, as a command-line call", async () => {
