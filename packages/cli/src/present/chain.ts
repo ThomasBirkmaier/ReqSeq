@@ -1,7 +1,17 @@
 // Part of the CLI output for people (`../present.ts`, whose comment describes the layout): a chain
 // (trace.chain) as a tree per direction.
 import type { Names, Rec } from "./common.js";
-import { isElement, isRecord, join, listOf, nodeKey, text, withIdentifier } from "./common.js";
+import {
+  appendAll,
+  isElement,
+  isRecord,
+  join,
+  listOf,
+  maxOf,
+  nodeKey,
+  text,
+  withIdentifier,
+} from "./common.js";
 import { elementLine } from "./element.js";
 import { evidenceLines, recordLine } from "./evidence.js";
 
@@ -189,7 +199,8 @@ const treeOf = (chain: Chain, nodes: ReadonlyMap<string, ChainNode>, root: Chain
 
 /** The chain as a tree per direction: the root, then `parents:` and `children:` (see the file comment). */
 export const chainLines = (chain: Chain, names: Names): string[] => {
-  const width = String(Math.max(...chain.nodes.map((n) => n.depth), 0)).length;
+  const depths = chain.nodes.map((n) => n.depth);
+  const width = String(maxOf(depths, 0)).length;
   const gaps = gapMarks(chain, names);
   const keyOf = (node: ChainNode): string =>
     node.depth === 0 ? ROOT : nodeKey(text(node["direction"]), node.repository, node.id);
@@ -214,7 +225,7 @@ export const chainLines = (chain: Chain, names: Names): string[] => {
     const item = node["direction"] === "up" ? undefined : evidence.get(nodeKey("", node.repository, node.id));
     if (item !== undefined) {
       const at = prefix(node.depth + 1, level + 1);
-      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `, names));
+      appendAll(lines, evidenceLines(item, at, `${" ".repeat(at.length)}  `, names));
     }
   };
   if (root !== undefined) {
