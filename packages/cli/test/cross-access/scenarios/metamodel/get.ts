@@ -133,8 +133,11 @@ scenariosOf("metamodel.get", [
         // The hazard holds a remark and is noted, though hazards have neither the property nor the
         // status; the draft is the fixture's system requirement, of a type this metamodel does not have.
         const { uses } = (outcome as { output: MetamodelOutput }).output;
-        expect(uses.properties, access).toMatchObject({ remark: 1 });
-        expect(uses.statuses, access).toEqual({ draft: 1, noted: 1 });
+        expect(uses.properties, access).toContainEqual({ key: "remark", count: 1 });
+        expect(uses.statuses, access).toEqual([
+          { key: "draft", count: 1 },
+          { key: "noted", count: 1 },
+        ]);
       }
     },
   },

@@ -16,6 +16,9 @@
 //   the elements that keep it (SR-240 AK3). Removing it from a type counts only the elements of the
 //   types that lose it (`lostUses`), so that removal can succeed while the shown count is above 0.
 //
+// Each number is a number of elements (SR-224 AK4): `usingElements` gives the elements it counts, by
+// the same rule as the count (`visitUses`), for `selection.output` of `metamodel.get`.
+//
 // The counts cover the elements the store could read on this machine; a change that needs them is
 // refused while one may be missing (`refuseIncompleteStore`). `metamodelUsesState` keeps them until
 // the store or the metamodel is replaced, as `metamodel.get` is asked at almost every step of the
@@ -27,28 +30,27 @@
 // there are not known. The saved filters, perspectives and mapping files that name a removed key are
 // listed, never changed (`mentioningFiles`).
 import path from "node:path";
-import { CommandError } from "../catalog.js";
+import { CommandError, matchesKey } from "../catalog.js";
 import { listFolderFiles, readYamlFile } from "../files/index.js";
-import type { EffectiveType, Metamodel } from "../metamodel/index.js";
-import { findType, metamodelState } from "../metamodel/index.js";
+import type { Metamodel } from "../metamodel/index.js";
+import { metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { settingLocation } from "../workspace/index.js";
-import type { Problem } from "../generated/types.js";
+import type { MetamodelGetOutput, Problem } from "../generated/types.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
-/** The uses of every definition, by key; each defined key is there, 0 when unused (SR-236 AK8). */
-export interface MetamodelUses {
-  readonly types: Record<string, number>;
-  readonly properties: Record<string, number>;
-  /** By property key, then by choice key; only properties with choices. */
-  readonly values: Record<string, Record<string, number>>;
-  readonly relations: Record<string, number>;
-  readonly statuses: Record<string, number>;
-}
+/**
+ * The uses of every definition, in metamodel order, as `metamodel.get` gives them: each definition is
+ * there, 0 when unused (SR-236 AK8), and each number is a number of elements (SR-224 AK4).
+ */
+export type MetamodelUses = MetamodelGetOutput["uses"];
+
+/** A list of `MetamodelUses`: the definitions of one kind with their numbers. */
+export type UseList = keyof MetamodelUses;
 
 /** The kinds of definitions a use is counted for. */
 export type UseKind = "type" | "property" | "value" | "relation" | "status";
@@ -66,9 +68,6 @@ export interface Use {
 /** How many elements, or element files, a refusal names. */
 export const USES_NAMED = 20;
 
-const zeros = (keys: readonly { readonly key: string }[]): Record<string, number> =>
-  Object.fromEntries(keys.map((d) => [d.key, 0]));
-
 /** The choice keys of a value: one text, or the texts of a list. */
 const choicesOf = (value: unknown): readonly string[] =>
   (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === "string");
@@ -81,36 +80,37 @@ export const holdsKey = (element: Pick<ElementRecord, "data">, key: string): boo
 export const hasStatus = (element: Pick<ElementRecord, "data">, key: string): boolean =>
   element.data["status"] === key;
 
-/**
- * Adds one to `counts[key]` when the key is counted there: an own entry only, so a key such as
- * `constructor` or `__proto__` of an element file never reads or writes what objects inherit.
- */
-const bump = (counts: Record<string, number>, key: string): void => {
-  const count: unknown = Object.hasOwn(counts, key) ? counts[key] : undefined;
-  if (typeof count === "number") {
-    counts[key] = count + 1;
-  }
-};
+/** The key a fixed value is counted under: its property and choice; any other definition by its own key. */
+const valueKey = (property: string, choice: string): string => JSON.stringify([property, choice]);
 
-/** Counts the uses of `element`, of the type `type` (undefined when the metamodel has none), into `uses`. */
-const countElement = (uses: MetamodelUses, element: ElementRecord, type: EffectiveType | undefined): void => {
-  if (type !== undefined) {
-    bump(uses.types, type.key);
-  }
+/** The keys of the properties with choices, whose values are counted per choice. */
+const choiceProperties = (metamodel: Metamodel): ReadonlySet<string> =>
+  new Set(metamodel.properties.filter((p) => p.choices !== undefined).map((p) => p.key));
+
+/**
+ * Calls `visit` once for each definition `element` may use, by its list and its key (`valueKey` for a
+ * fixed value), whether the metamodel defines it or not (see the file comment): the one rule both the
+ * numbers and their elements follow (SR-224 AK4). A list that holds a choice twice uses it once.
+ */
+const visitUses = (
+  element: ElementRecord,
+  choices: ReadonlySet<string>,
+  visit: (list: UseList, key: string) => void,
+): void => {
+  visit("types", element.type);
   // A status counts on every element with it, whatever its type (SR-236 AK8).
   const status = element.data["status"];
   if (typeof status === "string") {
-    bump(uses.statuses, status);
+    visit("statuses", status);
   }
   for (const key of Object.keys(element.data)) {
     // A property counts on every element whose file holds its key, whatever its type (SR-236 AK8).
-    bump(uses.properties, key);
-    bump(uses.relations, key);
+    visit("properties", key);
+    visit("relations", key);
     // A fixed value counts on every element with the value, whatever its type (SR-236 AK7).
-    const counts = Object.hasOwn(uses.values, key) ? uses.values[key] : undefined;
-    if (counts !== undefined) {
-      for (const choice of choicesOf(element.data[key])) {
-        bump(counts, choice);
+    if (choices.has(key)) {
+      for (const choice of new Set(choicesOf(element.data[key]))) {
+        visit("values", valueKey(key, choice));
       }
     }
   }
@@ -118,21 +118,35 @@ const countElement = (uses: MetamodelUses, element: ElementRecord, type: Effecti
 
 /** The uses of every definition of `metamodel` by the elements of `store` (SR-236 AK7, AK8). */
 export const metamodelUses = (store: ElementStore, metamodel: Metamodel): MetamodelUses => {
-  const uses: MetamodelUses = {
-    types: zeros(metamodel.types),
-    properties: zeros(metamodel.properties),
-    values: Object.fromEntries(
-      metamodel.properties.flatMap((p) => (p.choices === undefined ? [] : [[p.key, zeros(p.choices)]])),
+  const keyed = ({ key }: { readonly key: string }): { key: string; count: number } => ({ key, count: 0 });
+  const uses = {
+    types: metamodel.types.map(keyed),
+    properties: metamodel.properties.map(keyed),
+    values: metamodel.properties.flatMap((p) =>
+      (p.choices ?? []).map((c) => ({ property: p.key, value: c.key, count: 0 })),
     ),
-    relations: zeros(metamodel.relations),
-    statuses: zeros(metamodel.statuses),
+    relations: metamodel.relations.map(keyed),
+    statuses: metamodel.statuses.map(keyed),
   };
-  const typeOf = new Map<string, EffectiveType | undefined>();
+  // The entry of each definition by its key (`valueKey` for a fixed value), in a map, so a key such as
+  // `constructor` or `__proto__` of an element file never reads or writes what objects inherit.
+  const byKey = <E extends { key: string }>(list: readonly E[]): Map<string, E> =>
+    new Map(list.map((e) => [e.key, e]));
+  const entries: Record<UseList, Map<string, { count: number }>> = {
+    types: byKey(uses.types),
+    properties: byKey(uses.properties),
+    values: new Map(uses.values.map((e) => [valueKey(e.property, e.value), e])),
+    relations: byKey(uses.relations),
+    statuses: byKey(uses.statuses),
+  };
+  const choices = choiceProperties(metamodel);
   for (const element of store.elements) {
-    if (!typeOf.has(element.type)) {
-      typeOf.set(element.type, findType(metamodel, element.type));
-    }
-    countElement(uses, element, typeOf.get(element.type));
+    visitUses(element, choices, (list, key) => {
+      const entry = entries[list].get(key);
+      if (entry !== undefined) {
+        entry.count += 1;
+      }
+    });
   }
   return uses;
 };
@@ -144,6 +158,39 @@ export const metamodelUsesState = defineWorkspaceState(
     metamodelUses(await workspace.get(elementStoreState), await workspace.get(metamodelState)),
   { dependsOn: [elementStoreState, metamodelState] },
 );
+
+/**
+ * The elements the number of the entry `key` of the list `list` of `uses` counts (SR-224 AK4), by the
+ * rule of the numbers (`visitUses`), in store order; none when `uses` has no such entry. `key` names a
+ * fixed value by `property` and `value`, any other definition by `key`.
+ */
+export const usingElements = (
+  store: ElementStore,
+  metamodel: Metamodel,
+  uses: MetamodelUses,
+  list: UseList,
+  key: Readonly<Record<string, unknown>>,
+): readonly ElementRecord[] => {
+  const [wanted] =
+    list === "values"
+      ? uses.values
+          .filter((e) => matchesKey(e, key, ["property", "value"]))
+          .map((e) => valueKey(e.property, e.value))
+      : uses[list].filter((e) => matchesKey(e, key, ["key"])).map((e) => e.key);
+  if (wanted === undefined) {
+    return [];
+  }
+  const choices = choiceProperties(metamodel);
+  return store.elements.filter((element) => {
+    const used: string[] = [];
+    visitUses(element, choices, (at, key) => {
+      if (at === list) {
+        used.push(key);
+      }
+    });
+    return used.includes(wanted);
+  });
+};
 
 /** The use of `key` (of `kind`) by the elements of `store` that pass `uses`. */
 export const useOf = (

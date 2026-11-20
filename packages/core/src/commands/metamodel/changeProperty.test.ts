@@ -12,6 +12,7 @@ import {
   openSmall,
   run,
   uuid,
+  useCounts,
 } from "../metamodel-commands.test-helper.js";
 
 /** The output as `invoke` gives it, with the answer sentence. */
@@ -344,7 +345,7 @@ describe("metamodel.changeProperty changes fixed values (SR-238 AK4)", () => {
   it("[SR-236/AK-bm7r] counts fixed values on every element with the value, and refuses while a repository is not on this machine", async () => {
     const { workspace } = await openSmall(elements([1, "note", { severity: "low" }]));
     const uses = (await meta(workspace)).uses;
-    expect(uses.values["severity"]).toEqual({ low: 1, high: 0 });
+    expect(useCounts(uses.values)).toEqual({ "severity.low": 1, "severity.high": 0 });
     // The kind change takes the fixed values, so their uses count too.
     expect(
       (await failure(workspace, "metamodel.changeProperty", { property: "severity", kind: "text" })).details,

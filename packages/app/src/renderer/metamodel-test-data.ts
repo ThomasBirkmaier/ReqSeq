@@ -3,6 +3,10 @@
 // app's tests of the metamodel graph (SR-130).
 import type { MetamodelGetOutput } from "@reqseq/core";
 
+/** The entries of a list of `uses`, one per key with its number, in the order given. */
+const counts = (by: Record<string, number>): { key: string; count: number }[] =>
+  Object.entries(by).map(([key, count]) => ({ key, count }));
+
 export const FIXTURE_METAMODEL: MetamodelGetOutput = {
   answer: "The metamodel.",
   types: [
@@ -267,10 +271,13 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
   },
   files: [{ repository: "system", path: "metamodel/standard-model.yaml" }],
   uses: {
-    types: { item: 0, requirement: 1, "software-requirement": 0, decision: 1, package: 0 },
-    properties: { title: 2, rationale: 0, component: 0, packages: 0, severity: 0 },
-    values: { component: { display: 0, sensor: 0 } },
-    relations: {
+    types: counts({ item: 0, requirement: 1, "software-requirement": 0, decision: 1, package: 0 }),
+    properties: counts({ title: 2, rationale: 0, component: 0, packages: 0, severity: 0 }),
+    values: [
+      { property: "component", value: "display", count: 0 },
+      { property: "component", value: "sensor", count: 0 },
+    ],
+    relations: counts({
       "derives-from": 0,
       replaces: 0,
       "delegates-to": 0,
@@ -279,8 +286,8 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
       refines: 0,
       "traces-to": 0,
       blocks: 0,
-    },
-    statuses: { draft: 1, approved: 0, retired: 0, open: 1, decided: 0 },
+    }),
+    statuses: counts({ draft: 1, approved: 0, retired: 0, open: 1, decided: 0 }),
   },
 };
 
@@ -296,7 +303,7 @@ export const metamodelOutput = (
   meanings: {},
   relationKinds: {},
   files: [],
-  uses: { types: {}, properties: {}, values: {}, relations: {}, statuses: {} },
+  uses: { types: [], properties: [], values: [], relations: [], statuses: [] },
   ...parts,
 });
 

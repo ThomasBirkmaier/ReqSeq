@@ -2937,52 +2937,161 @@
                       "type": "object",
                       "properties": {
                         "types": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
+                          "x-key": [
+                            "key"
+                          ],
                           "title": "Types",
-                          "description": "Type key -> elements of the type."
+                          "type": "array",
+                          "description": "Each type of `types`, in metamodel order, with the number of elements of the type.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "title": "Type",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the type."
+                              },
+                              "count": {
+                                "x-elements": "selection",
+                                "title": "Elements",
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Elements of the type."
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "properties": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
+                          "x-key": [
+                            "key"
+                          ],
                           "title": "Properties",
-                          "description": "Property key -> elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value: the use that locks a change of its value kind or several values."
+                          "type": "array",
+                          "description": "Each property of `properties`, in metamodel order, with the number of elements of any type, also of a type the metamodel does not have, whose file holds its key, also with an empty value: the use that locks a change of its value kind or several values.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "title": "Property",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the property."
+                              },
+                              "count": {
+                                "x-elements": "selection",
+                                "title": "Elements",
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Elements whose file holds the key of the property."
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "values": {
+                          "x-key": [
+                            "property",
+                            "value"
+                          ],
                           "title": "Fixed values",
-                          "type": "object",
-                          "additionalProperties": {
+                          "type": "array",
+                          "description": "Each fixed value of each property with choices, in metamodel order, with the number of elements of any type whose value of the property is the choice or holds it.",
+                          "items": {
                             "type": "object",
-                            "additionalProperties": {
-                              "type": "integer",
-                              "minimum": 0
-                            }
-                          },
-                          "description": "Key of a property with choices -> choice key -> elements of any type whose value of the property is the choice or holds it."
+                            "properties": {
+                              "property": {
+                                "title": "Property",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the property."
+                              },
+                              "value": {
+                                "title": "Fixed value",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the choice."
+                              },
+                              "count": {
+                                "x-elements": "selection",
+                                "title": "Elements",
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Elements whose value of the property is the choice or holds it."
+                              }
+                            },
+                            "required": [
+                              "property",
+                              "value",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "relations": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
+                          "x-key": [
+                            "key"
+                          ],
                           "title": "Relation kinds",
-                          "description": "Relation kind key -> elements whose file holds its key: a relation of the kind or an empty list."
+                          "type": "array",
+                          "description": "Each relation kind of `relations`, in metamodel order, with the number of elements whose file holds its key: a relation of the kind or an empty list.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "title": "Relation kind",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the relation kind."
+                              },
+                              "count": {
+                                "x-elements": "selection",
+                                "title": "Elements",
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Elements whose file holds the key of the relation kind."
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "statuses": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
+                          "x-key": [
+                            "key"
+                          ],
                           "title": "Statuses",
-                          "description": "Status key -> elements of any type, also of a type the metamodel does not have, with that status."
+                          "type": "array",
+                          "description": "Each status of `statuses`, in metamodel order, with the number of elements of any type, also of a type the metamodel does not have, with that status.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "title": "Status",
+                                "$ref": "#/components/schemas/common/$defs/key",
+                                "description": "Key of the status."
+                              },
+                              "count": {
+                                "x-elements": "selection",
+                                "title": "Elements",
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Elements with the status."
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "additionalProperties": false,
@@ -2993,7 +3102,7 @@
                         "relations",
                         "statuses"
                       ],
-                      "description": "The uses of each definition by the elements of the workspace, in any status, counted over the element files on this machine that can be read; every defined key is listed, 0 when unused. A property and a status count on elements of any type, so a definition that stays after its last type lost it shows the number of elements that keep it. A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read. Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0."
+                      "description": "The uses of each definition by the elements of the workspace, in any status, counted over the element files on this machine that can be read; every definition is listed, 0 when unused. Each number is a number of elements: `element.list` with `selection.output` naming the number's field and entry gives the elements it counts. A property and a status count on elements of any type, so a definition that stays after its last type lost it shows the number of elements that keep it. A removal or a change that only works without use is refused while its use is above 0, while a repository of the workspace is not on this machine, and while an element file cannot be read. Removing a property or a status from a type counts only the elements of the types that lose it (the type and the types that extend it), so it can succeed while the count shown here is above 0."
                     }
                   },
                   "additionalProperties": false,
