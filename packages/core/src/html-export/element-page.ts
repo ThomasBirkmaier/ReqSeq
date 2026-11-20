@@ -45,7 +45,13 @@ export interface ElementPage {
 }
 
 /** The styles of the element page's sections, after the export's own. */
-export const ELEMENT_PAGE_CSS = [...COPY_CSS, ...FIELDS_CSS, ...CRITERIA_CSS, ...EVIDENCE_CSS, ...NEIGHBOURHOOD_CSS];
+export const ELEMENT_PAGE_CSS = [
+  ...COPY_CSS,
+  ...FIELDS_CSS,
+  ...CRITERIA_CSS,
+  ...EVIDENCE_CSS,
+  ...NEIGHBOURHOOD_CSS,
+];
 
 /** The content of `page` (see the file comment). */
 export const elementPageBody = async (context: ElementPageContext, page: ElementPage): Promise<string> =>
