@@ -520,16 +520,19 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     context.workspace,
   );
   skillWriter.current = (from) => {
-    writeSkill(
-      {
-        ...from,
-        revision: () => revisionNow.current,
-        reopen: () => {
-          ask(commands(true));
+    // After the read of the catalog, if it still runs.
+    void (catalogRead.current ?? Promise.resolve()).then(() => {
+      writeSkill(
+        {
+          ...from,
+          revision: () => revisionNow.current,
+          reopen: () => {
+            ask(commands(true));
+          },
         },
-      },
-      catalog.current,
-    );
+        catalog.current,
+      );
+    });
   };
   // The connected agent at the right of the modeline, while a workspace is open (SR-228, `use-agent-status.ts`).
   const agent = useAgentStatus(bridge, view?.name !== undefined && !stopped);

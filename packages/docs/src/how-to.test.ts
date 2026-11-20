@@ -1,3 +1,4 @@
+import { SHORTCUT_TABLES } from "@reqseq/app";
 import { describe, expect, it } from "vitest";
 import type { AccessNames } from "./how-to.js";
 import { accessNames, checkHowTos, howToProblems } from "./how-to.js";
@@ -44,12 +45,15 @@ describe("accessNames", () => {
         ],
       },
     });
-    expect([...found.appEntries].slice(0, 3)).toEqual([
-      "Show trace chain",
-      "Show traceability matrix",
-      "Go to element or buffer",
-    ]);
-    // And the actions of the app by their titles, such as "Write skill file" (SR-229 AK16).
+    // The entries of the commands, and the actions of the app by their titles, such as "Write skill file".
+    expect(found.appEntries).toEqual(
+      new Set([
+        "Show trace chain",
+        "Show traceability matrix",
+        "Go to element or buffer",
+        ...SHORTCUT_TABLES.actions.map((action) => action.title),
+      ]),
+    );
     expect(found.appEntries.has("Write skill file")).toBe(true);
     expect(found.inputs).toEqual(
       new Map([
