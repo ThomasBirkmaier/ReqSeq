@@ -134,6 +134,21 @@
   margin-top: 1.5rem;
 }
 
+/* A next step (SR-226 AK5): the name of its command across the columns of title and value, like a group line, its
+   key at the right edge like a status, and the pointer of a row that runs. */
+.result.output .line.step {
+  padding-block: 0.2rem;
+  cursor: pointer;
+}
+
+.result.output .line.step > .text {
+  grid-column: 1 / 3;
+}
+
+.result.output .line.step kbd {
+  font-family: inherit;
+}
+
 /* A number of elements (SR-223 AK5): its value underlined in the colour of the edges, as a way to the list of those
    elements, and the pointer of a row that opens. */
 .result.output .line.count {

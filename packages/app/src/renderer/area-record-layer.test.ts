@@ -116,6 +116,7 @@ const harness = (gate: ReadGate) => {
     onEcho: () => undefined,
     onCopy: () => undefined,
     outputFields: () => undefined,
+    nextSteps: { entry: (command) => ({ name: command }), run: () => undefined },
     onDrawn: () => undefined,
     typeNames: options.typeNames ?? new Map(),
     kindNames: new Map(),

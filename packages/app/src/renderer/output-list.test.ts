@@ -114,6 +114,9 @@ describe("a list from the output of a command", () => {
       ["Item under test", "build-1"],
     ]);
     expect(plain.details.size).toBe(0);
+    // Next steps (SR-226 AK5) are lines of an output page only, not of the list.
+    const stepped = { ...affectedOutput, next: [{ command: "element.create", input: {}, open: ["type"] }] };
+    expect(outputParts(list, stepped, AFFECTED_FIELDS, false).lines).toEqual(plain.lines);
     const shown = outputParts(list, affectedOutput, AFFECTED_FIELDS, true);
     const at = (repository: string) =>
       shown.details.get(elementKey({ id: "u-2", repository }))?.map((line) => [line.label, line.text]);

@@ -90,6 +90,7 @@ const setup = (
     running: true,
     key: "/req/station" as string | undefined,
     listedRoot: "/req/station" as string | undefined,
+    root: "/req/station" as string | undefined,
     open: vi.fn<WorkspaceSwitch["open"]>(() => Promise.resolve()),
   };
   const page = { loaded: true };
@@ -132,7 +133,7 @@ const workspaceOnDisk = async (): Promise<{ readonly root: string; readonly insi
 
 describe("the recent workspaces channels (SR-131)", () => {
   it("[SR-131/AK-y2k4] the recent workspaces come from core in their order, the open one first and marked open", async () => {
-    const { list, load, core } = setup();
+    const { list, load, core, module } = setup();
     expect(await list()).toEqual([
       { root: "/req/station", state: "open" },
       { root: "/req/buoy", state: "found" },
@@ -149,11 +150,22 @@ describe("the recent workspaces channels (SR-131)", () => {
     ]);
     // A folder without a workspace is open, which the list does not hold.
     core.listedRoot = undefined;
+    core.root = "/req/empty";
+    module.workspaceExists.mockResolvedValueOnce(false);
     expect(await list()).toEqual([
       { root: "/req/buoy", state: "found" },
       { root: "/req/station", state: "found" },
       { root: "/req/gone", state: "missing" },
     ]);
+    // A workspace was created in it since (`workspace.init`, SR-226 AK5): it is the open one.
+    expect(await list()).toEqual([
+      { root: "/req/empty", state: "open" },
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/station", state: "found" },
+      { root: "/req/gone", state: "missing" },
+    ]);
+    expect(module.workspaceExists).toHaveBeenLastCalledWith("/req/empty");
+    core.root = undefined;
     // Without an open workspace none is open; core's module is loaded once.
     core.key = undefined;
     expect(await list()).toEqual([
@@ -446,6 +458,7 @@ describe("the recent workspaces channels (SR-131)", () => {
         running: false,
         key: undefined,
         listedRoot: undefined,
+        root: undefined,
         open: vi.fn<WorkspaceSwitch["open"]>(() => Promise.resolve()),
       };
       handleWorkspaces(electron as unknown as WorkspacesElectron, contents, {

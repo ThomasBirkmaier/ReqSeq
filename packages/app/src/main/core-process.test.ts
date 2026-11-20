@@ -271,7 +271,7 @@ describe("CoreProcess", () => {
     expect(target.sent).toEqual([]);
   });
 
-  it("key and listedRoot come from the ready message of the running core process, and are none once it stopped, restarted or failed to start", async () => {
+  it("key, listedRoot and root come from the ready message of the running core process, and are none once it stopped, restarted or failed to start", async () => {
     const { core, children } = setup();
     expect(core.key).toBeUndefined();
     await core.open("/ws");
@@ -280,6 +280,7 @@ describe("CoreProcess", () => {
     first?.emit("message", { type: "ready", root: "/ws", key: "/real/ws" });
     expect(core.key).toBe("/real/ws");
     expect(core.listedRoot).toBeUndefined();
+    expect(core.root).toBe("/ws");
     // Other messages leave it.
     first?.emit("message", { type: "ready", root: "/ws" });
     first?.emit("message", "nonsense");
@@ -298,6 +299,7 @@ describe("CoreProcess", () => {
     await core.stop();
     expect(core.key).toBeUndefined();
     expect(core.listedRoot).toBeUndefined();
+    expect(core.root).toBeUndefined();
   });
 
   it("opens a root of the recent workspaces exactly, also when it starts the core process again", async () => {

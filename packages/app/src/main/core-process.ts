@@ -44,6 +44,8 @@ interface Running {
   key: string | undefined;
   /** Its root, when it belongs in that list (`ready` with `listed`). */
   listedRoot: string | undefined;
+  /** The root it opened, also a folder without a workspace (`ready`). */
+  root: string | undefined;
   readonly files: Map<number, (answer: FileAnswer) => void>;
   readonly exited: Promise<void>;
   stopping: boolean;
@@ -83,6 +85,14 @@ export class CoreProcess {
    */
   get listedRoot(): string | undefined {
     return this.#running?.listedRoot;
+  }
+
+  /**
+   * The root the running core process opened, also a folder without a workspace (opened for `workspace.init`);
+   * undefined while none runs or it has not opened its workspace yet.
+   */
+  get root(): string | undefined {
+    return this.#running?.root;
   }
 
   /**
@@ -168,6 +178,7 @@ export class CoreProcess {
       exact,
       key: undefined,
       listedRoot: undefined,
+      root: undefined,
       files,
       exited,
       stopping: false,
@@ -178,6 +189,7 @@ export class CoreProcess {
       if (message?.type === "ready") {
         running.key = message.key;
         running.listedRoot = message.listed ? message.root : undefined;
+        running.root = message.root;
         return;
       }
       if (message?.type !== "file") {
