@@ -71,4 +71,32 @@ describe("lists (SR-233 AK1)", () => {
       "&quot;label&quot;:&quot;Level&quot;,&quot;values&quot;:[&quot;deep&quot;,&quot;high&quot;,&quot;–&quot;]",
     );
   });
+
+  it("[SR-233/AK-pmt8] shows the verification status in the core as a badge with its criteria, and open hints only where there are some", () => {
+    const context = { metamodel, store: {} as ElementStore, shortIds: {} as ShortIds };
+    const page = listPageOf(context, "req", [
+      entry("req", {
+        identifier: "REQ-1",
+        verification: [{ view: "core", status: "verified", criteria: { verified: 2, total: 3 } }],
+      }),
+      {
+        ...entry("req", { identifier: "REQ-2", verification: [{ view: "core", status: "open" }] }),
+        hints: 2,
+      },
+      entry("req", { identifier: "REQ-3", verification: [{ view: "u-variant", status: "verified" }] }),
+      entry("req", { identifier: "REQ-4" }),
+    ]);
+    const cells = (id: string): string =>
+      String(new RegExp(`>${id}</a></td>(.*?)</tr>`, "u").exec(page.body)?.[1]);
+    expect(cells("REQ-1")).toContain(
+      '<td><span class="rq-badge rq-badge-success">verified 2/3</span></td><td></td>',
+    );
+    expect(cells("REQ-2")).toContain(
+      '<td><span class="rq-badge rq-badge-caution">open</span></td><td><span class="rq-badge rq-badge-caution">2</span></td>',
+    );
+    expect(cells("REQ-3")).toContain('<span class="rq-badge rq-badge-neutral">not in the core</span>');
+    expect(cells("REQ-4")).toMatch(/<td>–<\/td><td><\/td>$/u);
+    // The table scrolls in its own container.
+    expect(page.body).toContain('<div class="rq-list-table"><table>');
+  });
 });
