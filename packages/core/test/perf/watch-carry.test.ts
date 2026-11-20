@@ -13,7 +13,9 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit"
 import type { MeasureOptions, PerfMeasurement } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
+  perfSize,
   recordValue,
+  thresholdLimit,
   thresholdMessage,
   untilWatching,
   writeLargeWorkspace,
@@ -51,8 +53,8 @@ import type { WorkspaceLayout } from "../../src/workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 const basis = "SR-117 AK1, SR-007, N-036 (#215; recorded, baseline)";
 /**
  * The median of write → `onChange` → `element.get` for one edited element file (#215). The aim of
@@ -301,7 +303,7 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
     await recordStats(`watcher: file write → every carried state settled, ${label} (N-036)`, settled);
     await recordStats(`watcher: CPU of the process from the write until settled, ${label} (N-036)`, cpu);
     if (answer.thresholdMs !== undefined) {
-      expect(answer.ms, thresholdMessage(answer)).toBeLessThanOrEqual(answer.thresholdMs);
+      expect(answer.ms, thresholdMessage(answer)).toBeLessThanOrEqual(thresholdLimit(answer.thresholdMs));
     }
     return hooks;
   };

@@ -120,9 +120,10 @@ jobs:
   checks:
     name: checks (ubuntu-24.04)
     # A pull request run takes about 10 minutes, but about 1 in 4 hosted runners is about 1.5 times slower in every step,
-    # and there it takes 14-17 minutes (#1994); the bound of 15 cancelled green runs. 20 leaves about 3 minutes over the
-    # slowest healthy run and still ends a hang. The nightly gets up to 5 more for the status model step.
-    timeout-minutes: ${{ github.event_name == 'schedule' && 25 || 20 }}
+    # and there it takes 14-17 minutes (#1994); the bound of 15 cancelled green runs. The performance suite's assertions
+    # on a small workspace add about 1 minute, 1.5 on a slow runner (#2037). 22 leaves about 3 minutes over the slowest
+    # healthy run and still ends a hang. The nightly gets up to 5 more for the status model step.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 27 || 22 }}
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
@@ -219,6 +220,22 @@ jobs:
           # REQSEQ_E2E_EXTERNAL_ADDRESS makes that test fail instead of skip when the address is missing.
           sudo modprobe dummy numdummies=0
           REQSEQ_E2E_EXTERNAL_ADDRESS=required unshare -rn sh -c 'ip link set lo up && ip link add reqseq0 type dummy && ip addr add 198.51.100.1/32 dev reqseq0 && ip link set reqseq0 up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
+
+      # The assertions of the Vitest performance suite (counts, findings, output shapes) on a generated workspace of
+      # 500 elements and 2,000 relations, a few files at a minimum of their own (`perfSize`, #2037; perf.yml runs it at
+      # 50,000), so an output change that breaks them shows in the pull request, not first in the nightly run. Linux
+      # only and without network, like e2e above; about 1 minute. No times are asserted or recorded and no JUnit file
+      # is written (vitest.perf.config.ts): the record and the evidence of tagged AKs come only from the full size.
+      - name: Performance suite assertions on a small workspace, without network (unshare -rn)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
+        timeout-minutes: 10
+        env:
+          REQSEQ_PERF_ELEMENTS: "500"
+        run: |
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
 
       # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
       # Linux only. The site (Astro, Starlight) has its own lockfile outside the workspace; only these steps and
@@ -565,4 +582,5 @@ jobs:
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs
   # `reqseq serve api` and `reqseq mcp` as processes (servers.test.ts).
-  # The performance suite with 50,000 elements runs apart, nightly and on PRs labelled `perf`: perf.yml.
+  # The performance suite with 50,000 elements runs apart, nightly and on PRs labelled `perf`: perf.yml; its Vitest
+  # assertions run in `checks (ubuntu-24.04)` on a small workspace (#2037).

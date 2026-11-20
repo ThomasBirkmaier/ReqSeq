@@ -24,6 +24,7 @@ import {
   malformedNoParentHints,
   measure,
   noParentHints,
+  perfSize,
   withoutNoParent,
   withoutParent,
   withoutVerificationGaps,
@@ -32,8 +33,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/reqseq.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK1: start with the cache (for comparison). */
 const WARM_MS = 3_000;
 /** SR-082 AK2: start without the cache (for comparison). */

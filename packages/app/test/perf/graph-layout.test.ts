@@ -9,13 +9,19 @@
 import type { TraceGraphOutput } from "@reqseq/core";
 import { Workspace, invoke, warmWorkspace } from "@reqseq/core";
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measureMedian, recordValue, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  measureMedian,
+  perfSize,
+  recordValue,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LEVEL_LAYERS_ABOVE, layoutGraph } from "../../src/renderer/graph-layout.js";
 import { chainedGraph } from "../../src/renderer/graph-test-data.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-111 AK6. */
 const NODES = 500;
 

@@ -73,6 +73,10 @@
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
     },
+    "./problem-titles": {
+      "types": "./dist/problem-titles.d.ts",
+      "default": "./dist/problem-titles.js"
+    },
     "./suggested-key": {
       "types": "./dist/metamodel/suggested-key.d.ts",
       "default": "./dist/metamodel/suggested-key.js"

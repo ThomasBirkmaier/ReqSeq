@@ -88,11 +88,8 @@ describe("the command-line calls of the agent guide", () => {
     onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
     const init = new Workspace(root);
     await getCommandRuntime().invoke("workspace.init", { path: root, name: "Station" }, { workspace: init });
+    // workspace.init names the evidence location `evidence` (SR-230 AK4), which the guide's steps name.
     await init.close();
-    await fs.appendFile(
-      path.join(root, "reqseq-workspace.yaml"),
-      "evidence:\n  - { repository: main, path: evidence }\n",
-    );
     const steps = (text: string): string => text.slice(0, text.indexOf("## In a pipeline"));
     const cli = [...steps(await guideOf(root, "cli")).matchAll(/`(reqseq [^`]+)`/g)].map((m) => m[1] ?? "");
     const mcp = [

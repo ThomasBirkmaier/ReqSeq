@@ -14,6 +14,8 @@ import {
   generateLargeWorkspace,
   measure,
   measureMedian,
+  perfSize,
+  thresholdLimit,
   thresholdMessage,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -26,8 +28,9 @@ import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set,
+// at least 2,000 elements: the chains of the first need must hold more than the 500 nodes of a graph.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize(2000);
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** SR-111 AK6. */
@@ -97,7 +100,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     // The need's degree and the status of its requirements come with it (SR-136).
     expect(result.nodes[0]?.degree?.total).toBeGreaterThan(0);
     expect(result.nodes.some((node) => node.verification !== undefined)).toBe(true);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] gives 500 nodes of the whole derivation chain of a need within 500 ms", async () => {
@@ -107,7 +110,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
       { basis: "SR-082 AK4 (trace.graph, the walks bounded by limit)", thresholdMs: RESULT_MS },
     );
     expect([result.nodes.length, result.truncated]).toEqual([NODES, true]);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] gives 500 nodes of the whole chain of a need over every kind within 500 ms", async () => {
@@ -117,7 +120,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
       { basis: "SR-082 AK4 (trace.graph, Whole chain with every kind)", thresholdMs: RESULT_MS },
     );
     expect([result.nodes.length, result.truncated]).toEqual([NODES, true]);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] gives the package with the most members at depth 1 within 500 ms", async () => {
@@ -128,7 +131,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
       { basis: "SR-082 AK4 (trace.graph, a hub)", thresholdMs: RESULT_MS },
     );
     expect(result.nodes.length).toBeGreaterThan(100);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records the core part of a graph of 500 nodes (SR-111 AK6)", async () => {

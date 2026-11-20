@@ -1,9 +1,10 @@
 // The check the tests of the HTML export run on written HTML (SR-235 AK4): every tag on the writer's
-// list or of an error the export writes (`span`), no event attribute, and no address outside the export. It reads the HTML independently of the writer.
+// list, of an error the export writes (`span`) or of the element page's own sections (the list of fields, `dl`, and
+// its copy buttons with their icon), no event attribute, and no address outside the export. It reads the HTML independently of the writer.
 import { expect } from "vitest";
 
 const TAGS = new Set(
-  "p h1 h2 h3 h4 h5 h6 em strong del code pre blockquote ul ol li table thead tbody tr th td a img br hr input sup section aside div span".split(
+  "p h1 h2 h3 h4 h5 h6 em strong del code pre blockquote ul ol li table thead tbody tr th td a img br hr input sup section aside div span dl dt dd button svg rect path".split(
     " ",
   ),
 );

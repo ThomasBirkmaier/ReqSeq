@@ -7,7 +7,7 @@
 // small vocabulary, so an in-memory index of 50,000 longer texts from a large vocabulary is measured
 // as well. Recorded only: the tagged SR-098 test is search-speed.test.ts (ThomasBirkmaier/ReqSeq-archive#110).
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, perfSize, scaledCount, writeLargeWorkspace } from "@reqseq/testkit";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -36,10 +36,10 @@ import type { WorkspaceLayout } from "../../src/workspace/index.js";
 import { canonicalRoot, workspaceLayoutState, writeCacheFile } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** A pull (SR-007 AK2). */
-const PULLED = 1000;
+const PULLED = scaledCount(1000);
 const basis =
   "SR-068, SR-098, N-036 (recorded; ThomasBirkmaier/ReqSeq-archive#80 and ThomasBirkmaier/ReqSeq-archive#110 assert SR-098)";
 
@@ -132,7 +132,11 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       ["a short ID", shortId],
       ["a tail of a UUID", record.id.slice(-8)],
       ["a word in every acceptance criterion", "runs"],
-      ["one word within a selection of 10,000", "wind", { within: store.elements.slice(0, 10_000) }],
+      [
+        "one word within a selection of 10,000",
+        "wind",
+        { within: store.elements.slice(0, scaledCount(10_000)) },
+      ],
       ["one word, the first 50 hits", "wind", { limit: 50 }],
       ["one word, every hit described", "wind", { limit: ELEMENTS }],
       // Restricted to fields (SR-216).
@@ -244,13 +248,13 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       await warmModel(fresh);
       await open(
         "after the start, without a search index",
-        store.elements.slice(20_000, 20_005).map((r) => r.id),
+        store.elements.slice(scaledCount(20_000), scaledCount(20_000) + 5).map((r) => r.id),
       );
       warmSearchIndex(fresh, 0);
       await new Promise((resolve) => setTimeout(resolve, 50));
       await open(
         "while the search index builds",
-        store.elements.slice(30_000, 30_005).map((r) => r.id),
+        store.elements.slice(scaledCount(30_000), scaledCount(30_000) + 5).map((r) => r.id),
       );
       await measure("search index: ready after the start (background build)", () => searchIndex(fresh), {
         basis: "ADR-0008 (background build after the warm-up)",
@@ -294,7 +298,7 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
       { basis: "ADR-0008 (a save in a server)" },
     );
     expect(searchElements(afterSave, "zanzibar").hits.map((h) => h.element.file)).toEqual([saved.file]);
-    const pulled = store.elements.slice(1000, 1000 + PULLED);
+    const pulled = store.elements.slice(PULLED, 2 * PULLED);
     for (const record of pulled) {
       await rewrite(record, "quokka");
     }

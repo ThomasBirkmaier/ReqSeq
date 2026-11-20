@@ -1,6 +1,7 @@
 // Whether a workspace may be changed. A workspace whose metamodel is missing or faulty opens
 // read-only (SR-011 AK3): every read works, every write-files command whose catalog entry has
-// `whileReadOnly: "refuse"` (all but workspace.init, ThomasBirkmaier/ReqSeq-archive#142) is refused by `invoke`
+// `whileReadOnly: "refuse"` (all but workspace.init, ThomasBirkmaier/ReqSeq-archive#142, and tool.guide, which
+// writes the skill file, SR-229 AK8) is refused by `invoke`
 // with `workspace.read-only` before it runs. Part of the metamodel block: today the metamodel is
 // the only cause of a read-only workspace.
 import type { Problem } from "../catalog.js";

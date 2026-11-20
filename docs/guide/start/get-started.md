@@ -22,11 +22,12 @@ reqseq workspace init . "Weather station"
 ```
 
 ```text title="Output"
-Created workspace Weather station; 3 files written.
+Created workspace Weather station; 4 files written.
 files:
   metamodel/standard-model.yaml
   reqseq-workspace.yaml
   .gitignore
+  .claude/skills/managing-requirements/SKILL.md
 No problems.
 next:
   reqseq workspace connect-agent --client <client>  Connect AI agent
@@ -126,7 +127,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 2 elements and found 3 warnings.
+Checked 2 elements and found 2 warnings and 2 info.
 ok: true
 checkedElements: 2
 ...

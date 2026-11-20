@@ -1,4 +1,5 @@
-// Creating a workspace (SR-014): `reqseq-workspace.yaml` and a metamodel file (the standard model,
+// Creating a workspace (SR-014): `reqseq-workspace.yaml`, with the folder `evidence` as its evidence location
+// (SR-230 AK4, the folder is created with the first record), and a metamodel file (the standard model,
 // passed in by `workspace.init`) in a folder, created when only it is missing (#637). Writes only through the files block,
 // creates files without ever replacing one, and never touches Git (D-036): no `git init`, no commit.
 import fs from "node:fs/promises";
@@ -13,6 +14,9 @@ import { refuseGitAt } from "./git-folder.js";
 
 /** The metamodel folder of a new workspace when the caller names none. */
 export const DEFAULT_METAMODEL_FOLDER = "metamodel";
+
+/** The evidence location of a new workspace: this folder in the main repository (SR-230 AK4). */
+export const DEFAULT_EVIDENCE_FOLDER = "evidence";
 
 /** The main repository's name when the folder name has no letter or digit to build one from. */
 export const FALLBACK_REPOSITORY_NAME = "main";
@@ -56,7 +60,13 @@ const workspaceFileFor = (main: string, input: NewWorkspace): WorkspaceFile => {
   if (metamodel.repository !== main) {
     repositories.push({ name: metamodel.repository, url: "" });
   }
-  const file: WorkspaceFile = { "reqseq-workspace": 1, name: input.name, repositories, metamodel };
+  const file: WorkspaceFile = {
+    "reqseq-workspace": 1,
+    name: input.name,
+    repositories,
+    metamodel,
+    evidence: [{ repository: main, path: DEFAULT_EVIDENCE_FOLDER }],
+  };
   const validate = fileSchemaValidator("workspace.schema.json");
   if (!validate(file)) {
     const errors = schemaViolations(validate.errors);

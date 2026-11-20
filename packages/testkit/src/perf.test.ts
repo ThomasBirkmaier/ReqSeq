@@ -3,13 +3,20 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_ELEMENTS,
+  DEFAULT_RELATIONS,
+  MIN_PERF_ELEMENTS,
+  PERF_ELEMENTS_ENV,
   PERF_RESULTS_ENV,
   THRESHOLD_FAILURE,
   measure,
   measureMedian,
   measurePeakMemory,
   memoryIncrease,
+  perfSize,
   recordValue,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
 } from "./index.js";
 
@@ -118,6 +125,53 @@ describe("recordValue", () => {
       failed: "every run split",
     });
     fs.rmSync(folder, { recursive: true, force: true });
+  });
+
+  it("records nothing in a run smaller than the N-036 size", async () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-perf-"));
+    const file = path.join(folder, "perf.jsonl");
+    vi.stubEnv(PERF_RESULTS_ENV, file);
+    vi.stubEnv(PERF_ELEMENTS_ENV, "500");
+    expect((await recordValue("small", 5, { basis: "N-036", thresholdMs: 1 })).ms).toBe(5);
+    expect(fs.existsSync(file)).toBe(false);
+    fs.rmSync(folder, { recursive: true, force: true });
+  });
+});
+
+describe("perfSize", () => {
+  it("is the N-036 size without the variable, and asserts thresholds only there", () => {
+    vi.stubEnv(PERF_ELEMENTS_ENV, undefined);
+    expect(perfSize()).toEqual({ elements: DEFAULT_ELEMENTS, relations: DEFAULT_RELATIONS, full: true });
+    expect(thresholdLimit(300)).toBe(300);
+    expect(scaledCount(5_000)).toBe(5_000);
+    vi.stubEnv(PERF_ELEMENTS_ENV, " ");
+    expect(perfSize(1_000)).toEqual({ elements: DEFAULT_ELEMENTS, relations: DEFAULT_RELATIONS, full: true });
+    vi.stubEnv(PERF_ELEMENTS_ENV, String(DEFAULT_ELEMENTS));
+    expect(perfSize().full).toBe(true);
+  });
+
+  it("takes a smaller size with four relations per element, raised to a test's minimum, without thresholds", () => {
+    vi.stubEnv(PERF_ELEMENTS_ENV, "500");
+    expect(perfSize()).toEqual({ elements: 500, relations: 2_000, full: false });
+    expect(perfSize(2_000)).toEqual({ elements: 2_000, relations: 8_000, full: false });
+    expect(perfSize(DEFAULT_ELEMENTS + 1)).toEqual({
+      elements: DEFAULT_ELEMENTS,
+      relations: DEFAULT_RELATIONS,
+      full: false,
+    });
+    expect(thresholdLimit(300)).toBe(Number.POSITIVE_INFINITY);
+    expect([scaledCount(5_000), scaledCount(1), scaledCount(5_000, perfSize(1_000))]).toEqual([50, 1, 100]);
+    vi.stubEnv(PERF_ELEMENTS_ENV, String(MIN_PERF_ELEMENTS));
+    expect(perfSize().elements).toBe(MIN_PERF_ELEMENTS);
+  });
+
+  it("refuses a size that is no whole number from the minimum to the N-036 size", () => {
+    for (const value of ["5", "50001", "1.5", "many"]) {
+      vi.stubEnv(PERF_ELEMENTS_ENV, value);
+      expect(() => perfSize()).toThrow(
+        `${PERF_ELEMENTS_ENV} must be a whole number from 6 to 50000: ${value}`,
+      );
+    }
   });
 });
 

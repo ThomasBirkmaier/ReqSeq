@@ -58,6 +58,8 @@ export interface ExportFolder {
   /** Files, links and folders of the target that the earlier export did not write, topmost only, sorted. */
   readonly foreign: readonly string[];
   readonly ignored: readonly IgnoredEntry[];
+  /** The files the earlier export wrote that are still in the target (relative, `/`), from its marker. */
+  readonly earlier: ReadonlySet<string>;
   /** Writes one file of the new export (relative, `/`); refuses a place a file of another source holds. */
   write(relativePath: string, content: string | Uint8Array): Promise<void>;
   /** Puts the new export in place; `removed` counts the old files it no longer writes. */
@@ -526,6 +528,7 @@ const opened = async (
     folder,
     foreign: foreignTop,
     ignored,
+    earlier: old,
     write,
     commit,
     abort: giveUp,
