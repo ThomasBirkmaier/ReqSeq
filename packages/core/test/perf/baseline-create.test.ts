@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, perfSize, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanBaseline } from "../../src/baselines/scan.js";
 import type { CommandOutput } from "../../src/catalog.js";
@@ -15,8 +15,8 @@ import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 
 describe("baseline.create with 50,000 elements (SR-050, N-036, ADR-0018)", () => {
   let fixture: LargeFixtureWorkspace | undefined;

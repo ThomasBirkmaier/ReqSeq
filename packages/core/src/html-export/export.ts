@@ -1,15 +1,17 @@
 // The HTML export of a workspace (SR-231, SR-235; packages/core/docs/html-export.md): the pages of
 // every element without an invalid status (D-044) and a start page, written through the export folder
-// of the files block (`openExportFolder`), which replaces only what the earlier export wrote. Element
-// fields, lists and search come with #1964–#1969.
+// of the files block (`openExportFolder`), which replaces only what the earlier export wrote. Each element page
+// is built by `element-page.ts` from the data of `element-data.ts` (SR-232); an element with an invalid status
+// whose page the earlier export wrote gets the short page of SR-231 AK8 (`stub-page.ts`) at the same address.
 //
 // - Look (SR-231 AK4, `page.ts`): the docs' frame and stylesheet, the theme and page scripts, and, once in
 //   the folder, KaTeX's stylesheet and the Mermaid bundle when a page needs them (`vendor.ts`, missing:
 //   `internal` before anything is written), and the notices of what the folder holds.
-// - References (AK6): an element with a page is a link to it; a target with an invalid status, a missing
-//   one and one whose UUID several files share is its link text (the stub page of AK8 comes with #1964);
-//   a target in a repository that is not on this machine is its link text and `UNKNOWN-<tail>` with the
-//   repository and "not accessible", as SR-006 AK1 shows it.
+// - References (AK6), in the text and in every Markdown property, each item of a list (acceptance criteria)
+//   too: an element with a page or a short page (AK8) is a link to it; a target with an invalid status and
+//   no short page, a missing one, one whose UUID several files share and one in a repository the
+//   workspace file does not name is its link text; a target in a repository that is not on this machine
+//   is its link text and `UNKNOWN-<tail>` with the repository and "not accessible", as SR-006 AK1 shows it.
 // - Footer (AK9): the commit of the main repository (12 characters, `-dirty` unless every available
 //   repository is known clean, as `data.store` names its file, SR-062 AK1; "no commit" without one), the
 //   date of the export (UTC) and the version of ReqSeq.
@@ -29,8 +31,7 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ExportFolder } from "../files/index.js";
 import { imageExtension, openExportFolder, readElementText, readFileSnapshot } from "../files/index.js";
-import type { Metamodel } from "../metamodel/index.js";
-import { findType, markdownKeysOf, metamodelState } from "../metamodel/index.js";
+import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ImageLink, ShortIds, StateReader } from "../model/index.js";
 import {
   UNKNOWN_TYPE_PREFIX,
@@ -56,10 +57,17 @@ import {
   settingLocation,
   workspaceLayoutState,
 } from "../workspace/index.js";
-import type { ImageOutcome, ReferenceOutcome, TextFinding } from "./markdown.js";
+import type { ImageOutcome, ReferenceOutcome } from "./markdown.js";
 import { escapeHtml, renderMarkdown } from "./markdown.js";
 import { NOTICES_FILE, noticesText } from "./notices.js";
 import { ASSETS, DOCS_CSS, OWN_CSS, page } from "./page.js";
+import { COPY_SCRIPT, copyScript } from "./copy-script.js";
+import type { ElementData } from "./element-data.js";
+import { elementDataOf } from "./element-data.js";
+import type { ElementPageContext } from "./element-page.js";
+import { elementPageBody } from "./element-page.js";
+import { elementPage, pageLinks } from "./links.js";
+import { stubPageBody } from "./stub-page.js";
 import type { PageScriptSettings } from "./page-script.js";
 import { pageScript, scriptOf, themeScript } from "./page-script.js";
 import { DIAGRAM_COLOURS, MERMAID_SETTINGS, SECURE_KEYS } from "./render-options.js";
@@ -87,9 +95,6 @@ export interface HtmlExportResult {
   readonly removed: number;
   readonly problems: readonly Problem[];
 }
-
-/** The page of the element with the UUID `id`, relative to the export folder. */
-export const elementPage = (id: string): string => `elements/${id}.html`;
 
 /** Refuses a target ReqSeq reads YAML files from (see the file comment). */
 const refuseDataFolder = async (layout: WorkspaceLayout, target: string): Promise<void> => {
@@ -143,7 +148,7 @@ export const PAGE_SCRIPT_SETTINGS: PageScriptSettings = {
 interface PageContext {
   readonly folder: ExportFolder;
   readonly layout: WorkspaceLayout;
-  readonly metamodel: Metamodel;
+  readonly page: ElementPageContext;
   readonly problems: Problem[];
   readonly reference: (record: ElementRecord) => TextContext["reference"];
 }
@@ -197,6 +202,7 @@ const imageCopier = (context: PageContext, repository: RepositoryLocation, recor
 const elementHtml = async (
   context: PageContext,
   record: ElementRecord,
+  data: ElementData,
 ): Promise<{ html: string; needs: Needs }> => {
   // The store holds elements of available repositories only, so a missing one is a bug.
   const repository = context.layout.repositories.find((r) => r.name === record.repository);
@@ -221,8 +227,11 @@ const elementHtml = async (
     reference: context.reference(record),
   };
   const needs: Needs = { formulas: false, diagrams: false };
-  const add = (findings: readonly TextFinding[], where: string): void => {
-    for (const finding of findings) {
+  const markdown = async (source: string, where: string): Promise<string> => {
+    const rendered = await renderMarkdown(source, textContext);
+    needs.formulas ||= rendered.formulas;
+    needs.diagrams ||= rendered.diagrams;
+    for (const finding of rendered.findings) {
       context.problems.push({
         code: finding.code,
         severity: "warning",
@@ -232,38 +241,19 @@ const elementHtml = async (
         elementId: record.id,
       });
     }
+    return rendered.html;
   };
-  const sections: string[] = [];
-  const body = await renderMarkdown(text, textContext);
-  needs.formulas ||= body.formulas;
-  needs.diagrams ||= body.diagrams;
-  add(body.findings, "Text");
-  sections.push(`<section class="rq-text">${body.html}</section>`);
-  const markdown = markdownKeysOf(context.metamodel);
-  for (const { key, name } of context.metamodel.properties.filter((p) => markdown.has(p.key))) {
-    const value = record.data[key];
-    if (typeof value !== "string") {
-      continue;
-    }
-    const rendered = await renderMarkdown(value, textContext);
-    needs.formulas ||= rendered.formulas;
-    needs.diagrams ||= rendered.diagrams;
-    add(rendered.findings, name);
-    sections.push(`<section><h2>${escapeHtml(name)}</h2>${rendered.html}</section>`);
-  }
-  const type = findType(context.metamodel, record.type)?.name ?? record.type;
-  const status = record.data["status"];
-  const facts = [type, ...(typeof status === "string" ? [status] : [])].map(escapeHtml).join(" · ");
-  return { html: `<p class="rq-facts">${facts}</p>${sections.join("")}`, needs };
+  const html = await elementPageBody(context.page, { record, data, text, markdown });
+  return { html, needs };
 };
 
 /** The outcome of each reference of `record`'s texts (see the file comment). */
 const referenceResolver =
-  (layout: WorkspaceLayout, store: ElementStore, shortIds: ShortIds, paged: ReadonlySet<ElementRecord>) =>
+  (layout: WorkspaceLayout, store: ElementStore, shortIds: ShortIds, withPage: ReadonlySet<ElementRecord>) =>
   (record: ElementRecord): TextContext["reference"] =>
   (target): ReferenceOutcome => {
     const state = referenceTargetState(layout, store, record.repository, target);
-    if (state.kind === "available" && paged.has(state.element)) {
+    if (state.kind === "available" && withPage.has(state.element)) {
       return { href: `../${elementPage(state.element.id)}` };
     }
     if (state.kind === "inaccessible") {
@@ -341,22 +331,30 @@ export const writeHtmlExport = async (
   for (const record of store.elements) {
     (seen.has(record.id) ? shared : seen).add(record.id);
   }
+  const isInvalid = (record: ElementRecord): boolean => invalid.has(String(record.data["status"]));
   // The elements that get a page; a reference to any other is its link text.
-  const paged = new Set(
-    store.elements.filter((r) => !invalid.has(String(r.data["status"])) && !shared.has(r.id)),
-  );
+  const paged = new Set(store.elements.filter((r) => !isInvalid(r) && !shared.has(r.id)));
   const folder = await openExportFolder(target, MARKER);
+  // The elements with an invalid status whose page the earlier export wrote get the short page (AK8).
+  const stubbed = new Set(
+    store.elements.filter((r) => isInvalid(r) && !shared.has(r.id) && folder.earlier.has(elementPage(r.id))),
+  );
+  const withPage = new Set([...paged, ...stubbed]);
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];
-  const reference = referenceResolver(layout, store, shortIds, paged);
-  const context: PageContext = { folder, layout, metamodel, problems, reference };
+  const reference = referenceResolver(layout, store, shortIds, withPage);
+  const pageContext: ElementPageContext = {
+    metamodel,
+    store,
+    shortIds,
+    layout,
+    links: pageLinks(new Set([...withPage].map((r) => r.id))),
+  };
+  const context: PageContext = { folder, layout, page: pageContext, problems, reference };
   const needs: Needs = { formulas: false, diagrams: false };
   const exported: { id: string; shortId: string; repository: string }[] = [];
   try {
     for (const record of store.elements) {
-      if (invalid.has(String(record.data["status"]))) {
-        continue;
-      }
-      if (shared.has(record.id)) {
+      if (!isInvalid(record) && shared.has(record.id)) {
         problems.push({
           code: "element.duplicate-id",
           severity: "error",
@@ -365,15 +363,26 @@ export const writeHtmlExport = async (
           file: record.file,
           elementId: record.id,
         });
+      }
+    }
+    const shown = store.elements.filter((r) => withPage.has(r));
+    for (const data of await elementDataOf(workspace, { layout, metamodel, store, shortIds }, shown)) {
+      const { record } = data;
+      const title = headingOf(record, titleKey, shortIds);
+      if (stubbed.has(record)) {
+        const body = stubPageBody(context.page, data);
+        await folder.write(
+          elementPage(record.id),
+          page({ title, siteTitle: layout.name, depth: 1, body, footer, formulas: false, diagrams: false }),
+        );
         continue;
       }
-      const heading = headingOf(record, titleKey, shortIds);
-      const { html, needs: own } = await elementHtml(context, record);
+      const { html, needs: own } = await elementHtml(context, record, data);
       needs.formulas ||= own.formulas;
       needs.diagrams ||= own.diagrams;
       await folder.write(
         elementPage(record.id),
-        page({ title: heading, siteTitle: layout.name, depth: 1, body: html, footer, ...own }),
+        page({ title, siteTitle: layout.name, depth: 1, body: html, footer, ...own, scripts: [COPY_SCRIPT] }),
       );
       exported.push({ id: record.id, shortId: shortIds.of(record), repository: record.repository });
     }
@@ -393,6 +402,7 @@ export const writeHtmlExport = async (
     await folder.write(ASSETS.own, OWN_CSS);
     await folder.write(ASSETS.theme, scriptOf(themeScript));
     await folder.write(ASSETS.page, scriptOf(pageScript, PAGE_SCRIPT_SETTINGS));
+    await folder.write(COPY_SCRIPT, scriptOf(copyScript));
     await writeVendorAssets(folder, vendor, needs);
     await folder.write(NOTICES_FILE, noticesText());
   } catch (error) {

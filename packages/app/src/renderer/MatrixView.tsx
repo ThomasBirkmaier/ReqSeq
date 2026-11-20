@@ -12,7 +12,7 @@
 // requirement without a test case has the accent "—", a row that is no requirement in the view leaves both
 // blank. They hold no cursor target.
 import { bufferMark, useHidden, useHiddenUpdate, useReveal } from "./area-slot.js";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer } from "./buffers.js";
@@ -193,6 +193,129 @@ const useRelationOptions = (
   return known;
 };
 
+/** What a press in the rows does: always the same object, so the rows render only when what they show changed. */
+interface RowActions {
+  readonly open: (row: number, which: number) => void;
+  readonly selectTarget: (row: number, which: number) => void;
+  readonly selectCell: (row: number, column: number) => void;
+}
+
+/** What the rows show. */
+interface RowsProps {
+  readonly rows: readonly MatrixRow[];
+  readonly columns: readonly MatrixColumn[];
+  readonly cursor: number;
+  readonly at: number;
+  readonly chosenCell: { readonly row: number; readonly column: number } | undefined;
+  readonly options: RelationOptions;
+  readonly marked: ReadonlySet<string>;
+  readonly evidence: boolean;
+  readonly scope: string;
+  readonly act: RowActions;
+}
+
+/**
+ * The rows of the matrix. Memoized: a render of the view that changes none of its props, such as its layer
+ * going from drawn hidden to shown in the commit of a switch (SR-211, SR-212 AK5), leaves thousands of cells of
+ * a matrix at 50,000 elements alone (#1787).
+ */
+const MatrixRows = memo(function MatrixRows({
+  rows,
+  columns,
+  cursor,
+  at,
+  chosenCell,
+  options,
+  marked,
+  evidence,
+  scope,
+  act,
+}: RowsProps): React.JSX.Element {
+  return (
+    <tbody>
+      {rows.map((row, index) => {
+        // The targets of the row are numbered across its cells: 0 is the element.
+        let next = 1;
+        return (
+          <tr
+            key={row.element.open.key}
+            id={`${scope}matrix-row-${String(index)}`}
+            role="row"
+            aria-selected={index === cursor}
+          >
+            <td className={rowClass("element", marked, row.element.open.id)} role="gridcell">
+              <span
+                role="link"
+                className={index === cursor && at === 0 ? "target current" : "target"}
+                data-menu="element-entry"
+                onClick={() => {
+                  act.open(index, 0);
+                }}
+                onContextMenu={() => {
+                  act.selectTarget(index, 0);
+                }}
+              >
+                <span className="id">{row.element.label}</span>{" "}
+                <span className="title" style={{ paddingLeft: `${String(row.element.depth * 1.25)}rem` }}>
+                  {row.element.title}
+                </span>
+              </span>
+            </td>
+            {row.cells.map((cell, column) => {
+              const first = next;
+              next += cell.length;
+              const gaps = cellGaps(row, column);
+              return (
+                <td
+                  key={column}
+                  role="gridcell"
+                  className="cell"
+                  data-menu="matrix-cell"
+                  // A relation property's column: no relation kind to create or remove (SR-199).
+                  {...cellMarks(options, row, columns[column])}
+                  aria-selected={chosenCell?.row === index && chosenCell.column === column}
+                  onContextMenu={(event) => {
+                    // A press on a relation of the cell selects the relation (`Link`).
+                    if (!(event.target instanceof Element) || event.target.closest(".target") === null) {
+                      act.selectCell(index, column);
+                    }
+                  }}
+                >
+                  {cell.map((relation, place) => (
+                    <Link
+                      key={`${relation.id}:${String(place)}`}
+                      relation={relation}
+                      current={index === cursor && at === first + place}
+                      onChoose={() => {
+                        act.open(index, first + place);
+                      }}
+                      onSelect={() => {
+                        act.selectTarget(index, first + place);
+                      }}
+                    />
+                  ))}
+                  {gaps.length > 0 ? (
+                    <span className="gap" title={gapTitle(gaps)}>
+                      —
+                    </span>
+                  ) : cell.length === 0 ? (
+                    <span className="none">—</span>
+                  ) : null}
+                </td>
+              );
+            })}
+            {evidence ? <EvidenceCells row={row} /> : null}
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+});
+
+/** The rows and columns while none are loaded: the same each render, so the memoized rows stay. */
+const NO_ROWS: readonly MatrixRow[] = [];
+const NO_COLUMNS: readonly MatrixColumn[] = [];
+
 export const MatrixView = ({
   call,
   buffer,
@@ -273,8 +396,8 @@ export const MatrixView = ({
     // The cursor is read when the rows are asked for again; moving it must not ask again.
   }, [call, buffer.key, buffer.selection, sort, revision]);
 
-  const rows = view.status === "ok" ? view.rows : [];
-  const columns = view.status === "ok" ? view.columns : [];
+  const rows = view.status === "ok" ? view.rows : NO_ROWS;
+  const columns = view.status === "ok" ? view.columns : NO_COLUMNS;
   const options = useRelationOptions(call, revision, rows, columns);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const selected = rows[cursor];
@@ -374,6 +497,20 @@ export const MatrixView = ({
     setTarget(0);
     setCell({ row, column });
   };
+  // The rows call the actions of the latest render through one object that stays the same (`MatrixRows`).
+  const actions = useRef<RowActions>({ open, selectTarget, selectCell });
+  actions.current = { open, selectTarget, selectCell };
+  const [act] = useState<RowActions>(() => ({
+    open: (row, which) => {
+      actions.current.open(row, which);
+    },
+    selectTarget: (row, which) => {
+      actions.current.selectTarget(row, which);
+    },
+    selectCell: (row, column) => {
+      actions.current.selectCell(row, column);
+    },
+  }));
 
   const keyDown = (event: React.KeyboardEvent): void => {
     const to = rowTarget(event, cursor, rows.length, SCREEN);
@@ -439,83 +576,18 @@ export const MatrixView = ({
             </tr>
           </thead>
         )}
-        <tbody>
-          {rows.map((row, index) => {
-            // The targets of the row are numbered across its cells: 0 is the element.
-            let next = 1;
-            return (
-              <tr
-                key={row.element.open.key}
-                id={`${scope}matrix-row-${String(index)}`}
-                role="row"
-                aria-selected={index === cursor}
-              >
-                <td className={rowClass("element", marked, row.element.open.id)} role="gridcell">
-                  <span
-                    role="link"
-                    className={index === cursor && at === 0 ? "target current" : "target"}
-                    data-menu="element-entry"
-                    onClick={() => {
-                      open(index, 0);
-                    }}
-                    onContextMenu={() => {
-                      selectTarget(index, 0);
-                    }}
-                  >
-                    <span className="id">{row.element.label}</span>{" "}
-                    <span className="title" style={{ paddingLeft: `${String(row.element.depth * 1.25)}rem` }}>
-                      {row.element.title}
-                    </span>
-                  </span>
-                </td>
-                {row.cells.map((cell, column) => {
-                  const first = next;
-                  next += cell.length;
-                  const gaps = cellGaps(row, column);
-                  return (
-                    <td
-                      key={column}
-                      role="gridcell"
-                      className="cell"
-                      data-menu="matrix-cell"
-                      // A relation property's column: no relation kind to create or remove (SR-199).
-                      {...cellMarks(options, row, columns[column])}
-                      aria-selected={chosenCell?.row === index && chosenCell.column === column}
-                      onContextMenu={(event) => {
-                        // A press on a relation of the cell selects the relation (`Link`).
-                        if (!(event.target instanceof Element) || event.target.closest(".target") === null) {
-                          selectCell(index, column);
-                        }
-                      }}
-                    >
-                      {cell.map((relation, place) => (
-                        <Link
-                          key={`${relation.id}:${String(place)}`}
-                          relation={relation}
-                          current={index === cursor && at === first + place}
-                          onChoose={() => {
-                            open(index, first + place);
-                          }}
-                          onSelect={() => {
-                            selectTarget(index, first + place);
-                          }}
-                        />
-                      ))}
-                      {gaps.length > 0 ? (
-                        <span className="gap" title={gapTitle(gaps)}>
-                          —
-                        </span>
-                      ) : cell.length === 0 ? (
-                        <span className="none">—</span>
-                      ) : null}
-                    </td>
-                  );
-                })}
-                {evidence === undefined ? null : <EvidenceCells row={row} />}
-              </tr>
-            );
-          })}
-        </tbody>
+        <MatrixRows
+          rows={rows}
+          columns={columns}
+          cursor={cursor}
+          at={at}
+          chosenCell={chosenCell}
+          options={options}
+          marked={marked}
+          evidence={evidence !== undefined}
+          scope={scope}
+          act={act}
+        />
       </table>
       {view.status === "ok" && rows.length === 0 ? <p className="quiet">No elements</p> : null}
       {view.status === "ok" && rows.length > 0 && columns.length === 0 ? (

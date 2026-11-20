@@ -97,7 +97,7 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
   });
 
-  it("offers only Create workspace while a folder without a workspace is open, asks its path and name, and opens no output buffer", async () => {
+  it("[SR-229/AK-x7d8] offers only Create workspace while a folder without a workspace is open, asks its path and name and nothing about the skill file, and opens no output buffer", async () => {
     const { context, asked, call, dispatched, echoed, reported } = setup([], {
       "workspace.init": () => ({
         answer: "Created workspace Station; 1 file written.",
