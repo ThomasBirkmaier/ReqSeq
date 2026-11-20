@@ -94,11 +94,12 @@ const launch = (
   ws: FixtureWorkspace,
 ): ChildProcessWithoutNullStreams => {
   const home = ws.path("home");
-  const child = spawn(launcher, args, {
+  const shell = process.platform === "win32";
+  // A .cmd file starts only through a shell, which gets the command unquoted: a path with a space needs quotes (#2127).
+  const child = spawn(shell ? `"${launcher}"` : launcher, args, {
     cwd: ws.root,
     stdio: "pipe",
-    // A .cmd file starts only through a shell.
-    shell: process.platform === "win32",
+    shell,
     env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home },
   });
   children.push(child);
