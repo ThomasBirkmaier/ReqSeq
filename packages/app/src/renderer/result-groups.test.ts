@@ -161,23 +161,34 @@ describe("the groups of problems of one kind (SR-223 AK3)", () => {
     ]);
   });
 
-  it("puts several values about one kind under its title, and keeps a code that is no kind an outline", () => {
+  it("puts other values about one kind under its title, and keeps a code that is no kind or not technical", () => {
     const output = {
       kinds: [
         { code: "relation.outdated", count: 2, open: 1 },
+        { code: "file.invalid-yaml", count: 0 },
         { code: "x.unknown", count: 3 },
       ],
+      codes: [{ code: "relation.outdated", count: 4 }],
     };
-    const lines = resultLines(output, [{ path: "kinds[].count", title: "Hints" }]);
+    const fields: readonly OutputField[] = [
+      { path: "kinds[].code", title: "Problem kind", technical: true },
+      { path: "kinds[].count", title: "Hints", normal: 0 },
+    ];
+    const lines = resultLines(output, fields);
     expect(shown(lines)).toEqual([
-      "text|kinds|2",
+      "text|kinds|3",
       "  text|Outdated relation|",
       "    text|Hints|2",
       "    text|open|1",
-      "  text|code|x.unknown",
+      // A value equal to its normal value is left out (SR-223 AK7), so only the title stands.
+      "  text|YAML that cannot be parsed|",
       "  text|Hints|3",
+      "text|codes|1",
+      "  text|code|relation.outdated",
+      "  text|count|4",
     ]);
     expect(lines[1]?.itemStart).toBe(true);
+    expect(lines[1]?.field).toBe("kinds[]");
   });
 
   it("heads a group of a kind without a title by its code, and keeps a single problem a line of its own", () => {
