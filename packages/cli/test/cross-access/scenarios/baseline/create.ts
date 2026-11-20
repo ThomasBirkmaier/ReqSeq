@@ -19,4 +19,23 @@ scenariosOf("baseline.create", [
     tag: "[SR-050/AK-g01t]",
     expect: "error",
   },
+  {
+    name: "a baseline as the selection, refused naming selection.baseline (SR-050 AK9)",
+    fixture: EXPORT,
+    root: "system",
+    input: { name: "Release 2", selection: { baseline: "Release 1" } },
+    tag: "[SR-050/AK-b59n]",
+    expect: "error",
+  },
+  {
+    name: "a command output as the selection, refused naming selection.output (SR-050 AK9)",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      name: "Release 2",
+      selection: { output: { command: "element.list", input: { selection: { package: "PKG-0000d1" } } } },
+    },
+    tag: "[SR-050/AK-b59n]",
+    expect: "error",
+  },
 ]);

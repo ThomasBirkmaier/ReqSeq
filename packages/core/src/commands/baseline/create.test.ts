@@ -298,11 +298,49 @@ describe("baseline.create", () => {
     expect(fs.readdirSync(ws.path("system/baselines")).sort()).toEqual(["broken.yaml", "release-1.yaml"]);
   });
 
-  it("refuses selection.baseline, a folder that is not here or cannot be read, and an element without version", async () => {
+  it("[SR-050/AK-b59n] a baseline or a command output as the selection is refused naming its field, nothing written", async () => {
     const ws = await fixture();
-    expect((await failure(ws, "B", { baseline: "Release 1" })).details).toMatchObject({
-      fields: ["selection.baseline"],
-    });
+    // A baseline without elements, next to „Release 1“ and the unreadable `broken.yaml`.
+    await ws.write(
+      "system/baselines/empty.yaml",
+      "reqseq-baseline: 1\nname: Empty\ndate: 2026-10-23T09:00:00Z\nrepositories:\n  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\nelements: []\n",
+    );
+    const files = (): string[] => fs.readdirSync(ws.path("system/baselines")).sort();
+    const before = files();
+    const reasons = {
+      "selection.baseline": "a baseline is not made of another baseline; leave it out",
+      "selection.output":
+        "a baseline stores its selection, and a command output is no stored selection; leave it out",
+    } as const;
+    const output = (command: string, input: object): object => ({ output: { command, input } });
+    const cases: readonly (readonly [keyof typeof reasons, object])[] = [
+      ["selection.baseline", { baseline: "Release 1" }],
+      ["selection.baseline", { baseline: "Release 1", ...PACKAGE }],
+      ["selection.baseline", { baseline: "Empty" }],
+      ["selection.baseline", { baseline: "Nowhere" }],
+      ["selection.baseline", { baseline: "broken" }],
+      ["selection.output", output("baseline.get", { baseline: "Release 1" })],
+      ["selection.output", { ...output("element.list", { selection: PACKAGE }), ...PACKAGE }],
+      // A search without a word to look for lists no elements.
+      ["selection.output", output("element.search", { query: "!!" })],
+      ["selection.output", output("nothing.here", {})],
+      ["selection.output", output("element.update", { ref: "SR-0000b1", title: "x" })],
+      ["selection.output", output("element.list", { group: "nonsense" })],
+      ["selection.baseline", { baseline: "Release 1", ...output("element.list", {}) }],
+    ];
+    for (const [field, selection] of cases) {
+      const error = await failure(ws, "Release 2", selection);
+      expect([error.code, error.details], JSON.stringify(selection)).toEqual([
+        "input.invalid",
+        { command: "baseline.create", fields: [field] },
+      ]);
+      expect(error.message).toBe(`${field}: ${reasons[field]}`);
+    }
+    expect(files()).toEqual(before);
+  });
+
+  it("refuses a folder that is not here or cannot be read, and an element without version", async () => {
+    const ws = await fixture();
     vi.mocked(model.currentVersionsOf).mockImplementationOnce(async (workspace, records) => {
       const versions = await vi.importActual<typeof model>("../../model/index.js");
       const all = await versions.currentVersionsOf(workspace, records);
