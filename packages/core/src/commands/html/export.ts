@@ -16,7 +16,6 @@ import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
 import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
 import { writeHtmlExport } from "../../html-export/index.js";
-import { workspaceLayoutState } from "../../workspace/index.js";
 import { baselineShown } from "../baseline/get.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
@@ -93,7 +92,7 @@ export default defineCommand({
       pages: result.pages,
       exportedElements: [...result.exported],
       removed: result.removed,
-      incomplete: (await workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available),
+      incomplete: result.incomplete,
       problems: [...problems, ...result.problems],
     };
   },
