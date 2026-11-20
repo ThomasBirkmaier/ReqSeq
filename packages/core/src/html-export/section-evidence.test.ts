@@ -15,6 +15,7 @@ const context: ElementPageContext = {
   shortIds: {} as ShortIds,
   layout: { repositories: [] },
   links: pageLinks(new Set()),
+  members: new Map(),
 };
 
 const at = (result: EvidenceRecord["result"], variant?: string): EvidenceRecord => ({
