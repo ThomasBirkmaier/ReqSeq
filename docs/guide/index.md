@@ -9,14 +9,15 @@ For spec-driven development, your agent works through ReqSeq's CLI or MCP server
 
 The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
-![ReqSeq in the middle with its four ways in: you work in the desktop app, you and an AI assistant over MCP, a coding agent and a CI pipeline over the CLI, and scripts and tools over the local API. ReqSeq reads and writes the spec as Markdown files in a workspace folder of your Git repository, such as spec/, reads Git and never commits, and opens no network connections.](./images/context.svg)
+![The chain ReqSeq keeps: your agent writes the need and the system requirement into ReqSeq and the code and tests into your repository; the test results come back as JUnit XML and become evidence against the version of the requirement.](./images/chain-light.svg)
+![The chain ReqSeq keeps: your agent writes the need and the system requirement into ReqSeq and the code and tests into your repository; the test results come back as JUnit XML and become evidence against the version of the requirement.](./images/chain-dark.svg)
 
-You can use it in four ways, and each gives the same result ([CLI, API and MCP](/concepts/cli-api-and-mcp/) explains the three besides the app):
+![Four ways in with the same commands and the same result: the desktop app, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-light.svg)
+![Four ways in with the same commands and the same result: the desktop app, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-dark.svg)
 
-- **App**: the desktop app for reading and editing a workspace. [Install ReqSeq](/how-to/install-reqseq/) says how to unpack and start it.
-- **CLI**: the `reqseq` command line, for the terminal and for pipelines. Start with `reqseq --help`.
-- **API**: a local HTTP API on loopback only, started with `reqseq serve api`.
-- **MCP**: an MCP server for AI agents, started with `reqseq mcp`.
+![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](./images/app-tour.gif)
+
+[CLI, API and MCP](/concepts/cli-api-and-mcp/) explains the three ways in besides the app, and [Install ReqSeq](/how-to/install-reqseq/) says how to unpack and start it.
 
 ## What it does
 
@@ -28,6 +29,6 @@ You can use it in four ways, and each gives the same result ([CLI, API and MCP](
 
 ## Where to read on
 
-New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call in each of the four. [The app](/concepts/the-app/) explains the command prompt, buffers and the other parts of the desktop app, and its [keyboard shortcuts](/reference/keyboard-shortcuts/) are listed for Windows and Linux and for macOS. The how-to guides each show one task in all four: [install ReqSeq](/how-to/install-reqseq/), [open or create a workspace](/how-to/open-a-workspace/), [trace a requirement](/how-to/trace-a-requirement/), [check a workspace in CI](/how-to/check-a-workspace-in-ci/), [record test evidence from JUnit XML](/how-to/record-test-evidence/), [name the requirement in a test](/how-to/name-the-requirement-in-a-test/), [give acceptance criteria their keys](/how-to/give-acceptance-criteria-their-keys/), [record test results in CI](/how-to/record-test-results-in-ci/), [record evidence for a variant](/how-to/record-evidence-for-a-variant/), [extend the metamodel](/how-to/extend-the-metamodel/), [choose what counts to the version](/how-to/choose-what-counts-to-the-version/), [limit relations and list entries](/how-to/limit-relations-and-list-entries/), [remove a draft](/how-to/remove-a-draft/), [find and filter elements](/how-to/find-and-filter-elements/), [review and approve a requirement](/how-to/review-and-approve-a-requirement/), [take a baseline](/how-to/take-a-baseline/), [prepare a baseline](/how-to/prepare-a-baseline/), [manage a product variant](/how-to/manage-a-product-variant/) and [exchange requirements with ReqIF](/how-to/exchange-requirements-with-reqif/).
+New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call in each of the four ways in. [The app](/concepts/the-app/) explains the command prompt, buffers and the other parts of the desktop app, with its [keyboard shortcuts](/reference/keyboard-shortcuts/). The how-to guides in the menu each show one task in all four, from [connecting an AI agent](/how-to/connect-an-ai-agent/) to [publishing the workspace as HTML](/how-to/publish-the-workspace-as-html/).
 
 The source code, the releases and the issues are on [GitHub](https://github.com/ThomasBirkmaier/ReqSeq).

@@ -43,3 +43,10 @@ h1#_top {
 .sl-markdown-content {
   line-height: 1.7;
 }
+
+/* The pictures that come in a light and a dark variant (`<name>-light.svg`, `<name>-dark.svg`, as in the README) show
+   the one of the chosen theme. */
+:root[data-theme="light"] .sl-markdown-content img[src*="-dark."],
+:root[data-theme="dark"] .sl-markdown-content img[src*="-light."] {
+  display: none;
+}
