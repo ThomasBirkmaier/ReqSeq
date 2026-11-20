@@ -480,6 +480,7 @@ export type ProblemCode =
   | "workspace.metamodel-mismatch"
   | "workspace.invalid"
   | "workspace.not-watched"
+  | "workspace.skill-not-written"
   | "workspace.skill-older-version"
   | "git.unavailable"
   | "git.revision-missing"
@@ -2159,7 +2160,7 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
@@ -2174,10 +2175,12 @@ export interface WorkspaceInitInput {
     /** Folder of the metamodel, relative to that repository. Default: `metamodel`. */
     readonly path?: string;
   };
+  /** Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none. */
+  readonly skill: boolean;
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {

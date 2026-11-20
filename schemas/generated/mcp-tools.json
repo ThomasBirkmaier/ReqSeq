@@ -981,6 +981,7 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-not-written",
             "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
@@ -4402,7 +4403,7 @@
     {
       "name": "workspace_init",
       "title": "Create workspace",
-      "description": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+      "description": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -4433,6 +4434,11 @@
               }
             },
             "additionalProperties": false
+          },
+          "skill": {
+            "type": "boolean",
+            "default": true,
+            "description": "Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none."
           }
         },
         "additionalProperties": false,
@@ -4452,7 +4458,7 @@
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/outputPath",
-              "description": "Written file, relative to the workspace root."
+              "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
             }
           },
           "next": {

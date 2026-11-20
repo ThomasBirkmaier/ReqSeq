@@ -6,7 +6,7 @@
 // No SR threshold applies to the dates (SR-025 has the 60 s of a whole check; SR-082 AK3 opens without
 // the date, which `element.get` gives only on request), so the times are recorded only (ADR-0011).
 import type { GeneratedElement, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, perfSize, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { parseFileBytes } from "../../src/files/index.js";
@@ -21,8 +21,8 @@ import { Workspace } from "../../src/runtime/workspace.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 import { createHash } from "node:crypto";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** Outdated relations, one per changed target. */
 const TARGETS = 300;
 /** The first of them get an embedded image with the change. */

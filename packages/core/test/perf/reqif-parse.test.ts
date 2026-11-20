@@ -4,7 +4,7 @@
 // row is not asserted. A second row writes (`write.ts`) a model in the export's shape at the same size,
 // both round-trip text channels included, checks the file stays below the parser's byte limit and
 // reads it back.
-import { measurePeakMemory, memoryIncrease, recordValue } from "@reqseq/testkit";
+import { measurePeakMemory, memoryIncrease, perfSize, recordValue } from "@reqseq/testkit";
 import { describe, expect, it } from "vitest";
 import { Buffer } from "node:buffer";
 import type { XhtmlElement, XhtmlNode } from "../../src/reqif/model.js";
@@ -13,8 +13,8 @@ import { parseReqif, REQIF_LIMITS } from "../../src/reqif/parse.js";
 import type { ReqifWritable } from "../../src/reqif/write.js";
 import { writeReqif } from "../../src/reqif/write.js";
 
-const OBJECTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 objects and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: OBJECTS, relations: RELATIONS } = perfSize();
 const BASIS = "N-036, #265: ReqIF parse of a delivery at 50,000 requirements";
 const BASIS_WRITE = "N-036, SR-052 AK3: ReqIF export of 50,000 requirements, read back";
 

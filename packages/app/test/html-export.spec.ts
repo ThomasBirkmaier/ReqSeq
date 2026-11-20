@@ -1,4 +1,4 @@
-// The pages of the HTML export in Chromium (SR-231 AK2, AK4, AK5): the CLI exports a workspace, and a window of
+// The pages of the HTML export in Chromium (SR-231 AK2, AK4, AK5; SR-232 AK1 copy buttons): the CLI exports a workspace, and a window of
 // the built app with a session of its own opens the pages over `file://` and from a server on 127.0.0.1 under the
 // sub-path /a/b/. Every request is recorded: none may leave the folder, and the server answers a request outside
 // /a/b/ with a sentinel the test fails on. The window loads each page from main (`loadURL`), as the app's guard
@@ -294,5 +294,20 @@ test.describe("the pages of the HTML export", () => {
     } finally {
       await server.close();
     }
+  });
+  test("[SR-232/AK-cj5d] over file://, the copy button of a field puts its value into the clipboard", async () => {
+    const { app } = running;
+    const { page, id } = await openWindow(app);
+    watch(page);
+    const root = pathToFileURL(`${site}${path.sep}`).href;
+    await load(app, page, id, `${root}elements/${GUSTS}.html`);
+    const row = page.locator(".rq-fields dd", { has: page.locator(".rq-value", { hasText: "SR-4a5b6c" }) });
+    await row.hover();
+    const button = row.locator("button.rq-copy");
+    await expect(button).toBeVisible();
+    await page.screenshot({ path: path.join(SHOTS, "html-export-fields-light.png") });
+    await button.click();
+    await expect(button).toHaveClass(/rq-copied/u);
+    expect(await app.evaluate(({ clipboard }) => clipboard.readText())).toBe("SR-4a5b6c");
   });
 });

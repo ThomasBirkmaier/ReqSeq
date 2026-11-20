@@ -50,10 +50,10 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 0 elements and found no problem.
+Checked 0 elements and found 1 info.
 ok: true
 checkedElements: 0
-No problems.
+info  evidence.folder-missing  The evidence folder evidence does not exist  ...
 ```
 
 ```sh

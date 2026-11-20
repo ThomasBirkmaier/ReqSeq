@@ -991,6 +991,7 @@
             "workspace.metamodel-mismatch",
             "workspace.invalid",
             "workspace.not-watched",
+            "workspace.skill-not-written",
             "workspace.skill-older-version",
             "git.unavailable",
             "git.revision-missing",
@@ -4805,7 +4806,8 @@
       {
         "name": "workspace.init",
         "title": "Create workspace",
-        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+        "details": "The skill file is written as `tool.guide` with `skill` and `write` writes it, without `replace`: to `.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository of the folder, or in the folder without Git. ReqSeq's own unchanged file of another version is left as it is. A file there that ReqSeq did not write, or that was changed since, is kept, and the problem `workspace.skill-not-written` says why; the workspace is created all the same. `skill: false` writes no skill file.",
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
@@ -4826,6 +4828,10 @@
           {
             "field": "metamodel",
             "complete": "metamodelLocation"
+          },
+          {
+            "field": "skill",
+            "complete": "boolean"
           }
         ],
         "input": {
@@ -4853,6 +4859,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "skill": {
+              "type": "boolean",
+              "default": true,
+              "description": "Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none."
             }
           },
           "additionalProperties": false,
@@ -4872,7 +4883,7 @@
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath",
-                "description": "Written file, relative to the workspace root."
+                "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
               }
             },
             "next": {
@@ -38788,97 +38799,5 @@
         ]
       }
     ]
-  },
-  "problemTitles": {
-    "file.invalid-yaml": "YAML that cannot be parsed",
-    "file.conflict-markers": "Unresolved merge conflict",
-    "file.unreadable": "File that cannot be read",
-    "file.faulty": "Element without a version",
-    "file.yaml-warning": "YAML with a parser warning",
-    "file.skipped": "File not read",
-    "file.stale-temp": "Leftover temporary file",
-    "file.read-only": "Folder not writable",
-    "element.invalid": "Invalid element file",
-    "element.duplicate-id": "Duplicate element ID",
-    "element.duplicate-identifier": "Duplicate identifier",
-    "element.file-name-clash": "Clashing file names",
-    "element.unknown-type": "Unknown type",
-    "element.unknown-property": "Unknown property",
-    "element.missing-required": "Required property without value",
-    "element.wrong-value-kind": "Value of the wrong kind",
-    "element.status-not-allowed": "Status not allowed for the type",
-    "element.missing-status": "Missing status",
-    "element.statement-without-text": "Statement without text",
-    "element.too-many-items": "Too many list entries",
-    "element.criterion-key-missing": "Acceptance criterion without key",
-    "element.criterion-key-duplicate": "Duplicate criterion key",
-    "element.criterion-key-invalid": "Invalid criterion key",
-    "element.text-emptied": "Text removed",
-    "relation.missing-target": "Missing target",
-    "relation.cross-repository-title": "Stored title across repositories",
-    "relation.unresolved-link": "Unresolved reference",
-    "relation.not-a-link": "Element named outside a link",
-    "relation.reference-style": "Reference-style link",
-    "relation.inaccessible-target": "Target not on this machine",
-    "relation.not-allowed": "Relation not allowed",
-    "relation.too-many": "Too many relations",
-    "relation.too-few": "Too few relations",
-    "relation.outdated": "Outdated relation",
-    "relation.target-superseded": "Superseded target",
-    "relation.not-found": "Relation not found",
-    "relation.version-added": "Stored version added",
-    "hint.not-confirmable": "Hint that cannot be confirmed",
-    "hint.not-found": "Hint not found",
-    "trace.cycle": "Cycle of derivations",
-    "trace.no-parent": "Requirement without parent",
-    "variant.core-changed": "Replaced core requirement changed",
-    "variant.superseded-in-validity": "Superseded variant in validity",
-    "variant.nested": "Nested variant",
-    "variant.target-not-core": "Target is no core requirement",
-    "variant.core-changed-since-baseline": "Core changed since the baseline",
-    "variant.core-new-since-baseline": "Core requirement new since the baseline",
-    "evidence.unknown-element": "Evidence for an unknown element",
-    "evidence.invalid-record": "Invalid evidence record",
-    "evidence.outdated": "Outdated verification",
-    "evidence.not-enriched": "Test cases not enriched",
-    "evidence.folder-missing": "Missing evidence folder",
-    "evidence.ambiguous-element": "Evidence for an ambiguous element",
-    "evidence.kind-mismatch": "Verification of no requirement",
-    "evidence.counts-in-no-view": "Record in no view",
-    "evidence.unknown-criterion": "Unknown acceptance criterion",
-    "evidence.invalid-criterion-name": "Criterion named by number",
-    "evidence.outside-location": "Enriched file in no evidence location",
-    "evidence.no-location": "No evidence location",
-    "evidence.open-requirements": "Open verification status",
-    "baseline.invalid": "Invalid baseline",
-    "baseline.repository-commit-differs": "Repository at another commit",
-    "filter.invalid": "Invalid saved filter",
-    "filter.duplicate-name": "Duplicate saved filter name",
-    "perspective.invalid": "Invalid perspective",
-    "perspective.duplicate-name": "Duplicate perspective name",
-    "perspective.group-unavailable": "Grouping no longer available",
-    "metamodel.invalid": "Invalid metamodel",
-    "metamodel.optional-status": "Optional status",
-    "metamodel.meaning-unassigned": "Meaning not assigned",
-    "metamodel.meaning-type-mismatch": "Meaning does not fit the type",
-    "workspace.repository-missing": "Repository not on this machine",
-    "workspace.metamodel-mismatch": "Different metamodel in a repository",
-    "workspace.invalid": "Invalid workspace file",
-    "workspace.not-watched": "Folder not watched",
-    "workspace.skill-older-version": "Skill file of an older ReqSeq version",
-    "git.unavailable": "Git cannot read the repository",
-    "git.revision-missing": "Missing commit",
-    "reqif.replaces-local": "Import replaces local content",
-    "reqif.choice-unused": "Unused conflict choice",
-    "reqif.edited-elsewhere": "Edited in another tool",
-    "reqif.mapping-differs": "Different saved mapping",
-    "reqif.source-model-unsaved": "Source model not saved",
-    "reqif.source-value-chosen": "First source value written",
-    "html.unsafe-content": "Content shown as text",
-    "html.image-not-copied": "Image not copied",
-    "html.formula-error": "Formula with an error",
-    "html.foreign-file": "File not written by the export",
-    "html.marker-entry-ignored": "Marker file entry not used",
-    "html.cleanup-failed": "Staging folder left"
   }
 }

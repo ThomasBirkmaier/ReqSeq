@@ -81,8 +81,15 @@ import type { EvidenceRecord } from "./record.js";
 import type { OlderCriteria } from "./criteria.js";
 import { changedOlderIds, olderCriteriaState } from "./older-criteria.js";
 import { insertionOf } from "./state.js";
-import type { CriteriaCount, StatusSource, Validation, VerificationEntries } from "./status.js";
+import type {
+  CriteriaCount,
+  RecordVerificationStatus,
+  StatusSource,
+  Validation,
+  VerificationEntries,
+} from "./status.js";
 import {
+  criterionStatusesOf,
   hasValidationRecord,
   hasValidationStatus,
   statusSource,
@@ -111,6 +118,41 @@ export const verificationOf = (
     }
     return [entryOf(view.kind === "core" ? "core" : view.variant.id, result)];
   });
+};
+
+/** The status of each acceptance criterion of an element in one view (`criterionStatusesByView`). */
+export interface ViewCriterionStatuses {
+  /** `core`, or the UUID of the variant, as in `verification`. */
+  readonly view: string;
+  /** Criterion n at position n - 1. */
+  readonly statuses: readonly RecordVerificationStatus[];
+}
+
+/**
+ * The status of each acceptance criterion of `element` in each view of `verificationOf` (the core and
+ * each variant it applies in, none whose status is invalid), from its own records measured against
+ * `current` (`criterionStatusesOf`, SR-031; the rule of the rows of `evidence.list`'s `display`); a
+ * criterion without record is open, also when children decide the status of the element (SR-034).
+ * Undefined for an element that is no requirement or has no acceptance criteria.
+ */
+export const criterionStatusesByView = (
+  status: Pick<WorkspaceStatus, "source" | "holders">,
+  element: ElementRecord,
+  current: VersionForms | undefined,
+): ViewCriterionStatuses[] | undefined => {
+  const { source } = status;
+  const criteria = source.criteriaOf(element);
+  if (!source.requirements.has(element.type) || criteria.count === 0) {
+    return undefined;
+  }
+  const records = source.recordsOf(element.id);
+  const independent = source.independent(element);
+  return status.holders
+    .filter((holder) => !holder.invalid && holder.includes(element))
+    .map(({ view }) => ({
+      view: view.kind === "core" ? "core" : view.variant.id,
+      statuses: criterionStatusesOf(records, current, view, independent, criteria),
+    }));
 };
 
 /**

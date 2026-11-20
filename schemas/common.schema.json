@@ -523,6 +523,7 @@
         "workspace.metamodel-mismatch",
         "workspace.invalid",
         "workspace.not-watched",
+        "workspace.skill-not-written",
         "workspace.skill-older-version",
         "git.unavailable",
         "git.revision-missing",
