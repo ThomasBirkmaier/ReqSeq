@@ -14,8 +14,8 @@ Two commands gather the outputs of other commands in one output and name the nex
 
 ## App
 
-1. On a package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Prepare baseline**. The output ends with **Create baseline**; Enter on it asks only the name.
-2. Later, run **Show changes since baseline**; Ctrl+Enter (⌘↩) asks a baseline first. Several hints of one kind show as one line with the kind and their count, and Tab opens it.
+1. On a package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Prepare baseline**. Its next steps include **Create baseline**; Enter on it asks only the name.
+2. Later, run **Show changes since baseline**; Ctrl+Enter (⌘↩) asks a baseline first. Several hints of one kind show as one line with the kind and their count, and Tab unfolds it.
 
 ## CLI
 
