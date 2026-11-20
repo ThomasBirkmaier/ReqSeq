@@ -4,8 +4,9 @@
 // that place, and each opens the command prompt with the definition given. The four Remove entries run at
 // once; a refused one writes no file and the echo line says core's reason (AK8). "Add status to type" run from the
 // menu writes the metamodel, the graph and the text mark the new status until the next metamodel command in
-// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go through Chromium's input (Playwright's mouse). The light
-// screenshot goes to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
+// the app (a change through the CLI or by hand marks nothing), and a removal marks nothing. Right-clicks go
+// through Chromium's input (Playwright's mouse). The two light screenshots, the marked status and a refused
+// removal, go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,13 +53,19 @@ const PROPERTY_MENU = ["Change property definition", "Remove property from type"
 const STATUS_MENU = ["Change status definition", "Remove status from type"];
 const KIND_MENU = ["Change relation kind", "Remove relation kind"];
 
-/** The content of every file of the workspace at `root`, by its path. */
+/** The content of every file of the workspace at `root`, by its path; a file gone since the listing is left out. */
 const filesOf = async (root: string): Promise<Record<string, string>> => {
   const entries = await fsp.readdir(root, { recursive: true, withFileTypes: true });
   const files: Record<string, string> = {};
   for (const entry of entries.filter((candidate) => candidate.isFile())) {
     const file = path.join(entry.parentPath, entry.name);
-    files[path.relative(root, file)] = await fsp.readFile(file, "utf8");
+    try {
+      files[path.relative(root, file)] = await fsp.readFile(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
   }
   return files;
 };
@@ -174,7 +181,11 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
 
   test("[SR-199/AK-r608] a refused removal writes nothing, and the command prompt says why", async () => {
     const { window } = running;
-    const root = running.workspace?.root ?? "";
+    const root = running.workspace?.root;
+    expect(root).toBeDefined();
+    if (root === undefined) {
+      return;
+    }
     const before = await filesOf(root);
     // An inherited status (SR-240 AK3): Retired comes from the list of Item.
     await chooseOn(
@@ -203,6 +214,8 @@ test.describe("the context menus of the metamodel's graph (SR-199)", () => {
     await expect(label(window)).toHaveCount(0);
     expect(await filesOf(root)).toEqual(before);
     await expect(box(window, "software-requirement").locator('[data-status="retired"]')).toHaveCount(1);
+    await expect(box(window, "software-requirement")).toBeVisible();
+    await expect(box(window, "decision").locator('.mm-property[data-property="title"]')).toBeVisible();
   });
 
   test("[SR-130/AK-wb12] the graph and the text mark a status added in the app until the next metamodel command, not a change through the CLI or by hand, and nothing after a removal", async () => {

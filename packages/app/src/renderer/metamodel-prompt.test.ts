@@ -974,20 +974,29 @@ describe("the Remove entries of the metamodel graph's menus (SR-199 AK8)", () =>
   }
 
   it("[SR-199/AK-r608] says why core refuses a removal, an inherited status, a type a definition names or a use, and asks nothing", async () => {
-    const reasons: Partial<Record<RemoveEntry["name"], string>> = {
-      "metamodel.removeStatus":
+    // Core's message and the reason in its details, per entry.
+    const reasons: Record<RemoveEntry["name"], readonly [string, string]> = {
+      "metamodel.removeStatus": [
         "Type software-requirement has the status retired from the status list of type item; remove it there",
-      "metamodel.removeType": "Type package cannot be removed: property packages has it as target type",
-      "metamodel.removeProperty":
+        "inherited",
+      ],
+      "metamodel.removeType": [
+        "Type package cannot be removed: property packages has it as target type",
+        "in-use",
+      ],
+      "metamodel.removeProperty": [
         "Property title stays in type decision while elements hold it: property title: 1 element (D-d0000000130)",
+        "in-use",
+      ],
+      "metamodel.removeRelationKind": [
+        "Relation kind blocks cannot be removed: relation blocks: 1 element (SR-b0000000130)",
+        "in-use",
+      ],
     };
     for (const of of REMOVE_ENTRIES) {
-      const reason = reasons[of.name];
-      if (reason === undefined) {
-        continue;
-      }
+      const [reason, kind] = reasons[of.name];
       const { context, asked, call, echoed } = ready({
-        [of.name]: () => refusedWith(reason, { reason: "in-use" }),
+        [of.name]: () => refusedWith(reason, { reason: kind }),
       });
       removeFromMenu(context, of);
       await flush();
