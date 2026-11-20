@@ -120,7 +120,7 @@ const sidebar = (up: string, path: string, navigation: Navigation): string => {
  * The sections of `body` for the table of contents: each `<h2>` with an `id` and no other attribute, as the export's
  * sections write them (a heading of an element's text has no `id`, a footnote heading also a class), its text the label.
  */
-export const sectionsOf = (body: string): { readonly id: string; readonly label: string }[] =>
+const sectionsOf = (body: string): { readonly id: string; readonly label: string }[] =>
   [...body.matchAll(/<h2 id="([^"]+)">([^]*?)<\/h2>/gu)].map((m) => ({
     id: String(m[1]),
     label: String(m[2]).replaceAll(/<[^>]*>/gu, ""),

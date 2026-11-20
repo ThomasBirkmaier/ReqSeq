@@ -82,22 +82,24 @@ describe("baseline page (SR-234 AK1)", () => {
       ["u10", "SR-10"],
       ["u9", "sr-9"],
       ["u2", "N-2"],
+      ["u9b", "SR-9"],
+      ["u9c", "SR-9"],
     ]);
-    const rows = ["u10", "u9", "u2"].map((id) => ({ ...CHANGED, id }));
+    const rows = ["u10", "u9", "u2", "u9b", "u9c"].map((id) => ({ ...CHANGED, id }));
     const body = plain(
       baselinePageBody(
         {
           ...BASELINE,
           selectionKnown: false,
           elements: rows,
-          counts: { ...BASELINE.counts, changed: 3, superseded: 1, inaccessible: 0 },
-          total: 3,
+          counts: { ...BASELINE.counts, changed: 5, superseded: 1, inaccessible: 0 },
+          total: 5,
         },
         (row) => ({ name: String(names.get(row.id)), title: "", status: "–", href: undefined }),
       ),
     );
     expect(body).toMatch(
-      /^3 elements in the baseline\. Since then 3 changed, 1 superseded\. .* Changed \(3\) Identifier Title Status Version in the baseline N-2 – .* sr-9 – .* SR-10 – /u,
+      /^5 elements in the baseline\. Since then 5 changed, 1 superseded\. .* Changed \(5\) Identifier Title Status Version in the baseline N-2 – .* SR-9 – .* SR-9 – .* sr-9 – .* SR-10 – /u,
     );
     expect(
       plain(

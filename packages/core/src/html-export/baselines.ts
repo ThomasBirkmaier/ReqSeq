@@ -111,14 +111,21 @@ const versionCell = (row: BaselineRow): string =>
           : ` of ${escapeHtml(dayOf(row.versionDate))}`
       }`;
 
-/** `rows` by the identifier of their element (`element(row).name`), digit runs as numbers (SR-075 AK1). */
+/**
+ * `rows` by the identifier of their element (`element(row).name`, NFC), digit runs as numbers and case ignored, then
+ * as written (SR-075 AK1).
+ */
 const byIdentifier = (
   rows: readonly BaselineRow[],
   element: (row: BaselineRow) => RowElement,
 ): BaselineRow[] =>
   rows
-    .map((row) => ({ row, name: element(row).name.toLowerCase() }))
-    .sort((a, b) => compareNatural(a.name, b.name))
+    .map((row) => ({ row, name: element(row).name.normalize("NFC") }))
+    .sort(
+      (a, b) =>
+        compareNatural(a.name.toLowerCase(), b.name.toLowerCase()) ||
+        (a.name < b.name ? -1 : Number(a.name > b.name)),
+    )
     .map(({ row }) => row);
 
 /** "1 element" or "2 elements". */

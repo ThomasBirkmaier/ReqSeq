@@ -4,13 +4,13 @@
 import { DOCS_BADGE_SCOPE } from "./docs-theme.generated.js";
 import { escapeHtml } from "./markdown.js";
 
-const VARIANT: Readonly<Record<string, string>> = {
-  verified: "success",
-  indirect: "note",
-  open: "caution",
-  failed: "danger",
-  outdated: "danger",
-};
+const VARIANT: ReadonlyMap<string, string> = new Map([
+  ["verified", "success"],
+  ["indirect", "note"],
+  ["open", "caution"],
+  ["failed", "danger"],
+  ["outdated", "danger"],
+]);
 
 /** A small badge with `label`, in Starlight's `variant` (`default` for an unknown one). */
 export const badge = (label: string, variant: string): string =>
@@ -18,4 +18,4 @@ export const badge = (label: string, variant: string): string =>
 
 /** The badge of a verification status, labelled `label` (the status itself by default). */
 export const verificationBadge = (status: string, label = status): string =>
-  badge(label, VARIANT[status] ?? "default");
+  badge(label, VARIANT.get(status) ?? "default");
