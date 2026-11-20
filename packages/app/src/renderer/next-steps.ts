@@ -6,7 +6,7 @@
 // app action that covers the command (`coveringAction`, such as "Connect AI agent") takes no given inputs: it asks
 // all of its inputs itself. Layout and lookup only: which steps an output names is core's (ADR-0002).
 import type { NextStep } from "@reqseq/core";
-import type { CommandListing } from "../shared/protocol.js";
+import type { CommandListing, RecentWorkspaceEntry } from "../shared/protocol.js";
 import type { WorkspaceControls } from "./workspaces.js";
 import { openWorkspaceAt } from "./workspaces.js";
 import { appCommandEntry, coveringAction } from "./command-entry.js";
@@ -89,15 +89,34 @@ export interface StepRunner {
   readonly shown: (open: boolean) => void;
 }
 
+/** Whether the workspace the list of recent workspaces marks open is `root`. */
+const isOpen = (entries: readonly RecentWorkspaceEntry[], root: string): boolean =>
+  entries.find((entry) => entry.state === "open")?.root === root;
+
 /**
  * Runs a chosen step: at once in the open workspace when the step names no workspace or the open one; else it
  * first opens the step's workspace as "Open workspace" does (`openWorkspaceAt`, also while none is open) and
  * runs the step once that workspace is open and its status and the catalog are read. A workspace that does
- * not open runs nothing: the command line says why, as the prompt "Workspace" says it.
+ * not open runs nothing: the command line says why, as the prompt "Workspace" says it. While one step waits
+ * for its workspace, another chosen step runs nothing.
  */
 export const stepRunner = (deps: StepRunnerDeps): StepRunner => {
-  // The step whose workspace is being opened, and whether the window learned that it opened.
-  let pending: { readonly step: NextStep; readonly opened: boolean } | undefined;
+  // The step whose workspace is being opened, and whether the window learned that its open happened: from the
+  // choice on, so a second choice before main's answer cannot take its place.
+  let pending:
+    | {
+        readonly step: NextStep;
+        readonly root: string;
+        readonly workspaces: WorkspaceControls;
+        readonly opened: boolean;
+      }
+    | undefined;
+  /** Ends the wait of `step` only, never that of a later one. */
+  const end = (step: NextStep): void => {
+    if (pending?.step === step) {
+      pending = undefined;
+    }
+  };
   return {
     choose: (step) => {
       const workspaces = deps.workspaces();
@@ -106,34 +125,60 @@ export const stepRunner = (deps: StepRunnerDeps): StepRunner => {
         deps.run(step);
         return;
       }
-      void workspaces.list().then((entries) => {
-        if (entries.find((entry) => entry.state === "open")?.root === root) {
-          deps.run(step);
-          return;
-        }
-        const opening = (on: boolean): void => {
-          pending = on ? { step, opened: false } : undefined;
-        };
-        openWorkspaceAt({ workspaces, echo: deps.echo, opening }, entries, root);
-      });
+      if (pending !== undefined) {
+        return;
+      }
+      pending = { step, root, workspaces, opened: false };
+      workspaces.list().then(
+        (entries) => {
+          if (isOpen(entries, root)) {
+            end(step);
+            deps.run(step);
+            return;
+          }
+          const opening = (on: boolean): void => {
+            if (!on) {
+              end(step);
+            }
+          };
+          openWorkspaceAt({ workspaces, echo: deps.echo, opening }, entries, root);
+        },
+        () => {
+          end(step);
+          deps.echo(`${root} could not be opened`);
+        },
+      );
     },
     changed: (reason) => {
-      if (reason === "opened" && pending !== undefined) {
-        pending = { step: pending.step, opened: true };
+      if (pending === undefined) {
+        return;
+      }
+      // No core process runs, or a second open came after the step's own: the step does not run.
+      if (reason === "stopped" || (reason === "opened" && pending.opened)) {
+        pending = undefined;
+      } else if (reason === "opened") {
+        pending = { ...pending, opened: true };
       }
     },
     shown: (open) => {
       if (pending?.opened !== true) {
         return;
       }
-      const { step } = pending;
+      const { step, root, workspaces } = pending;
       pending = undefined;
       // The workspace did not open after all: its status says why.
-      if (open) {
-        void (deps.catalogRead() ?? Promise.resolve()).then(() => {
-          deps.run(step);
-        });
+      if (!open) {
+        return;
       }
+      // Only in its own workspace, never in one opened in its place meanwhile.
+      void Promise.all([workspaces.list(), deps.catalogRead()]).then(
+        ([entries]) => {
+          if (isOpen(entries, root)) {
+            deps.run(step);
+          }
+        },
+        () => undefined,
+      );
     },
   };
 };

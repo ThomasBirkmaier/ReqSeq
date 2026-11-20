@@ -564,6 +564,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       }),
     [bridge, steps],
   );
+  // Each status read sets a new `view`; "opened" does not reset it, so the first `view` after it is the new status.
   useEffect(() => {
     steps.shown(view?.name !== undefined);
   }, [view, steps]);
