@@ -175,14 +175,22 @@ const evidenceOf = async (
 /** The baseline of `input` and what its stored selection selects now, with a warning when it cannot be resolved (see the file comment). */
 const baselineOf = async (
   ctx: CommandContext,
-  input: CommandInput<typeof command>,
+  input: Pick<CommandInput<typeof command>, "baseline">,
+): Promise<{
+  readonly baseline: Baseline;
+  readonly problems: Problem[];
+  readonly selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
+}> => selectedOf(ctx, await namedBaseline(ctx.workspace, input.baseline, command));
+
+/** `baselineOf` for a baseline already read. */
+const selectedOf = async (
+  ctx: CommandContext,
+  baseline: Baseline,
 ): Promise<{
   readonly baseline: Baseline;
   readonly problems: Problem[];
   readonly selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
 }> => {
-  const { workspace } = ctx;
-  const baseline = await namedBaseline(workspace, input.baseline, command);
   const problems: Problem[] = [];
   let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
   if (baseline.data.selection !== undefined) {
@@ -237,6 +245,53 @@ export const countedOfBaseline = async (
   return { elements, incomplete: absent || (await incompleteOf(ctx.workspace, selected)) };
 };
 
+/** The output of `baseline.get` for the baseline and selection `read`, with the rows of `page`. */
+const shownBaseline = async (
+  ctx: CommandContext,
+  read: Awaited<ReturnType<typeof selectedOf>>,
+  page: Pick<CommandInput<typeof command>, "limit" | "offset" | "withEvidence">,
+): Promise<CommandOutput<typeof command>> => {
+  const { workspace } = ctx;
+  const { baseline, problems: unresolved, selected } = read;
+  // The files on disk are read, not the baseline's commits (#668): these warnings come first.
+  const problems: Problem[] = [
+    ...(await commitDifferences(await workspace.get(workspaceLayoutState), baseline)),
+    ...unresolved,
+  ];
+  const metamodel = await workspace.get(metamodelState);
+  const [view] = selected?.views ?? [];
+  return showBaseline(workspace, {
+    baseline,
+    metamodel,
+    store: selected?.store ?? (await workspace.get(elementStoreState)),
+    selected: selected?.elements,
+    view: view?.kind === "variant" ? view.variant.id : undefined,
+    incomplete: await incompleteOf(workspace, selected),
+    problems,
+    limit: page.limit,
+    offset: page.offset,
+    ...(page.withEvidence ? await evidenceOf(workspace, metamodel, baseline, selected?.views, problems) : {}),
+  });
+};
+
+/**
+ * `baseline.get` of `baseline` without rows: its counts and warnings as the command gives them, for the start page of the HTML
+ * export (SR-233 AK3).
+ */
+export const baselineCounts = async (
+  ctx: CommandContext,
+  baseline: Baseline,
+): Promise<
+  Pick<CommandOutput<typeof command>, "counts" | "selectionKnown"> & { readonly problems: readonly Problem[] }
+> => {
+  const { counts, selectionKnown, problems } = await shownBaseline(ctx, await selectedOf(ctx, baseline), {
+    limit: 0,
+    offset: 0,
+    withEvidence: false,
+  });
+  return { counts, selectionKnown, problems: problems ?? [] };
+};
+
 export default defineCommand({
   name: command,
   answer: (output) => {
@@ -256,31 +311,8 @@ export default defineCommand({
       incompleteNote(output.incomplete),
     );
   },
-  run: async (ctx, input): Promise<CommandOutput<typeof command>> => {
-    const { workspace } = ctx;
-    const { baseline, problems: unresolved, selected } = await baselineOf(ctx, input);
-    // The files on disk are read, not the baseline's commits (#668): these warnings come first.
-    const problems: Problem[] = [
-      ...(await commitDifferences(await workspace.get(workspaceLayoutState), baseline)),
-      ...unresolved,
-    ];
-    const metamodel = await workspace.get(metamodelState);
-    const [view] = selected?.views ?? [];
-    return showBaseline(workspace, {
-      baseline,
-      metamodel,
-      store: selected?.store ?? (await workspace.get(elementStoreState)),
-      selected: selected?.elements,
-      view: view?.kind === "variant" ? view.variant.id : undefined,
-      incomplete: await incompleteOf(workspace, selected),
-      problems,
-      limit: input.limit,
-      offset: input.offset,
-      ...(input.withEvidence
-        ? await evidenceOf(workspace, metamodel, baseline, selected?.views, problems)
-        : {}),
-    });
-  },
+  run: async (ctx, input): Promise<CommandOutput<typeof command>> =>
+    shownBaseline(ctx, await baselineOf(ctx, input), input),
   outputElements: async (ctx, input) => {
     const { baseline, selected } = await baselineOf(ctx, input);
     const { elements, absent } = baselineElements({

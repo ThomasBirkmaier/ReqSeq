@@ -17,6 +17,7 @@ const context: ElementPageContext = {
   layout: { repositories: [] },
   links: pageLinks(new Set()),
   neighbourhood: {} as NeighbourhoodSource,
+  members: new Map(),
 };
 
 const at = (result: EvidenceRecord["result"], variant?: string): EvidenceRecord => ({

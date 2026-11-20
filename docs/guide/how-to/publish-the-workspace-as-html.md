@@ -8,6 +8,7 @@ sidebar:
 The HTML export writes the workspace into a folder of pages for readers without ReqSeq (D-080). It holds:
 
 - `index.html`, the start page, and one page per element without an invalid status in `elements/`, named by the UUID of its element, so a link to it keeps opening that element after the next export, also when its short ID or title changed (SR-231 AK1, AK3);
+- `lists/` with a list per type, `lists/<type key>.html` (SR-233 AK1);
 - `assets/` with the stylesheet of this documentation, the scripts of the pages, the search index and, when a page needs them, KaTeX's stylesheet and the Mermaid library (SR-231 AK4, AK5, AK7);
 - `images/` with a copy of each image the texts show from the repository of their element (SR-231 AK5);
 - `licenses/THIRD-PARTY-NOTICES.txt` with the licences of what the folder copies;

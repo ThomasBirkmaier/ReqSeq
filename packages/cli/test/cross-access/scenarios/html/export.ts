@@ -31,6 +31,7 @@ const contentOf = (page: string): string =>
 /** The export date in the footer, which differs between calls only across midnight. */
 const DATE = [/exported \d{4}-\d{2}-\d{2}/gu];
 const GONE = "9d9d9d9d-1111-4222-8333-000000000002";
+const PACKAGE = "9d9d9d9d-1111-4222-8333-0000000000d1";
 const NEED = "aaaa1111-1111-4111-8111-00000000a001";
 const CHILD = "aaaa1111-1111-4111-8111-00000000c0de";
 const GRANDCHILD = "aaaa1111-1111-4111-8111-00000000c0df";
@@ -425,6 +426,85 @@ scenariosOf("html.export", [
           '<h3>Children</h3><ul class="rq-nb"><li><span><span>SR-00c0de</span><span>Show gusts</span><span>obsolete</span></span></li>' +
             `<li style="--rq-level:1"><a href="../elements/${GRANDCHILD}.html"><span>SR-00c0df</span><span>Show peaks</span><span>draft</span></a></li></ul>`,
         );
+      }
+    },
+  },
+  {
+    tag: "[SR-233/AK-pmt8]",
+    name: "a list per type with a row per element, the settings of search, filters and sorting, and its script",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const list = contentOf(String(files["site/lists/system-requirement.html"]));
+        expect(list).toContain(
+          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td>Show wind speed</td>`,
+        );
+        expect(list).toContain("data-rq-list=");
+        expect(list).toContain("&quot;label&quot;:&quot;Status&quot;");
+        expect(files["site/assets/list.js"]).toContain("rq-search");
+      }
+    },
+  },
+  {
+    tag: "[SR-233/AK-hqc9]",
+    name: "a start page with the verification degree, what needs attention, the newest baseline and each type",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const start = contentOf(String(files["site/index.html"]));
+        expect(start).toContain('<h2 id="verification-degree">Verification degree</h2>');
+        expect(start).toContain('<h2 id="not-verified">Failed, outdated or open requirements</h2>');
+        expect(start).toContain("<p>The workspace has no baseline.</p>");
+        expect(start).toContain(
+          '<a href="lists/system-requirement.html">System Requirement</a></td><td>1</td>',
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-233/AK-kh76]",
+    name: "every page names each package, and the page of a package lists its elements",
+    fixture: withFront(
+      `packages:\n  - { id: ${PACKAGE}, version: n2:0000000000000000, title: Display }\n`,
+      "Wind.",
+      {
+        "packages/PKG-0000000000d1.md": `---\nid: ${PACKAGE}\ntype: package\ntitle: Display\n---\n\nThe display.\n`,
+      },
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files[PAGE]).toContain(`href="../elements/${PACKAGE}.html"`);
+        const own = contentOf(String(files[`site/elements/${PACKAGE}.html`]));
+        expect(own).toContain("The display.");
+        expect(own).toContain('<h2 id="elements">Elements</h2>');
+        expect(own).toContain(
+          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td>Show wind speed</td><td>draft</td>`,
+        );
+      }
+    },
+  },
+  {
+    tag: "[SR-233/AK-twk6]",
+    name: "a list is the whole table without script, and its controls come from the script alone",
+    fixture: ONE_REPOSITORY,
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const list = String(files["site/lists/system-requirement.html"]);
+        expect(contentOf(list)).toContain("<table>");
+        expect(contentOf(list)).not.toContain("rq-search");
+        expect(list).toContain('src="../assets/list.js"');
       }
     },
   },
