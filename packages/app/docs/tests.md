@@ -12,7 +12,7 @@ Part of the [`@reqseq/app` README](../README.md).
   - `reqseq-file:` does not leave the repository;
   - navigation and new windows are denied;
   - a stopped core process is started again;
-  - without a workspace, the app names the keys that open one (Ctrl/Cmd+O, Ctrl/Cmd+Shift+P; the menu bar is hidden on Windows and Linux) and saves a light screenshot `no-workspace-light.png`; a folder without a workspace, chosen in the folder dialog, names the key of "Create workspace" (`empty-folder-light.png`).
+  - without a workspace, the app names the keys that open one (Ctrl/Cmd+O, Ctrl/Cmd+Shift+P; the menu bar is hidden on Windows and Linux) and saves a light screenshot `no-workspace-light.png`; the start buffer shows its three lines, saves `start-buffer-light.png`, and Enter on "Open workspace…" shows the folder dialog (stubbed in main) and then the overview (`[SR-225/AK-d2gk]`, `[SR-225/AK-s5p9]`, `[SR-225/AK-tgvr]`); a folder without a workspace, chosen in the folder dialog, names the key of "Create workspace" (`empty-folder-light.png`).
 
   The JUnit file is `test-results/junit-electron.xml` (CI job `electron-shard` in two shards, `electron-macos-shard` and `electron-windows-shard` in three; shard n of k gets the files that `test/playwright.config.ts` deals out by their number of tests (`ELECTRON_SHARD=1/2` runs shard 1 of 2 locally), under `xvfb-run` on Linux). When a test fails, `close()` of `test/support/app.ts` writes what the app showed and logged into the job log: the window's text, the renderer's errors and warnings and the last lines of the main process's log (#1671).
 

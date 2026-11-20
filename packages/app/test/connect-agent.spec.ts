@@ -148,7 +148,7 @@ test.describe("Connect AI agent without a workspace", () => {
     other = await copyFixture({ fixture: "SR-004/one-repository" });
     running = await launchApp(undefined, { recent: [other.root] });
     const { window } = running;
-    await expect(window.getByLabel("Modeline")).toHaveText("No workspace");
+    await expect(window.getByLabel("Modeline")).toHaveText("No workspace is open.");
     await connectAgent(window);
     await expect(window.locator("label.prompt-label")).toHaveText("Workspace");
     await expect(names(window)).toHaveText([other.root]);
@@ -162,7 +162,7 @@ test.describe("Connect AI agent without a workspace", () => {
   test("[SR-225/AK-rqcg] without a workspace opened before, the prompt names Create workspace", async () => {
     running = await launchApp(undefined);
     const { window } = running;
-    await expect(window.getByLabel("Modeline")).toHaveText("No workspace");
+    await expect(window.getByLabel("Modeline")).toHaveText("No workspace is open.");
     await connectAgent(window);
     await expect(window.locator("label.prompt-label")).toHaveText(
       "Workspace (none opened yet: type its folder, or use Create workspace)",

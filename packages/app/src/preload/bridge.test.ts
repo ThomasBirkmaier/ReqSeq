@@ -5,6 +5,7 @@ import {
   COPY_CHANNEL,
   DOCS_CHANNEL,
   EDIT_CHANNEL,
+  FOLDER_DIALOG_CHANNEL,
   HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
@@ -323,6 +324,20 @@ describe("createBridge", () => {
     expect(await bridge.pasteText()).toBe(false);
   });
 
+  it("openFolderDialog asks main for the folder dialog with nothing in the message, and gets no path back", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    expect(await bridge.openFolderDialog()).toBe(true);
+    expect(ipc.invoked).toEqual([{ channel: FOLDER_DIALOG_CHANNEL, args: [] }]);
+    // Only the main process's `true` counts; a refusal, anything else and a failure never reject.
+    ipc.answer = false;
+    expect(await bridge.openFolderDialog()).toBe(false);
+    ipc.answer = "/home/folder";
+    expect(await bridge.openFolderDialog()).toBe(false);
+    ipc.answer = new Error("No handler registered");
+    expect(await bridge.openFolderDialog()).toBe(false);
+  });
+
   it("openDocs sends main only a topic string, never rejects, and keeps only an answer of the known shape", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -571,6 +586,7 @@ describe("what the renderer can reach", () => {
       "onHelp",
       "onSave",
       "openDocs",
+      "openFolderDialog",
       "openWorkspace",
       "pasteText",
       "recentWorkspaces",

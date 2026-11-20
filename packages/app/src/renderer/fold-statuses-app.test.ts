@@ -208,6 +208,7 @@ const bridge = () => {
       commands: () => Promise.resolve([]),
       copyText: () => Promise.resolve(true),
       pasteText: () => Promise.resolve(true),
+      openFolderDialog: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
       listFolder: () => Promise.resolve({ name: "", entries: [] }),

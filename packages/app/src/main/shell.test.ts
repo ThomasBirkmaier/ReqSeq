@@ -6,6 +6,7 @@ import {
   COPY_CHANNEL,
   DOCS_CHANNEL,
   EDIT_CHANNEL,
+  FOLDER_DIALOG_CHANNEL,
   HELP_CHANNEL,
   LIST_FOLDER_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
@@ -288,9 +289,9 @@ describe("startShell", () => {
   it("[SR-128/AK-yqp3] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
-    // The seven channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
+    // The eight channels from the renderer: the clipboard (SR-128), the documentation (SR-141), the paste
     // into the focused field (SR-195), the folders of a typed path (SR-143), the recent workspaces and the
-    // answer whether the window saved before a switch (SR-131).
+    // answer whether the window saved before a switch (SR-131), and the folder dialog (SR-225 AK2).
     expect([...ipcHandlers.keys()]).toEqual([
       COPY_CHANNEL,
       DOCS_CHANNEL,
@@ -298,6 +299,7 @@ describe("startShell", () => {
       LIST_FOLDER_CHANNEL,
       RECENT_WORKSPACES_CHANNEL,
       OPEN_WORKSPACE_CHANNEL,
+      FOLDER_DIALOG_CHANNEL,
     ]);
     expect([...ipcListeners.keys()]).toEqual([SAVED_CHANNEL]);
     const copied = await ipcHandlers.get(COPY_CHANNEL)?.(
@@ -381,6 +383,26 @@ describe("startShell", () => {
     click();
     await vi.waitFor(() => {
       expect(children).toHaveLength(1);
+    });
+    expect(children[0]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
+  });
+
+  it("shows the dialog of File > Open Workspace when the window asks right after a click, and opens the folder chosen", async () => {
+    const { electron, children, ipcHandlers, windows } = await start();
+    const contents = windows[0]?.webContents;
+    const ask = (): unknown =>
+      ipcHandlers.get(FOLDER_DIALOG_CHANNEL)?.({ sender: contents, senderFrame: contents?.mainFrame });
+    // Without an input of the person first, nothing.
+    expect(ask()).toBe(false);
+    contents?.emit("input-event", {}, { type: "mouseUp", button: "left" });
+    electron.dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: ["/chosen"] });
+    expect(ask()).toBe(true);
+    await vi.waitFor(() => {
+      expect(children).toHaveLength(1);
+    });
+    expect(electron.dialog.showOpenDialog.mock.calls[0]?.[1]).toEqual({
+      title: "Open Workspace",
+      properties: ["openDirectory"],
     });
     expect(children[0]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
   });

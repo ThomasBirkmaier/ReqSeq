@@ -8,15 +8,18 @@ import { OPEN_WORKSPACE, acceleratorShortcut } from "./menu-keys.js";
 export const OPEN_WORKSPACE_ACTION = "Open workspace";
 
 /** The key of File > Open Workspace…, which opens the folder dialog: Ctrl+O, or ⌘O on macOS (`mac`). */
-const folderKey = (mac: boolean): string =>
+export const folderKey = (mac: boolean): string =>
   shortcutLabel(acceleratorShortcut(OPEN_WORKSPACE.accelerator), mac);
+
+/** What the modeline says while no workspace is open (SR-225 AK1). */
+export const NO_WORKSPACE_OPEN = "No workspace is open.";
 
 /**
  * What the command prompt says while no workspace is open: the folder dialog, which also opens a folder without a
  * workspace for "Create workspace", and the action of the command prompt for the workspaces opened last.
  */
 export const noWorkspaceMessage = (mac: boolean): string =>
-  `No workspace is open. Press ${folderKey(mac)} to choose a folder, or ` +
+  `${NO_WORKSPACE_OPEN} Press ${folderKey(mac)} to choose a folder, or ` +
   `${shortcutLabel(COMMAND_SHORTCUT, mac)} for ${OPEN_WORKSPACE_ACTION}.`;
 
 /** The title of the catalog command `workspace.init`, which the command prompt offers in a folder without a workspace. */

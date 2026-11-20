@@ -161,7 +161,7 @@ test.describe("Open workspace", () => {
     // Started as the packaged app starts: no workspace; the command prompt works all the same.
     running = await launchApp(undefined, { kept, withoutWorkspace: true });
     ({ window } = running);
-    await expect(window.getByLabel("Modeline")).toHaveText("No workspace");
+    await expect(window.getByLabel("Modeline")).toHaveText("No workspace is open.");
     await window.keyboard.press("ControlOrMeta+Shift+P");
     await expect(names(window)).toHaveText(["Open workspace", "Connect AI agent", "Open documentation"]);
     await window.keyboard.press("Enter");

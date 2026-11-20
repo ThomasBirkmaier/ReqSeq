@@ -8,6 +8,7 @@ import type { AgentStatus } from "./agent-status.js";
 import { AGENT_CONNECTED, CONNECT_AI_AGENT, NO_AGENT } from "./agent-status.js";
 import { STATUS_FIELD } from "./copy.js";
 import { CopySymbol } from "./FieldBox.js";
+import { NO_WORKSPACE_OPEN } from "../shared/open-hint.js";
 import type { ElementHead, WorkspaceView } from "./modeline.js";
 
 export const ModelineBar = ({
@@ -93,7 +94,7 @@ export const ModelineBar = ({
             )}
           </span>
           <span className="workspace">
-            <span className="segment name">{view.name ?? "No workspace"}</span>
+            <span className="segment name">{view.name ?? NO_WORKSPACE_OPEN}</span>
             {[
               ...view.marks,
               ...(shown === undefined ? [] : [shown]),
