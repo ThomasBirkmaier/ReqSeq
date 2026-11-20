@@ -3,6 +3,7 @@
 // name, prefix and key, "abstract", its parent, its properties with value kind, "required" and "counts to
 // version" (the inherited ones muted, as in the graph) and its statuses; then one line per relation kind with its
 // source and target types, and a line per limit under it (SR-152); then the problems of the output. Greys only (D-062).
+// The last change of the metamodel made in the app is marked as in the graph (`marks`, SR-130 AK7).
 // Keys as in every list of the main window (SR-122 AK4, AK5; `rowTarget`): Down and Ctrl+N, Up and
 // Ctrl+P, Page Up and Page Down, Home and End move the mark. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
@@ -10,6 +11,7 @@ import { bufferMark, useHidden } from "./area-slot.js";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import { useIdScope } from "./area-scope.js";
 import { rowTarget } from "./keys.js";
+import type { ChangeMarks } from "./metamodel-changes.js";
 import type { RelationRow, TypeRow } from "./metamodel-text.js";
 import { metamodelText } from "./metamodel-text.js";
 import type { SheetProps } from "./MetamodelView.js";
@@ -17,9 +19,18 @@ import type { SheetProps } from "./MetamodelView.js";
 /** The rows Page Up and Page Down move: a type's section is several lines tall. */
 const SCREEN = 5;
 
-const TypeSection = ({ row }: { readonly row: TypeRow }): React.JSX.Element => (
+/** The class of a place, with " changed" when it shows the last change (SR-130 AK7). */
+const marked = (name: string, changed: boolean): string => (changed ? `${name} changed` : name);
+
+const TypeSection = ({
+  row,
+  marks,
+}: {
+  readonly row: TypeRow;
+  readonly marks: ChangeMarks;
+}): React.JSX.Element => (
   <>
-    <div className="mm-text-head">
+    <div className={marked("mm-text-head", marks.type(row.type))}>
       <span className="mm-text-name">{row.name}</span>
       <span className="mm-text-prefix">{row.prefix}</span>
       <span className="mm-key">{row.type}</span>
@@ -42,7 +53,10 @@ const TypeSection = ({ row }: { readonly row: TypeRow }): React.JSX.Element => (
     {row.properties.map((property) => (
       <div
         key={property.key}
-        className={property.inherited ? "mm-text-property inherited" : "mm-text-property"}
+        className={marked(
+          property.inherited ? "mm-text-property inherited" : "mm-text-property",
+          marks.property(row.type, property.key),
+        )}
         data-property={property.key}
       >
         <span className="mm-property-name">{property.name}</span>
@@ -54,14 +68,34 @@ const TypeSection = ({ row }: { readonly row: TypeRow }): React.JSX.Element => (
     ))}
     <div className="mm-fact" data-statuses="">
       <span className="mm-fact-name">Statuses</span>{" "}
-      <span className="mm-fact-value">{row.statuses.length === 0 ? "none" : row.statuses.join(" · ")}</span>
+      <span className="mm-fact-value">
+        {row.statuses.length === 0
+          ? "none"
+          : row.statuses.map((status, at) => (
+              <Fragment key={status.key}>
+                {at === 0 ? null : " · "}
+                <span
+                  className={marked("mm-text-status", marks.status(row.type, status.key))}
+                  data-status={status.key}
+                >
+                  {status.name}
+                </span>
+              </Fragment>
+            ))}
+      </span>
     </div>
   </>
 );
 
-const RelationLine = ({ row }: { readonly row: RelationRow }): React.JSX.Element => (
+const RelationLine = ({
+  row,
+  marks,
+}: {
+  readonly row: RelationRow;
+  readonly marks: ChangeMarks;
+}): React.JSX.Element => (
   <>
-    <div className="mm-text-head">
+    <div className={marked("mm-text-head", marks.kind(row.relation))}>
       <span className="mm-text-name">{row.name}</span>
       <span className="mm-key">{row.relation}</span>
       <span className="mm-sides">
@@ -83,6 +117,7 @@ export const MetamodelTextView = ({
   buffer,
   dispatch,
   root,
+  marks,
 }: SheetProps): React.JSX.Element => {
   const scope = useIdScope();
   // Found by `[data-buffer]` only while shown, never drawn hidden in advance (SR-212 AK5).
@@ -157,7 +192,11 @@ export const MetamodelTextView = ({
               select(at);
             }}
           >
-            {row.kind === "type" ? <TypeSection row={row} /> : <RelationLine row={row} />}
+            {row.kind === "type" ? (
+              <TypeSection row={row} marks={marks} />
+            ) : (
+              <RelationLine row={row} marks={marks} />
+            )}
           </div>
         </Fragment>
       ))}

@@ -1,7 +1,7 @@
 // The metamodel as a graph and as text (SR-130) on the built app, on fixtures/SR-130/metamodel: "Show
 // metamodel" in the command prompt opens it (AK1); every type is a box with its name, prefix and
-// properties, every inheritance and relation kind a labelled curve, as `reqseq metamodel get` gives them
-// (AK2); a relation kind open on a side appears once per type of the other side, at "Any type", with the
+// properties and statuses (the initial and the invalid ones marked), every inheritance and relation kind a
+// labelled curve, as `reqseq metamodel get` gives them (AK2); a relation kind open on a side appears once per type of the other side, at "Any type", with the
 // open side in its label (AK3); the arrows move between the boxes, and Ctrl/Cmd+T switches between graph
 // and text (AK4); the text names every type's key, name, prefix, parent, properties with value kind,
 // "required" and "counts to version" and statuses, and every relation kind's source and target types (AK5), the same that the CLI
@@ -46,7 +46,12 @@ interface Metamodel {
       readonly max?: number;
     }[];
   }[];
-  readonly statuses: readonly { readonly key: string; readonly name: string }[];
+  readonly statuses: readonly {
+    readonly key: string;
+    readonly name: string;
+    readonly initial?: boolean;
+    readonly invalid?: boolean;
+  }[];
 }
 
 /** What the CLI gives for `metamodel get`. */
@@ -78,6 +83,7 @@ interface ShownBox {
   readonly key: string;
   readonly head: readonly string[];
   readonly properties: readonly string[];
+  readonly statuses: readonly string[];
   readonly box: Box;
 }
 
@@ -90,6 +96,10 @@ const shownBoxes = (window: Page): Promise<ShownBox[]> =>
         head: [...element.querySelectorAll(".mm-head > span")].map((part) => part.textContent),
         properties: [...element.querySelectorAll<HTMLElement>(".mm-property")].map(
           (line) => `${line.textContent}${line.classList.contains("inherited") ? " (inherited)" : ""}`,
+        ),
+        statuses: [...element.querySelectorAll<HTMLElement>(".mm-status")].map(
+          (tag) =>
+            `${tag.textContent}${tag.classList.contains("initial") ? " (initial)" : ""}${tag.classList.contains("invalid") ? " (invalid)" : ""}`,
         ),
         box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       };
@@ -106,9 +116,13 @@ const shownLines = (window: Page): Promise<string[]> =>
     ),
   );
 
-/** The boxes as the CLI's output says they must be: name, "abstract", prefix, properties (inherited ones marked). */
+/**
+ * The boxes as the CLI's output says they must be: name, "abstract", prefix, properties (inherited ones
+ * marked), statuses (the initial and the invalid ones marked).
+ */
 const expectedBoxes = (model: Metamodel): Omit<ShownBox, "box">[] => {
   const names = new Map(model.properties.map((property) => [property.key, property.name]));
+  const statuses = new Map(model.statuses.map((status) => [status.key, status]));
   const byKey = new Map(model.types.map((type) => [type.key, type]));
   const boxes = model.types.map((type) => {
     const parent = type.extends === undefined ? [] : (byKey.get(type.extends)?.properties ?? []);
@@ -118,9 +132,13 @@ const expectedBoxes = (model: Metamodel): Omit<ShownBox, "box">[] => {
       properties: type.properties.map(
         (key) => `${names.get(key) ?? key}${parent.includes(key) ? " (inherited)" : ""}`,
       ),
+      statuses: type.statuses.map((key) => {
+        const status = statuses.get(key);
+        return `${status?.name ?? key}${status?.initial === true ? " (initial)" : ""}${status?.invalid === true ? " (invalid)" : ""}`;
+      }),
     };
   });
-  return [...boxes, { key: "any", head: ["Any type"], properties: [] }];
+  return [...boxes, { key: "any", head: ["Any type"], properties: [], statuses: [] }];
 };
 
 /** The label lines as the CLI's output says they must be: the inheritance, each pair of each relation kind and relation property. */
@@ -174,6 +192,14 @@ const drawingProblems = (window: Page): Promise<string[]> =>
     const cut = [...document.querySelectorAll<HTMLElement>(".mm-name, .mm-property")]
       .filter((line) => line.scrollWidth > line.clientWidth)
       .map((line) => `cut: ${line.textContent}`);
+    // A status tag stands whole inside its box, and every row of them too (the box hides what sticks out).
+    const outside = [...document.querySelectorAll<HTMLElement>(".mm-status")]
+      .filter((tag) => {
+        const box = tag.closest(".mm-type")?.getBoundingClientRect();
+        const at = tag.getBoundingClientRect();
+        return box === undefined || at.right > box.right - 1 || at.bottom > box.bottom - 1;
+      })
+      .map((tag) => `outside its box: ${tag.textContent}`);
     const labels = [...document.querySelectorAll<HTMLElement>(".mm-label")];
     // By the edges (review R2 S2 of ThomasBirkmaier/ReqSeq-archive#631): a line wider than the label's content starts at its padding
     // and sticks out on the right, past the rectangle the overlap check below uses.
@@ -199,7 +225,7 @@ const drawingProblems = (window: Page): Promise<string[]> =>
         .filter((other) => overlap(label.getBoundingClientRect(), other.getBoundingClientRect()))
         .map((other) => `${name(label)} over ${name(other)}`),
     );
-    return [...cut, ...wide, ...covered];
+    return [...cut, ...outside, ...wide, ...covered];
   });
 
 /**
@@ -325,12 +351,12 @@ test.describe("the metamodel on a fixture workspace", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-130/AK-s795] every type is a box with name, prefix and properties and every inheritance and relation kind a labelled curve, as reqseq metamodel get gives them", async () => {
+  test("[SR-130/AK-s795] every type is a box with name, prefix, properties and statuses and every inheritance and relation kind a labelled curve, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);
     const boxes = await shownBoxes(window);
-    expect(boxes.map(({ key, head, properties }) => ({ key, head, properties }))).toEqual(
+    expect(boxes.map(({ key, head, properties, statuses }) => ({ key, head, properties, statuses }))).toEqual(
       expectedBoxes(model),
     );
     expect((await shownLines(window)).sort()).toEqual(expectedLines(model));

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (ThomasBirkmaier/ReqSeq-archive#460).
+import { NO_CHANGE } from "./metamodel-changes.js";
 import "../../../../scripts/test-support/dom-selection.mjs";
 // The layers of an area drawn from a record (SR-212 AK5, `area-record.ts`): a buffer that the app does not
 // read for drawing in advance is drawn hidden after the reader leaves it only from what its shown view read, and
@@ -118,6 +119,7 @@ const harness = (gate: ReadGate) => {
     onDrawn: () => undefined,
     typeNames: options.typeNames ?? new Map(),
     kindNames: new Map(),
+    metamodelChange: NO_CHANGE,
     overview: {
       data: undefined,
       perspectives: [],

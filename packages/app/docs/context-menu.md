@@ -41,7 +41,18 @@ SR-198 (`list-menu.ts`), marked on the column of a list or a search (`ListView`:
 
 ## graph, metamodel-graph
 
-SR-199, marked on the sheet of the graph (`GraphView`, `MetamodelView`), outside its nodes and edges: a node of an element's graph is `element-entry`; an edge (its curve and its hit line), the evidence of a node, a type box of the metamodel and a curve or label of the metamodel are marked `buffer` and get the buffer's menu (SR-194 AK6). `graph`: "Graph depth", "Also show relation kind", "Show only relation kind" and "Copy graph as Mermaid" (AK1), the actions of the command prompt on the shown graph; "Also show relation kind" only where the prompt offers it (not while every kind and the evidence are shown). `metamodel-graph`: "Show metamodel as text" and "Copy graph as Mermaid" (AK2). "Copy graph as Mermaid" (SR-151 AK5) puts the text of `trace.mermaid` (the graph buffer's input without `withEvidence`) or `metamodel.mermaid` on the clipboard, and the modeline confirms it as "Copy field" does (SR-128 AK2).
+SR-199, marked on the sheet of the graph (`GraphView`, `MetamodelView`), outside its nodes and edges: a node of an element's graph is `element-entry`; an edge of an element's graph (its curve and its hit line) and the evidence of a node are marked `buffer` and get the buffer's menu (SR-194 AK6). `graph`: "Graph depth", "Also show relation kind", "Show only relation kind" and "Copy graph as Mermaid" (AK1), the actions of the command prompt on the shown graph; "Also show relation kind" only where the prompt offers it (not while every kind and the evidence are shown). `metamodel-graph`: "Add type", "Add relation kind", "Show metamodel as text" and "Copy graph as Mermaid" (AK2), on the sheet outside boxes and labels, on a curve or label line of the inheritance and on the box "Any type". "Copy graph as Mermaid" (SR-151 AK5) puts the text of `trace.mermaid` (the graph buffer's input without `withEvidence`) or `metamodel.mermaid` on the clipboard, and the modeline confirms it as "Copy field" does (SR-128 AK2).
+
+## metamodel-type, metamodel-property, metamodel-status, metamodel-kind
+
+SR-199 AK5 to AK7 (`metamodel-menu.ts`), the definitions of the metamodel's graph. Each place names its definitions in `data-given-<what>` and `data-given-<what>-name` (key and name); while its menu is open, `menuContext` gives them to the metamodel commands (`ActionContext.given`, `metamodelGiven`), which start with them answered (`startMetamodelCommand`), so the prompt asks only the rest; a command with every step given runs at once, as "Remove relation" does. The app adds no rule of the metamodel: core decides.
+
+- `metamodel-type`, the head of a type's box (name, "abstract", prefix): "Add property to type", "Add status to type", "Change type definition", "Add relation kind" (the type as its source types) and "Remove type", each with the type given (AK5).
+- `metamodel-property`, a property row of a box and the label line of a relation property: "Change property definition" and "Remove property from type", given the property and the type that has it itself (`owner` of `@reqseq/core/metamodel-graph`; for a label line the type its curve starts at). In "Change property definition" the type counts only for "Required in a type" (AK6).
+- `metamodel-status`, a status tag: "Change status definition" and "Remove status from type", given the status and the type of its box (AK6).
+- `metamodel-kind`, the label line of a relation kind: "Change relation kind" and "Remove relation kind" (AK7).
+
+A type box outside its head, rows and tags, a curve of relation kinds or properties, and a label outside its lines keep the buffer's menu (SR-194 AK6; assumption, the AKs name no menu there).
 
 ## matrix-cell, matrix-target
 

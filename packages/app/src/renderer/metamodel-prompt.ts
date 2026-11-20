@@ -840,7 +840,7 @@ const flows = (command: CommandListing): Flow | undefined => {
 /** Whether the prompt asks `command` in steps of its own here. */
 export const asksInSteps = (command: CommandListing): boolean => flows(command) !== undefined;
 
-/** "Change property Requirement Type Name": the title and the labels given. */
+/** "Change property definition Requirement Type Name": the title and the labels given. */
 const lineOf = (state: State): string =>
   [state.command.title, ...state.answers.map((answer) => answer.label).filter((label) => label !== "")].join(
     " ",
@@ -1220,6 +1220,8 @@ const run = async (state: State): Promise<void> => {
   const name = state.command.name as keyof CommandTypes;
   const result = await (context.shownCall ?? context.call)(name, input);
   if (result.ok) {
+    // The graph and the text mark what it added or changed (SR-130 AK7).
+    context.metamodelChanged?.(name, result.output);
     show(context, entry, input, result.output, revision);
     return;
   }

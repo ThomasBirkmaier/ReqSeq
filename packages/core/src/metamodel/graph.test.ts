@@ -65,13 +65,51 @@ describe("metamodelGraph", () => {
     const [item, req, sub, orphan] = metamodelGraph(BASE).nodes;
     expect(item).toMatchObject({ key: "type:item", any: false, name: "ITEM", prefix: "IT", abstract: true });
     expect(req?.properties).toEqual([
-      { key: "title", name: "Title", inherited: true },
-      { key: "owner", name: "Owner", inherited: true },
-      { key: "pkg", name: "Package", inherited: false },
-      { key: "note", name: "note", inherited: false },
+      { key: "title", name: "Title", inherited: true, owner: "item" },
+      { key: "owner", name: "Owner", inherited: true, owner: "item" },
+      { key: "pkg", name: "Package", inherited: false, owner: "req" },
+      { key: "note", name: "note", inherited: false, owner: "req" },
     ]);
     expect(sub?.properties.map((property) => property.inherited)).toEqual([true, true, true, true]);
-    expect(orphan?.properties).toEqual([{ key: "title", name: "Title", inherited: false }]);
+    // The owner is the farthest ancestor that has it: "title" comes from item over req (SR-199 AK6).
+    expect(sub?.properties.map((property) => property.owner)).toEqual(["item", "item", "req", "req"]);
+    expect(orphan?.properties).toEqual([{ key: "title", name: "Title", inherited: false, owner: "orphan" }]);
+  });
+
+  it("[SR-130/AK-s795] gives each node its statuses, own and inherited, the initial and the invalid ones marked", () => {
+    const out: Output = {
+      ...output({
+        types: [
+          { ...type("item", []), statuses: ["draft", "retired"] },
+          { ...type("req", [], "item"), statuses: ["draft", "retired", "gone"] },
+        ],
+        properties: [],
+        relations: [],
+      }),
+      statuses: [
+        { key: "draft", name: "Draft", initial: true },
+        { key: "retired", name: "Retired", invalid: true },
+      ],
+    };
+    const [item, req] = metamodelGraph(out).nodes;
+    expect(item?.statuses).toEqual([
+      { key: "draft", name: "Draft", initial: true, invalid: false },
+      { key: "retired", name: "Retired", initial: false, invalid: true },
+    ]);
+    // A key without a definition shows the key, neither initial nor invalid.
+    expect(req?.statuses.at(-1)).toEqual({ key: "gone", name: "gone", initial: false, invalid: false });
+  });
+
+  it("stops at a cycle of extends when it looks for a property's owner", () => {
+    const out = output({
+      types: [
+        { ...type("a", ["title"], "b"), extends: "b" },
+        { ...type("b", ["title"], "a"), extends: "a" },
+      ],
+      properties: [{ key: "title", name: "Title", kind: "text", content: false }],
+      relations: [],
+    });
+    expect(metamodelGraph(out).nodes.map((node) => node.properties[0]?.owner)).toEqual(["b", "a"]);
   });
 
   it("[SR-130/AK-s795] draws inheritance, kinds and own relation properties as one edge per pair, without Any type when no side is open", () => {
@@ -105,6 +143,7 @@ describe("metamodelGraph", () => {
       any: true,
       name: "Any type",
       properties: [],
+      statuses: [],
     });
   });
 });

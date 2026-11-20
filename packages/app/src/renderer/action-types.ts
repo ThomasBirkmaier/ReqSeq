@@ -445,6 +445,11 @@ export interface ActionContext {
    * on the line pressed, also inside marked text whose caret is on another line. Absent elsewhere.
    */
   readonly pressed?: Element;
+  /**
+   * A metamodel command succeeded with `output` (SR-130 AK7): the graph and the text of the metamodel mark
+   * what it added or changed (`metamodel-changes.ts`). Absent: nothing is marked.
+   */
+  readonly metamodelChanged?: (command: string, output: unknown) => void;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
