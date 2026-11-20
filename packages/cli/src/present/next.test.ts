@@ -53,6 +53,8 @@ describe("next steps as calls (SR-226)", () => {
     );
     // The whole workspace, and an item no flag takes, as the input itself.
     expect(create({})).toBe(`reqseq baseline create <name> --input '{"selection":{}}'`);
+    // An empty list gives no flag, so it is given as the input too.
+    expect(create({ ids: [] })).toBe(`reqseq baseline create <name> --input '{"selection":{"ids":[]}}'`);
     expect(create({ ids: [{ id: "SR-1", repository: "r" }] })).toBe(
       `reqseq baseline create <name> --input '{"selection":{"ids":[{"id":"SR-1","repository":"r"}]}}'`,
     );

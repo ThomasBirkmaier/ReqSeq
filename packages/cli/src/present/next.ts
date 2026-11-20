@@ -64,7 +64,8 @@ const typedPath = (value: string, cwd: string): string => {
 /**
  * The flags of a known object field with part flags (a selection, #149): each part as its flag (`--filter
  * Release`, `--ids a --ids b`, `--where '<json>'`), or, when a part has no flag or the object is empty, the
- * field as `--input '<json>'`, so that the call gives the same input.
+ * field as `--input '<json>'`, so that the call gives the same input. An empty list (`ids: []`) gives no
+ * flag, so it is given that way too.
  */
 const partTokens = (
   field: InputField,
@@ -80,6 +81,7 @@ const partTokens = (
       tokens.push(`--${flag.flag}`, quoted(JSON.stringify(part), platform));
     } else if (
       flag !== undefined &&
+      items.length > 0 &&
       items.every((item) => typeof item === "string" || typeof item === "number")
     ) {
       tokens.push(...items.flatMap((item) => [`--${flag.flag}`, quoted(String(item), platform)]));

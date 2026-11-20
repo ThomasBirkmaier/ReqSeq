@@ -33,9 +33,12 @@ import baselineGet from "./get.js";
 
 const command = "baseline.prepare";
 
-/** The input of evidence.withoutPassedTest for `view`: only its total is taken, so the page is one element. */
+/**
+ * The input of evidence.withoutPassedTest for `view`: only its total is taken, so the page is one element. The
+ * core is its default and is not given, because a named view needs the validity meaning (resolveView).
+ */
 const withoutInput = (view: string): CommandInput<"evidence.withoutPassedTest"> => ({
-  view,
+  ...(view === "core" ? {} : { view }),
   limit: 1,
   offset: 0,
 });

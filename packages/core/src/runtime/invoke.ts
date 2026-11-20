@@ -239,7 +239,6 @@ const innerError = (error: CommandError): CommandError => {
   );
 };
 
-/** `input.invalid` of `command` at `field` of `selection.output`. */
 /**
  * Whether an output schema requires the field `next`, a list of next steps (`common.schema.json#/$defs/nextStep`):
  * only then is `next` of an output read.
@@ -279,6 +278,7 @@ const withRunnableSteps = async (
   return { ...(result as object), next: steps.filter((step) => !left.has(step)) };
 };
 
+/** `input.invalid` of `command` at `field` of `selection.output`. */
 const outputInvalid = (command: string, field: string, message: string): CommandError =>
   new CommandError("input.invalid", `${field}: ${message}`, { command, fields: [field] });
 

@@ -185,6 +185,24 @@ describe("baseline.prepare", () => {
     expect(out.next).toEqual([CHANGES]);
   });
 
+  it("gives the number without a passed test in the core of a metamodel without the validity meaning", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-003/any-folder" });
+    onTestFinished(() => ws.cleanup());
+    const workspace = new Workspace(ws.root);
+    try {
+      const out = (await invoke("baseline.prepare", {}, { workspace })) as InvokedOutput<"baseline.prepare">;
+      const without = (await invoke(
+        "evidence.withoutPassedTest",
+        {},
+        { workspace },
+      )) as InvokedOutput<"evidence.withoutPassedTest">;
+      expect(out.view).toBe("core");
+      expect(out.withoutPassedTest).toBe(without.total);
+    } finally {
+      await workspace.close();
+    }
+  });
+
   it("[SR-242/AK-tsww] marks the output incomplete when a repository is not here", async () => {
     const ws = await fixture();
     await rm(ws.path("sensor"), { recursive: true });
