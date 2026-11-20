@@ -11,6 +11,7 @@ import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { nameOf, pageLinks, relationLink, relationText } from "./links.js";
 import { criteriaSection } from "./section-criteria.js";
 import { viewName } from "./section-fields.js";
+import type { NeighbourhoodSource } from "./section-neighbourhood.js";
 import { propertiesSection } from "./section-properties.js";
 import { stubPageBody } from "./stub-page.js";
 
@@ -45,6 +46,7 @@ const context = (metamodel: Partial<Metamodel> = {}): ElementPageContext => ({
   shortIds: {} as ShortIds,
   layout: { repositories: [] },
   links: pageLinks(new Set([ID])),
+  neighbourhood: {} as NeighbourhoodSource,
   members: new Map(),
 });
 

@@ -209,7 +209,8 @@ const writeAll = async (repository: RepositoryLocation, writes: readonly Write[]
 
 /**
  * The plan of `source`, checked: every file it changes is one of the files read, and a `file.faulty`
- * it throws names the metamodel repository, as the metamodel problems do (`file` is relative to it).
+ * it throws about a metamodel file names the metamodel repository, as the metamodel problems do
+ * (`file` is relative to it). One about element files (`details.files`, SR-236 AK7) names theirs.
  */
 const checkedPlan = <T>(
   plan: (source: MetamodelSource) => MetamodelPlan<T>,
@@ -220,7 +221,11 @@ const checkedPlan = <T>(
   try {
     planned = plan(source);
   } catch (error) {
-    if (error instanceof CommandError && error.code === "file.faulty") {
+    if (
+      error instanceof CommandError &&
+      error.code === "file.faulty" &&
+      error.details?.["files"] === undefined
+    ) {
       throw new CommandError(error.code, error.message, { ...error.details, repository }, { cause: error });
     }
     throw error;

@@ -6,7 +6,8 @@
 //   the type has already changes nothing and counts nothing.
 // - A changed parent type is checked on the metamodel afterwards: the properties and statuses the
 //   type and its subtypes lose must not be used there (SR-237 AK4, `lostUses`).
-// - A change that needs a count is refused while a repository is not on this machine (SR-236 AK7).
+// - A change that needs a count is refused while a repository is not on this machine or the store
+//   cannot read an element file (SR-236 AK7, SR-008 AK3, `refuseIncompleteStore`).
 import type { CommandInput, CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { setMapValue } from "../../files/index.js";
@@ -16,7 +17,7 @@ import { definitionAt, editedFiles } from "../../metamodel/index.js";
 import type { Use } from "../../model/index.js";
 import {
   lostUses,
-  refuseMissingRepositories,
+  refuseIncompleteStore,
   refuseUses,
   shortIdState,
   useOf,
@@ -99,7 +100,7 @@ export default defineCommand({
         (input.abstract === true && own.abstract !== true);
       const parentChanges = input.extends !== undefined && (input.extends ?? undefined) !== own.extends;
       if (locks || parentChanges) {
-        refuseMissingRepositories(layout, COMMAND);
+        refuseIncompleteStore(layout, store, COMMAND);
       }
       if (locks) {
         refuseUses(`Type ${input.type} keeps its prefix and abstract mark while elements have it`, [

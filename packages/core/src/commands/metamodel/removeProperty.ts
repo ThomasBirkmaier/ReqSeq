@@ -12,8 +12,8 @@
 //   an element of any type still holds its key: then it stays and `kept` names it with the number
 //   of those elements (`keptDefinitions`).
 // - Saved filters, perspectives and mapping files that name a removed definition are listed, not changed.
-// - While the store cannot read an element file, which may hold the key, the removal is refused
-//   (`file.faulty`, assumption of #1990).
+// - While a repository is not on this machine or the store cannot read an element file, which may
+//   hold the key, the removal is refused (SR-236 AK7, SR-008 AK3, `refuseIncompleteStore`).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { refuseShared, removeListItem } from "../../files/index.js";
@@ -29,11 +29,9 @@ import {
 import {
   lostUses,
   mentioningFiles,
-  elementStoreState,
   keptDefinitions,
   keptNote,
-  refuseMissingRepositories,
-  refuseUnreadableFiles,
+  refuseIncompleteStore,
   refuseUses,
   shortIdState,
   withSubtypes,
@@ -67,8 +65,6 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"metamodel.removeProperty">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const shortIds = await ctx.workspace.get(shortIdState);
-    // Before the write layer, so `file.faulty` names the element files, not the metamodel repository.
-    refuseUnreadableFiles(await ctx.workspace.get(elementStoreState), COMMAND);
     const change = await writeMetamodel(ctx.workspace, COMMAND, ({ metamodel, files, store }) => {
       const typePlace = definitionAt(files, "types", input.type);
       const type = findType(metamodel, input.type);
@@ -95,7 +91,7 @@ export default defineCommand({
               { reason: "inherited", type: input.type, property: input.property, from },
             );
       }
-      refuseMissingRepositories(layout, COMMAND);
+      refuseIncompleteStore(layout, store, COMMAND);
       const { file, index } = typePlace;
       // The type's definition changes: an anchor or alias in it is refused (SR-236 AK5).
       refuseShared(file, file.path, ["types", index]);

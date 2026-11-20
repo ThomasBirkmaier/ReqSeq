@@ -3,7 +3,8 @@
 // element file changes (D-045, D-030).
 //
 // - Refused while an element of the type or of a type that extends it has the status, in any status
-//   of the element's own life (SR-236 AK7), and while a repository is not on this machine.
+//   of the element's own life (SR-236 AK7), and while a repository is not on this machine or the
+//   store cannot read an element file (SR-008 AK3).
 // - A status the type has from an ancestor's list is removed at that type: refused, naming it.
 // - A type without a list, neither its own nor an ancestor's, gets the list of every status it had
 //   but this one; a type that extends it with a list of its own would then get more statuses, which
@@ -30,7 +31,7 @@ import {
   keptDefinitions,
   keptNote,
   mentioningFiles,
-  refuseMissingRepositories,
+  refuseIncompleteStore,
   refuseUses,
   shortIdState,
   useOf,
@@ -110,7 +111,7 @@ export default defineCommand({
           { reason: "inherited", type: input.type, status: status.key, types: at },
         );
       }
-      refuseMissingRepositories(layout, COMMAND);
+      refuseIncompleteStore(layout, store, COMMAND);
       const scope = withSubtypes(metamodel, input.type);
       refuseUses(`Type ${input.type} keeps the status ${status.key} while elements have it`, [
         useOf(store, shortIds, "status", status.key, (e) => scope.has(e.type) && hasStatus(e, status.key)),

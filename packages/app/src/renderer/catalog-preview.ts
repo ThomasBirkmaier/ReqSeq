@@ -5,7 +5,7 @@
 import type { AboutInfo } from "./about.js";
 import { ABOUT_COMMAND } from "./about.js";
 import type { CommandTypes } from "@reqseq/core";
-import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, outputSelectionList, resultBuffer } from "./buffers.js";
 import { CREATE_COMMAND, createdEcho } from "./create-element.js";
 import type { Entry } from "./catalog-entry.js";
 import { lineOf } from "./catalog-entry.js";
@@ -140,7 +140,8 @@ export const notSaved = async (context: CatalogContext, entry: Entry): Promise<b
 /**
  * Shows the output of a command: a new element in its element buffer (SR-064), "About ReqSeq" in its own
  * window (SR-161, D-062), the output of a write command without `showsOutput` as a message (`reported`, SR-223
- * AK8), any other output in a result buffer (of a write command, one that is not asked again).
+ * AK8), the output of a read command whose elements are its answer as a list of them under its answer (SR-223 AK6),
+ * any other output in a result buffer (of a write command, one that is not asked again).
  */
 export const show = (
   context: CatalogContext,
@@ -164,9 +165,33 @@ export const show = (
     context.about(output as AboutInfo);
   } else if (isWrite(entry.command) && entry.command.showsOutput !== true) {
     reported(context, entry, output, open);
+  } else if (!isWrite(entry.command) && listsElements(entry.command)) {
+    // The elements are the answer: a list of them (SR-223 AK6), as the command line, API and MCP give them.
+    // The output of this run is what the list shows besides its rows, so the command does not run again for it.
+    const answer = (output as { readonly answer?: unknown } | undefined)?.answer;
+    const list = outputSelectionList(typeof answer === "string" ? answer : lineOf(entry), {
+      command: name,
+      input,
+    });
+    context.dispatch({ type: "open", buffer: { ...list, answered: { output, revision } } });
   } else {
     open();
   }
+};
+
+/**
+ * The catalog marks a field of the command's output as the elements of its answer (`x-elements: "answer"`), and each
+ * of them is an element as a list row shows it, with its short ID and title. An answer whose entries are records of
+ * another shape, such as the entries of a baseline with the state of each, which the page shows at its row
+ * (`baseline.get`, SR-051 AK2, AK3), stays an output page: an assumption where SR-223 AK6 would hide the states
+ * behind "Show details".
+ */
+const listsElements = (command: Entry["command"]): boolean => {
+  const fields = command.outputFields ?? [];
+  const has = (path: string): boolean => fields.some((field) => field.path === path);
+  return fields.some(
+    (field) => field.elements === "answer" && has(`${field.path}[].shortId`) && has(`${field.path}[].title`),
+  );
 };
 
 /**

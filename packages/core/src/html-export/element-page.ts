@@ -8,6 +8,7 @@
 // - evidence records of a requirement without criteria (`section-evidence.ts`, AK3);
 // - properties (`section-properties.ts`, AK1): every other filled property as in the element file;
 // - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
+// - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references.
 // - the elements of a package on its page (`section-package.ts`, SR-233 AK4).
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
@@ -20,6 +21,8 @@ import { CRITERIA_CSS, criteriaSection } from "./section-criteria.js";
 import { EVIDENCE_CSS, evidenceSection } from "./section-evidence.js";
 import { FIELDS_CSS, fieldsSection } from "./section-fields.js";
 import { hintsSection } from "./section-hints.js";
+import type { NeighbourhoodSource } from "./section-neighbourhood.js";
+import { NEIGHBOURHOOD_CSS, neighbourhoodSection } from "./section-neighbourhood.js";
 import { propertiesSection } from "./section-properties.js";
 import { packageSection } from "./section-package.js";
 import { relationsSection } from "./section-relations.js";
@@ -31,6 +34,7 @@ export interface ElementPageContext {
   readonly shortIds: ShortIds;
   readonly layout: Pick<WorkspaceLayout, "repositories">;
   readonly links: PageLinks;
+  readonly neighbourhood: NeighbourhoodSource;
   /** The elements with a page of each package, by the package's UUID, by identifier (`section-package.ts`). */
   readonly members: ReadonlyMap<string, readonly ListEntry[]>;
 }
@@ -46,7 +50,13 @@ export interface ElementPage {
 }
 
 /** The styles of the element page's sections, after the export's own. */
-export const ELEMENT_PAGE_CSS = [...COPY_CSS, ...FIELDS_CSS, ...CRITERIA_CSS, ...EVIDENCE_CSS];
+export const ELEMENT_PAGE_CSS = [
+  ...COPY_CSS,
+  ...FIELDS_CSS,
+  ...CRITERIA_CSS,
+  ...EVIDENCE_CSS,
+  ...NEIGHBOURHOOD_CSS,
+];
 
 /** The content of `page` (see the file comment). */
 export const elementPageBody = async (context: ElementPageContext, page: ElementPage): Promise<string> =>
@@ -58,5 +68,6 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     evidenceSection(context, page),
     await propertiesSection(context, page),
     relationsSection(context, page),
+    neighbourhoodSection(context, page),
     packageSection(context, page),
   ].join("");
