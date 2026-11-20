@@ -2,7 +2,7 @@
 // every element without an invalid status (D-044) and a start page, written through the export folder
 // of the files block (`openExportFolder`), which replaces only what the earlier export wrote. Each element page
 // is built by `element-page.ts` from the data of `element-data.ts` (SR-232); an element with an invalid status
-// whose page the earlier export wrote gets the short page of SR-231 AK8 (`stub-page.ts`) at the same address.
+// whose page the earlier export wrote gets the short page of SR-231 AK8 (`stub-page.ts`) at the same address. The search (AK7) is `search.ts`.
 //
 // - Look (SR-231 AK4, `page.ts`): the docs' frame and stylesheet, the theme and page scripts, and, once in
 //   the folder, KaTeX's stylesheet and the Mermaid bundle when a page needs them (`vendor.ts`, missing:
@@ -73,6 +73,13 @@ import { neighbourhoodSource } from "./section-neighbourhood.js";
 import { stubPageBody } from "./stub-page.js";
 import type { PageScriptSettings } from "./page-script.js";
 import { pageScript, scriptOf, themeScript } from "./page-script.js";
+import {
+  SEARCH_INDEX,
+  SEARCH_SCRIPT_SETTINGS,
+  searchEntries,
+  searchIndexScript,
+  searchScript,
+} from "./search.js";
 import { DIAGRAM_COLOURS, MERMAID_SETTINGS, SECURE_KEYS } from "./render-options.js";
 import { svgRisk } from "./svg.js";
 import type { VendorFiles } from "./vendor.js";
@@ -406,7 +413,11 @@ export const writeHtmlExport = async (
     await folder.write(ASSETS.docs, DOCS_CSS);
     await folder.write(ASSETS.own, OWN_CSS);
     await folder.write(ASSETS.theme, scriptOf(themeScript));
-    await folder.write(ASSETS.page, scriptOf(pageScript, PAGE_SCRIPT_SETTINGS));
+    await folder.write(
+      ASSETS.page,
+      scriptOf(pageScript, PAGE_SCRIPT_SETTINGS) + scriptOf(searchScript, SEARCH_SCRIPT_SETTINGS),
+    );
+    await folder.write(SEARCH_INDEX, searchIndexScript(searchEntries(paged, metamodel, shortIds, titleKey)));
     await folder.write(COPY_SCRIPT, scriptOf(copyScript));
     await writeVendorAssets(folder, vendor, needs);
     await folder.write(NOTICES_FILE, noticesText());
