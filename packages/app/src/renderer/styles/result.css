@@ -75,20 +75,6 @@
   padding-left: min(var(--indent, 0rem), 1.25rem);
 }
 
-/* A text of several lines, such as the Markdown of the agent guide (#2141): whole, under its title across the
-   column, its line breaks kept, in the font of code like the setup of "Connect AI agent". */
-.result.output .line.block > .text {
-  grid-column: 1 / -1;
-  margin-top: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  background: var(--select);
-  font-family: var(--mono);
-  font-size: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .result.output .line > .label {
   padding-left: var(--indent, 0rem);
   overflow-wrap: anywhere;
@@ -183,6 +169,20 @@
   font-family: var(--mono);
   font-size: 12px;
   white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A text of several lines, such as the Markdown of the agent guide (#2141): whole, under its title across the
+   column, its line breaks kept, in the font of code like the setup of "Connect AI agent". */
+.result.output .line.block > .text {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--select);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 

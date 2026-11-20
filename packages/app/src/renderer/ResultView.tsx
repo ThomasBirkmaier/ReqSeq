@@ -73,10 +73,6 @@ const foldingOf = (
   return event.key === "Tab" ? line.unfolded !== true : event.key === "ArrowRight";
 };
 
-/**
- * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), a number of
- * elements, which opens their list (SR-223 AK5), or a next step, which runs (SR-226 AK5).
- */
 /** The classes of a line: its kind and its marks. */
 const lineClass = (line: ResultLine): string =>
   [
@@ -90,6 +86,10 @@ const lineClass = (line: ResultLine): string =>
     .filter((part) => part !== "")
     .join(" ");
 
+/**
+ * A line that opens something when chosen: an element, a pair, a group of problems (SR-223 AK3), a number of
+ * elements, which opens their list (SR-223 AK5), or a next step, which runs (SR-226 AK5).
+ */
 const choosable = (line: ResultLine): boolean =>
   line.open !== undefined || line.kind === "group" || line.list !== undefined || line.step !== undefined;
 
