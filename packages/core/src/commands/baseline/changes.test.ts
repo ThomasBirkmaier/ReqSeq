@@ -1,7 +1,7 @@
 // baseline.changes through `invoke` (SR-241) on fixtures/SR-061/export (Git repositories `system` and
 // `sensor`): its `release-1.yaml` stores no selection, `broken.yaml` is no valid baseline, and it has two
 // open hints, an unknown property and an outdated relation (confirmable, D-042). Each number is compared
-// with the command that gives it (D-082). The read-only case of SR-226 AK6 is in prepare.test.ts.
+// with the command that gives it (D-082), and the next steps of a read-only workspace (SR-226 AK6).
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { rm } from "node:fs/promises";
@@ -164,6 +164,19 @@ describe("baseline.changes", () => {
       { command: "hint.confirm", input: {}, open: ["hintIds"] },
       { command: "baseline.prepare", input: {}, open: [] },
     ]);
+  });
+
+  it("[SR-241/AK-z038] [SR-241/AK-xjjt] [SR-226/AK-t0mt] names no write step while the workspace is read-only", async () => {
+    const ws = await fixture();
+    await ws.write(
+      "system/metamodel/broken.yaml",
+      "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
+    );
+    const read = async (): Promise<string[]> =>
+      (await call(ws, "baseline.changes", {})).next.map((step) => step.command);
+    expect(await read()).toEqual(["baseline.compare", "baseline.prepare"]);
+    await rm(ws.path("system/baselines"), { recursive: true });
+    expect(await read()).toEqual(["baseline.prepare"]);
   });
 
   it("[SR-241/AK-r3xg] says that nothing changed since the baseline, every number but the unchanged ones 0", async () => {
