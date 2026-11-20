@@ -9,27 +9,24 @@
 // in the view (SR-033, `testCasesIn`; every kind of record, as `records`). Every record carries its
 // `evidenceSource` (#821) and, where it names criteria (also in `testCases`), their numbers, keys and texts
 // (`criterionNames`, SR-205 AK2). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
-// app (AK3 to AK5, `displayOf`, over the views the element applies in, without that of a variant
+// app (AK3 to AK5, `elementDisplay`, the rule the HTML export shows too, SR-232 AK3, over the views the element applies in, without that of a variant
 // whose status is invalid unless `view` names it, SR-047 AK6). Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
-  bearingRecords,
-  displayOf,
+  elementDisplay,
   evidenceIndexState,
   evidenceReadState,
   listedRecords,
-  plainCriteria,
   recordNamer,
   withNamedExecutions,
   testCaseWithEvidenceSource,
   testCasesIn,
-  validatesType,
   verificationState,
   withEvidenceSource,
 } from "../../evidence/index.js";
-import type { ViewHolder } from "../../evidence/index.js";
+import type { ElementDisplay } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
   currentVersionsOf,
@@ -39,21 +36,12 @@ import {
   shortIdState,
   storedForms,
 } from "../../model/index.js";
-import type { View } from "../../variants/index.js";
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
-/**
- * Whether the view of `holder` is `asked`; when none is asked, every view but that of a variant
- * whose status is invalid (SR-047 AK6, as `verificationOf`).
- */
-const shownView = ({ view: holder, invalid }: ViewHolder, asked: View | undefined): boolean =>
-  asked === undefined
-    ? !invalid
-    : holder.kind === "core"
-      ? asked.kind === "core"
-      : asked.kind === "variant" && asked.variant.id === holder.variant.id;
+/** The display of an element without records. */
+const NO_DISPLAY: ElementDisplay = { bearing: [], display: { shared: {}, rows: [], older: [] } };
 
 export default defineCommand({
   name: "evidence.list",
@@ -94,12 +82,8 @@ export default defineCommand({
     const listed = listedRecords(records, view, independent, (id, version) =>
       baselinesContaining(baselines, id, storedForms(version, current)),
     ).map(withEvidenceSource);
-    // The views the element applies in (the view rule of the status, as `verificationOf`), with
-    // `view` that one alone, as `listed` holds only its records; none for an element that is no
-    // requirement. Read only for an element with records.
+    // The status, its views and criteria are read only for an element with records.
     const status = listed.length === 0 ? undefined : await ctx.workspace.get(verificationState);
-    // Its criteria as the status counts them (key or number, older versions through Git, SR-031 AK11).
-    const criteria = status === undefined ? plainCriteria(0) : status.source.criteriaOf(element);
     const testCases = testCasesIn(index, element.id, view, independent).map(testCaseWithEvidenceSource);
     // Every record listed, also those of the test cases, with its criteria named (SR-205 AK2).
     const name = await recordNamer(ctx.workspace, [
@@ -107,24 +91,12 @@ export default defineCommand({
       { element, records: testCases.flatMap((t) => t.executions) },
     ]);
     const named = listed.map((record) => name(element, record));
-    const bearing = bearingRecords(named, current, criteria, independent);
-    const views =
-      status?.source.requirements.has(element.type) !== true
-        ? []
-        : status.holders
-            .filter((holder) => holder.includes(element) && shownView(holder, view))
-            .map(({ view: holder }) => holder);
+    const { bearing, display } =
+      status === undefined ? NO_DISPLAY : elementDisplay(status, element, current, named, view);
     return {
       records: named,
       bearing,
-      display: displayOf(named, {
-        bearing,
-        current,
-        criteria,
-        views,
-        independent,
-        validates: status !== undefined && validatesType(status.source, element.type),
-      }),
+      display,
       testCases: testCases.map((test) => withNamedExecutions(name, element, test)),
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,

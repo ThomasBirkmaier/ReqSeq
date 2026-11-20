@@ -11,6 +11,8 @@ export {
 } from "./by-element.js";
 export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
 export { bearingRecords } from "./bearing.js";
+export { elementDisplay } from "./element-display.js";
+export type { ElementDisplay } from "./element-display.js";
 export type { Display, DisplayInput } from "./display.js";
 export { displayOf } from "./display.js";
 export {

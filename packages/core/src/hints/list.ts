@@ -501,3 +501,22 @@ export const listHints = async (
     incomplete,
   };
 };
+
+/**
+ * The open hints of every element as `hint.list` gives them for it (SR-232 AK4), by UUID: the
+ * whole-workspace path once, every hint (for one element in the order of `ref`, as
+ * `list-ref.test.ts` shows); none against a metamodel that is not valid. Twins of one UUID share an
+ * entry; the HTML export gives them no page.
+ */
+export const hintsByElement = async (workspace: Workspace): Promise<ReadonlyMap<string, Problem[]>> => {
+  const { hints } = await listHints(workspace, EVERY_HINT);
+  const byElement = new Map<string, Problem[]>();
+  for (const hint of hints) {
+    // Every hint names an element (`isHint`).
+    const id = String(hint.elementId);
+    const own = byElement.get(id) ?? [];
+    byElement.set(id, own);
+    own.push(hint);
+  }
+  return byElement;
+};

@@ -2,11 +2,12 @@
 // when the metamodel marks the property Markdown, its references then as SR-231 AK6 says; else as written) and verification status, with a button that copies the reference for test names
 // (`[SR-036/AK-k7f3]`, SR-205 AK1); a criterion without reference has no button. The status is that of each view the
 // requirement applies in (`criterionStatusesByView`): the status alone when that is the core only, else each with
-// the name of its view.
+// the name of its view. Below its text, the evidence records that bear its status (`section-evidence.ts`, AK3).
 import { markdownKeysOf } from "../metamodel/index.js";
 import { copyButton } from "./copy-script.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { escapeHtml } from "./markdown.js";
+import { criterionEvidence } from "./section-evidence.js";
 import { viewName } from "./section-fields.js";
 
 /** The verification status of criterion `index` (from 0) as the page shows it. */
@@ -39,7 +40,7 @@ export const criteriaSection = async (context: ElementPageContext, page: Element
       ? await page.markdown(criterion.text, `Acceptance criterion ${String(criterion.criterion)}`)
       : `<p>${escapeHtml(criterion.text)}</p>`;
     items.push(
-      `<li><p class="rq-criterion rq-copyable"><strong>${label}</strong>${key}${statusOf(context, page, index)}${copy}</p>${text}</li>`,
+      `<li><p class="rq-criterion rq-copyable"><strong>${label}</strong>${key}${statusOf(context, page, index)}${copy}</p>${text}${criterionEvidence(context, page, criterion.criterion)}</li>`,
     );
   }
   return `<section class="rq-criteria"><h2 id="acceptance-criteria">Acceptance criteria</h2><ol class="rq-criteria-list">${items.join("")}</ol></section>`;
