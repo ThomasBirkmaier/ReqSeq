@@ -2,14 +2,28 @@
 // same input gives the same guide in every access, for both `names` and without a workspace, the same skill
 // file (AK7), and the same write of it in a workspace folder at the root of its Git repository (AK8). That
 // the API and the MCP server refuse a place outside the repositories (SR-142, the exception to SR-080 AK2)
-// is local-paths.test.ts. That the MCP server sends the MCP guide as its instructions is server.test.ts in
+// is local-paths.test.ts. The MCP server instructions (AK17) are the same in every access and for a folder
+// with or without a workspace; that the MCP server sends them as its instructions is server.test.ts in
 // packages/mcp.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { ONE_REPOSITORY } from "../../fixtures.js";
+import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 
 const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+
+/** The start of the MCP server instructions, the same for every folder (SR-229 AK17). */
+const INSTRUCTIONS_START = "# Working with ReqSeq\n\nThese instructions hold only the rules.";
+
+const instructionsCheck = (results: Readonly<Record<string, Result>>): void => {
+  for (const [access, { outcome }] of Object.entries(results)) {
+    const text = "output" in outcome ? (outcome.output as { guide: string }).guide : "";
+    if (!text.startsWith(INSTRUCTIONS_START) || text.includes("`reqseq ") || text.includes("Reason:")) {
+      throw new Error(`${access} did not give the MCP server instructions: ${text.slice(0, 200)}`);
+    }
+  }
+};
 
 scenariosOf("tool.guide", [
   {
@@ -38,6 +52,27 @@ scenariosOf("tool.guide", [
         }
       }
     },
+  },
+  {
+    name: "the MCP server instructions",
+    tag: "[SR-229/AK-gzbz]",
+    input: { instructions: true },
+    expect: "output",
+    check: instructionsCheck,
+  },
+  {
+    name: "the MCP server instructions in a folder without a workspace",
+    tag: "[SR-229/AK-gzbz]",
+    root: "requirements",
+    input: { instructions: true, names: "cli" },
+    expect: "output",
+    check: instructionsCheck,
+  },
+  {
+    name: "the MCP server instructions together with the skill file",
+    tag: "[SR-229/AK-gzbz]",
+    input: { instructions: true, skill: true },
+    expect: "error",
   },
   {
     name: "the skill file",
