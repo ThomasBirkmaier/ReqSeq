@@ -16,6 +16,7 @@ import {
   listHeading,
   listSort,
   listing,
+  outputList,
   perspectiveBuffer,
   perspectiveKey,
   perspectiveModified,
@@ -394,6 +395,14 @@ describe("Save list as perspective (SR-214 AK5)", () => {
     expect(offered([elementBuffer("p1", "main", "PKG-1 Sensors")])).toBe(false);
     expect(offered([withMatrix(listBuffer("All elements"), true)])).toBe(false);
     expect(offered([perspectiveBuffer({ name: "Broken", error: "faulty" })])).toBe(false);
+    // A list from the output of a command, such as the elements of a group of problems (SR-223 AK3), also
+    // with a filter step added, and so also not as a saved filter (SR-219 AK8).
+    const fromOutput = outputList("Outdated relation", ["uuid-1"]);
+    expect(offered([fromOutput])).toBe(false);
+    expect(offered([withQuery(fromOutput, { steps: [...fromOutput.steps, statusStep("draft")] })])).toBe(
+      false,
+    );
+    expect(action(SAVE_SAVED_FILTER).available({ ...start({}, [fromOutput]).context })).toBe(false);
     // Core refuses it in a read-only workspace, and without a workspace there is nothing to save.
     expect(offered([listBuffer("All elements")], { readOnly: true })).toBe(false);
     expect(offered([listBuffer("All elements")], { workspace: false })).toBe(false);

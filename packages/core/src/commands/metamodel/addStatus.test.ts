@@ -322,6 +322,7 @@ describe("metamodel commands: the frame as the status commands show it (SR-236)"
   it("[SR-236/AK-n13v] makes the key of a new status from the name, or refuses and asks for one; a given key is taken as it is", async () => {
     const { workspace } = await openSmall();
     expect((await add(workspace, { type: "note", name: "Über prüft 2" })).status.key).toBe("ueber-prueft-2");
+    expect((await add(workspace, { type: "note", name: "Validé" })).status.key).toBe("valide");
     expect((await add(workspace, { type: "note", name: "Held", key: "on-hold" })).status.key).toBe("on-hold");
     for (const [name, key, why] of [
       ["2nd look", "2nd-look", "does not start with a letter"],
