@@ -503,28 +503,56 @@ describe("recording the last API or MCP access (SR-117)", () => {
         return real(folder, name, text);
       });
     };
+    // The clock stands still, so each next tick comes only when the test moves it on: on a loaded Windows
+    // runner three ticks of real time and two writes took longer than the 1 s of `vi.waitFor` (#2016). Only
+    // real turns of the event loop are waited on (`performance` and `setImmediate` are not faked).
+    const turns = async (done: () => boolean): Promise<void> => {
+      const end = performance.now() + 10_000;
+      while (performance.now() < end && !done()) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    };
+    /** Moves the clock on to each next try until `count` writes were tried since `before`; awaits the last. */
+    const tries = async (before: number, count: number): Promise<void> => {
+      while (writes() - before < count) {
+        await turns(() => vi.getTimerCount() === 1);
+        expect(vi.getTimerCount()).toBe(1);
+        vi.advanceTimersByTime(ACTIVITY_WRITE_MS);
+      }
+      await Promise.allSettled([write.mock.results.at(-1)?.value]);
+      // The `finally` of the last try has run: a timer for the next one, or none.
+      await new Promise((resolve) => setImmediate(resolve));
+    };
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     // A reader holds the file twice (Windows): the third try writes it.
     failing("EBUSY", 2);
     let before = writes();
     recordAccess(workspace, Promise.resolve(noted));
-    await vi.waitFor(async () => {
-      expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
-    });
+    await turns(() => writes() > before || vi.getTimerCount() === 1);
+    await tries(before, 3);
     expect(writes() - before).toBe(3);
+    expect(vi.getTimerCount()).toBe(0);
+    expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
     // It always fails: tried ACTIVITY_WRITE_TRIES times, then dropped.
     failing("EPERM", Number.POSITIVE_INFINITY);
     before = writes();
     recordAccess(workspace, Promise.resolve(noted));
-    await vi.waitFor(() => {
-      expect(writes() - before).toBe(ACTIVITY_WRITE_TRIES);
-    });
-    await quiet(3 * ACTIVITY_WRITE_MS);
+    await turns(() => writes() > before || vi.getTimerCount() === 1);
+    await tries(before, ACTIVITY_WRITE_TRIES);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(3 * ACTIVITY_WRITE_MS);
     expect(writes() - before).toBe(ACTIVITY_WRITE_TRIES);
     // A lasting failure is not tried again.
     failing("ENOSPC", Number.POSITIVE_INFINITY);
     before = writes();
     recordAccess(workspace, Promise.resolve(noted));
-    await quiet(3 * ACTIVITY_WRITE_MS);
+    await turns(() => writes() > before || vi.getTimerCount() === 1);
+    await tries(before, 1);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(3 * ACTIVITY_WRITE_MS);
     expect(writes() - before).toBe(1);
   });
 
