@@ -96,8 +96,8 @@ columns:
 ...
 rows:
 ...
-  SR-c67baa  draft  Show the wind speed
-    1: N-7fe707  2: –
+  SR-c67baa  draft  Show the wind speed  [verification: core open]
+    1: N-7fe707  2: –  tests: –
 ...
 total: 3
 ```
@@ -143,11 +143,11 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 5 elements and found 10 warnings.
+Checked 5 elements and found 9 warnings and 2 info.
 ok: true
 ...
 warning  trace.no-parent  SR-62fb87  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  ...
-warning  evidence.no-location  ...
+...
 ```
 
 Which relation kinds lead to a parent is up to the metamodel: every kind with the meaning `derivation`, in the standard model `derives-from` and `refines`. `based-on` has no meaning, so a decision is no parent; [Extend the metamodel](/how-to/extend-the-metamodel/) shows how a project makes it one.

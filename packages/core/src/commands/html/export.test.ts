@@ -73,13 +73,18 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
     expect(output.answer).toBe("Exported 2 element pages to site.");
     const files = await tree(fixture.path("site"));
     expect(Object.keys(files).sort()).toEqual([
+      "assets/copy.js",
+      "assets/docs.css",
       "assets/reqseq.css",
+      "assets/reqseq.js",
+      "assets/theme.js",
       `elements/${GUSTS}.html`,
       `elements/${WIND}.html`,
       "index.html",
+      "licenses/THIRD-PARTY-NOTICES.txt",
       MARKER,
     ]);
-    expect(files[`elements/${WIND}.html`]).toContain("<h1>SR-e88fb3 Show wind speed</h1>");
+    expect(files[`elements/${WIND}.html`]).toMatch(/<h1 id="_top"[^>]*>SR-e88fb3 Show wind speed<\/h1>/u);
     expect(files[`elements/${WIND}.html`]).toContain("<p>The station shows the current wind speed.</p>");
     expect(files["index.html"]).toContain("<p>Element pages: 2</p>");
     expect(JSON.stringify(files)).not.toContain(OLD);
@@ -88,10 +93,15 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
         "# Written by ReqSeq html.export; lists the files of this export. Do not edit.",
         "reqseq-html-export: 1",
         "files:",
+        '  - "assets/copy.js"',
+        '  - "assets/docs.css"',
         '  - "assets/reqseq.css"',
+        '  - "assets/reqseq.js"',
+        '  - "assets/theme.js"',
         `  - "elements/${GUSTS}.html"`,
         `  - "elements/${WIND}.html"`,
         '  - "index.html"',
+        '  - "licenses/THIRD-PARTY-NOTICES.txt"',
         "",
       ].join("\n"),
     );
@@ -105,7 +115,7 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
     onTestFinished(() => workspace.close());
     await exported(workspace, "site");
     const page = fixture.path(`site/elements/${id}.html`);
-    expect(await fs.readFile(page, "utf8")).toContain("<h1>SR-036 Accept identifiers as references</h1>");
+    expect(await fs.readFile(page, "utf8")).toContain(">SR-036 Accept identifiers as references</h1>");
     // A new identifier and title; a second element whose UUID ends alike lengthens the short ID (SR-084 AK2).
     await fixture.write(
       "requirements/SR-0000000b0036.md",
@@ -119,10 +129,10 @@ describe("html.export writes the workspace as HTML (SR-231)", () => {
     onTestFinished(() => again.close());
     const output = await exported(again, "site");
     expect(output.removed).toBe(0);
-    expect(await fs.readFile(page, "utf8")).toContain("<h1>SR-900 Take identifiers</h1>");
+    expect(await fs.readFile(page, "utf8")).toContain(">SR-900 Take identifiers</h1>");
     expect(
       await fs.readFile(fixture.path("site/elements/11111111-2222-4333-8444-1000000b0036.html"), "utf8"),
-    ).toContain("<h1>SR-1000000b0036 Twin</h1>");
+    ).toContain(">SR-1000000b0036 Twin</h1>");
   });
 });
 

@@ -7,7 +7,15 @@
 // (`parentPositions`), not the incoming relation index: the first tree of a store is recorded apart,
 // and so is the first tree of a workspace without the index (a one-shot CLI call).
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  measure,
+  perfSize,
+  scaledCount,
+  thresholdLimit,
+  thresholdMessage,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { elementStoreState, shortIdState } from "../../src/model/index.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
@@ -15,8 +23,10 @@ import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import type { FullList } from "../../src/commands/list.test-helper.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
+/** The size of the last page, the largest the catalog allows at N-036. */
+const LAST = scaledCount(5000);
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** The versions stored in relations do not matter here: nothing compares them. */
@@ -79,7 +89,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(page.total).toBe(ELEMENTS);
     expect(page.tree?.[0]?.depth).toBe(0);
     expect(page.tree?.some((place) => place.depth > 0)).toBe(true);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] lists the first page of all elements sorted by title within 500 ms", async () => {
@@ -93,7 +103,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     );
     const titles = page.elements.map((e) => e.title.normalize("NFC").toLowerCase());
     expect(titles).toEqual(titles.toSorted());
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] lists the first page of all elements sorted by type and identifier within 500 ms (ThomasBirkmaier/ReqSeq-archive#418)", async () => {
@@ -115,15 +125,17 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
       expect(numbers).toEqual(numbers.toSorted((x, y) => x - y));
     };
     riseWithinType(page.elements);
-    // A page far on holds identifiers of 4 and 5 digits, which a text sort would put before SR-999.
+    // A page far on holds identifiers of 4 and 5 digits, which a text sort would put before SR-999; in a
+    // smaller run (#2037) of as many digits as 1,000 scaled to its size has.
     const { result: far } = await measure(
       "list: page (200) at 20,000 of all elements sorted by type, then identifier",
-      () => list({ sort: [{ by: "type" }, { by: "identifier" }], offset: 20_000 }),
+      () => list({ sort: [{ by: "type" }, { by: "identifier" }], offset: scaledCount(20_000) }),
       { basis },
     );
     riseWithinType(far.elements);
-    expect(far.elements.some((e) => (e.identifier ?? "").replace(/\D/g, "").length >= 4)).toBe(true);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    const digits = String(scaledCount(1000)).length;
+    expect(far.elements.some((e) => (e.identifier ?? "").replace(/\D/g, "").length >= digits)).toBe(true);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-082/AK-h27y] lists the first page of all elements grouped by package, by status and as trees per package group within 500 ms (SR-149)", async () => {
@@ -155,7 +167,7 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     );
     expect(trees.result.tree).toHaveLength(200);
     for (const { measurement } of [byPackage, byStatus, trees]) {
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
     }
   });
 
@@ -177,12 +189,12 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     );
     const { result: last } = await measure(
       "list: last page (5,000) of all elements as a derivation tree",
-      () => list({ sort: [{ by: "hierarchy" }], offset: ELEMENTS - 5000, limit: 5000 }),
+      () => list({ sort: [{ by: "hierarchy" }], offset: ELEMENTS - LAST, limit: LAST }),
       { basis },
     );
     expect(byStatus.elements).toHaveLength(200);
     expect(requirements.total).toBeGreaterThan(0);
-    expect(last.tree).toHaveLength(5000);
+    expect(last.tree).toHaveLength(LAST);
     // A workspace that never built the incoming relation index, as a one-shot CLI call has it.
     const cold = new Workspace(opened().root);
     try {

@@ -523,6 +523,8 @@
         "workspace.metamodel-mismatch",
         "workspace.invalid",
         "workspace.not-watched",
+        "workspace.skill-not-written",
+        "workspace.skill-older-version",
         "git.unavailable",
         "git.revision-missing",
         "reqif.replaces-local",
@@ -533,6 +535,7 @@
         "reqif.source-value-chosen",
         "html.unsafe-content",
         "html.image-not-copied",
+        "html.formula-error",
         "html.foreign-file",
         "html.marker-entry-ignored",
         "html.cleanup-failed"

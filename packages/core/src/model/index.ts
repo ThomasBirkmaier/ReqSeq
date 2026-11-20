@@ -176,6 +176,7 @@ export {
   carryCurrentVersions,
   checkImages,
   currentVersions,
+  embedsOf,
   currentVersionsIfBuilt,
   currentVersionsOf,
   currentVersionsState,
@@ -193,6 +194,7 @@ export {
   placeOfReference,
   elementLinks,
   referenceTargetState,
+  referenceRepository,
   referencesOf,
   resolveReference,
   unavailableRepositoryHint,
@@ -229,7 +231,7 @@ export {
   titleKeyOrEmpty,
 } from "./view.js";
 export type { ElementViewInput, LinkInput, ListedElementInput } from "./view.js";
-export type { ListOptions } from "./list.js";
+export type { ListContext, ListOptions } from "./list.js";
 export { listElements } from "./list.js";
 export { namesField, namesOf, namesOfRecords } from "./names.js";
 export type { NameContext } from "./names.js";

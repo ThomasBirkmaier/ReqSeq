@@ -263,7 +263,8 @@ const isStep = (value: unknown): value is FilterStep =>
   (value["heading"] === undefined || isText(value["heading"])) &&
   isObject(value["selection"]) &&
   (value["selection"]["where"] === undefined || isObject(value["selection"]["where"])) &&
-  (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"]));
+  (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"])) &&
+  (value["output"] === undefined || value["output"] === true);
 
 const isSteps = (value: unknown): value is readonly FilterStep[] =>
   Array.isArray(value) && value.length > 0 && value.every(isStep);

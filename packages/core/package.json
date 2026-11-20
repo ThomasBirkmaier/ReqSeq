@@ -8,6 +8,8 @@
     "dist",
     "!dist/**/*.test.*",
     "!dist/**/*.test-helper.*",
+    "vendor/html-export/mermaid.js",
+    "vendor/html-export/katex.css",
     "README.md"
   ],
   "exports": {
@@ -63,9 +65,17 @@
       "types": "./dist/docs-site/site.d.ts",
       "default": "./dist/docs-site/site.js"
     },
+    "./render-options": {
+      "types": "./dist/html-export/render-options.d.ts",
+      "default": "./dist/html-export/render-options.js"
+    },
     "./fold": {
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
+    },
+    "./problem-titles": {
+      "types": "./dist/problem-titles.d.ts",
+      "default": "./dist/problem-titles.js"
     },
     "./suggested-key": {
       "types": "./dist/metamodel/suggested-key.d.ts",
@@ -73,12 +83,13 @@
     }
   },
   "scripts": {
-    "build": "tsc -b && node ../../scripts/build/code-fingerprint.mjs dist"
+    "build": "tsc -b && node ../../scripts/build/code-fingerprint.mjs dist && node ../../scripts/build/html-export-vendor.mjs"
   },
   "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "hast-util-to-mdast": "10.1.2",
+    "katex": "0.19.0",
     "mdast-util-from-markdown": "2.1.0",
     "mdast-util-gfm": "3.1.0",
     "mdast-util-to-hast": "13.2.1",
@@ -90,6 +101,10 @@
   "devDependencies": {
     "@reqseq/testkit": "workspace:*",
     "@types/hast": "3.0.5",
-    "@types/mdast": "4.0.4"
+    "@types/mdast": "4.0.4",
+    "happy-dom": "21.0.4",
+    "mermaid": "11.17.2",
+    "micromark-util-types": "2.0.3",
+    "rolldown": "1.2.15"
   }
 }

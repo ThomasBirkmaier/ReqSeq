@@ -129,8 +129,9 @@ test.describe("the command prompt", () => {
     await listAll(window);
     const status = await running.cli(["workspace", "status"]);
     expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
-    // Reading still works.
+    // Reading still works, and so does Agent guide, which writes the skill file (SR-229 AK8).
     await finds(window, "Show evidence coverage");
+    await finds(window, "Agent guide");
     for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
       await findsNothing(window, write);
     }

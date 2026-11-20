@@ -18,9 +18,13 @@
 // comparison only (as the evidence rows of ThomasBirkmaier/ReqSeq-archive#693).
 import type { GeneratedEvidence, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
+  DEFAULT_EXCLUSIONS,
+  DEFAULT_REPLACEMENTS,
   generateLargeWorkspace,
   measure,
+  perfSize,
   recordValue,
+  scaledCount,
   withEvidenceRecords,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -37,11 +41,11 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 const HISTORY = 10;
 const DATE = "2026-08-24T12:00:00Z";
-const LIMIT = 5000;
+const LIMIT = scaledCount(5000);
 const COMPARE_MS = 500;
 const BASIS = "SR-094, N-036 (untagged; SR-082 AK4's 500 ms as a threshold for comparison only)";
 
@@ -75,7 +79,10 @@ describe("baseline.get withEvidence with 50,000 elements, 100 variants and their
       version,
       elements: ELEMENTS,
       relations: RELATIONS,
-      variantRules: {},
+      variantRules: {
+        exclusions: scaledCount(DEFAULT_EXCLUSIONS),
+        replacements: scaledCount(DEFAULT_REPLACEMENTS),
+      },
     });
     evidence = withEvidenceRecords(generated, { history: HISTORY });
     fixture = await writeLargeWorkspace(evidence.workspace);

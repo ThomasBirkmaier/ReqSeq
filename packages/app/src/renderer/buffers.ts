@@ -25,6 +25,12 @@ export interface FilterStep {
    * and "Clear all list filters" never take back.
    */
   readonly perspective?: true;
+  /**
+   * The step selects the elements of a part of a command's output, such as a group of problems (SR-223 AK3): a
+   * list with it is a list from the output of a command, which is saved neither as a perspective nor as a saved
+   * filter (SR-214 AK5, SR-219 AK8).
+   */
+  readonly output?: true;
 }
 
 /** A perspective as `perspective.list` gives it. */
@@ -196,6 +202,11 @@ export interface ResultBuffer {
    * value. It holds for this buffer until it is closed, also when the same command opens it again.
    */
   readonly details?: true;
+  /**
+   * The groups of problems that are open (SR-223 AK3), by their key (`groupKey` of `result.ts`); none at first,
+   * so every group is shown folded.
+   */
+  readonly unfolded?: readonly string[];
 }
 
 /** How far a graph goes from its element: a number of levels, or the whole chain (SR-111 AK2). */
@@ -422,6 +433,19 @@ export const listBuffer = (
   sort?: readonly FilterSortKeyWithDefaults[],
 ): ListBuffer =>
   makeList(label, selection === undefined ? [] : [{ label, selection }], selection, sort, false);
+
+/**
+ * The list of the elements with one of the UUIDs `ids` (SR-223 AK3), in every repository and also every copy of
+ * one (SR-088), under `label`: one step from the output of a command (`FilterStep.output`) whose condition is the
+ * frontmatter key `id`, so further filter steps add to it. No selection by `ids`, which refuses a UUID that names
+ * more than one element (`ref.ambiguous`).
+ */
+export const outputList = (label: string, ids: readonly string[]): ListBuffer => {
+  const steps: FilterStep[] = [
+    { label, selection: { where: { property: "id", op: "in", value: [...ids] } }, output: true },
+  ];
+  return makeList(label, steps, selectionOf(steps), undefined, false);
+};
 
 /**
  * What the steps select together (SR-124 AK1): the conditions of all steps in order, one alone as it

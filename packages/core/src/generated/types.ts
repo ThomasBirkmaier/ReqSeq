@@ -480,6 +480,8 @@ export type ProblemCode =
   | "workspace.metamodel-mismatch"
   | "workspace.invalid"
   | "workspace.not-watched"
+  | "workspace.skill-not-written"
+  | "workspace.skill-older-version"
   | "git.unavailable"
   | "git.revision-missing"
   | "reqif.replaces-local"
@@ -490,6 +492,7 @@ export type ProblemCode =
   | "reqif.source-value-chosen"
   | "html.unsafe-content"
   | "html.image-not-copied"
+  | "html.formula-error"
   | "html.foreign-file"
   | "html.marker-entry-ignored"
   | "html.cleanup-failed";
@@ -2120,7 +2123,7 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json input`.
  */
 export interface WorkspaceInitInput {
@@ -2135,10 +2138,12 @@ export interface WorkspaceInitInput {
     /** Folder of the metamodel, relative to that repository. Default: `metamodel`. */
     readonly path?: string;
   };
+  /** Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none. */
+  readonly skill: boolean;
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
+ * Output of `workspace.init`. Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.
  * Schema: `schemas/commands/workspace.init.json output`.
  */
 export interface WorkspaceInitOutput {
@@ -4318,11 +4323,11 @@ export interface HintConfirmInput {
   readonly hintIds?: readonly string[];
   /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. A variant with open `variant.core-changed-since-baseline` or `variant.core-new-since-baseline` hints, without `kind`, gives `hint.not-confirmable` for them, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly ref?: ElementRef;
-  /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
+  /** Confirm the open confirmable hints on relations and inline references that point at this element. */
   readonly target?: ElementRef;
   /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
-  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them (SR-103 AK5). */
+  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];
   /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
   readonly expected?: number;

@@ -555,13 +555,42 @@ describe("tool.guide with write", () => {
     },
   );
 
-  it("needs a workspace to write, and writes while the metamodel cannot be read", async () => {
+  it("needs a workspace to write", async () => {
     expect((await refusal(await folder(), WRITE)).code).toBe("workspace.not-found");
-    const faulty = await folder({
-      "reqseq-workspace.yaml": WORKSPACE_FILE,
-      "metamodel/model.yaml": "types: [",
-    });
-    expect((await run(faulty, WRITE)).file?.action).toBe("created");
+  });
+
+  /**
+   * While the metamodel of `root` cannot be read, a write command is refused (SR-011 AK3, AK4) and the
+   * skill file is written by the rules of SR-229 AK8: created, then left, a foreign file only replaced with `replace`.
+   */
+  const writesWhileReadOnly = async (root: string): Promise<void> => {
+    const status = (await invoke(
+      "workspace.status",
+      {},
+      { workspace: open(root) },
+    )) as CommandOutput<"workspace.status">;
+    expect(status.readOnly).toBe(true);
+    await expect(
+      invoke("element.create", { type: "requirement", title: "Wind" }, { workspace: open(root) }),
+    ).rejects.toMatchObject({ code: "workspace.read-only" });
+    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "created" });
+    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "unchanged" });
+    await fs.writeFile(skillAt(root), "# Mine\n");
+    const error = await refusal(root, WRITE);
+    expect(error.code).toBe("file.exists");
+    expect(await read(root)).toBe("# Mine\n");
+    expect((await run(root, { ...WRITE, replace: true })).file?.action).toBe("replaced");
+    expect(await read(root)).toBe((await run(root, { skill: true })).guide);
+  };
+
+  it("[SR-229/AK-v09f] [SR-011/AK-jt29] writes the skill file while a metamodel file is faulty and other write commands are refused", async () => {
+    await writesWhileReadOnly(
+      await folder({ "reqseq-workspace.yaml": WORKSPACE_FILE, "metamodel/model.yaml": "types: [" }),
+    );
+  });
+
+  it("[SR-229/AK-v09f] [SR-011/AK-vhvd] writes the skill file while the metamodel folder is missing and other write commands are refused", async () => {
+    await writesWhileReadOnly(await folder({ "reqseq-workspace.yaml": WORKSPACE_FILE }));
   });
 });
 
@@ -576,6 +605,7 @@ describe("the skill file's helpers", () => {
       version: PRODUCT_VERSION,
       intact: true,
       current: true,
+      sameContent: true,
       path: SKILL_FILE,
     });
     await fs.writeFile(skillAt(root), skillFile(ENTRIES, "0.0.1"));
@@ -583,6 +613,7 @@ describe("the skill file's helpers", () => {
       state: "own",
       version: "0.0.1",
       current: false,
+      sameContent: true,
     });
     await fs.writeFile(skillAt(root), "# Mine\n");
     expect(await readSkillFile(workspace, ENTRIES)).toEqual({ state: "foreign", path: SKILL_FILE });

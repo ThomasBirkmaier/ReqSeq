@@ -418,7 +418,7 @@
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
-        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
+        "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
         "tags": [
           "workspace"
         ],
@@ -456,6 +456,11 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "skill": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Write the skill file for AI agents (`tool.guide` with `skill`). `false`: write none."
                   }
                 },
                 "additionalProperties": false,
@@ -483,7 +488,7 @@
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/outputPath",
-                        "description": "Written file, relative to the workspace root."
+                        "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
                       }
                     },
                     "next": {
@@ -13107,7 +13112,7 @@
                   },
                   "target": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+                    "description": "Confirm the open confirmable hints on relations and inline references that point at this element."
                   },
                   "all": {
                     "type": "boolean",
@@ -13116,7 +13121,7 @@
                   },
                   "kind": {
                     "type": "array",
-                    "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable`, since a new baseline of the variant settles them.",
+                    "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/problemCode"
                     }
@@ -21308,6 +21313,8 @@
               "workspace.metamodel-mismatch",
               "workspace.invalid",
               "workspace.not-watched",
+              "workspace.skill-not-written",
+              "workspace.skill-older-version",
               "git.unavailable",
               "git.revision-missing",
               "reqif.replaces-local",
@@ -21318,6 +21325,7 @@
               "reqif.source-value-chosen",
               "html.unsafe-content",
               "html.image-not-copied",
+              "html.formula-error",
               "html.foreign-file",
               "html.marker-entry-ignored",
               "html.cleanup-failed"

@@ -16,6 +16,7 @@ import {
   measure,
   measurePeakMemory,
   memoryIncrease,
+  perfSize,
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -28,6 +29,8 @@ import { warmModel } from "../../src/model/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** Older CI runs in the archive, one large JUnit file each. */
 const HISTORY = 16;
 
@@ -49,7 +52,7 @@ const largeEvidence = (
 
   beforeAll(async () => {
     const version = versionOf(await standardModel());
-    const generated = generateLargeWorkspace({ version });
+    const generated = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     variant = generated.elements.find((e) => e.type === "variant")?.id ?? "";
     const evidence = withEvidenceRecords(generated, options);
     counts = evidence.counts;

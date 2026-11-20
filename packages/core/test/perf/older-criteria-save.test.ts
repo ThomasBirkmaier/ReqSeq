@@ -21,7 +21,9 @@
 import type { GeneratedElement, GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
+  perfSize,
   recordValue,
+  scaledCount,
   withEvidenceRecords,
   writeLargeWorkspace,
 } from "@reqseq/testkit";
@@ -34,12 +36,12 @@ import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** Every this many system requirements get a record by number. */
 const NUMBERED_EVERY = 10;
 /** Of those, the first this many got a new text in a second commit: their records are older ones. */
-const OLDER = 1000;
+const OLDER = scaledCount(1000);
 /** Saves; the first `WARM_UP` are not counted (JIT). */
 const RUNS = 12;
 const WARM_UP = 2;
@@ -47,7 +49,7 @@ const WARM_UP = 2;
 const TOPS = 200;
 const BASIS = "SR-031 AK11, SR-204, N-036 (#1418; recorded, untagged)";
 /** Requirements whose `evidence.outdated` names an outdated criterion (#1420). */
-const NAMED = 500;
+const NAMED = scaledCount(500);
 
 /** A passed Markdown verification record of `element` at `version` that names criterion 1. */
 const numberedRecord = (element: GeneratedElement): string =>

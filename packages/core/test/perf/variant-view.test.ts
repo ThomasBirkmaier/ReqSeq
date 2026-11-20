@@ -18,9 +18,14 @@
 // The tests check the view against an oracle written from the element data here, not with the rule.
 import type { GeneratedEvidence, GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
+  DEFAULT_EXCLUSIONS,
+  DEFAULT_REPLACEMENTS,
   generateLargeWorkspace,
   measure,
   measureMedian,
+  perfSize,
+  scaledCount,
+  thresholdLimit,
   thresholdMessage,
   withEvidenceRecords,
   writeLargeWorkspace,
@@ -43,8 +48,8 @@ import { buildViewRuleIndex, removersOf } from "../../src/variants/view-rule.js"
 import { standardModel, versionOf } from "./core-version.js";
 import type { Output } from "../../src/commands/list.test-helper.js";
 
-const ELEMENTS = 50_000;
-const RELATIONS = 200_000;
+// The size of the run (#2037): N-036's 50,000 elements and 200,000 relations unless REQSEQ_PERF_ELEMENTS is set.
+const { elements: ELEMENTS, relations: RELATIONS } = perfSize();
 /** SR-082 AK4. */
 const RESULT_MS = 500;
 /** Quality goal 3, SR-098 AK1. */
@@ -142,7 +147,15 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
 
   beforeAll(async () => {
     const version = versionOf(await standardModel());
-    tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS, variantRules: {} });
+    tree = generateLargeWorkspace({
+      version,
+      elements: ELEMENTS,
+      relations: RELATIONS,
+      variantRules: {
+        exclusions: scaledCount(DEFAULT_EXCLUSIONS),
+        replacements: scaledCount(DEFAULT_REPLACEMENTS),
+      },
+    });
     evidence = withEvidenceRecords(tree);
     fixture = await writeLargeWorkspace(evidence.workspace);
     cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-variant-cache-"));
@@ -155,9 +168,13 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     store = await workspace.get(elementStoreState);
     metamodel = await workspace.get(metamodelState);
     expect(store.elements).toHaveLength(ELEMENTS);
-    expect([tree.exclusions, tree.replacements]).toEqual([5000, 5000]);
+    expect([tree.exclusions, tree.replacements]).toEqual([
+      scaledCount(DEFAULT_EXCLUSIONS),
+      scaledCount(DEFAULT_REPLACEMENTS),
+    ]);
     const variants = store.elements.filter((e) => e.type === "variant");
-    expect(variants).toHaveLength(100);
+    // The generator's share of variants: 0.2 % of the elements, at least one (100 at N-036).
+    expect(variants).toHaveLength(Math.max(1, Math.floor(ELEMENTS * 0.002)));
     // The core requirements each variant removes, from one pass over the store.
     const removed = removedByVariant(store);
     const core = new Set(
@@ -204,8 +221,8 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
       store.elements.filter((e) => e.type === REQUIREMENT && e.data["status"] === "draft").length,
     );
     expect(warm.elements.every((e) => e.type === REQUIREMENT)).toBe(true);
-    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(RESULT_MS);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("records the build of the view rule index and its removal map once more, on the same store", async () => {
@@ -252,8 +269,8 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect(chain.incomplete).toBe(false);
     expect(chain.total).toBeLessThan(whole.total);
     expect(chain.nodes.every((n) => idInView(n.id))).toBe(true);
-    expect(firstCall.ms, thresholdMessage(firstCall)).toBeLessThanOrEqual(RESULT_MS);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+    expect(firstCall.ms, thresholdMessage(firstCall)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
   it("[SR-098/AK-pqx4] shows the first hits of a search in the view of a variant within 300 ms, median of 7 (SR-043 AK2)", async () => {
@@ -283,7 +300,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
       if (expected !== undefined) {
         expect(result.hits.map((e) => e.id)).toContain(expected);
       }
-      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(SEARCH_MS));
     }
   });
 
@@ -327,7 +344,7 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
       { basis: `SR-043 AK7, SR-034 (warm; ${COMPARE_AK4})`, ...COMPARED },
     );
     expect(again).toEqual(first);
-    expect(again.elements.length).toBeGreaterThan(100);
+    expect(again.elements.length).toBeGreaterThan(scaledCount(100));
     expect(again.elements.every((e) => (e.verification?.length ?? 0) > 0)).toBe(true);
   });
 
@@ -370,6 +387,6 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
       status,
       { basis: `SR-043 AK7 (after a change; ${COMPARE_AK4})`, ...COMPARED },
     );
-    expect(rebuilt.elements.length).toBeGreaterThan(100);
+    expect(rebuilt.elements.length).toBeGreaterThan(scaledCount(100));
   });
 });
