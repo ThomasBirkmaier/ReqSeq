@@ -1,9 +1,10 @@
-// The properties on an element's page (SR-232 AK1): every filled property as the element file holds it, in the
-// order of the file, also one the metamodel does not know, by its name in the metamodel (else its key). Left out
-// are those another part of the page shows: the identifier and the packages (fields), the acceptance criteria of a
-// requirement (their own section). A Markdown property is formatted, also each item of a list (SR-231 AK5, AK6); a
-// property of kind relation lists its targets as links; a list is a list; any other value is its text, and a value
-// that is neither text, number, flag nor list is its JSON.
+// The properties on an element's page (SR-232 AK1): every filled property of the element file with the value
+// `element.get` gives for it (so `00815` without quotes is the number 815), in the order of the file, also one the
+// metamodel does not know, by its name in the metamodel (else its key). Left out are those another part of the page
+// shows: the identifier and the packages (fields), the acceptance criteria of a requirement (their own section). A
+// Markdown property is formatted, also each item of a list (SR-231 AK5, AK6); a property of kind relation lists its
+// targets as links; a list is a list, and of an item with a text only that text shows; any other value is its text,
+// and a value that is neither text, number, flag nor list is its JSON.
 import type { DataExportElement } from "../generated/types.js";
 import { markdownKeysOf } from "../metamodel/index.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
