@@ -35,6 +35,7 @@ import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ImageLink, ShortIds, StateReader } from "../model/index.js";
 import {
   UNKNOWN_TYPE_PREFIX,
+  currentFormsOf,
   currentVersions,
   elementStoreState,
   embedsOf,
@@ -48,6 +49,7 @@ import {
   titleKeyOrEmpty,
 } from "../model/index.js";
 import { PRODUCT_VERSION } from "../product.js";
+import { traceContext } from "../trace/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import {
@@ -67,6 +69,7 @@ import { elementDataOf } from "./element-data.js";
 import type { ElementPageContext } from "./element-page.js";
 import { elementPageBody } from "./element-page.js";
 import { elementPage, pageLinks } from "./links.js";
+import { neighbourhoodSource } from "./section-neighbourhood.js";
 import { stubPageBody } from "./stub-page.js";
 import type { PageScriptSettings } from "./page-script.js";
 import { pageScript, scriptOf, themeScript } from "./page-script.js";
@@ -324,6 +327,7 @@ export const writeHtmlExport = async (
   await refuseDataFolder(layout, target);
   const vendor = await readVendor(options.vendor);
   const footer = await footerOf(workspace, layout, store, options);
+  const [versions, trace] = await Promise.all([currentVersions(workspace), traceContext(workspace)]);
   const invalid = invalidStatuses(metamodel);
   const titleKey = titleKeyOrEmpty(metamodel);
   const seen = new Set<string>();
@@ -348,6 +352,7 @@ export const writeHtmlExport = async (
     shortIds,
     layout,
     links: pageLinks(new Set([...withPage].map((r) => r.id))),
+    neighbourhood: neighbourhoodSource(trace, (record) => currentFormsOf(versions, record)),
   };
   const context: PageContext = { folder, layout, page: pageContext, problems, reference };
   const needs: Needs = { formulas: false, diagrams: false };

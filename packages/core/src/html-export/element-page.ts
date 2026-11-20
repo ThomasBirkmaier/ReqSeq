@@ -5,7 +5,8 @@
 // - text: the element's text, formatted (SR-231 AK5);
 // - acceptance criteria (`section-criteria.ts`, AK2);
 // - properties (`section-properties.ts`, AK1): every other filled property as in the element file;
-// - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind.
+// - relations (`section-relations.ts`, AK1): the outgoing relations by relation kind;
+// - neighbourhood (`section-neighbourhood.ts`, AK5, AK6): parents, children and incoming relations and references.
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -14,6 +15,8 @@ import type { ElementData } from "./element-data.js";
 import type { PageLinks } from "./links.js";
 import { CRITERIA_CSS, criteriaSection } from "./section-criteria.js";
 import { FIELDS_CSS, fieldsSection } from "./section-fields.js";
+import type { NeighbourhoodSource } from "./section-neighbourhood.js";
+import { NEIGHBOURHOOD_CSS, neighbourhoodSection } from "./section-neighbourhood.js";
 import { propertiesSection } from "./section-properties.js";
 import { relationsSection } from "./section-relations.js";
 
@@ -24,6 +27,7 @@ export interface ElementPageContext {
   readonly shortIds: ShortIds;
   readonly layout: Pick<WorkspaceLayout, "repositories">;
   readonly links: PageLinks;
+  readonly neighbourhood: NeighbourhoodSource;
 }
 
 /** One element's page. */
@@ -37,7 +41,7 @@ export interface ElementPage {
 }
 
 /** The styles of the element page's sections, after the export's own. */
-export const ELEMENT_PAGE_CSS = [...COPY_CSS, ...FIELDS_CSS, ...CRITERIA_CSS];
+export const ELEMENT_PAGE_CSS = [...COPY_CSS, ...FIELDS_CSS, ...CRITERIA_CSS, ...NEIGHBOURHOOD_CSS];
 
 /** The content of `page` (see the file comment). */
 export const elementPageBody = async (context: ElementPageContext, page: ElementPage): Promise<string> =>
@@ -47,4 +51,5 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     await criteriaSection(context, page),
     await propertiesSection(context, page),
     relationsSection(context, page),
+    neighbourhoodSection(context, page),
   ].join("");

@@ -108,6 +108,7 @@ export {
   matrixRows,
 } from "./matrix.js";
 export type {
+  EdgeMarks,
   Neighbourhood,
   NeighbourhoodContext,
   NeighbourhoodDirection,
@@ -122,6 +123,7 @@ export type {
 export {
   checkRelationKinds,
   currentVersionLookup,
+  edgeMarks,
   neighbourhoodContext,
   neighbourhoodOutput,
   traceNeighbourhood,
