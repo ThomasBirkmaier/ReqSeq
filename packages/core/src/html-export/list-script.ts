@@ -1,20 +1,25 @@
 // The script of the lists of the HTML export, `assets/list.js` (SR-233 AK1, AK5; a classic script, as `page-script.ts`
 // says why). Without it the list is the whole table (`list-page.ts`); with it, the list gets above the table:
 //
-// - a search field that keeps the rows whose identifier, short ID or title holds the typed text, ignoring case (each
-//   row's `data-q`, folded as the export folded it: NFC, lower case);
-// - a chip per filter (`data-rq-list`) that lists its values with the number of rows each would show with the search
-//   and the other filters as they are; several values of one filter match any of them, several filters all of them;
+// - a search bar that keeps the rows whose identifier, short ID or title holds the typed text, ignoring case (each
+//   row's `data-q`, folded as the export folded it: NFC, lower case), with the number of rows shown and "Clear",
+//   which removes the search, the filters and the grouping;
+// - a chip per filter (`data-rq-list`) whose menu lists its values with the number of rows each would show with the
+//   search and the other filters as they are; several values of one filter match any of them, several filters all
+//   of them;
 // - a chip "Group" that groups the rows by one filter, the groups in the order of its values, a row with several
 //   values in each of them;
-// - the chosen values and grouping as buttons that remove them, and "Clear", which removes everything;
+// - a line with the chosen values, the grouping and the chosen baseline as buttons that remove them, "No filters."
+//   without one;
 // - a button in each column head that sorts by it (`data-s`, the ranks of SR-075 AK1), again for descending: no value
 //   stays last in both orders, except in a column marked `total` (the identifier), whose descending order is the
 //   ascending one reversed. Rows of equal rank keep the order of the page;
-// - when the list compares with baselines (`compare`, SR-233 AK2), a choice of the baseline, "No baseline" at first:
-//   with a baseline chosen, the last column (written hidden) shows each row's change since it (`data-b`) and sorts in
-//   the order of its values, and a chip filters by it; with none, the column and the chip are hidden and their
-//   choice is cleared. The chip offers no grouping.
+// - when the list compares with baselines (`compare`, SR-233 AK2), a chip "Compare" to choose the baseline, "No
+//   baseline" at first: with a baseline chosen, the last column (written hidden) shows each row's change since it
+//   (`data-b`) and sorts in the order of its values, and a chip filters by it; with none, the column and the chip are
+//   hidden and their choice is cleared. The chip offers no grouping.
+//
+// An open menu of a chip closes on a click outside it and on Escape, which puts the focus on its chip (#2138).
 
 // Core has no DOM types (its `lib` is ES only), so the script takes what it uses from `globalThis` as these. The page
 // holds every element the script asks for with `querySelector`.
@@ -23,6 +28,7 @@ interface Node {
   innerHTML: string;
   textContent: string;
   hidden: boolean;
+  readonly isConnected: boolean;
   checked: boolean;
   value: string;
   readonly classList: { toggle: (name: string, on: boolean) => void };
@@ -30,17 +36,23 @@ interface Node {
   querySelectorAll: (selector: string) => Iterable<Node>;
   closest: (selector: string) => Node | null;
   setAttribute: (name: string, value: string) => void;
+  before: (...nodes: Node[]) => void;
   removeAttribute: (name: string) => void;
   insertAdjacentHTML: (position: string, html: string) => void;
-  addEventListener: (type: string, listener: (event: { readonly target: unknown }) => void) => void;
+  addEventListener: (type: string, listener: (event: Event) => void) => void;
   cloneNode: (deep: boolean) => Node;
   replaceChildren: (...nodes: Node[]) => void;
   focus: () => void;
+}
+interface Event {
+  readonly target: unknown;
+  readonly key?: string;
 }
 interface Browser {
   readonly document: {
     querySelectorAll: (selector: string) => Iterable<Node>;
     createElement: (name: string) => Node;
+    addEventListener: (type: string, listener: (event: Event) => void) => void;
   };
 }
 
@@ -60,6 +72,16 @@ export function listScript(): void {
   const { document } = globalThis as unknown as Browser;
   const escape = (text: string): string => text.replace(/[&<>"']/gu, (c) => `&#${String(c.charCodeAt(0))};`);
   const counted = (n: number): string => `${String(n)} ${n === 1 ? "element" : "elements"}`;
+  const caret =
+    '<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1 1 0 0 0 1.42 0L17 10.59a1 1 0 0 0 0-1.42Z"/></svg>';
+  const magnifier =
+    '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>';
+  /** A chip `data-chip="<id>"` with the menu `values`, labelled `label`. */
+  const chipOf = (id: string, label: string, values: string, alt = false): string =>
+    `<details class="rq-chip${alt ? " rq-chip-alt" : ""}" data-chip="${id}"><summary></summary><div class="rq-chip-values" role="group" aria-label="${escape(label)}">${values}</div></details>`;
+  /** The face of a chip: its label, the number of its chosen values (none: empty) and the mark of its menu. */
+  const face = (label: string, chosen: number): string =>
+    `${escape(label)}<span class="rq-n">${chosen === 0 ? "" : String(chosen)}</span>${caret}`;
 
   const setUp = (box: Node): void => {
     const settings = JSON.parse(String(box.dataset["rqList"])) as Settings;
@@ -86,18 +108,14 @@ export function listScript(): void {
     for (const row of rows) {
       row.f.push([]);
     }
-    const state: { q: string; sort: number; dir: number; group: Filter | undefined } = {
+    const state: { q: string; sort: number; dir: number; group: Filter | undefined; baseline: number } = {
       q: "",
       sort: -1,
       dir: 1,
       group: undefined,
+      baseline: -1,
     };
-    const chips = filters
-      .map(
-        ({ label, f }) =>
-          `<details class="rq-chip" data-chip="${String(f)}"><summary></summary><div class="rq-chip-values" role="group" aria-label="${escape(label)}"></div></details>`,
-      )
-      .join("");
+    const chips = filters.map(({ label, f }) => chipOf(String(f), label, "")).join("");
     const groups = [{ label: "No grouping", f: -1 }, ...filters.filter((filter) => filter !== change)]
       .map(
         ({ label, f }) =>
@@ -107,11 +125,23 @@ export function listScript(): void {
     const choice =
       comparing === undefined
         ? ""
-        : `<label class="rq-compare">Compare with <select class="rq-baseline" aria-label="Compare with baseline"><option value="-1" selected>No baseline</option>${comparing.baselines.map((name, b) => `<option value="${String(b)}">${escape(name)}</option>`).join("")}</select></label>`;
+        : chipOf(
+            "compare",
+            "Compare with baseline",
+            ["No baseline", ...comparing.baselines]
+              .map(
+                (name, b) =>
+                  `<label><input type="radio" name="rq-baseline" data-baseline="${String(b - 1)}"${b === 0 ? " checked" : ""}>${escape(name)}</label>`,
+              )
+              .join(""),
+            true,
+          );
     count.insertAdjacentHTML(
       "beforebegin",
-      `<div class="rq-list-bar not-content">${choice}<input type="search" class="rq-search" autocomplete="off" placeholder="Filter by identifier, short ID or title" aria-label="Filter by identifier, short ID or title">${chips}<details class="rq-chip" data-chip="group"><summary>Group</summary><div class="rq-chip-values" role="group" aria-label="Group">${groups}</div></details><button type="button" class="rq-clear" hidden>Clear</button></div><div class="rq-tokens not-content"></div>`,
+      `<div class="rq-qbar not-content">${magnifier}<input type="search" class="rq-search" autocomplete="off" placeholder="Filter by identifier, short ID or title" aria-label="Filter by identifier, short ID or title"><button type="button" class="rq-clear" hidden>Clear</button></div><div class="rq-pills not-content"><span class="rq-pg">${chips}</span><span class="rq-pg rq-pg-r">${choice}${chipOf("group", "Group", groups, true)}</span></div><div class="rq-tokens not-content"></div>`,
     );
+    // The number of rows stands in the search bar, before "Clear".
+    box.querySelector(".rq-clear").before(count);
     const heads = [...box.querySelectorAll("thead th")];
     heads.forEach((th, c) => {
       th.innerHTML = `<button type="button" data-sort="${String(c)}">${escape(th.textContent)}</button>`;
@@ -124,6 +154,10 @@ export function listScript(): void {
     /** Shows the change since baseline `b` (-1: none) in its column and the filter `filter` (see the file comment). */
     const setBaseline = (filter: Filter, b: number): void => {
       filter.chosen.clear();
+      state.baseline = b;
+      for (const radio of box.querySelectorAll("[data-baseline]")) {
+        radio.checked = Number(radio.dataset["baseline"]) === b;
+      }
       const on = b >= 0;
       box.querySelector(`[data-chip="${String(filter.f)}"]`).hidden = !on;
       // The list has the column of the change as its last.
@@ -138,6 +172,11 @@ export function listScript(): void {
         const cell = row.tr.querySelector("td:last-child");
         cell.hidden = !on;
         cell.textContent = value === undefined ? "" : String(filter.values[value]);
+      }
+    };
+    const unsetBaseline = (): void => {
+      if (change !== undefined) {
+        setBaseline(change, -1);
       }
     };
     const clear = box.querySelector(".rq-clear");
@@ -175,8 +214,7 @@ export function listScript(): void {
           }
         }
         chip.classList.toggle("rq-on", chosen.size > 0);
-        chip.querySelector("summary").textContent =
-          chosen.size === 0 ? label : `${label} ${String(chosen.size)}`;
+        chip.querySelector("summary").innerHTML = face(label, chosen.size);
         chip.querySelector(".rq-chip-values").innerHTML = filter.values
           .map((value, v) =>
             hits[v] === 0 && !chosen.has(v)
@@ -197,14 +235,25 @@ export function listScript(): void {
             : [],
         ),
       );
+      const token = (what: string, label: string): string =>
+        `<button type="button" data-remove="${what}" aria-label="Remove ${escape(label)}">${escape(label)} ×</button>`;
       if (state.group !== undefined) {
-        const label = `Grouped by ${state.group.label}`;
-        shown.push(
-          `<button type="button" data-remove="group" aria-label="Remove ${escape(label)}">${escape(label)} ×</button>`,
-        );
+        shown.push(token("group", `Grouped by ${state.group.label}`));
       }
-      tokens.innerHTML = shown.join("");
+      const baseline = comparing?.baselines[state.baseline];
+      if (baseline !== undefined) {
+        shown.push(token("baseline", `Compared with ${baseline}`));
+      }
+      tokens.innerHTML = shown.length === 0 ? '<span class="rq-hint">No filters.</span>' : shown.join("");
       clear.hidden = shown.length === 0 && state.q === "";
+      const group = box.querySelector('[data-chip="group"]');
+      group.classList.toggle("rq-on", state.group !== undefined);
+      group.querySelector("summary").innerHTML = face("Group", state.group === undefined ? 0 : 1);
+      if (comparing !== undefined) {
+        const compare = box.querySelector('[data-chip="compare"]');
+        compare.classList.toggle("rq-on", baseline !== undefined);
+        compare.querySelector("summary").innerHTML = face("Compare", baseline === undefined ? 0 : 1);
+      }
     };
 
     const draw = (): void => {
@@ -276,9 +325,12 @@ export function listScript(): void {
         }
       } else if (target.dataset["group"] !== undefined) {
         setGroup(Number(target.dataset["group"]));
+        // A single choice: its menu closes.
+        box.querySelector('[data-chip="group"]').removeAttribute("open");
         draw();
-      } else if (change !== undefined && target.closest(".rq-baseline") !== null) {
-        setBaseline(change, Number(target.value));
+      } else if (change !== undefined && target.dataset["baseline"] !== undefined) {
+        setBaseline(change, Number(target.dataset["baseline"]));
+        box.querySelector('[data-chip="compare"]').removeAttribute("open");
         draw();
       }
     });
@@ -294,6 +346,8 @@ export function listScript(): void {
         const what = remove.dataset["remove"];
         if (what === "group") {
           setGroup(-1);
+        } else if (what === "baseline") {
+          unsetBaseline();
         } else {
           filters[Number(what)]?.chosen.delete(Number(remove.dataset["value"]));
         }
@@ -304,6 +358,7 @@ export function listScript(): void {
           filter.chosen.clear();
         }
         setGroup(-1);
+        unsetBaseline();
       } else {
         return;
       }
@@ -311,6 +366,30 @@ export function listScript(): void {
     });
     draw();
   };
+
+  /** Closes each open menu of a chip but `keep`; with `focus`, puts the focus on the chip of a closed one. */
+  const close = (keep: Node | null, focus: boolean): void => {
+    for (const chip of document.querySelectorAll(".rq-list details.rq-chip[open]")) {
+      if (chip !== keep) {
+        chip.removeAttribute("open");
+        if (focus) {
+          chip.querySelector("summary").focus();
+        }
+      }
+    }
+  };
+  document.addEventListener("click", (event) => {
+    const target = event.target as Node;
+    // A click on a value of a menu redraws the menu, so its target can have left the page: it was inside.
+    if (target.isConnected) {
+      close(target.closest(".rq-chip"), false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      close(null, true);
+    }
+  });
 
   for (const box of document.querySelectorAll(".rq-list[data-rq-list]")) {
     setUp(box);

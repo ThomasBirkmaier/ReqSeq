@@ -5,9 +5,11 @@
 // the grouping on top of it.
 //
 // - Rows, in the order of their identifier (`sortElements` by `identifier`, as `element.list` sorts): identifier
-//   (else the short ID) as a link to the page, title, status ("–" without one), for a requirement type the
-//   verification status in the core ("not in the core" when the core does not hold it), packages, and the number of
-//   open hints of the element (`hint.list`).
+//   (else the short ID) as a link to the page, title, status ("–" without one), packages, for a requirement type the
+//   verification status in the core as a badge with the number of verified criteria of all ("not in the core" when
+//   the core does not hold it), and the number of open hints of the element (`hint.list`) as a badge, an empty cell
+//   for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
+//   the page (#2138).
 // - Search: each row carries its identifier, short ID and title folded (NFC, lower case) in `data-q`.
 // - Filters (`data-f`): status, packages, the verification status in the core and each property of kind `choice` the
 //   type has, in this order. Each filter lists its values in the order of SR-075 AK1 (`sortValueOf`: the metamodel's
@@ -90,6 +92,8 @@ interface Field {
   /** Whether the list shows it as a column (status, packages, verification status), not only as a filter. */
   readonly column: boolean;
   readonly values: (entry: ListEntry) => readonly Value[];
+  /** The cell of an entry, when it is not its values' texts. */
+  readonly cell?: (entry: ListEntry) => string;
 }
 
 /** The verification status in the core of a requirement, "not in the core" when the core does not hold it. */
@@ -97,6 +101,27 @@ export const coreVerification = (element: DataExportElement): string | undefined
   element.verification === undefined
     ? undefined
     : (element.verification.find((entry) => entry.view === "core")?.status ?? NOT_IN_CORE);
+
+/** The colour of the badge of each verification status, as the docs' badges name them; another is grey. */
+const BADGES: Readonly<Record<string, string>> = {
+  verified: "success",
+  indirect: "note",
+  open: "caution",
+  outdated: "danger",
+  failed: "danger",
+};
+
+/** A badge of the colour `variant` (`BADGES`, `neutral` for grey). */
+const badge = (label: string, variant: string): string =>
+  `<span class="rq-badge rq-badge-${variant}">${escapeHtml(label)}</span>`;
+
+/** The verification status in the core of a requirement as a badge, with the number of verified criteria of all. */
+const verificationBadge = (element: DataExportElement, status: string): string => {
+  const criteria = element.verification?.find((entry) => entry.view === "core")?.criteria;
+  const label =
+    criteria === undefined ? status : `${status} ${String(criteria.verified)}/${String(criteria.total)}`;
+  return badge(label, BADGES[status] ?? "neutral");
+};
 
 /**
  * The packages of an element: the targets of its property with the meaning `packages`, each by its title, as the
@@ -138,6 +163,10 @@ const fieldsOf = (context: ListContext, type: string, entries: readonly ListEntr
         [coreVerification(element)]
           .filter((status): status is string => status !== undefined)
           .map((status) => text(status)),
+      cell: ({ element }) => {
+        const status = coreVerification(element);
+        return status === undefined ? NONE : verificationBadge(element, status);
+      },
     });
   }
   for (const key of findType(metamodel, type)?.properties ?? []) {
@@ -250,6 +279,7 @@ export const listPageOf = (
         label: field.label,
         ranks: ranksBy(sorted.map((entry) => field.values(entry)[0]?.sort)),
         cell: (entry) =>
+          field.cell?.(entry) ??
           escapeHtml(
             field
               .values(entry)
@@ -260,7 +290,7 @@ export const listPageOf = (
     {
       label: "Open hints",
       ranks: ranksBy(sorted.map(({ hints }) => sortValueOf(hints, NO_RANKS))),
-      cell: ({ hints }) => String(hints),
+      cell: ({ hints }) => (hints === 0 ? "" : badge(String(hints), "caution")),
     },
   ];
   const settings = {
@@ -299,7 +329,7 @@ export const listPageOf = (
   const body = [
     `<div class="rq-list" data-rq-list="${attribute(settings)}">`,
     `<p class="rq-list-count">${escapeHtml(counted(sorted.length))}</p>`,
-    `<table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table>`,
+    `<div class="rq-list-table"><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`,
     "</div>",
   ].join("");
   return { type, path: listPage(type), title, count: sorted.length, body };
@@ -332,24 +362,57 @@ export const listsOf = (
     .map(([type, listed]) => ({ type, entries: listed }));
 };
 
-/** The styles of the lists. */
+/** The styles of the lists: the table in its own scrolling container with a sticky head, the badges, the search bar, the chips with their menus and the line of the chosen filters. */
 export const LIST_CSS = [
-  ".rq-list table { display: table; width: 100%; }",
+  ".rq-list { position: relative; }",
   ".rq-list-count { color: var(--sl-color-gray-3); font-size: var(--sl-text-sm); }",
-  ".rq-list th button { all: inherit; cursor: pointer; display: inline-flex; gap: 0.25rem; align-items: center; }",
-  ".rq-list th[aria-sort=ascending] button::after { content: '▲'; font-size: 0.7em; }",
-  ".rq-list th[aria-sort=descending] button::after { content: '▼'; font-size: 0.7em; }",
-  ".rq-list tr.rq-group th { background: var(--sl-color-gray-6); font-weight: 600; }",
-  ".rq-list-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 1rem; }",
-  ".rq-list-bar input[type=search] { flex: 1 1 16rem; padding: 0.4rem 0.6rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem; background: var(--sl-color-black); color: var(--sl-color-white); }",
-  ".rq-compare { display: inline-flex; gap: 0.4rem; align-items: center; font-size: var(--sl-text-sm); }",
+  ".rq-list .rq-list-table { max-height: calc(100vh - var(--sl-nav-height) - 6rem); overflow: auto; border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem; }",
+  ".rq-list .rq-list-table table { display: table; width: 100%; margin: 0; border-collapse: separate; border-spacing: 0; }",
+  ".rq-list .rq-list-table :is(th, td) { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--sl-color-gray-5); vertical-align: baseline; text-align: start; }",
+  ".rq-list .rq-list-table tbody tr:last-child > * { border-bottom: 0; }",
+  ".rq-list .rq-list-table thead th { position: sticky; top: 0; z-index: 2; background: var(--sl-color-bg); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--sl-color-gray-5); white-space: nowrap; }",
+  ".rq-list .rq-list-table td:first-child { white-space: nowrap; }",
+  ".rq-list th button { all: unset; cursor: pointer; display: inline-flex; gap: 0.3rem; align-items: baseline; font-weight: 600; }",
+  ".rq-list th button:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px; }",
+  ".rq-list th button::after { content: '↕'; content: '↕' / ''; color: var(--sl-color-gray-4); font-weight: 400; }",
+  ".rq-list th[aria-sort=ascending] button::after { content: '↑'; content: '↑' / ''; color: var(--sl-color-text-accent); }",
+  ".rq-list th[aria-sort=descending] button::after { content: '↓'; content: '↓' / ''; color: var(--sl-color-text-accent); }",
+  ".rq-list .rq-list-table tr.rq-group th { position: static; background: var(--sl-color-gray-6); color: var(--sl-color-white); font-weight: 600; }",
+  ".rq-list .rq-badge { display: inline-block; white-space: nowrap; line-height: 1; padding: 0.125rem 0.375rem; border: 1px solid var(--rq-badge-border); border-radius: 0.25rem; background: var(--rq-badge-bg); color: var(--rq-badge-text); font-family: var(--sl-font-system-mono); font-size: var(--sl-text-xs); }",
+  ...["success", "note", "caution", "danger"].map(
+    (v) =>
+      `.rq-list .rq-badge-${v} { --rq-badge-bg: var(--sl-badge-${v}-bg); --rq-badge-border: var(--sl-badge-${v}-border); --rq-badge-text: var(--sl-badge-${v}-text); }`,
+  ),
+  ".rq-list .rq-badge-neutral { --rq-badge-bg: var(--sl-color-gray-6); --rq-badge-border: var(--sl-color-gray-4); --rq-badge-text: var(--sl-color-gray-2); }",
+  ".rq-qbar { display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; padding: 0.45rem 0.85rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.6rem; background: var(--sl-color-black); color: var(--sl-color-gray-3); }",
+  ".rq-qbar:focus-within { border-color: var(--sl-color-text-accent); box-shadow: 0 0 0 3px var(--sl-color-accent-low); }",
+  ".rq-qbar svg { flex: none; }",
+  ".rq-qbar input[type=search] { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--sl-color-white); font: inherit; outline: none; }",
+  ".rq-qbar .rq-list-count { margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }",
+  ".rq-qbar .rq-clear { all: unset; cursor: pointer; font-size: var(--sl-text-sm); color: var(--sl-color-text-accent); }",
+  ".rq-qbar .rq-clear[hidden] { display: none; }",
+  ".rq-qbar .rq-clear:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px; }",
+  ".rq-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.65rem; }",
+  ".rq-pg { display: flex; flex-wrap: wrap; gap: 0.4rem; }",
+  ".rq-pg-r { margin-inline-start: auto; }",
   ".rq-chip { position: relative; }",
-  ".rq-chip > summary { list-style: none; cursor: pointer; border: 1px solid var(--sl-color-gray-5); border-radius: 999px; padding: 0.15rem 0.7rem; font-size: var(--sl-text-sm); }",
+  ".rq-chip[hidden] { display: none; }",
+  ".rq-chip > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; border: 1px dashed var(--sl-color-gray-4); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: var(--sl-text-sm); color: var(--sl-color-gray-2); }",
   ".rq-chip > summary::-webkit-details-marker { display: none; }",
-  ".rq-chip.rq-on > summary { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }",
-  ".rq-chip-values { position: absolute; z-index: 10; min-width: 14rem; max-height: 20rem; overflow-y: auto; margin-top: 0.25rem; padding: 0.4rem; background: var(--sl-color-bg); border: 1px solid var(--sl-color-gray-5); border-radius: 0.5rem; box-shadow: var(--sl-shadow-md); }",
-  ".rq-chip-values label { display: flex; gap: 0.5rem; align-items: center; font-size: var(--sl-text-sm); }",
-  ".rq-chip-values .rq-n { margin-inline-start: auto; color: var(--sl-color-gray-3); }",
-  ".rq-tokens { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; font-size: var(--sl-text-sm); }",
-  ".rq-tokens button { border: 1px solid var(--sl-color-gray-5); border-radius: 999px; background: none; color: inherit; padding: 0.1rem 0.6rem; cursor: pointer; }",
+  ".rq-chip > summary:hover { background: var(--sl-color-gray-6); color: var(--sl-color-white); }",
+  ".rq-chip > summary:focus-visible { outline: 2px solid var(--sl-color-text-accent); outline-offset: 2px; }",
+  ".rq-chip-alt > summary { border-style: solid; border-color: var(--sl-color-gray-5); }",
+  ".rq-chip > summary .rq-n:empty { display: none; }",
+  ".rq-chip > summary .rq-n { min-width: 1.25rem; height: 1.25rem; line-height: 1.25rem; text-align: center; border-radius: 999px; font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--sl-color-text-accent); color: var(--sl-color-black); }",
+  ".rq-chip.rq-on > summary { border-style: solid; border-color: var(--sl-color-text-accent); background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
+  ".rq-chip-values { position: absolute; z-index: 10; min-width: 14rem; max-width: min(22rem, calc(100vw - 2rem)); max-height: 20rem; overflow-y: auto; margin-top: 0.3rem; padding: 0.3rem; background: var(--sl-color-bg-nav); border: 1px solid var(--sl-color-gray-5); border-radius: 0.6rem; box-shadow: var(--sl-shadow-md); }",
+  ".rq-pg-r .rq-chip-values { inset-inline-end: 0; }",
+  ".rq-chip-values label { display: flex; gap: 0.5rem; align-items: center; padding: 0.3rem 0.5rem; border-radius: 0.35rem; cursor: pointer; font-size: var(--sl-text-sm); color: var(--sl-color-gray-2); }",
+  ".rq-chip-values label:hover { background: var(--sl-color-gray-6); color: var(--sl-color-white); }",
+  ".rq-chip-values input { accent-color: var(--sl-color-text-accent); margin: 0; }",
+  ".rq-chip-values .rq-n { margin-inline-start: auto; color: var(--sl-color-gray-3); font-variant-numeric: tabular-nums; }",
+  ".rq-tokens { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; min-height: 1.9rem; margin: 0.5rem 0; font-size: var(--sl-text-xs); }",
+  ".rq-tokens button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.12rem 0.4rem 0.12rem 0.6rem; border-radius: 0.35rem; background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
+  ".rq-tokens button:focus-visible { outline: 2px solid var(--sl-color-text-accent); }",
+  ".rq-tokens .rq-hint { color: var(--sl-color-gray-3); }",
 ];

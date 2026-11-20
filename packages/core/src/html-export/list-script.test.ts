@@ -95,7 +95,8 @@ describe("list script (SR-233 AK1)", () => {
     expect(rows()).toEqual(["SR-2 Beta"]);
     // The redrawn box keeps the focus, for the next value by keyboard.
     expect(window.document.activeElement).toBe(box.querySelector('[data-filter="0"][data-value="1"]'));
-    expect(one('[data-chip="0"] summary').textContent).toBe("Status 1");
+    // The chip shows the number of its chosen values.
+    expect(one('[data-chip="0"] summary').textContent).toBe("Status1");
     expect(one('[data-chip="0"]').classList.contains("rq-on")).toBe(true);
     // The numbers of the other filter count the rows this filter leaves.
     expect(values(1)).toEqual(["Display1", "Sensor1"]);
@@ -116,8 +117,34 @@ describe("list script (SR-233 AK1)", () => {
     expect(rows()).toEqual(["SR-2 Beta"]);
     one('.rq-tokens [data-remove="1"]').click();
     expect(rows()).toEqual(["SR-1 Alpha", "SR-2 Beta", "SR-3 "]);
-    expect(one(".rq-tokens").innerHTML).toBe("");
+    expect(one(".rq-tokens").textContent).toBe("No filters.");
     expect(one(".rq-clear").hidden).toBe(true);
+  });
+
+  it("puts the number of rows in the search bar and closes an open menu on a click outside it and on Escape (#2138)", () => {
+    const { window, box, one } = page();
+    expect(one(".rq-qbar .rq-list-count").textContent).toBe("3 elements");
+    const status = one('[data-chip="0"]');
+    const group = one('[data-chip="group"]');
+    const key = (k: string): void => {
+      window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: k, bubbles: true }));
+    };
+    status.setAttribute("open", "");
+    // A click inside the menu keeps it open.
+    one('[data-chip="0"] label').click();
+    expect(status.hasAttribute("open")).toBe(true);
+    // A click on another chip closes this one.
+    group.setAttribute("open", "");
+    one('[data-chip="group"] summary').click();
+    expect(status.hasAttribute("open")).toBe(false);
+    (window.document.getElementById("other") as unknown as HTMLElement).click();
+    expect(group.hasAttribute("open")).toBe(false);
+    status.setAttribute("open", "");
+    key("a");
+    expect(status.hasAttribute("open")).toBe(true);
+    key("Escape");
+    expect(status.hasAttribute("open")).toBe(false);
+    expect(window.document.activeElement).toBe(box.querySelector('[data-chip="0"] summary'));
   });
 
   it("sorts by a column, no value last in both orders, and the identifier wholly reversed", () => {
@@ -155,6 +182,8 @@ describe("list script (SR-233 AK1)", () => {
     search("alpha");
     expect(rows()).toEqual(["Packages: Display · 1", "SR-1 Alpha"]);
     expect(one(".rq-tokens").textContent).toBe("Grouped by Packages ×");
+    expect(one('[data-chip="group"] summary').textContent).toBe("Group1");
+    expect(one('[data-chip="group"]').hasAttribute("open")).toBe(false);
     one('.rq-tokens [data-remove="group"]').click();
     expect(rows()).toEqual(["SR-1 Alpha"]);
     expect(field('[data-group="-1"]').checked).toBe(true);
