@@ -396,7 +396,9 @@ describe("the answer of metamodel.addStatus", () => {
       missingRequired: 0,
       problems: [{}],
     };
-    expect(addStatus.answer(output as never, { type: "note" }, { type: (key) => key })).toBe(
+    expect(
+      addStatus.answer(output as never, { type: "note" }, { type: (key) => key, element: (ref) => ref }),
+    ).toBe(
       "Added the new status Review to the type note; the types memo and risk have it too; 1 file written; 2 elements with another version; 1 problem.",
     );
   });

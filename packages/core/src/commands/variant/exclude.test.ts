@@ -165,7 +165,7 @@ describe("variant.exclude (SR-042)", () => {
     const error = await refused(workspace, { variant: A, refs: [`${P}d1`, "SR-0000ff"], undo: true });
     expect(error.code).toBe("ref.unknown");
     expect(await exclude(workspace, { variant: A, refs: [`${P}D1`], undo: true })).toEqual({
-      answer: "Variant VAR-0000c1 no longer excludes 43043043-0000-4000-8000-0000000000D1; 1 file written.",
+      answer: "Variant VAR-0000c1 no longer excludes N-0000d1; 1 file written.",
       files: [A_FILE],
       problems: [],
     });
@@ -189,8 +189,7 @@ describe("variant.exclude (SR-042)", () => {
       [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}a2 }\n---\n`,
     });
     expect(await exclude(workspace, { variant: A, refs: ["SR-0000a4", `${P}a4`, "SR-0000a3"] })).toEqual({
-      answer:
-        "Variant VAR-0000c1 excludes SR-0000a4, 43043043-0000-4000-8000-0000000000a4 and SR-0000a3; 1 file written.",
+      answer: "Variant VAR-0000c1 excludes SR-0000a4 and SR-0000a3; 1 file written.",
       files: [A_FILE],
       problems: [],
     });
@@ -207,8 +206,7 @@ describe("variant.exclude (SR-042)", () => {
         undo: true,
       }),
     ).toEqual({
-      answer:
-        "Variant VAR-0000c1 no longer excludes SR-0000a3, SR-0000a2, 43043043-0000-4000-8000-0000000000a2 and SR-0000a4; 1 file written.",
+      answer: "Variant VAR-0000c1 no longer excludes SR-0000a3, SR-0000a2 and SR-0000a4; 1 file written.",
       files: [A_FILE],
       problems: [],
     });

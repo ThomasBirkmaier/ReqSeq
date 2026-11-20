@@ -10,7 +10,6 @@
 // in the workspace of the call while it is read-only (`withRunnableSteps`, SR-226 AK6).
 import path from "node:path";
 import type {
-  AnswerNames,
   AnyCommand,
   CommandContext,
   CommandErrorDetails,
@@ -21,16 +20,15 @@ import type {
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import type { NextStep } from "../generated/types.js";
-import type { Metamodel } from "../metamodel/index.js";
-import { assertWritable, findType, metamodelState, runnableSteps } from "../metamodel/index.js";
+import { assertWritable, runnableSteps } from "../metamodel/index.js";
 import type { AccessCall, AccessName, NotedAccess } from "../model/activity.js";
 import { FOLLOWED_ACCESSES, accessSubject, noteAccess, recordAccess } from "../model/activity.js";
+import { answerNames } from "./answer-names.js";
 import type { Contracts } from "./contracts.js";
 import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
 import { problemLocator, withElementShortIds } from "./element-short-ids.js";
 import type { InputViolation } from "./input-errors.js";
-import { settledValue } from "./settled.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import { internalError, learnWorkspaceRoots } from "./internal-cause.js";
 import type { CatalogOutputField } from "./output-count.js";
@@ -82,16 +80,6 @@ const withHome = (
   home === undefined ? input : replaceLocalPaths(input, fields, (value) => expandHome(value, home));
 
 /**
- * The names of an answer from the metamodel the command left (`AnswerNames`). Nothing is read: a
- * command whose answer names a type has read the metamodel in `run`. Only a type the metamodel does
- * not have, or a metamodel that is not built or failed (reset by a watcher meanwhile, or a command
- * that does not read it), names a type by its key, so a successful command never fails for its answer.
- */
-const answerNames = (metamodel: Metamodel | undefined): AnswerNames => ({
-  type: (key) => (metamodel === undefined ? undefined : findType(metamodel, key)?.name) ?? key,
-});
-
-/**
  * How `readOutputElements` gets the elements of `name` (ADR-0002 rule 4): the answer, or the number
  * `counted` names (`runtime/output-count.ts`). Every product command with such a field has the hook it
  * needs (commands/registry.test.ts); a command without it is a bug, `internal`.
@@ -133,11 +121,7 @@ const answered = async (
   command.answer === undefined
     ? output
     : {
-        answer: command.answer(
-          output,
-          input as never,
-          answerNames(await settledValue(workspace.peek(metamodelState)).catch(() => undefined)),
-        ),
+        answer: command.answer(output, input as never, await answerNames(workspace)),
         ...(output as Readonly<Record<string, unknown>>),
       };
 

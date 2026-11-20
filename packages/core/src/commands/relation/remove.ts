@@ -8,11 +8,11 @@ import { filesNote, problemsNote, sentence } from "../answer.js";
 
 export default defineCommand({
   name: "relation.remove",
-  answer: (output, input) =>
+  answer: (output, input, names) =>
     sentence(
       output.files.length === 0
-        ? `Removed no ${input.kind} relation from ${input.source} to ${input.target}`
-        : `Removed the ${input.kind} relation from ${input.source} to ${input.target}`,
+        ? `Removed no ${input.kind} relation from ${names.element(input.source)} to ${names.element(input.target)}`
+        : `Removed the ${input.kind} relation from ${names.element(input.source)} to ${names.element(input.target)}`,
       filesNote(output.files),
       problemsNote(output.problems),
     ),
