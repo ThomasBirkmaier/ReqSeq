@@ -66,6 +66,15 @@ const shownIds = async (window: Page): Promise<string[]> =>
   (await shownBuffer(window).locator(".row .id").allTextContents()).map((text) => text.trim());
 
 /**
+ * The short IDs of the shown list once its rows are loaded. Its heading names the list at once and its count
+ * only with the rows (`ListHeading`), so before that the list is empty only because it is still loading.
+ */
+const loadedIds = async (window: Page): Promise<string[]> => {
+  await expect(shownBuffer(window).locator("h1 .count")).toBeVisible();
+  return shownIds(window);
+};
+
+/**
  * The short IDs and the groups `element.list` with the perspective gives through the CLI, each group as the
  * app heads it: the short ID and title of its target, "(no value)" without one, then its count.
  */
@@ -345,7 +354,8 @@ test.describe("perspectives in the app", () => {
     running = await launchApp(FIXTURE);
     const { window } = running;
     await open(window, "By title");
-    const saved = await shownIds(window);
+    const saved = await loadedIds(window);
+    expect(saved).toHaveLength(6);
     await command(window, "Ungroup list");
     await command(window, "Sort list", "ID");
     await answerOrder(window, "ascending");
