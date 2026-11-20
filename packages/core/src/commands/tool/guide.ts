@@ -41,8 +41,8 @@ export default defineCommand({
       output.file !== undefined
         ? `${FILE_ACTION[output.file.action]} the skill file ${output.file.path}${output.file.action === "unchanged" ? " unchanged" : ""}`
         : input.skill
-          ? "Wrote the skill file for an AI agent"
-          : `Wrote the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
+          ? "Gave the skill file for an AI agent without writing it"
+          : `Gave the agent guide with commands named for ${input.names === "mcp" ? "MCP" : "the command line"}`,
     ),
   run: async (ctx, input): Promise<CommandOutput<"tool.guide">> => {
     if (input.write && !input.skill) {

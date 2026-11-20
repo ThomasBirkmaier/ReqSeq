@@ -627,3 +627,14 @@ describe("the guide's parts", () => {
     expect(agentGuide(none, "cli", ENTRIES)).toContain("'<derivation>'");
   });
 });
+
+describe("the answer of tool.guide", () => {
+  it("[SR-224/AK-cw40] names no writing when nothing is written", async () => {
+    const root = await standard();
+    const answer = async (input: Readonly<Record<string, unknown>>): Promise<unknown> =>
+      ((await invoke("tool.guide", input, { workspace: open(root) })) as { answer?: unknown }).answer;
+    expect(await answer({})).toBe("Gave the agent guide with commands named for the command line.");
+    expect(await answer({ names: "mcp" })).toBe("Gave the agent guide with commands named for MCP.");
+    expect(await answer({ skill: true })).toBe("Gave the skill file for an AI agent without writing it.");
+  });
+});

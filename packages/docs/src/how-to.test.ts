@@ -26,7 +26,7 @@ const complete = {
 };
 
 describe("accessNames", () => {
-  it("takes the app entries of all commands (a covering action by its title) and the inputs of those with an API path and an MCP tool", () => {
+  it("takes the app entries of all commands (a covering action by its title), the actions of the app, and the inputs of those with an API path and an MCP tool", () => {
     const commands = [
       { name: "trace.chain", title: "Show trace chain" },
       { name: "trace.matrix", title: "Show traceability matrix" },
@@ -44,9 +44,13 @@ describe("accessNames", () => {
         ],
       },
     });
-    expect(found.appEntries).toEqual(
-      new Set(["Show trace chain", "Show traceability matrix", "Go to element or buffer"]),
-    );
+    expect([...found.appEntries].slice(0, 3)).toEqual([
+      "Show trace chain",
+      "Show traceability matrix",
+      "Go to element or buffer",
+    ]);
+    // And the actions of the app by their titles, such as "Write skill file" (SR-229 AK16).
+    expect(found.appEntries.has("Write skill file")).toBe(true);
     expect(found.inputs).toEqual(
       new Map([
         ["trace.chain", new Set(["ref"])],

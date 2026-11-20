@@ -3,7 +3,7 @@
 // section uses must exist in this build: command prompt entries (bold in `## App`), API paths with their body
 // fields (`http` blocks in `## API`) and MCP tools with their arguments (`json` blocks with a `name` in `## MCP`).
 import { COMMANDS_PATH } from "@reqseq/api";
-import { appCommandEntry } from "@reqseq/app";
+import { SHORTCUT_TABLES, appCommandEntry } from "@reqseq/app";
 import type { CatalogEntry } from "@reqseq/core";
 import { toolName } from "@reqseq/mcp";
 import type { GeneratedContracts } from "./access.js";
@@ -32,12 +32,14 @@ export function accessNames(commands: readonly CatalogEntry[], generated: Genera
     }
   }
   return {
-    appEntries: new Set(
-      commands.flatMap((entry) => {
+    // The entries of the catalog's commands, and the actions of the app by their titles ("Write skill file").
+    appEntries: new Set([
+      ...commands.flatMap((entry) => {
         const app = appCommandEntry(entry, false);
         return app.shownIn === undefined ? [app.name] : [];
       }),
-    ),
+      ...SHORTCUT_TABLES.actions.map((action) => action.title),
+    ]),
     inputs,
   };
 }

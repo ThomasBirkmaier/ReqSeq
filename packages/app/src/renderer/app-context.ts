@@ -77,6 +77,7 @@ export interface ContextParts {
   readonly catalog: RefObject<readonly CommandListing[]>;
   readonly builder: RefObject<(command: BuiltCommand, from: ActionContext) => void>;
   readonly connector: RefObject<(from: ActionContext) => void>;
+  readonly skillWriter: RefObject<(from: ActionContext) => void>;
   readonly follow: Follow;
   readonly shownView: ShownView | undefined;
   readonly setShownView: Setter<ShownView | undefined>;
@@ -98,6 +99,7 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     catalog,
     builder,
     connector,
+    skillWriter,
     follow,
     shownView,
     setShownView,
@@ -204,6 +206,9 @@ export const actionContext = (parts: ContextParts): ActionContext => {
     },
     connectAgent: (from) => {
       connector.current(from);
+    },
+    writeSkill: (from) => {
+      skillWriter.current(from);
     },
     follow: follow.controls,
     // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
