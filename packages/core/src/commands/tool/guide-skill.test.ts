@@ -24,7 +24,7 @@ import {
   skillFile,
 } from "./guide/skill.js";
 import { SKILL_READ_MAX, readSkillFile, skillLocation, writeSkillFile } from "./guide/skill-file.js";
-import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES } from "./guide/text.js";
+import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES, METAMODEL_CHANGES } from "./guide/text.js";
 
 const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
 const NO_PERMISSIONS = process.platform === "win32" || process.getuid?.() === 0;
@@ -144,7 +144,7 @@ relations:
 `;
 
 describe("tool.guide with skill", () => {
-  it("[SR-229/AK-nrf2] gives the skill file managing-requirements with its description, the guide step, the four workflows as numbered steps, version and checksum", async () => {
+  it("[SR-229/AK-nrf2] gives the skill file managing-requirements with its description, the guide step, the five workflows as numbered steps, version and checksum", async () => {
     const text = (await run(await folder(), { skill: true })).guide;
     expect(text).toBe(skillFile(ENTRIES));
     // Agent Skills frontmatter: name, a description of at most 1,024 characters, metadata.
@@ -173,6 +173,7 @@ describe("tool.guide with skill", () => {
       "Implement a requirement up to its evidence",
       "Check before finishing",
       "Change an element whose status is not the initial status",
+      "Change the metamodel",
     ]);
     for (const { steps } of sections) {
       expect(steps.length).toBeGreaterThan(0);
@@ -214,6 +215,26 @@ describe("tool.guide with skill", () => {
     for (const command of ["workspace.check", "evidence.degree", "evidence.withoutPassedTest"]) {
       expect(finish).toContain(`\`${mcpToolName(command)}\` or \`${commandLineName(command)}\``);
     }
+  });
+
+  it("[SR-229/AK-qdn4] has the workflow to change the metamodel: propose, wait for the decision, run the command, check, read the guide again", async () => {
+    const text = (await run(await folder(), { skill: true })).guide;
+    const steps = new Map(workflows(text).map((s) => [s.heading, s.steps])).get("Change the metamodel") ?? [];
+    expect(steps).toHaveLength(5);
+    const [propose, decide, carry, check, again] = steps;
+    expect(propose).toContain(
+      "Read the metamodel (`metamodel_get` or `reqseq metamodel get`), then propose the change with its rationale",
+    );
+    expect(decide).toContain("Wait for the person's explicit decision");
+    for (const command of METAMODEL_CHANGES) {
+      expect(carry).toContain(`\`${mcpToolName(command)}\` with `);
+      expect(carry).toContain(`\`${commandLineName(command)} `);
+    }
+    expect(carry).toContain(
+      '`metamodel_addType` with `{"name":"<name>","prefix":"<prefix>"}` or `reqseq metamodel add-type',
+    );
+    expect(check).toContain("`workspace_check` or `reqseq workspace check`");
+    expect(again).toContain("Read the agent guide again (`tool_guide` or `reqseq tool guide`)");
   });
 
   it("[SR-229/AK-nrf2] names every command both ways and repeats neither the rules nor the pipeline paragraph", async () => {
