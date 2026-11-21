@@ -10,7 +10,8 @@
 //   metamodel file (SR-054 AK3).
 // - Read from any path the access allows (`readMappingFile`), for `reqif.import` and `reqif.export`
 //   with `mapping` (SR-054 AK2): the file must match the schema, and its `source-model` define every
-//   datatype its attributes name (source-model.ts), `file.faulty` otherwise.
+//   datatype its attributes name (source-model.ts), `file.faulty` otherwise; a file that does not
+//   exist is `input.invalid` (#2226).
 // - Both sides check the mapping against the own metamodel (`checkMapping`), which they only read:
 //   known types, properties (of the mapped type when `source-type` names one), choice keys,
 //   relation kinds or relation-valued properties as the kind of a relation type, a known target
@@ -177,7 +178,7 @@ const propertyViolations = (
     return [{ field, message: `${key} is no property of the metamodel` }];
   }
   if (type !== undefined && !type.properties.includes(key)) {
-    return [{ field, message: `${key} is no property of type ${type.key}` }];
+    return [{ field, message: `${key} is no property of type ${type.name} (${type.key})` }];
   }
   return [];
 };
@@ -334,8 +335,9 @@ export interface MappingFile {
 
 /**
  * Reads the mapping file at the local path `given` (resolved against `root`) for `reqif.import`
- * and `reqif.export` (SR-054 AK2): a file that cannot be read or does not match the schema is
- * `file.faulty`, one that does not fit the own metamodel `input.invalid` (`checkMapping`).
+ * and `reqif.export` (SR-054 AK2): a file that does not exist is `input.invalid` (`reason:
+ * "source-missing"`, naming the commands that make one, #2226), one that cannot be read or does not
+ * match the schema `file.faulty`, one that does not fit the own metamodel `input.invalid` (`checkMapping`).
  */
 export const readMappingFile = async (
   layout: WorkspaceLayout,
@@ -346,6 +348,14 @@ export const readMappingFile = async (
 ): Promise<MappingFile> => {
   const absolute = path.resolve(root, given);
   const read = await readYamlFile(path.dirname(absolute), path.basename(absolute));
+  if (read.kind === "problem" && read.missing === true) {
+    // The path looked for, and the commands that make a mapping file (#2226).
+    throw new CommandError(
+      "input.invalid",
+      `mapping: the mapping file ${absolute} does not exist; "Analyse ReqIF file" shows the types and attributes of the delivery, "Save ReqIF mapping" saves a mapping file for them`,
+      { command, fields: ["mapping"], reason: "source-missing" },
+    );
+  }
   if (read.kind === "problem") {
     // The path looked for: a relative one is read against a folder the caller may not expect (#1831).
     throw new CommandError("file.faulty", `mapping: ${absolute}: ${read.problem.message}`, {

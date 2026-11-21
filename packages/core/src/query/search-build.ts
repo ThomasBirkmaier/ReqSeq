@@ -573,7 +573,7 @@ export const carrySearchIndex = async (
   carryVocabulary(mini, engine.generation, words);
   const carried: SearchIndex = { ...index, store: update.to, records };
   const added = documents.map((document) => Number(shortIdOfDocument(mini, document.key)));
-  carryArrays(index, carried, removed, added);
+  carryArrays(index, carried, removed, added, now);
   carryIdentified(index, carried, gone, now);
   carryKeys(index, carried, gone, now);
   return prepareSearchIndex(carried);
@@ -762,15 +762,16 @@ export const documentsOf = (index: SearchIndex): Documents => {
 /**
  * The arrays of `carried` (its `Documents` and the field lengths of its MiniSearch object) after a
  * carry from `index` that removed the documents `removed` and added `added` (MiniSearch's short
- * IDs), derived from those of `index` when they were built for the change before (#215): copies
- * with only these documents changed. Otherwise they are built in full at the end of the carry
- * (`prepareSearchIndex`).
+ * IDs), the documents of the records `now`, derived from those of `index` when they were built for
+ * the change before (#215): copies with only these documents changed. Otherwise they are built in
+ * full at the end of the carry (`prepareSearchIndex`).
  */
 const carryArrays = (
   index: SearchIndex,
   carried: SearchIndex,
   removed: readonly number[],
   added: readonly number[],
+  now: readonly ElementRecord[],
 ): void => {
   const { mini, generation } = carried.engine;
   carryLengths(mini, generation, removed, added);
@@ -792,16 +793,13 @@ const carryArrays = (
     keys[doc] = undefined;
     documents[doc] = undefined;
   }
-  for (const doc of added) {
-    const key = String(documentKeys(mini).get(doc));
-    const record = carried.records.get(key);
+  for (const record of now) {
+    const key = recordKey(record);
+    const doc = Number(shortIdOfDocument(mini, key));
     records[doc] = record;
     keys[doc] = key;
     documents[doc] = carried.engine.documents.get(key);
-    /* v8 ignore else -- an added document holds the record of its key (`carrySearchIndex`). */
-    if (record !== undefined) {
-      places[doc] = placeOf(record);
-    }
+    places[doc] = placeOf(record);
   }
   documentsCache.set(carried, { generation, records, keys, places, documents });
 };

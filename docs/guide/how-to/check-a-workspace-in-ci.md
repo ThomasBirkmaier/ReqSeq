@@ -35,10 +35,10 @@ reqseq workspace check --fail-on warning
 ```
 
 ```text title="Output"
-Checked 1 element and found 1 info.
+Checked 1 element and found no problem.
 ok: true
 checkedElements: 1
-info  evidence.folder-missing  The evidence folder evidence does not exist  ...
+No problems.
 ```
 
 By default only errors fail the check. `--fail-on warning` lets warnings fail it too, and `--fail-on info` every problem. `--severity` only changes what is shown, never the result.
@@ -120,9 +120,6 @@ metamodel:
   path: metamodel
 evidence:
   - { repository: system, path: evidence }
-```
-
-```text title="evidence/.gitkeep"
 ```
 
 ```sh

@@ -1,8 +1,8 @@
 {
   "name": "trace.graph",
   "title": "Show graph",
-  "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.",
-  "details": "Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
+  "summary": "The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.",
+  "details": "Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each relation or reference between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
   "effect": "read",
   "stage": 3,
   "implements": ["SR-111", "SR-136"],
@@ -64,7 +64,7 @@
       "allLevels": {
         "type": "boolean",
         "default": false,
-        "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+        "description": "Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
       },
       "kinds": {
         "type": "array",
@@ -80,7 +80,7 @@
         "items": {
           "enum": ["derivation", "replacement", "succession", "exclusion", "reference"]
         },
-        "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+        "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
       "view": {
         "description": "Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core.",
@@ -89,7 +89,7 @@
       "withEvidence": {
         "type": "boolean",
         "default": false,
-        "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
+        "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no relation or reference between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
       },
       "limit": {
         "type": "integer",
@@ -114,7 +114,7 @@
         "x-key": ["id", "repository", "file"],
         "title": "Nodes",
         "type": "array",
-        "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
+        "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the relations and references were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
         "items": {
           "type": "object",
           "properties": {
@@ -159,12 +159,12 @@
             "expanded": {
               "title": "Expanded",
               "type": "boolean",
-              "description": "Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
+              "description": "Its relations and references in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
             },
             "level": {
               "title": "Level",
               "type": "integer",
-              "description": "0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004)."
+              "description": "0 for the element; -d for an element reached d steps up along the relations and references the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along those that point at it. The source of a relation or reference is placed below its target (ADR-0004)."
             },
             "marks": {
               "title": "Marks",
@@ -204,14 +204,14 @@
       "edges": {
         "title": "Edges",
         "type": "array",
-        "description": "Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
+        "description": "Every followed relation or reference from one node to another, also one the walks did not take (one between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). One from an element to itself is no edge. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them).",
         "items": {
           "type": "object",
           "properties": {
             "source": {
               "title": "Source element",
               "$ref": "../common.schema.json#/$defs/uuid",
-              "description": "The element whose file stores the link."
+              "description": "The element whose file stores the relation or reference."
             },
             "sourceRepository": {
               "title": "Repository of the source",
@@ -221,7 +221,7 @@
             "target": {
               "title": "Target element",
               "$ref": "../common.schema.json#/$defs/uuid",
-              "description": "The element the link points at (ADR-0004)."
+              "description": "The element the relation or reference points at (ADR-0004)."
             },
             "targetRepository": {
               "title": "Repository of the target",
@@ -229,7 +229,7 @@
               "description": "Workspace name of the repository of `target`."
             },
             "link": {
-              "title": "Link",
+              "title": "Relation or reference",
               "enum": ["relation", "reference"],
               "description": "A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`."
             },
@@ -251,7 +251,7 @@
             "outdated": {
               "title": "Outdated",
               "type": "boolean",
-              "description": "The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005)."
+              "description": "The relation or reference stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005)."
             }
           },
           "additionalProperties": false,

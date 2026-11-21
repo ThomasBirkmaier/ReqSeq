@@ -100,7 +100,7 @@ test.describe("lists in the quiet column", () => {
     await expect(shownBuffer(window).locator("h1")).toContainText("Search: wind");
     const hits = await column(window);
     // The output of a command (SR-223 AK1), headed by its answer.
-    await command(window, "Show workspace status");
+    await command(window, "Show workspace");
     await expect(shownBuffer(window).locator("h1.answer")).toContainText("Workspace");
     const output = await column(window);
     await goTo(window, ELEMENT);
@@ -127,7 +127,7 @@ test.describe("lists in the quiet column", () => {
       expect(await noSideScroll(window)).toBe(true);
     };
     await fits();
-    await command(window, "Show workspace status");
+    await command(window, "Show workspace");
     await expect(shownBuffer(window).locator("h1.answer")).toContainText("Workspace");
     await fits();
   });

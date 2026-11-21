@@ -96,7 +96,7 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 
 ## App
 
-In the app, **Show evidence status** shows each requirement's verification status per view, and a need's validation status, under its row, also for a file a pipeline writes while the app is open.
+In the app, **Show verification status** shows each requirement's verification status per view, and a need's validation status, under its row, also for a file a pipeline writes while the app is open.
 
 ## CLI
 

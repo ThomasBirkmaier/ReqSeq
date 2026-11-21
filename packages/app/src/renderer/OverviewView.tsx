@@ -4,7 +4,9 @@
 // list opens on request only ("List all elements"). The counts come from `element.facets`, the
 // perspectives from `perspective.list` and their counts from `element.list` with the perspective, the
 // recent elements from `element.get`; the app only shows them (ADR-0002). A recent element that changed
-// outside the app is highlighted briefly (SR-116).
+// outside the app is highlighted briefly (SR-116). A workspace in which `element.facets` counts no element
+// shows in the middle core's first steps, as the lines of the start buffer (SR-225 AK1), and below them only
+// the perspectives (SR-118 AK9); a click or Enter runs a step as the command prompt does.
 import { bufferMark, useHidden, useReveal } from "./area-slot.js";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useIdScope } from "./area-scope.js";
@@ -13,8 +15,17 @@ import { elementBuffer, elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import type { OverviewRow, PerspectiveCount, PerspectiveRow, RecentRow, TypeCount } from "./overview.js";
+import type { NextStep } from "./next-steps.js";
+import type {
+  OverviewRow,
+  PerspectiveCount,
+  PerspectiveRow,
+  RecentRow,
+  StepRow,
+  TypeCount,
+} from "./overview.js";
 import {
+  firstStepRows,
   openRow,
   overviewRows,
   perspectiveCount,
@@ -218,6 +229,10 @@ export interface OverviewViewProps {
   readonly recents: readonly RecentRow[];
   /** Opens the perspective of a row as "Open perspective" does (SR-118 AK7, `openPerspective`). */
   readonly onPerspective: (name: string) => void;
+  /** The first steps the command prompt runs here (SR-118 AK9, `stepRows`), shown while no element is counted. */
+  readonly steps: readonly StepRow[];
+  /** Runs a first step as the command prompt does (`runStep`). */
+  readonly onStep: (step: NextStep) => void;
   /** The changes from outside (SR-116): the line of a recent element that changed is highlighted. */
   readonly outside?: OutsideChanges;
   readonly dispatch: (action: BufferAction) => void;
@@ -231,6 +246,8 @@ export const OverviewView = ({
   perspectives,
   recents,
   onPerspective,
+  steps,
+  onStep,
   outside,
   dispatch,
   onData,
@@ -247,7 +264,14 @@ export const OverviewView = ({
   };
   useEffect(markFresh, [recents]);
   useReveal(markFresh);
-  const rows = data === undefined ? [] : overviewRows(data.types, perspectives, recents);
+  // A workspace in which core counts no element shows its first steps and only the perspectives (SR-118 AK9).
+  const empty = data?.total === 0;
+  const rows =
+    data === undefined
+      ? []
+      : empty
+        ? firstStepRows(steps, perspectives)
+        : overviewRows(data.types, perspectives, recents);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const firstPerspective = rows.findIndex((row) => row.kind === "perspective");
   const firstRecent = rows.findIndex((row) => row.kind === "recent");
@@ -272,6 +296,8 @@ export const OverviewView = ({
     const row = rows[at];
     if (row?.kind === "perspective") {
       onPerspective(row.name);
+    } else if (row?.kind === "step") {
+      onStep(row.step);
     } else if (row !== undefined) {
       dispatch({ type: "open", buffer: openRow(row) });
     }
@@ -296,7 +322,7 @@ export const OverviewView = ({
 
   return (
     <div
-      className="buffer overview"
+      className={empty ? "buffer overview first-steps" : "buffer overview"}
       role="listbox"
       aria-label="Overview"
       aria-activedescendant={activeRow(`${scope}overview`, cursor, rows.length)}
@@ -312,7 +338,11 @@ export const OverviewView = ({
             <div
               id={`${scope}overview-${String(at)}`}
               className={
-                row.kind === "recent" ? rowClass("line recent", marked, row.buffer.id) : `line ${row.kind}`
+                row.kind === "recent"
+                  ? rowClass("line recent", marked, row.buffer.id)
+                  : row.kind === "step"
+                    ? "line step start-line"
+                    : `line ${row.kind}`
               }
               role="option"
               aria-selected={at === cursor}
@@ -337,17 +367,32 @@ export const OverviewView = ({
   );
 };
 
-const rowKey = (row: OverviewRow): string =>
-  row.kind === "type"
-    ? `type:${row.key}`
-    : row.kind === "perspective"
-      ? `perspective:${row.name}`
-      : row.buffer.key;
+const rowKey = (row: OverviewRow): string => {
+  switch (row.kind) {
+    case "step":
+      return `step:${row.step.command}`;
+    case "type":
+      return `type:${row.key}`;
+    case "perspective":
+      return `perspective:${row.name}`;
+    case "recent":
+      return row.buffer.key;
+  }
+};
 
 const rowLabel = (row: Exclude<OverviewRow, { readonly kind: "recent" }>): string =>
-  row.kind === "type" ? typeLine(row) : perspectiveLine(row);
+  row.kind === "step" ? row.name : row.kind === "type" ? typeLine(row) : perspectiveLine(row);
 
 const RowContent = ({ row }: { readonly row: OverviewRow }): React.JSX.Element => {
+  // A first step as a line of the start buffer: its name and, at the right edge, its key (SR-118 AK9).
+  if (row.kind === "step") {
+    return (
+      <>
+        <span className="start-label">{row.name}</span>
+        {row.key === undefined ? null : <span className="start-key">{row.key}</span>}
+      </>
+    );
+  }
   if (row.kind === "type") {
     return (
       <>

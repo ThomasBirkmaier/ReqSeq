@@ -290,8 +290,7 @@ const changedCores = (context: SinceBaselineContext, memo: Memo): ElementRecord[
     return [];
   }
   const update = storeUpdate(memo.store, context.store);
-  /* v8 ignore next 3 -- undefined only when the repositories differ, which a new workspace layout
-     makes, and with it a new metamodel, which `findingsOf` checks before it asks for this. */
+  // Nothing tells which records stayed the same (`storeUpdate`): the full pass.
   if (update === undefined) {
     return undefined;
   }
@@ -391,12 +390,12 @@ const findingOf = (
       ? {
           code: NEW_SINCE_BASELINE_CODE,
           severity: "warning",
-          message: `Core requirement ${label} has come into the view of ${shown} since its newest baseline ${baseline.name}, which does not list it: ${now}; a new baseline of ${shown} settles it (D-042)`,
+          message: `Core requirement ${label} has come into the view of ${shown} since its newest baseline ${baseline.name}, which does not list it: ${now}; a new baseline of ${shown} settles it`,
         }
       : {
           code: CHANGED_SINCE_BASELINE_CODE,
           severity: "warning",
-          message: `Core requirement ${label}, which ${shown} adopts, has changed since its newest baseline ${baseline.name}: version ${stored} there, ${now}; a new baseline of ${shown} settles it (D-042)`,
+          message: `Core requirement ${label}, which ${shown} adopts, has changed since its newest baseline ${baseline.name}: version ${stored} there, ${now}; a new baseline of ${shown} settles it`,
           storedVersion: stored,
         };
   return {

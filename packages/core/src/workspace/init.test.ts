@@ -1,10 +1,11 @@
+import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import type * as FilesBlock from "../files/index.js";
 import { writeFileAtomic } from "../files/index.js";
 import { WORKSPACE_FILE } from "./config.js";
-import { FALLBACK_REPOSITORY_NAME, createWorkspace, repositoryNameFor } from "./init.js";
+import { EVIDENCE_KEEP_FILE, FALLBACK_REPOSITORY_NAME, createWorkspace, repositoryNameFor } from "./init.js";
 
 // The real files block, with writeFileAtomic wrapped so that a test can make one write fail.
 vi.mock("../files/index.js", async (importOriginal) => {
@@ -61,7 +62,7 @@ describe("createWorkspace when the workspace file cannot be written", () => {
     expect(error).toMatchObject({
       code: "file.read-only",
       message:
-        "Not written: reqseq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running workspace.init again.",
+        'Not written: reqseq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running "Create workspace" again.',
       details: { written: ["metamodel/standard-model.yaml"] },
     });
   });
@@ -74,5 +75,50 @@ describe("createWorkspace when the workspace file cannot be written", () => {
     const plain = new Error("disk gone");
     await failWrite(2, plain);
     await expect(createWorkspace(await folder(), { name: "W", metamodelFile: model })).rejects.toBe(plain);
+  });
+});
+
+describe("createWorkspace when the evidence folder cannot be created", () => {
+  const model = { name: "standard-model.yaml", text: "reqseq-metamodel: 1\n" };
+
+  it("[SR-230/AK-x4g5] keeps the workspace and reports the reason as a warning", async () => {
+    const real = (await vi.importActual<typeof FilesBlock>("../files/index.js")).writeFileAtomic;
+    for (const [failure, reason] of [
+      [
+        new CommandError("file.read-only", "Not written: evidence/.gitkeep is read-only."),
+        "Not written: evidence/.gitkeep is read-only",
+      ],
+      [
+        new CommandError(
+          "file.changed-on-disk",
+          "Not written: evidence/.gitkeep already exists. Read it again first",
+        ),
+        "something is already at evidence/.gitkeep",
+      ],
+      [Object.assign(new Error("/abs/path"), { code: "EIO" }), "the file system refused it (EIO)"],
+      [new Error("/abs/path"), "the file system refused it (unknown)"],
+    ] as const) {
+      vi.mocked(writeFileAtomic).mockImplementation(async (...args) => {
+        if (args[1] === EVIDENCE_KEEP_FILE) {
+          throw failure;
+        }
+        return real(...args);
+      });
+      const ws = await createFixtureWorkspace();
+      onTestFinished(() => ws.cleanup());
+      const created = await createWorkspace(ws.root, { name: "W", metamodelFile: model });
+      expect(created).toEqual({
+        files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"],
+        problems: [
+          {
+            code: "workspace.evidence-folder-not-created",
+            severity: "warning",
+            message: `evidence/.gitkeep was not created: ${reason}`,
+            file: "evidence",
+          },
+        ],
+      });
+      await expect(fs.lstat(ws.path(WORKSPACE_FILE))).resolves.toBeDefined();
+    }
   });
 });

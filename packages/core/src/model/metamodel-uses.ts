@@ -30,6 +30,7 @@
 // there are not known. The saved filters, perspectives and mapping files that name a removed key are
 // listed, never changed (`mentioningFiles`).
 import path from "node:path";
+import type { CommandName } from "../catalog.js";
 import { CommandError, matchesKey } from "../catalog.js";
 import { listFolderFiles, readYamlFile } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -42,6 +43,7 @@ import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /**
  * The uses of every definition, in metamodel order, as `metamodel.get` gives them: each definition is
@@ -404,13 +406,13 @@ const fileText = ({ repository, file }: UnreadableFile): string => `${repository
 export const refuseIncompleteStore = (
   layout: WorkspaceLayout,
   store: ElementStore,
-  command: string,
+  command: CommandName,
 ): void => {
   const missing = layout.repositories.filter((r) => !r.available).map((r) => r.name);
   if (missing.length > 0) {
     throw new CommandError(
       "file.folder-missing",
-      `${command} needs every element to count the uses, and the repository ${missing.join(", ")} is not on this machine; nothing is written`,
+      `${commandTitle(command)} needs every element to count the uses, and the repository ${missing.join(", ")} is not on this machine; nothing is written`,
       { command, repository: missing[0], repositories: missing },
     );
   }
@@ -420,7 +422,7 @@ export const refuseIncompleteStore = (
     const count = unreadable.length;
     throw new CommandError(
       "file.faulty",
-      `${command} needs every element to count the uses, and ${String(count)} element ${count === 1 ? "file" : "files"} cannot be read (${named.map(fileText).join(", ")}${count > named.length ? ", …" : ""}); nothing is written. Fix them first.`,
+      `${commandTitle(command)} needs every element to count the uses, and ${String(count)} element ${count === 1 ? "file" : "files"} cannot be read (${named.map(fileText).join(", ")}${count > named.length ? ", …" : ""}); nothing is written. Fix them first.`,
       { command, count, files: named },
     );
   }

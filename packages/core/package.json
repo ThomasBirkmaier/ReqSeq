@@ -37,6 +37,10 @@
       "types": "./dist/evidence/degree-text.d.ts",
       "default": "./dist/evidence/degree-text.js"
     },
+    "./displays": {
+      "types": "./dist/displays/index.d.ts",
+      "default": "./dist/displays/index.js"
+    },
     "./graph-words": {
       "types": "./dist/graph/words.d.ts",
       "default": "./dist/graph/words.js"
@@ -68,6 +72,10 @@
     "./render-options": {
       "types": "./dist/html-export/render-options.d.ts",
       "default": "./dist/html-export/render-options.js"
+    },
+    "./next-steps": {
+      "types": "./dist/next-steps.d.ts",
+      "default": "./dist/next-steps.js"
     },
     "./fold": {
       "types": "./dist/query/fold.d.ts",

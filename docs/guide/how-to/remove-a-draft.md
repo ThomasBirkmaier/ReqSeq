@@ -87,7 +87,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 2 elements and found 3 warnings and 2 info.
+Checked 2 elements and found 3 warnings and 1 info.
 ok: true
 ...
 warning  trace.no-parent  SR-c67baa  ...

@@ -287,7 +287,7 @@ describe("a type whose statuses are all marked invalid (ThomasBirkmaier/ReqSeq-a
         severity: "info",
         repository: "system",
         message:
-          "Type glossary-term has an optional status (only invalid statuses: retired): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again",
+          'Type glossary-term has an optional status (only invalid statuses: retired): an element of it without status is current, "Supersede element" retires it, and "Set status" with status null makes it current again',
         file: "metamodel/model.yaml",
         line: 33,
       },
@@ -352,7 +352,7 @@ describe("an initial status that is marked invalid (ThomasBirkmaier/ReqSeq-archi
         severity: "warning",
         repository: "system",
         message:
-          "Status gone is initial and marked invalid; element.create does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)",
+          'Status gone is initial and marked invalid; "Create element" does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)',
         file: "metamodel/model.yaml",
         line: 53,
       },

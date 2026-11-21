@@ -14,6 +14,7 @@ import { CommandError } from "../catalog.js";
 import type { MetamodelKey, MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "./load.js";
 import { allowsType, findType, keyDefinition } from "./lookup.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** A relation kind the metamodel allows from a type, with the types its target may have. */
 export interface RelationOption {
@@ -60,7 +61,7 @@ export const relationKindFor = (
   if (found?.kind === "property") {
     throw new CommandError(
       "input.invalid",
-      `${key} is a property, not a relation kind; set it with element.update`,
+      `${key} is a property, not a relation kind; set it with ${commandTitle("element.update")}`,
       { kind: key, reason: "property" },
     );
   }

@@ -142,7 +142,7 @@ describe("renderHuman: a graph with verification (SR-136)", () => {
       }),
     ).toContain(
       lines(
-        "  SR-00000a  draft  Title SR-00000a  [verification: core open 2 of 3 criteria (AK3 not verified)]",
+        "  SR-00000a  draft  Title SR-00000a  [verification: core (open, 2 of 3 criteria, AK3 not verified)]",
         "  N-00000b  draft  Title N-00000b  [degree: 60 % of 10]",
         "  N-00000c  draft  Title N-00000c",
       ).trimEnd(),

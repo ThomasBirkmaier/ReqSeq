@@ -81,6 +81,8 @@ export const ENTRY_ACTIONS: readonly Action[] = [
     id: "entry-show",
     title: "Show element",
     description: "Open the marked element.",
+    // The title of `element.get`, which "Go to element or buffer" covers; this one covers no command.
+    covers: [],
     available: hasEntry,
     run: (context: ActionContext): void => {
       if (context.entry !== undefined) {

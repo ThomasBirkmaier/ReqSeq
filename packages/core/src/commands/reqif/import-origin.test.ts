@@ -140,7 +140,7 @@ describe("origin of imported elements (SR-057)", () => {
     const refused = await failure(without, "reqif.import", INPUT);
     expect([refused.code, refused.message, refused.details?.["fields"]]).toEqual([
       "input.invalid",
-      "mapping.types[0].type: type system-requirement has no import-version, which hold the origin of every imported element (SR-057)",
+      "mapping.types[0].type: type system-requirement has no import-version, which hold the origin of every imported element",
       ["mapping.types[0].type"],
     ]);
 
@@ -201,12 +201,12 @@ describe("origin of imported elements (SR-057)", () => {
     expect(await refusal("element.update", { ref: id, set: { source: "Kunde B" } })).toEqual([
       "input.invalid",
       "origin",
-      "set cannot hold source: it holds the origin (source), which only reqif.import writes",
+      'set cannot hold source: it holds the origin (source), which only "Import ReqIF file" writes',
     ]);
     expect(await refusal("element.update", { ref: id, unset: ["import-version"] })).toEqual([
       "input.invalid",
       "origin",
-      "unset cannot hold import-version: it holds the origin (import-version), which only reqif.import writes",
+      'unset cannot hold import-version: it holds the origin (import-version), which only "Import ReqIF file" writes',
     ]);
     expect(
       await refusal("element.create", {
@@ -217,7 +217,7 @@ describe("origin of imported elements (SR-057)", () => {
     ).toEqual([
       "input.invalid",
       "origin",
-      "properties cannot hold delivery: it holds the origin (delivery), which only reqif.import writes",
+      'properties cannot hold delivery: it holds the origin (delivery), which only "Import ReqIF file" writes',
     ]);
     expect(
       await refusal("element.bulkUpdate", {
@@ -230,7 +230,7 @@ describe("origin of imported elements (SR-057)", () => {
     ).toEqual([
       "input.invalid",
       "origin",
-      "property: import-date holds the origin (import-date), which only reqif.import writes",
+      'property: import-date holds the origin (import-date), which only "Import ReqIF file" writes',
     ]);
     // Nothing was written.
     expect(await fs.readFile(at, "utf8")).toBe(file);

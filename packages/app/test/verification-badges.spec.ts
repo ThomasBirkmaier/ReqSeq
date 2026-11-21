@@ -135,7 +135,7 @@ test.describe("the verification badges", () => {
     await openElement(running.window, "Show gust speed");
     await expect(verification(running.window).locator(".badge-name")).toHaveText(["Core"]);
     await expect(verification(running.window).locator(".badge-status")).toHaveText([
-      "open (1 of 2 criteria, AK2 (kfst) not verified)",
+      "open, 1 of 2 criteria, AK2 (kfst) not verified",
     ]);
   });
 

@@ -93,7 +93,7 @@ describe("read-only workspace", () => {
     expect((error as CommandError).toJSON()).toEqual({
       code: "workspace.read-only",
       message:
-        "The workspace is read-only because its metamodel is missing or faulty; test.write changes no file. Fix the metamodel files and open the workspace again.",
+        'The workspace is read-only because its metamodel is missing or faulty; "test.write" changes no file. Fix the metamodel files and open the workspace again.',
       details: {
         command: "test.write",
         problems: [

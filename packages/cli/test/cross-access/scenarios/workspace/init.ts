@@ -7,6 +7,9 @@ const SKILLS = [
   ".agents/skills/managing-requirements/SKILL.md",
 ];
 
+/** The empty file that keeps the new evidence folder in Git (SR-230 AK4). */
+const KEEP = "evidence/.gitkeep";
+
 // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
 // take it relative to the root, so all four write into the same folder of their copy.
 scenariosOf("workspace.init", [
@@ -26,7 +29,7 @@ scenariosOf("workspace.init", [
   },
   {
     name: "skill file and evidence location",
-    // The same skill file at both places, each listed among the files, and the evidence location `evidence` in every access.
+    // The same skill file at both places and the evidence folder, each listed among the files, and the evidence location `evidence` in every access.
     tag: "[SR-229/AK-x7d8] [SR-230/AK-x4g5]",
     fixture: { files: { "new/.keep": "" } },
     input: { path: "new", name: "New" },
@@ -40,9 +43,29 @@ scenariosOf("workspace.init", [
         if (
           !SKILLS.every((skill) => listed.includes(skill)) ||
           !SKILLS.every((skill) => changed.some((name) => name.endsWith(`new/${skill}`))) ||
+          !listed.includes(KEEP) ||
+          !changed.some((name) => name.endsWith(`new/${KEEP}`)) ||
           !(workspaceFile?.[1] ?? "").includes("evidence:\n  - repository: new\n    path: evidence\n")
         ) {
-          throw new Error(`${access}: no skill file or evidence location: ${listed.join(", ")}`);
+          throw new Error(
+            `${access}: no skill file, evidence folder or evidence location: ${listed.join(", ")}`,
+          );
+        }
+      }
+    },
+  },
+  {
+    name: "evidence folder not created",
+    // The metamodel folder takes the path of `.gitkeep`: the workspace is created and the same warning says why.
+    tag: "[SR-230/AK-x4g5]",
+    fixture: { files: { "new/.keep": "" } },
+    input: { path: "new", name: "New", metamodel: { path: KEEP } },
+    expect: "output",
+    check: (results) => {
+      for (const [access, { outcome }] of Object.entries(results)) {
+        const output = "output" in outcome ? (outcome.output as { problems?: { code: string }[] }) : {};
+        if (!(output.problems ?? []).some((p) => p.code === "workspace.evidence-folder-not-created")) {
+          throw new Error(`${access}: no warning that the evidence folder was not created`);
         }
       }
     },

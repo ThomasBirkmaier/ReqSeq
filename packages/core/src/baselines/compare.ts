@@ -31,6 +31,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Baseline } from "./read.js";
 import { copyOf } from "./read.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 type Output = CommandOutput<"baseline.compare">;
 
@@ -89,7 +90,7 @@ const elementOf = (store: ElementStore, shortIds: ShortIds, baseline: Baseline, 
   const repositories = entries.map((e) => e.repository ?? baseline.repository);
   throw new CommandError(
     "ref.ambiguous",
-    `ref: the baseline ${baseline.name} lists ${ref} ${other === undefined ? "without repository, and it has copies in several" : `in the repositories ${repositories.join(", ")}`}; baseline.compare cannot choose one of them`,
+    `ref: the baseline ${baseline.name} lists ${ref} ${other === undefined ? "without repository, and it has copies in several" : `in the repositories ${repositories.join(", ")}`}; ${commandTitle("baseline.compare")} cannot choose one of them`,
     { ref, repositories },
   );
 };

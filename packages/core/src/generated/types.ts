@@ -481,6 +481,7 @@ export type ProblemCode =
   | "workspace.invalid"
   | "workspace.not-watched"
   | "workspace.skill-not-written"
+  | "workspace.evidence-folder-not-created"
   | "workspace.skill-older-version"
   | "workspace.skill-missing"
   | "git.unavailable"
@@ -552,11 +553,17 @@ export type Answer = string;
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
   readonly ids?: readonly ElementRef[];
+  /** Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown. */
+  readonly inRepository?: readonly {
+    readonly id: UuidRef;
+    /** Workspace name of the repository. */
+    readonly repository: string;
+  }[];
   /** Name of a saved filter (SR-070). */
   readonly filter?: string;
   readonly where?: FilterCondition;
@@ -2218,7 +2225,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
     readonly path?: OutputPath;
-    /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
+    /** The absolute path of the repository folder on this machine, symbolic links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
     readonly absolutePath?: OutputPath;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
@@ -2240,7 +2247,7 @@ export interface WorkspaceStatusOutput {
     /** Workspace name of the repository of the evidence location. */
     readonly repository: string;
     readonly path: RelativePath;
-    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
+    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a symbolic link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
     /** The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location. */
     readonly folder?: OutputPath;
@@ -2251,7 +2258,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -2261,12 +2268,12 @@ export interface WorkspaceCheckInput {
   readonly changedSince?: string;
   /** Lowest severity of the problems shown; does not change ok or the exit code. Problems left out are counted in hidden. */
   readonly severity: "error" | "warning" | "info";
-  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check. */
+  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check. */
   readonly failOn: "error" | "warning" | "info";
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -2443,7 +2450,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
+  /** How to go on after pasting the setup; for every client but Claude Desktop also the command-line call, with the program of the setup, that writes the skill file, as a command for the terminal (PowerShell on Windows). Only with a client. */
   readonly next?: string;
 }
 
@@ -2520,7 +2527,7 @@ export interface ToolInfoOutput {
 }
 
 /**
- * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json input`.
  */
 export interface ToolGuideInput {
@@ -2537,7 +2544,7 @@ export interface ToolGuideInput {
 }
 
 /**
- * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
@@ -3610,10 +3617,7 @@ export interface ElementBulkUpdateOutput {
   /** Number of affected elements (SR-071 AK2). */
   readonly count: number;
   /** The elements whose file the change rewrites, in store order. */
-  readonly affected: readonly {
-    readonly id: Uuid;
-    readonly shortId: ShortId;
-  }[];
+  readonly affected: readonly CountedElement[];
   /** Elements of the selection that have the result already: those of `unchangedElements`. */
   readonly unchanged: number;
   /** The elements of the selection that have the result already, in store order. */
@@ -3622,6 +3626,8 @@ export interface ElementBulkUpdateOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read. */
     readonly reason: "not-a-property" | "unknown-type";
     /** Why the element was left out, for people. */
@@ -3657,6 +3663,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly changed: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** Acceptance criteria of the element that got a criterion key. */
     readonly assigned: number;
   }[];
@@ -3664,6 +3672,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3). */
     readonly reason: "unknown-type";
     /** Why the element was left out, for people. */
@@ -4196,7 +4206,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -4206,28 +4216,28 @@ export interface TraceGraphInput {
   readonly repository?: string;
   /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
-  /** Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  /** Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
   readonly allLevels: boolean;
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
-  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   /** Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core. */
   readonly view?: View;
-  /** Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
+  /** Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no relation or reference between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
   readonly withEvidence: boolean;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
+ * Output of `trace.graph`. The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
   readonly answer: Answer;
   readonly root: Uuid;
-  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
+  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the relations and references were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -4243,9 +4253,9 @@ export interface TraceGraphOutput {
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: OutputPath;
-    /** Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to. */
+    /** Its relations and references in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to. */
     readonly expanded: boolean;
-    /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
+    /** 0 for the element; -d for an element reached d steps up along the relations and references the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along those that point at it. The source of a relation or reference is placed below its target (ADR-0004). */
     readonly level: number;
     /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044). Empty when none holds. The verification status is `verification` (SR-136). */
     readonly marks: readonly ("outdated" | "superseded")[];
@@ -4256,13 +4266,13 @@ export interface TraceGraphOutput {
     /** SR-136 AK3, AK6: for a need (type with the meaning `need`), the verification degree (SR-037) of the requirements derived directly from it, in the graph's view: its derivation children in the whole workspace whatever depth, kinds and meanings the graph shows, each once, counted as evidence.degree counts them. `share` is left out when none counts (no valid derived requirement). Without a relation kind with the meaning `derivation`, or while the metamodel is not valid, none counts. */
     readonly degree?: DataExportVerificationDegree;
   }[];
-  /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
+  /** Every followed relation or reference from one node to another, also one the walks did not take (one between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). One from an element to itself is no edge. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them). */
   readonly edges: readonly {
-    /** The element whose file stores the link. */
+    /** The element whose file stores the relation or reference. */
     readonly source: Uuid;
     /** Workspace name of the repository of `source`. */
     readonly sourceRepository: string;
-    /** The element the link points at (ADR-0004). */
+    /** The element the relation or reference points at (ADR-0004). */
     readonly target: Uuid;
     /** Workspace name of the repository of `target`. */
     readonly targetRepository: string;
@@ -4274,7 +4284,7 @@ export interface TraceGraphOutput {
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
-    /** The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
+    /** The relation or reference stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
   /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
@@ -4309,7 +4319,7 @@ export interface TraceGraphOutput {
 }
 
 /**
- * Input of `trace.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Input of `trace.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.
  * Schema: `schemas/commands/trace.mermaid.json input`.
  */
 export interface TraceMermaidInput {
@@ -4319,11 +4329,11 @@ export interface TraceMermaidInput {
   readonly repository?: string;
   /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
-  /** Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  /** Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
   readonly allLevels: boolean;
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
-  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   /** Only the elements of the graph that this view holds: `core` or a variant ID; without it every element. */
   readonly view?: View;
@@ -4332,7 +4342,7 @@ export interface TraceMermaidInput {
 }
 
 /**
- * Output of `trace.mermaid`. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Output of `trace.mermaid`. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.
  * Schema: `schemas/commands/trace.mermaid.json output`.
  */
 export interface TraceMermaidOutput {
@@ -4388,7 +4398,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -4398,7 +4408,7 @@ export interface HintConfirmInput {
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element. */
   readonly target?: ElementRef;
-  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
+  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter. Needs `kind` with confirmable codes only (see `kind`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
   /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];
@@ -4407,7 +4417,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
@@ -4861,7 +4871,7 @@ export interface EvidenceListOutput {
 export interface EvidenceRecordInput {
   /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
   readonly ref: ElementRef;
-  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
+  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
@@ -4906,11 +4916,11 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
-  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
+  /** The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
   readonly file: LocalPath;
   /** The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
@@ -4927,7 +4937,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -4938,7 +4948,7 @@ export interface EvidenceEnrichJunitOutput {
   readonly withoutReference: number;
   /** With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11); a test case with no element left is marked (AK12, see `skipNotInView`). Information only: it does not change the exit code. */
   readonly notInView: number;
-  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
+  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1). */
   readonly unknown: readonly {
     /** The `name` of the test case. */
     readonly testCase: string;
@@ -5238,7 +5248,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -5253,7 +5263,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
@@ -5618,7 +5628,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -5639,7 +5649,7 @@ export interface ReqifExportInput {
 }
 
 /**
- * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {

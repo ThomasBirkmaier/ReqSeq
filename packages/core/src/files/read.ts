@@ -419,12 +419,15 @@ export interface YamlFile extends ParsedYaml {
 
 export type YamlReadResult =
   | { readonly kind: "parsed"; readonly file: YamlFile }
-  | { readonly kind: "problem"; readonly problem: Problem };
+  /** `missing`: the file or a folder above it does not exist (only then is it set). */
+  | { readonly kind: "problem"; readonly problem: Problem; readonly missing?: true };
 
 /** The YAML document of a file read, or its problem. */
 const yamlFileOf = (raw: RawFile): YamlReadResult => {
   if (raw.kind === "problem") {
-    return { kind: "problem", problem: raw.problem };
+    return raw.missing === true
+      ? { kind: "problem", problem: raw.problem, missing: true }
+      : { kind: "problem", problem: raw.problem };
   }
   const { file, bytes, mtimeMs } = raw;
   const parsed = parseYamlFileBytes(file, bytes);

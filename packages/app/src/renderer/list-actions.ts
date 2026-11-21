@@ -503,8 +503,10 @@ export const givenSelection = (
 
 export const LIST_ACTIONS: readonly Action[] = [
   {
+    // It covers `element.list` ("List elements"), so the command prompt lists it once (ADR-0010, command-prompt.md).
     id: "list-all",
     title: "List all elements",
+    covers: ["element.list"],
     available: (context: ActionContext): boolean => context.workspace,
     // A next step of `element.list` lists with its selection; otherwise every element.
     run: (context: ActionContext): void => {

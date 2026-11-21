@@ -249,7 +249,7 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     const output = await call(workspace, "html.export", { output: "site" });
     const site = fixture.path("site");
     const { html, document } = await browse(site, "index.html");
-    expect(html).toContain("<title>Weather station | Weather station</title>");
+    expect(html).toContain("<title>Weather station</title>");
     expect(document.querySelector("h1")?.textContent).toBe("Weather station");
     const made = document.querySelector(".rq-made")?.textContent ?? "";
     expect(made).toMatch(

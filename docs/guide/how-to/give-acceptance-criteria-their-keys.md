@@ -1,5 +1,5 @@
 ---
-title: Give acceptance criteria their keys
+title: Assign criterion keys to existing acceptance criteria
 description: Give every acceptance criterion without a criterion key in a selection its key in one step, for files written by hand or from an older workspace.
 sidebar:
   order: 4.4
@@ -55,7 +55,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 1 element and found 2 warnings and 2 info.
+Checked 1 element and found 2 warnings and 1 info.
 ok: true
 ...
 warning  element.criterion-key-missing  SR-00a204  This System Requirement has 2 acceptance criteria without criterion key  ...
@@ -74,6 +74,7 @@ count: 1
 changed:
   - id: 20420420-0000-4000-8000-00000000a204
     shortId: SR-00a204
+    repository: ...
     assigned: 2
 skipped: none
 files:

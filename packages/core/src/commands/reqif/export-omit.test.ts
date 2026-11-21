@@ -182,6 +182,13 @@ describe("reqif.export (SR-059)", () => {
       ["mapping"],
       "outside-mapping-folder",
     ]);
+    // A mapping that does not exist is refused as on import (#2226).
+    const absent = await refused({ output: "a.reqif", mapping: "reqif/kunde.yaml" });
+    expect([absent.code, absent.details?.["reason"], absent.message]).toEqual([
+      "input.invalid",
+      "source-missing",
+      expect.stringMatching(/^mapping: the mapping file .*kunde\.yaml does not exist; "Analyse ReqIF file"/),
+    ]);
     await expect(fs.stat(fixture.path("a.reqif"))).rejects.toThrow();
     expect(await text("elsewhere/zulieferer.yaml")).not.toContain("topic");
     // Read from anywhere when nothing is saved.

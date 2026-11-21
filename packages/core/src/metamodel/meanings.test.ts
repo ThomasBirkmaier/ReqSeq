@@ -141,7 +141,7 @@ describe("built-in meanings", () => {
     expect(error?.toJSON()).toEqual({
       code: "metamodel.meaning-unassigned",
       message:
-        "No relation kind of the metamodel has the meaning derivation, which trace.chain needs. Add `meaning: derivation` to a relation kind in the metamodel files.",
+        'No relation kind of the metamodel has the meaning derivation, which "Show trace chain" needs. Add `meaning: derivation` to a relation kind in the metamodel files.',
       details: { meaning: "derivation", list: "relations", command: "trace.chain" },
     });
     // The workspace is fine; the call cannot be done as asked.
@@ -161,13 +161,13 @@ describe("built-in meanings", () => {
     expect(unassigned(metamodel, "validity", "element.list")?.toJSON()).toEqual({
       code: "metamodel.meaning-unassigned",
       message:
-        "No property of the metamodel has the meaning validity, which element.list needs. Add `meaning: validity` to a property in the metamodel files.",
+        'No property of the metamodel has the meaning validity, which "List elements" needs. Add `meaning: validity` to a property in the metamodel files.',
       details: { meaning: "validity", list: "properties", command: "element.list" },
     });
     expect(unassigned(metamodel, "requirement", "evidence.coverage")?.toJSON()).toEqual({
       code: "metamodel.meaning-unassigned",
       message:
-        "No type of the metamodel has the meaning requirement, which evidence.coverage needs. Add `meaning: requirement` to a type in the metamodel files.",
+        'No type of the metamodel has the meaning requirement, which "Show coverage" needs. Add `meaning: requirement` to a type in the metamodel files.',
       details: { meaning: "requirement", list: "types", command: "evidence.coverage" },
     });
     expect(unassigned(metamodel, "title", "element.create")).toBeUndefined();
@@ -630,7 +630,7 @@ describe("built-in meanings", () => {
     const problem = (key: string, line: number, not: string): Problem => ({
       code: "metamodel.invalid",
       severity: "error",
-      message: `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version (D-059), not ${not}`,
+      message: `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version, not ${not}`,
       file: "model/properties.yaml",
       line,
     });

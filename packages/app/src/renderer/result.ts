@@ -25,11 +25,12 @@
 import type { CatalogEntry } from "@reqseq/core";
 import { problemTitle } from "@reqseq/core/problem-titles";
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
-import type { ElementBuffer, ListBuffer } from "./buffers.js";
+import type { ElementBuffer, InRepository, ListBuffer } from "./buffers.js";
 import { shownId, shownIdTitle } from "./id-title.js";
 import {
   elementBuffer,
   elementBufferOf,
+  inRepositoryList,
   outputList,
   outputSelectionList,
   readOnlyBuffer,
@@ -438,19 +439,22 @@ const dig = (value: unknown, path: string): unknown =>
     .reduce<unknown>((at, part) => (isRecord(at) ? at[part] : undefined), value);
 
 /**
- * The UUIDs of the elements at `path` of a write command's output, a field the catalog marks as the list a number
- * counts (`x-elements`); each `[]` of it is the item of that list the walk is in (`Walk.items`).
+ * The UUID and repository of each element at `path` of a write command's output, a field the catalog marks as the
+ * list a number counts (`x-elements`), whose entries carry both (the contract check of `output-checks.mjs`); each
+ * `[]` of the path is the item of that list the walk is in (`Walk.items`).
  */
-const idsAt = (path: string, walk: Walk): string[] => {
+const entriesAt = (path: string, walk: Walk): InRepository[] => {
   const parts = path.split("[]");
   const found = parts.reduce<unknown>(
     (_at, part, level) => dig(level === 0 ? walk.root : walk.items[level - 1], part),
     undefined,
   );
   return Array.isArray(found)
-    ? found.flatMap((each: unknown) =>
-        typeof each === "string" ? [each] : (str(isRecord(each) ? each["id"] : undefined) ?? []),
-      )
+    ? found.flatMap((each: unknown) => {
+        const id = isRecord(each) ? str(each["id"]) : undefined;
+        const repository = isRecord(each) ? str(each["repository"]) : undefined;
+        return id === undefined || repository === undefined ? [] : [{ id, repository }];
+      })
     : [];
 };
 
@@ -492,9 +496,15 @@ const countList = (value: unknown, path: string, title: string, walk: Walk): Lis
   });
   const label = [origin.name, ...naming, title].join(" · ");
   if (origin.written === true) {
-    const ids =
-      typeof elements === "string" ? [] : [...new Set(elements.flatMap((each) => idsAt(each, walk)))];
-    return ids.length === 0 ? undefined : outputList(label, ids);
+    // Each counted copy once, by UUID and repository (#2024): a copy of the UUID elsewhere is not counted.
+    const items = [
+      ...new Map(
+        (typeof elements === "string" ? [] : elements)
+          .flatMap((each) => entriesAt(each, walk))
+          .map((item) => [`${item.repository}\u0000${item.id}`, item]),
+      ).values(),
+    ];
+    return items.length === 0 ? undefined : inRepositoryList(label, items);
   }
   return outputSelectionList(label, {
     command: origin.command,
