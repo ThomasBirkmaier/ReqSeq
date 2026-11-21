@@ -24,7 +24,11 @@ export interface TextPage {
   readonly body: string;
 }
 
-/** The groups of the files, in the order of the sidebar (site/astro.config.mjs), by the start of a page's path. */
+/**
+ * The sections of the files by the start of a page's path, in the order of the sidebar (site/astro.config.mjs), each
+ * page of a section listed on its own: the sidebar's heading Lookup and its topic groups of the how-to guides are not
+ * repeated here.
+ */
 export const LLMS_SECTIONS: readonly (readonly [string, string])[] = [
   // Written by `stage.mjs --whats-new` (#1259).
   ["whats-new", "What's new"],
@@ -72,7 +76,7 @@ export function pageUrl(path: string, base: string): string {
 const rank = (page: TextPage): number => howToRank(page.path) ?? Number.MAX_SAFE_INTEGER;
 
 /**
- * The pages of each section, sorted as in the sidebar, the landing page left out. Fails on any other page of no
+ * The pages of each section, in the order of the sidebar's entries, the landing page left out. Fails on any other page of no
  * section, so a new part of the sidebar cannot be missing from the files unnoticed.
  */
 function sections(pages: readonly TextPage[]): (readonly [string, TextPage[]])[] {

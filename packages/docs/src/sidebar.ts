@@ -30,7 +30,7 @@ export const HOW_TO_GROUPS: readonly HowToGroup[] = [
     ],
   },
   {
-    label: "Tests and evidence",
+    label: "Tests and verification",
     pages: [
       "record-test-evidence",
       "name-the-requirement-in-a-test",
