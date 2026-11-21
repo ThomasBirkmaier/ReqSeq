@@ -146,10 +146,10 @@ An arrow means that at least one module of the source imports a value (a functio
 |---|---|---|
 | runtime entry (`invoke`, `warm`, `element-short-ids`, `local-path-fields`, `output-count`, `answer-names`) | commands, metamodel, model, query, runtime state, workspace | |
 | `commands` | baselines, data, evidence, files, graph, hints, html-export, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
-| `displays` | graph | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
 | `reqif` | files, metamodel, model, runtime state, workspace | |
-| `html-export` | evidence, files, hints, metamodel, model, query, trace, variants, workspace | runtime state |
+| `html-export` | displays, evidence, files, hints, metamodel, model, query, trace, variants, workspace | runtime state |
+| `displays` | graph | |
 | `graph` | evidence, hints, metamodel, model, runtime state, trace, variants, workspace | |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
@@ -166,7 +166,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 Every block may also import the root modules `catalog.ts`, `product.ts`, `problem-titles.ts` (the title of every problem kind, SR-224 AK6), `build-info.ts` (the build of a delivery, SR-161), `installation.ts` (the installation a process stands for) and `agent-setup.ts` (the setup of a client of an agent, SR-227; it imports only the type `Installation`), `next-steps.ts` (the next steps of SR-226; it imports only generated types) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`, `html-export`, `graph`; `displays`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `graph`; `displays`; `data`, `reqif`, `html-export`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility |
 |---|---|

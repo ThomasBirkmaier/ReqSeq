@@ -132,7 +132,7 @@ export default tseslint.config(
             testCommandInProduct,
             {
               // Everything but another display model and the modules named here.
-              regex: String.raw`^(?!\./|\.\./(?:catalog|graph/words|problem-titles)\.js$)`,
+              regex: String.raw`^(?!\./|\.\./(?:graph/words|problem-titles)\.js$)`,
               allowTypeImports: true,
               message:
                 "A display model imports only types, other display models and import-free modules (ADR-0019).",
