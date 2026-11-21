@@ -8513,7 +8513,7 @@
     "/v1/commands/element.setStatus": {
       "post": {
         "operationId": "element_setStatus",
-        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own. A required property without a value blocks no status.",
         "tags": [
           "element"
         ],
@@ -8521,7 +8521,8 @@
         "x-reqseq-stage": 1,
         "x-reqseq-implements": [
           "SR-017",
-          "SR-087"
+          "SR-087",
+          "SR-243"
         ],
         "requestBody": {
           "required": true,
@@ -8579,6 +8580,7 @@
                     },
                     "problems": {
                       "title": "Problems",
+                      "description": "For each element, element.missing-required for each required property without a value; then, with a status the metamodel marks invalid, the hints on relations to these elements.",
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"

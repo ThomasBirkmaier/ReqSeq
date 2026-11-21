@@ -6,6 +6,8 @@
 // of a type without status gets none. `status: null` removes the status line (ThomasBirkmaier/ReqSeq-archive#343), only where the
 // type's status is optional: a type without status, or one whose statuses are all marked invalid
 // (ThomasBirkmaier/ReqSeq-archive#344, option 1), so a leftover status can be cleared and a retired element made current again.
+// A required property without a value blocks no status (D-030, SR-243): the status is set, and the
+// output names each such property of each element as its hint (SR-243 AK4).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { MetamodelEffectiveType } from "../generated/types.js";
@@ -16,11 +18,13 @@ import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
+import { locateIn } from "./locate.js";
+import { requiredFindings } from "./required.js";
 import { resolveListRef } from "./resolve.js";
 import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
 import { invalidStatuses, supersededTargetProblems } from "./superseded.js";
-import type { ElementFileWrite } from "./write.js";
+import type { ElementFileWrite, ReadElement } from "./write.js";
 import { assertElementWritable, readUnchanged, writeElementFiles } from "./write.js";
 
 export interface SetStatusInput {
@@ -33,7 +37,11 @@ export interface SetStatusInput {
 export interface SetStatusResult {
   /** Written files relative to the workspace root, `/` as separator; an element that has the status already is not written. */
   readonly files: readonly string[];
-  /** With a status the metamodel marks invalid: the hints on relations to these elements (SR-072 AK2). */
+  /**
+   * For each element, in the order of `refs`, the hint on each required property without a value
+   * (`element.missing-required`, SR-243 AK4); then, with a status the metamodel marks invalid, the
+   * hints on relations to these elements (SR-072 AK2).
+   */
   readonly problems: readonly Problem[];
 }
 
@@ -124,11 +132,13 @@ const assertStatusOptional = (metamodel: Metamodel, type: MetamodelEffectiveType
  * that is still refused (a read-only file, a change in the meantime) rolls back the files already
  * written as far as possible (`writeElementFiles`). A reference given twice is written once. With a
  * status the metamodel marks invalid, the result has the hints on relations to the elements, the
- * same as `element.supersede` gives (SR-072 AK2).
+ * same as `element.supersede` gives (SR-072 AK2). Before them, the result names every required property
+ * without a value of each element as its hint, with its line in the file as it is afterwards (SR-243
+ * AK4); it blocks nothing (D-030).
  *
  * With `status: null` it removes the `status` line instead (ThomasBirkmaier/ReqSeq-archive#343), on elements whose type has an
  * optional status only (`assertStatusOptional`); an element without the line is not written. Only
- * that line goes (ADR-0007); the element stays (D-045), and nothing is superseded, so no problems.
+ * that line goes (ADR-0007); the element stays (D-045), and nothing is superseded, so no relation hints.
  */
 export const setElementStatus = async (
   workspace: Workspace,
@@ -152,8 +162,11 @@ export const setElementStatus = async (
     records.set(`${record.repository}\0${record.file}`, record);
   }
   const writes: ElementFileWrite[] = [];
-  for (const record of records.values()) {
+  // Each element as it is after the call: the file as read, replaced by the written one below.
+  const after = new Map<string, ReadElement>();
+  for (const [place, record] of records) {
     const { repository, current } = await readUnchanged(workspace, layout, record);
+    after.set(place, current);
     const { bytes, changed } = editElementFile(current.file, {
       edits: [
         status === undefined
@@ -166,13 +179,19 @@ export const setElementStatus = async (
       writes.push({ repository, current, bytes });
     }
   }
-  const files = (await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } })).map(
-    (w) => w.file,
+  const written = await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } });
+  for (const { written: element } of written) {
+    after.set(`${element.record.repository}\0${element.record.file}`, element);
+  }
+  const files = written.map((w) => w.file);
+  // A required property without a value blocks no status (D-030); the output names it (SR-243 AK4).
+  const missing = [...after.values()].flatMap(({ file, record }) =>
+    locateIn(file, requiredFindings(record, metamodel)),
   );
   // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, ThomasBirkmaier/ReqSeq-archive#84).
-  const problems =
+  const superseded =
     status !== undefined && invalidStatuses(metamodel).has(status)
       ? await supersededTargetProblems(workspace, [...records.values()])
       : [];
-  return { files, problems };
+  return { files, problems: [...missing, ...superseded] };
 };

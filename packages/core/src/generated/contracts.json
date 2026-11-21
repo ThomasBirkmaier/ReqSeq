@@ -18445,7 +18445,7 @@
       {
         "name": "element.setStatus",
         "title": "Set status",
-        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own. A required property without a value blocks no status.",
         "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional.",
         "effect": "write-files",
         "loadUpfront": true,
@@ -18454,7 +18454,8 @@
         "stage": 1,
         "implements": [
           "SR-017",
-          "SR-087"
+          "SR-087",
+          "SR-243"
         ],
         "arguments": [
           {
@@ -18511,6 +18512,7 @@
             },
             "problems": {
               "title": "Problems",
+              "description": "For each element, element.missing-required for each required property without a value; then, with a status the metamodel marks invalid, the hints on relations to these elements.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
