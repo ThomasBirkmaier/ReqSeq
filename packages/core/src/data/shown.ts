@@ -101,17 +101,19 @@ export interface WrittenWithNames {
  * The element a write returned (`written`, its file as written) with its verification and validation status
  * as `shownWithNames` gives it, from the record of the store after the write, and `names` for the variants of
  * its validity and the views and missing children of its verification (#1216); unchanged and without `names`
- * when the store holds no record of that file (which a write that recorded its file does not leave).
+ * when the store holds no record of that file (which a write that recorded its file does not leave). A dry run
+ * (SR-246) passes the record it would write as `planned`, which the store does not hold.
  */
 export const writtenWithNames = async (
   workspace: Workspace,
   written: DataExportElement,
+  planned?: ElementRecord,
 ): Promise<WrittenWithNames> => {
   const store = await workspace.get(elementStoreState);
   // By file too: two files of one repository may share a UUID (SR-088).
-  const record = store.byId
-    .get(written.id)
-    ?.find((r) => r.repository === written.repository && r.file === written.file);
+  const record =
+    planned ??
+    store.byId.get(written.id)?.find((r) => r.repository === written.repository && r.file === written.file);
   if (record === undefined) {
     return { element: written };
   }

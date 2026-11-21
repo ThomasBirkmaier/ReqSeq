@@ -19,7 +19,8 @@
     "SR-084",
     "SR-091",
     "SR-102",
-    "SR-245"
+    "SR-245",
+    "SR-246"
   ],
   "arguments": [
     { "field": "type", "complete": "type" },
@@ -30,7 +31,8 @@
     { "field": "repository", "complete": "repository" },
     { "field": "folder", "complete": "text", "class": "path" },
     { "field": "nextIdentifier", "complete": "boolean" },
-    { "field": "identifierPrefix", "complete": "text", "class": "name" }
+    { "field": "identifierPrefix", "complete": "text", "class": "name" },
+    { "field": "dryRun", "complete": "boolean" }
   ],
   "input": {
     "type": "object",
@@ -74,6 +76,10 @@
       "identifierPrefix": {
         "type": "string",
         "description": "Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space."
+      },
+      "dryRun": {
+        "type": "boolean",
+        "description": "Check and show the result without writing (SR-246): the same checks, refusals and output, but no file or folder is created; `filesToWrite` names the file. A later create draws another UUID; `nextIdentifier` gives the identifier a create would give now."
       }
     },
     "additionalProperties": false,
@@ -95,7 +101,19 @@
       },
       "files": {
         "title": "Files",
-        "description": "Written files, relative to the workspace root.",
+        "description": "Written files, relative to the workspace root; empty in a dry run.",
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
+      },
+      "dryRun": {
+        "title": "Dry run",
+        "type": "boolean",
+        "const": true,
+        "description": "In a dry run (SR-246): nothing written."
+      },
+      "filesToWrite": {
+        "title": "Files to write",
+        "description": "In a dry run: the file a create would write (SR-064 AK5).",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },

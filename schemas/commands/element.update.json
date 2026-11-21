@@ -21,7 +21,8 @@
     "SR-065",
     "SR-087",
     "SR-102",
-    "SR-106"
+    "SR-106",
+    "SR-246"
   ],
   "arguments": [
     { "field": "ref", "complete": "element" },
@@ -33,7 +34,8 @@
     { "field": "addRelations", "complete": "json" },
     { "field": "removeRelations", "complete": "json" },
     { "field": "repository", "complete": "repository" },
-    { "field": "expectedFileSha256", "complete": "text", "class": "output" }
+    { "field": "expectedFileSha256", "complete": "text", "class": "output" },
+    { "field": "dryRun", "complete": "boolean" }
   ],
   "input": {
     "type": "object",
@@ -100,20 +102,24 @@
       },
       "addRelations": {
         "$ref": "../common.schema.json#/$defs/relationRefs",
-        "description": "Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept."
+        "description": "Relations to add by kind, as relation.add adds them, in the same write (#175). A relation the element has with a valid version is kept."
       },
       "removeRelations": {
         "$ref": "../common.schema.json#/$defs/relationRefs",
-        "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found."
+        "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same write (#175). Nothing to remove is an info problem relation.not-found."
       },
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates."
+        "description": "Which of the elements ref names is meant: the workspace name of its repository. ref.ambiguous and ref.unknown (none there) list them in details.candidates."
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change."
+        "description": "Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change."
+      },
+      "dryRun": {
+        "type": "boolean",
+        "description": "Dry run: checks and output, no write (SR-246)."
       }
     },
     "additionalProperties": false,
@@ -136,11 +142,23 @@
       "fileSha256": {
         "title": "File SHA-256",
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Of the file as written, or as read when nothing changed (SR-106)."
+        "description": "Of the file as written, or as read when nothing changed or in a dry run (SR-106, SR-246 AK5)."
       },
       "files": {
         "title": "Files",
         "description": "Written files, relative to the workspace root.",
+        "type": "array",
+        "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
+      },
+      "dryRun": {
+        "title": "Dry run",
+        "type": "boolean",
+        "const": true,
+        "description": "In a dry run (SR-246): nothing written."
+      },
+      "filesToWrite": {
+        "title": "Files to write",
+        "description": "Only in a dry run: the file an update would write, relative to the workspace root; empty when nothing would change.",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },

@@ -219,6 +219,30 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect(await recorded(two)).toBeUndefined();
   });
 
+  it("[SR-246/AK-skjx] a dry run of an update records a read, a dry run of a create keeps the access before it", async () => {
+    const update = await copy(IDENTIFIERS);
+    await call(update.workspace, "element.update", { ref: "SR-037", title: "Show IDs", dryRun: true }, "mcp");
+    expect((await recorded(update))?.access).toMatchObject({
+      command: "element.update",
+      effect: "read",
+      element: { id: SR_037 },
+    });
+
+    const create = { type: "system-requirement", title: "Follow agents", dryRun: true };
+    const none = await copy(IDENTIFIERS);
+    await call(none.workspace, "element.create", create, "api");
+    expect(await recorded(none)).toBeUndefined();
+
+    const after = await copy(IDENTIFIERS);
+    await call(after.workspace, "element.get", { ref: "SR-036" }, "mcp");
+    await call(after.workspace, "element.create", create, "mcp");
+    expect((await recorded(after))?.access).toMatchObject({
+      command: "element.get",
+      effect: "read",
+      element: { id: SR_036 },
+    });
+  });
+
   it("[SR-117/AK-knhb] confirming a hint records the element whose file it wrote", async () => {
     const opened = await copy(HINTS);
     const { hints } = (await call(opened.workspace, "hint.list", {}, "mcp")) as CommandOutput<"hint.list">;

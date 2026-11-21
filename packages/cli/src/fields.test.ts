@@ -276,6 +276,7 @@ describe("inputFields", () => {
       "folder:--folder:flag",
       "nextIdentifier:--next-identifier:flag",
       "identifierPrefix:--identifier-prefix:flag",
+      "dryRun:--dry-run:flag",
     ]);
     const update = getCommandRuntime().contracts.entry("element.update");
     const listed = [...(create ? inputFields(create) : []), ...(update ? inputFields(update) : [])];
@@ -343,6 +344,7 @@ describe("inputFields", () => {
       "element.update:setItems": "complex:flag",
       "element.update:addRelations": "complex:flag",
       "element.update:removeRelations": "complex:flag",
+      "element.update:dryRun": "boolean:flag",
     });
   });
 

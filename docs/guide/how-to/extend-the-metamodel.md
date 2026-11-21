@@ -94,6 +94,17 @@ C-b93b4a (C-2)  draft  Rain gauge
 ...
 ```
 
+`--dry-run` shows the identifier a create would give now, with every check, and writes nothing:
+
+```sh
+reqseq element create component "Sun sensor" --next-identifier --dry-run
+```
+
+```text title="Output"
+Dry run: would create Component C-3; 1 file to write; no file written.
+...
+```
+
 ReqSeq sees only the elements on this machine: an identifier in a branch or another copy can come out twice, and `workspace check` then warns.
 
 ### Decisions as parents

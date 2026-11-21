@@ -125,6 +125,7 @@ describe('"Create element": the required properties asked in the command line (S
       "folder",
       "nextIdentifier",
       "identifierPrefix",
+      "dryRun",
     ]);
   });
 
@@ -227,6 +228,7 @@ describe('"Create element": the required properties asked in the command line (S
       "folder",
       "nextIdentifier",
       "identifierPrefix",
+      "dryRun",
     ]);
     item(more.items, "Run").run();
     await flush();
