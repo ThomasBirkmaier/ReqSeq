@@ -777,20 +777,18 @@ const markdownLine = (value: string, terms: Terms, phrases: readonly SearchPhras
     (known ??= markdownDefinitions(value)
       .map((label) => `[${label}]: x`)
       .join("\n"));
-  while (match !== undefined) {
-    const { start } = match;
-    const block = blocks.find((one) => one.end > start);
-    /* v8 ignore next 3 -- a word stands in a line that is not blank, which a block holds. */
-    if (block === undefined) {
-      return undefined;
+  // The blocks in order, each with the matches that start before its end: a word stands in a line
+  // that is not blank, so the block of a match is the first that ends after its start.
+  for (const block of blocks) {
+    while (match !== undefined && match.start < block.end) {
+      const unit = unitOf(value, block, match);
+      const visible = visibleOf(unit, definitions);
+      const line = visible === undefined ? undefined : lineOf(visible, terms, phrases);
+      if (line !== undefined) {
+        return line;
+      }
+      match = locate(unit.end);
     }
-    const unit = unitOf(value, block, match);
-    const visible = visibleOf(unit, definitions);
-    const line = visible === undefined ? undefined : lineOf(visible, terms, phrases);
-    if (line !== undefined) {
-      return line;
-    }
-    match = locate(unit.end);
   }
   return undefined;
 };
