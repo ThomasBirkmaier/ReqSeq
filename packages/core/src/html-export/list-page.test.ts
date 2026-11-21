@@ -94,7 +94,8 @@ describe("lists (SR-233 AK1)", () => {
     expect(cells("REQ-2")).toContain(
       '<td><span class="rq-badge rq-badge-caution">open</span></td><td><span class="rq-badge rq-badge-caution">2</span></td>',
     );
-    expect(cells("REQ-3")).toContain('<span class="rq-badge rq-badge-neutral">not in the core</span>');
+    // Not in the core's view: no status there, "–" as for any missing value (SR-137 AK4).
+    expect(cells("REQ-3")).toBe('<td class="rq-title"></td><td>–</td><td>–</td><td>–</td><td></td>');
     expect(cells("REQ-4")).toMatch(/<td>–<\/td><td><\/td>$/u);
     // The table scrolls in its own container.
     expect(page.body).toContain('<div class="rq-list-table"><table>');

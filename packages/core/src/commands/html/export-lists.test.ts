@@ -65,6 +65,23 @@ const FILES: Readonly<Record<string, string>> = {
   ]),
 };
 
+/** GUSTS valid only in the variant Coast, so not in the core's view, and in the package Display (#2243). */
+const COAST = `${ID}c1`;
+const COAST_ONLY: Readonly<Record<string, string>> = {
+  "requirements/SR-1d2e3f4a5b6c.md": element([
+    `id: ${GUSTS}`,
+    "type: system-requirement",
+    "status: draft",
+    "title: Show gusts",
+    "requirement-type: functional",
+    "validity:",
+    `  - { id: ${COAST}, version: n2:0000000000000000, title: Coast }`,
+    "packages:",
+    `  - { id: ${DISPLAY}, version: n2:0000000000000000, title: Display }`,
+  ]),
+  "variants/VAR-0000000000c1.md": element([`id: ${COAST}`, "type: variant", "title: Coast"]),
+};
+
 /** Baseline files: an older one, one of the same instant in an earlier file, and the newest over the package Display, which holds the old version of WIND. */
 const BASELINES: Readonly<Record<string, string>> = {
   // At the same instant as Release 1, in an earlier file: Release 1 is the newest.
@@ -244,6 +261,59 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     ]);
   });
 
+  it("[SR-233/AK-pmt8] shows no verification status for a requirement that is not in the core's view, also to filter, sort and group by", async () => {
+    const { fixture, workspace } = await open(COAST_ONLY);
+    await call(workspace, "html.export", { output: "site" });
+    const site = fixture.path("site");
+    const { html, document, window } = await browse(site, "lists/system-requirement.html");
+    expect(html).not.toContain("not in the core");
+    // Column 4 is the verification status in the core: "–" as for any missing value.
+    const column = (): string[][] =>
+      texts(document.querySelectorAll("tbody tr:not(.rq-group)")).map((cells) => [
+        String(cells[0]),
+        String(cells[4]),
+      ]);
+    expect(column()).toEqual([
+      ["SR-4a5b6c", "–"],
+      ["SR-e88fb3", "open"],
+    ]);
+    listScript();
+    const box = document.querySelector(".rq-list") as unknown as HTMLElement;
+    // Filter 2 is the verification status: the requirement counts under "–".
+    expect([...box.querySelectorAll('[data-chip="2"] label')].map((l) => l.textContent)).toEqual([
+      "open1",
+      "–1",
+    ]);
+    const none = [...box.querySelectorAll('[data-chip="2"] label')]
+      .find((l) => l.textContent.startsWith("–"))
+      ?.querySelector("input") as unknown as HTMLInputElement;
+    none.checked = true;
+    none.dispatchEvent(new window.Event("change", { bubbles: true }));
+    expect(column()).toEqual([["SR-4a5b6c", "–"]]);
+    (box.querySelector(".rq-clear") as unknown as HTMLElement).click();
+    // Sorted by it, a row without a value stays last in both directions.
+    const sort = box.querySelector('th button[data-sort="4"]') as unknown as HTMLElement;
+    sort.click();
+    expect(column().map(([id]) => id)).toEqual(["SR-e88fb3", "SR-4a5b6c"]);
+    sort.click();
+    expect(column().map(([id]) => id)).toEqual(["SR-e88fb3", "SR-4a5b6c"]);
+    const group = box.querySelector('[data-group="2"]') as unknown as HTMLInputElement;
+    group.checked = true;
+    group.dispatchEvent(new window.Event("change", { bubbles: true }));
+    expect(texts(box.querySelectorAll("tbody tr.rq-group")).map((cells) => cells[0])).toEqual([
+      "Verification status in the core: open · 1",
+      "Verification status in the core: – · 1",
+    ]);
+    // The start page counts only the core's view, as before.
+    const start = await browse(site, "index.html");
+    expect(start.document.querySelector("#verification-degree + p")?.textContent).toMatch(
+      /^0 of 1 requirement in the core /u,
+    );
+    expect(
+      texts(start.document.querySelectorAll("#not-verified + table tbody tr")).map((cells) => cells[0]),
+    ).toEqual(["SR-e88fb3"]);
+  });
+
   it("[SR-233/AK-hqc9] names the workspace, the export, the verification degree, what needs attention, the changes since the newest baseline and each type on the start page", async () => {
     const { fixture, workspace } = await open(BASELINES);
     const output = await call(workspace, "html.export", { output: "site" });
@@ -397,6 +467,20 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     expect(empty.document.querySelector(".rq-package p")?.textContent).toBe("No element names this package.");
     // A page of an element that is no package has no such section.
     expect((await browse(site, `elements/${WIND}.html`)).document.querySelector(".rq-package")).toBeNull();
+  });
+
+  it("[SR-233/AK-kh76] shows no verification status on a package page for a requirement that is not in the core's view", async () => {
+    const { fixture, workspace } = await open(COAST_ONLY);
+    await call(workspace, "html.export", { output: "site" });
+    const { html, document } = await browse(fixture.path("site"), `elements/${DISPLAY}.html`);
+    expect(html).not.toContain("not in the core");
+    expect(texts(document.querySelectorAll(".rq-package tr"))).toEqual([
+      ["Identifier", "Title", "Status", "Verification status in the core"],
+      ["N-0000a1", "Know the wind", "approved", "–"],
+      ["PKG-0000d3", "", "–", "–"],
+      ["SR-4a5b6c", "Show gusts", "draft", "–"],
+      ["SR-e88fb3", "Show wind speed", "approved", "open"],
+    ]);
   });
 
   it("[SR-233/AK-twk6] writes each list whole as a table, which the script only adds to, and a diagram's source as text", async () => {

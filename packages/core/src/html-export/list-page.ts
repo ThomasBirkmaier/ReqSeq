@@ -6,8 +6,8 @@
 //
 // - Rows, in the order of their identifier (`sortElements` by `identifier`, as `element.list` sorts): identifier
 //   (else the short ID) as a link to the page, title, status ("–" without one), packages, for a requirement type the
-//   verification status in the core as a badge with the number of verified criteria of all ("not in the core" when
-//   the core does not hold it), and the number of open hints of the element (`hint.list`) as a badge, an empty cell
+//   verification status in the core as a badge with the number of verified criteria of all ("–" for a requirement
+//   that is not in the core's view, which has none there, as `element.list` gives it, SR-137 AK4), and the number of open hints of the element (`hint.list`) as a badge, an empty cell
 //   for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
 //   the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
 // - Search: each row carries its identifier, short ID and title folded (NFC, lower case) in `data-q`.
@@ -23,7 +23,7 @@
 //   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
 //   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column
 //   "Change since baseline" written `hidden` and empty: no baseline is chosen at first, so there is no comparison.
-import type { DataExportElement } from "../generated/types.js";
+import type { DataExportElement, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
@@ -78,7 +78,6 @@ export interface ListPage {
 }
 
 const NONE = "–";
-const NOT_IN_CORE = "not in the core";
 
 /** The value of one column or filter of a row: its sort value and the text it shows. */
 interface Value {
@@ -96,14 +95,21 @@ interface Field {
   readonly cell?: (entry: ListEntry) => string;
 }
 
-/** The verification status in the core of a requirement, "not in the core" when the core does not hold it. */
-export const coreVerification = (element: DataExportElement): string | undefined =>
-  element.verification === undefined
-    ? undefined
-    : (element.verification.find((entry) => entry.view === "core")?.status ?? NOT_IN_CORE);
+type CoreEntry = NonNullable<DataExportElement["verification"]>[number];
 
-/** The colour of the badge of each verification status, as the docs' badges name them; another is grey. */
-const BADGES: Readonly<Record<string, string>> = {
+/**
+ * The verification of a requirement in the core's view; none for an element that is no requirement and for a
+ * requirement that is not in the core's view (SR-233 AK1, AK4, as SR-137 AK4).
+ */
+const coreEntry = (element: DataExportElement): CoreEntry | undefined =>
+  element.verification?.find((entry) => entry.view === "core");
+
+/** The verification status in the core of a requirement, none as for `coreEntry`. */
+export const coreVerification = (element: DataExportElement): string | undefined =>
+  coreEntry(element)?.status;
+
+/** The colour of the badge of each verification status, as the docs' badges name them. */
+const BADGES: Readonly<Record<VerificationStatus, string>> = {
   verified: "success",
   indirect: "note",
   open: "caution",
@@ -111,16 +117,15 @@ const BADGES: Readonly<Record<string, string>> = {
   failed: "danger",
 };
 
-/** A badge of the colour `variant` (`BADGES`, `neutral` for grey). */
+/** A badge of the colour `variant` (`BADGES`). */
 const badge = (label: string, variant: string): string =>
   `<span class="rq-badge rq-badge-${variant}">${escapeHtml(label)}</span>`;
 
 /** The verification status in the core of a requirement as a badge, with the number of verified criteria of all. */
-const verificationBadge = (element: DataExportElement, status: string): string => {
-  const criteria = element.verification?.find((entry) => entry.view === "core")?.criteria;
+const verificationBadge = ({ status, criteria }: CoreEntry): string => {
   const label =
     criteria === undefined ? status : `${status} ${String(criteria.verified)}/${String(criteria.total)}`;
-  return badge(label, BADGES[status] ?? "neutral");
+  return badge(label, BADGES[status]);
 };
 
 /**
@@ -164,8 +169,8 @@ const fieldsOf = (context: ListContext, type: string, entries: readonly ListEntr
           .filter((status): status is string => status !== undefined)
           .map((status) => text(status)),
       cell: ({ element }) => {
-        const status = coreVerification(element);
-        return status === undefined ? NONE : verificationBadge(element, status);
+        const core = coreEntry(element);
+        return core === undefined ? NONE : verificationBadge(core);
       },
     });
   }
@@ -390,7 +395,6 @@ export const LIST_CSS = [
     (v) =>
       `.rq-list .rq-badge-${v} { --rq-badge-bg: var(--sl-badge-${v}-bg); --rq-badge-border: var(--sl-badge-${v}-border); --rq-badge-text: var(--sl-badge-${v}-text); }`,
   ),
-  ".rq-list .rq-badge-neutral { --rq-badge-bg: var(--sl-color-gray-6); --rq-badge-border: var(--sl-color-gray-4); --rq-badge-text: var(--sl-color-gray-2); }",
   ".rq-qbar { display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; padding: 0.45rem 0.85rem; border: 1px solid var(--sl-color-gray-5); border-radius: 0.6rem; background: var(--sl-color-black); color: var(--sl-color-gray-3); }",
   ".rq-qbar:focus-within { border-color: var(--sl-color-text-accent); box-shadow: 0 0 0 3px var(--sl-color-accent-low); }",
   ".rq-qbar svg { flex: none; }",
