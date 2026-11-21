@@ -526,7 +526,7 @@ scenariosOf("html.export", [
       for (const { files } of Object.values(results)) {
         const list = contentOf(String(files["site/lists/system-requirement.html"]));
         expect(list).toContain(
-          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td>Show wind speed</td>`,
+          `<a href="../elements/${WIND}.html">SR-e88fb3</a></td><td class="rq-title">Show wind speed</td>`,
         );
         expect(list).toContain("data-rq-list=");
         expect(list).toContain("&quot;label&quot;:&quot;Status&quot;");
