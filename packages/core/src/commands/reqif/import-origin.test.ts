@@ -140,7 +140,7 @@ describe("origin of imported elements (SR-057)", () => {
     const refused = await failure(without, "reqif.import", INPUT);
     expect([refused.code, refused.message, refused.details?.["fields"]]).toEqual([
       "input.invalid",
-      "mapping.types[0].type: type system-requirement has no import-version, which hold the origin of every imported element (SR-057)",
+      "mapping.types[0].type: type system-requirement has no import-version, which hold the origin of every imported element",
       ["mapping.types[0].type"],
     ]);
 

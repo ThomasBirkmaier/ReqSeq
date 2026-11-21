@@ -111,12 +111,12 @@ describe("reqseq evidence status and record per variant (SR-047)", () => {
     expect([excluded.code, excluded.stdout, excluded.stderr]).toEqual([
       2,
       "",
-      "error input.invalid: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)\n",
+      "error input.invalid: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere\n",
     ]);
     expect([replaced.code, replaced.stdout, replaced.stderr]).toEqual([
       2,
       "",
-      "error input.invalid: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)\n",
+      "error input.invalid: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead\n",
     ]);
     expect(await fs.readdir(ws.path("evidence"))).toEqual([".keep"]);
   });
