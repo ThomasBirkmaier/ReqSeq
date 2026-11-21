@@ -3540,7 +3540,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
@@ -3551,12 +3551,13 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
   readonly answer: Answer;
   readonly files: readonly OutputPath[];
+  /** For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2). */
   readonly problems?: readonly Problem[];
 }
 

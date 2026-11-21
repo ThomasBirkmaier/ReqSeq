@@ -50,7 +50,21 @@ const propertyNames = (metamodel: Metamodel): ReadonlyMap<string, string> => {
   return names;
 };
 
-const collect = (element: ElementRecord, metamodel: Metamodel, out: RequiredFinding[]): void => {
+export interface RequiredFindingsOptions {
+  /**
+   * `false` for a command that has just written the element's file (`element.setStatus`, SR-243
+   * AK4): the message then ends after "has no value" instead of saying that no file changes.
+   */
+  readonly unchangedNote?: boolean;
+}
+
+const collect = (
+  element: ElementRecord,
+  metamodel: Metamodel,
+  out: RequiredFinding[],
+  options: RequiredFindingsOptions = {},
+): void => {
+  const note = options.unchangedNote === false ? "" : "; ReqSeq changes no file";
   const type = findType(metamodel, element.type);
   if (type === undefined) {
     return;
@@ -67,7 +81,7 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: RequiredFind
       problem: {
         code: "element.missing-required",
         severity: "warning",
-        message: `Required property ${name} (${key}) of type ${type.name} (${type.key}) has no value; ReqSeq changes no file`,
+        message: `Required property ${name} (${key}) of type ${type.name} (${type.key}) has no value${note}`,
         repository: element.repository,
         file: element.file,
         elementId: element.id,
@@ -79,14 +93,16 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: RequiredFind
 
 /**
  * The required properties of one element without a value, in the order of the type's `required`
- * (inherited first). For a command about one element: `elementView`.
+ * (inherited first). For a command about one element: `elementView`, and `element.setStatus` with
+ * `unchangedNote: false`.
  */
 export const requiredFindings = (
   element: ElementRecord,
   metamodel: Metamodel,
+  options: RequiredFindingsOptions = {},
 ): readonly RequiredFinding[] => {
   const out: RequiredFinding[] = [];
-  collect(element, metamodel, out);
+  collect(element, metamodel, out, options);
   return out;
 };
 

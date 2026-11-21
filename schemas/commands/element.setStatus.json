@@ -1,14 +1,14 @@
 {
   "name": "element.setStatus",
   "title": "Set status",
-  "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).",
+  "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).",
   "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get, ThomasBirkmaier/ReqSeq-archive#306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (ThomasBirkmaier/ReqSeq-archive#343).",
   "effect": "write-files",
   "loadUpfront": true,
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Sets a status from the statuses of the metamodel, and no change can be checked against a missing or faulty metamodel.",
   "stage": 1,
-  "implements": ["SR-017", "SR-087"],
+  "implements": ["SR-017", "SR-087", "SR-243"],
   "arguments": [
     { "field": "refs", "complete": "element" },
     { "field": "status", "complete": "status", "of": "refs" }
@@ -45,6 +45,7 @@
       },
       "problems": {
         "title": "Problems",
+        "description": "For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2).",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
