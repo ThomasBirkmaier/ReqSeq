@@ -2,7 +2,7 @@ import type { DataExportElement, ElementGetOutput, ElementName, ProblemCode } fr
 import { describe, expect, it } from "vitest";
 import { elementBuffer } from "./buffers.js";
 import type { Badge, LinePart } from "./variant-lines.js";
-import { REASON_LENGTH, variantLines } from "./variant-lines.js";
+import { REASON_LENGTH, reasonLine, variantLines, wholeReason } from "./variant-lines.js";
 
 const name = (id: string, shortId: string, title: string, identifier?: string): ElementName => ({
   id,
@@ -138,37 +138,30 @@ describe("the lines of a requirement's variants", () => {
     expect(variantLines(output({})).validation).toBeUndefined();
   });
 
-  it("[SR-172/AK-j3vg] gives an inconclusive validation with its reason in the badge on one line, cut when long", () => {
+  it("[SR-172/AK-j3vg] gives an inconclusive validation as the status word alone, its reason as written on demand", () => {
     const lines = variantLines(
       output({ validation: "inconclusive", validationReason: "No frost\n\tyet,\u0007 see notes" }),
     );
-    expect(text(lines.validation?.parts)).toBe("inconclusive: No frost yet, see notes");
-    const long = variantLines(output({ validation: "inconclusive", validationReason: "x".repeat(300) }));
-    expect(text(long.validation?.parts)).toBe(`inconclusive: ${"x".repeat(REASON_LENGTH - 1)}…`);
-    // Cut by graphemes: an emoji, also one of several code points, is never split.
-    const emoji = variantLines(output({ validation: "inconclusive", validationReason: "👍🏽".repeat(300) }));
-    expect(text(emoji.validation?.parts)).toBe(`inconclusive: ${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
-    // Longer than the limit in code units, but not in graphemes: not cut.
-    const fits = variantLines(
-      output({ validation: "inconclusive", validationReason: "👍🏽".repeat(REASON_LENGTH) }),
-    );
-    expect(text(fits.validation?.parts)).toBe(`inconclusive: ${"👍🏽".repeat(REASON_LENGTH)}`);
+    // The badge stays short; the reason is its line's title, shown on hover and opened by a click or keys.
+    expect(halves(lines.validation === undefined ? undefined : [lines.validation])).toEqual([
+      "Validation | inconclusive",
+    ]);
+    // As written: line breaks and tabs kept, other control characters left out.
+    expect(lines.validationTitle).toBe("No frost\n\tyet, see notes");
+    expect(variantLines(output({ validation: "validated" })).validationTitle).toBeUndefined();
+    expect(variantLines(output({ validationReason: "No frost" })).validationTitle).toBeUndefined();
   });
 
-  it("gives the whole reason as written as the title of a cut validation badge, else none (#846)", () => {
-    const whole = `First line\n${"x".repeat(300)}`;
-    expect(
-      variantLines(output({ validation: "inconclusive", validationReason: whole })).validationTitle,
-    ).toBe(whole);
-    // Control characters other than line breaks and tabs are left out of the title.
-    expect(
-      variantLines(output({ validation: "inconclusive", validationReason: `a\u001b\tb ${"x".repeat(300)}` }))
-        .validationTitle,
-    ).toBe(`a\tb ${"x".repeat(300)}`);
-    const short = variantLines(output({ validation: "inconclusive", validationReason: "No frost\nyet" }));
-    expect(short.validationTitle).toBeUndefined();
-    expect(variantLines(output({ validation: "validated" })).validationTitle).toBeUndefined();
-    expect(variantLines(output({ validationReason: "x".repeat(300) })).validationTitle).toBeUndefined();
+  it("gives an evidence record's reason on one line, cut by graphemes at the limit (#846)", () => {
+    expect(reasonLine("No frost\n\tyet,\u0007 see notes")).toBe("No frost yet, see notes");
+    expect(reasonLine("x".repeat(300))).toBe(`${"x".repeat(REASON_LENGTH - 1)}…`);
+    // An emoji, also one of several code points, is never split.
+    expect(reasonLine("👍🏽".repeat(300))).toBe(`${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
+    // Longer than the limit in code units, but not in graphemes: not cut.
+    expect(reasonLine("👍🏽".repeat(REASON_LENGTH))).toBe("👍🏽".repeat(REASON_LENGTH));
+    // The whole reason only when the line cuts it, as written.
+    expect(wholeReason(`a\u001b\tb ${"x".repeat(300)}`)).toBe(`a\tb ${"x".repeat(300)}`);
+    expect(wholeReason("No frost\nyet")).toBeUndefined();
   });
 
   it("names an element that names lacks by its UUID, without a link", () => {

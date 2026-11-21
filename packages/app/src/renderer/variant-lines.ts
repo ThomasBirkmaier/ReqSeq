@@ -7,10 +7,9 @@
 // are missing for an indirect verification (SR-034 AK2): "open (missing SR-1, SR-2)"; one from
 // own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
 // AK3 not verified)". The validation status (SR-038
-// AK1) is a badge of the same form on a line of its own (#2175): "Validation" on the left, the status on the
-// right, "validated"; an inconclusive one gives its reason there (SR-172 AK2): "inconclusive: <reason>", one
-// line, cut at `REASON_LENGTH`; a cut one gives the whole reason as written as the line's title, shown on
-// demand (#846, D-062). Variants, replacements and missing children are
+// AK1) is a badge of the same form on a line of its own (#2175): "Validation" on the left, the status word
+// alone on the right, "validated", so the badge stays short; the reason of an inconclusive one (SR-172 AK2) is
+// the line's title, shown on demand as written (#846, D-062). Variants, replacements and missing children are
 // named by `names`; one `names` lacks is named by its UUID.
 // On the page of a variant, one line per hint about a core requirement since its newest baseline (SR-103:
 // changed, or new in its view), with core's message as `element.get` and the CLI give it (SR-080).
@@ -32,7 +31,7 @@ export interface VariantLines {
   readonly verification: readonly Badge[] | undefined;
   /** Its validation status (SR-038) as a badge, apart from the verification status; undefined when `element.get` gives none. */
   readonly validation: Badge | undefined;
-  /** The whole reason of an inconclusive validation, as written, when the validation line cuts it; else undefined. */
+  /** The reason of an inconclusive validation as written, shown on demand (SR-172 AK2); else undefined. */
   readonly validationTitle: string | undefined;
   /** The variant's hints since its newest baseline (SR-103), in core's order: whether new, and core's message. */
   readonly sinceBaseline: readonly SinceBaseline[];
@@ -65,7 +64,7 @@ export const SINCE_BASELINE_CODES: ReadonlySet<ProblemCode> = new Set<ProblemCod
 
 export const SEPARATOR: LinePart = { text: " · " };
 
-/** The longest reason the validation line shows; a longer one ends in `…` (the file keeps it whole). */
+/** The longest reason an evidence record line shows; a longer one ends in `…` (the file keeps it whole). */
 export const REASON_LENGTH = 200;
 
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -73,12 +72,12 @@ const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 /** `text` with each run of white space and control characters one space, trimmed. */
 const oneLine = (text: string): string => text.replace(/[\s\p{Cc}]+/gu, " ").trim();
 
-/**
- * The whole `reason` when `reasonLine` cuts it, else undefined: as written, its line breaks and tabs kept,
- * other control characters (such as an escape from YAML) left out.
- */
+/** `reason` as written, its line breaks and tabs kept, other control characters (such as an escape from YAML) left out. */
+const asWritten = (reason: string): string => reason.replace(/[^\P{Cc}\n\t]/gu, "");
+
+/** The whole `reason` when `reasonLine` cuts it, else undefined: as written (`asWritten`). */
 export const wholeReason = (reason: string): string | undefined =>
-  reasonLine(reason) === oneLine(reason) ? undefined : reason.replace(/[^\P{Cc}\n\t]/gu, "");
+  reasonLine(reason) === oneLine(reason) ? undefined : asWritten(reason);
 
 /**
  * A reason (SR-172) on one line: each run of white space and control characters one space, cut to
@@ -101,11 +100,11 @@ export const reasonLine = (reason: string): string => {
   return line;
 };
 
-/** The validation badge: "Validation" and "<status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */
-const validationBadge = (status: Validation, reason: string | undefined): Badge => ({
+/** The validation badge: "Validation" and the status word alone; an inconclusive one's reason is shown on demand. */
+const validationBadge = (status: Validation): Badge => ({
   name: { text: "Validation" },
   status,
-  parts: [{ text: `${status}${reason === undefined ? "" : `: ${reasonLine(reason)}`}` }],
+  parts: [{ text: status }],
 });
 
 /** An element by UUID: a link with `label` of its name, or its UUID when `names` lacks it. */
@@ -194,14 +193,11 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
   return {
     use: use.length === 0 ? undefined : joined(use),
     verification: verification === undefined || verification.length === 0 ? undefined : verification,
-    validation:
-      element.validation === undefined
-        ? undefined
-        : validationBadge(element.validation, element.validationReason),
+    validation: element.validation === undefined ? undefined : validationBadge(element.validation),
     validationTitle:
       element.validation === undefined || element.validationReason === undefined
         ? undefined
-        : wholeReason(element.validationReason),
+        : asWritten(element.validationReason),
     sinceBaseline: (element.problems ?? [])
       .filter((problem) => SINCE_BASELINE_CODES.has(problem.code))
       .map((problem) => ({

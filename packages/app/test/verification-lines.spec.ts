@@ -91,18 +91,21 @@ test.describe("an inconclusive validation", () => {
 
   test("[SR-172/AK-j3vg] a need whose newest validation is inconclusive shows that status with the reason", async () => {
     const { window } = running;
+    const reason = "The frost sensor was replaced; the field test starts again.";
     await openEditor(window, "Know the frost");
-    await expect(line(window, "Validation").locator(".badge-status")).toHaveText(
-      "inconclusive: The frost sensor was replaced; the field test starts again.",
-    );
+    // The badge stays short (#2175); the reason is shown on hover and opened under it on demand.
+    await expect(line(window, "Validation").locator(".badge-status")).toHaveText("inconclusive");
+    await expect(line(window, "Validation")).toHaveAttribute("title", reason);
+    await line(window, "Validation").click();
+    await expect(line(window, "Validation").locator(".whole-reason")).toHaveText(reason);
     // A later passed validation decides over an earlier inconclusive one.
     await openEditor(window, "Know the rain");
     await expect(line(window, "Validation").locator(".badge-status")).toHaveText("validated");
   });
 });
 
-test("a line that cuts a long reason gives the whole reason on hover, click and keys (#846, #862)", async () => {
-  // The reason over two lines and longer than the line shows it; the record keeps it as written.
+test("the validation badge and a line that cuts a long reason give the whole reason on hover, click and keys (#846, #862)", async () => {
+  // The reason over two lines and longer than an evidence line shows it; the record keeps it as written.
   const reason = `The frost sensor was replaced.\n${"The field test starts again. ".repeat(10).trim()}`;
   const running = await launchApp({
     fixture: "SR-172/inconclusive",
@@ -117,7 +120,7 @@ test("a line that cuts a long reason gives the whole reason on hover, click and 
   try {
     const { window } = running;
     await openEditor(window, "Know the frost");
-    await expect(line(window, "Validation")).toContainText("…");
+    await expect(line(window, "Validation").locator(".badge-status")).toHaveText("inconclusive");
     await expect(line(window, "Validation")).toHaveAttribute("title", reason);
     // On demand by click or by keys too (#862, D-062): the whole reason opens under the line, as written.
     const whole = line(window, "Validation").locator(".whole-reason");
