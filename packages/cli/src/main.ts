@@ -200,7 +200,8 @@ async function call(
 
 /**
  * What stdout gets of a successful call: `--json`, `--jsonl`, `--yaml`, the text of an entry with
- * `textOutput` (whose problems go to stderr, ADR-0009), or the readable output.
+ * `textOutput` (whose problems, and the answer when the output holds more than the text, go to stderr,
+ * ADR-0009), or the readable output.
  */
 function outputPieces(
   invocation: Invocation,

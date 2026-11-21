@@ -113,6 +113,10 @@ describe("workspace.check: the skill file of an older ReqSeq version", () => {
     // Not for both places missing, another file at the only place, or a place where something is in the way.
     expect(await findings(await workspaceWith(), "workspace.skill-missing")).toEqual([]);
     expect(await findings(await workspaceWith("# Mine\n"), "workspace.skill-missing")).toEqual([]);
+    // ReqSeq's own file of this version in a folder that meets Git is still the holder: a write leaves it.
+    const nested = await workspaceWith(CURRENT);
+    await fs.mkdir(path.join(nested.root, ".claude", ".git"));
+    expect((await findings(nested, "workspace.skill-missing")).map((p) => p.file)).toEqual([AGENTS]);
     const inTheWay = await workspaceWith(CURRENT);
     await fs.writeFile(path.join(inTheWay.root, ".agents"), "x");
     expect(await findings(inTheWay, "workspace.skill-missing")).toEqual([]);

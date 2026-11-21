@@ -505,7 +505,7 @@ describe("tool.guide with write", () => {
       const error = await refusal(path.join(top, "spec"), WRITE, access);
       expect(error.code).toBe("input.invalid");
       expect(error.message).toBe(
-        `Not written at every place of the skill file: ../${CLAUDE}: not written: ${outside(CLAUDE)}; ../${AGENTS}: not written: ${outside(AGENTS)}`,
+        `Not written at every place of the skill file: ../${CLAUDE}: not written: ${outside(CLAUDE)}; ../${AGENTS}: not written, for the same reason`,
       );
       expect(placesOf(error).map((place) => [place.path, place.error?.details])).toEqual(
         SKILL_FILES.map((file) => [
@@ -832,9 +832,12 @@ describe("the skill file's helpers", () => {
       { state: "foreign", path: CLAUDE },
       { state: "blocked", path: AGENTS },
     ]);
-    // So is a place that meets Git.
+    // So is a place that meets Git, unless it holds ReqSeq's own unchanged file of this version, which a write leaves.
     await gitEntry(path.join(root, ".claude"));
     expect((await readSkillFiles(workspace, ENTRIES))[0]).toEqual({ state: "blocked", path: CLAUDE });
+    await fs.writeFile(skillAt(root), skillFile(ENTRIES));
+    expect((await readSkillFiles(workspace, ENTRIES))[0]).toEqual({ ...own, path: CLAUDE });
+    expect(placesOf(await refusal(root, WRITE))[0]).toEqual({ path: CLAUDE, action: "unchanged" });
     // A root that does not exist is taken as given.
     const gone = path.join(root, "gone");
     expect((await skillLocations(new Workspace(gone))).map((place) => place.root)).toEqual([gone, gone]);

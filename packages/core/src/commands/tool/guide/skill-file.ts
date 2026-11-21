@@ -225,7 +225,7 @@ const refusalOr = async <T>(run: () => Promise<T>): Promise<T | CommandError> =>
   }
 };
 
-/** What lies at one place, or `blocked` when nothing can be written there (step 2 or the Git check refuses it). */
+/** What lies at one place, or `blocked` when nothing can be written there (step 2 or, unless ReqSeq's own unchanged file of this version is there, the Git check refuses it). */
 export type SkillPlaceState = (SkillFileState | { readonly state: "blocked" }) & { readonly path: string };
 
 /**
@@ -240,7 +240,11 @@ export const readSkillFiles = async (
   for (const location of await skillLocations(workspace)) {
     const found = await refusalOr(async () => {
       const looked = await look(location, entries);
-      await refuseGitPlace(location);
+      // As `write`: ReqSeq's own unchanged file of this version is left before the Git check.
+      const left = looked.found.state === "own" && looked.found.intact && looked.found.current;
+      if (!left) {
+        await refuseGitPlace(location);
+      }
       return looked.found;
     });
     places.push(
@@ -401,10 +405,12 @@ export const writtenOrThrow = (results: readonly SkillPlaceResult[]): readonly S
       return `${result.path}: ${DONE[result.action]}`;
     }
     const reason = result.refused.message.replace(/^Not written: /, "");
-    if (reasons.includes(reason)) {
+    // The same reason at another place differs only in the path it names.
+    const same = reason.replaceAll(result.path, "\0");
+    if (reasons.includes(same)) {
       return `${result.path}: not written, for the same reason`;
     }
-    reasons.push(reason);
+    reasons.push(same);
     return `${result.path}: not written: ${reason}`;
   });
   throw new CommandError(first.code, `Not written at every place of the skill file: ${parts.join("; ")}`, {

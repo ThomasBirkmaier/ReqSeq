@@ -311,7 +311,10 @@ describe("reqseq workspace connect-agent", () => {
         expect(await fs.readFile(skill, "utf8"), shell.name).toMatch(/^---\nname: managing-requirements\n/);
       }
     } finally {
-      await fs.rm(path.join(ws.root, ".claude"), { recursive: true, force: true });
+      // Both places of the skill file (D-079).
+      for (const folder of [".claude", ".agents"]) {
+        await fs.rm(path.join(ws.root, folder), { recursive: true, force: true });
+      }
     }
   });
 });

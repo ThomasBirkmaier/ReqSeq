@@ -348,9 +348,8 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
   /** The error of tool.guide with write: each place with its result (SR-229 AK8). */
   const refused = {
     code: "input.invalid",
-    message: `Not written at every place of the skill file: ${[SKILL, AGENTS]
-      .map((file) => `../${file}: not written: ${outside(file).message.replace(/^Not written: /, "")}`)
-      .join("; ")}`,
+    // The reason is the same at both places, so it is given once.
+    message: `Not written at every place of the skill file: ../${SKILL}: not written: ${outside(SKILL).message.replace(/^Not written: /, "")}; ../${AGENTS}: not written, for the same reason`,
     details: {
       command: "tool.guide",
       places: [SKILL, AGENTS].map((file) => ({
@@ -431,6 +430,11 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     await expect(fs.access(ws.path(AGENTS))).rejects.toMatchObject({ code: "ENOENT" });
     const written = await cli(ws, ["tool", "guide", "--skill", "--write"], "spec");
     expect(written.code).toBe(EXIT.ok);
+    // Standard output is the skill file alone; standard error names each place with its result.
+    expect(written.out.startsWith("---\nname: managing-requirements\n")).toBe(true);
+    expect(
+      written.out.endsWith(`Created the skill file ../${SKILL}, and created the skill file ../${AGENTS}.\n`),
+    ).toBe(true);
     for (const file of [SKILL, AGENTS]) {
       expect(await fs.readFile(ws.path(file), "utf8")).toMatch(/^---\nname: managing-requirements\n/);
     }

@@ -2542,7 +2542,7 @@ export interface ToolGuideOutput {
   readonly answer: Answer;
   /** The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
-  /** Each place `write` wrote the skill file at, in the order `.claude/…`, then `.agents/…`; only with `write`. */
+  /** Each place of the skill file with what `write` did there, in the order `.claude/…`, then `.agents/…`; only with `write`. */
   readonly places?: readonly {
     /** The skill file at this place, relative to the workspace root, with `/`. */
     readonly path: OutputPath;

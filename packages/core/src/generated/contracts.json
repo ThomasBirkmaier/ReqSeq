@@ -7035,7 +7035,7 @@
             },
             "places": {
               "title": "Skill file places",
-              "description": "Each place `write` wrote the skill file at, in the order `.claude/…`, then `.agents/…`; only with `write`.",
+              "description": "Each place of the skill file with what `write` did there, in the order `.claude/…`, then `.agents/…`; only with `write`.",
               "type": "array",
               "items": {
                 "type": "object",
