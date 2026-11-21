@@ -1,8 +1,6 @@
 ---
 title: Review and approve a requirement
 description: Set the status of requirements, review them after a parent changed, and supersede an approved requirement by a new one.
-sidebar:
-  order: 11
 ---
 
 The status of an element is one of the statuses its type has in the metamodel. In the standard model these are `draft` (the status of a new element), `approved` and `obsolete`, which the metamodel marks invalid. ReqSeq never sets a status itself: only you do, and a change to an approved element leaves it approved. Instead, ReqSeq marks the relations that point to the changed element as outdated, and those hints tell you what to review.

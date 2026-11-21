@@ -117,7 +117,7 @@ flowchart TB
     end
     subgraph shared[shared, imported almost everywhere, edges not drawn]
       state[runtime: workspace, settled, contracts, command-titles, input-errors, internal-cause<br/>Workspace object, schemas, command titles, error causes]
-      catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
+      catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, type-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
   cli & api & mcp & app --> index
@@ -164,7 +164,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 `workspace` imports `git` for one question: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456); the layout is the workspace block's, and `git` is a lower layer.
 
-Every block may also import the root modules `catalog.ts`, `product.ts`, `problem-titles.ts` (the title of every problem kind, SR-224 AK6), `hint-order.ts` (which findings are hints and their order, the rule of `hint.list` for one element; it imports nothing), `build-info.ts` (the build of a delivery, SR-161), `installation.ts` (the installation a process stands for) and `agent-setup.ts` (the setup of a client of an agent, SR-227; it imports only the type `Installation`), `next-steps.ts` (the next steps of SR-226; it imports only generated types) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
+Every block may also import the root modules `catalog.ts`, `product.ts`, `problem-titles.ts` (the title of every problem kind, SR-224 AK6), `hint-order.ts` (which findings are hints and their order, the rule of `hint.list` for one element; it imports nothing), `type-order.ts` (the order of types of `element.facets` and the HTML export; it imports nothing), `build-info.ts` (the build of a delivery, SR-161), `installation.ts` (the installation a process stands for) and `agent-setup.ts` (the setup of a client of an agent, SR-227; it imports only the type `Installation`), `next-steps.ts` (the next steps of SR-226; it imports only generated types) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
 With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `graph`; `displays`; `data`, `reqif`, `html-export`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 

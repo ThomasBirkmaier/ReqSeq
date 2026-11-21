@@ -1,8 +1,6 @@
 ---
 title: Decide which changes make a new version
 description: Mark the properties whose change gives an element a new version, so that its evidence and the relations to it become outdated.
-sidebar:
-  order: 5.1
 ---
 
 Set `content: true` on every property whose change must give the element a new version, so that its evidence and the relations pointing to it become outdated. The version is computed from the text, the embedded images and the properties marked this way only. A property without `content: true`, such as the definition of a glossary term or an internal note in a type of your own, changes no version when its value changes, and two elements with the same text and the same marked values have the same version. The element text always counts. A marked property counts only on the types that list it in `properties`: a value under another type changes no version. In the standard model, acceptance criteria, requirement type, validity and the validation criteria of a need count; the others do not, for example title, status, package, rationale, priority, emergent, verification method, topic, statement and the origin properties of an import (source, source identifier, import date, delivery, import version). The statement is the supplier's statement on an imported requirement (exported with `reqif export --statements`), not the requirement itself: write the requirement into the text. `workspace check` warns about a requirement with a statement but no text (`element.statement-without-text`).

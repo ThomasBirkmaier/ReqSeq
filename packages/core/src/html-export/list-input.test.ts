@@ -121,7 +121,7 @@ describe("the export builds its list models from what the commands give (ADR-001
             ]
           : [],
       );
-    const lists = listsOf(context, entries);
+    const lists = listsOf(context, entries, metamodel.effectiveTypes);
     expect(lists.map((l) => l.type)).toEqual(["need", "system-requirement"]);
     for (const { type, entries: rows } of lists) {
       const fromExport = listDisplay(

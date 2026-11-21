@@ -2290,6 +2290,8 @@ export interface WorkspaceCheckOutput {
     /** Info problems left out. */
     readonly info: number;
   };
+  /** The step that lists the requirements the info evidence.open-requirements counts (SR-230 AK2): element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check (SR-092) and when severity leaves the info out. */
+  readonly next?: readonly NextStep[];
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
@@ -4387,7 +4389,7 @@ export interface HintListOutput {
     /** Hints of this kind that pass the filters. */
     readonly count: number;
   }[];
-  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check, after the warning of each element whose version cannot be computed (file.faulty, as element.get gives it), which workspace.check does not give; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In this order: the warnings without a version, then the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;
@@ -4992,7 +4994,7 @@ export interface EvidenceStatusOutput {
 }
 
 /**
- * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
+ * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json input`.
  */
 export interface EvidenceCoverageInput {
@@ -5001,26 +5003,30 @@ export interface EvidenceCoverageInput {
 }
 
 /**
- * Output of `evidence.coverage`. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
+ * Output of `evidence.coverage`. Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {
   readonly answer: Answer;
-  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
+  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. Per level the numbers without children and without evidence come before those with (SR-036 AK6), in this order of the properties. */
   readonly levels: readonly {
     readonly type: Key;
     /** The counted elements of the type. */
     readonly total: number;
+    /** How many have no derivation child that counts, 0 included (SR-036 AK6). */
+    readonly withoutChildren: number;
+    /** Only for a type with the meaning `requirement`: how many have no verification record in the view, 0 included (SR-036 AK6). */
+    readonly withoutEvidence?: number;
     /** How many have a derivation child that counts: one whose status is not marked invalid and, with a view, that applies in it; in any repository. */
     readonly withChildren: number;
     /** Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question ThomasBirkmaier/ReqSeq-archive#527). */
     readonly withEvidence?: number;
-    /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`. */
+    /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withoutEvidence` and `withEvidence` only where the level has `withEvidence`. */
     readonly elements: {
-      readonly withChildren: readonly Uuid[];
       readonly withoutChildren: readonly Uuid[];
-      readonly withEvidence?: readonly Uuid[];
       readonly withoutEvidence?: readonly Uuid[];
+      readonly withChildren: readonly Uuid[];
+      readonly withEvidence?: readonly Uuid[];
     };
   }[];
   readonly incomplete?: Incomplete;

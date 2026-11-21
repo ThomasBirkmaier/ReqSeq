@@ -1,8 +1,6 @@
 ---
 title: Publish the workspace as HTML
 description: Write the workspace as an HTML export, a folder of pages that people read in a browser without ReqSeq, Git or network.
-sidebar:
-  order: 14
 ---
 
 The HTML export writes the workspace into a folder of pages for readers without ReqSeq (D-080). It holds:

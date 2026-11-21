@@ -1,8 +1,6 @@
 ---
 title: Install ReqSeq
 description: Download the release for your system, unpack it, and set up the app, the command line, the API and the MCP server.
-sidebar:
-  order: 1
 ---
 
 ReqSeq comes as one portable archive per system: unpacking it is installing it. Nothing is downloaded while unpacking or running, and nothing updates itself.

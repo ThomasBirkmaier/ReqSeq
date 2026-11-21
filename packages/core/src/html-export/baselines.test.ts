@@ -219,6 +219,15 @@ describe("variants (SR-234 AK3, AK4)", () => {
     );
   });
 
+  it("agrees the verb with the requirements, not with the verified ones (#2270)", () => {
+    const third = {
+      share: 1 / 3,
+      total: 3,
+      counts: { open: 2, verified: 0, indirect: 1, failed: 0, outdated: 0 },
+    };
+    expect(degreeSentence(third)).toBe("1 of 3 requirements are verified or indirectly verified (33.3 %).");
+  });
+
   it("[SR-234/AK-gzpr] names an element without title by its short ID", async () => {
     const variant = record(A, {});
     const untitled = record(B, { title: 3 });

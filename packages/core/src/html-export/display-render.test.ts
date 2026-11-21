@@ -1,14 +1,17 @@
-// ADR-0019 Consequences: one display model, built once from the shared fixture `fixtures/displays/element-page.json`,
-// and the HTML export shows each of its groups and labels. The app's test of the same fixture is
+// ADR-0019 Consequences: one display model, built once from a shared fixture of `fixtures/displays/`, and the HTML
+// export shows each of its rows, groups and labels. The app's test of the same fixture is
 // `packages/app/src/renderer/display-render.test.ts`, so a drift between the two renderers fails one of them.
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { elementPageDisplay, verificationLabel } from "../displays/index.js";
+import type { OverviewInput } from "../displays/index.js";
+import { elementPageDisplay, overviewDisplay, verificationLabel } from "../displays/index.js";
 import type { DataExportElement, MetamodelGetOutput } from "../generated/types.js";
 import type { ElementPageContext } from "./element-page.js";
 import { hintsSection } from "./section-hints.js";
 import { relationsSection } from "./section-relations.js";
+import type { ListPage } from "./list-page.js";
+import { startPageBody } from "./start-page.js";
 
 interface Shared {
   readonly metamodel: Pick<MetamodelGetOutput, "relations" | "properties" | "statuses">;
@@ -18,6 +21,10 @@ interface Shared {
 const SHARED = JSON.parse(
   fs.readFileSync(path.join(import.meta.dirname, "../../../../fixtures/displays/element-page.json"), "utf8"),
 ) as Shared;
+
+const OVERVIEW = JSON.parse(
+  fs.readFileSync(path.join(import.meta.dirname, "../../../../fixtures/displays/overview.json"), "utf8"),
+) as OverviewInput;
 
 const context = {
   links: { href: (id: string) => `../elements/${id}.html` },
@@ -44,5 +51,32 @@ describe("the HTML export renders the shared display model", () => {
     expect(display.verification?.map((cell) => verificationLabel(cell, "long"))).toEqual([
       "open, 1 of 2 criteria, AK2 (k7f3) not verified",
     ]);
+  });
+
+  it("shows every type line of the overview model on the start page, linked to its list where it has one", () => {
+    const display = overviewDisplay(OVERVIEW);
+    const lists = display.types
+      .filter(({ key }) => key !== "package")
+      .map(({ target }): ListPage => ({
+        type: target.list,
+        path: `lists/${target.list}.html`,
+        title: "",
+        count: 0,
+        body: "",
+      }));
+    const html = startPageBody({
+      made: "",
+      missing: [],
+      degree: { total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } },
+      entries: [],
+      overview: display,
+      lists,
+      baseline: undefined,
+    });
+    expect(display.types.length).toBeGreaterThan(1);
+    for (const { key, name, count, target } of display.types) {
+      const label = key === "package" ? name : `<a href="lists/${target.list}.html">${name}</a>`;
+      expect(html).toContain(`<tr><td>${label}</td><td>${String(count)}</td></tr>`);
+    }
   });
 });

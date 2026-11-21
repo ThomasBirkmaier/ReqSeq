@@ -4,8 +4,8 @@
 // assumption of spec question ThomasBirkmaier/ReqSeq-archive#592 Q3). One rule on every access: the CLI's readable output imports it
 // from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
 // imports nothing, so the renderer bundle loads no other part of core with it. The line of a package page
-// (SR-112 AK3) and the head of a matrix column with minima (SR-153 AK1) are built here too, so the app,
-// the CLI and every test that compares with them use one rule.
+// (SR-112 AK3), the head of a matrix column with minima (SR-153 AK1) and the sentence on a degree
+// (`degreeClause`) are built here too, so the app, the CLI and every test that compares with them use one rule.
 
 /**
  * `share` (0 to 1) as a percentage rounded down to one decimal, with a space before `%`. The `1e-9`
@@ -83,6 +83,19 @@ export const summaryViewText = (view: string, names: readonly SummaryName[] | un
 
 /** The order the statuses are named in the line: those that count for the degree first. */
 const SUMMARY_STATUSES = ["verified", "indirect", "failed", "outdated", "open"] as const;
+
+/**
+ * The sentence on a degree without its period, e.g. "1 of 3 requirements in the core are verified or indirectly
+ * verified (33.3 %)": `where` (" in the core", " in view core", or empty) follows the noun, the noun and its verb
+ * agree with `total`, not with the verified count, and the share is left out when the degree has none. The HTML
+ * export's start page and variant pages and the answer of `evidence.degree` build it here.
+ */
+export const degreeClause = (degree: SummaryDegree & { readonly total: number }, where = ""): string => {
+  const verified = degree.counts.verified + degree.counts.indirect;
+  const one = degree.total === 1;
+  const share = degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`;
+  return `${String(verified)} of ${String(degree.total)} ${one ? "requirement" : "requirements"}${where} ${one ? "is" : "are"} verified or indirectly verified${share}`;
+};
 
 /**
  * The line of a package page (SR-112 AK3, AK4): the coverage summed over the requirement levels (those with

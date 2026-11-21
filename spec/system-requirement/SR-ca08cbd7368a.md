@@ -7,19 +7,19 @@ spec-id: SR-234
 requirement-type: functional
 acceptance-criteria:
   - key: vjfq
-    text: Gegeben eine Baseline, wenn ihre Seite angezeigt wird, dann nennt sie Name, Datum und den Commit je Repository und listet ihre Elemente getrennt nach geändert, hinzugefügt, entfernt und unverändert ([SR-051](reqseq:6adc6c9a-01d7-43bd-9e05-4dd4c430de10?version=n2:798c8d0e5dbc0787) AK2, AK3); abgelöste Elemente stehen in einer eigenen Gruppe mit Kennung, Titel und Status ohne Link; ohne gespeicherte Auswahl gibt es kein „hinzugefügt“ und kein „entfernt“, und die Seite sagt das.
+    text: Gegeben eine Baseline, wenn ihre Seite angezeigt wird, dann nennt sie Name, Datum und den Commit je Repository und listet ihre Elemente getrennt nach geändert, hinzugefügt, entfernt und unverändert ([SR-051](reqseq:6adc6c9a-01d7-43bd-9e05-4dd4c430de10?version=n2:990f6c5b33e39b59) AK2, AK3); abgelöste Elemente stehen in einer eigenen Gruppe mit Kennung, Titel und Status ohne Link; ohne gespeicherte Auswahl gibt es kein „hinzugefügt“ und kein „entfernt“, und die Seite sagt das.
   - key: swvj
     text: Gegeben die Baselines eines Arbeitsbereichs, wenn die Seite aller Baselines angezeigt wird, dann steht jede mit Name, Datum, Zahl ihrer Elemente und Zahl der geänderten Elemente da, neueste zuerst.
   - key: k5g4
     text: Gegeben Varianten, wenn die Seite des Variantenvergleichs angezeigt wird, dann zeigt sie den Nachweisgrad je Variante neben dem Kern und darunter die Requirements, deren Nachweisstatus sich zwischen den Sichten unterscheidet, mit dem Status je Sicht.
   - key: gzpr
-    text: Gegeben eine Variante, wenn ihre Seite angezeigt wird, dann zeigt sie, was sie gegenüber dem Kern hinzufügt, ersetzt und ausschließt, wie `variant.diff` es liefert ([D-033](reqseq:6adc615d-b1c4-489a-8843-ecc4593d0bf6?version=n2:abbf666adc34704d), Ausnahme für den Kern), und ihren Nachweisgrad. Ein Vergleich mit anderen Varianten entfällt, weil eine Variante nur auf dem Kern aufbaut ([D-020](reqseq:6adc5316-641d-4817-964e-8803a78ac710?version=n2:0cd25f27b89543f2)).
+    text: Gegeben eine Variante, wenn ihre Seite angezeigt wird, dann zeigt sie, was sie gegenüber dem Kern hinzufügt, ersetzt und ausschließt, wie `variant.diff` es liefert ([D-033](reqseq:6adc615d-b1c4-489a-8843-ecc4593d0bf6?version=n2:613f0cb9c096a2ac), Ausnahme für den Kern), und ihren Nachweisgrad. Ein Vergleich mit anderen Varianten entfällt, weil eine Variante nur auf dem Kern aufbaut ([D-020](reqseq:6adc5316-641d-4817-964e-8803a78ac710?version=n2:0cd25f27b89543f2)).
 packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
 based-on:
-  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:53736526cb94923b, title: HTML-Export erzeugt das Tool selbst }
-  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:abbf666adc34704d, title: Unterschiede zeigt die Versionsverwaltung }
+  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:a14b879b0af2da59, title: HTML-Export erzeugt das Tool selbst }
+  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:613f0cb9c096a2ac, title: Unterschiede zeigt die Versionsverwaltung }
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
   - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:310c324700784a6f, title: Baseline als Datei }
 derives-from:

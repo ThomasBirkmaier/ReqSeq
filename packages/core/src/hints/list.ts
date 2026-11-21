@@ -4,7 +4,10 @@
 // - Which findings are hints: the glossary defines "Hinweis" (synonym "Warnung") as "Meldung des
 //   Tools, dass ein Element geprüft werden sollte ... Ein Hinweis blockiert nichts und ändert keinen
 //   Status." So a hint is a finding of severity `warning` that names an element (`elementId`,
-//   `isHint`). They come from the same whole-workspace states as `workspace.check`: the states of
+//   `isHint`). The warning of an element whose version cannot be computed (`file.faulty`, "No version: ...",
+//   `noVersionProblem`, ThomasBirkmaier/ReqSeq-archive#276) is one (#2231): it comes first, from the current versions
+//   (`noVersionProblems`), as `workspace.check` puts the findings of the files first, though the check does not give
+//   it. The others come from the same whole-workspace states as `workspace.check`: the states of
 //   `HINT_STATES`, then the outdated relations and inline references (SR-025). Errors (a faulty file,
 //   a duplicate UUID, a missing target: the SRs do not call them "Hinweis"), info and warnings about
 //   no element (`file.yaml-warning`, `file.skipped`, `metamodel.meaning-unassigned`) are not hints.
@@ -40,8 +43,8 @@
 // - `ref` takes the single-element path of `element.get` (#145, ADR-0008): the hints at the element
 //   as `showElement` gives them with `elementHints` (dated), not the whole-workspace states, so it
 //   builds neither the incoming index nor the cycles of the store. They are put into the order of
-//   the check by code (`CHECK_ORDER`, a stable sort keeps the element's order within one state; a code
-//   the check gives no hint with, such as `element.get`'s `file.faulty` of ThomasBirkmaier/ReqSeq-archive#276, is left out), the
+//   the whole-workspace path by code (`inCheckOrder`: the warning without a version, then `CHECK_ORDER`; a stable
+//   sort keeps the element's order within one state; any other code is left out), the
 //   other filters apply as above, and since-baseline hints are computed only where
 //   `sinceBaselineVariants` admits the element; the page applies as above. The image check of
 //   `currentVersions` is left out, as at `element.get`.
@@ -57,13 +60,14 @@ import {
   requireMeaning,
   typesWithMeaning,
 } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, ShortIds, ShowContext } from "../model/index.js";
+import type { CurrentVersions, ElementRecord, ElementStore, ShortIds, ShowContext } from "../model/index.js";
 import {
   currentVersions,
   duplicateIdentifierProblemsState,
   elementStoreState,
   itemLimitProblemsState,
   criterionKeyProblemsState,
+  noVersionProblem,
   problemElement,
   problemTarget,
   relationKey,
@@ -407,6 +411,19 @@ const hintsOfElement = async (
   return hintsOf(context.workspace, context, filter, inCheckOrder(shown.element.problems), [], page);
 };
 
+/**
+ * The warning of each element whose current version cannot be computed (`not-computable`), as `element.get` gives
+ * it (`noVersionProblem`, the same message; both compute both normal forms), in the order of the store the versions
+ * are of (`versions.store`, ADR-0008).
+ */
+const noVersionProblems = (versions: CurrentVersions): Problem[] =>
+  versions.store.elements.flatMap((record) => {
+    const version = versions.byRecord.get(record);
+    return version?.kind === "unknown" && version.reason === "not-computable"
+      ? [noVersionProblem(record, version.message)]
+      : [];
+  });
+
 /** `hint.list`: the open hints of `workspace` that pass the filters of `input` (see the file comment). */
 export const listHints = async (
   workspace: Workspace,
@@ -430,8 +447,8 @@ export const listHints = async (
     return { ...(await hintsOfElement(context, { ...filter, ref: filter.ref }, page)), incomplete };
   }
   // The images the watcher does not report are checked first, as the check does (ADR-0008).
-  await currentVersions(workspace);
-  const problems: Problem[] = [];
+  const versions = await currentVersions(workspace);
+  const problems: Problem[] = noVersionProblems(versions);
   for (const state of HINT_STATES) {
     for (const problem of await workspace.get(state)) {
       problems.push(problem);

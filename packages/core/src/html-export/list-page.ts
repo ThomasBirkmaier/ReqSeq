@@ -1,6 +1,7 @@
 // The lists of the HTML export (SR-233 AK1, AK5): one page `lists/<type key>.html` per type with at least one element
 // that has a page (no invalid status, D-044), except the types with the meaning package or variant, in the order of
-// the metamodel's types (an unknown type after them by its key). The page is the whole list as a table, so it stands
+// the type lines of the start page (`overviewDisplay`: the metamodel's types, then an unknown type as its first element
+// appears, `inTypeOrder`). The page is the whole list as a table, so it stands
 // there without script (AK5); `assets/list.js` (`list-script.ts`) adds the search field, the filters, the sorting and
 // the grouping on top of it.
 //
@@ -29,6 +30,7 @@ import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { SortValue } from "../query/index.js";
 import { NO_RANKS, compareSortValues, ranksOf, sortElements, sortValueOf } from "../query/index.js";
 import { zip } from "../files/index.js";
+import { inTypeOrder } from "../type-order.js";
 import { elementPage } from "./links.js";
 import { escapeHtml } from "./markdown.js";
 
@@ -166,13 +168,6 @@ export const sortedByIdentifier = (context: ListContext, entries: readonly ListE
 /** The identifier of an element as rows show it: its identifier, else its short ID. */
 export const identifierOf = (element: DataExportElement): string => element.identifier ?? element.shortId;
 
-/** Types in the order of the metamodel's types, a type it does not know after them by its key (SR-075 AK1). */
-export const typeOrder = (metamodel: Metamodel): ((a: string, b: string) => number) => {
-  const order = new Map(metamodel.effectiveTypes.map((t, i) => [t.key, i]));
-  const rank = (type: string): number => order.get(type) ?? order.size;
-  return (a, b) => rank(a) - rank(b) || compareSortValues(sortValueOf(a, NO_RANKS), sortValueOf(b, NO_RANKS));
-};
-
 /**
  * The list of `sorted`, all of type `type` with a page each, in the order of their identifier: the display model of
  * `listDisplay` as HTML, with the change since a baseline, which only the export shows (see the file comment).
@@ -221,12 +216,13 @@ export const listPageOf = (
 const counted = (n: number): string => `${String(n)} ${n === 1 ? "element" : "elements"}`;
 
 /**
- * The types that get a list (see the file comment), each with its elements of `entries`: in the order of the
- * metamodel's types, an unknown type after them by its key.
+ * The types that get a list (see the file comment), each with its elements of `entries`, in the order of `types`: the
+ * type lines of the start page (`overviewDisplay`), so the lists and the start page share one order of types.
  */
 export const listsOf = (
   context: Pick<ListContext, "metamodel">,
   entries: readonly ListEntry[],
+  types: readonly { readonly key: string }[],
 ): { readonly type: string; readonly entries: readonly ListEntry[] }[] => {
   const { metamodel } = context;
   const byType = new Map<string, ListEntry[]>();
@@ -235,13 +231,13 @@ export const listsOf = (
     list.push(entry);
     byType.set(entry.record.type, list);
   }
-  return [...byType]
+  const lists = [...byType]
     .filter(([type]) => {
       const meaning = findType(metamodel, type)?.meaning;
       return meaning !== "package" && meaning !== "variant";
     })
-    .sort(([a], [b]) => typeOrder(metamodel)(a, b))
     .map(([type, listed]) => ({ type, entries: listed }));
+  return inTypeOrder(lists, (list) => list.type, types);
 };
 
 /** The styles of the lists: the table in its own scrolling container with a sticky head, the badges, the search bar, the chips with their menus and the line of the chosen filters. */

@@ -57,6 +57,24 @@ export const verificationWords = (node: Verifiable): string[] => {
 export const shownId = (shortId: string, identifier?: string): string =>
   identifier === undefined || identifier.trim() === "" ? shortId : `${shortId} (${identifier})`;
 
+/**
+ * `id` then `title`, separated by a space (#545); `id` alone when `title` is missing, empty or equal to `id`,
+ * so a package with `spec-id: Später` and title "Später" reads "Später".
+ */
+export const idTitle = (id: string, title?: string): string => {
+  const shown = title?.trim() ?? "";
+  return shown === "" || shown === id.trim() ? id.trim() : `${id} ${shown}`.trim();
+};
+
+/**
+ * The shown ID (`shownId`) then the title (`idTitle`); the title left out when it is the identifier's text
+ * (#545), so a package with `spec-id: Später` and title "Später" reads "PKG-1a2b3c (Später)".
+ */
+export const shownIdTitle = (shortId: string, identifier: string | undefined, title?: string): string => {
+  const id = shownId(shortId, identifier);
+  return identifier !== undefined && title?.trim() === identifier.trim() ? id : idTitle(id, title);
+};
+
 /** The name of a type: its name from the metamodel (`typeNames`), its key when the metamodel names none. */
 export const typeName = (typeNames: ReadonlyMap<string, string>, type: string): string =>
   typeNames.get(type) ?? type;
