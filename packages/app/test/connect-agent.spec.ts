@@ -133,7 +133,9 @@ test.describe("Connect AI agent", () => {
       // Long paths wrap inside the column, also in a narrow window: no part runs past it (#2169).
       await running.app.evaluate(({ BrowserWindow }) => {
         const [shown] = BrowserWindow.getAllWindows();
-        if (shown === undefined) throw new Error("the app shows no window");
+        if (shown === undefined) {
+          throw new Error("the app shows no window");
+        }
         shown.setContentSize(480, 800);
       });
       await expect.poll(() => window.evaluate(() => innerWidth)).toBe(480);
