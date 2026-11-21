@@ -5,6 +5,10 @@
 // - `ids` as UUIDs, `{ id, repository }` for an element outside the repository of the baselines
 //   folder; `package` and `view` as `{ id, title }` (the title now, D-058), `{ id, repository }`
 //   outside it; `view: core` as the text; `where` as filter.save writes it (`canonicalCondition`).
+// - `inRepository` (#2024) in the stored `ids` in the same form, each element once; with `ids` too, only the
+//   elements both name, as the selection holds both. An item that names two copies in one repository is
+//   `ref.ambiguous`, as an `ids` item is: the file names an element by UUID and repository only, and reads back
+//   one copy (`copyOf`, baselines/read.ts).
 // - A saved filter is written resolved, never by name: its `where` (under `all` with the input's
 //   `where`) and its `view`, so a later change of the filter does not change the baseline. The
 //   views are the ones the selection was resolved with (`Selected.views`). When the input and the
@@ -20,7 +24,7 @@ import { defineCommand } from "../../catalog.js";
 import { createBaseline } from "../../baselines/index.js";
 import type { BaselineStoredSelection, ElementSelection } from "../../generated/types.js";
 import type { ElementRecord } from "../../model/index.js";
-import { resolveRef, titleKeyOrEmpty } from "../../model/index.js";
+import { resolveInRepository, resolveRef, titleKeyOrEmpty } from "../../model/index.js";
 import type { QueryContext, Selected } from "../../query/index.js";
 import { canonicalCondition, resolveSelection } from "../../query/index.js";
 import { invalidAt } from "../../query/context.js";
@@ -94,13 +98,23 @@ const storedSelection = (
     throw invalidAt(context, refused.field, refused.message);
   }
   const [view] = selected.views;
+  // Sets, so a selection of 50,000 IDs stays one pass (N-036).
+  const named = [
+    ...(selection.ids === undefined ? [] : [new Set(selection.ids.map(recordOf))]),
+    ...(selection.inRepository === undefined
+      ? []
+      : [
+          new Set(selection.inRepository.flatMap((item) => resolveInRepository(store, shortIds, item, true))),
+        ]),
+  ];
+  const [first, ...others] = named;
   return {
-    ...(selection.ids === undefined
+    ...(first === undefined
       ? {}
       : {
-          ids: [...new Set(selection.ids.map(recordOf))].map((r) =>
-            r.repository === home ? r.id : { id: r.id, repository: r.repository },
-          ),
+          ids: [...first]
+            .filter((r) => others.every((records) => records.has(r)))
+            .map((r) => (r.repository === home ? r.id : { id: r.id, repository: r.repository })),
         }),
     ...(wheres.length === 0 ? {} : { where: wheres.length === 1 ? wheres[0] : { all: wheres } }),
     ...(selection.package === undefined ? {} : { package: refOf(recordOf(selection.package)) }),

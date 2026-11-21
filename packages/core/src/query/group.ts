@@ -34,6 +34,7 @@ import { offersValues } from "./facets.js";
 import type { Selected } from "./selection.js";
 import type { SortValue } from "./sort.js";
 import { compareSortValues, NO_RANKS, ranksOf, sortValueOf } from "./sort.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 type Scalar = string | number | boolean;
 
@@ -169,7 +170,7 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
     throw invalidAt(
       { command },
       "group",
-      `${by} is no property with values to choose (as element.facets offers them); group by type, status, package or such a property`,
+      `${by} is no property with values to choose (as ${commandTitle("element.facets")} offers them); group by type, status, package or such a property`,
     );
   }
   if (definition.kind === "relation") {

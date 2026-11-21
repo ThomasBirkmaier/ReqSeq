@@ -234,7 +234,7 @@ describe("trace.affected (SR-024)", () => {
     });
     const error = await affectedError(withoutDerivation, { ref: "SR-00b001" });
     expect(error.code).toBe("metamodel.meaning-unassigned");
-    expect(error.message).toContain("trace.affected");
+    expect(error.message).toContain(`"Show affected elements"`);
   });
 
   it("gives the elements affected by the copy of a UUID two files share that repository names (#821)", async () => {

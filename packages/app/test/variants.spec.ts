@@ -126,12 +126,12 @@ test.describe("records per variant in the app", () => {
     const { window } = running;
     await recordForCoast(window, "SR-0000a2", "Measure the wind");
     await expect(label(window)).toContainText(
-      "SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)",
+      "SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere",
     );
     await window.keyboard.press("Escape");
     await recordForCoast(window, "SR-0000a1", "Response time at most 10 ms");
     await expect(label(window)).toContainText(
-      "SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)",
+      "SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead",
     );
     expect(await fs.readdir(path.join(running.workspace?.root ?? "", "evidence"))).toEqual([".keep"]);
   });

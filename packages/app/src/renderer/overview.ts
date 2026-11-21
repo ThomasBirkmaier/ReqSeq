@@ -1,12 +1,16 @@
 // The rows of the overview (SR-118): one line per element type with the number of its elements, then the
-// perspectives with the number of elements each lists, then the elements opened last. Pure: the counts
-// come from `element.facets` and `element.list` with the perspective, the perspectives from
-// `perspective.list`, the recent elements from `element.get`; this module only orders them and says what a
-// row opens (ADR-0002).
+// perspectives with the number of elements each lists, then the elements opened last; in a workspace in which
+// `element.facets` counts no element, core's first steps (`FIRST_STEPS`, AK9) and below them only the
+// perspectives. Pure: the counts come from `element.facets` and `element.list` with the perspective, the
+// perspectives from `perspective.list`, the recent elements from `element.get`, the first steps from core;
+// this module only orders them and says what a row opens (ADR-0002).
+import type { CommandListing } from "../shared/protocol.js";
 import type { Buffer, ElementBuffer, ListedPerspective } from "./buffers.js";
 import { filteredList } from "./buffers.js";
 import type { Answer } from "./call.js";
 import { exactTypeStep } from "./list-filters.js";
+import type { NextStep, StepEntry } from "./next-steps.js";
+import { stepEntry, stepItemId } from "./next-steps.js";
 import { inOrderOfUse } from "./perspective-recent.js";
 import { RECENT_SHOWN } from "./recent.js";
 
@@ -42,7 +46,13 @@ export interface RecentRow {
   readonly title: string;
 }
 
+/** A first step of a workspace without elements (AK9): the step and how the command prompt names its command. */
+export interface StepRow extends StepEntry {
+  readonly step: NextStep;
+}
+
 export type OverviewRow =
+  | ({ readonly kind: "step" } & StepRow)
   | ({ readonly kind: "type" } & TypeCount)
   | ({ readonly kind: "perspective" } & PerspectiveRow)
   | ({ readonly kind: "recent" } & RecentRow);
@@ -77,6 +87,32 @@ export const overviewRows = (
   ...recents.slice(0, RECENT_SHOWN).map((recent): OverviewRow => ({ kind: "recent", ...recent })),
 ];
 
+/**
+ * The lines of the first steps (AK9): each step that an entry of the command prompt runs in the shown view
+ * (`items`), by the name and key the prompt gives its command; a step whose command is not executable there
+ * (SR-133 AK1) has no line.
+ */
+export const stepRows = (
+  steps: readonly NextStep[],
+  catalog: readonly CommandListing[],
+  items: readonly { readonly id: string }[],
+  mac: boolean,
+): readonly StepRow[] => {
+  const runs = new Set(items.map((item) => item.id));
+  return steps
+    .filter((step) => runs.has(stepItemId(step, catalog)))
+    .map((step) => ({ step, ...stepEntry(step.command, catalog, mac) }));
+};
+
+/** The rows of a workspace in which the tool counts no element (AK9): the first steps, then only the perspectives. */
+export const firstStepRows = (
+  steps: readonly StepRow[],
+  perspectives: readonly PerspectiveRow[],
+): readonly OverviewRow[] => [
+  ...steps.map((step): OverviewRow => ({ kind: "step", ...step })),
+  ...perspectives.map((perspective): OverviewRow => ({ kind: "perspective", ...perspective })),
+];
+
 /** The text of a type line: "System Requirement 117". */
 export const typeLine = (row: TypeCount): string => `${row.name} ${String(row.count)}`;
 
@@ -94,5 +130,5 @@ export const perspectiveLine = (row: PerspectiveRow): string => {
  * selection the count is of, so the list is as long as the count says; it filters further like any list,
  * SR-124); a recent element its buffer. A perspective opens through `openPerspective` (SR-118 AK7).
  */
-export const openRow = (row: Exclude<OverviewRow, { readonly kind: "perspective" }>): Buffer =>
+export const openRow = (row: Extract<OverviewRow, { readonly kind: "type" | "recent" }>): Buffer =>
   row.kind === "type" ? filteredList([exactTypeStep(row.key, row.name)]) : row.buffer;

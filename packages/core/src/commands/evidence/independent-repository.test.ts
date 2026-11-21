@@ -176,7 +176,7 @@ describe("variant-independent repositories (SR-173)", () => {
       details: { reason: "counts-in-no-view" },
     });
     expect(await enrich(unmarked)).toEqual([
-      'Test case "[SR-0000d3] in A" (line 1) is not enriched: SR-0000d3 does not apply in core, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000d3] in A" (line 1) is not enriched: SR-0000d3 does not apply in core, so a record for it there would count nowhere',
     ]);
   });
 

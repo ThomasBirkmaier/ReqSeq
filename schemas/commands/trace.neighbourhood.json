@@ -170,7 +170,7 @@
               "description": "Workspace name of the repository of `target`."
             },
             "link": {
-              "title": "Link",
+              "title": "Relation or reference",
               "enum": ["relation", "reference"],
               "description": "A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`."
             },

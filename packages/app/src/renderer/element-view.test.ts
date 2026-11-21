@@ -85,7 +85,7 @@ describe("propertyBoxes", () => {
 });
 
 describe("relationGroups", () => {
-  it("groups by kind and direction in the order of first appearance", () => {
+  it("groups by kind and direction, the outgoing first, in the order of first appearance without names", () => {
     const groups = relationGroups([
       relation({ id: "1" }),
       relation({ id: "2", direction: "in" }),
@@ -94,10 +94,31 @@ describe("relationGroups", () => {
     ]);
     expect(groups.map((group) => [group.heading, group.relations.map((r) => r.id)])).toEqual([
       ["derives-from", ["1", "3"]],
-      ["← derives-from", ["2"]],
       ["references", ["4"]],
+      ["← derives-from", ["2"]],
     ]);
     expect(relationGroups([])).toEqual([]);
+    // With the names of the metamodel: its order and its names, as the HTML export shows them (ADR-0019).
+    const names = {
+      relations: [
+        { key: "references", name: "References" },
+        { key: "derives-from", name: "Derives from", "inverse-name": "Derived by" },
+      ],
+      properties: [],
+    };
+    const named = relationGroups(
+      [
+        relation({ id: "1" }),
+        relation({ id: "2", direction: "in" }),
+        relation({ id: "4", kind: "references" }),
+      ],
+      names,
+    );
+    expect(named.map((group) => [group.heading, group.relations.map((r) => r.id)])).toEqual([
+      ["References", ["4"]],
+      ["Derives from", ["1"]],
+      ["← Derived by", ["2"]],
+    ]);
   });
 
   it("[SR-104/AK-df5n] leaves out the targets of a relation property, which are boxes, and keeps the incoming ones", () => {
@@ -107,8 +128,8 @@ describe("relationGroups", () => {
       relation({ id: "3" }),
     ]);
     expect(groups.map((group) => [group.heading, group.relations.map((r) => r.id)])).toEqual([
-      ["← packages", ["2"]],
       ["derives-from", ["3"]],
+      ["← packages", ["2"]],
     ]);
   });
 });

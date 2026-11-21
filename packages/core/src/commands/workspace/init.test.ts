@@ -346,7 +346,7 @@ describe("workspace.init", () => {
     const before = await fs.readFile(ws.path(WORKSPACE_FILE), "utf8");
     await expect(init(open(ws.root), { path: ws.root, name: "Again" })).rejects.toMatchObject({
       code: "file.changed-on-disk",
-      message: `Not written: ${WORKSPACE_FILE} already exists; workspace.init only creates a new workspace`,
+      message: `Not written: ${WORKSPACE_FILE} already exists; "Create workspace" only creates a new workspace`,
     });
     expect(await fs.readFile(ws.path(WORKSPACE_FILE), "utf8")).toBe(before);
   });

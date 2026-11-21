@@ -23,6 +23,7 @@
 //   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
 //   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column
 //   "Change since baseline" written `hidden` and empty: no baseline is chosen at first, so there is no comparison.
+import { verificationLabel } from "../displays/index.js";
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, propertyWithMeaning } from "../metamodel/index.js";
@@ -115,11 +116,10 @@ const BADGES: Readonly<Record<string, string>> = {
 const badge = (label: string, variant: string): string =>
   `<span class="rq-badge rq-badge-${variant}">${escapeHtml(label)}</span>`;
 
-/** The verification status in the core of a requirement as a badge, with the number of verified criteria of all. */
+/** The verification status in the core of a requirement as a badge, in the short form of `verificationLabel` (ADR-0019). */
 const verificationBadge = (element: DataExportElement, status: string): string => {
   const criteria = element.verification?.find((entry) => entry.view === "core")?.criteria;
-  const label =
-    criteria === undefined ? status : `${status} ${String(criteria.verified)}/${String(criteria.total)}`;
+  const label = verificationLabel({ status, ...(criteria === undefined ? {} : { criteria }) }, "short");
   return badge(label, BADGES[status] ?? "neutral");
 };
 

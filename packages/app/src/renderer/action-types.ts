@@ -551,7 +551,10 @@ export interface Action {
    * the hint, but the window binds nothing to it, since the field takes the key first.
    */
   readonly systemKey?: Shortcut;
-  /** Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85). */
+  /**
+   * Catalog commands this action does, so the command prompt does not list them as well (ThomasBirkmaier/ReqSeq-archive#85).
+   * Without it, the command with the action's title; empty: none, for an action that only shares a title.
+   */
   readonly covers?: readonly string[];
   /**
    * Its shortcut works also while a prompt is open, since it only opens a prompt of its own in place of that one.

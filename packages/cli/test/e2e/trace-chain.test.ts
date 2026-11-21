@@ -209,7 +209,7 @@ describe("reqseq trace chain follows the meaning derivation (SR-013)", () => {
       code: 2,
       stdout: "",
       stderr:
-        "error metamodel.meaning-unassigned: No relation kind of the metamodel has the meaning derivation, which trace.chain needs. Add `meaning: derivation` to a relation kind in the metamodel files.\n",
+        'error metamodel.meaning-unassigned: No relation kind of the metamodel has the meaning derivation, which "Show trace chain" needs. Add `meaning: derivation` to a relation kind in the metamodel files.\n',
     });
   });
 });

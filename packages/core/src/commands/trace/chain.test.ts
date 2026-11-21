@@ -355,7 +355,7 @@ describe("trace.chain follows the meaning derivation (SR-013)", () => {
     const error = await chainError(workspace, { ref: "W-0000f1" });
     expect([error.code, error.message, error.details]).toEqual([
       "metamodel.meaning-unassigned",
-      "No relation kind of the metamodel has the meaning derivation, which trace.chain needs. Add `meaning: derivation` to a relation kind in the metamodel files.",
+      'No relation kind of the metamodel has the meaning derivation, which "Show trace chain" needs. Add `meaning: derivation` to a relation kind in the metamodel files.',
       { meaning: "derivation", list: "relations", command: "trace.chain" },
     ]);
   });

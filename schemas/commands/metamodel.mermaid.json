@@ -2,7 +2,7 @@
   "name": "metamodel.mermaid",
   "title": "Show metamodel as Mermaid",
   "summary": "The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.",
-  "details": "The same types and links as the app's graph of the metamodel, as text: one node per type with its name, prefix and properties, the inherited ones marked, the node \"Any type\" only when a relation kind or property leaves a side open, and one edge per ordered pair of nodes with one label line per link. While the metamodel is missing or faulty it writes what `metamodel.get` gives. The CLI prints the text alone.",
+  "details": "The same types and edges as the app's graph of the metamodel, as text: one node per type with its name, prefix and properties, the inherited ones marked, the node \"Any type\" only when a relation kind or property leaves a side open, and one edge per ordered pair of nodes with one label line per relation kind, property of kind `relation` or `extends`. While the metamodel is missing or faulty it writes what `metamodel.get` gives. The CLI prints the text alone.",
   "effect": "read",
   "stage": 1,
   "implements": ["SR-151"],

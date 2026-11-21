@@ -577,7 +577,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
         {
           code: "hint.not-found",
           severity: "warning",
-          message: `No open hint about ${A} of kind element.unknown-property can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+          message: `No open hint about ${A} of kind element.unknown-property can be confirmed, so nothing was written for it; "List hints" gives the open hints`,
         },
       ],
     });
@@ -648,7 +648,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
       ["hint.not-found", expect.stringContaining(DERIVES)],
     ]);
     expect((await confirmBy(workspace, { target: N })).problems?.map((p) => p.message)).toEqual([
-      `No open hint pointing at ${N} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+      `No open hint pointing at ${N} can be confirmed, so nothing was written for it; "List hints" gives the open hints`,
     ]);
   });
 
@@ -743,8 +743,7 @@ describe("hint.confirm of one element (ThomasBirkmaier/ReqSeq-archive#310)", () 
         {
           code: "hint.not-found",
           severity: "warning",
-          message:
-            "No hint ID is given, so nothing was written (a warning, exit code 0); hint.list gives the open hints",
+          message: 'No hint ID is given, so nothing was written; "List hints" gives the open hints',
         },
       ],
     });

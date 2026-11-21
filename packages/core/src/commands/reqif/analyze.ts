@@ -37,6 +37,7 @@ import type { ReqifFile } from "../../reqif/model.js";
 import type { WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { counted, listed, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 type Analysis = CommandOutput<"reqif.analyze">;
 type Unmapped = Analysis["unmapped"][number];
@@ -95,13 +96,13 @@ export default defineCommand({
       ...missing.map((name) => ({
         code: "workspace.repository-missing" as const,
         severity: "warning" as const,
-        message: `Repository ${name} is not on this machine: elements of an earlier delivery there are not matched, and reqif.import refuses until it is there`,
+        message: `Repository ${name} is not on this machine: elements of an earlier delivery there are not matched, and ${commandTitle("reqif.import")} refuses until it is there`,
         repository: name,
       })),
       ...unreadableFiles(await workspace.get(elementStoreState)).map((p) => ({
         ...p,
         severity: "warning" as const,
-        message: `${String(p.file)} is not matched, as it cannot be read as an element (${p.message}); reqif.import refuses until it is fixed`,
+        message: `${String(p.file)} is not matched, as it cannot be read as an element (${p.message}); ${commandTitle("reqif.import")} refuses until it is fixed`,
       })),
       ...mapped.problems,
     ];

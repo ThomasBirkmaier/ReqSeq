@@ -8,6 +8,7 @@
 // `statusLine`).
 import { criterionLabel } from "@reqseq/core/criterion-items";
 import { degreePercent, minimumHeadText } from "@reqseq/core/verification-degree";
+import { verificationLabel } from "@reqseq/core/displays";
 import type {
   DataExportRelation,
   DataExportVerificationDegree,
@@ -180,14 +181,12 @@ export const testCaseLine = (test: MatrixTestCase): CellLine => {
 
 /**
  * The status cell (SR-126 AK1, AK3): the status word, `failed` and `outdated` in the accent colour,
- * with how many acceptance criteria are verified when core counts them (SR-031 AK5, `open · 2 of 3`, the criteria not verified on demand);
+ * with how many acceptance criteria are verified when core counts them (SR-031 AK5, the short form of `verificationLabel`,
+ * `open · 2 of 3`, the criteria not verified on demand);
  * an open requirement names how many of its children are missing on demand (SR-034).
  */
 export const statusLine = (entry: DataExportVerificationEntry): CellLine => ({
-  text:
-    entry.criteria === undefined
-      ? entry.status
-      : `${entry.status} · ${String(entry.criteria.verified)} of ${String(entry.criteria.total)}`,
+  text: verificationLabel(entry, "short"),
   accent: entry.status === "failed" || entry.status === "outdated",
   title:
     entry.missingChildren !== undefined

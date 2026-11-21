@@ -288,7 +288,7 @@ test.describe("the switch to the previous or next buffer with 50,000 elements an
     await command(window, "Show metamodel");
     name = await opened(window, name);
     kinds.set(name, "metamodel");
-    await command(window, "Show workspace status");
+    await command(window, "Show workspace");
     name = await opened(window, name);
     kinds.set(name, "result");
     const count = kinds.size;

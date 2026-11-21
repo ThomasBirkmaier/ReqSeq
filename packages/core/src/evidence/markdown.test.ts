@@ -287,7 +287,7 @@ describe("SR-028 reading Markdown records", () => {
           file: "evidence/r.md",
           line: 6,
           message:
-            "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason (SR-172 AK1)",
+            "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason",
         },
       ],
     });
@@ -301,7 +301,7 @@ describe("SR-028 reading Markdown records", () => {
       [
         8,
         "error",
-        "Invalid evidence record, not counted: /result: only a validation record can be inconclusive, a verification record is passed or failed (SR-172)",
+        "Invalid evidence record, not counted: /result: only a validation record can be inconclusive, a verification record is passed or failed",
       ],
     ]);
     const passed = read(record("reason: why not"));
@@ -310,7 +310,7 @@ describe("SR-028 reading Markdown records", () => {
       [
         8,
         "warning",
-        "The evidence record has a reason, but only a record with the result inconclusive has a reason (SR-172); the record is read without it",
+        "The evidence record has a reason, but only a record with the result inconclusive has a reason; the record is read without it",
       ],
     ]);
     // An empty, blank or non-text reason, say from a template, is the same warning, and the record counts.
@@ -545,7 +545,7 @@ describe("SR-028 reading Markdown records", () => {
           file: "evidence/r.md",
           line: 8,
           message:
-            "The evidence record has criteria, but a validation record holds for the whole element, it names no acceptance criterion (SR-030 AK3); the record is read without it",
+            "The evidence record has criteria, but a validation record holds for the whole element, it names no acceptance criterion; the record is read without it",
         },
       ]);
     }

@@ -28,6 +28,7 @@ import { isWritableFolder, refuseGitPlace, workspaceLayoutState } from "../works
 import type { Metamodel, MetamodelReader } from "./load.js";
 import { loadMetamodel } from "./load.js";
 import { metamodelState } from "./state.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** What a command plans its change on. */
 export interface MetamodelSource {
@@ -257,7 +258,7 @@ export const changeMetamodel = async <T>(
   if (repository !== undefined && (await isWritableFolder(repository.folder)) === false) {
     throw new CommandError(
       "file.read-only",
-      `The metamodel repository ${name} is read-only; ${command} changes no file`,
+      `The metamodel repository ${name} is read-only; ${commandTitle(command)} changes no file`,
       { repository: name },
     );
   }

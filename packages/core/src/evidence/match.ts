@@ -48,7 +48,7 @@
 import type { Problem } from "../catalog.js";
 import { zip } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
+import { metamodelState, typeName, typesWithMeaning } from "../metamodel/index.js";
 import type { CurrentVersions, ElementRecord, VersionForms } from "../model/index.js";
 import type { CriterionRef } from "../model/index.js";
 import {
@@ -183,7 +183,7 @@ export const recordKindProblems = (
     problems.push({
       code: "evidence.kind-mismatch",
       severity: "warning",
-      message: `The ${record.kind} record names element ${record.element} of type ${element.type}, so it counts for no status: ${names} (D-012)`,
+      message: `The ${record.kind} record names element ${record.element} of type ${typeName(metamodel, element.type)}, so it counts for no status: ${names}`,
       ...recordPlace(record),
       targetId: record.element,
       targetRepository: element.repository,

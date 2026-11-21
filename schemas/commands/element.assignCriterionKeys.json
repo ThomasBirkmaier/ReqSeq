@@ -46,6 +46,11 @@
               "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "Workspace name of the repository of its file."
+            },
             "assigned": {
               "title": "Criteria with a new key",
               "type": "integer",
@@ -54,7 +59,7 @@
             }
           },
           "additionalProperties": false,
-          "required": ["id", "shortId", "assigned"]
+          "required": ["id", "shortId", "repository", "assigned"]
         },
         "x-elements": true
       },
@@ -73,6 +78,11 @@
               "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "Workspace name of the repository of its file."
+            },
             "reason": {
               "title": "Reason",
               "description": "`unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3).",
@@ -85,7 +95,7 @@
             }
           },
           "additionalProperties": false,
-          "required": ["id", "shortId", "reason", "message"]
+          "required": ["id", "shortId", "repository", "reason", "message"]
         },
         "x-elements": true,
         "x-normal": []

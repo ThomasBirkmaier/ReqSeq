@@ -131,7 +131,7 @@
               "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`.",
               "properties": {
                 "kind": {
-                  "title": "Link kind",
+                  "title": "Relation or reference",
                   "description": "`relation`: a relation or relation property stored under `key`. `reference`: an inline reference.",
                   "enum": ["relation", "reference"]
                 },

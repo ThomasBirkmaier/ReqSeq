@@ -84,21 +84,7 @@
         "title": "Affected elements",
         "type": "array",
         "description": "The elements whose file the change rewrites, in store order.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "title": "Element",
-              "$ref": "../common.schema.json#/$defs/uuid"
-            },
-            "shortId": {
-              "title": "Short ID",
-              "$ref": "../common.schema.json#/$defs/shortId"
-            }
-          },
-          "additionalProperties": false,
-          "required": ["id", "shortId"]
-        },
+        "items": { "$ref": "../common.schema.json#/$defs/countedElement" },
         "x-elements": true
       },
       "unchanged": {
@@ -131,6 +117,11 @@
               "title": "Short ID",
               "$ref": "../common.schema.json#/$defs/shortId"
             },
+            "repository": {
+              "title": "Repository",
+              "type": "string",
+              "description": "Workspace name of the repository of its file."
+            },
             "reason": {
               "title": "Reason",
               "description": "`not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read.",
@@ -143,7 +134,7 @@
             }
           },
           "additionalProperties": false,
-          "required": ["id", "shortId", "reason", "message"]
+          "required": ["id", "shortId", "repository", "reason", "message"]
         },
         "x-elements": true,
         "x-normal": []

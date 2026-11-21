@@ -145,14 +145,14 @@ describe("verification status per variant (SR-047)", () => {
     const excluded = await refused(fixture, workspace, "SR-0000a2", "VAR-0000c1");
     expect([excluded.code, excluded.message, excluded.details]).toEqual([
       "input.invalid",
-      "SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)",
+      "SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere",
       { command: "evidence.record", fields: ["variant"], reason: "excluded-in-variant", variant: A },
     ]);
     // Given by UUID, as the app gives it, the refusal still names short IDs.
     const replaced = await refused(fixture, workspace, `${P}a1`, A);
     expect([replaced.code, replaced.message, replaced.details]).toEqual([
       "input.invalid",
-      "SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)",
+      "SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead",
       {
         command: "evidence.record",
         fields: ["variant"],
@@ -199,21 +199,21 @@ describe("verification status per variant (SR-047)", () => {
         "evidence/a1-core.md",
         1,
         `${P}b1`,
-        "The verification record of SR-0000b1 for the core counts in no view: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)",
+        "The verification record of SR-0000b1 for the core counts in no view: SR-0000b1 does not apply in core, so a record for it there would count nowhere",
       ],
       [
         "warning",
         "evidence/k1-a.md",
         1,
         `${P}a1`,
-        "The verification record of SR-0000a1 for the variant VAR-0000c1 counts in no view: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)",
+        "The verification record of SR-0000a1 for the variant VAR-0000c1 counts in no view: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead",
       ],
     ]);
     // Without a variant the record is for the core, which does not hold A1.
     const core = await refused(fixture, workspace, "SR-0000b1", undefined);
     expect([core.code, core.message, core.details]).toEqual([
       "input.invalid",
-      "SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040); give a variant whose view holds it (SR-047)",
+      "SR-0000b1 does not apply in core, so a record for it there would count nowhere; give a variant whose view holds it",
       { command: "evidence.record", fields: ["variant"], reason: "counts-in-no-view" },
     ]);
     // A validation counts per element, in no view: written without variant.

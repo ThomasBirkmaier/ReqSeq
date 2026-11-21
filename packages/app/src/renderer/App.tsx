@@ -42,6 +42,9 @@ import { neighbourBuffers, withSwipe } from "./neighbours.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { markToken, markedElement, selectedRow, shownElement, windowTitle } from "./modeline.js";
 import { useOverview } from "./OverviewView.js";
+import type { StepRow } from "./overview.js";
+import { stepRows } from "./overview.js";
+import { FIRST_STEPS } from "@reqseq/core/next-steps";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals } from "./outside-marks.js";
 import type { RecentEntry } from "./recent.js";
@@ -96,6 +99,9 @@ import { StartView } from "./StartView.js";
 import { runStart, startLines, startShown } from "./start-commands.js";
 import { INIT_COMMAND, askWorkspaceName, createRunner } from "./create-workspace.js";
 import type { StartCommand } from "./start-commands.js";
+/** No first steps: a workspace with elements shows its overview as before (SR-118 AK1). */
+const NO_STEPS: readonly StepRow[] = [];
+
 export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEchoLine] = useState("");
@@ -921,6 +927,12 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     overviewFailed,
     calls.turn,
   );
+  // The first steps of a workspace in which core counts no element (SR-118 AK9): core's `FIRST_STEPS` that an
+  // entry of the command prompt runs in the shown view, so a command not executable there has no line.
+  const firstSteps =
+    overview.data?.total === 0
+      ? stepRows(FIRST_STEPS, catalog.current, commands(false).items, context.mac)
+      : NO_STEPS;
   // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {
     for (const row of overview.read.values()) {
@@ -963,7 +975,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     typeNames,
     kindNames,
     metamodelChange,
-    overview,
+    overview: { ...overview, steps: firstSteps },
     recent,
     latest,
     forgetName,

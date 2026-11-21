@@ -11,6 +11,7 @@ import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../g
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
 import { refuseGitAt } from "./git-folder.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** The metamodel folder of a new workspace when the caller names none. */
 export const DEFAULT_METAMODEL_FOLDER = "metamodel";
@@ -154,7 +155,7 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
     if (await exists(path.join(root, target))) {
       throw new CommandError(
         "file.changed-on-disk",
-        `Not written: ${target} already exists; workspace.init only creates a new workspace`,
+        `Not written: ${target} already exists; ${commandTitle("workspace.init")} only creates a new workspace`,
         { file: target },
       );
     }
@@ -240,7 +241,7 @@ const withWritten = (error: unknown, written: readonly string[]): unknown =>
   error instanceof CommandError && written.length > 0
     ? new CommandError(
         error.code,
-        `${error.message.replace(/\.$/, "")}; ${written.join(", ")} was written already and is left in place; remove it before running workspace.init again.`,
+        `${error.message.replace(/\.$/, "")}; ${written.join(", ")} was written already and is left in place; remove it before running ${commandTitle("workspace.init")} again.`,
         { ...error.details, written: [...written] },
         { cause: error },
       )

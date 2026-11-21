@@ -81,6 +81,7 @@ import type { Workspace } from "../../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { counted, filesNote, listed, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 /** Creates the folder of the mapping file to save, once nothing refuses the import any more. */
 const mappingFolder = async (save: SavedMapping): Promise<void> => {
@@ -323,7 +324,7 @@ const mappingOf = async (
   if (input.mapping === undefined && !own) {
     throw new CommandError(
       "input.invalid",
-      `mapping: name the mapping file of the source (reqif.saveMapping); only a file of ReqSeq (REQ-IF-TOOL-ID ${OWN_TOOL_ID}) is mapped one to one without it`,
+      `mapping: name the mapping file of the source (${commandTitle("reqif.saveMapping")}); only a file of ReqSeq (REQ-IF-TOOL-ID ${OWN_TOOL_ID}) is mapped one to one without it`,
       { command, fields: ["mapping"] },
     );
   }

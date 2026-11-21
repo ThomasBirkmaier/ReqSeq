@@ -11,6 +11,7 @@ import { contractsBundle } from "../runtime/contracts.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "./state.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 export interface WorkspaceAccess {
   readonly readOnly: boolean;
@@ -44,7 +45,7 @@ export const assertWritable = async (workspace: Workspace, command: string): Pro
   if (access.readOnly) {
     throw new CommandError(
       "workspace.read-only",
-      `The workspace is read-only because its metamodel is missing or faulty; ${command} changes no file. Fix the metamodel files and open the workspace again.`,
+      `The workspace is read-only because its metamodel is missing or faulty; ${commandTitle(command)} changes no file. Fix the metamodel files and open the workspace again.`,
       { command, problems: access.reasons },
     );
   }

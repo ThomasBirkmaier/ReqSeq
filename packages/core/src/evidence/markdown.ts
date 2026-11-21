@@ -55,23 +55,21 @@ const unknownKey = (violation: SchemaViolation): string | undefined => {
 };
 
 /** Why a validation record must not name a variant (SR-038 AK4), for the `false` subschema of `variant`. */
-export const VALIDATION_VARIANT_REASON =
-  "a validation record names no variant, it holds for the core (D-007, SR-038 AK4)";
+export const VALIDATION_VARIANT_REASON = "a validation record names no variant, it holds for the core";
 
 /** Why an inconclusive record needs `reason` (SR-172 AK1), for its `required` violation. */
-export const INCONCLUSIVE_REASON_REQUIRED =
-  "a record with the result inconclusive needs a reason (SR-172 AK1)";
+export const INCONCLUSIVE_REASON_REQUIRED = "a record with the result inconclusive needs a reason";
 
 /** Why a verification record cannot be inconclusive (spec question #807 Q2). */
 export const INCONCLUSIVE_VALIDATION_ONLY =
-  "only a validation record can be inconclusive, a verification record is passed or failed (SR-172)";
+  "only a validation record can be inconclusive, a verification record is passed or failed";
 
 /** Why `reason` is ignored on a passed or failed record (spec question #807 Q4). */
-export const REASON_INCONCLUSIVE_ONLY = "only a record with the result inconclusive has a reason (SR-172)";
+export const REASON_INCONCLUSIVE_ONLY = "only a record with the result inconclusive has a reason";
 
 /** Why `criteria` is ignored on a validation record (plan of #960, SR-030 AK3). */
 export const CRITERIA_VERIFICATION_ONLY =
-  "a validation record holds for the whole element, it names no acceptance criterion (SR-030 AK3)";
+  "a validation record holds for the whole element, it names no acceptance criterion";
 
 /** Whether `violation` is `criteria` on a validation record (the `false` subschema of its `then`). */
 export const misplacedCriteria = (violation: SchemaViolation): boolean =>
