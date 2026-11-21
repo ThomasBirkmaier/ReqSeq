@@ -4657,7 +4657,7 @@
     {
       "name": "workspace_check",
       "title": "Check workspace",
-      "description": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
+      "description": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -4694,7 +4694,7 @@
               "info"
             ],
             "default": "error",
-            "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
+            "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check."
           }
         },
         "additionalProperties": false
@@ -5463,7 +5463,7 @@
     {
       "name": "tool_guide",
       "title": "Agent guide",
-      "description": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.",
+      "description": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -11551,7 +11551,7 @@
     {
       "name": "hint_confirm",
       "title": "Confirm hints",
-      "description": "Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.",
+      "description": "Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -13154,7 +13154,7 @@
     {
       "name": "evidence_enrichJunit",
       "title": "Enrich JUnit file",
-      "description": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
+      "description": "Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -13165,7 +13165,7 @@
         "properties": {
           "file": {
             "$ref": "#/$defs/common/$defs/localPath",
-            "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
+            "description": "The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
           },
           "item": {
             "$ref": "#/$defs/common/$defs/item",
@@ -13234,7 +13234,7 @@
           "unknown": {
             "title": "Unknown references",
             "type": "array",
-            "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged.",
+            "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1).",
             "items": {
               "type": "object",
               "properties": {
@@ -14116,7 +14116,7 @@
     {
       "name": "baseline_get",
       "title": "Show baseline",
-      "description": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; with withEvidence also the verification and validation status at their version in the baseline.",
+      "description": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -15062,7 +15062,7 @@
     {
       "name": "reqif_export",
       "title": "Export ReqIF",
-      "description": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
+      "description": "Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
