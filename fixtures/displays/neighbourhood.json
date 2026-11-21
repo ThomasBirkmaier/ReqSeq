@@ -1,0 +1,192 @@
+{
+  "metamodel": {
+    "relations": [
+      {
+        "key": "refines",
+        "name": "Refines",
+        "inverse-name": "Refined by"
+      },
+      {
+        "key": "derives-from",
+        "name": "Derives from",
+        "meaning": "derivation"
+      },
+      {
+        "key": "based-on",
+        "name": "Based on",
+        "inverse-name": "Basis for"
+      }
+    ],
+    "properties": [
+      {
+        "key": "packages",
+        "name": "Packages",
+        "kind": "relation"
+      }
+    ],
+    "statuses": [
+      {
+        "key": "draft",
+        "name": "Draft",
+        "initial": true
+      },
+      {
+        "key": "obsolete",
+        "name": "Obsolete",
+        "invalid": true
+      }
+    ]
+  },
+  "root": "cccc3333-3333-4333-8333-000000000001",
+  "neighbourhood": {
+    "parents": {
+      "nodes": [
+        {
+          "id": "cccc3333-3333-4333-8333-000000000001",
+          "shortId": "SR-000001",
+          "type": "system-requirement",
+          "title": "Show wind speed",
+          "repository": "spec",
+          "file": "SR-1.md",
+          "depth": 0,
+          "expanded": true
+        },
+        {
+          "id": "cccc3333-3333-4333-8333-000000000002",
+          "shortId": "N-000002",
+          "type": "need",
+          "title": "Know the wind",
+          "status": "draft",
+          "repository": "spec",
+          "file": "N-2.md",
+          "depth": 1,
+          "direction": "up",
+          "expanded": true
+        }
+      ],
+      "edges": [
+        {
+          "source": "cccc3333-3333-4333-8333-000000000001",
+          "sourceRepository": "spec",
+          "target": "cccc3333-3333-4333-8333-000000000002",
+          "targetRepository": "spec",
+          "link": "relation",
+          "kind": "derives-from",
+          "meaning": "derivation",
+          "direction": "up",
+          "cyclic": false,
+          "repeated": false,
+          "outdated": true
+        }
+      ],
+      "total": 2
+    },
+    "children": {
+      "nodes": [
+        {
+          "id": "cccc3333-3333-4333-8333-000000000001",
+          "shortId": "SR-000001",
+          "type": "system-requirement",
+          "title": "Show wind speed",
+          "repository": "spec",
+          "file": "SR-1.md",
+          "depth": 0,
+          "expanded": true
+        },
+        {
+          "id": "cccc3333-3333-4333-8333-000000000004",
+          "shortId": "SR-000004",
+          "type": "system-requirement",
+          "title": "Show gusts",
+          "status": "obsolete",
+          "repository": "spec",
+          "file": "SR-4.md",
+          "depth": 1,
+          "direction": "down",
+          "expanded": true
+        }
+      ],
+      "edges": [
+        {
+          "source": "cccc3333-3333-4333-8333-000000000004",
+          "sourceRepository": "spec",
+          "target": "cccc3333-3333-4333-8333-000000000001",
+          "targetRepository": "spec",
+          "link": "relation",
+          "kind": "derives-from",
+          "meaning": "derivation",
+          "direction": "down",
+          "cyclic": false,
+          "repeated": false,
+          "outdated": false
+        }
+      ],
+      "total": 2
+    },
+    "incoming": {
+      "nodes": [
+        {
+          "id": "cccc3333-3333-4333-8333-000000000001",
+          "shortId": "SR-000001",
+          "type": "system-requirement",
+          "title": "Show wind speed",
+          "repository": "spec",
+          "file": "SR-1.md",
+          "depth": 0,
+          "expanded": true
+        },
+        {
+          "id": "cccc3333-3333-4333-8333-000000000005",
+          "shortId": "SR-000005",
+          "type": "system-requirement",
+          "title": "Log wind",
+          "status": "draft",
+          "repository": "spec",
+          "file": "SR-5.md",
+          "depth": 1,
+          "direction": "down",
+          "expanded": true
+        }
+      ],
+      "edges": [
+        {
+          "source": "cccc3333-3333-4333-8333-000000000005",
+          "sourceRepository": "spec",
+          "target": "cccc3333-3333-4333-8333-000000000001",
+          "targetRepository": "spec",
+          "link": "relation",
+          "kind": "based-on",
+          "direction": "down",
+          "cyclic": false,
+          "repeated": false,
+          "outdated": false
+        },
+        {
+          "source": "cccc3333-3333-4333-8333-000000000005",
+          "sourceRepository": "spec",
+          "target": "cccc3333-3333-4333-8333-000000000001",
+          "targetRepository": "spec",
+          "link": "reference",
+          "meaning": "reference",
+          "direction": "down",
+          "cyclic": false,
+          "repeated": false,
+          "outdated": false
+        },
+        {
+          "source": "cccc3333-3333-4333-8333-000000000001",
+          "sourceRepository": "spec",
+          "target": "cccc3333-3333-4333-8333-000000000001",
+          "targetRepository": "spec",
+          "link": "reference",
+          "meaning": "reference",
+          "direction": "down",
+          "cyclic": false,
+          "repeated": false,
+          "outdated": false
+        }
+      ],
+      "total": 2
+    }
+  }
+}
