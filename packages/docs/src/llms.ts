@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { parse } from "yaml";
+import { howToRank } from "./sidebar.js";
 
 // The documentation as plain text for AI assistants (llmstxt.org): `llms.txt`, an index with one line per page, and
 // `llms-full.txt`, every page as Markdown. The integration in packages/docs/site/astro.config.mjs writes both into
@@ -67,6 +68,9 @@ export function pageUrl(path: string, base: string): string {
   return page === "" ? prefix : `${prefix}${page}/`;
 }
 
+/** Places a how-to guide by its topic group of the sidebar (#2191), before the pages no group lists. */
+const rank = (page: TextPage): number => howToRank(page.path) ?? Number.MAX_SAFE_INTEGER;
+
 /**
  * The pages of each section, sorted as in the sidebar, the landing page left out. Fails on any other page of no
  * section, so a new part of the sidebar cannot be missing from the files unnoticed.
@@ -82,7 +86,7 @@ function sections(pages: readonly TextPage[]): (readonly [string, TextPage[]])[]
     label,
     pages
       .filter((page) => page.path.startsWith(start))
-      .sort((a, b) => a.order - b.order || a.path.localeCompare(b.path)),
+      .sort((a, b) => rank(a) - rank(b) || a.order - b.order || a.path.localeCompare(b.path)),
   ]);
 }
 

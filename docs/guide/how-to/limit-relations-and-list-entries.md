@@ -1,8 +1,6 @@
 ---
 title: Set how many relations and list entries an element must or may have
 description: Say in the metamodel how many relations of a kind an element must or may have, and how many entries a list property may hold.
-sidebar:
-  order: 5.2
 ---
 
 A relation kind can say how many relations of it an element may or must have to elements of a type, with `limits`: each entry names a `target-type`, at least one of `min` and `max`, and optionally a `source-type` (without it, the limit applies to the kind's `source-types`, or to every type when the kind has none; with it, only to the types the kind's `source-types` also allow). Subtypes count on both sides. For example, a system requirement realizes at least one and at most two needs:

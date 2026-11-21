@@ -1,8 +1,6 @@
 ---
 title: Record evidence for a variant
 description: Record the test results of an item under test of a variant, let results of a variant-independent repository count for every variant, and see the evidence as it stood at a baseline.
-sidebar:
-  order: 4.3
 ---
 
 A test result without variant counts only for the core. For a test run on a variant, give the variant, by short ID, UUID or identifier: each enriched test case then counts for that variant. A test case may also name its variant itself with the property `reqseq:variant`, by short ID or identifier; ReqSeq writes the UUID in its place. The command exits with 1 and leaves a test case unchanged when it names a variant, or `core`, that is not among the ones given, or a requirement that does not count in one of its views (excluded, replaced or not applying there).

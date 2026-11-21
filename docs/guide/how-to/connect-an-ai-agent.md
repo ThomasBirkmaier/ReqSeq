@@ -1,8 +1,6 @@
 ---
 title: Connect an AI agent
 description: Print the ready-made setup that lets an AI agent's client start the MCP server of ReqSeq for a workspace.
-sidebar:
-  order: 1.1
 ---
 
 An agent works with ReqSeq through its client, which starts the MCP server (`reqseq mcp`) for a workspace. **Connect AI agent** prints what to enter in the client, with the absolute paths of the ReqSeq that runs it and of the workspace. It creates and changes no file, the client's included, and opens no connection.

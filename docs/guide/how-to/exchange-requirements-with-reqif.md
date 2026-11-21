@@ -1,8 +1,6 @@
 ---
 title: Exchange requirements with ReqIF
 description: Analyse a ReqIF file, save its mapping, import it and its next delivery, and export a package, a selection or your statements back to the source.
-sidebar:
-  order: 12
 ---
 
 ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq reads a `.reqif` file, not a packed `.reqifz`, in this order:

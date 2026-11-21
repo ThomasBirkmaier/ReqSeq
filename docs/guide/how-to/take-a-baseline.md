@@ -1,8 +1,6 @@
 ---
 title: Take a baseline
 description: Freeze the versions of a selection of elements in a baseline, such as the elements of a package, and see what changed since.
-sidebar:
-  order: 8
 ---
 
 A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as all requirements of a use case. When and why is up to you ([what to check first](/how-to/prepare-a-baseline/)).
