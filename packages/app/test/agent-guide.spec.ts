@@ -1,8 +1,9 @@
 // "Agent guide" and "Write skill file" (SR-229 AK1, AK16, AK18) on the built app: "Agent guide" runs at once and
 // shows the guide whole, line by line as the command line gives it, not one line cut at the edge (#2141); "Write
-// skill file" writes the skill file with one Enter, says where, and leaves a file it did not write. Keys use
+// skill file" writes the skill file at both places with one Enter, says where, and leaves a file it did not write
+// while it writes the other place and names both. Keys use
 // ControlOrMeta, so the tests run on Linux and macOS.
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
@@ -14,8 +15,9 @@ const OUT =
   process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
-/** Where the skill file goes (D-079), relative to the root of the repository. */
+/** Where the skill file goes (D-079), in its order, relative to the root of the repository. */
 const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+const AGENTS = ".agents/skills/managing-requirements/SKILL.md";
 
 /** Chooses `title` in the command prompt with `key`. */
 const choose = async (window: Page, title: string, key = "Enter"): Promise<void> => {
@@ -62,30 +64,41 @@ test.describe("Agent guide and Write skill file", () => {
     await expect(readFile(path.join(root, SKILL), "utf8")).rejects.toThrow();
   });
 
-  test("[SR-229/AK-y65m] Write skill file writes the skill file with one Enter, says where, and leaves a file it did not write", async () => {
+  test("[SR-229/AK-y65m] Write skill file writes the skill file at both places with one Enter, says where, and leaves a file it did not write", async () => {
     const { window } = running;
     const root = running.workspace?.root ?? "";
     await choose(window, "Write skill file");
     const page = window.locator(".result.output[data-buffer]");
-    await expect(page.locator("h1.answer")).toHaveText(`Created the skill file ${SKILL}.`);
+    await expect(page.locator("h1.answer")).toHaveText(
+      `Created the skill file ${SKILL}, and created the skill file ${AGENTS}.`,
+    );
     const written = await readFile(path.join(root, SKILL), "utf8");
+    expect(await readFile(path.join(root, AGENTS), "utf8")).toBe(written);
+    // The text of the skill file once.
+    await expect(page.locator(".line.block")).toHaveCount(1);
     expect(await page.locator(".line.block .text").textContent()).toBe(written);
     await window.screenshot({ path: path.join(OUT, "write-skill-file-light.png") });
-    // Again, with Ctrl/Cmd+Enter: the same file, left as it is.
+    // Again, with Ctrl/Cmd+Enter: the same files, left as they are.
     await choose(window, "Write skill file", "ControlOrMeta+Enter");
-    await expect(page.locator("h1.answer")).toHaveText(`Left the skill file ${SKILL} unchanged.`);
-    // A file changed by hand is not replaced: no buffer opens, the shown one stays, the command line says why.
-    await mkdir(path.dirname(path.join(root, SKILL)), { recursive: true });
+    await expect(page.locator("h1.answer")).toHaveText(
+      `Left the skill file ${SKILL} unchanged, and left the skill file ${AGENTS} unchanged.`,
+    );
+    // A file changed by hand is not replaced, the other place is written: no buffer opens, the shown one stays,
+    // the command line names each place with its result.
     await writeFile(path.join(root, SKILL), "# My own skill\n");
+    await rm(path.join(root, AGENTS));
     await choose(window, "Agent guide");
     await expect(page.locator("h1.answer")).toHaveText(
       "Gave the agent guide with commands named for the command line.",
     );
     await choose(window, "Write skill file");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Not written");
+    const minibuffer = window.getByLabel("Minibuffer");
+    await expect(minibuffer).toContainText(`${SKILL}: not written:`);
+    await expect(minibuffer).toContainText(`${AGENTS}: created`);
     await expect(page.locator("h1.answer")).toHaveText(
       "Gave the agent guide with commands named for the command line.",
     );
     expect(await readFile(path.join(root, SKILL), "utf8")).toBe("# My own skill\n");
+    expect(await readFile(path.join(root, AGENTS), "utf8")).toBe(written);
   });
 });

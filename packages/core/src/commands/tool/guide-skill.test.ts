@@ -1,4 +1,5 @@
-// tool.guide with `skill` and `write` (SR-229 AK6, AK7, AK8): the skill file and where it is written.
+// tool.guide with `skill` and `write` (SR-229 AK6, AK7, AK8): the skill file and its places of D-079, each written
+// on its own; a place not written makes the call fail after the others were written.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,7 +16,7 @@ import { OPEN_LOCAL_PATHS } from "../../workspace/local-paths.js";
 import { commandLineName, mcpToolName, renderCall } from "./guide/calls.js";
 import {
   SKILL_DESCRIPTION,
-  SKILL_FILE,
+  SKILL_FILES,
   SKILL_NAME,
   SKILL_PRECEDENCE,
   SKILL_WORKFLOWS,
@@ -24,7 +25,13 @@ import {
   skillChecksum,
   skillFile,
 } from "./guide/skill.js";
-import { SKILL_READ_MAX, readSkillFile, skillLocation, writeSkillFile } from "./guide/skill-file.js";
+import {
+  SKILL_READ_MAX,
+  readSkillFiles,
+  skillLocations,
+  writeSkillFiles,
+  writtenOrThrow,
+} from "./guide/skill-file.js";
 import { GUIDE_RULES, GUIDE_TAIL, GUIDE_WRITING_RULES, METAMODEL_CHANGES } from "./guide/text.js";
 
 const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
@@ -63,7 +70,8 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-type Output = CommandOutput<"tool.guide">;
+/** The output with the answer sentence, which the runtime adds (SR-224 AK1). */
+type Output = CommandOutput<"tool.guide"> & { readonly answer: string };
 
 const run = async (
   root: string,
@@ -89,8 +97,34 @@ const refusal = async (
 };
 
 const WRITE = { skill: true, write: true } as const;
-const skillAt = (root: string): string => path.join(root, ...SKILL_FILE.split("/"));
-const read = (root: string): Promise<string> => fs.readFile(skillAt(root), "utf8");
+const [CLAUDE, AGENTS] = SKILL_FILES;
+const skillAt = (root: string, file: string = CLAUDE): string => path.join(root, ...file.split("/"));
+const read = (root: string, file: string = CLAUDE): Promise<string> =>
+  fs.readFile(skillAt(root, file), "utf8");
+/** Writes `text` at the place `file` of `root`, with its folders. */
+const put = async (root: string, text: string, file: string = CLAUDE): Promise<void> => {
+  await fs.mkdir(path.dirname(skillAt(root, file)), { recursive: true });
+  await fs.writeFile(skillAt(root, file), text);
+};
+/** Both places with the same action. */
+const both = (action: string, previousVersion?: string): unknown[] =>
+  SKILL_FILES.map((file) => ({
+    path: file,
+    action,
+    ...(previousVersion === undefined ? {} : { previousVersion }),
+  }));
+
+interface Place {
+  readonly path: string;
+  readonly action?: string;
+  readonly error?: {
+    readonly code: string;
+    readonly message: string;
+    readonly details?: Record<string, unknown>;
+  };
+}
+/** The places of a failed write, from its details. */
+const placesOf = (error: CommandError): readonly Place[] => (error.details as { places: Place[] }).places;
 
 /** The workflow sections of the skill, by heading, each with its numbered steps. */
 const workflows = (text: string): { heading: string; steps: string[] }[] =>
@@ -336,26 +370,43 @@ describe("tool.guide with skill", () => {
 });
 
 describe("tool.guide with write", () => {
-  it("[SR-229/AK-v09f] creates the file in the workspace folder without Git, then leaves it, and replaces its own file of another version", async () => {
+  it("[SR-229/AK-v09f] creates the file at both places in the workspace folder without Git, then leaves them, and replaces its own file of another version", async () => {
     const root = await folder(workspaceFiles());
     const created = await run(root, WRITE);
-    expect(created.file).toEqual({ path: SKILL_FILE, action: "created" });
+    expect(created.places).toEqual(both("created"));
+    expect(created.answer).toBe(`Created the skill file ${CLAUDE}, and created the skill file ${AGENTS}.`);
     expect(await read(root)).toBe(created.guide);
-    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "unchanged" });
+    expect(await read(root, AGENTS)).toBe(created.guide);
+    const again = await run(root, WRITE);
+    expect(again.places).toEqual(both("unchanged"));
+    expect(again.answer).toBe(
+      `Left the skill file ${CLAUDE} unchanged, and left the skill file ${AGENTS} unchanged.`,
+    );
     // A copy with CRLF line endings (a Git checkout on Windows) is still the file of this version.
     await fs.writeFile(skillAt(root), created.guide.replaceAll("\n", "\r\n"));
-    expect((await run(root, WRITE)).file?.action).toBe("unchanged");
-    // ReqSeq's own unchanged file of another version, older or newer, is replaced without `replace`.
+    expect((await run(root, WRITE)).places).toEqual(both("unchanged"));
+    // ReqSeq's own unchanged file of another version, older or newer, is replaced without `replace`, at each place.
     for (const version of ["0.0.1", "99.0.0"]) {
       await fs.writeFile(skillAt(root), skillFile(ENTRIES, version));
-      expect((await run(root, WRITE)).file).toEqual({
-        path: SKILL_FILE,
-        action: "replaced",
-        previousVersion: version,
-      });
+      const replaced = await run(root, WRITE);
+      expect(replaced.places).toEqual([
+        { path: CLAUDE, action: "replaced", previousVersion: version },
+        { path: AGENTS, action: "unchanged" },
+      ]);
+      expect(replaced.answer).toBe(
+        `Replaced the skill file ${CLAUDE}, and left the skill file ${AGENTS} unchanged.`,
+      );
       expect(await read(root)).toBe(created.guide);
     }
-    // The written file is no element, and the workspace check stays clean (SR-003 AK2).
+    // A missing file in its folders is created.
+    await fs.rm(skillAt(root, AGENTS));
+    expect((await run(root, WRITE)).places?.[1]).toEqual({ path: AGENTS, action: "created" });
+    await fs.writeFile(skillAt(root, AGENTS), skillFile(ENTRIES, "0.0.1"));
+    expect((await run(root, WRITE)).places).toEqual([
+      { path: CLAUDE, action: "unchanged" },
+      { path: AGENTS, action: "replaced", previousVersion: "0.0.1" },
+    ]);
+    // The written files are no elements, and the workspace check stays clean (SR-003 AK2).
     const check = (await invoke(
       "workspace.check",
       {},
@@ -364,73 +415,114 @@ describe("tool.guide with write", () => {
     expect(check.problems).toEqual([]);
   });
 
-  it("[SR-229/AK-v09f] writes nothing over a file ReqSeq did not write or that was changed, and replaces it only with replace", async () => {
-    const root = await folder(workspaceFiles());
+  it("[SR-229/AK-v09f] writes the other place over a file ReqSeq did not write or that was changed, fails naming each place, and replaces it only with replace", async () => {
     for (const [text, reason] of [
       ["---\nname: managing-requirements\ndescription: Mine.\n---\n\n# Mine\n", "foreign"],
       [`${skillFile(ENTRIES, "0.0.1")}One more line.\n`, "changed"],
       [`x${"y".repeat(SKILL_READ_MAX)}`, "foreign"],
     ] as const) {
-      await fs.mkdir(path.dirname(skillAt(root)), { recursive: true });
-      await fs.writeFile(skillAt(root), text);
+      const root = await folder(workspaceFiles());
+      await put(root, text);
       const error = await refusal(root, WRITE);
-      expect([error.code, error.details]).toEqual(["file.exists", { path: SKILL_FILE, reason }]);
-      expect(error.message).toContain("`reqseq tool guide --skill --write --replace`");
-      expect(await read(root)).toBe(text);
-      const replaced = await run(root, { ...WRITE, replace: true });
-      expect(replaced.file).toEqual({
-        path: SKILL_FILE,
-        action: "replaced",
-        ...(reason === "changed" ? { previousVersion: "0.0.1" } : {}),
+      const what = reason === "foreign" ? "was not written by ReqSeq" : "was changed since ReqSeq wrote it";
+      const why = `the skill file ${CLAUDE} ${what}; ReqSeq replaces it only on request: \`reqseq tool guide --skill --write --replace\``;
+      expect(error.code).toBe("file.exists");
+      expect(error.message).toBe(
+        `Not written at every place of the skill file: ${CLAUDE}: not written: ${why}; ${AGENTS}: created`,
+      );
+      expect(error.details).toEqual({
+        command: "tool.guide",
+        places: [
+          {
+            path: CLAUDE,
+            error: { code: "file.exists", message: `Not written: ${why}`, details: { path: CLAUDE, reason } },
+          },
+          { path: AGENTS, action: "created" },
+        ],
       });
+      expect(await read(root)).toBe(text);
+      expect(await read(root, AGENTS)).toBe((await run(root, { skill: true })).guide);
+      const replaced = await run(root, { ...WRITE, replace: true });
+      expect(replaced.places).toEqual([
+        {
+          path: CLAUDE,
+          action: "replaced",
+          ...(reason === "changed" ? { previousVersion: "0.0.1" } : {}),
+        },
+        { path: AGENTS, action: "unchanged" },
+      ]);
       expect(await read(root)).toBe(replaced.guide);
     }
+    // `replace` holds for every place; the code of a failed call is that of the first place not written.
+    const root = await folder(workspaceFiles());
+    await put(root, "# Mine\n", AGENTS);
+    await put(root, "# Mine too\n");
+    const failed = await refusal(root, WRITE);
+    expect([failed.code, placesOf(failed).map((place) => place.error?.code)]).toEqual([
+      "file.exists",
+      ["file.exists", "file.exists"],
+    ]);
+    expect((await run(root, { ...WRITE, replace: true })).places).toEqual(both("replaced"));
   });
 
-  it("[SR-229/AK-v09f] writes at the Git root above the workspace folder, one file for several workspaces, also through a linked workspace root", async () => {
+  it("[SR-229/AK-v09f] writes both places at the Git root above the workspace folder, shared by several workspaces, also through a linked workspace root", async () => {
     const top = await folder({ ...workspaceFiles("spec"), ...workspaceFiles("product/model") });
     await gitEntry(top);
-    const shared = "../.claude/skills/managing-requirements/SKILL.md";
-    expect((await run(path.join(top, "spec"), WRITE)).file).toEqual({ path: shared, action: "created" });
-    expect((await run(path.join(top, "product/model"), WRITE)).file).toEqual({
-      path: `../${shared}`,
-      action: "unchanged",
-    });
+    const shared = SKILL_FILES.map((file) => `../${file}`);
+    expect((await run(path.join(top, "spec"), WRITE)).places).toEqual(
+      shared.map((file) => ({ path: file, action: "created" })),
+    );
+    expect((await run(path.join(top, "product/model"), WRITE)).places).toEqual(
+      shared.map((file) => ({ path: `../${file}`, action: "unchanged" })),
+    );
     await expect(fs.stat(skillAt(path.join(top, "spec")))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(skillAt(path.join(top, "spec"), AGENTS))).rejects.toMatchObject({ code: "ENOENT" });
     // A workspace root reached through a link: the path counts from its real folder.
     const links = await folder();
     await fs.symlink(path.join(top, "spec"), path.join(links, "spec"), "dir");
-    expect((await run(path.join(links, "spec"), WRITE)).file).toEqual({ path: shared, action: "unchanged" });
-    expect((await skillLocation(open(path.join(links, "spec")))).root).toBe(top);
-    // The workspace folder at the Git root: the same place as without Git.
+    expect((await run(path.join(links, "spec"), WRITE)).places).toEqual(
+      shared.map((file) => ({ path: file, action: "unchanged" })),
+    );
+    expect((await skillLocations(open(path.join(links, "spec")))).map((place) => place.root)).toEqual([
+      top,
+      top,
+    ]);
+    // The workspace folder at the Git root: the same places as without Git.
     const atRoot = await folder(workspaceFiles());
     await gitEntry(atRoot);
-    expect((await run(atRoot, WRITE)).file).toEqual({ path: SKILL_FILE, action: "created" });
+    expect((await run(atRoot, WRITE)).places).toEqual(both("created"));
   });
 
-  it("[SR-229/AK-v09f] through API and MCP writes inside the repositories, and outside names the command line without an absolute path", async () => {
+  it("[SR-229/AK-v09f] through API and MCP writes inside the repositories, and outside fails naming both places and the command line once, without an absolute path", async () => {
     const atRoot = await folder(workspaceFiles());
     await gitEntry(atRoot);
-    expect((await run(atRoot, WRITE, "mcp")).file?.action).toBe("created");
+    expect((await run(atRoot, WRITE, "mcp")).places).toEqual(both("created"));
     const top = await folder(workspaceFiles("spec"));
     await gitEntry(top);
+    const outside = (file: string): string =>
+      `the skill file ../${file} lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run \`reqseq tool guide --skill --write\` in the workspace folder`;
     for (const access of ["api", "mcp"] as const) {
       const error = await refusal(path.join(top, "spec"), WRITE, access);
       expect(error.code).toBe("input.invalid");
       expect(error.message).toBe(
-        "Not written: the skill file lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run `reqseq tool guide --skill --write` in the workspace folder",
+        `Not written at every place of the skill file: ../${CLAUDE}: not written: ${outside(CLAUDE)}; ../${AGENTS}: not written: ${outside(AGENTS)}`,
       );
-      expect(error.details).toEqual({
-        command: "tool.guide",
-        reason: "outside-repositories",
-        field: "skill file",
-        path: "../.claude/skills/managing-requirements/SKILL.md",
-      });
+      expect(placesOf(error).map((place) => [place.path, place.error?.details])).toEqual(
+        SKILL_FILES.map((file) => [
+          `../${file}`,
+          { command: "tool.guide", reason: "outside-repositories", field: "skill file", path: `../${file}` },
+        ]),
+      );
       expect(JSON.stringify(error.details)).not.toContain(top);
+      expect(error.message).not.toContain(top);
     }
     await expect(fs.stat(path.join(top, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(path.join(top, ".agents"))).rejects.toMatchObject({ code: "ENOENT" });
     // The command line writes there.
-    expect((await run(path.join(top, "spec"), WRITE, "cli")).file?.action).toBe("created");
+    expect((await run(path.join(top, "spec"), WRITE, "cli")).places?.map((place) => place.action)).toEqual([
+      "created",
+      "created",
+    ]);
     // Once a file is there, API and MCP still refuse before they look at it: nothing outside is read.
     for (const text of [undefined, "# Mine\n"]) {
       if (text !== undefined) {
@@ -438,15 +530,34 @@ describe("tool.guide with write", () => {
       }
       for (const access of ["api", "mcp"] as const) {
         const error = await refusal(path.join(top, "spec"), WRITE, access);
-        expect([error.code, (error.details as { reason?: string }).reason]).toEqual([
-          "input.invalid",
-          "outside-repositories",
-        ]);
+        expect(placesOf(error).map((place) => [place.error?.code, place.error?.details?.["reason"]])).toEqual(
+          [
+            ["input.invalid", "outside-repositories"],
+            ["input.invalid", "outside-repositories"],
+          ],
+        );
       }
     }
   });
 
-  it("[SR-229/AK-v09f] refuses a link at the file, a folder linked out of the root or into .git, and a file under a linked folder", async () => {
+  it("[SR-229/AK-v09f] names a reason once for the places it holds for", () => {
+    const refused = new CommandError("input.invalid", "Not written: the place cannot be checked");
+    expect(() =>
+      writtenOrThrow([
+        { path: CLAUDE, refused },
+        { path: AGENTS, refused },
+      ]),
+    ).toThrow(
+      `Not written at every place of the skill file: ${CLAUDE}: not written: the place cannot be checked; ${AGENTS}: not written, for the same reason`,
+    );
+    const written = [
+      { path: CLAUDE, action: "created" },
+      { path: AGENTS, action: "unchanged" },
+    ] as const;
+    expect(writtenOrThrow(written)).toEqual(written);
+  });
+
+  it("[SR-229/AK-v09f] refuses a link at the file, a folder linked out of the root or into .git, and a file under a linked folder, and writes the other place", async () => {
     const outside = await folder();
     const cases: [string, (root: string) => Promise<void>, string][] = [
       [
@@ -499,18 +610,66 @@ describe("tool.guide with write", () => {
         (root) => fs.symlink(path.join(root, ".claude"), path.join(root, ".claude"), "dir"),
         "file.faulty",
       ],
+      [".claude as a file", (root) => fs.writeFile(path.join(root, ".claude"), "x"), "file.not-regular"],
     ];
     for (const [name, prepare, code] of cases) {
       const root = await folder(workspaceFiles());
       await prepare(root);
       const outcome = await run(root, { ...WRITE, replace: true }).then(
-        () => "written",
-        (e: unknown) => (e instanceof CommandError ? e.code : String(e)),
+        () => ["written"],
+        (e: unknown) => (e instanceof CommandError ? [e.code, placesOf(e)[1]?.action] : [String(e)]),
       );
-      expect([name, outcome]).toEqual([name, code]);
+      expect([name, outcome]).toEqual([name, [code, "created"]]);
     }
     await expect(fs.readdir(path.join(outside))).resolves.not.toContain("skills");
     expect(await fs.readdir(outside)).toEqual(expect.not.arrayContaining(["skills"]));
+  });
+
+  it("[SR-229/AK-v09f] refuses only the place a file stands in the way of, and finds the first place's file through a folder linked to it", async () => {
+    const root = await folder(workspaceFiles());
+    await fs.writeFile(path.join(root, ".agents"), "my own notes\n");
+    const error = await refusal(root, WRITE);
+    expect([error.code, placesOf(error)]).toEqual([
+      "file.not-regular",
+      [
+        { path: CLAUDE, action: "created" },
+        {
+          path: AGENTS,
+          error: {
+            code: "file.not-regular",
+            message: `Not written: a path above the skill file ${AGENTS} is a file, not a folder`,
+            details: { path: AGENTS, reason: "file-in-the-way" },
+          },
+        },
+      ],
+    ]);
+    expect(await fs.readFile(path.join(root, ".agents"), "utf8")).toBe("my own notes\n");
+    // `.agents/skills` linked to `.claude/skills` inside the repository: one file, left at the second place.
+    const linked = await folder(workspaceFiles());
+    await fs.mkdir(path.join(linked, ".claude", "skills"), { recursive: true });
+    await fs.mkdir(path.join(linked, ".agents"));
+    await fs.symlink(path.join(linked, ".claude", "skills"), path.join(linked, ".agents", "skills"), "dir");
+    expect((await run(linked, WRITE)).places).toEqual([
+      { path: CLAUDE, action: "created" },
+      { path: AGENTS, action: "unchanged" },
+    ]);
+  });
+
+  it("[SR-229/AK-v09f] refuses a place whose folders cannot be looked at", async () => {
+    const root = await folder(workspaceFiles());
+    const stat = fs.stat.bind(fs);
+    vi.spyOn(fs, "stat").mockImplementation(((at: string, ...rest: never[]) =>
+      at === path.join(root, ".agents")
+        ? Promise.reject(Object.assign(new Error("permission denied"), { code: "EACCES" }))
+        : stat(at, ...rest)) as typeof fs.stat);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const error = await refusal(root, WRITE);
+    expect([error.code, placesOf(error)[1]?.error?.details]).toEqual([
+      "file.faulty",
+      { path: AGENTS, reason: "EACCES" },
+    ]);
   });
 
   it("[SR-229/AK-v09f] refuses a loop of links also where lstat of the file says only that it is not there, as on Windows", async () => {
@@ -526,7 +685,10 @@ describe("tool.guide with write", () => {
       vi.restoreAllMocks();
     });
     const error = await refusal(root, WRITE);
-    expect([error.code, error.details]).toEqual(["file.faulty", { path: SKILL_FILE, reason: "ELOOP" }]);
+    expect([error.code, placesOf(error)[0]?.error?.details]).toEqual([
+      "file.faulty",
+      { path: CLAUDE, reason: "ELOOP" },
+    ]);
   });
 
   it("[SR-229/AK-v09f] refuses a file it cannot look at or read, also a large one it reads only to replace it", async () => {
@@ -543,7 +705,10 @@ describe("tool.guide with write", () => {
       .spyOn(fs, "lstat")
       .mockImplementation(((at: string, ...rest: never[]) =>
         at === skillAt(root) ? Promise.reject(denied()) : lstat(at, ...rest)) as typeof fs.lstat);
-    expect((await refusal(root, WRITE)).details).toEqual({ path: SKILL_FILE, reason: "EACCES" });
+    expect(placesOf(await refusal(root, WRITE))[0]?.error?.details).toEqual({
+      path: CLAUDE,
+      reason: "EACCES",
+    });
     lstatSpy.mockRestore();
     const readSpy = vi
       .spyOn(fs, "readFile")
@@ -556,7 +721,7 @@ describe("tool.guide with write", () => {
       await fs.writeFile(skillAt(root), text);
       const error = await refusal(root, input);
       expect(error.code).toBe("file.faulty");
-      expect(error.message).toContain(`Not written: the skill file ${SKILL_FILE} cannot be read`);
+      expect(error.message).toContain(`${CLAUDE}: not written: the skill file ${CLAUDE} cannot be read`);
     }
     readSpy.mockRestore();
     expect(await read(root)).toBe("y".repeat(SKILL_READ_MAX + 1));
@@ -571,11 +736,12 @@ describe("tool.guide with write", () => {
     }
     await gitEntry(root);
     const error = await refusal(root, WRITE);
-    expect([error.code, (error.details as { reason?: string }).reason]).toEqual([
-      "input.invalid",
-      "git-folder",
+    expect(placesOf(error).map((place) => [place.error?.code, place.error?.details?.["reason"]])).toEqual([
+      ["input.invalid", "git-folder"],
+      ["input.invalid", "git-folder"],
     ]);
     await expect(fs.stat(path.join(root, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(path.join(root, ".agents"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it.skipIf(NO_PERMISSIONS)(
@@ -588,11 +754,14 @@ describe("tool.guide with write", () => {
       const error = await refusal(root, WRITE);
       expect(error.code).toBe("file.read-only");
       expect(error.message).toContain(".claude");
+      expect(placesOf(error)[1]).toEqual({ path: AGENTS, action: "created" });
     },
   );
 
-  it("needs a workspace to write", async () => {
-    expect((await refusal(await folder(), WRITE)).code).toBe("workspace.not-found");
+  it("needs a workspace to write, and says so once, not per place", async () => {
+    const error = await refusal(await folder(), WRITE);
+    expect(error.code).toBe("workspace.not-found");
+    expect(error.details).not.toHaveProperty("places");
   });
 
   /**
@@ -609,13 +778,13 @@ describe("tool.guide with write", () => {
     await expect(
       invoke("element.create", { type: "requirement", title: "Wind" }, { workspace: open(root) }),
     ).rejects.toMatchObject({ code: "workspace.read-only" });
-    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "created" });
-    expect((await run(root, WRITE)).file).toEqual({ path: SKILL_FILE, action: "unchanged" });
+    expect((await run(root, WRITE)).places).toEqual(both("created"));
+    expect((await run(root, WRITE)).places).toEqual(both("unchanged"));
     await fs.writeFile(skillAt(root), "# Mine\n");
     const error = await refusal(root, WRITE);
     expect(error.code).toBe("file.exists");
     expect(await read(root)).toBe("# Mine\n");
-    expect((await run(root, { ...WRITE, replace: true })).file?.action).toBe("replaced");
+    expect((await run(root, { ...WRITE, replace: true })).places?.[0]?.action).toBe("replaced");
     expect(await read(root)).toBe((await run(root, { skill: true })).guide);
   };
 
@@ -631,55 +800,70 @@ describe("tool.guide with write", () => {
 });
 
 describe("the skill file's helpers", () => {
-  it("reads what lies at the place of the skill, for the workspace check of a later version", async () => {
+  it("reads what lies at each place of the skill, for the workspace check of a later version", async () => {
     const root = await folder(workspaceFiles());
     const workspace = open(root);
-    expect(await readSkillFile(workspace, ENTRIES)).toEqual({ state: "missing", path: SKILL_FILE });
+    expect(await readSkillFiles(workspace, ENTRIES)).toEqual(
+      SKILL_FILES.map((file) => ({ state: "missing", path: file })),
+    );
     await run(root, WRITE);
-    expect(await readSkillFile(workspace, ENTRIES)).toEqual({
+    const own = {
       state: "own",
       version: PRODUCT_VERSION,
       intact: true,
       current: true,
       sameContent: true,
-      path: SKILL_FILE,
-    });
+    };
+    expect(await readSkillFiles(workspace, ENTRIES)).toEqual(
+      SKILL_FILES.map((file) => ({ ...own, path: file })),
+    );
     await fs.writeFile(skillAt(root), skillFile(ENTRIES, "0.0.1"));
-    expect(await readSkillFile(workspace, ENTRIES)).toMatchObject({
+    expect((await readSkillFiles(workspace, ENTRIES))[0]).toMatchObject({
       state: "own",
       version: "0.0.1",
       current: false,
       sameContent: true,
     });
     await fs.writeFile(skillAt(root), "# Mine\n");
-    expect(await readSkillFile(workspace, ENTRIES)).toEqual({ state: "foreign", path: SKILL_FILE });
+    // A link at the file is a place nothing can be written at.
+    await fs.rm(skillAt(root, AGENTS));
+    await fs.symlink("../../../reqseq-workspace.yaml", skillAt(root, AGENTS));
+    expect(await readSkillFiles(workspace, ENTRIES)).toEqual([
+      { state: "foreign", path: CLAUDE },
+      { state: "blocked", path: AGENTS },
+    ]);
+    // So is a place that meets Git.
+    await gitEntry(path.join(root, ".claude"));
+    expect((await readSkillFiles(workspace, ENTRIES))[0]).toEqual({ state: "blocked", path: CLAUDE });
     // A root that does not exist is taken as given.
     const gone = path.join(root, "gone");
-    expect((await skillLocation(new Workspace(gone))).root).toBe(gone);
+    expect((await skillLocations(new Workspace(gone))).map((place) => place.root)).toEqual([gone, gone]);
   });
 
-  it("returns a refusal as a value, and passes on an error that is not ReqSeq's", async () => {
+  it("returns a refusal of a place as a value, and passes on an error that is not ReqSeq's", async () => {
     const root = await folder(workspaceFiles());
     const workspace = open(root);
-    const refused = await writeSkillFile(workspace, ENTRIES, {
+    const refused = await writeSkillFiles(workspace, ENTRIES, {
       replace: false,
       localPaths: { check: () => Promise.reject(new CommandError("input.invalid", "no", {})) },
     });
-    expect("refused" in refused && refused.refused.details).toMatchObject({
-      reason: undefined,
-      field: "skill file",
-    });
+    expect(refused.map((place) => "refused" in place && place.refused.details)).toEqual(
+      SKILL_FILES.map((file) => ({
+        command: "tool.guide",
+        reason: undefined,
+        field: "skill file",
+        path: file,
+      })),
+    );
     await expect(
-      writeSkillFile(workspace, ENTRIES, {
+      writeSkillFiles(workspace, ENTRIES, {
         replace: false,
         localPaths: { check: () => Promise.reject(new Error("broken")) },
       }),
     ).rejects.toThrow("broken");
     expect(
-      await writeSkillFile(workspace, ENTRIES, { replace: false, localPaths: OPEN_LOCAL_PATHS }),
-    ).toEqual({
-      written: { path: SKILL_FILE, action: "created" },
-    });
+      await writeSkillFiles(workspace, ENTRIES, { replace: false, localPaths: OPEN_LOCAL_PATHS }),
+    ).toEqual(both("created"));
   });
 
   it("tells ReqSeq's own file by its marks, and a changed one by its checksum", () => {
