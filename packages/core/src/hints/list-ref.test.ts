@@ -7,6 +7,7 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
+import { metamodelState } from "../metamodel/index.js";
 import { elementStoreState, incomingState, problemElement } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -69,6 +70,21 @@ const ENDLESS: FixtureOptions = {
     "requirements/SR-1d2e3f4a5b6c.md":
       "---\nid: 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n" +
       "requirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n",
+  },
+};
+
+/**
+ * SR-026/hints with a non-finite `version` in a validity item: n1 and n2 count only the target's ID, so the element
+ * has a version on both paths and no `file.faulty` (#2231: the whole list and `ref` compute both normal forms).
+ */
+const ITEM_VERSION: FixtureOptions = {
+  fixture: "SR-026/hints",
+  files: {
+    "requirements/SAF-0000000000b4.md":
+      "---\nid: 26a0b000-0000-4000-8000-0000000000b4\ntype: safety-requirement\nstatus: draft\n" +
+      "title: Stop the rotor in a storm\nrequirement-type: functional\n" +
+      "acceptance-criteria:\n  - Given wind, when it blows, then the station shows it.\n" +
+      "validity:\n  - { id: 26a0b000-0000-4000-8000-0000000000c2, version: .inf, title: Basic }\n---\n\nStop the rotor.\n",
   },
 };
 
@@ -139,6 +155,10 @@ const sameByRef = async (
       ([code, count]) => ({ code, count }),
     );
     expect(byRef.get(id), `hint.list --ref ${id}`).toEqual({ kinds, hints: expected });
+    // The only `file.faulty` hint is the warning without a version (`NO_VERSION_CODE`).
+    expect(expected.filter((h) => h.code === "file.faulty" && !h.message.startsWith("No version: "))).toEqual(
+      [],
+    );
     for (const hint of expected) {
       codes.add(hint.code);
     }
@@ -160,6 +180,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       ...(await sameByRef({ fixture: "SR-152/limits" })),
       ...(await sameByRef({ fixture: "SR-171/max-items" })),
       ...(await sameByRef(ENDLESS)),
+      ...(await sameByRef(ITEM_VERSION)),
       ...(await sameByRef(CORE_CHANGED)),
       ...(await sameByRef(MORE_HINTS)),
       ...(await sameByRef(DUPLICATE_IDENTIFIER)),
@@ -250,6 +271,28 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
     expect(inCheckOrder([hint("trace.no-parent"), hint("file.yaml-warning")]).map((h) => h.code)).toEqual([
       "trace.no-parent",
     ]);
+  });
+
+  it("gives neither the warning without a version nor any hint while the metamodel is not valid (#2231)", async () => {
+    const id = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
+    const broken = {
+      ...ENDLESS,
+      files: {
+        ...ENDLESS.files,
+        "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need again }\n",
+      },
+    };
+    const workspace = await open(broken);
+    expect((await workspace.get(metamodelState)).valid).toBe(false);
+    const { element } = (await invoke(
+      "element.get",
+      { ref: id },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    expect(element).not.toHaveProperty("version");
+    expect(element.problems).toEqual([]);
+    expect((await list(workspace, { ref: id })).hints).toEqual([]);
+    expect((await list(await open(broken), {})).hints).toEqual([]);
   });
 
   it("[SR-026/AK-vs4d] lists the warning of an element without a version, as element.get gives it, in both paths (#2231)", async () => {

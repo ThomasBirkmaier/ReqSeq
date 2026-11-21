@@ -412,11 +412,12 @@ const hintsOfElement = async (
 };
 
 /**
- * The warning of each element of `store` whose version cannot be computed (`not-computable`), as `element.get` gives
- * it (`noVersionProblem`, the same message), in the order of the store.
+ * The warning of each element whose current version cannot be computed (`not-computable`), as `element.get` gives
+ * it (`noVersionProblem`, the same message; both compute both normal forms), in the order of the store the versions
+ * are of (`versions.store`, ADR-0008).
  */
-const noVersionProblems = (store: ElementStore, versions: CurrentVersions): Problem[] =>
-  store.elements.flatMap((record) => {
+const noVersionProblems = (versions: CurrentVersions): Problem[] =>
+  versions.store.elements.flatMap((record) => {
     const version = versions.byRecord.get(record);
     return version?.kind === "unknown" && version.reason === "not-computable"
       ? [noVersionProblem(record, version.message)]
@@ -447,7 +448,7 @@ export const listHints = async (
   }
   // The images the watcher does not report are checked first, as the check does (ADR-0008).
   const versions = await currentVersions(workspace);
-  const problems: Problem[] = noVersionProblems(store, versions);
+  const problems: Problem[] = noVersionProblems(versions);
   for (const state of HINT_STATES) {
     for (const problem of await workspace.get(state)) {
       problems.push(problem);

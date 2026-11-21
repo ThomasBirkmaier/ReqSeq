@@ -33,7 +33,10 @@ export const CHECK_ORDER: readonly (readonly string[])[] = [
 
 /**
  * The code of the warning about an element whose version cannot be computed (`noVersionProblem` of `model/view.ts`,
- * ThomasBirkmaier/ReqSeq-archive#276): a hint, since it is a warning about an element (#2231). No state of the check
+ * ThomasBirkmaier/ReqSeq-archive#276): a hint, since it is a warning about an element (#2231). It is the only
+ * `file.faulty` warning that `element.get` and `hint.list` give (every other `file.faulty` is an error or a refusal;
+ * the list commands give the same warning for an element without a current version, `listElements`), as
+ * `hints/list-ref.test.ts` checks over its fixtures. No state of the check
  * gives it; `hint.list` takes it from the current versions and puts it before the hints of `CHECK_ORDER`, as
  * `workspace.check` puts the findings of the files before its states.
  */
