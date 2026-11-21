@@ -271,7 +271,7 @@ describe("element.list with a perspective (SR-213)", () => {
     expect(await refusal(workspace, { perspective: "Nope" })).toEqual({
       code: "input.invalid",
       message:
-        'Perspective "Nope" (perspectives/nope.yaml): group: nope is no property with values to choose (as element.facets offers them); group by type, status, package or such a property',
+        'Perspective "Nope" (perspectives/nope.yaml): group: nope is no property with values to choose (as "Show facets" offers them); group by type, status, package or such a property',
       fields: ["group"],
     });
     expect((await refusal(workspace, { perspective: "Kind" })).message).toMatch(

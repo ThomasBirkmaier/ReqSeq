@@ -392,7 +392,7 @@ describe("reqif.saveMapping (SR-054)", () => {
       "mapping.export-profiles[1].selection.output",
     ]);
     expect(error.message).toContain(
-      "mapping.attributes[1].property: requirement-type is no property of type decision",
+      "mapping.attributes[1].property: requirement-type is no property of type Decision",
     );
     expect(error.message).toContain(
       "mapping.attributes[4].values.Huge: giant is no choice of requirement-type",

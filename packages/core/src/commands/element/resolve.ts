@@ -40,6 +40,7 @@ import { elementHints } from "../../hints/index.js";
 import type { VersionForms } from "../../version/version.js";
 import { formOf, sameVersion } from "../../version/version.js";
 import { incompleteNote, named, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 /**
  * `error` with the one element whose UUID ends with the tail of `ref` as candidate, if there is one
@@ -152,7 +153,7 @@ const criterionReferenceIn = (
   if (typeof reference.criterion === "number") {
     throw new CommandError(
       "input.invalid",
-      `${ref} names an acceptance criterion by number, which points at another criterion once criteria move; name it by its criterion key, such as [${reference.ref}/AK-k7f3], as element.get gives it`,
+      `${ref} names an acceptance criterion by number, which points at another criterion once criteria move; name it by its criterion key, such as [${reference.ref}/AK-k7f3], as ${commandTitle("element.get")} gives it`,
       { command: "element.resolve", fields: ["ref"], reason: "criterion-by-number" },
     );
   }

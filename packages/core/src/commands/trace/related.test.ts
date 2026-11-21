@@ -423,7 +423,7 @@ describe("trace.related (SR-023)", () => {
     );
     const error = await relatedError(opened, { refs: [N1], direction: "children" });
     expect(error.code).toBe("metamodel.meaning-unassigned");
-    expect(error.message).toContain("trace.related");
+    expect(error.message).toContain(`"Show related elements"`);
   });
 
   describe("view (SR-040; full views in stage 5)", () => {

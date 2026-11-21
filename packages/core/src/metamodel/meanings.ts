@@ -28,6 +28,7 @@ import type {
 } from "../generated/types.js";
 import type { EffectiveType, Located } from "./inheritance.js";
 import type { Metamodel } from "./load.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 export type TypeMeaning = MetamodelTypeMeaning;
 export type PropertyMeaning = MetamodelPropertyMeaning;
@@ -630,5 +631,5 @@ export const meaningUnassigned = (meaning: Meaning, command: CommandName): Comma
  */
 export const meaningUnassignedMessage = (meaning: Meaning, command: CommandName): string => {
   const { label } = LABELS[MEANINGS[meaning]];
-  return `No ${label} of the metamodel has the meaning ${meaning}, which ${command} needs. Add \`meaning: ${meaning}\` to a ${label} in the metamodel files.`;
+  return `No ${label} of the metamodel has the meaning ${meaning}, which ${commandTitle(command)} needs. Add \`meaning: ${meaning}\` to a ${label} in the metamodel files.`;
 };

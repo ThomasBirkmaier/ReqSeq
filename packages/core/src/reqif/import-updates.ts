@@ -8,6 +8,7 @@ import { CommandError } from "../catalog.js";
 import type { FrontmatterEdit } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { ReqifObject } from "../generated/types.js";
+import { findType } from "../metamodel/index.js";
 import type { VersionForms } from "../model/index.js";
 import { NORMAL_FORM, formOf, hasId } from "../model/index.js";
 import type { ExistingElement, RelationItem } from "./repeat.js";
@@ -41,9 +42,10 @@ export const matchedElement = (
   const { record } = existing;
   if (record.type !== ownType) {
     const at = context.coverage.typeEntries.get(t.identifier);
+    const name = (key: string): string => findType(context.metamodel, key)?.name ?? key;
     throw new CommandError(
       "input.invalid",
-      `Not imported: ${object.identifier} is ${record.file} of type ${record.type}, which an import does not change to ${ownType}`,
+      `Not imported: ${object.identifier} is ${record.file} of type ${name(record.type)}, which an import does not change to ${name(ownType)}`,
       { fields: [`mapping.types[${String(at)}].type`], identifier: object.identifier, id: record.id },
     );
   }

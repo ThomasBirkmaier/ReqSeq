@@ -42,6 +42,7 @@ import {
   meaningShapeProblems,
   relationMeaningProblems,
 } from "./meanings.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
@@ -402,7 +403,7 @@ const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): 
     .map((s) =>
       problem(
         "warning",
-        `Status ${s.definition.key} is initial and marked invalid; element.create does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)`,
+        `Status ${s.definition.key} is initial and marked invalid; ${commandTitle("element.create")} does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)`,
         s.file,
         s.lineOf(["invalid"]),
       ),
@@ -433,7 +434,7 @@ const optionalStatusNotes = (
       {
         ...problem(
           "info",
-          `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+          `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, ${commandTitle("element.supersede")} retires it, and ${commandTitle("element.setStatus")} with status null makes it current again`,
           type.file,
           type.lineOf(["statuses"]),
         ),

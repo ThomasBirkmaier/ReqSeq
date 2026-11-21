@@ -115,7 +115,7 @@ flowchart TB
       docs[docs-site<br/>offline documentation: request to file, CSP]
     end
     subgraph shared[shared, imported almost everywhere, edges not drawn]
-      state[runtime: workspace, settled, contracts, input-errors, internal-cause<br/>Workspace object, schemas, error causes]
+      state[runtime: workspace, settled, contracts, command-titles, input-errors, internal-cause<br/>Workspace object, schemas, command titles, error causes]
       catalog[catalog.ts, product.ts, problem-titles.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
@@ -157,7 +157,7 @@ An arrow means that at least one module of the source imports a value (a functio
 | `model` | files, git, metamodel, runtime state, version, workspace | |
 | `metamodel` | files, runtime state, workspace | |
 | `workspace` | files, git, runtime state | |
-| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`, `internal-cause`) | no other block | |
+| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `command-titles`, `input-errors`, `internal-cause`) | no other block | |
 
 `workspace` imports `git` for one question: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456); the layout is the workspace block's, and `git` is a lower layer.
 
@@ -168,7 +168,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | Block | Responsibility |
 |---|---|
 | `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) |
-| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082). State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors |
+| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082). State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, the titles messages name commands by, readable input errors |
 | `workspace` | Read `reqseq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces |
 | `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) |
 | `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) |
