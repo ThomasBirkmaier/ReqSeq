@@ -20,7 +20,7 @@ packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
 verification-method: test
 based-on:
-  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:53736526cb94923b, title: HTML-Export erzeugt das Tool selbst }
+  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:a14b879b0af2da59, title: HTML-Export erzeugt das Tool selbst }
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:7c87e88362a6b473, title: Keine feste Reihenfolge }
   - { id: 6ad4a03f-d7cf-4b85-98da-3f4431f33fe7, version: n2:84d08b2dbd1bf992, title: Auswertungen mit externen Werkzeugen }
 derives-from:

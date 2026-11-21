@@ -1064,6 +1064,14 @@
                         "info"
                       ]
                     },
+                    "next": {
+                      "title": "Next steps",
+                      "description": "The step that lists the requirements the info evidence.open-requirements counts: element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check and when severity leaves the info out.",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/nextStep"
+                      }
+                    },
                     "checkedElements": {
                       "x-elements": "selection",
                       "title": "Checked elements",
