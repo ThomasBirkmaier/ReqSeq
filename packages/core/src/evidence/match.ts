@@ -183,7 +183,7 @@ export const recordKindProblems = (
     problems.push({
       code: "evidence.kind-mismatch",
       severity: "warning",
-      message: `The ${record.kind} record names element ${record.element} of type ${element.type}, so it counts for no status: ${names} (D-012)`,
+      message: `The ${record.kind} record names element ${record.element} of type ${element.type}, so it counts for no status: ${names}`,
       ...recordPlace(record),
       targetId: record.element,
       targetRepository: element.repository,

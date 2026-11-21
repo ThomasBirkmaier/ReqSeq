@@ -124,7 +124,7 @@ describe("metamodel commands: the frame as metamodel.addRelationKind shows it (S
     for (const input of [{ name: "Status" }, { name: "Same as", key: "id" }, { name: "Type" }]) {
       const structural = await failure(workspace, "metamodel.addRelationKind", input);
       expect(structural.details).toMatchObject({ reason: "metamodel-invalid" });
-      expect(structural.message).toContain("is a field every element has (D-012)");
+      expect(structural.message).toContain("is a field every element has");
     }
     expect(await read(MODEL)).toBe(SMALL_MODEL);
 

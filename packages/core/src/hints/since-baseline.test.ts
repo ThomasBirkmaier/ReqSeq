@@ -125,7 +125,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(hint?.currentVersion).toMatch(WRITTEN_VERSION);
     expect(hint?.currentVersion).not.toBe(String(VERSIONS[String(K1)]));
     expect(hint?.message).toBe(
-      `Core requirement System Requirement SR-0000a1, which Variant VAR-0000c1 adopts, has changed since its newest baseline R1: version ${String(VERSIONS[String(K1)])} there, version ${String(hint?.currentVersion)} now; a new baseline of Variant VAR-0000c1 settles it (D-042)`,
+      `Core requirement System Requirement SR-0000a1, which Variant VAR-0000c1 adopts, has changed since its newest baseline R1: version ${String(VERSIONS[String(K1)])} there, version ${String(hint?.currentVersion)} now; a new baseline of Variant VAR-0000c1 settles it`,
     );
     expect(await listed(workspace, { variant: "VAR-0000c1" })).toEqual([hint]);
     const shown = (await invoke(
@@ -246,11 +246,11 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(refused.map((p) => [p.hintId, p.message])).toEqual([
       [
         undefined,
-        "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)",
+        "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
       ],
       [
         id,
-        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)`,
+        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it`,
       ],
     ]);
     expect(rows(await listed(workspace))).toHaveLength(1);
@@ -277,7 +277,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
           code: "hint.not-confirmable",
           severity: "error",
           message:
-            "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)",
+            "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
         },
       ],
     });
@@ -296,7 +296,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       [
         "hint.not-confirmable",
         "error",
-        "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)",
+        "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them",
       ],
     ]);
     // Given by its UUID, as the app does, the refusal still names the short ID (#444).
@@ -351,7 +351,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     const k3 = await currentOf(workspace, String(K3));
     expect(hints[0]?.currentVersion).toBe(k3);
     expect(hints[0]?.message).toBe(
-      `Core requirement System Requirement SR-0000a3 has come into the view of Variant VAR-0000c1 since its newest baseline R1, which does not list it: version ${k3} now; a new baseline of Variant VAR-0000c1 settles it (D-042)`,
+      `Core requirement System Requirement SR-0000a3 has come into the view of Variant VAR-0000c1 since its newest baseline R1, which does not list it: version ${k3} now; a new baseline of Variant VAR-0000c1 settles it`,
     );
     // Its replacement removed.
     const b1 = await fs.readFile(path.join(FIXTURE, fileOf(String(B1))), "utf8");

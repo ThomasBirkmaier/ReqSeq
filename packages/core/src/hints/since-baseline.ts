@@ -391,12 +391,12 @@ const findingOf = (
       ? {
           code: NEW_SINCE_BASELINE_CODE,
           severity: "warning",
-          message: `Core requirement ${label} has come into the view of ${shown} since its newest baseline ${baseline.name}, which does not list it: ${now}; a new baseline of ${shown} settles it (D-042)`,
+          message: `Core requirement ${label} has come into the view of ${shown} since its newest baseline ${baseline.name}, which does not list it: ${now}; a new baseline of ${shown} settles it`,
         }
       : {
           code: CHANGED_SINCE_BASELINE_CODE,
           severity: "warning",
-          message: `Core requirement ${label}, which ${shown} adopts, has changed since its newest baseline ${baseline.name}: version ${stored} there, ${now}; a new baseline of ${shown} settles it (D-042)`,
+          message: `Core requirement ${label}, which ${shown} adopts, has changed since its newest baseline ${baseline.name}: version ${stored} there, ${now}; a new baseline of ${shown} settles it`,
           storedVersion: stored,
         };
   return {
