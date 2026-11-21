@@ -1,7 +1,11 @@
 // Cross-access scenarios of workspace.init, in addition to the default one (cross-access.test.ts).
 import { scenariosOf } from "../../scenario.js";
 
-const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+/** The places of the skill file (D-079). */
+const SKILLS = [
+  ".claude/skills/managing-requirements/SKILL.md",
+  ".agents/skills/managing-requirements/SKILL.md",
+];
 
 /** The empty file that keeps the new evidence folder in Git (SR-230 AK4). */
 const KEEP = "evidence/.gitkeep";
@@ -25,7 +29,7 @@ scenariosOf("workspace.init", [
   },
   {
     name: "skill file and evidence location",
-    // The same skill file and evidence folder, listed among the files, and the evidence location `evidence` in every access.
+    // The same skill file at both places and the evidence folder, each listed among the files, and the evidence location `evidence` in every access.
     tag: "[SR-229/AK-x7d8] [SR-230/AK-x4g5]",
     fixture: { files: { "new/.keep": "" } },
     input: { path: "new", name: "New" },
@@ -37,8 +41,8 @@ scenariosOf("workspace.init", [
           name.endsWith("new/reqseq-workspace.yaml"),
         );
         if (
-          !listed.includes(SKILL) ||
-          !changed.some((name) => name.endsWith(`new/${SKILL}`)) ||
+          !SKILLS.every((skill) => listed.includes(skill)) ||
+          !SKILLS.every((skill) => changed.some((name) => name.endsWith(`new/${skill}`))) ||
           !listed.includes(KEEP) ||
           !changed.some((name) => name.endsWith(`new/${KEEP}`)) ||
           !(workspaceFile?.[1] ?? "").includes("evidence:\n  - repository: new\n    path: evidence\n")

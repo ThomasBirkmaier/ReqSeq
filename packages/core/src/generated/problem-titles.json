@@ -79,6 +79,7 @@
     "workspace.skill-not-written": "Skill file not written",
     "workspace.evidence-folder-not-created": "Evidence folder not created",
     "workspace.skill-older-version": "Skill file of an older ReqSeq version",
+    "workspace.skill-missing": "Skill file missing at a place",
     "git.unavailable": "Git cannot read the repository",
     "git.revision-missing": "Missing commit",
     "reqif.replaces-local": "Import replaces local content",

@@ -2,9 +2,10 @@
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
 // workspace; the warning that the evidence folder was not created comes first, SR-230 AK4; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
 // (SR-226 AK2), without those the new workspace refuses while it is read-only (AK6). Unless `skill` is false, it also writes the skill file as `tool.guide` with `write` does, without
-// `replace` (SR-229 AK9, `writeSkillFile`): written, it is listed among the files; an existing own file is left
-// (SR-014 AK1); refused or failed, the workspace stays created and the reason becomes the problem
-// `workspace.skill-not-written`.
+// `replace`, at each place of D-079 (SR-229 AK9, `writeSkillFiles`): each place written is listed among the files; an
+// existing own file is left and not listed (SR-014 AK1); each place refused is one problem
+// `workspace.skill-not-written` with the place and the reason, and the workspace stays created. An error that is
+// no refusal (a bug) stops at its place and is one such problem without a place, with only its code.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { CommandOutput, LocalPaths } from "../../catalog.js";
@@ -21,44 +22,47 @@ import { Workspace } from "../../runtime/workspace.js";
 import { createWorkspace, workspaceLayoutState } from "../../workspace/index.js";
 import { filesNote, problemsNote, sentence } from "../answer.js";
 import { afterInitSteps } from "../../next-steps.js";
-import { writeSkillFile } from "../tool/guide/skill-file.js";
+import { writeSkillFiles } from "../tool/guide/skill-file.js";
 
 /** The catalog commands of this version, which the skill file names. */
 const ENTRIES = (contractsBundle.catalog as CommandCatalog).commands;
 
-/** The warning that the skill file was not written, with its message and, when known, the file. */
-const notWritten = (message: string, file: unknown): Problem => ({
+/** The warning that the skill file was not written at a place, with its message and, when known, the place. */
+const notWritten = (message: string, file: string | undefined): Problem => ({
   code: "workspace.skill-not-written",
   severity: "warning",
   message,
-  ...(typeof file === "string" ? { file } : {}),
+  ...(file === undefined ? {} : { file }),
 });
 
 /**
  * The skill file of the new workspace (SR-229 AK9), written without `replace` and leaving ReqSeq's own file of
- * another version in place (SR-014 AK1, SR-229 AK9): the path written, or why not. The workspace is complete
- * here, so no failure of this step fails the call.
+ * another version in place (SR-014 AK1, SR-229 AK9): the places written, and one warning per place not written. The
+ * workspace is complete here, so no failure of this step fails the call.
  */
 const writeSkill = async (
   created: Workspace,
   localPaths: LocalPaths,
 ): Promise<{ readonly files: readonly string[]; readonly problems: readonly Problem[] }> => {
-  const result = await writeSkillFile(created, ENTRIES, { replace: false, keepOwn: true, localPaths }).catch(
+  const places = await writeSkillFiles(created, ENTRIES, { replace: false, keepOwn: true, localPaths }).catch(
     (error: unknown) => ({ failed: error }),
   );
-  if ("failed" in result) {
+  if ("failed" in places) {
     // Only the code: a message of the file system holds absolute paths (ADR-0009).
-    const code = (result.failed as NodeJS.ErrnoException | undefined)?.code ?? "unknown";
+    const code = (places.failed as NodeJS.ErrnoException | undefined)?.code ?? "unknown";
     return {
       files: [],
       problems: [notWritten(`Not written: the skill file cannot be written (${code})`, undefined)],
     };
   }
-  if ("refused" in result) {
-    const details = result.refused.details as { readonly path?: unknown } | undefined;
-    return { files: [], problems: [notWritten(result.refused.message, details?.path)] };
-  }
-  return { files: result.written.action === "unchanged" ? [] : [result.written.path], problems: [] };
+  return {
+    files: places.flatMap((place) =>
+      "refused" in place || place.action === "unchanged" ? [] : [place.path],
+    ),
+    problems: places.flatMap((place) =>
+      "refused" in place ? [notWritten(place.refused.message, place.path)] : [],
+    ),
+  };
 };
 
 /** The path with links resolved, so two spellings of one folder compare equal; the path itself when it does not exist. */

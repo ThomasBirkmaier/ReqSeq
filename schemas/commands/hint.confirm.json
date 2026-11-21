@@ -42,7 +42,7 @@
       },
       "kind": {
         "type": "array",
-        "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); `relation.outdated` and `variant.core-changed` are confirmable, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (SR-103 AK5).",
+        "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`).",
         "items": {
           "$ref": "../common.schema.json#/$defs/problemCode"
         }

@@ -56,7 +56,9 @@ export const renderProblem = (problem: unknown, style: Style = PLAIN): string =>
 
 /**
  * The output of an entry with `textOutput` (ADR-0009, SR-151 AK4): the string of that field alone for
- * stdout, and the problems as plain lines for stderr, without "No problems." and without styling.
+ * stdout, and for stderr the problems as plain lines, without "No problems." and without styling. When the
+ * output holds more than the text, the answer and the problems, such as the places `tool.guide` wrote the skill
+ * file at (SR-229 AK8), the answer that says it comes first on stderr, so stdout stays the text alone.
  */
 export const textOutput = (
   output: unknown,
@@ -64,7 +66,12 @@ export const textOutput = (
 ): { readonly text: string; readonly problems: string } => {
   const record = isRecord(output) ? output : {};
   const problems = Array.isArray(record["problems"]) ? record["problems"] : [];
-  return { text: text(record[field]), problems: problems.map((problem) => renderProblem(problem)).join("") };
+  const more = Object.keys(record).some((key) => ![field, "answer", "problems"].includes(key));
+  const answer = more && typeof record["answer"] === "string" ? `${record["answer"]}\n` : "";
+  return {
+    text: text(record[field]),
+    problems: `${answer}${problems.map((problem) => renderProblem(problem)).join("")}`,
+  };
 };
 
 /** Findings an output left out of `problems`, by severity (`hidden` of workspace.check, ThomasBirkmaier/ReqSeq-archive#304). */

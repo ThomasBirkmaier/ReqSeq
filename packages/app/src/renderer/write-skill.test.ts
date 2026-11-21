@@ -1,5 +1,6 @@
 // "Write skill file" (SR-229 AK16): `tool.guide` with exactly `skill` and `write`, asking nothing, also while the
-// tool refuses writes; a refusal of core asks nothing again and goes to the command line.
+// tool refuses writes; a failure of core asks nothing again and goes to the command line,
+// which names each place with its result.
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
 import { CATALOG, flush, setup } from "./catalog-commands.test-helper.js";
@@ -11,7 +12,10 @@ describe("Write skill file", () => {
   it("[SR-229/AK-y65m] runs tool.guide with exactly skill and write and asks nothing", async () => {
     const output = {
       guide: "---\nname: managing-requirements\n---\n",
-      file: { path: "x/SKILL.md", action: "created" },
+      places: [
+        { path: ".claude/skills/managing-requirements/SKILL.md", action: "created" },
+        { path: ".agents/skills/managing-requirements/SKILL.md", action: "created" },
+      ],
     };
     const { context, asked, call, dispatched } = setup([], { "tool.guide": () => output });
     writeSkill(context, CATALOG);
@@ -27,13 +31,16 @@ describe("Write skill file", () => {
   it("[SR-229/AK-y65m] a refused write opens no buffer and asks nothing again: the command line says why", async () => {
     for (const code of ["input.invalid", "file.not-written"]) {
       const { context, asked, echoed, dispatched } = setup([], {
-        "tool.guide": () => refusal(code, "Not written: the place is inside .git"),
+        "tool.guide": () =>
+          refusal(code, "Not written at every place of the skill file: a: created; b: not written: x"),
       });
       writeSkill(context, CATALOG);
       await flush();
       expect(asked, code).toEqual([]);
       expect(dispatched, code).toEqual([]);
-      expect(echoed, code).toEqual(["Not written: the place is inside .git"]);
+      expect(echoed, code).toEqual([
+        "Not written at every place of the skill file: a: created; b: not written: x",
+      ]);
     }
   });
 

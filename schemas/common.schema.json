@@ -526,6 +526,7 @@
         "workspace.skill-not-written",
         "workspace.evidence-folder-not-created",
         "workspace.skill-older-version",
+        "workspace.skill-missing",
         "git.unavailable",
         "git.revision-missing",
         "reqif.replaces-local",
@@ -586,7 +587,7 @@
           "type": "string"
         },
         "details": {
-          "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
+          "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `tool.guide` with `write` when a place of the skill file was not written, whatever the code: `command` and `places`, each place in order as the output lists it, a place not written with `error` (`code`, `message`, `details`) instead of `action`. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
           "type": "object"
         }
       },
