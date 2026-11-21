@@ -7,7 +7,7 @@ spec-id: "SR-014"
 requirement-type: functional
 acceptance-criteria:
   - key: yh7s
-    text: "Gegeben ein Ordner, der noch kein Arbeitsbereich ist, wenn darin ein neuer Arbeitsbereich angelegt wird (App, CLI, API, MCP: `workspace.init`), dann legt das Tool die Arbeitsbereichs-Datei mit diesem Ordner als Haupt-Repository, dem Nachweisort `evidence` (SR-230 AK4) und das Standardmodell als Metamodell-Dateien an, legt die Skill-Datei an (SR-229 AK9), legt den Ordner an, wenn er fehlt, ändert keine vorhandene Datei außer `.gitignore`, in der es die Zeilen für seine temporären Dateien und für `.reqseq/local.yaml` ergänzt oder die es dafür anlegt, und schreibt nichts in Git; ist der Ordner schon ein Arbeitsbereich, lehnt es das ab."
+    text: "Gegeben ein Ordner, der noch kein Arbeitsbereich ist, wenn darin ein neuer Arbeitsbereich angelegt wird (App, CLI, API, MCP: `workspace.init`), dann legt das Tool die Arbeitsbereichs-Datei mit diesem Ordner als Haupt-Repository, dem Nachweisort `evidence` (SR-230 AK4) und das Standardmodell als Metamodell-Dateien an, legt den Ordner des Nachweisorts an, wie SR-230 AK4 es sagt, legt die Skill-Datei an (SR-229 AK9), legt den Ordner des Arbeitsbereichs an, wenn er fehlt, ändert keine vorhandene Datei außer `.gitignore`, in der es die Zeilen für seine temporären Dateien und für `.reqseq/local.yaml` ergänzt oder die es dafür anlegt, und schreibt nichts in Git; ist der Ordner schon ein Arbeitsbereich, lehnt es das ab."
   - key: ng42
     text: Gegeben das Standardmodell, wenn es geprüft wird, dann enthält es genau die Typen, Properties, Beziehungsarten und Statuswerte, die D-037, D-059, D-060 und D-071 nennen, mit englischen Namen und Schlüsseln.
   - key: bxbx
