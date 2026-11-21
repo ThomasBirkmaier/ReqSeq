@@ -133,7 +133,7 @@ test("[SR-226/AK-sfy2] the next step of a workspace check opens the list of the 
   // A click opens the list with the step's filter: the open requirements, not every element.
   await step.click();
   const list = shownLayer(window).locator(".buffer.list");
-  await expect(list.locator("h1")).toContainText("Elements of the next step");
+  await expect(list.locator("h1")).toContainText("Check workspace · Next steps");
   await expect
     .poll(async () => (await list.locator(".row:not(.fold-row) .id").allTextContents()).sort())
     .toEqual(["SR-126b04", "SR-126b06"]);

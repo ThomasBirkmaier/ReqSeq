@@ -596,12 +596,18 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   // context menu does, with its known inputs given, so the prompt asks only the open ones; not while another
   // workspace opens. A step that names another workspace than the open one, or one while none is open, opens it
   // first and runs there once it is open (`stepRunner`).
+  // The name of the list a chosen step opens (`ResultLine.stepLabel`), kept with the step while it waits for its
+  // workspace.
+  const stepLabels = useRef(new WeakMap<NextStep, string>());
   const runInWorkspace = (step: NextStep): void => {
     if (switchingNow.current) {
       return;
     }
     beforeCommand();
-    const from = { ...latest.current, given: { [step.command]: stepGiven(step) } };
+    const from = {
+      ...latest.current,
+      given: { [step.command]: stepGiven(step, stepLabels.current.get(step)) },
+    };
     const item = commands(false, false, from).items.find(
       (each) => each.id === stepItemId(step, catalog.current),
     );
@@ -640,11 +646,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       creator.shown(view.name);
     }
   }, [view, steps, creator]);
-  const runStep = (step: NextStep): void => {
+  const runStep = (step: NextStep, label?: string): void => {
     if (switchingNow.current) {
       return;
     }
     beforeCommand();
+    if (label !== undefined) {
+      stepLabels.current.set(step, label);
+    }
     steps.choose(step);
   };
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.

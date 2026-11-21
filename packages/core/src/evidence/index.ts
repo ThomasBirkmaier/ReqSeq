@@ -30,7 +30,7 @@ export { changedOlderIds, olderCriteriaOf, olderCriteriaState } from "./older-cr
 export { coverageOf, coverageRecordsOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { VerificationGaps } from "./gaps.js";
-export { OPEN_REQUIREMENTS, openRequirementsStep, openRequirementsWhere, verificationGaps } from "./gaps.js";
+export { openRequirementsStep, openRequirementsWhere, verificationGaps } from "./gaps.js";
 export type {
   EnrichOptions,
   EnrichResult,

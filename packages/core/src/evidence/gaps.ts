@@ -10,11 +10,12 @@
 //    number of requirements whose status the metamodel does not mark invalid (D-044), whose verification
 //    method is test and whose verification status in the core is `open`; none when there are none. The
 //    finding gives only the number: the call that lists exactly them is the next step of the check (rule 3,
-//    SR-226), which `workspace.check` names only while it shows the finding. The verification method is test when the property with the meaning
-//    `verification-method` holds the choice key `test` or no value (absent, `null` or `[]`, as the filter
-//    takes "no value"); without such a property every requirement counts. The status is the one of the
-//    shared evaluator (`verificationState`), prepared as `evidence.degree` prepares it, so the count, the
-//    filter condition `verification` and `evidence.degree` agree (SR-080 AK2).
+//    SR-226), which `workspace.check` names only while it shows the finding. The verification method is
+//    test when the property with the meaning `verification-method` holds the choice key `test` or no value
+//    (absent, `null` or `[]`, as the filter takes "no value"); without such a property every requirement
+//    counts. The status is the one of the shared evaluator (`verificationState`), prepared as
+//    `evidence.degree` prepares it, so the count, the filter condition `verification` and `evidence.degree`
+//    agree (SR-080 AK2).
 // 3. The step is `element.list` with a `where` of the filter (`filter.schema.json`) in `selection`: not
 //    invalid, verification `open` (only requirements have one; the core, as a selection without view takes
 //    it) and, with the property, its value `test` or none. It lists the same elements in every access. Above
@@ -43,8 +44,8 @@ const CORE: View = Object.freeze({ kind: "core" });
 const DEFAULT_PAGE = 200;
 const LARGEST_PAGE = 5000;
 
-/** The code of the info of rule 2, whose step `workspace.check` names only while it shows it. */
-export const OPEN_REQUIREMENTS = "evidence.open-requirements";
+/** The code of the info of rule 2. */
+const OPEN_REQUIREMENTS = "evidence.open-requirements";
 
 /** The choice key of the verification method test (SR-230 AK2). */
 export const TEST_METHOD = "test";

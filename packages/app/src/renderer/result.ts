@@ -85,6 +85,11 @@ export interface ResultLine {
   readonly list?: ListBuffer;
   /** A step line (SR-226 AK5): the next step Enter or a click runs; its text is the name of the step's command. */
   readonly step?: NextStep;
+  /**
+   * A step line: the name of a list the step opens, as the lists of an output are named (`countList`): the name of
+   * its buffer and the title of the next steps, such as "Check workspace · Next steps".
+   */
+  readonly stepLabel?: string;
 }
 
 /**
@@ -978,8 +983,9 @@ export const resultLines = (
   if (steps.length > 0) {
     const title = fields.find((field) => field.path === NEXT_FIELD)?.title ?? NEXT_STEPS;
     lines.push({ kind: "heading", depth: 0, label: "", text: title });
+    const stepLabel = origin === undefined ? title : `${origin.name} · ${title}`;
     for (const step of steps) {
-      lines.push({ kind: "step", depth: 0, label: "", text: step.command, step });
+      lines.push({ kind: "step", depth: 0, label: "", text: step.command, step, stepLabel });
     }
   }
   return lines;

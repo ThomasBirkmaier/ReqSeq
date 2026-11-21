@@ -173,7 +173,27 @@ scenariosOf("workspace.check", [
         ],
       ]);
       expect(next).toEqual([
-        { command: "element.list", input: { selection: { where: expect.any(Object) as unknown } }, open: [] },
+        {
+          command: "element.list",
+          // `openRequirementsWhere("verification-method")` of core's `evidence/gaps.ts`.
+          input: {
+            selection: {
+              where: {
+                all: [
+                  { not: { invalid: true } },
+                  { verification: ["open"] },
+                  {
+                    any: [
+                      { property: "verification-method", op: "eq", value: "test" },
+                      { property: "verification-method", op: "missing" },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          open: [],
+        },
       ]);
     },
   },

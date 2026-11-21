@@ -483,17 +483,22 @@ const FILTER_ACTION: Action = {
   }),
 };
 
-/** The label of the list a next step of `element.list` opens with its selection (SR-226 AK5). */
-export const STEP_LIST_LABEL = "Elements of the next step";
-
 /**
  * The selection a next step gives `element.list` (SR-226 AK5, `ActionContext.given`), such as the open requirements
- * of a workspace check (SR-230 AK2); undefined without one. Its other inputs (`limit`) are paging, which the list
- * does by itself.
+ * of a workspace check (SR-230 AK2), and the name of its list (`stepGiven`); undefined without one. Its other inputs
+ * (`limit`) are paging, which the list does by itself.
  */
-export const givenSelection = (context: ActionContext): ElementSelection | undefined => {
-  const given = context.given?.["element.list"]?.find((argument) => argument.field === "selection")?.value;
-  return typeof given === "object" && given !== null && !Array.isArray(given) ? given : undefined;
+export const givenSelection = (
+  context: ActionContext,
+): { readonly selection: ElementSelection; readonly label: string } | undefined => {
+  const given = context.given?.["element.list"]?.find((argument) => argument.field === "selection");
+  const selection = given?.value;
+  return given !== undefined &&
+    typeof selection === "object" &&
+    selection !== null &&
+    !Array.isArray(selection)
+    ? { selection, label: given.label }
+    : undefined;
 };
 
 export const LIST_ACTIONS: readonly Action[] = [
@@ -503,14 +508,14 @@ export const LIST_ACTIONS: readonly Action[] = [
     available: (context: ActionContext): boolean => context.workspace,
     // A next step of `element.list` lists with its selection; otherwise every element.
     run: (context: ActionContext): void => {
-      const selection = givenSelection(context);
+      const given = givenSelection(context);
       const sort = currentList(context)?.sort;
       context.dispatch({
         type: "open",
         buffer:
-          selection === undefined
+          given === undefined
             ? listBuffer("All elements", undefined, sort)
-            : listBuffer(STEP_LIST_LABEL, selection, sort),
+            : listBuffer(given.label, given.selection, sort),
       });
     },
   },

@@ -132,7 +132,8 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     const listed = calls(fake.invoke, "element.list") as { selection?: unknown }[];
     expect(listed.length).toBeGreaterThan(0);
     expect(listed.every((input) => JSON.stringify(input.selection) === JSON.stringify({ where }))).toBe(true);
-    expect(text("Modeline")).toContain("Elements of the next step");
+    // Named as the lists of an output are: the name of its buffer and the title of the next steps.
+    expect(text("Modeline")).toContain("List baselines · Next steps");
   });
 
   it("opens the workspace a next step names when it is not the open one, then runs the step there (SR-226 AK5)", async () => {

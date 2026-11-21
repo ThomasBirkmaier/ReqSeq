@@ -57,12 +57,7 @@
 //   every access (SR-080 AK2).
 import type { CommandContext, CommandInput, CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import {
-  evidenceProblemsState,
-  OPEN_REQUIREMENTS,
-  olderCriterionProblems,
-  verificationGaps,
-} from "../../evidence/index.js";
+import { evidenceProblemsState, olderCriterionProblems, verificationGaps } from "../../evidence/index.js";
 import { metamodelState, repositoryMetamodelProblems } from "../../metamodel/index.js";
 import {
   changedFiles,
@@ -251,7 +246,8 @@ export default defineCommand({
     }
     const shownProblems = shownOf(findings, input.severity);
     // SR-230 AK2: the step that lists the open requirements, only while their info is shown.
-    const next = shownProblems.problems.some((p) => p.code === OPEN_REQUIREMENTS) ? gaps.next : undefined;
+    // The info is the only finding with a step, and an info is shown only when `severity` is info.
+    const next = RANK.info >= RANK[input.severity] ? gaps.next : undefined;
     return {
       ok: !findings.some((p) => RANK[p.severity] >= RANK[input.failOn]),
       ...shownProblems,

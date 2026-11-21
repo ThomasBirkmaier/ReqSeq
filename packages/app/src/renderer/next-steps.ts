@@ -57,12 +57,21 @@ export const stepItemId = (step: NextStep, catalog: readonly CommandListing[]): 
   return action?.id ?? `command:${step.command}`;
 };
 
-/** The known inputs of the step as the arguments the command prompt counts as given, in their order. */
-export const stepGiven = (step: NextStep): Prefilled[] =>
+/**
+ * The known inputs of the step as the arguments the command prompt counts as given, in their order. `listLabel`, the
+ * name of a list the step opens (`ResultLine.stepLabel`), is the label of the `selection` of a step of `element.list`,
+ * which "List all elements" names the list by; other steps show their selection by its JSON.
+ */
+export const stepGiven = (step: NextStep, listLabel?: string): Prefilled[] =>
   Object.entries(step.input).map(([field, value]) => ({
     field,
     value,
-    label: typeof value === "string" ? value : JSON.stringify(value),
+    label:
+      typeof value === "string"
+        ? value
+        : step.command === "element.list" && field === "selection" && listLabel !== undefined
+          ? listLabel
+          : JSON.stringify(value),
   }));
 
 /**

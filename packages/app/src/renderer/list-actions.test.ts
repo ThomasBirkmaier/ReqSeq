@@ -9,7 +9,6 @@ import {
   withMatrix,
 } from "./buffers.js";
 import { sessionText } from "./buffer-session.js";
-import { STEP_LIST_LABEL } from "./list-actions.js";
 import { savedStep, statusStep, textStep, typeStep } from "./list-filters.js";
 import { flush, setup, action, filterBy, list, filtered, element, titles } from "./actions.test-helper.js";
 
@@ -28,9 +27,10 @@ describe("list actions", () => {
   it("list all elements from a next step of element.list lists with the step's selection (SR-226 AK5)", () => {
     const selection = { where: { verification: ["open"] } } as const;
     const { context, dispatched } = setup([element]);
-    const given = { "element.list": [{ field: "selection", value: selection, label: "" }] };
+    const label = "Check workspace · Next steps";
+    const given = { "element.list": [{ field: "selection", value: selection, label }] };
     action("list-all").run({ ...context, given });
-    expect(dispatched).toEqual([{ type: "open", buffer: listBuffer(STEP_LIST_LABEL, selection) }]);
+    expect(dispatched).toEqual([{ type: "open", buffer: listBuffer(label, selection) }]);
     // Given inputs of another command, or a selection that is no object, list every element.
     const other = setup([element]);
     action("list-all").run({
