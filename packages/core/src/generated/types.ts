@@ -4859,7 +4859,7 @@ export interface EvidenceListOutput {
 export interface EvidenceRecordInput {
   /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
   readonly ref: ElementRef;
-  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
+  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";

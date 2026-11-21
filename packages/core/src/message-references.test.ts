@@ -9,14 +9,18 @@ import { describe, expect, it } from "vitest";
 
 const SRC = import.meta.dirname;
 
-/** An ID of ReqSeq's spec, or an issue number; `&#13;` and Mermaid's `#35;` are character references. */
-const REFERENCE = /\b(?:D|SR|N)-\d{3}\b|(?<![&\w])#\d+(?![\d;])/;
+/** An ID of ReqSeq's spec or ADR, or an issue number (also `owner/repo#N`); `&#13;` is a character reference. */
+const REFERENCE = /\b(?:D|SR|N)-\d{3,}\b|\bADR-\d{4}\b|(?<!&)#\d+(?!\d)/;
+
+/** The entity codes Mermaid writes for `#`, `:` and `{` (`graph/mermaid.ts`), no issue numbers. */
+const MERMAID_CODES: readonly string[] = ["#35;", "#58;", "#123;"];
 
 /** Example values in messages that show how an identifier is written, not what the spec says. */
 const EXAMPLES: readonly string[] = [
   "an identifier such as SR-036",
   "such as [SR-036/AK-k7f3]",
   '{"derives-from": ["N-073", "N-030"], "based-on": "D-062"}',
+  ...MERMAID_CODES,
 ];
 
 /** Every `.ts` module of `src` that is neither a test, a test helper nor generated, relative with `/`. */
@@ -63,11 +67,17 @@ describe("message texts name no spec ID and no issue (#2199)", () => {
       'const c = "spec question #583";',
       'const d = "an identifier such as SR-036";',
       'const e = "&#13;" + "#35;" + "N-0a1b2c";',
+      'const f = "spec question ThomasBirkmaier/ReqSeq-archive#529 Q5";',
+      'const g = "names no variant (#464; leave it out)";',
+      'const h = "recorded in the tool (ADR-0012)";',
     ].join("\n");
     expect(referencing("sample.ts", text)).toEqual([
       "a field every element has (D-012)",
       " (SR-047)",
       "spec question #583",
+      "spec question ThomasBirkmaier/ReqSeq-archive#529 Q5",
+      "names no variant (#464; leave it out)",
+      "recorded in the tool (ADR-0012)",
     ]);
   });
 

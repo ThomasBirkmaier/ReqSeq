@@ -30202,7 +30202,7 @@
                 "verification",
                 "validation"
               ],
-              "description": "Verification of a requirement, or validation of a need or a requirement. A validation record counts for the validation status only."
+              "description": "Verification of a requirement, or validation of a need or a requirement. Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only."
             },
             "method": {
               "enum": [
