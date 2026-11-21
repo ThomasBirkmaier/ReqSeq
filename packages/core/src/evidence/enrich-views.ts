@@ -53,7 +53,7 @@ export const keptVariantProblem = (
   const other = given === undefined ? [] : plan.views.filter((view) => !isGiven(given, view));
   if (given !== undefined && other.length > 0) {
     const what = other.map((view) => (view === CORE ? "the core" : `the variant ${view}`)).join(" and ");
-    return `it is enriched already for ${what}, outside the given views (${givenNames(given)}); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`;
+    return `it is enriched already for ${what}, outside the given views (${givenNames(given)}); an enriched test case is never changed`;
   }
   const checked = plan.views.filter(
     (view) =>
@@ -76,7 +76,7 @@ export const keptVariantHint = (testCase: JunitTestCase, options: EnrichOptions)
   const value = valuesOf(testCase, VARIANT).find((v) => !isUuidText(v) && v.toLowerCase() !== CORE);
   const lookup = value === undefined ? undefined : options.resolveVariant(value);
   return lookup?.kind === "view"
-    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`
+    ? `; it names the variant ${lookup.id}: write that UUID, as enrich never changes an enriched test case`
     : "";
 };
 

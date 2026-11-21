@@ -336,32 +336,51 @@ describe("reqseq mcp", () => {
     await client.close();
   });
 
-  it("[SR-229/AK-gzbz] starts in a folder without a workspace, with the MCP server instructions of tool.guide", async () => {
-    // Outside the fixture, whose workspace file the command line would find above the folder.
-    const empty = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-empty-"));
-    onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
-    const product = getCommandRuntime();
-    const toServer = new PassThrough();
-    const toClient = new PassThrough();
-    const opts = options(["mcp"], {
-      cwd: empty,
-      stdin: toServer,
-      stdout: { write: (text: string) => toClient.write(text) },
-      runtime: product,
-    });
-    const exit = runCli(opts);
-    const client = new Client({ name: "test", version: "1" });
-    await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
-    const instructions = client.getInstructions() ?? "";
-    toServer.end();
-    expect(await exit).toBe(EXIT.ok);
-    await client.close();
-    const folder = new Workspace(empty);
-    onTestFinished(() => folder.close());
-    const expected = await product.invoke("tool.guide", { instructions: true }, { workspace: folder });
-    expect(instructions).toBe((expected as { guide: string }).guide);
-    expect(instructions).toContain('`tool_guide` with `{"names":"mcp"}`');
-  });
+  // Folders the workspace cannot be read from: none, a faulty workspace file, a metamodel that cannot be read.
+  const unreadable: Record<string, Record<string, string>> = {
+    "without a workspace": {},
+    "with a faulty workspace file": { "reqseq-workspace.yaml": "reqseq-workspace: 2\n" },
+    "with a metamodel that cannot be read": {
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Station\nrepositories:\n  - { name: main, url: "", main: true }\nmetamodel: { repository: main, path: metamodel }\n',
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ {\n",
+    },
+  };
+
+  it.each(Object.entries(unreadable))(
+    "[SR-229/AK-gzbz] starts in a folder %s, with the MCP server instructions of tool.guide",
+    async (_, files) => {
+      // Outside the fixture, whose workspace file the command line would find above the folder.
+      const empty = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-empty-"));
+      onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
+      for (const [file, text] of Object.entries(files)) {
+        await fs.mkdir(path.dirname(path.join(empty, file)), { recursive: true });
+        await fs.writeFile(path.join(empty, file), text);
+      }
+      const product = getCommandRuntime();
+      const toServer = new PassThrough();
+      const toClient = new PassThrough();
+      const opts = options(["mcp"], {
+        cwd: empty,
+        stdin: toServer,
+        stdout: { write: (text: string) => toClient.write(text) },
+        runtime: product,
+      });
+      const exit = runCli(opts);
+      const client = new Client({ name: "test", version: "1" });
+      await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
+      const instructions = client.getInstructions() ?? "";
+      toServer.end();
+      expect(await exit).toBe(EXIT.ok);
+      await client.close();
+      const folder = new Workspace(empty);
+      onTestFinished(() => folder.close());
+      const expected = await product.invoke("tool.guide", { instructions: true }, { workspace: folder });
+      expect(instructions).toBe((expected as { guide: string }).guide);
+      expect(instructions).toContain('`tool_guide` with `{"names":"mcp"}`');
+      expect(instructions).not.toContain("Station");
+    },
+  );
 
   it("stops at the signal", async () => {
     const controller = new AbortController();

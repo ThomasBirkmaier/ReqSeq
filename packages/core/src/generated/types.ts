@@ -552,11 +552,17 @@ export type Answer = string;
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
   readonly ids?: readonly ElementRef[];
+  /** Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown. */
+  readonly inRepository?: readonly {
+    readonly id: UuidRef;
+    /** Workspace name of the repository. */
+    readonly repository: string;
+  }[];
   /** Name of a saved filter (SR-070). */
   readonly filter?: string;
   readonly where?: FilterCondition;
@@ -2251,7 +2257,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -2261,12 +2267,12 @@ export interface WorkspaceCheckInput {
   readonly changedSince?: string;
   /** Lowest severity of the problems shown; does not change ok or the exit code. Problems left out are counted in hidden. */
   readonly severity: "error" | "warning" | "info";
-  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check. */
+  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check. */
   readonly failOn: "error" | "warning" | "info";
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -2518,7 +2524,7 @@ export interface ToolInfoOutput {
 }
 
 /**
- * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json input`.
  */
 export interface ToolGuideInput {
@@ -2535,7 +2541,7 @@ export interface ToolGuideInput {
 }
 
 /**
- * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
@@ -3608,10 +3614,7 @@ export interface ElementBulkUpdateOutput {
   /** Number of affected elements (SR-071 AK2). */
   readonly count: number;
   /** The elements whose file the change rewrites, in store order. */
-  readonly affected: readonly {
-    readonly id: Uuid;
-    readonly shortId: ShortId;
-  }[];
+  readonly affected: readonly CountedElement[];
   /** Elements of the selection that have the result already: those of `unchangedElements`. */
   readonly unchanged: number;
   /** The elements of the selection that have the result already, in store order. */
@@ -3620,6 +3623,8 @@ export interface ElementBulkUpdateOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read. */
     readonly reason: "not-a-property" | "unknown-type";
     /** Why the element was left out, for people. */
@@ -3655,6 +3660,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly changed: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** Acceptance criteria of the element that got a criterion key. */
     readonly assigned: number;
   }[];
@@ -3662,6 +3669,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3). */
     readonly reason: "unknown-type";
     /** Why the element was left out, for people. */
@@ -4386,7 +4395,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -4405,7 +4414,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
@@ -4859,7 +4868,7 @@ export interface EvidenceListOutput {
 export interface EvidenceRecordInput {
   /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
   readonly ref: ElementRef;
-  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
+  /** Verification of a requirement, or validation of a need or a requirement (D-007, D-012). Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
@@ -4904,11 +4913,11 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
-  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
+  /** The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
   readonly file: LocalPath;
   /** The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
@@ -4925,7 +4934,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -4936,7 +4945,7 @@ export interface EvidenceEnrichJunitOutput {
   readonly withoutReference: number;
   /** With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11); a test case with no element left is marked (AK12, see `skipNotInView`). Information only: it does not change the exit code. */
   readonly notInView: number;
-  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
+  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1). */
   readonly unknown: readonly {
     /** The `name` of the test case. */
     readonly testCase: string;
@@ -5240,7 +5249,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -5255,7 +5264,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
@@ -5620,7 +5629,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -5641,7 +5650,7 @@ export interface ReqifExportInput {
 }
 
 /**
- * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {

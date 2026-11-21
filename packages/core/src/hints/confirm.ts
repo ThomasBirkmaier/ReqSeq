@@ -132,7 +132,7 @@ interface Source {
 }
 
 const NOT_CONFIRMABLE =
-  "only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in hint.list) is confirmed, by writing the current version (D-042); other hints go away when what they report is changed";
+  "only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in hint.list) is confirmed, by writing the current version; other hints go away when what they report is changed";
 
 const notConfirmable = (
   id: string,
@@ -148,7 +148,7 @@ const notConfirmable = (
 const sinceBaselineRefusal = (given: string, code: string, note = ""): Problem => ({
   code: "hint.not-confirmable",
   severity: "error",
-  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)${note}`,
+  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it${note}`,
 });
 
 /** The refusal of `kind` for each since-baseline code it names. */
@@ -171,7 +171,7 @@ const refusalAtVariant = async (context: ShownContext, input: ConfirmInput): Pro
         {
           code: "hint.not-confirmable",
           severity: "error",
-          message: `${String(hints.length)} open hints at ${context.shortIds.of(record)} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)`,
+          message: `${String(hints.length)} open hints at ${context.shortIds.of(record)} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them`,
           elementId: record.id,
         },
       ];

@@ -4,6 +4,11 @@
 // - Every part given must hold (SR-101 AK2: "nur Elemente, die beide Bedingungen erfüllen"):
 //   - `ids`: exactly the elements named (AK3), each resolved with `resolveListRef` (any case, ThomasBirkmaier/ReqSeq-archive#309;
 //     `ref.unknown`, `ref.ambiguous`); an element named twice is selected once.
+//   - `inRepository` (#2024): explicit IDs too, each a UUID with the repository of its file (D-058), so
+//     one copy of a UUID that files in several repositories share (SR-088) is named without `ref.ambiguous`
+//     (`resolveInRepository`): every element with that UUID in that repository, also two copies there; an
+//     item that names none is `ref.unknown`, as an `ids` item. The app opens the elements a number of a
+//     write command's output counts with it (SR-223 AK5).
 //   - `where`: the condition (condition.ts, SR-069).
 //   - `package`: the elements assigned to the package (SR-112 AK1), as the condition `package`.
 //   - `view`: the elements the view of the core or a variant holds (`viewRuleOf`: the validity,
@@ -56,7 +61,7 @@ import type { ElementSelection } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
-import { elementStoreState, resolveListRef, shortIdState } from "../model/index.js";
+import { elementStoreState, resolveInRepository, resolveListRef, shortIdState } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { resolveView, viewRuleOf } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -265,6 +270,23 @@ const viewOfSelection = (
   return own ?? counted;
 };
 
+/** The elements of the store that `ids` and `inRepository` both name, where given, in store order (see the file comment). */
+const namedIn = (
+  store: ElementStore,
+  shortIds: ShortIds,
+  selection: Pick<ElementSelection, "ids" | "inRepository">,
+): readonly ElementRecord[] => {
+  const named = [
+    ...(selection.ids === undefined
+      ? []
+      : [new Set(selection.ids.map((ref) => resolveListRef(store, shortIds, ref)))]),
+    ...(selection.inRepository === undefined
+      ? []
+      : [new Set(selection.inRepository.flatMap((item) => resolveInRepository(store, shortIds, item)))]),
+  ];
+  return named.length === 0 ? store.elements : store.elements.filter((e) => named.every((set) => set.has(e)));
+};
+
 /**
  * The elements `selection` selects in the workspace of `caller` for `command`, with the perspective
  * `stored` when given (see the file comment). Errors name the fields of the input under `selection`.
@@ -318,12 +340,7 @@ export const resolveSelection = async (
   for (const shown of views) {
     tests.push(viewRuleOf({ workspace, store, metamodel }, shown).includes);
   }
-  const named =
-    selection.ids === undefined
-      ? undefined
-      : new Set(selection.ids.map((ref) => resolveListRef(store, shortIds, ref)));
-  const candidates = named === undefined ? store.elements : store.elements.filter((e) => named.has(e));
-  const elements = candidates.filter((e) => tests.every((test) => test(e)));
+  const elements = namedIn(store, shortIds, selection).filter((e) => tests.every((test) => test(e)));
   return {
     elements,
     incomplete:

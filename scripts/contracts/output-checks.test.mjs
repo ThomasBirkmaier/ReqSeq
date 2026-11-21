@@ -244,6 +244,35 @@ describe("checkOutputs", () => {
     expect(rows).toEqual({ path: "rows[].n", title: "N", elements: "selection", keys: [["name"]] });
   });
 
+  it("holds the entries of a list a write command's number counts to their repository (#2024)", () => {
+    const listOf = (items) => ({ title: "List", "x-elements": true, type: "array", items });
+    const id = { title: "Element", $ref: `${C}uuid` };
+    const repository = { title: "Repository", type: "string" };
+    const withSchemas = {
+      "common.schema.json": {
+        $defs: {
+          ...common.$defs,
+          copy: { type: "object", properties: { id, repository }, required: ["id", "repository"] },
+        },
+      },
+    };
+    const write = {
+      ...read({
+        uuids: listOf({ $ref: `${C}uuid` }),
+        bare: listOf({ type: "object", properties: { id }, required: ["id"] }),
+        shared: listOf({ $ref: `${C}copy` }),
+        joined: listOf({ allOf: [{ $ref: `${C}copy` }], properties: { n: { title: "N", type: "string" } } }),
+        count: { title: "Count", type: "integer", "x-elements": ["uuids", "bare", "shared", "joined"] },
+      }),
+      name: "x.write",
+      effect: "write-files",
+    };
+    expect(checkOutputs({ commands: [write] }, withSchemas, NOT_COUNTS)).toEqual([
+      'schemas/commands/x.write.json: output count: x-elements "uuids" names a list whose entries do not require "id" and "repository"',
+      'schemas/commands/x.write.json: output count: x-elements "bare" names a list whose entries do not require "id" and "repository"',
+    ]);
+  });
+
   it("[SR-224/AK-zk0v] holds showsOutput to the write commands with content of their own, in both directions", () => {
     const write = (name, extra = {}) => ({
       ...read({ problems }, extra),

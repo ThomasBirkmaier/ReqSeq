@@ -540,6 +540,26 @@ describe("tool.guide with instructions", () => {
     await expect(fs.stat(path.join(root, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("[SR-229/AK-gzbz] refuses write and replace together with instructions, naming the reason, and writes nothing", async () => {
+    const root = await standard();
+    for (const [input, field] of [
+      [{ instructions: true, write: true }, "write"],
+      [{ instructions: true, write: true, replace: true }, "write"],
+      [{ instructions: true, replace: true }, "replace"],
+    ] as const) {
+      const error = await invoke("tool.guide", input, { workspace: open(root) }).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(error).toMatchObject({
+        code: "input.invalid",
+        message: `Invalid input for tool.guide: ${field} cannot be given with instructions`,
+        details: { errors: [{ field, path: `/${field}`, keyword: "not" }] },
+      });
+    }
+    await expect(fs.stat(path.join(root, ".claude"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("answers that it gave the MCP server instructions", () => {
     const command = getCommandRuntime().commands.get("tool.guide");
     expect(command?.answer?.({ guide: "x" }, { instructions: true } as never, {} as never)).toBe(

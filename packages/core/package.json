@@ -69,6 +69,10 @@
       "types": "./dist/html-export/render-options.d.ts",
       "default": "./dist/html-export/render-options.js"
     },
+    "./next-steps": {
+      "types": "./dist/next-steps.d.ts",
+      "default": "./dist/next-steps.js"
+    },
     "./fold": {
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
