@@ -276,5 +276,32 @@ export const chainLines = (chain: Chain, names: Names): string[] => {
   const unresolved = listOf(chain["unresolved"])
     .filter(isRecord)
     .map((item) => `  ${unresolvedLine(item, chain)}`);
-  return [...lines, ...(unresolved.length === 0 ? [] : ["unresolved:", ...unresolved])];
+  return [
+    ...lines,
+    ...(unresolved.length === 0 ? [] : ["unresolved:", ...unresolved]),
+    ...incomingLines(chain),
+  ];
+};
+
+/**
+ * The groups of a neighbourhood (`incoming`): `<- KIND  COUNT`, its elements below it, and `N of COUNT shown`
+ * when it lists fewer; none without groups.
+ */
+const incomingLines = (chain: Chain): string[] => {
+  const groups = listOf(chain["incoming"]).filter(isRecord);
+  if (groups.length === 0) {
+    return [];
+  }
+  return [
+    "incoming:",
+    ...groups.flatMap((group) => {
+      const elements = listOf(group["elements"]).filter(isElement);
+      const count = typeof group["count"] === "number" ? group["count"] : elements.length;
+      return [
+        `  ${join(`<- ${text(group["kind"]) === "" ? text(group["link"]) : text(group["kind"])}`, String(count))}`,
+        ...elements.map((element) => `    ${elementLine(element)}`),
+        ...(elements.length < count ? [`    ${String(elements.length)} of ${String(count)} shown`] : []),
+      ];
+    }),
+  ];
 };

@@ -127,6 +127,50 @@ describe("renderHuman: a chain", () => {
     );
   });
 
+  it("shows the incoming groups of a neighbourhood with their counts, and how many a group lists of its count", () => {
+    const element = (id: string) => ({
+      id,
+      shortId: id,
+      identifier: id.replace("SR-", "R"),
+      type: "t",
+      title: `Title ${id}`,
+      repository: "s",
+    });
+    const output = chain({
+      nodes: [node("r", "N-r", 0)],
+      total: 1,
+      incoming: [
+        {
+          link: "relation",
+          kind: "derives-from",
+          meaning: "derivation",
+          count: 3,
+          elements: [element("SR-a"), element("SR-b")],
+        },
+        { link: "reference", meaning: "reference", count: 1, elements: [element("SR-c")] },
+      ],
+    });
+    expect(renderHuman(output)).toBe(
+      lines(
+        "N-r  draft  Title N-r",
+        "incoming:",
+        "  <- derives-from  3",
+        "    SR-a (Ra)  Title SR-a",
+        "    SR-b (Rb)  Title SR-b",
+        "    2 of 3 shown",
+        "  <- reference  1",
+        "    SR-c (Rc)  Title SR-c",
+        "total: 1",
+        "No problems.",
+      ),
+    );
+    expect(
+      renderHuman(
+        chain({ nodes: [node("r", "N-r", 0)], total: 1, incoming: [{ link: "reference", elements: [] }] }),
+      ),
+    ).toContain("  <- reference  0\n");
+  });
+
   it("marks an edge to an element shown elsewhere, and a cycle, where the edge starts", () => {
     const output = chain({
       nodes: [node("r", "SR-r", 0), node("a", "SR-a", 1, "down"), node("b", "SR-b", 1, "down")],
