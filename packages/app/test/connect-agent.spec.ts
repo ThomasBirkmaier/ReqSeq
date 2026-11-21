@@ -132,8 +132,11 @@ test.describe("Connect AI agent", () => {
       await window.screenshot({ path: path.join(OUT, "connect-agent-light.png") });
       // Long paths wrap inside the column, also in a narrow window: no part runs past it (#2169).
       await running.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setContentSize(480, 800);
+        const [shown] = BrowserWindow.getAllWindows();
+        if (shown === undefined) throw new Error("the app shows no window");
+        shown.setContentSize(480, 800);
       });
+      await expect.poll(() => window.evaluate(() => innerWidth)).toBe(480);
       await expect
         .poll(() =>
           buffer
@@ -141,6 +144,7 @@ test.describe("Connect AI agent", () => {
             .evaluateAll((parts) => parts.filter((part) => part.scrollWidth > part.clientWidth).length),
         )
         .toBe(0);
+      await window.screenshot({ path: path.join(OUT, "connect-agent-narrow-light.png") });
     } finally {
       await running.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), before);
     }
