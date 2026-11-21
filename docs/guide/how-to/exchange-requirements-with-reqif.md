@@ -20,9 +20,9 @@ In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
 
 1. Run **Analyse ReqIF file** and choose the file.
 2. Run **Save ReqIF mapping** and type the mapping as JSON, the `mapping` of the API section below.
-3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first; when you import, give each conflict with Ctrl+Enter under `take` or `keep`.
+3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first; when you import, give each conflict with Ctrl+Enter (⌘↩) under `take` or `keep`.
 4. To export a package, create it with **Create element** (Ctrl+K E, ⌘K E), type Package. In the element buffer of each requirement, add the property Package with “Add property” (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S). Open the package with **Go to element or buffer** (Ctrl+P, ⌘P) and run **Export ReqIF** with the name of the new file. On a list, it exports what the list shows.
-5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` or `sourceModel` yes with Ctrl+Enter.
+5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` or `sourceModel` yes with Ctrl+Enter (⌘↩).
 
 ## CLI
 
