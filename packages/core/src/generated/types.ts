@@ -552,11 +552,17 @@ export type Answer = string;
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
   readonly ids?: readonly ElementRef[];
+  /** Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown. */
+  readonly inRepository?: readonly {
+    readonly id: UuidRef;
+    /** Workspace name of the repository. */
+    readonly repository: string;
+  }[];
   /** Name of a saved filter (SR-070). */
   readonly filter?: string;
   readonly where?: FilterCondition;
@@ -3608,10 +3614,7 @@ export interface ElementBulkUpdateOutput {
   /** Number of affected elements (SR-071 AK2). */
   readonly count: number;
   /** The elements whose file the change rewrites, in store order. */
-  readonly affected: readonly {
-    readonly id: Uuid;
-    readonly shortId: ShortId;
-  }[];
+  readonly affected: readonly CountedElement[];
   /** Elements of the selection that have the result already: those of `unchangedElements`. */
   readonly unchanged: number;
   /** The elements of the selection that have the result already, in store order. */
@@ -3620,6 +3623,8 @@ export interface ElementBulkUpdateOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read. */
     readonly reason: "not-a-property" | "unknown-type";
     /** Why the element was left out, for people. */
@@ -3655,6 +3660,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly changed: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** Acceptance criteria of the element that got a criterion key. */
     readonly assigned: number;
   }[];
@@ -3662,6 +3669,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3). */
     readonly reason: "unknown-type";
     /** Why the element was left out, for people. */

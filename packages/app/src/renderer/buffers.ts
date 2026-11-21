@@ -19,7 +19,7 @@ export interface FilterStep {
   readonly label: string;
   /** What the heading of the list says for this step instead of the label: the name of a type (SR-148). */
   readonly heading?: string;
-  readonly selection: Pick<ElementSelection, "where" | "filter" | "output">;
+  readonly selection: Pick<ElementSelection, "where" | "filter" | "output" | "inRepository">;
   /**
    * The selection of a perspective (SR-214 AK2): the first step of its buffer, which "Clear list filter"
    * and "Clear all list filters" never take back.
@@ -495,10 +495,25 @@ export const outputList = (label: string, ids: readonly string[]): ListBuffer =>
   return makeList(label, steps, selectionOf(steps), undefined, false);
 };
 
+/** A UUID with the repository of its file, as `selection.inRepository` names an element. */
+export type InRepository = NonNullable<ElementSelection["inRepository"]>[number];
+
+/**
+ * The list of the elements a number of a write command's output counts (SR-223 AK5, #2024), under `label`: one step
+ * from the output of a command (`FilterStep.output`) that selects each counted entry by its UUID and repository
+ * (`selection.inRepository`), so a copy of the UUID in another repository (SR-088) is not listed, and further
+ * filter steps add to it. Like `ids`, it reads in every view (`selectionInView`), so the rows match the number.
+ */
+export const inRepositoryList = (label: string, items: readonly InRepository[]): ListBuffer => {
+  const steps: FilterStep[] = [{ label, selection: { inRepository: [...items] }, output: true }];
+  return makeList(label, steps, selectionOf(steps), undefined, false);
+};
+
 /**
  * What the steps select together (SR-124 AK1): the conditions of all steps in order, one alone as it
- * is, several as `all`, and the saved filter of the step that has one; undefined without steps. This
- * only builds the input of `element.list`; the core applies it (ADR-0002).
+ * is, several as `all`, the saved filter of the step that has one, and the elements of a command's output
+ * (`output`, `inRepository`); undefined without steps. This only builds the input of `element.list`; the
+ * core applies it (ADR-0002).
  */
 export const selectionOf = (steps: readonly FilterStep[]): ElementSelection | undefined => {
   const conditions = steps.flatMap((step) =>
@@ -506,10 +521,13 @@ export const selectionOf = (steps: readonly FilterStep[]): ElementSelection | un
   );
   const filter = steps.find((step) => step.selection.filter !== undefined)?.selection.filter;
   const output = steps.find((step) => step.selection.output !== undefined)?.selection.output;
+  const inRepository = steps.find((step) => step.selection.inRepository !== undefined)?.selection
+    .inRepository;
   const [only] = conditions;
   const where = conditions.length > 1 ? { all: conditions } : only;
   const selection: ElementSelection = {
     ...(output === undefined ? {} : { output }),
+    ...(inRepository === undefined ? {} : { inRepository }),
     ...(filter === undefined ? {} : { filter }),
     ...(where === undefined ? {} : { where }),
   };

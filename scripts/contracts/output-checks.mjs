@@ -304,21 +304,41 @@ function checkCount(cmd, field, elements, fields, schemas) {
     errors.push(`x-elements "selection" is for a read command; a write command names the list of its output`);
   }
   for (const relative of elements === "selection" ? [] : [elements].flat()) {
-    errors.push(...checkCountPath(cmd, field, String(relative), fields));
+    errors.push(...checkCountPath(cmd, field, String(relative), fields, schemas));
   }
   return [...errors, ...checkCountLists(field, fields, schemas)];
 }
 
-/** A path of a count names a list of elements of the same output, in a read command one of all pages. */
-function checkCountPath(cmd, field, relative, fields) {
+/** Whether a schema is an object that requires `id` and `repository`, itself or through its `allOf` and `$ref`s. */
+function namesCopy(schema, file, schemas) {
+  const end = target(schema, file, schemas);
+  const parts = [end.schema, ...(end.schema.allOf ?? [])].map((part) =>
+    part.$ref === undefined ? part : target(part, end.file, schemas).schema,
+  );
+  const required = new Set(parts.flatMap((part) => part.required ?? []));
+  return required.has("id") && required.has("repository");
+}
+
+/**
+ * A path of a count names a list of elements of the same output, in a read command one of all pages. In a write
+ * command, which the app never runs again, its entries name their repository too, so the list it opens holds the
+ * counted copy of a UUID only (SR-223 AK5, #2024).
+ */
+function checkCountPath(cmd, field, relative, fields, schemas) {
   const named = fields.find((other) => other.path === relativePath(field, relative));
   const mark = named?.schema["x-elements"];
   if (mark !== true && mark !== "answer") {
     return [`x-elements "${relative}" names no field with x-elements true or "answer"`];
   }
-  return cmd.effect === "read" && mark === true && isTop(named) && isPaged(cmd)
-    ? [`x-elements "${relative}" names a list of one page; mark the number "selection"`]
-    : [];
+  if (cmd.effect === "read") {
+    return mark === true && isTop(named) && isPaged(cmd)
+      ? [`x-elements "${relative}" names a list of one page; mark the number "selection"`]
+      : [];
+  }
+  const end = target(named.schema, named.file, schemas);
+  return isObject(end.schema.items) && namesCopy(end.schema.items, end.file, schemas)
+    ? []
+    : [`x-elements "${relative}" names a list whose entries do not require "id" and "repository"`];
 }
 
 /** Each list a count is inside names the fields of its entry (`x-key`), and none is a map. */
