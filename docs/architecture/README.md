@@ -128,7 +128,7 @@ flowchart TB
   reqif --> files & mm & model & ws
   html --> displays & evidence & files & hints & mm & model & query & trace & variants & ws
   elgraph --> evidence & hints & mm & model & trace & variants & ws
-  displays --> elgraph & model
+  displays --> elgraph & model & query
   query --> baselines & evidence & files & mm & model & trace & variants & ws
   hints --> baselines & evidence & files & mm & model & trace & variants & ws
   evidence --> files & mm & model & trace & variants & ws
@@ -150,7 +150,7 @@ An arrow means that at least one module of the source imports a value (a functio
 | `reqif` | files, metamodel, model, runtime state, workspace | |
 | `html-export` | displays, evidence, files, hints, metamodel, model, query, trace, variants, workspace | runtime state |
 | `graph` | evidence, hints, metamodel, model, runtime state, trace, variants, workspace | |
-| `displays` | graph, model | |
+| `displays` | graph, model, query | |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |

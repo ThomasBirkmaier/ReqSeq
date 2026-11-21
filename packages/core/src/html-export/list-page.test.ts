@@ -9,7 +9,7 @@ import { identifierOf, listPageOf, listsOf, typeOrder } from "./list-page.js";
 const metamodel = {
   valid: true,
   effectiveTypes: [
-    { key: "req", name: "Requirement", properties: ["level"] },
+    { key: "req", name: "Requirement", meaning: "requirement", properties: ["level"] },
     { key: "pkg", name: "Package", meaning: "package", properties: [] },
     { key: "var", name: "Variant", meaning: "variant", properties: [] },
   ],
@@ -20,12 +20,13 @@ const metamodel = {
   statuses: [],
 } as unknown as Metamodel;
 
+/** An entry; `properties` are those of the element as `element.list` gives them. */
 const entry = (
   type: string,
   element: Partial<DataExportElement>,
-  data: Record<string, unknown> = {},
+  properties: Record<string, unknown> = {},
 ): ListEntry => ({
-  record: { type, data } as unknown as ElementRecord,
+  record: { type, data: properties } as unknown as ElementRecord,
   element: {
     id: "u",
     shortId: "X-1",
@@ -33,7 +34,7 @@ const entry = (
     title: "",
     repository: "r",
     relations: [],
-    properties: {},
+    properties,
     ...element,
   } as DataExportElement,
   hints: 0,

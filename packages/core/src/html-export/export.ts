@@ -434,7 +434,7 @@ const typeCounts = (
  * What the pages of the export share besides the element pages: the elements with a page (`paged`) as the lists show
  * them, by identifier; the lists; the sidebar; and the elements of each package by its UUID.
  */
-const siteOf = async (
+export const siteOf = async (
   workspace: Workspace,
   context: ListContext,
   data: readonly ElementData[],

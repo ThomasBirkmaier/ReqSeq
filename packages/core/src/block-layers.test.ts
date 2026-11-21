@@ -127,7 +127,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
     ],
     types: ["runtime state"],
   },
-  displays: { values: ["graph", "model"] },
+  displays: { values: ["graph", "model", "query"] },
   graph: {
     values: ["evidence", "hints", "metamodel", "model", "runtime state", "trace", "variants", "workspace"],
   },
