@@ -63,14 +63,14 @@ const cliList = async (running: RunningApp, ...args: string[]): Promise<Listed> 
   return JSON.parse(run.stdout) as Listed;
 };
 
-/** The heading of a kind as the list shows it: its label, its count of all hints and its code. */
+/** The heading of a kind as the list shows it: the title of the kind, its count of all hints and its code. */
 const HEADS = [
-  "▾ Missing required properties (1)element.missing-required",
-  "▾ Unknown properties (2)element.unknown-property",
-  "▾ Superseded targets (1)relation.target-superseded",
-  "▾ Superseded variants in a validity (1)variant.superseded-in-validity",
-  "▾ Without parent (1)trace.no-parent",
-  "▾ Outdated relations (2)relation.outdated",
+  "▾ Required property without value (1)element.missing-required",
+  "▾ Unknown property (2)element.unknown-property",
+  "▾ Superseded target (1)relation.target-superseded",
+  "▾ Superseded variant in validity (1)variant.superseded-in-validity",
+  "▾ Requirement without parent (1)trace.no-parent",
+  "▾ Outdated relation (2)relation.outdated",
 ];
 
 test.describe("the hint list", () => {
@@ -166,14 +166,14 @@ test.describe("the hint list", () => {
     await window.keyboard.press("Control+N");
     // Tab on the marked heading folds its group and unfolds it again.
     await window.keyboard.press("Tab");
-    await expect(heads(window).nth(1)).toHaveText("▸ Unknown properties (2)element.unknown-property");
+    await expect(heads(window).nth(1)).toHaveText("▸ Unknown property (2)element.unknown-property");
     await expect(rows(window)).toHaveCount(6);
     await expect(window.locator(".hints")).toBeFocused();
     await window.keyboard.press("Tab");
     await expect(rows(window)).toHaveCount(8);
     // A click on a heading folds it and on it again unfolds it.
     await heads(window).nth(5).click();
-    await expect(heads(window).nth(5)).toHaveText("▸ Outdated relations (2)relation.outdated");
+    await expect(heads(window).nth(5)).toHaveText("▸ Outdated relation (2)relation.outdated");
     await expect(rows(window)).toHaveCount(6);
     await heads(window).nth(5).click();
     await expect(rows(window)).toHaveCount(8);

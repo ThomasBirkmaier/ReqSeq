@@ -28,6 +28,7 @@ type Unit =
   | "version"
   | "git"
   | "docs-site"
+  | "displays"
   | "runtime state";
 
 /** Modules every block may import, and the public entry point, which sits above all blocks. */
@@ -52,6 +53,7 @@ const LAYERS: readonly (readonly Unit[])[] = [
   ["evidence"],
   ["hints", "query"],
   ["data", "reqif", "html-export", "graph"],
+  ["displays"],
   ["commands"],
   ["runtime entry"],
 ];
@@ -153,6 +155,8 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   version: { values: [] },
   git: { values: [] },
   "docs-site": { values: [] },
+  // ADR-0019 point 3: types and import-free modules only, so the app's renderer can import it.
+  displays: { values: ["graph"] },
   "runtime state": { values: [] },
   catalog: { values: ["generated"], types: ["runtime state"] },
   product: { values: ["generated"] },
@@ -430,7 +434,7 @@ describe("core block layers (ThomasBirkmaier/ReqSeq-archive#635, docs/architectu
       'data/x.ts:1 imports "../git/reader.js": data (layer 7) -> git (layer 0) is not in the README block table (data imports values of evidence, files, metamodel, model, variants, workspace)',
     ]);
     expect(problemsOf("files/x.ts", 'import { a } from "../commands/index.js";')).toEqual([
-      'files/x.ts:1 imports "../commands/index.js": files (layer 0) -> commands (layer 8) does not point to a lower layer',
+      'files/x.ts:1 imports "../commands/index.js": files (layer 0) -> commands (layer 9) does not point to a lower layer',
     ]);
     expect(problemsOf("model/x.ts", 'import { a } from "../oslc/x.js";')).toEqual([
       'model/x.ts:1 imports "../oslc/x.js": target oslc/x.js is an unknown block folder',

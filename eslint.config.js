@@ -118,6 +118,31 @@ export default tseslint.config(
     },
   },
   {
+    // ADR-0019 point 3: the display models import only types, other display models and the import-free
+    // modules, so the app's sandboxed renderer bundle never pulls in `node:*`. This block replaces the
+    // options of the core block above, so it repeats its patterns.
+    files: ["packages/core/src/displays/**/*.ts"],
+    ignores: testFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            testkitInProduct,
+            testCommandInProduct,
+            {
+              // Everything but another display model and the modules named here.
+              regex: String.raw`^(?!\./|\.\./(?:catalog|graph/words|problem-titles)\.js$)`,
+              allowTypeImports: true,
+              message:
+                "A display model imports only types, other display models and import-free modules (ADR-0019).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // The public entry point re-exports everything of the catalog module, including defineTestCommand,
     // which the tests of the access packages import from @reqseq/core.
     files: ["packages/core/src/index.ts"],

@@ -1,23 +1,10 @@
 // How the app names an element by identifier and title (#545): "SR-036 Title", or the identifier alone when
 // the title is empty or the same text, so a package with `spec-id: Später` and title "Später" reads "Später".
+// `shownId`, `idTitle` and `shownIdTitle` are core's (`@reqseq/core/graph-words`), so the display models of
+// `@reqseq/core/displays` name elements the same way (ADR-0019).
 import { shownId } from "@reqseq/core/graph-words";
 
-export { shownId };
-
-/** `id` then `title`, separated by a space; `id` alone when `title` is missing, empty or equal to `id`. */
-export const idTitle = (id: string, title?: string): string => {
-  const shown = title?.trim() ?? "";
-  return shown === "" || shown === id.trim() ? id.trim() : `${id} ${shown}`.trim();
-};
-
-/**
- * The shown ID then the title (`idTitle`); the title left out when it is the identifier's text (#545), so a
- * package with `spec-id: Später` and title "Später" reads "PKG-1a2b3c (Später)".
- */
-export const shownIdTitle = (shortId: string, identifier: string | undefined, title?: string): string => {
-  const id = shownId(shortId, identifier);
-  return identifier !== undefined && title?.trim() === identifier.trim() ? id : idTitle(id, title);
-};
+export { idTitle, shownId, shownIdTitle } from "@reqseq/core/graph-words";
 
 /** The two parts of a name: the shown ID, and the title after it ("" when the name is the ID alone). */
 export interface IdParts {

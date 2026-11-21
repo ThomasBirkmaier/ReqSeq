@@ -178,8 +178,8 @@ export const HintListView = ({
               choose(at);
             }}
           >
-            <FoldHead label={row.group.label} count={row.group.count} open={row.open} />
-            {row.group.label === row.group.code ? null : <span className="code">{row.group.code}</span>}
+            <FoldHead label={row.group.title} count={row.group.count} open={row.open} />
+            {row.group.title === row.group.code ? null : <span className="code">{row.group.code}</span>}
             {row.open && row.group.lines.length < row.group.count ? (
               <span className="more">{String(row.group.count - row.group.lines.length)} not listed</span>
             ) : null}

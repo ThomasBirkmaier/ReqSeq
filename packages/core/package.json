@@ -73,6 +73,10 @@
       "types": "./dist/query/fold.d.ts",
       "default": "./dist/query/fold.js"
     },
+    "./displays": {
+      "types": "./dist/displays/index.d.ts",
+      "default": "./dist/displays/index.js"
+    },
     "./problem-titles": {
       "types": "./dist/problem-titles.d.ts",
       "default": "./dist/problem-titles.js"
