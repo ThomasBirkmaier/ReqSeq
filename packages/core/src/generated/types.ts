@@ -560,6 +560,7 @@ export interface ElementSelection {
   /** Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown. */
   readonly inRepository?: readonly {
     readonly id: UuidRef;
+    /** Workspace name of the repository. */
     readonly repository: string;
   }[];
   /** Name of a saved filter (SR-070). */
