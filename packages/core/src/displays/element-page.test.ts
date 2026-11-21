@@ -122,7 +122,10 @@ describe("elementPageDisplay", () => {
       { element: element({ problems }), metamodel: METAMODEL },
       { relations: "all" },
     );
-    expect(own.hints).toEqual([{ code: "trace.no-parent", message: "No parent" }]);
+    expect(own.hints).toEqual([
+      { code: "file.faulty", message: "No version" },
+      { code: "trace.no-parent", message: "No parent" },
+    ]);
     const listed = elementPageDisplay(
       {
         element: element({ problems }),

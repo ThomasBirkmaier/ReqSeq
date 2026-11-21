@@ -365,9 +365,10 @@ export const listedElement = (
  * successor relations are relations, not hints, so they are listed also then. Other relations
  * pointing at it and the version date are left out.
  *
- * A value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) leaves out `version`, and
- * the last problem is a `file.faulty` warning that says why (`noVersionProblem`), as list commands
- * and the current versions give such an element (ThomasBirkmaier/ReqSeq-archive#259, ThomasBirkmaier/ReqSeq-archive#276): the view never fails on it.
+ * A value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) in either normal form leaves out `version`,
+ * and, while the metamodel is valid, the last problem is a `file.faulty` warning that says why (`noVersionProblem`),
+ * as list commands and the current versions give such an element (ThomasBirkmaier/ReqSeq-archive#259,
+ * ThomasBirkmaier/ReqSeq-archive#276): the view never fails on it. That warning is a hint (#2231).
  */
 export const elementView = (
   input: ElementViewInput,
@@ -395,10 +396,12 @@ export const elementView = (
     const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
-  // A number that counts and is not finite has no canonical form; anything else is a bug.
-  const computed = versionOrRangeError(() => elementVersion(record, file.body, metamodel, input.images));
-  const version = computed instanceof RangeError ? undefined : computed;
-  if (computed instanceof RangeError) {
+  // A number that counts and is not finite has no canonical form; anything else is a bug. Both normal forms, as the
+  // current versions compute them, so an element has a version here exactly when it has one there (#2231).
+  const computed = versionOrRangeError(() => elementVersions(record, file.body, metamodel, input.images));
+  const version = computed instanceof RangeError ? undefined : computed[NORMAL_FORM];
+  // The warning is a hint (#2231), and there are no hints against a metamodel that is not valid.
+  if (computed instanceof RangeError && metamodel.valid) {
     problems.push(noVersionProblem(record, notComputableMessage(record, computed)));
   }
   const { id, shortId, identifier, type, status, title, ...rest } = listedElement(input, version);

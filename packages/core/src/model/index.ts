@@ -225,6 +225,7 @@ export {
   elementVersions,
   elementView,
   listedElement,
+  noVersionProblem,
   relationLink,
   sourceLink,
   titleKeyOf,
