@@ -5,10 +5,11 @@
 // file is not on this machine, so children, elements or evidence locations there are not seen, or a
 // condition of the selection met such a target. `names` names every element the levels list (ThomasBirkmaier/ReqSeq-archive#588),
 // from the selection's records (nothing more is read). Nothing is written. `countedElements` gives the
-// records behind `levels[].total`, `withChildren` and `withEvidence` (SR-224 AK4) from the same level
+// records behind `levels[].total`, `withoutChildren`, `withoutEvidence`, `withChildren` and `withEvidence`
+// (SR-224 AK4, SR-036 AK6) from the same level
 // computation (`coverageRecordsOf`), so a number and its list agree also for SR-088 duplicates.
 import type { CommandContext, CommandInput, CommandOutput, OutputCount } from "../../catalog.js";
-import { defineCommand, matchesKey } from "../../catalog.js";
+import { CommandError, defineCommand, matchesKey } from "../../catalog.js";
 import type { CoverageRecordLevel } from "../../evidence/index.js";
 import {
   coverageOf,
@@ -22,7 +23,7 @@ import { resolveSelection } from "../../query/index.js";
 import { derivationGraph, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
 import { viewsInclude } from "../../variants/index.js";
-import { counted, incompleteNote, listed, sentence } from "../answer.js";
+import { counted, incompleteNote, sentence } from "../answer.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 const COMMAND = "evidence.coverage";
@@ -46,12 +47,21 @@ const coverageInput = async (ctx: CommandContext, input: CommandInput<"evidence.
 /** The records a number of a level counts, by its field (`levels[].total` and the like). */
 const levelRecords = (level: CoverageRecordLevel, field: string) => {
   switch (field) {
+    case "levels[].withoutChildren":
+      return level.withoutChildren;
+    case "levels[].withoutEvidence":
+      return level.withoutEvidence;
     case "levels[].withChildren":
       return level.withChildren;
     case "levels[].withEvidence":
       return level.withEvidence;
+    case "levels[].total":
+      return [...level.withoutChildren, ...level.withChildren];
     default:
-      return [...level.withChildren, ...level.withoutChildren];
+      // `invoke` checks the field against the catalog, so only a number of the schema without its case gets here.
+      throw new CommandError("internal", `${COMMAND} has no elements for the number ${field}`, {
+        command: COMMAND,
+      });
   }
 };
 
@@ -61,12 +71,14 @@ export default defineCommand({
     sentence(
       output.levels.length === 0
         ? "The selection has no need or requirement"
-        : `Coverage: ${listed(
-            output.levels.map(
-              (level) =>
-                `${String(level.withChildren)} of ${counted(level.total, `${names.type(level.type)} element`)} with children${level.withEvidence === undefined ? "" : ` and ${String(level.withEvidence)} with evidence`}`,
-            ),
-          )}`,
+        : // Each level names its gaps first (SR-036: „je Ebene die fehlende Abdeckung zuerst nennen“, AK6).
+          `Coverage ${output.levels
+            .map((level) => {
+              const evidence = (count: number | undefined, prefix: string): string =>
+                count === undefined ? "" : ` and ${String(count)} ${prefix} evidence`;
+              return `of ${counted(level.total, `${names.type(level.type)} element`)}: ${String(level.withoutChildren)} without children${evidence(level.withoutEvidence, "without")}, ${String(level.withChildren)} with children${evidence(level.withEvidence, "with")}`;
+            })
+            .join("; ")}`,
       incompleteNote(output.incomplete),
     ),
   run: async (ctx, input): Promise<CommandOutput<"evidence.coverage">> => {
