@@ -79,7 +79,7 @@
       },
       "dryRun": {
         "type": "boolean",
-        "description": "Check and show the result without writing (SR-246): the same checks, refusals and output, but no file or folder is created; `filesToWrite` names the file. A later create draws another UUID; `nextIdentifier` gives the identifier a create would give now."
+        "description": "Dry run (SR-246): the checks and refusals before writing and the same output, but no file or folder is created; `filesToWrite` names the file, `nextIdentifier` the identifier a create gives now. A failure only writing shows, such as a folder that cannot be written, is not shown."
       }
     },
     "additionalProperties": false,
@@ -113,7 +113,7 @@
       },
       "filesToWrite": {
         "title": "Files to write",
-        "description": "In a dry run: the file a create would write (SR-064 AK5).",
+        "description": "Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064 AK5).",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },

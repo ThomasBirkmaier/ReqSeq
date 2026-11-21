@@ -34,7 +34,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.create"),
     );
     const { files, problems, dryRun } = written;
-    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun?.record);
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun);
     const incomplete =
       input.nextIdentifier === true &&
       (await ctx.workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available);

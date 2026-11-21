@@ -3252,7 +3252,7 @@ export interface ElementCreateInput {
   readonly nextIdentifier?: boolean;
   /** Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space. */
   readonly identifierPrefix?: string;
-  /** Check and show the result without writing (SR-246): the same checks, refusals and output, but no file or folder is created; `filesToWrite` names the file. A later create draws another UUID; `nextIdentifier` gives the identifier a create would give now. */
+  /** Dry run (SR-246): the checks and refusals before writing and the same output, but no file or folder is created; `filesToWrite` names the file, `nextIdentifier` the identifier a create gives now. A failure only writing shows, such as a folder that cannot be written, is not shown. */
   readonly dryRun?: boolean;
 }
 
@@ -3269,7 +3269,7 @@ export interface ElementCreateOutput {
   readonly files: readonly OutputPath[];
   /** In a dry run (SR-246): nothing written. */
   readonly dryRun?: true;
-  /** In a dry run: the file a create would write (SR-064 AK5). */
+  /** Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064 AK5). */
   readonly filesToWrite?: readonly OutputPath[];
   /** With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9). */
   readonly incomplete?: Incomplete;
@@ -3525,7 +3525,7 @@ export interface ElementUpdateInput {
   readonly addRelations?: RelationRefs;
   /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository. ref.ambiguous and ref.unknown (none there) list them in details.candidates. */
+  /** Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates. */
   readonly repository?: string;
   /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change. */
   readonly expectedFileSha256?: FileSha256;
@@ -3544,7 +3544,7 @@ export interface ElementUpdateOutput {
   readonly names?: readonly ElementName[];
   /** Of the file as written, or as read when nothing changed or in a dry run (SR-106, SR-246 AK5). */
   readonly fileSha256: FileSha256;
-  /** Written files, relative to the workspace root. */
+  /** Written files, relative to the workspace root; empty in a dry run. */
   readonly files: readonly OutputPath[];
   /** In a dry run (SR-246): nothing written. */
   readonly dryRun?: true;

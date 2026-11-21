@@ -13993,7 +13993,7 @@
             },
             "dryRun": {
               "type": "boolean",
-              "description": "Check and show the result without writing: the same checks, refusals and output, but no file or folder is created; `filesToWrite` names the file. A later create draws another UUID; `nextIdentifier` gives the identifier a create would give now."
+              "description": "Dry run: the checks and refusals before writing and the same output, but no file or folder is created; `filesToWrite` names the file, `nextIdentifier` the identifier a create gives now. A failure only writing shows, such as a folder that cannot be written, is not shown."
             }
           },
           "additionalProperties": false,
@@ -14036,7 +14036,7 @@
             },
             "filesToWrite": {
               "title": "Files to write",
-              "description": "In a dry run: the file a create would write.",
+              "description": "Only in a dry run: the file a create would write, relative to the workspace root, in the folder a create without it uses.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath"
@@ -17851,7 +17851,7 @@
             "repository": {
               "type": "string",
               "minLength": 1,
-              "description": "Which of the elements ref names is meant: the workspace name of its repository. ref.ambiguous and ref.unknown (none there) list them in details.candidates."
+              "description": "Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates."
             },
             "expectedFileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",
@@ -17892,7 +17892,7 @@
             },
             "files": {
               "title": "Files",
-              "description": "Written files, relative to the workspace root.",
+              "description": "Written files, relative to the workspace root; empty in a dry run.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath"

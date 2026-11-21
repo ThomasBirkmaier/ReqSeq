@@ -34,7 +34,7 @@ export default defineCommand({
       await nestedVariantCheck(ctx.workspace, "element.update"),
     );
     const { fileSha256, files, problems, affected, dryRun } = written;
-    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun?.record);
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun);
     const shortIds = await ctx.workspace.get(shortIdState);
     return {
       element,

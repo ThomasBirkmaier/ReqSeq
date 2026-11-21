@@ -111,7 +111,7 @@
       "repository": {
         "type": "string",
         "minLength": 1,
-        "description": "Which of the elements ref names is meant: the workspace name of its repository. ref.ambiguous and ref.unknown (none there) list them in details.candidates."
+        "description": "Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates."
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
@@ -146,7 +146,7 @@
       },
       "files": {
         "title": "Files",
-        "description": "Written files, relative to the workspace root.",
+        "description": "Written files, relative to the workspace root; empty in a dry run.",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },

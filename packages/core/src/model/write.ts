@@ -22,6 +22,7 @@ import type {
 } from "../files/index.js";
 import {
   bodyForText,
+  checkReplaceable,
   createFolder,
   editElementFile,
   elementText,
@@ -91,7 +92,9 @@ import { withCurrentTitles } from "./relation-titles.js";
 import type { ElementHints } from "./get.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateIn } from "./locate.js";
-import { elementContent, elementView, titleKeyOf } from "./view.js";
+import { withPlannedNames } from "./planned-names.js";
+import type { VersionFile, VersionForms } from "../version/version.js";
+import { elementContent, elementVersions, elementView, titleKeyOf, versionOrRangeError } from "./view.js";
 import { commandTitle } from "../runtime/command-titles.js";
 
 /** What `element.create` and `element.update` return. */
@@ -108,6 +111,12 @@ export interface ElementWriteResult {
 export interface DryRun {
   /** The element as it would be written; undefined when nothing would change. */
   readonly record?: ElementRecord;
+  /**
+   * Its version in both normal forms, from the planned bytes (the store and the file on disk hold the
+   * element as it was, or not at all); undefined when nothing would change or a value that counts has
+   * no normal form (ADR-0005).
+   */
+  readonly forms?: VersionForms;
   /** The files the command would write, relative to the workspace root; empty when nothing would change. */
   readonly files: readonly string[];
 }
@@ -603,7 +612,22 @@ interface FinishOptions {
   readonly replaced?: FileSnapshot;
   /** The element before a save that wrote it (`element.update`): `affected` is counted. */
   readonly before?: Before;
+  /** In a dry run (SR-246): the files a write would write; `files` is then empty. */
+  readonly planned?: readonly string[] | undefined;
 }
+
+/** The dry run of `written`, the element as planned, with its versions from the planned bytes (SR-246). */
+const plannedRun = (
+  written: ReadElement,
+  metamodel: Metamodel,
+  images: readonly VersionFile[],
+  files: readonly string[],
+): DryRun => {
+  const forms = versionOrRangeError(() =>
+    elementVersions(written.record, written.file.body, metamodel, images),
+  );
+  return { record: written.record, files, ...(forms instanceof RangeError ? {} : { forms }) };
+};
 
 /**
  * The result of a write; with `files` written, the element store gets the file as written
@@ -622,7 +646,7 @@ const finish = async (
   context: Context,
   options: FinishOptions,
 ): Promise<ElementWriteResult & { readonly affected?: readonly ElementRecord[] }> => {
-  const { shortIds, titleKey, files, extraFindings, replaced, before } = options;
+  const { shortIds, titleKey, files, extraFindings, replaced, before, planned } = options;
   const repository = targetRepository(context.layout, written.record.repository);
   const images = await embeddedImages(
     { repository, ignored: ignoredBy(context.layout) },
@@ -662,7 +686,8 @@ const finish = async (
       { repository: written.record.repository, file: written.file, replaced },
     ]);
   }
-  return { element, files, problems: element.problems, ...affected };
+  const dryRun = planned === undefined ? {} : { dryRun: plannedRun(written, metamodel, images, planned) };
+  return { element, files, problems: element.problems, ...affected, ...dryRun };
 };
 
 const EMPTY_FILE: EditableFile = { frontmatter: "", body: "", eol: "\n", closingEol: "\n", bom: false };
@@ -877,11 +902,14 @@ export const createElement = async (
       sha256: sha256(bytes),
     });
     const shortIds = buildShortIds(withRecord(store, planned.record).byId, metamodel);
-    const shown = await finish(workspace, planned, context, { shortIds, titleKey, files: [], extraFindings });
-    return withPlannedNames(
-      { ...shown, dryRun: { record: planned.record, files: [workspacePath(layout, repository, file)] } },
+    const shown = await finish(workspace, planned, context, {
       shortIds,
-    );
+      titleKey,
+      files: [],
+      extraFindings,
+      planned: [workspacePath(layout, repository, file)],
+    });
+    return withPlannedNames(shown, shortIds);
   }
   // Every check is done and the bytes are verified before the folder is created, so only a failing
   // write itself (a clash with an existing file, a disk error) or a folder changed by someone else
@@ -914,8 +942,8 @@ interface Saved {
   readonly fileSha256: string;
   /** The written files: `target`, or none in a dry run. */
   readonly files: readonly string[];
-  /** In a dry run, the planned element and `target`. */
-  readonly planned: { readonly dryRun?: DryRun };
+  /** In a dry run, the file a write would write: `target`. */
+  readonly planned?: readonly string[];
 }
 
 /**
@@ -930,6 +958,9 @@ const saveOrPlan = async (
   target: string,
 ): Promise<Saved> => {
   if (dryRun) {
+    // What the write would refuse before it writes: a folder linked out of the repository, and a file
+    // that is not a writable regular file or changed meanwhile (`writeFileAtomic`).
+    await checkReplaceable(repository.folder, record.file, record.snapshot);
     const snapshot = {
       path: record.file,
       size: bytes.length,
@@ -941,45 +972,17 @@ const saveOrPlan = async (
       element,
       fileSha256: record.snapshot.sha256,
       files: [],
-      planned: { dryRun: { record: element.record, files: [target] } },
+      planned: [target],
     };
   }
   const snapshot = await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot);
   const element = writtenElement(repository.name, bytes, snapshot);
-  return { element, fileSha256: element.file.snapshot.sha256, files: [target], planned: {} };
+  return { element, fileSha256: element.file.snapshot.sha256, files: [target] };
 };
 
 /** The dry run of an update that changes nothing: no file to write (SR-246 AK4). */
 const unchangedDryRun = (dryRun: boolean): { readonly dryRun?: DryRun } =>
   dryRun ? { dryRun: { files: [] } } : {};
-
-/**
- * A dry run (SR-246) with the short ID and identifier of the element it would write on the problems that
- * name it, as a write gives them: the store holds the element only as it was, or not at all, so the
- * runtime (`withElementShortIds`) would name it as it was. The others stay for the runtime.
- */
-const withPlannedNames = <T extends ElementWriteResult>(result: T, shortIds: ShortIds): T => {
-  const record = result.dryRun?.record;
-  if (record === undefined) {
-    return result;
-  }
-  const identifier = shortIds.identifierOf(record);
-  const named = (problems: readonly Problem[]): Problem[] =>
-    problems.map((problem) =>
-      problem.elementId === record.id
-        ? {
-            ...problem,
-            elementShortId: shortIds.of(record),
-            ...(identifier === undefined ? {} : { elementIdentifier: identifier }),
-          }
-        : problem,
-    );
-  return {
-    ...result,
-    element: { ...result.element, problems: named(result.element.problems) },
-    problems: named(result.problems),
-  };
-};
 
 /** The items `setItems` gives for one list property, by position from 1 in ascending order. */
 interface ItemChange {
@@ -1587,8 +1590,8 @@ export const updateElement = async (
       extraFindings,
       replaced: record.snapshot,
       before,
+      planned: saved.planned,
     });
-    result = { ...result, ...saved.planned };
   } else {
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
     result = { ...result, ...unchangedDryRun(dryRun) };

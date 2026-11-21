@@ -7,6 +7,9 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
+import type { EvidenceRecord } from "../../evidence/index.js";
+import { evidenceRecordsState } from "../../evidence/index.js";
+import { currentVersionsOf, elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -253,5 +256,110 @@ describe("the identifier of a dry run with nextIdentifier (SR-246 AK7)", () => {
     // After that create, a dry run names the next one.
     const next = (await opened.call("element.create", { ...input, dryRun: true })) as Created;
     expect(next.element.properties["spec-id"]).toBe("SR-039");
+  });
+});
+
+describe("a dry run refuses a file the update would refuse to replace (SR-246 AK2)", () => {
+  it("[SR-246/AK-x4c8] a read-only element file gives file.read-only with and without dry run", async () => {
+    const opened = await open();
+    const file = opened.path("requirements/SR-0000000b0037.md");
+    await fs.chmod(file, 0o444);
+    onTestFinished(() => fs.chmod(file, 0o644));
+    const change = { ref: "SR-037", set: { "spec-id": "SR-137" } };
+    const errorOf = (input: Record<string, unknown>): Promise<unknown> =>
+      opened.call("element.update", input).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+    const refusal = await errorOf(change);
+    expect(refusal).toMatchObject({ code: "file.read-only" });
+    expect(await errorOf({ ...change, dryRun: true })).toEqual(refusal);
+  });
+});
+
+describe("the verification status of a dry run (SR-246 AK3)", () => {
+  const B1 = "5e031a7d-2b4f-4c61-9d08-0b0000000001";
+  const STATUS = { fixture: "SR-031/status" };
+
+  /** Gives the workspace of `opened` the evidence records `records`, in place of those of its files. */
+  const withRecords = async (opened: Opened, records: readonly EvidenceRecord[]): Promise<void> => {
+    const { workspace } = opened;
+    await workspace.replace(
+      evidenceRecordsState,
+      workspace.get(evidenceRecordsState),
+      Promise.resolve(records),
+    );
+  };
+
+  it("[SR-246/AK-pwg2] is measured in both normal forms of the planned bytes, as on an update", async () => {
+    const change = async (opened: Opened): Promise<Record<string, unknown>> => ({
+      ref: B1,
+      text: "The station shows the wind speed and its gusts.",
+      expectedFileSha256: await fileSha256Of(opened, B1),
+    });
+    // The n1 version the change gives, from an update in a copy of its own.
+    const probe = await open(STATUS);
+    await probe.call("element.update", await change(probe));
+    const store = await probe.workspace.get(elementStoreState);
+    const record = store.byId.get(B1)?.[0];
+    const n1 =
+      record === undefined ? undefined : (await currentVersionsOf(probe.workspace, [record])).get(record);
+    expect(n1?.kind).toBe("version");
+    const version = n1?.kind === "version" ? n1.forms.n1 : "";
+    // A passed record of that version in n1, the form the element does not show.
+    const passed: EvidenceRecord = {
+      element: B1,
+      version,
+      kind: "verification",
+      method: "test",
+      item: "build-1",
+      result: "passed",
+      date: "2026-11-20T10:00:00Z",
+    };
+    const dry = await open(STATUS);
+    const real = await open(STATUS);
+    await withRecords(dry, [passed]);
+    await withRecords(real, [passed]);
+    const planned = (await dry.call("element.update", { ...(await change(dry)), dryRun: true })) as Updated;
+    const saved = (await real.call("element.update", await change(real))) as Updated;
+    expect(planned.element.version).toBe(saved.element.version);
+    expect(planned.element.verification).toEqual(saved.element.verification);
+    expect(planned.element.verification?.some((entry) => entry.status !== "open")).toBe(true);
+  });
+
+  it("[SR-246/AK-pwg2] has no version for a counted value without a normal form, as on an update", async () => {
+    const files = {
+      "requirements/SR-b0000000000a.md":
+        "---\nid: 2b2b2b2b-2222-4222-8222-b0000000000a\ntype: system-requirement\nstatus: draft\ntitle: Endless\nverification-method: test\nweight: .inf\n---\n\nText.\n",
+    };
+    const prepared = async (): Promise<Opened> => {
+      const opened = await open({ fixture: "SR-019/findings", files });
+      const model = await fs.readFile(opened.path("metamodel/model.yaml"), "utf8");
+      await fs.writeFile(
+        opened.path("metamodel/model.yaml"),
+        model.replace(
+          "{ key: weight, name: Weight, kind: number }",
+          "{ key: weight, name: Weight, kind: number, content: true }",
+        ),
+      );
+      return opened;
+    };
+    const dry = await prepared();
+    const real = await prepared();
+    const change = { ref: "SR-00000a", set: { "verification-method": "test" }, title: "Endless gusts" };
+    const planned = (await dry.call("element.update", {
+      ...change,
+      expectedFileSha256: await fileSha256Of(dry, "SR-00000a"),
+      dryRun: true,
+    })) as Updated;
+    const saved = (await real.call("element.update", {
+      ...change,
+      expectedFileSha256: await fileSha256Of(real, "SR-00000a"),
+    })) as Updated;
+    expect(planned.element.version).toBeUndefined();
+    expect([planned.element.verification, planned.element.problems]).toEqual([
+      saved.element.verification,
+      saved.element.problems,
+    ]);
   });
 });

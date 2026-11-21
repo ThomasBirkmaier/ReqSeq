@@ -79,7 +79,7 @@ export const ACTIVITY_HOLD_MS = 700;
  * - `written`: for a `write-files` command, the one element whose file it wrote counts when no
  *   subject resolves after the run (no subject, or one whose identifier the call changed).
  *
- * A call with `dryRun: true` (SR-246) writes nothing: it is recorded as a read of its subject, and
+ * A dry run (SR-246, output `dryRun: true`) writes nothing: it is recorded as a read of its subject, and
  * names no written element, so a dry run of `element.create` records nothing (AK8).
  */
 export interface AccessSubject {
@@ -207,9 +207,12 @@ const recordingFolder = (workspace: Workspace, layout: WorkspaceLayout): string 
   return memo.folder;
 };
 
-/** The effect a call is recorded with: a dry run (`dryRun: true`, SR-246 AK8) writes nothing, so it reads. */
-const effectOf = (call: AccessCall, input: Readonly<Record<string, unknown>>): ActivityAccess["effect"] =>
-  input["dryRun"] === true ? "read" : call.effect;
+/**
+ * The effect a call is recorded with: a dry run writes nothing, so it reads (SR-246 AK8). Its output says so
+ * (`dryRun: true`, a constant of the output schema of the commands that take one), not only its input.
+ */
+const effectOf = (call: AccessCall, output: Readonly<Record<string, unknown>>): ActivityAccess["effect"] =>
+  output["dryRun"] === true ? "read" : call.effect;
 
 /**
  * What to record for a successful call (`AccessCall`) with its input and output, from the states the
@@ -260,7 +263,7 @@ export const noteAccess = async (
       access: {
         access: call.access,
         command: call.command,
-        effect: effectOf(call, input),
+        effect: effectOf(call, output),
         at: new Date().toISOString(),
         element: { id: record.id, repository: record.repository },
       },
