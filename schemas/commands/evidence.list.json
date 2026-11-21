@@ -1,6 +1,6 @@
 {
   "name": "evidence.list",
-  "title": "List evidence",
+  "title": "List evidence records",
   "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
   "effect": "read",
   "loadUpfront": true,

@@ -175,11 +175,23 @@ describe("catalog commands in the command prompt", () => {
       reads.filter((entry) => shownIn(entry) !== undefined).map((entry) => entry.name),
     );
     // Covered commands are not listed twice; the implemented ones are, reqif.export too.
-    expect(offered.has("Get element")).toBe(false);
+    expect(offered.has("Show element")).toBe(false);
     expect(offered.has("Update element")).toBe(false);
+    // element.list ("List elements") by the action that covers it.
+    expect(offered.has("List elements")).toBe(false);
+    expect(offered.has("List all elements")).toBe(true);
     expect(offered.has("Export ReqIF")).toBe(true);
     expect(offered.has("Analyse ReqIF file")).toBe(true);
     expect(offered.has("Show trace chain")).toBe(true);
+  });
+
+  it("offers each name once in a neighbourhood, where an action that only shares the title of element.get is offered", () => {
+    const { context } = setup([neighbourhoodBuffer("uuid-1", "spec", "SR-000001 (SR-1) Title 1")]);
+    const names = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items.map(
+      (i) => i.name,
+    );
+    expect(names.filter((name) => name === "Show element")).toHaveLength(1);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it("lists trace.graph only as the action that opens the graph buffer, whatever its title", () => {
@@ -305,7 +317,7 @@ describe("catalog commands in the command prompt", () => {
         buffer: resultBuffer(
           "evidence.coverage",
           { selection: { where: { type: ["need"] } } },
-          "Show evidence coverage",
+          "Show coverage",
           { total: 1 },
           3,
         ),
@@ -1069,15 +1081,12 @@ describe("the commands that fit the shown view", () => {
       prompt(buffers)
         .map((choice) => choice.name)
         .filter((name) => wanted.includes(name));
-    // In the catalog "Show workspace status" comes first; in an element it is below the element's commands.
+    // In the catalog "Show workspace" comes first; in an element it is below the element's commands.
     expect(
-      order(
-        [shown],
-        ["Show affected elements", "Show trace chain", "Show workspace status", "Check workspace"],
-      ),
-    ).toEqual(["Show trace chain", "Show affected elements", "Show workspace status", "Check workspace"]);
-    expect(order([list], ["Show trace chain", "Show evidence coverage"])).toEqual([
-      "Show evidence coverage",
+      order([shown], ["Show affected elements", "Show trace chain", "Show workspace", "Check workspace"]),
+    ).toEqual(["Show trace chain", "Show affected elements", "Show workspace", "Check workspace"]);
+    expect(order([list], ["Show trace chain", "Show coverage"])).toEqual([
+      "Show coverage",
       "Show trace chain",
     ]);
   });

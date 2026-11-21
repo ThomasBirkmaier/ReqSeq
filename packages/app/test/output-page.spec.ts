@@ -93,7 +93,7 @@ test.describe("the output page", () => {
     running = await launchApp({ fixture: "SR-222/criteria" });
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await run(window, "Show workspace status");
+    await run(window, "Show workspace");
     const page = shownLayer(window).locator(".result.output");
     const labels = page.locator(".line .label");
     // Without details: no path, no folder, nothing the catalog marks technical.
@@ -141,7 +141,7 @@ test.describe("the output page", () => {
     // Closed, the buffer forgets them: opened again, it shows no details.
     await window.keyboard.press("ControlOrMeta+K");
     await window.keyboard.press("b");
-    await run(window, "Show workspace status");
+    await run(window, "Show workspace");
     await expect(shownLayer(window).locator(".result.output h1")).toHaveText(/^Workspace Weather station/u);
     await expect(shownLayer(window).locator(".line.detail")).toHaveCount(0);
   });
@@ -150,7 +150,7 @@ test.describe("the output page", () => {
     running = await launchApp({ fixture: "SR-222/criteria" });
     const { window } = running;
     await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-    await run(window, "Show workspace status");
+    await run(window, "Show workspace");
     const page = shownLayer(window).locator(".result.output");
     // Not read-only, available and valid are the normal values of their fields, and no problems is too.
     for (const title of ["Read-only", "Available", "Valid", "Problems"]) {

@@ -5159,7 +5159,7 @@
       },
       {
         "name": "workspace.status",
-        "title": "Show workspace status",
+        "title": "Show workspace",
         "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
         "effect": "read",
         "loadUpfront": true,
@@ -5214,7 +5214,7 @@
                   "absolutePath": {
                     "title": "Absolute path",
                     "$ref": "../common.schema.json#/$defs/outputPath",
-                    "description": "The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`). Only for available repositories."
+                    "description": "The absolute path of the repository folder on this machine, symbolic links resolved, so that two copies of a repository can be told apart (`path` may be `.`). Only for available repositories."
                   },
                   "commit": {
                     "title": "Commit",
@@ -5286,7 +5286,7 @@
                   "available": {
                     "title": "Available",
                     "type": "boolean",
-                    "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not.",
+                    "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a symbolic link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not.",
                     "x-normal": true
                   },
                   "folder": {
@@ -7935,7 +7935,7 @@
         "name": "metamodel.mermaid",
         "title": "Show metamodel as Mermaid",
         "summary": "The graph of the metamodel written as a Mermaid flowchart: each type with its prefix and properties, each inheritance, relation kind and relation property as an edge.",
-        "details": "The same types and links as the app's graph of the metamodel, as text: one node per type with its name, prefix and properties, the inherited ones marked, the node \"Any type\" only when a relation kind or property leaves a side open, and one edge per ordered pair of nodes with one label line per link. While the metamodel is missing or faulty it writes what `metamodel.get` gives. The CLI prints the text alone.",
+        "details": "The same types and edges as the app's graph of the metamodel, as text: one node per type with its name, prefix and properties, the inherited ones marked, the node \"Any type\" only when a relation kind or property leaves a side open, and one edge per ordered pair of nodes with one label line per relation kind, property of kind `relation` or `extends`. While the metamodel is missing or faulty it writes what `metamodel.get` gives. The CLI prints the text alone.",
         "effect": "read",
         "stage": 1,
         "implements": [
@@ -14562,7 +14562,7 @@
       },
       {
         "name": "element.get",
-        "title": "Get element",
+        "title": "Show element",
         "summary": "One element with text, properties, relations, version (and on request its date), hints, which variants replace or exclude it, and the references of its acceptance criteria for test names.",
         "effect": "read",
         "loadUpfront": true,
@@ -15726,7 +15726,7 @@
       },
       {
         "name": "element.list",
-        "title": "List all elements",
+        "title": "List elements",
         "summary": "Elements of a selection, sorted; optionally as derivation tree or in groups.",
         "effect": "read",
         "stage": 3,
@@ -22387,7 +22387,7 @@
                     "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`.",
                     "properties": {
                       "kind": {
-                        "title": "Link kind",
+                        "title": "Relation or reference",
                         "description": "`relation`: a relation or relation property stored under `key`. `reference`: an inline reference.",
                         "enum": [
                           "relation",
@@ -22512,7 +22512,7 @@
           },
           {
             "path": "affected[].via.kind",
-            "title": "Link kind"
+            "title": "Relation or reference"
           },
           {
             "path": "affected[].via.key",
@@ -22885,7 +22885,7 @@
                     "description": "Workspace name of the repository of `target`."
                   },
                   "link": {
-                    "title": "Link",
+                    "title": "Relation or reference",
                     "enum": [
                       "relation",
                       "reference"
@@ -23065,7 +23065,7 @@
           },
           {
             "path": "edges[].link",
-            "title": "Link"
+            "title": "Relation or reference"
           },
           {
             "path": "edges[].kind",
@@ -24015,8 +24015,8 @@
       {
         "name": "trace.graph",
         "title": "Show graph",
-        "summary": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.",
-        "details": "Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
+        "summary": "The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.",
+        "details": "Each element is one node with its level and marks, each requirement with its verification status and each need with the verification degree of its derived requirements, and each relation or reference between two nodes is one edge. At most `limit` nodes, nearest levels first. With `withEvidence` also a summary of the evidence below each element.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -24081,7 +24081,7 @@
             "allLevels": {
               "type": "boolean",
               "default": false,
-              "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+              "description": "Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
             },
             "kinds": {
               "type": "array",
@@ -24103,7 +24103,7 @@
                   "reference"
                 ]
               },
-              "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+              "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
             },
             "view": {
               "description": "Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core.",
@@ -24112,7 +24112,7 @@
             "withEvidence": {
               "type": "boolean",
               "default": false,
-              "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element. Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
+              "description": "Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element. Evidence is no relation or reference between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only."
             },
             "limit": {
               "type": "integer",
@@ -24145,7 +24145,7 @@
               ],
               "title": "Nodes",
               "type": "array",
-              "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
+              "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the relations and references were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -24190,12 +24190,12 @@
                   "expanded": {
                     "title": "Expanded",
                     "type": "boolean",
-                    "description": "Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
+                    "description": "Its relations and references in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
                   },
                   "level": {
                     "title": "Level",
                     "type": "integer",
-                    "description": "0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target."
+                    "description": "0 for the element; -d for an element reached d steps up along the relations and references the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along those that point at it. The source of a relation or reference is placed below its target."
                   },
                   "marks": {
                     "title": "Marks",
@@ -24248,14 +24248,14 @@
             "edges": {
               "title": "Edges",
               "type": "array",
-              "description": "Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
+              "description": "Every followed relation or reference from one node to another, also one the walks did not take (one between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). One from an element to itself is no edge. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them).",
               "items": {
                 "type": "object",
                 "properties": {
                   "source": {
                     "title": "Source element",
                     "$ref": "../common.schema.json#/$defs/uuid",
-                    "description": "The element whose file stores the link."
+                    "description": "The element whose file stores the relation or reference."
                   },
                   "sourceRepository": {
                     "title": "Repository of the source",
@@ -24265,7 +24265,7 @@
                   "target": {
                     "title": "Target element",
                     "$ref": "../common.schema.json#/$defs/uuid",
-                    "description": "The element the link points at."
+                    "description": "The element the relation or reference points at."
                   },
                   "targetRepository": {
                     "title": "Repository of the target",
@@ -24273,7 +24273,7 @@
                     "description": "Workspace name of the repository of `target`."
                   },
                   "link": {
-                    "title": "Link",
+                    "title": "Relation or reference",
                     "enum": [
                       "relation",
                       "reference"
@@ -24304,7 +24304,7 @@
                   "outdated": {
                     "title": "Outdated",
                     "type": "boolean",
-                    "description": "The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form."
+                    "description": "The relation or reference stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form."
                   }
                 },
                 "additionalProperties": false,
@@ -24670,7 +24670,7 @@
           },
           {
             "path": "edges[].link",
-            "title": "Link"
+            "title": "Relation or reference"
           },
           {
             "path": "edges[].kind",
@@ -24912,8 +24912,8 @@
       {
         "name": "trace.mermaid",
         "title": "Show graph as Mermaid",
-        "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
-        "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the link is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
+        "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.",
+        "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the relation or reference is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -24974,7 +24974,7 @@
             "allLevels": {
               "type": "boolean",
               "default": false,
-              "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+              "description": "Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
             },
             "kinds": {
               "type": "array",
@@ -24996,7 +24996,7 @@
                   "reference"
                 ]
               },
-              "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+              "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
             },
             "view": {
               "description": "Only the elements of the graph that this view holds: `core` or a variant ID; without it every element.",
@@ -27328,7 +27328,7 @@
         "details": "The new name is checked as when saving and must not be another saved filter's, in any case or Unicode normal form; changing only the case of the own name is allowed, and the same name writes nothing. The file is named as a new file for the new name would be, the own file not counted as taken; when the name part without a suffix is its file name in any case, the file name stays. Every perspective that names the filter, also one hidden by a file with the same name, gets the new name first (only its `filter` line), the filter last; `perspectives` lists them. A script that calls the filter by its old name no longer finds it. Errors: input.invalid at `name` when no saved filter has it, at `newName` when another one has it (details.files); input.invalid with details.reason referenced when a baseline file names the filter (details.files; ReqSeq never changes a baseline file); file.faulty when only a faulty file holds either name, or a faulty perspective or baseline file names the filter or a perspective or baseline file does not read as YAML (details.files); file.folder-missing when the repository of the filters, perspectives or baselines folder is not on this machine (details.repository); file.faulty when the perspectives or baselines folder cannot be listed; input.invalid with details.reason git-folder for a place in Git; file.changed-on-disk when a file changed since it was read. Nothing is written on these. A write that fails part-way names the files already changed in details.written (nothing is rolled back) and the same call again finishes the rename; the filter file is renamed back when its name cannot be written, and named in details.written only if that fails too.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
-        "whileReadOnlyReason": "SR-217 AK7: renaming is refused while the tool refuses write commands (SR-011 AK3).",
+        "whileReadOnlyReason": "SR-217 AK7: renaming is refused while ReqSeq refuses write commands (SR-011 AK3).",
         "stage": 3,
         "implements": [
           "SR-217"
@@ -27654,7 +27654,7 @@
         "effect": "write-files",
         "deletes": "saved-file",
         "whileReadOnly": "refuse",
-        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while the tool refuses write commands (SR-011 AK3).",
+        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while ReqSeq refuses write commands (SR-011 AK3).",
         "stage": 3,
         "implements": [
           "SR-217"
@@ -28643,7 +28643,7 @@
         "details": "The new name is checked as when saving and must not be another perspective's, in any case or Unicode normal form; changing only the case of the own name is allowed, and the same name writes nothing. The file is named as a new file for the new name would be, the own file not counted as taken; when the name part without a suffix is its file name in any case, the file name stays. Errors: input.invalid at `name` when no perspective has it, at `newName` when another perspective has it (details.files); file.faulty when only a faulty file holds either name (details.files); file.folder-missing when the folder's repository is not on this machine; input.invalid with details.reason git-folder for a place in Git; file.changed-on-disk when the file changed since it was read. When the name in the renamed file cannot be written, the file is renamed back and nothing is changed; if that fails too, details.written names the file under its new path, and the same call again finishes the rename.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
-        "whileReadOnlyReason": "SR-217 AK7: renaming is refused while the tool refuses write commands (SR-011 AK3).",
+        "whileReadOnlyReason": "SR-217 AK7: renaming is refused while ReqSeq refuses write commands (SR-011 AK3).",
         "stage": 3,
         "implements": [
           "SR-217"
@@ -28930,7 +28930,7 @@
         "effect": "write-files",
         "deletes": "saved-file",
         "whileReadOnly": "refuse",
-        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while the tool refuses write commands (SR-011 AK3).",
+        "whileReadOnlyReason": "SR-217 AK7: deleting is refused while ReqSeq refuses write commands (SR-011 AK3).",
         "stage": 3,
         "implements": [
           "SR-217"
@@ -29230,7 +29230,7 @@
       },
       {
         "name": "evidence.list",
-        "title": "List evidence",
+        "title": "List evidence records",
         "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
         "effect": "read",
         "loadUpfront": true,
@@ -31078,7 +31078,7 @@
       },
       {
         "name": "evidence.status",
-        "title": "Show evidence status",
+        "title": "Show verification status",
         "summary": "Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.",
         "details": "The verification status comes from the evidence records and, without own record, from the children, with the children that are missing; the validation status from the validation records. Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
         "effect": "read",
@@ -31608,7 +31608,7 @@
       },
       {
         "name": "evidence.coverage",
-        "title": "Show evidence coverage",
+        "title": "Show coverage",
         "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
         "effect": "read",
         "stage": 4,

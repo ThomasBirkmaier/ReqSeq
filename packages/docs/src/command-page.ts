@@ -2,6 +2,7 @@
 // and the adapters, as users read it there: without internal references (`scripts/contracts/user-text.mjs`).
 // The page shows the summary and below it the details (#1252); the index and the page description the summary only.
 import type { CatalogEntry } from "@reqseq/core";
+import { catalogGroupName } from "@reqseq/core";
 import { commandPagePath } from "@reqseq/core/docs-site";
 import type { CommandAccess } from "./access.js";
 import type { CommandExample } from "./command-examples.js";
@@ -119,7 +120,7 @@ export function commandPage(
   ].join("\n");
 }
 
-/** The index of all commands, by catalog group in catalog order; links start with the site's `base`. */
+/** The index of all commands, by catalog group (by its name for people) in catalog order; links start with the site's `base`. */
 export function commandIndex(entries: readonly CatalogEntry[], base: string): string {
   const groups = new Map<string, CatalogEntry[]>();
   for (const entry of entries) {
@@ -140,7 +141,7 @@ export function commandIndex(entries: readonly CatalogEntry[], base: string): st
     `What the codes of problems and errors mean, and what to do about them: [Problem and error codes](${base.replace(/\/$/, "")}/reference/problem-codes/).`,
     ...[...groups].flatMap(([group, members]) => [
       "",
-      `## ${group}`,
+      `## ${catalogGroupName(group)}`,
       "",
       ...members.map(
         (entry) =>

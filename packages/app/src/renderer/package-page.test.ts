@@ -166,7 +166,7 @@ describe("package page", () => {
       key: 'result:evidence.coverage:{"selection":{"package":"uuid-p"}}',
       command: "evidence.coverage",
       input: { selection: { package: "uuid-p" } },
-      name: "Show evidence coverage PKG-1 Stage",
+      name: "Show coverage PKG-1 Stage",
       output: coverage,
       revision: 3,
       cursor: NO_ROW,
@@ -206,7 +206,7 @@ describe("the line of a list", () => {
     expect(selectionCoverageBuffer(selection, "type: system-requirement", {} as never, 1)).toMatchObject({
       command: "evidence.coverage",
       input: { selection },
-      name: "Show evidence coverage type: system-requirement",
+      name: "Show coverage type: system-requirement",
     });
   });
 
