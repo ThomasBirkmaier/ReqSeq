@@ -1610,7 +1610,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning, D-059; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation (SR-220).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID people read and name besides the UUID, from another source or by a running scheme of the project, such as the spec ID SR-036 or a customer ID, D-017; unique per type; `element.create` with `nextIdentifier` gives the one after the highest of the type, SR-245; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning, D-059; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation (SR-220).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -3246,6 +3246,10 @@ export interface ElementCreateInput {
   readonly repository?: string;
   /** Folder relative to the repository; default from the type. */
   readonly folder?: string;
+  /** Give the element the identifier after the highest of its type with the same identifier prefix, the part before the digits 0 to 9 at its end (SR-245): that number plus one, padded to as many digits (`C-003` gives `C-004`, `C-999` gives `C-1000`), with the prefix as written there; prefixes compare in any case. Counts the elements of exactly this type on this machine, superseded ones too. Refused when the type has no property with the meaning identifier, the identifier is also in `properties`, none counts and no `identifierPrefix` is given, or they carry several prefixes and none is given. */
+  readonly nextIdentifier?: boolean;
+  /** Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space. */
+  readonly identifierPrefix?: string;
 }
 
 /**
@@ -3259,6 +3263,8 @@ export interface ElementCreateOutput {
   readonly names?: readonly ElementName[];
   /** Written files, relative to the workspace root. */
   readonly files: readonly OutputPath[];
+  /** With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9). */
+  readonly incomplete?: Incomplete;
   readonly problems?: readonly Problem[];
 }
 

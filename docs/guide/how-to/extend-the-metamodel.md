@@ -81,6 +81,23 @@ reqseq element get SR-c67baa
 ...
 ```
 
+### Numbered identifiers
+
+If your identifiers are numbered, such as `C-1`, `--next-identifier` gives a new element the identifier after the highest of its type with the same identifier prefix, the part before the digits at its end. `C-ANEMO` ends in no digit and does not count, so the first one names its prefix with `--identifier-prefix` and starts at 1:
+
+```sh
+reqseq element create component "Wind vane" --next-identifier --identifier-prefix C-
+reqseq element create component "Rain gauge" --next-identifier
+```
+
+```text title="Output"
+Created Component C-2; 1 file written.
+C-b93b4a (C-2)  draft  Rain gauge
+...
+```
+
+ReqSeq sees only the elements on this machine: an identifier in a branch or another copy can come out twice, and `workspace check` then warns.
+
 ### Decisions as parents
 
 The trace chain follows every relation kind with the meaning `derivation`. In the standard model `based-on` has none, so a requirement based on a decision has no parent: the chain marks it `[gap: no parent]` and `workspace check` reports it (`trace.no-parent`). If your project wants decisions as parents, give a relation kind the meaning `derivation`: either `based-on` itself, with `meaning: derivation` added to its entry in `standard-model.yaml`, or a kind of your own in your file:

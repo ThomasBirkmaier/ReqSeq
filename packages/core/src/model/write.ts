@@ -67,6 +67,7 @@ import { fileNameFor } from "./file-name.js";
 import type { ImageMemo } from "./images.js";
 import { embeddedImages, imageMemo } from "./images.js";
 import { incomingFor } from "./incoming.js";
+import { withNextIdentifier } from "./next-identifier.js";
 import type { RelationRefs } from "./relation-inputs.js";
 import { newRelations, planRelations, relationEdits } from "./relation-inputs.js";
 import { listWhereMany } from "./many-input.js";
@@ -125,6 +126,10 @@ export interface CreateElementInput {
   readonly relations?: RelationRefs;
   readonly repository?: string;
   readonly folder?: string;
+  /** Give the element the identifier after the highest of its type (SR-245, `nextIdentifier`). */
+  readonly nextIdentifier?: boolean;
+  /** With `nextIdentifier`: the identifier prefix to follow, or to start with 1 (SR-245 AK4). */
+  readonly identifierPrefix?: string;
 }
 
 export interface UpdateElementInput {
@@ -782,6 +787,8 @@ export const createElement = async (
   const { type, titleKey } = base;
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
+  // The identifier goes in as if given, after every key was checked (SR-245).
+  const givenProperties = withNextIdentifier(store, metamodel, type, input);
   const repository = targetRepository(layout, input.repository);
   const id = randomUUID();
   const name = fileNameFor({ prefix: type.prefix, id });
@@ -812,7 +819,7 @@ export const createElement = async (
       await workspace.get(shortIdState),
       withChoiceKeys(
         metamodel,
-        Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
+        Object.entries(givenProperties).filter(([, value]) => !isEmpty(value)),
         "properties",
       ),
     ),
