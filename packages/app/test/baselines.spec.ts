@@ -1,5 +1,5 @@
 // Baselines on the built app (SR-050, SR-051, SR-094): "Create baseline" on a package page, "Show
-// baseline" and "Show Git command to compare baseline" from the command prompt, each compared with
+// baseline" and "Compare baseline" from the command prompt, each compared with
 // what the CLI gives for the same input (SR-080). The workspaces are copies of fixtures made Git repositories here, opened in place:
 // `launchApp` would copy them again. fixtures/SR-061/export (repositories `system` and `sensor`): the baseline
 // „Release 2“ of the package Display (PKG-0000d1) is written at the first commit; a second commit changes
@@ -359,7 +359,7 @@ test.describe("baselines in the app", () => {
     const { ws, first, second } = await changedSince();
     running = await launchIn(ws, "system");
     const { window } = running;
-    await runOnBaseline(window, "Show Git command to compare baseline", "Release 2");
+    await runOnBaseline(window, "Compare baseline", "Release 2");
     await expect(window.getByLabel("Minibuffer").locator("label")).toContainText("ref:");
     await window.keyboard.type("SR-0000b1");
     await expect(candidates(window).first()).toContainText("SR-0000b1");
@@ -374,6 +374,16 @@ test.describe("baselines in the app", () => {
       `Element file ${file}`,
       `Command ${String(command.length)}`,
       ...command.map((part) => `  ${part}`),
+      // The difference (SR-051 AK5): the fixture's metamodel gives the criteria no meaning, so they are a
+      // property; the empty lists only with details.
+      "Difference",
+      "  Acceptance criteria 0",
+      "  Properties 1",
+      "    Property acceptance-criteria",
+      "    Before - Given wind, when the station measures it, then it shows the speed.",
+      "    After - Given wind, when the station measures it, then it shows the speed in knots.",
+      "  Relations added 0",
+      "  Relations removed 0",
     ]);
     const cli = await running.cli(["baseline", "compare", "Release 2", "SR-0000b1"]);
     expect(JSON.parse(cli.stdout)).toMatchObject({ from: first, to: second, command });

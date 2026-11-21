@@ -1,4 +1,4 @@
-// Where an element file was at a commit and whether it is committed now (SR-051 AK4, ADR-0018
+// Where an element file was at a commit and whether it is committed now (SR-051 AK4, AK5, ADR-0018
 // "Git"), for `baseline.compare`, read through the git reader (ADR-0006) and never written (D-036):
 //
 // - The commit is resolved in the repository; one it does not have is `no-commit`.

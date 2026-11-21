@@ -11,7 +11,8 @@ const execFileAsync = promisify(execFile);
 
 /**
  * In `system` of an EXPORT copy: the baseline „Release 2“ of SR-0000b1 at HEAD, then a commit that
- * changes SR-0000b1, with fixed author and dates, so every copy gets the same commits; once (SR-051 AK4).
+ * changes the criterion of SR-0000b1, with fixed author and dates, so every copy gets the same commits;
+ * once (SR-051 AK4, AK5).
  */
 const changedSinceBaseline = async ({ root }: Copy): Promise<void> => {
   const date = "2026-11-03T10:00:00Z";
@@ -62,10 +63,32 @@ scenariosOf("baseline.compare", [
     prepare: changedSinceBaseline,
   },
   {
-    name: "a baseline whose commit is not here",
+    name: "the old and new wording of the changed criterion (SR-051 AK5)",
+    fixture: EXPORT,
+    root: "system",
+    input: { baseline: "Release 2", ref: "61061061-0000-4000-8000-0000000000b1" },
+    tag: "[SR-051/AK-v9hv]",
+    expect: "output",
+    prepare: changedSinceBaseline,
+  },
+  {
+    name: "a baseline whose commit is not here (SR-051 AK6)",
     fixture: EXPORT,
     root: "system",
     input: { baseline: "release-1", ref: "SR-0000b1" },
+    tag: "[SR-051/AK-w2b9]",
     expect: "error",
+  },
+  {
+    name: "an element whose file is missing in the local copy (SR-051 AK7)",
+    fixture: EXPORT,
+    root: "system",
+    input: { baseline: "Release 2", ref: "SR-0000b1" },
+    tag: "[SR-051/AK-x9z6]",
+    expect: "error",
+    prepare: async (copy) => {
+      await changedSinceBaseline(copy);
+      await fs.rm(path.join(copy.root, "requirements", "SR-0000000000b1.md"), { force: true });
+    },
   },
 ]);

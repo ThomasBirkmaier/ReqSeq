@@ -134,7 +134,7 @@ flowchart TB
   evidence --> files & mm & model & trace & variants & ws
   trace --> mm & model & ws
   variants --> mm & model & ws
-  baselines --> files & model & ws
+  baselines --> files & mm & model & ws
   model --> files & git & mm & version & ws
   mm --> files & ws
   ws --> files & git
@@ -156,7 +156,7 @@ An arrow means that at least one module of the source imports a value (a functio
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
 | `trace` | metamodel, model, runtime state, workspace | |
 | `variants` | metamodel, model, runtime state, workspace | |
-| `baselines` | files, model, runtime state, workspace | |
+| `baselines` | files, metamodel, model, runtime state, workspace | |
 | `model` | files, git, metamodel, runtime state, version, workspace | |
 | `metamodel` | files, runtime state, workspace | |
 | `workspace` | files, git, runtime state | |

@@ -75,6 +75,14 @@ export const NOT_ELEMENT_COUNTS = new Map([
     "counts the relations, list entries or acceptance criteria of the one element the problem names",
   ],
   ["common.schema.json#/$defs/listGroup/properties/offset", POSITION],
+  [
+    "common.schema.json#/$defs/fieldDifference/properties/criteria/items/properties/numberBefore",
+    "the number of an acceptance criterion in its element (AK counted from 1), not a number of elements",
+  ],
+  [
+    "common.schema.json#/$defs/fieldDifference/properties/criteria/items/properties/numberAfter",
+    "the number of an acceptance criterion in its element (AK counted from 1), not a number of elements",
+  ],
   ["common.schema.json#/$defs/textMarks/items/properties/start", POSITION],
   ["common.schema.json#/$defs/textMarks/items/properties/end", POSITION],
   [

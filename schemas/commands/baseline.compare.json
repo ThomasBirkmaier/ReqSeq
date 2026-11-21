@@ -1,7 +1,7 @@
 {
   "name": "baseline.compare",
-  "title": "Show Git command to compare baseline",
-  "summary": "The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.",
+  "title": "Compare baseline",
+  "summary": "The difference of an element since a baseline: its old and new text, acceptance criteria and properties and the relations added and removed, with the two commits and the Git command that show it (SR-051 AK4, AK5). Runs nothing.",
   "effect": "read",
   "stage": 5,
   "implements": ["SR-051", "SR-083"],
@@ -26,7 +26,7 @@
   },
   "output": {
     "type": "object",
-    "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, ref.ambiguous when the baseline lists several copies of the UUID (details.repositories), input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken, also after its file was removed. A file moved to a path Git does not track shows only as deleted until that path is added to Git (git add -N); ReqSeq never stages.",
+    "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, naming the commit to fetch (SR-051 AK6); git.unavailable when Git cannot read the repository; ref.unknown when no file held the element at the commit of the baseline; element.not-found when its file is missing in the local copy and file.faulty when that file cannot be read as an element, each with details.reason; ref.ambiguous when the baseline lists several copies of the UUID (details.repositories); input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. The copy the baseline lists is taken. The element's file at the commit of the baseline is compared with its file in the local copy. A file moved to a path Git does not track shows only as deleted in the Git command until that path is added to Git (git add -N); ReqSeq never stages.",
     "properties": {
       "answer": { "$ref": "../common.schema.json#/$defs/answer" },
       "repository": {
@@ -60,9 +60,14 @@
         "items": {
           "type": "string"
         }
+      },
+      "difference": {
+        "title": "Difference",
+        "description": "What changed since the baseline (SR-051 AK5); empty lists when nothing changed.",
+        "$ref": "../common.schema.json#/$defs/fieldDifference"
       }
     },
     "additionalProperties": false,
-    "required": ["answer", "repository", "from", "to", "file", "command"]
+    "required": ["answer", "repository", "from", "to", "file", "command", "difference"]
   }
 }

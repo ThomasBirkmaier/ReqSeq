@@ -515,9 +515,10 @@ const whyNone = (name: string, commit: string, found: FilesAtCommit | undefined)
 /**
  * The field difference of the element of each differing row since its baseline: its file at the baseline's commit in
  * its repository (`filesAtCommit`, one pass per baseline and repository) against its file now, or why it is not
- * available. Only the difference is kept, not the files (N-036).
+ * available. Only the difference is kept, not the files (N-036). It has the shape and the rule of the difference
+ * `baseline.compare` gives for one element (D-080, ADR-0019 point 2), which export-baselines.test.ts checks.
  */
-const differencesOf = async (
+export const differencesOf = async (
   layout: WorkspaceLayout,
   metamodel: Metamodel,
   store: ElementStore,

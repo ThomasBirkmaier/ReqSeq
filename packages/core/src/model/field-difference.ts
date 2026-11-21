@@ -1,5 +1,6 @@
 // What changed in an element between two of its texts, field by field (SR-232 AK7: the HTML export's difference of
-// an element since a baseline, whose old text Git holds, `filesAtCommit`). Pure:
+// an element since a baseline, whose old text Git holds, `filesAtCommit`; SR-051 AK5: the `difference` of
+// `baseline.compare`, in the shape its output schema gives, D-080). Pure:
 //
 // - Text: the old and the new text when they differ in the normal form of the version (`normalizeText`, D-027).
 // - Acceptance criteria (the property with the meaning `acceptance-criteria`): matched by criterion key; a criterion
@@ -12,6 +13,7 @@
 //   empty list alike, as ADR-0005 writes them).
 // - Relations: the targets of every relation kind and relation property, by kind, UUID and stored repository; the
 //   stored version and title of a target never count, so a target that only got a newer version is no difference.
+import type { ChangedRelation, FieldDifference as GeneratedFieldDifference } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition } from "../metamodel/index.js";
 import { normalizeText } from "../version/version.js";
@@ -28,37 +30,20 @@ export interface ElementContent {
   readonly text: string;
 }
 
-/** A value before and after; undefined where it is absent. */
-export interface Changed<T> {
-  readonly before: T | undefined;
-  readonly after: T | undefined;
-}
+/** The field difference of an element (see the file comment), in the shape `baseline.compare` gives it (D-080). */
+export type FieldDifference = GeneratedFieldDifference;
 
-/** One acceptance criterion that changed: its number then and now, and its key, where it has them. */
-export interface ChangedCriterion extends Changed<string> {
-  readonly key?: string;
-  readonly numberBefore?: number;
-  readonly numberAfter?: number;
-}
+/** One acceptance criterion that changed: its number then and now, its key, and its wordings, where it has them. */
+export type ChangedCriterion = FieldDifference["criteria"][number];
 
 /** One relation target that was added or removed. */
-export interface ChangedRelation {
-  /** The relation kind or relation property key. */
-  readonly kind: string;
-  readonly id: string;
-  readonly repository?: string;
-  /** The title the entry stores, where it stores one. */
-  readonly title?: string;
-}
+export type { ChangedRelation };
 
-/** The field difference of an element (see the file comment); empty lists where nothing changed. */
-export interface FieldDifference {
-  readonly text?: Changed<string>;
-  readonly criteria: readonly ChangedCriterion[];
-  readonly properties: readonly (Changed<string> & { readonly key: string })[];
-  readonly addedRelations: readonly ChangedRelation[];
-  readonly removedRelations: readonly ChangedRelation[];
-}
+/** `{ before, after }` without the side that is absent. */
+const sides = (before: string | undefined, after: string | undefined) => ({
+  ...(before === undefined ? {} : { before }),
+  ...(after === undefined ? {} : { after }),
+});
 
 const isAbsent = (value: unknown): boolean =>
   value === undefined || value === null || (Array.isArray(value) && value.length === 0);
@@ -134,8 +119,7 @@ const criteriaDifference = (
         ...(key === undefined ? {} : { key }),
         numberBefore: old.number,
         ...(now === undefined ? {} : { numberAfter: now.number }),
-        before: shown(old.text),
-        after: now === undefined ? undefined : shown(now.text),
+        ...sides(shown(old.text), now === undefined ? undefined : shown(now.text)),
       });
     }
   }
@@ -143,8 +127,7 @@ const criteriaDifference = (
     changed.push({
       ...(now.key === undefined ? {} : { key: now.key }),
       numberAfter: now.number,
-      before: undefined,
-      after: shown(now.text),
+      ...sides(undefined, shown(now.text)),
     });
   }
   return changed;
@@ -180,7 +163,7 @@ export const fieldDifference = (
   const properties = versionDefinitions({ type: after.type }, metamodel)
     .filter((d) => d.content === true && d.kind !== "relation" && d.key !== criteriaKey)
     .filter((d) => !same(before.data[d.key], after.data[d.key]))
-    .map((d) => ({ key: d.key, before: shown(before.data[d.key]), after: shown(after.data[d.key]) }));
+    .map((d) => ({ key: d.key, ...sides(shown(before.data[d.key]), shown(after.data[d.key])) }));
   const old = relationsOf(metamodel, before.data);
   const now = relationsOf(metamodel, after.data);
   return {
