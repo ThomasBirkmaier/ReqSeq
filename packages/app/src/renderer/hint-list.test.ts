@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { HintListOutput } from "@reqseq/core";
 import { act, createElement, useReducer } from "react";
 import type { Root } from "react-dom/client";
@@ -9,17 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Buffer } from "./buffers.js";
 import { bufferName, elementBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import {
-  MESSAGE_START,
-  foldMove,
-  hintList,
-  hintReason,
-  hintRows,
-  isHintOutput,
-  kindLabel,
-  messageStart,
-  variantViews,
-} from "./hint-list.js";
+import { foldMove, hintList, hintRows, isHintOutput, variantViews } from "./hint-list.js";
 import type { BufferData } from "./modeline.js";
 import { bufferView } from "./modeline.js";
 import { ResultView } from "./ResultView.js";
@@ -92,66 +80,13 @@ const OUTPUT: HintListOutput = {
 };
 
 describe("hint list layout", () => {
-  it("heads every kind the hint list of core gives with a label of its own", async () => {
-    // The codes of `CHECK_ORDER` and of `SINCE_BASELINE_CODES` in core, read from its source.
-    const source = await readFile(join(import.meta.dirname, "../../../core/src/hints/list.ts"), "utf8");
-    const order = source.slice(
-      source.indexOf("const CHECK_ORDER"),
-      source.indexOf("];", source.indexOf("const CHECK_ORDER")),
-    );
-    const codes = [...order.matchAll(/"([a-z]+\.[a-z-]+)"/gu)].map((match) => match[1] ?? "");
-    expect(codes.length).toBeGreaterThan(20);
-    const unlabelled = [
-      ...codes,
-      "variant.core-changed-since-baseline",
-      "variant.core-new-since-baseline",
-    ].filter((code) => kindLabel(code) === code);
-    expect(unlabelled).toEqual([]);
-  });
-
-  it("[SR-026/AK-s2vt] builds the reason from the fields: relation kind and target, count and limit, the view, else the start of the message", () => {
-    const views = new Map([[VARIANT, "VAR-666d08 (VAR-002)"]]);
-    expect(hintReason(outdated, views)).toBe("based-on → D-71cf7f (D-044) Statuses can be invalid");
-    expect(hintReason(tooFew, views)).toBe("derives-from → need · 0 of at least 1");
-    expect(hintReason({ ...tooFew, code: "relation.too-many", count: 3, limit: 2 }, views)).toBe(
-      "derives-from → need · 3 of at most 2",
-    );
-    expect(
-      hintReason(
-        { code: "element.too-many-items", severity: "warning", message: "m", count: 0, limit: 1 },
-        views,
-      ),
-    ).toBe("0 of at most 1");
-    expect(hintReason(evidence("core", 1), views)).toBe("view: Core");
-    expect(hintReason(evidence(VARIANT, 1), views)).toBe("view: VAR-666d08 (VAR-002)");
-    expect(hintReason(evidence(VARIANT, 1), new Map())).toBe(`view: ${VARIANT}`);
-    const plain: Hint = { code: "trace.no-parent", severity: "warning", message: "x".repeat(200) };
-    expect(hintReason(plain, views)).toBe(`${"x".repeat(MESSAGE_START - 1)}…`);
-    // A target without a relation kind stands before the message; an unresolved one by its UUID.
-    expect(hintReason({ ...plain, message: "short", targetId: "uuid-7" }, views)).toBe("→ uuid-7 · short");
-    // A relation whose target did not resolve to one element keeps what is wrong with it.
-    expect(
-      hintReason(
-        {
-          code: "relation.missing-target",
-          severity: "warning",
-          message: "No target",
-          key: "refines",
-          targetId: "uuid-7",
-        },
-        views,
-      ),
-    ).toBe("refines → uuid-7 · No target");
-    expect(messageStart("short")).toBe("short");
-  });
-
-  it("[SR-026/AK-s2vt] groups in the order of kinds with the counts of all hints, rows in the order of the output", () => {
+  it("[SR-026/AK-s2vt] groups in the order of kinds with the counts of all hints, headed by the titles of the kinds, rows in the order of the output", () => {
     const list = hintList(OUTPUT, new Map());
     expect(list).toMatchObject({ total: 6, listed: 4, incomplete: false });
-    expect(list.groups.map((group) => [group.label, group.count, group.lines.length])).toEqual([
-      ["Outdated relations", 1, 1],
+    expect(list.groups.map((group) => [group.title, group.count, group.lines.length])).toEqual([
+      ["Outdated relation", 1, 1],
       ["Too few relations", 1, 1],
-      ["Outdated evidence records", 4, 2],
+      ["Outdated verification", 4, 2],
     ]);
     const [first] = list.groups[2]?.lines ?? [];
     expect(first).toEqual({
@@ -163,7 +98,7 @@ describe("hint list layout", () => {
       // The element's own repository, not that of the evidence record.
       open: elementBuffer("uuid-3", "spec", "SR-bc163c (SR-052) Export a package as ReqIF"),
     });
-    // A hint about no element opens nothing; one with a kind of no heading of its own is headed by its code.
+    // A hint about no element opens nothing; the group is headed by the title of its kind.
     const bare = hintList(
       {
         answer: "Found 1 open hint.",
@@ -175,7 +110,7 @@ describe("hint list layout", () => {
       new Map(),
     );
     expect(bare.groups[0]?.lines[0]).toMatchObject({ element: "a.md", title: "", open: undefined });
-    expect(bare.groups[0]?.label).toBe("file.faulty");
+    expect(bare.groups[0]?.title).toBe("Element without a version");
     expect(variantViews(OUTPUT)).toEqual([VARIANT]);
     expect(isHintOutput(OUTPUT)).toBe(true);
     expect(isHintOutput({ hints: [], total: 0 })).toBe(false);
@@ -315,9 +250,9 @@ describe("hint list view", () => {
     const { data } = await mount(buffer);
     expect(container.querySelector(".hints-total")?.textContent).toBe("6 hints · 4 listed");
     expect(heads()).toEqual([
-      "▾ Outdated relations (1)relation.outdated",
+      "▾ Outdated relation (1)relation.outdated",
       "▾ Too few relations (1)relation.too-few",
-      "▾ Outdated evidence records (4)evidence.outdated2 not listed",
+      "▾ Outdated verification (4)evidence.outdated2 not listed",
     ]);
     expect(hints()).toEqual([
       "SR-3c90b0 (SR-036)Compute the coveragebased-on → D-71cf7f (D-044) Statuses can be invalid",
@@ -344,7 +279,7 @@ describe("hint list view", () => {
     const { actions } = await mount(buffer);
     await press("Enter");
     // The first row is a heading: Enter folds it.
-    expect(heads()[0]).toBe("▸ Outdated relations (1)relation.outdated");
+    expect(heads()[0]).toBe("▸ Outdated relation (1)relation.outdated");
     await press("Enter");
     await press("ArrowDown");
     await press("Enter");
@@ -387,7 +322,7 @@ describe("hint list view", () => {
     expect(marked()).toBeUndefined();
     expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(false);
     expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(true);
-    expect(marked()).toBe("▾ Outdated relations (1)relation.outdated");
+    expect(marked()).toBe("▾ Outdated relation (1)relation.outdated");
     await press("n", { ctrlKey: true });
     expect(marked()).toBe(hints()[0]);
     await press("n", { ctrlKey: true });
