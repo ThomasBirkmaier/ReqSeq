@@ -555,7 +555,7 @@ describe("element.get, more of what stage 1 shows", () => {
       code: "metamodel.meaning-unassigned",
       severity: "warning",
       message:
-        'No property of the metamodel has the meaning title, which "Get element" needs. Add `meaning: title` to a property in the metamodel files.',
+        'No property of the metamodel has the meaning title, which "Show element" needs. Add `meaning: title` to a property in the metamodel files.',
     });
   });
 

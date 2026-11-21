@@ -161,13 +161,13 @@ describe("built-in meanings", () => {
     expect(unassigned(metamodel, "validity", "element.list")?.toJSON()).toEqual({
       code: "metamodel.meaning-unassigned",
       message:
-        'No property of the metamodel has the meaning validity, which "List all elements" needs. Add `meaning: validity` to a property in the metamodel files.',
+        'No property of the metamodel has the meaning validity, which "List elements" needs. Add `meaning: validity` to a property in the metamodel files.',
       details: { meaning: "validity", list: "properties", command: "element.list" },
     });
     expect(unassigned(metamodel, "requirement", "evidence.coverage")?.toJSON()).toEqual({
       code: "metamodel.meaning-unassigned",
       message:
-        'No type of the metamodel has the meaning requirement, which "Show evidence coverage" needs. Add `meaning: requirement` to a type in the metamodel files.',
+        'No type of the metamodel has the meaning requirement, which "Show coverage" needs. Add `meaning: requirement` to a type in the metamodel files.',
       details: { meaning: "requirement", list: "types", command: "evidence.coverage" },
     });
     expect(unassigned(metamodel, "title", "element.create")).toBeUndefined();
