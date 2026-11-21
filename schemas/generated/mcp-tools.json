@@ -14470,7 +14470,7 @@
     },
     {
       "name": "baseline_compare",
-      "title": "Compare baseline",
+      "title": "Show Git command to compare baseline",
       "description": "The two commits and the Git command that show the difference of an element since a baseline. Runs nothing.",
       "annotations": {
         "readOnlyHint": true,
@@ -14646,7 +14646,7 @@
           },
           "next": {
             "title": "Next steps",
-            "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+            "description": "Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say.",
             "type": "array",
             "items": {
               "$ref": "#/$defs/common/$defs/nextStep"

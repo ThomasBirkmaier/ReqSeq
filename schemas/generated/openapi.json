@@ -19456,7 +19456,7 @@
                     },
                     "next": {
                       "title": "Next steps",
-                      "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+                      "description": "Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say.",
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/nextStep"

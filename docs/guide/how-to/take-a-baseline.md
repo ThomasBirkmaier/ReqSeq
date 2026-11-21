@@ -16,8 +16,8 @@ ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuse
 3. Open the package with **Go to element or buffer** (Ctrl+P, ⌘P); its page lists its elements.
 4. Commit the files with Git.
 5. On the package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Create baseline**; it asks only the name. Commit the new file.
-6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline names. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
-7. **Compare baseline** asks a baseline and an element and gives the two commits and the Git command. Run it from the workspace folder.
+6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
+7. **Show Git command to compare baseline** asks a baseline and an element and gives the two commits and the command. Run it from the workspace folder.
 8. On the package page, **Export data** shows the current state of the package in a result buffer.
 
 ## CLI

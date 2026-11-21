@@ -5407,7 +5407,7 @@ export interface BaselineChangesOutput {
   readonly hintTotal: number;
   /** The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline. */
   readonly problems?: readonly Problem[];
-  /** Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
+  /** Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
   readonly next: readonly NextStep[];
   readonly incomplete?: Incomplete;
   /** The variant of the baseline's view, as baseline.get names it. Left out in the core. */
