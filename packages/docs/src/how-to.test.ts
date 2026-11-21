@@ -31,7 +31,7 @@ describe("accessNames", () => {
     const commands = [
       { name: "trace.chain", title: "Show trace chain" },
       { name: "trace.matrix", title: "Show traceability matrix" },
-      { name: "element.get", title: "Get element" },
+      { name: "element.get", title: "Show element" },
     ] as unknown as Parameters<typeof accessNames>[0];
     const found = accessNames(commands, {
       openapi: {

@@ -1,6 +1,6 @@
 {
   "name": "workspace.status",
-  "title": "Show workspace status",
+  "title": "Show workspace",
   "summary": "Repositories of the workspace, which are available and which are variant-independent, where the metamodel comes from, the evidence locations and which are read, read-only state.",
   "effect": "read",
   "loadUpfront": true,
