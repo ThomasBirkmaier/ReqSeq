@@ -24,4 +24,4 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0016](0016-strict-quality-gates.md) | Strictest compiler settings, strict lint and coverage thresholds | D-051 |
 | [0017](0017-user-documentation-site.md) | User documentation site | D-067, SR-139..SR-141 |
 | [0018](0018-baseline-file.md) | Baseline file: name, layout, fast reader | D-039, D-045, D-058, N-036 |
-| [0019](0019-shared-view-model.md) | One view model per view, shared by the app and the HTML export | D-029, D-062, D-078, D-080, N-036 |
+| [0019](0019-shared-display-model.md) | One display model per display, shared by the app and the HTML export | D-029, D-062, D-078, D-080, N-036 |
