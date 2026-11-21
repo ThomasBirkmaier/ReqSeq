@@ -38,6 +38,16 @@ const COUNTED: FixtureOptions = {
   },
 };
 
+/** A requirement with a counted value without a normal form: it has no version (`file.faulty`, #2231). */
+const ENDLESS: FixtureOptions = {
+  fixture: "SR-001/two-elements",
+  files: {
+    "requirements/SR-1d2e3f4a5b6c.md":
+      "---\nid: 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n" +
+      "requirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n",
+  },
+};
+
 /** The output of core in `results`. */
 const hintsOf = (results: Parameters<typeof coreOutput>[0]): CommandOutput<"hint.list"> =>
   coreOutput(results) as CommandOutput<"hint.list">;
@@ -128,6 +138,32 @@ scenariosOf("hint.list", [
     check: (results) => {
       const output = (results["core"]?.outcome as { output: { hints: { code: string }[] } }).output;
       expect(output.hints.map((h) => h.code)).toEqual(["element.unknown-property", "trace.no-parent"]);
+    },
+  },
+  {
+    tag: "[SR-026/AK-vs4d]",
+    name: "the warning of an element without a version is a hint of the list and of the element (#2231)",
+    fixture: ENDLESS,
+    input: { kind: ["file.faulty"] },
+    expect: "output",
+    check: (results) => {
+      expect(hintsOf(results).hints.map((h) => [h.code, h.elementId, h.elementTitle])).toEqual([
+        ["file.faulty", "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c", "Show gusts"],
+      ]);
+    },
+  },
+  {
+    tag: "[SR-026/AK-vs4d]",
+    name: "the hints of an element without a version, its warning first (#2231)",
+    fixture: ENDLESS,
+    input: { ref: "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c" },
+    expect: "output",
+    check: (results) => {
+      expect(hintsOf(results).hints.map((h) => h.code)).toEqual([
+        "file.faulty",
+        "element.wrong-value-kind",
+        "trace.no-parent",
+      ]);
     },
   },
   { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },

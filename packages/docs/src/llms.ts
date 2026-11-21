@@ -1,6 +1,8 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { parse } from "yaml";
+import { withoutAccessTabs } from "./access-tabs.js";
+import { howToRank } from "./sidebar.js";
 
 // The documentation as plain text for AI assistants (llmstxt.org): `llms.txt`, an index with one line per page, and
 // `llms-full.txt`, every page as Markdown. The integration in packages/docs/site/astro.config.mjs writes both into
@@ -23,7 +25,11 @@ export interface TextPage {
   readonly body: string;
 }
 
-/** The groups of the files, in the order of the sidebar (site/astro.config.mjs), by the start of a page's path. */
+/**
+ * The sections of the files by the start of a page's path, in the order of the sidebar (site/astro.config.mjs), each
+ * page of a section listed on its own: the sidebar's heading Lookup and its topic groups of the how-to guides are not
+ * repeated here.
+ */
 export const LLMS_SECTIONS: readonly (readonly [string, string])[] = [
   // Written by `stage.mjs --whats-new` (#1259).
   ["whats-new", "What's new"],
@@ -60,15 +66,18 @@ export function textPage(path: string, text: string): TextPage {
   };
 }
 
-/** The address of a page below `base`: `how-to/install-reqseq.md` → `/ReqSeq/how-to/install-reqseq/`. */
+/** The address of a page below `base`: `how-to/install-reqseq.md` (or `.mdx`) → `/ReqSeq/how-to/install-reqseq/`. */
 export function pageUrl(path: string, base: string): string {
   const prefix = base.endsWith("/") ? base : `${base}/`;
-  const page = path.replace(/\.md$/, "").replace(/(^|\/)index$/, "");
+  const page = path.replace(/\.mdx?$/, "").replace(/(^|\/)index$/, "");
   return page === "" ? prefix : `${prefix}${page}/`;
 }
 
+/** Places a how-to guide by its topic group of the sidebar (#2191), before the pages no group lists. */
+const rank = (page: TextPage): number => howToRank(page.path) ?? Number.MAX_SAFE_INTEGER;
+
 /**
- * The pages of each section, sorted as in the sidebar, the landing page left out. Fails on any other page of no
+ * The pages of each section, in the order of the sidebar's entries, the landing page left out. Fails on any other page of no
  * section, so a new part of the sidebar cannot be missing from the files unnoticed.
  */
 function sections(pages: readonly TextPage[]): (readonly [string, TextPage[]])[] {
@@ -82,7 +91,7 @@ function sections(pages: readonly TextPage[]): (readonly [string, TextPage[]])[]
     label,
     pages
       .filter((page) => page.path.startsWith(start))
-      .sort((a, b) => a.order - b.order || a.path.localeCompare(b.path)),
+      .sort((a, b) => rank(a) - rank(b) || a.order - b.order || a.path.localeCompare(b.path)),
   ]);
 }
 
@@ -149,7 +158,8 @@ export function llmsFull(pages: readonly TextPage[], base: string, title: string
 
 /**
  * Writes `LLMS_FILE` and `LLMS_FULL_FILE` into the built site `dist` from the Markdown pages of the content folder
- * `contentDir`, with addresses below `base`. Gives the number of pages in `llms.txt`.
+ * `contentDir`, with addresses below `base`; an `.mdx` page with tabs for the ways in has them back as its sections,
+ * so the files keep the full text. Gives the number of pages in `llms.txt`.
  */
 export async function writeLlmsFiles(
   contentDir: string,
@@ -159,11 +169,12 @@ export async function writeLlmsFiles(
 ): Promise<number> {
   const files = (await readdir(contentDir, { recursive: true }))
     .map((file) => file.split(/[\\/]/).join("/"))
-    .filter((file) => file.endsWith(".md"))
+    .filter((file) => file.endsWith(".md") || file.endsWith(".mdx"))
     .sort();
   const pages: TextPage[] = [];
   for (const file of files) {
-    pages.push(textPage(file, await readFile(join(contentDir, ...file.split("/")), "utf8")));
+    const text = await readFile(join(contentDir, ...file.split("/")), "utf8");
+    pages.push(textPage(file, file.endsWith(".mdx") ? withoutAccessTabs(text) : text));
   }
   await writeFile(join(dist, LLMS_FILE), llmsIndex(pages, base, title));
   await writeFile(join(dist, LLMS_FULL_FILE), llmsFull(pages, base, title));

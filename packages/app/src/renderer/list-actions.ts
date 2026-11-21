@@ -483,6 +483,24 @@ const FILTER_ACTION: Action = {
   }),
 };
 
+/**
+ * The selection a next step gives `element.list` (SR-226 AK5, `ActionContext.given`), such as the open requirements
+ * of a workspace check (SR-230 AK2), and the name of its list (`stepGiven`); undefined without one. Its other inputs
+ * (`limit`) are paging, which the list does by itself.
+ */
+export const givenSelection = (
+  context: ActionContext,
+): { readonly selection: ElementSelection; readonly label: string } | undefined => {
+  const given = context.given?.["element.list"]?.find((argument) => argument.field === "selection");
+  const selection = given?.value;
+  return given !== undefined &&
+    typeof selection === "object" &&
+    selection !== null &&
+    !Array.isArray(selection)
+    ? { selection, label: given.label }
+    : undefined;
+};
+
 export const LIST_ACTIONS: readonly Action[] = [
   {
     // It covers `element.list` ("List elements"), so the command prompt lists it once (ADR-0010, command-prompt.md).
@@ -490,10 +508,16 @@ export const LIST_ACTIONS: readonly Action[] = [
     title: "List all elements",
     covers: ["element.list"],
     available: (context: ActionContext): boolean => context.workspace,
+    // A next step of `element.list` lists with its selection; otherwise every element.
     run: (context: ActionContext): void => {
+      const given = givenSelection(context);
+      const sort = currentList(context)?.sort;
       context.dispatch({
         type: "open",
-        buffer: listBuffer("All elements", undefined, currentList(context)?.sort),
+        buffer:
+          given === undefined
+            ? listBuffer("All elements", undefined, sort)
+            : listBuffer(given.label, given.selection, sort),
       });
     },
   },

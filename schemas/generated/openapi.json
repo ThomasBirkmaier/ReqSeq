@@ -1064,6 +1064,14 @@
                         "info"
                       ]
                     },
+                    "next": {
+                      "title": "Next steps",
+                      "description": "The step that lists the requirements the info evidence.open-requirements counts: element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check and when severity leaves the info out.",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/nextStep"
+                      }
+                    },
                     "checkedElements": {
                       "x-elements": "selection",
                       "title": "Checked elements",
@@ -8526,7 +8534,7 @@
     "/v1/commands/element.setStatus": {
       "post": {
         "operationId": "element_setStatus",
-        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own. A required property without a value blocks no status.",
         "tags": [
           "element"
         ],
@@ -8534,7 +8542,8 @@
         "x-reqseq-stage": 1,
         "x-reqseq-implements": [
           "SR-017",
-          "SR-087"
+          "SR-087",
+          "SR-243"
         ],
         "requestBody": {
           "required": true,
@@ -8592,6 +8601,7 @@
                     },
                     "problems": {
                       "title": "Problems",
+                      "description": "For each element, element.missing-required for each required property without a value; then, with a status the metamodel marks invalid, the hints on relations to these elements.",
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
@@ -13100,7 +13110,7 @@
                     "hints": {
                       "title": "Hints",
                       "type": "array",
-                      "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+                      "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check, after the warning of each element whose version cannot be computed (file.faulty, as element.get gives it), which workspace.check does not give; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In this order: the warnings without a version, then the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
                       }

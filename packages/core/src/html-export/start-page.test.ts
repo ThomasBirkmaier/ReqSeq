@@ -24,7 +24,7 @@ const input = (over: Partial<StartPageInput> = {}): StartPageInput => ({
   missing: [],
   degree: { total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } },
   entries: [],
-  types: [],
+  overview: { types: [] },
   lists: [],
   baseline: undefined,
   ...over,
@@ -72,5 +72,14 @@ describe("start page (SR-233 AK3)", () => {
     expect(html).toContain(
       '<p>Since baseline <a href="baselines/r1.html">R1</a> of 2026-11-02: 3 changed, 0 added. The baseline stores no selection, so no element counts as added.</p>',
     );
+  });
+
+  it("agrees the verb with the requirements, not with the verified ones (#2270)", () => {
+    const html = startPageBody(
+      input({
+        degree: { total: 1, share: 0, counts: { open: 1, verified: 0, indirect: 0, failed: 0, outdated: 0 } },
+      }),
+    );
+    expect(html).toContain("<p>0 of 1 requirement in the core is verified or indirectly verified (0 %).</p>");
   });
 });

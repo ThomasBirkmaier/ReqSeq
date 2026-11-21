@@ -3,7 +3,9 @@
 // nothing of `node:*` with it (the lint rule on `packages/core/src/displays/**`).
 export * from "./element-page.js";
 export * from "./element-ref.js";
+export * from "./hint-list.js";
 export * from "./labels.js";
 export * from "./neighbourhood.js";
 export * from "./open-hints.js";
+export * from "./overview.js";
 export * from "./verification.js";

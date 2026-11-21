@@ -1,8 +1,6 @@
 ---
 title: Record test evidence from JUnit XML
 description: Connect the JUnit XML file of any test tool to the requirements it tests, and see which requirements are verified.
-sidebar:
-  order: 4
 ---
 
 Any test tool that writes JUnit XML (Vitest, pytest, Jest, the Node test runner with `--test-reporter=junit`, Maven, Gradle, CTest and others) can show that requirements are met, without a converter or plugin:

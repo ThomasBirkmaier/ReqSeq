@@ -1,8 +1,6 @@
 ---
 title: Trace a requirement
 description: Derive system requirements from a need, follow the trace chain, find the parents of a requirement and see all relations in a matrix.
-sidebar:
-  order: 2
 ---
 
 A system requirement traces to the need it meets through a relation stored in its own file. This page relates two requirements to a need, follows the chain down, looks up the parents of one requirement and shows the relations of the whole workspace as a matrix. The relation keeps the version of the need; when the need changes later, ReqSeq marks the relation as outdated, so you know to review the requirement.

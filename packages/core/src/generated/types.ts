@@ -2290,6 +2290,8 @@ export interface WorkspaceCheckOutput {
     /** Info problems left out. */
     readonly info: number;
   };
+  /** The step that lists the requirements the info evidence.open-requirements counts (SR-230 AK2): element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check (SR-092) and when severity leaves the info out. */
+  readonly next?: readonly NextStep[];
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
@@ -3544,7 +3546,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
@@ -3555,12 +3557,13 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
   readonly answer: Answer;
   readonly files: readonly OutputPath[];
+  /** For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2). */
   readonly problems?: readonly Problem[];
 }
 
@@ -4393,7 +4396,7 @@ export interface HintListOutput {
     /** Hints of this kind that pass the filters. */
     readonly count: number;
   }[];
-  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check, after the warning of each element whose version cannot be computed (file.faulty, as element.get gives it), which workspace.check does not give; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In this order: the warnings without a version, then the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;

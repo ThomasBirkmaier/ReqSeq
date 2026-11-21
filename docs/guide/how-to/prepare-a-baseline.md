@@ -1,8 +1,6 @@
 ---
 title: Prepare a baseline and see what changed
 description: Before a baseline, see the problems of the check, the verification degree and the changes since the newest baseline; later, see what changed since a baseline and which hints are open.
-sidebar:
-  order: 15
 ---
 
 Two commands gather the outputs of other commands in one output and name the next steps as commands. Each number they give is the one the other command gives. They only read, and they block nothing: whether and when you [take a baseline](/how-to/take-a-baseline/) is up to you.

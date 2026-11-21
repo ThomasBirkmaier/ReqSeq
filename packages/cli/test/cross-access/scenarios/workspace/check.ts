@@ -152,19 +152,61 @@ scenariosOf("workspace.check", [
     },
   },
   {
-    name: "the requirements with method test whose verification status is open in the core, counted in one info (#1921)",
+    name: "the requirements with method test whose verification status is open in the core, counted in one info with the call that lists them as next step (#1921, #2189)",
     fixture: { fixture: "SR-126/matrix" },
     input: {},
     tag: "[SR-230/AK-k09q]",
     expect: "output",
     check: (results) => {
-      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
-        .output;
+      const { problems, next } = (
+        results["core"]?.outcome as { output: { problems: Record<string, unknown>[]; next?: unknown } }
+      ).output;
       expect(
         problems
           .filter((p) => p["code"] === "evidence.open-requirements")
-          .map((p) => [p["severity"], p["file"], String(p["message"]).split(" ")[0]]),
-      ).toEqual([["info", "reqseq-workspace.yaml", "2"]]);
+          .map((p) => [p["severity"], p["file"], p["message"]]),
+      ).toEqual([
+        [
+          "info",
+          "reqseq-workspace.yaml",
+          "2 requirement(s) with the verification method test have the verification status open in the core",
+        ],
+      ]);
+      expect(next).toEqual([
+        {
+          command: "element.list",
+          // `openRequirementsWhere("verification-method")` of core's `evidence/gaps.ts`.
+          input: {
+            selection: {
+              where: {
+                all: [
+                  { not: { invalid: true } },
+                  { verification: ["open"] },
+                  {
+                    any: [
+                      { property: "verification-method", op: "eq", value: "test" },
+                      { property: "verification-method", op: "missing" },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          open: [],
+        },
+      ]);
+    },
+  },
+  {
+    name: "a severity selection that hides the info of the open requirements drops its next step too (#2189)",
+    fixture: { fixture: "SR-126/matrix" },
+    input: { severity: "warning" },
+    tag: "[SR-230/AK-k09q]",
+    expect: "output",
+    check: (results) => {
+      const output = (results["core"]?.outcome as { output: Record<string, unknown> }).output;
+      expect(output["next"]).toBeUndefined();
+      expect(output["hidden"]).toMatchObject({ below: "warning", info: 1 });
     },
   },
   {

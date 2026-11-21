@@ -1,5 +1,6 @@
-// Text of the tool, put into plain Markdown pages (ADR-0017: no MDX). Descriptions use code spans (`name`), which
-// stay code; everything else is escaped, so `<ref>` stays text and never becomes HTML.
+// Text of the tool, put into plain Markdown pages (ADR-0017): the sources stay plain Markdown, and `accessTabs`
+// (access-tabs.ts) turns a page with the four ways in into MDX in the content folder. Descriptions use code spans
+// (`name`), which stay code; everything else is escaped, so `<ref>` stays text and never becomes HTML.
 
 /** Characters that Markdown or HTML could read as syntax outside code spans. */
 const SPECIAL = /[\\*_[\]<>#|~&]/g;

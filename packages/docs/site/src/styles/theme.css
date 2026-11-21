@@ -50,3 +50,28 @@ h1#_top {
 :root[data-theme="dark"] .sl-markdown-content img[src*="/_astro/"][src*="-light."] {
   display: none;
 }
+
+/*
+ * The tabs of the four ways in (#2192, packages/docs/src/access-tabs.ts): on screen the tab bar names the open tab,
+ * so the label at the top of each tab is hidden; in print every tab shows under its label, so a printed page has
+ * the steps of each way in.
+ */
+.access-tab-label {
+  display: none;
+}
+
+@media print {
+  starlight-tabs .tablist-wrapper {
+    display: none;
+  }
+
+  starlight-tabs [role="tabpanel"][hidden] {
+    display: block;
+  }
+
+  .access-tab-label {
+    display: block;
+    font-weight: 600;
+    font-family: var(--reqseq-font-heading);
+  }
+}

@@ -4,7 +4,7 @@ import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { ListEntry } from "./list-page.js";
-import { identifierOf, listPageOf, listsOf, typeOrder } from "./list-page.js";
+import { identifierOf, listPageOf, listsOf } from "./list-page.js";
 
 const metamodel = {
   valid: true,
@@ -40,17 +40,14 @@ const entry = (
 });
 
 describe("lists (SR-233 AK1)", () => {
-  it("[SR-233/AK-pmt8] orders the types as the metamodel does, unknown ones after them by key, and leaves out packages and variants", () => {
-    const order = typeOrder(metamodel);
-    expect(["zeta", "alpha", "pkg", "req"].sort(order)).toEqual(["req", "pkg", "alpha", "zeta"]);
-    const lists = listsOf({ metamodel }, [
-      entry("zeta", {}),
-      entry("pkg", {}),
-      entry("var", {}),
-      entry("alpha", {}),
-      entry("req", {}),
-    ]);
-    expect(lists.map((l) => l.type)).toEqual(["req", "alpha", "zeta"]);
+  it("[SR-233/AK-pmt8] orders the lists as the type lines of the start page and leaves out packages and variants", () => {
+    const lines = ["req", "pkg", "var", "zeta", "alpha"].map((key) => ({ key }));
+    const lists = listsOf(
+      { metamodel },
+      [entry("alpha", {}), entry("pkg", {}), entry("var", {}), entry("zeta", {}), entry("req", {})],
+      lines,
+    );
+    expect(lists.map((l) => l.type)).toEqual(["req", "zeta", "alpha"]);
   });
 
   it("[SR-233/AK-pmt8] names a row by its identifier, else its short ID, and lists an unknown type under its key", () => {

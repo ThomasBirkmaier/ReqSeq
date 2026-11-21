@@ -10,10 +10,12 @@
 // - the elements with open hints (`hint.list`) and their number, by identifier;
 // - the number of changed and added elements since the newest baseline, as `baseline.get` counts them (the command
 //   gives them, `NewestBaseline`), the baseline a link to its page, or that there is none;
-// - per type with at least one element with a page, in the metamodel's order, the number of those elements, with a
-//   link to its list where it has one (`list-page.ts`; types with the meaning package or variant have none).
+// - the type lines of the shared display model (`overviewDisplay`, ADR-0019): per type with at least one element with
+//   a page, in the order of `element.facets`, the number of those elements, with a link to its list where it has one
+//   (`list-page.ts`; types with the meaning package or variant have none).
+import type { OverviewDisplay } from "../displays/index.js";
 import type { DataExportVerificationDegree } from "../generated/types.js";
-import { degreePercent } from "../evidence/degree-text.js";
+import { degreeClause } from "../evidence/degree-text.js";
 import type { ListEntry, ListPage } from "./list-page.js";
 import { verificationBadge } from "./badge.js";
 import { coreVerification, identifierOf } from "./list-page.js";
@@ -41,8 +43,8 @@ export interface StartPageInput {
   readonly degree: DataExportVerificationDegree;
   /** The elements with a page, by identifier. */
   readonly entries: readonly ListEntry[];
-  /** The number of elements with a page per type, in the metamodel's order, with the name of the type. */
-  readonly types: readonly { readonly type: string; readonly name: string; readonly count: number }[];
+  /** The type lines, counting the elements with a page. */
+  readonly overview: OverviewDisplay;
   readonly lists: readonly ListPage[];
   /** Undefined when the workspace has no baseline. */
   readonly baseline: NewestBaseline | undefined;
@@ -79,8 +81,6 @@ const baselineText = (baseline: NewestBaseline | undefined): string => {
 /** The content of the start page (see the file comment). */
 export const startPageBody = (input: StartPageInput): string => {
   const { degree } = input;
-  const verified = degree.counts.verified + degree.counts.indirect;
-  const share = degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`;
   const counts = (["open", "verified", "indirect", "failed", "outdated"] as const)
     .map((status) => verificationBadge(status, `${status} ${String(degree.counts[status])}`))
     .join(" ");
@@ -89,9 +89,10 @@ export const startPageBody = (input: StartPageInput): string => {
   );
   const hinted = input.entries.filter((entry) => entry.hints > 0);
   const listOf = new Map(input.lists.map((list) => [list.type, list]));
-  const types = input.types
-    .map(({ type, name, count }) => {
-      const list = listOf.get(type);
+  const lines = input.overview.types;
+  const types = lines
+    .map(({ name, count, target }) => {
+      const list = listOf.get(target.list);
       const label = list === undefined ? escapeHtml(name) : `<a href="${list.path}">${escapeHtml(name)}</a>`;
       return `<tr><td>${label}</td><td>${String(count)}</td></tr>`;
     })
@@ -102,7 +103,7 @@ export const startPageBody = (input: StartPageInput): string => {
       ? ""
       : `<p class="rq-incomplete"><strong>This export is incomplete:</strong> ${escapeHtml(`repository ${input.missing.join(", ")} ${input.missing.length === 1 ? "is" : "are"} not on this machine, so ${input.missing.length === 1 ? "its" : "their"} elements are missing.`)}</p>`,
     '<h2 id="verification-degree">Verification degree</h2>',
-    `<p>${escapeHtml(`${String(verified)} of ${String(degree.total)} ${degree.total === 1 ? "requirement" : "requirements"} in the core ${verified === 1 ? "is" : "are"} verified or indirectly verified${share}.`)}</p>`,
+    `<p>${escapeHtml(`${degreeClause(degree, " in the core")}.`)}</p>`,
     `<p class="rq-degree">${counts}</p>`,
     '<h2 id="not-verified">Failed, outdated or open requirements</h2>',
     elementTable(attention, "Verification status in the core", ({ element }) =>
@@ -113,7 +114,7 @@ export const startPageBody = (input: StartPageInput): string => {
     '<h2 id="since-baseline">Since the newest baseline</h2>',
     `<p>${baselineText(input.baseline)}</p>`,
     '<h2 id="types">Elements by type</h2>',
-    input.types.length === 0
+    lines.length === 0
       ? "<p>No elements.</p>"
       : `<table><thead><tr><th scope="col">Type</th><th scope="col">Elements</th></tr></thead><tbody>${types}</tbody></table>`,
   ].join("");

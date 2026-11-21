@@ -1,8 +1,6 @@
 ---
 title: Extend the metamodel
 description: Add an element type, a relation kind and a readable identifier of your own next to the standard model.
-sidebar:
-  order: 5
 ---
 
 The metamodel says which element types, properties, relation kinds and statuses a workspace has. `workspace init` writes the standard model to `metamodel/standard-model.yaml`; ReqSeq reads every `*.yaml` file directly in that folder, in name order, and merges them; subfolders and hidden files are not read, and a `*.yml` file only gives a warning. So you extend the model with a file of your own next to it, and keep the standard model as it is. `reqseq metamodel get` lists under `files` the files it read, in that order. The fields are on the [metamodel format](/reference/formats/metamodel/) page. [Decide which changes make a new version](/how-to/choose-what-counts-to-the-version/) and [Set how many relations and list entries an element must or may have](/how-to/limit-relations-and-list-entries/) cover two more parts of a metamodel file.
