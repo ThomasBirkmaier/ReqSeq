@@ -516,6 +516,32 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-232/AK-chx5]",
+    name: "the neighbourhood of a package page leaves out its elements and keeps the other incoming links",
+    fixture: withFront(
+      `packages:\n  - { id: ${PACKAGE}, version: n2:0000000000000000, title: Display }\n`,
+      "Wind.",
+      {
+        "packages/PKG-0000000000d1.md": `---\nid: ${PACKAGE}\ntype: package\ntitle: Display\n---\n\nThe display.\n`,
+        "requirements/SR-1.md": `---\nid: ${CHILD}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n---\n\nSee [the display](reqseq:${PACKAGE}).\n`,
+      },
+    ),
+    input: { output: "site" },
+    expect: "output",
+    masks: DATE,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        const own = contentOf(String(files[`site/elements/${PACKAGE}.html`]));
+        const section = own.slice(own.indexOf('<section class="rq-neighbourhood">'));
+        expect(section).toContain(
+          `<h3>← inline reference</h3><ul class="rq-nb"><li><a href="../elements/${CHILD}.html"><span>SR-00c0de</span><span>Show gusts</span><span>draft</span></a></li></ul>`,
+        );
+        expect(section).not.toContain("← Package");
+        expect(section).not.toContain(`href="../elements/${WIND}.html"`);
+      }
+    },
+  },
+  {
     tag: "[SR-233/AK-pmt8]",
     name: "a list per type with a row per element, the settings of search, filters and sorting, and its script",
     fixture: ONE_REPOSITORY,
