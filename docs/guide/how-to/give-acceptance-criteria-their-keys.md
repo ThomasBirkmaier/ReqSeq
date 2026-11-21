@@ -1,5 +1,5 @@
 ---
-title: Give acceptance criteria their keys
+title: Add criterion keys to existing acceptance criteria
 description: Give every acceptance criterion without a criterion key in a selection its key in one step, for files written by hand or from an older workspace.
 sidebar:
   order: 4.4
