@@ -1,5 +1,5 @@
 // The element files of many elements as they were at one commit (SR-232 AK7: the field difference of an element since
-// a baseline in the HTML export), read through the git reader (ADR-0006) and never written (D-036), in one pass per
+// a baseline in the HTML export; SR-051 AK5: the one element of `baseline.compare`), read through the git reader (ADR-0006) and never written (D-036), in one pass per
 // repository and commit (N-036):
 //
 // - The commit is resolved in the repository; one it does not have (not fetched, beyond a shallow clone) is

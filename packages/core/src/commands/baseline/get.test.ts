@@ -5,15 +5,25 @@
 // The fixture's own `release-1.yaml` stores no selection. CLI end to end: baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, symlink } from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import type { CommandName, CommandOutput } from "../../catalog.js";
+import type { CommandName, CommandOutput, InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import * as files from "../../files/index.js";
+import * as model from "../../model/index.js";
 import * as query from "../../query/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { WRITTEN_VERSION } from "../../model/version-forms.test-helper.js";
 
+vi.mock("../../model/index.js", async (importOriginal) => {
+  const original = await importOriginal<typeof model>();
+  return { ...original, filesAtCommit: vi.fn(original.filesAtCommit) };
+});
+vi.mock("../../files/index.js", async (importOriginal) => {
+  const original = await importOriginal<typeof files>();
+  return { ...original, readElementText: vi.fn(original.readElementText) };
+});
 vi.mock("../../query/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof query>();
   return { ...original, resolveSelection: vi.fn(original.resolveSelection) };
@@ -88,10 +98,10 @@ const call = async <N extends CommandName>(
   ws: FixtureWorkspace,
   name: N,
   input: object,
-): Promise<CommandOutput<N>> => {
+): Promise<InvokedOutput<N>> => {
   const workspace = new Workspace(ws.path("system"));
   try {
-    return (await invoke(name, input, { workspace })) as CommandOutput<N>;
+    return (await invoke(name, input, { workspace })) as InvokedOutput<N>;
   } finally {
     await workspace.close();
   }
@@ -465,13 +475,13 @@ describe("copies of one UUID in several repositories (SR-088)", () => {
     ]);
     const f1 = await failure(ws, "baseline.compare", { baseline: "Dup", ref: `${ID}f1` });
     expect(f1.message).toContain("without repository");
-    // The listed copy's file is gone while system still holds SR-0000b1: the listed copy, at its old path.
+    // The listed copy's file is gone while system still holds SR-0000b1: the listed copy, refused.
     await ws.git(["rm", "-q", "requirements/SR-b1.md"], "sensor");
-    expect(await call(ws, "baseline.compare", { baseline: "Sensor", ref: "SR-0000b1" })).toMatchObject({
-      repository: "sensor",
-      to: null,
-      file: "requirements/SR-b1.md",
-    });
+    const gone = await failure(ws, "baseline.compare", { baseline: "Sensor", ref: "SR-0000b1" });
+    expect([gone.code, gone.details]).toMatchObject([
+      "element.not-found",
+      { repository: "sensor", file: "requirements/SR-b1.md", reason: "missing" },
+    ]);
   });
 });
 
@@ -495,22 +505,32 @@ describe("baseline.list in a repository that is not here", () => {
 });
 
 describe("baseline.compare", () => {
+  const B1 = "requirements/SR-0000000000b1.md";
+  const OLD_B1 = "Given wind, when the station measures it, then it shows the speed.";
+  const NEW_B1 = "Given wind, when the station measures it, then it shows the speed in knots.";
+
   it("[SR-051/AK-dcx7] baseline.compare gives both commits and the git command", async () => {
     const { ws, first, second } = await made();
-    const file = "requirements/SR-0000000000b1.md";
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" })).toEqual({
       answer:
-        "The Git command of this output shows how requirements/SR-0000000000b1.md in system changed from commit be3a664c1ea9 to commit 29b78339451d.",
+        "Found 1 difference in text, acceptance criteria, properties and relations of requirements/SR-0000000000b1.md in system from commit be3a664c1ea9 to commit 29b78339451d; the Git command of this output shows the whole diff of the file.",
       repository: "system",
       from: first,
       to: second,
-      file,
-      command: ["git", "-C", ".", "diff", first, second, "--", file],
+      file: B1,
+      command: ["git", "-C", ".", "diff", first, second, "--", B1],
+      difference: {
+        // The fixture's metamodel gives no property the meaning acceptance-criteria.
+        criteria: [],
+        properties: [{ key: "acceptance-criteria", before: `- ${OLD_B1}`, after: `- ${NEW_B1}` }],
+        addedRelations: [],
+        removedRelations: [],
+      },
     });
     // Moved since: both paths. Not committed: the working copy (`to: null`).
     await ws.git(["mv", "requirements/SR-0000000000b2.md", "requirements/SR-b2.md"], "system");
     const third = await ws.commit("system", "move");
-    await edit(ws, file, "in knots", "in metres per second");
+    await edit(ws, B1, "in knots", "in metres per second");
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b2" })).toMatchObject({
       to: third,
       file: "requirements/SR-b2.md",
@@ -529,7 +549,7 @@ describe("baseline.compare", () => {
     });
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" })).toMatchObject({
       to: null,
-      command: ["git", "-C", ".", "diff", first, "--", file],
+      command: ["git", "-C", ".", "diff", first, "--", B1],
     });
     // The element in sensor: its repository folder relative to the workspace root.
     expect(
@@ -537,8 +557,75 @@ describe("baseline.compare", () => {
     ).toEqual(["git", "-C", "../sensor"]);
   });
 
-  it("takes a listed UUID whose file is gone and refuses what the baseline does not list or has no commit of", async () => {
-    const { ws, first } = await made({
+  it("[SR-051/AK-v9hv] baseline.compare gives the old and new wording of each changed text, criterion and property, and the relations added and removed", async () => {
+    const { ws, first } = await made();
+    // Not committed: the file in the local copy counts. A criterion added, the text, a property and the
+    // relations changed; SR-0000b2 only gets a newer stored version of its derives-from target. The
+    // metamodel of the local copy decides what counts: here it marks the acceptance criteria.
+    await edit(
+      ws,
+      "metamodel/standard-model.yaml",
+      "  - key: acceptance-criteria\n    name: Acceptance Criteria\n",
+      "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    meaning: acceptance-criteria\n",
+    );
+    await edit(
+      ws,
+      B1,
+      "speed in knots.\n",
+      'speed in knots.\n  - { key: c4lm, text: "Given calm, then it shows 0." }\n',
+    );
+    await edit(ws, B1, "b1: valid for", "b1: still valid for");
+    await edit(ws, B1, "requirement-type: functional", "requirement-type: performance");
+    await edit(
+      ws,
+      B1,
+      `derives-from:\n  - { id: ${ID}a1, version: ${V.a1} }`,
+      `refines:\n  - { id: ${ID}b2 }`,
+    );
+    await edit(ws, "requirements/SR-0000000000b2.md", "n1:0000000000000000", V.a1);
+    const out = await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" });
+    expect(out).toMatchObject({ from: first, to: null });
+    expect(out.difference).toEqual({
+      text: {
+        before: "b1: valid for VAR-0000c1, in PKG-0000d1, with an unknown property.\n",
+        after: "b1: still valid for VAR-0000c1, in PKG-0000d1, with an unknown property.\n",
+      },
+      criteria: [
+        { numberBefore: 1, numberAfter: 1, before: OLD_B1, after: NEW_B1 },
+        { key: "c4lm", numberAfter: 2, after: "Given calm, then it shows 0." },
+      ],
+      properties: [{ key: "requirement-type", before: "functional", after: "performance" }],
+      addedRelations: [{ kind: "refines", id: `${ID}b2` }],
+      removedRelations: [{ kind: "derives-from", id: `${ID}a1` }],
+    });
+    expect(out.answer).toMatch(/^Found 6 differences in text/u);
+    const b2 = await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b2" });
+    expect([
+      b2.difference.criteria.length,
+      b2.difference.addedRelations,
+      b2.difference.removedRelations,
+    ]).toEqual([1, [], []]);
+    // Unchanged since the baseline: no difference, and the answer says so.
+    const e1 = await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000e1" });
+    expect(e1.difference).toEqual({ criteria: [], properties: [], addedRelations: [], removedRelations: [] });
+    expect(e1.answer).toMatch(
+      /^Found no difference in text, acceptance criteria, properties or relations of /u,
+    );
+  });
+
+  it("[SR-051/AK-w2b9] baseline.compare refuses a commit of the baseline that is not in the local history and names it", async () => {
+    const { ws } = await made();
+    const error = await failure(ws, "baseline.compare", { baseline: "release-1", ref: "SR-0000b1" });
+    expect([error.code, error.details]).toEqual([
+      "git.commit-not-found",
+      { repository: "system", commit: "61aa061aa061aa061aa061aa061aa061aa061aa0" },
+    ]);
+    expect(error.message).toContain("61aa061aa061aa061aa061aa061aa061aa061aa0");
+    expect(error.message).toContain("fetch it");
+  });
+
+  it("[SR-051/AK-x9z6] baseline.compare refuses, with the reason, what the baseline does not list, a repository without commit or Git, an element no file held, and a file missing or faulty in the local copy", async () => {
+    const { ws } = await made({
       "Partial.yaml": (head) =>
         baselineText(
           "Partial",
@@ -550,42 +637,94 @@ describe("baseline.compare", () => {
           ],
         ),
     });
-    await ws.git(["rm", "-q", "needs/N-0000000000a1.md"], "system");
-    expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}A1` })).toEqual({
-      answer:
-        "The Git command of this output shows how needs/N-0000000000a1.md in system changed from commit be3a664c1ea9 to the working copy.",
-      repository: "system",
-      from: first,
-      to: null,
-      file: "needs/N-0000000000a1.md",
-      command: ["git", "-C", ".", "diff", first, "--", "needs/N-0000000000a1.md"],
-    });
-    expect((await failure(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}fe` })).code).toBe(
-      "ref.unknown",
-    );
+    const refused = async (baseline: string, ref: string): Promise<[string, unknown]> => {
+      const error = await failure(ws, "baseline.compare", { baseline, ref });
+      return [error.code, error.details];
+    };
+    expect(await refused("Release 2", "SR-0000b3")).toEqual([
+      "input.invalid",
+      { command: "baseline.compare", fields: ["ref"], reason: "not-in-baseline" },
+    ]);
+    expect(await refused("Partial", "SR-0000e1")).toEqual(["git.commit-not-found", { repository: "sensor" }]);
+    expect(await refused("Partial", `${ID}fd`)).toEqual(["git.unavailable", { repository: "nowhere" }]);
+    // Listed in sensor, but no file there held it at the commit, nor holds it now.
+    expect(await refused("Release 2", `${ID}fe`)).toEqual(["ref.unknown", { ref: `${ID}fe` }]);
     expect((await failure(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000ff" })).code).toBe(
       "ref.unknown",
     );
-    expect(
-      (await failure(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b3" })).details,
-    ).toMatchObject({ reason: "not-in-baseline" });
-    expect((await failure(ws, "baseline.compare", { baseline: "release-1", ref: "SR-0000b1" })).code).toBe(
-      "git.commit-not-found",
-    );
-    expect(
-      (await failure(ws, "baseline.compare", { baseline: "release-1", ref: "SR-0000b1" })).details,
-    ).toEqual({ repository: "system", commit: "61aa061aa061aa061aa061aa061aa061aa061aa0" });
-    expect(
-      (await failure(ws, "baseline.compare", { baseline: "Partial", ref: "SR-0000e1" })).details,
-    ).toEqual({
-      repository: "sensor",
-    });
-    expect((await failure(ws, "baseline.compare", { baseline: "Partial", ref: `${ID}fd` })).details).toEqual({
-      repository: "nowhere",
-    });
+    // The file in the local copy cannot be read as an element, then is gone.
+    await ws.write("system/needs/N-0000000000a1.md", "---\nid: [\n---\n");
+    expect(await refused("Release 2", `${ID}a1`)).toEqual([
+      "file.faulty",
+      { repository: "system", file: "needs/N-0000000000a1.md", reason: "file.invalid-yaml" },
+    ]);
+    // A link the store skips at that path.
+    await rm(ws.path("system/needs/N-0000000000a1.md"));
+    await symlink("N-elsewhere.md", ws.path("system/needs/N-0000000000a1.md"));
+    expect(await refused("Release 2", `${ID}a1`)).toEqual([
+      "file.faulty",
+      { repository: "system", file: "needs/N-0000000000a1.md", reason: "file.skipped" },
+    ]);
+    await ws.git(["rm", "-qf", "needs/N-0000000000a1.md"], "system");
+    const gone = await failure(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}A1` });
+    expect([gone.code, gone.details]).toEqual([
+      "element.not-found",
+      { ref: `${ID}A1`, repository: "system", file: "needs/N-0000000000a1.md", reason: "missing" },
+    ]);
+    expect(gone.message).toContain("needs/N-0000000000a1.md");
     await rm(ws.path("sensor/.git"), { recursive: true });
-    expect((await failure(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000e1" })).code).toBe(
+    const noGit = await failure(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000e1" });
+    expect([noGit.code, (noGit.details as { repository: string }).repository]).toEqual([
       "git.unavailable",
+      "sensor",
+    ]);
+  });
+
+  it("gives a relation target the file at the baseline commit names by another ID than a UUID as stored", async () => {
+    const { ws, second } = await made();
+    const stored = `derives-from:\n  - { id: ${ID}a1, version: ${V.a1} }`;
+    await edit(ws, B1, stored, "derives-from:\n  - { id: SR-0000a1 }");
+    const odd = await ws.commit("system", "odd target");
+    await ws.write(
+      "system/baselines/Odd.yaml",
+      baselineText(
+        "Odd",
+        [],
+        [`  - { name: system, commit: ${odd} }`],
+        [`  - { id: ${ID}b1, version: ${V.b1} }`],
+      ),
     );
+    await edit(ws, B1, "derives-from:\n  - { id: SR-0000a1 }", stored);
+    // The output is checked against its schema in tests (REQSEQ_VALIDATE_OUTPUT).
+    const out = await call(ws, "baseline.compare", { baseline: "Odd", ref: "SR-0000b1" });
+    expect([out.difference.removedRelations, out.difference.addedRelations]).toEqual([
+      [{ kind: "derives-from", id: "SR-0000a1" }],
+      [{ kind: "derives-from", id: `${ID}a1` }],
+    ]);
+    expect(out.from).not.toBe(second);
+  });
+
+  it("refuses when Git or the file changes between its reads", async () => {
+    const { ws } = await made();
+    const compare = async (): Promise<[string, unknown]> => {
+      const error = await failure(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" });
+      return [error.code, error.details];
+    };
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({
+      known: false,
+      reason: "timeout",
+      detail: "stopped",
+    });
+    expect(await compare()).toEqual(["git.unavailable", { repository: "system", reason: "timeout" }]);
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({ known: true, kind: "no-commit" });
+    expect(await compare()).toEqual([
+      "file.faulty",
+      { repository: "system", file: "requirements/SR-0000000000b1.md", reason: "changed" },
+    ]);
+    vi.mocked(files.readElementText).mockResolvedValueOnce(undefined);
+    expect(await compare()).toEqual([
+      "file.faulty",
+      { repository: "system", file: "requirements/SR-0000000000b1.md", reason: "changed" },
+    ]);
   });
 });

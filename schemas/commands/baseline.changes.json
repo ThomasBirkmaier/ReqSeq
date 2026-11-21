@@ -2,7 +2,7 @@
   "name": "baseline.changes",
   "title": "Show changes since baseline",
   "summary": "What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output (SR-241).",
-  "details": "Without a baseline it takes the one with the latest date and time, at the same time the last by file name, skipping a file that is no valid baseline (named under problems, as baseline.list names it). A given baseline is found as baseline.get finds it, and an unknown or ambiguous one is refused the same way. The next steps are Confirm hints when a hint can be confirmed, Show Git command to compare baseline when an element is marked changed, and Prepare baseline; a step whose write command is refused while the workspace is read-only is left out (SR-226 AK6). Only reads.",
+  "details": "Without a baseline it takes the one with the latest date and time, at the same time the last by file name, skipping a file that is no valid baseline (named under problems, as baseline.list names it). A given baseline is found as baseline.get finds it, and an unknown or ambiguous one is refused the same way. The next steps are Confirm hints when a hint can be confirmed, Compare baseline when an element is marked changed, and Prepare baseline; a step whose write command is refused while the workspace is read-only is left out (SR-226 AK6). Only reads.",
   "effect": "read",
   "stage": 5,
   "implements": ["SR-241"],
@@ -90,7 +90,7 @@
       },
       "next": {
         "title": "Next steps",
-        "description": "Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4).",
+        "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4).",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/nextStep"
