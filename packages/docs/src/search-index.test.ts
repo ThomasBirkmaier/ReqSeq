@@ -51,6 +51,15 @@ describe("search index of the documentation site (SR-141 AK1)", () => {
     expect(htmlText("<b>a&nbsp;&lt;b&gt;</b>  &QUOT;c&apos; &#65;&#X42;")).toBe("a <b> \"c' AB");
   });
 
+  it("joins inline elements with the text around them and separates the others", () => {
+    expect(
+      htmlText(
+        '<p>Command <code dir="auto">baseline.compare</code>. Reads <a href="/x/"><em>it</em></a>,</p>',
+      ),
+    ).toBe("Command baseline.compare. Reads it,");
+    expect(htmlText("<p>a</p><p>b<br>c</p><section>d</section>")).toBe("a b c d");
+  });
+
   it("finds a page by a word of its body, and by a prefix of its title", () => {
     const other = pageDocument(page("Create element", "<p>Writes a new element file.</p>"), "/create/", 1);
     const known = pageDocument(BASELINE, "/baselines/", 0);
