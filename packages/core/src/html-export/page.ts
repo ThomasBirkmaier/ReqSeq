@@ -5,8 +5,9 @@
 // formula also takes the fonts of `assets/katex.css`, which are `data:` URLs; a page with a diagram also takes
 // inline styles, since Mermaid measures text in a temporary SVG with a `<style>` element (the app has the same
 // rule). Content never yields a `<style>`. `noindex` asks search engines not to take the page. Every address is
-// relative and names a file of the folder. A page with sections has the docs' right column "On this page" with a link
-// to each, shown on wide screens as on the docs site, without a script (#2139).
+// relative and names a file of the folder. Every page has the docs' right column "On this page", with "Overview" and a
+// link to each section, shown on wide screens as on the docs site, without a script (#2139); so content and header keep
+// one position on every page (#2181).
 import {
   DOCS_BODY_ATTRIBUTES,
   DOCS_FRAME,
@@ -127,14 +128,11 @@ const sectionsOf = (body: string): { readonly id: string; readonly label: string
   }));
 
 /**
- * The right column "On this page" of the docs (`DOCS_TOC`), with "Overview" and then each section of `body`, or
- * nothing for a page without sections, as the docs leave it out.
+ * The right column "On this page" of the docs (`DOCS_TOC`), with "Overview" and then each section of `body`; a page
+ * without sections has "Overview" alone, so every page has the same layout.
  */
 const tocOf = (body: string): string => {
   const sections = sectionsOf(body);
-  if (sections.length === 0) {
-    return "";
-  }
   const scope = DOCS_TOC_SCOPE;
   const entry = ({ id, label }: { readonly id: string; readonly label: string }): string =>
     `<li style="--depth: 0;" class="${scope}"><a href="#${id}" style="--depth: 0;" class="${scope}"><span style="--depth: 0;" class="${scope}">${label}</span></a></li>`;
@@ -158,7 +156,7 @@ export const page = (input: PageInput): string => {
   const frame = DOCS_FRAME.map((part, index) => (index % 2 === 0 ? part : String(slots[part]))).join("");
   return [
     "<!doctype html>",
-    `<html ${DOCS_HTML_ATTRIBUTES}${toc === "" ? "" : " data-has-toc"}>`,
+    `<html ${DOCS_HTML_ATTRIBUTES} data-has-toc>`,
     "<head>",
     '<meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${pagePolicy(input)}">`,
