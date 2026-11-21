@@ -53,6 +53,22 @@ describe("next steps of an output (SR-226 AK5)", () => {
     ]);
   });
 
+  it("names the selection of a step of element.list by the name of the list it opens, and no other", () => {
+    const selection = { where: { verification: ["open"] } };
+    expect(
+      stepGiven(
+        { command: "element.list", input: { selection, limit: 300 }, open: [] },
+        "Check workspace · Next steps",
+      ),
+    ).toEqual([
+      { field: "selection", value: selection, label: "Check workspace · Next steps" },
+      { field: "limit", value: 300, label: "300" },
+    ]);
+    expect(
+      stepGiven({ command: "baseline.create", input: { selection: { view: "core" } }, open: [] }, "Name"),
+    ).toEqual([{ field: "selection", value: { view: "core" }, label: '{"view":"core"}' }]);
+  });
+
   it("says that a step cannot run in its own workspace", () => {
     expect(stepUnavailable("Create element")).toBe("Create element cannot run here");
   });

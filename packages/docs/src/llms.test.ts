@@ -75,6 +75,9 @@ describe("llms.txt", () => {
     );
     await writeFile(join(content, "how-to", "a.md"), page("A", "sidebar:\n  order: 3\n"));
     await writeFile(join(content, "how-to", "c.md"), page("C", "sidebar:\n  order: 2\n"));
+    // Pages of a topic group of the sidebar come first, in the order of the groups (#2191).
+    await writeFile(join(content, "how-to", "open-a-workspace.md"), page("Open", "sidebar:\n  order: 9\n"));
+    await writeFile(join(content, "how-to", "install-reqseq.md"), page("Install"));
     await writeFile(join(content, "reference", "commands", "index.md"), page("Commands", "", "All."));
     const ways = "## App\n\nA.\n\n## CLI\n\n<!-- tested -->\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.";
     await writeFile(
@@ -82,7 +85,7 @@ describe("llms.txt", () => {
       String(accessTabs(page("X", "sidebar:\n  order: 1\n", ways))),
     );
     await writeFile(join(content, "reference", "commands", "image.png"), "");
-    expect(await writeLlmsFiles(content, dist, "/ReqSeq", "ReqSeq 1.0")).toBe(5);
+    expect(await writeLlmsFiles(content, dist, "/ReqSeq", "ReqSeq 1.0")).toBe(7);
     expect(await readFile(join(dist, LLMS_FILE), "utf8")).toBe(
       [
         "# ReqSeq 1.0",
@@ -93,6 +96,8 @@ describe("llms.txt", () => {
         "",
         "## How-to",
         "",
+        "- [Install](/ReqSeq/how-to/install-reqseq/)",
+        "- [Open](/ReqSeq/how-to/open-a-workspace/)",
         "- [B](/ReqSeq/how-to/b/): Does b.",
         "- [C](/ReqSeq/how-to/c/)",
         "- [A](/ReqSeq/how-to/a/)",
@@ -107,7 +112,7 @@ describe("llms.txt", () => {
     const full = await readFile(join(dist, LLMS_FULL_FILE), "utf8");
     expect(
       full.startsWith(
-        "# ReqSeq 1.0\n\n# ReqSeq\n\nPage: /ReqSeq/\n\nWelcome.\n\n# B\n\nPage: /ReqSeq/how-to/b/\n\nText.\n\n![Shot](/ReqSeq/images/b.png) ![Web](https://x/y.png) `![c](/ReqSeq/how-to/c.png)`\n",
+        "# ReqSeq 1.0\n\n# ReqSeq\n\nPage: /ReqSeq/\n\nWelcome.\n\n# Install\n\nPage: /ReqSeq/how-to/install-reqseq/\n\nText.\n\n# Open\n\nPage: /ReqSeq/how-to/open-a-workspace/\n\nText.\n\n# B\n\nPage: /ReqSeq/how-to/b/\n\nText.\n\n![Shot](/ReqSeq/images/b.png) ![Web](https://x/y.png) `![c](/ReqSeq/how-to/c.png)`\n",
       ),
     ).toBe(true);
     expect(full.indexOf("# A\n")).toBeGreaterThan(full.indexOf("# C\n"));

@@ -1,14 +1,12 @@
 ---
 title: Prepare a baseline and see what changed
 description: Before a baseline, see the problems of the check, the verification degree and the changes since the newest baseline; later, see what changed since a baseline and which hints are open.
-sidebar:
-  order: 15
 ---
 
 Two commands gather the outputs of other commands in one output and name the next steps as commands. Each number they give is the one the other command gives. They only read, and they block nothing: whether and when you [take a baseline](/how-to/take-a-baseline/) is up to you.
 
 - **Prepare baseline** (`baseline.prepare`) gives the problems of **Check workspace** for the whole workspace, the verification degree of a selection as **Show verification degree** gives it, the number of requirements of its view without a passed test, and the numbers of **Show baseline** for the newest baseline. Its next steps are **Create baseline** with the same selection, only the name open, and **Show changes since baseline** when there is a baseline.
-- **Show changes since baseline** (`baseline.changes`) gives the numbers of **Show baseline** for the newest baseline, the one with the latest date and time, or for the one you name, and the open hints as **List hints** gives them without a filter. Its next steps are **Confirm hints** when a hint can be confirmed, **Compare baseline** when an element changed, and **Prepare baseline**.
+- **Show changes since baseline** (`baseline.changes`) gives the numbers of **Show baseline** for the newest baseline, the one with the latest date and time, or for the one you name, and the open hints as **List hints** gives them without a filter. Its next steps are **Confirm hints** when a hint can be confirmed, **Show Git command to compare baseline** when an element changed, and **Prepare baseline**.
 
 **Create baseline** is left out for a selection it refuses: a baseline, the output of a command, or a saved filter with another view than its own. While the workspace is read-only, every step whose command is then refused is left out.
 

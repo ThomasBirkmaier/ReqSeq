@@ -350,7 +350,8 @@ test.describe("the line under the title of a package page", () => {
     await expect(window.getByLabel("Modeline")).toContainText("Show coverage");
     const rows = shownLayer(window).locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
-    const count = shownLayer(window).locator(".result .line", {
+    // The count line, not the heading of its list of elements, which has the same title (SR-036 AK6).
+    const count = shownLayer(window).locator(".result .line.count", {
       has: window.locator(".label", { hasText: /^Without evidence$/ }),
     });
     await expect(count.locator(".text")).toHaveText(["10"]);
@@ -358,5 +359,70 @@ test.describe("the line under the title of a package page", () => {
     const first = (await rows.first().locator(".text").textContent()) ?? "";
     await rows.first().click();
     await expect(shownLayer(window).locator("article h1")).toHaveText(first);
+  });
+  test("[SR-036/AK-zhys] the coverage page shows per level the numbers without children and without evidence before those with, each a line that lists what the CLI gives for it", async () => {
+    const { window } = running;
+    await openById(window, "PKG-00d003", "AK3");
+    const input = { selection: { package: "PKG-00d003" } };
+    const cli = await running.cli(["evidence", "coverage", "--input", JSON.stringify(input), "--json"]);
+    const levels = (
+      JSON.parse(cli.stdout) as { readonly levels: readonly Readonly<Record<string, unknown>>[] }
+    ).levels;
+    await shownLayer(window).locator("article .package-summary [role=link]").click();
+    await expect(window.getByLabel("Modeline")).toContainText("Show coverage");
+    // Each number of a level is a count line of its own, in the order of the CLI's JSON; 0 is shown too.
+    const titles: Readonly<Record<string, string>> = {
+      withoutChildren: "Without children",
+      withoutEvidence: "Without evidence",
+      withChildren: "With children",
+      withEvidence: "With evidence",
+    };
+    const expected = levels.flatMap((level) =>
+      Object.entries(level).flatMap(([key, value]) =>
+        typeof value === "number" && titles[key] !== undefined ? [`${titles[key]} ${String(value)}`] : [],
+      ),
+    );
+    // The need first, without evidence numbers (D-012), then the requirements: 2 without against 8 with.
+    expect(expected.map((each) => each.replace(/ \d+$/, ""))).toEqual([
+      "Without children",
+      "With children",
+      "Without children",
+      "Without evidence",
+      "With children",
+      "With evidence",
+    ]);
+    expect([expected[3], expected[5]]).toEqual(["Without evidence 2", "With evidence 8"]);
+    const counts = shownLayer(window).locator(".result .line.count", {
+      has: window.locator(".label", { hasText: /^With(out)? (children|evidence)$/ }),
+    });
+    await expect(counts).toHaveCount(expected.length);
+    const shown = await counts.evaluateAll((lines) =>
+      lines.map(
+        (line) =>
+          `${line.querySelector(".label")?.textContent ?? ""} ${line.querySelector(".text")?.textContent ?? ""}`,
+      ),
+    );
+    expect(shown).toEqual(expected);
+    // "Without evidence" of the requirements opens the list the CLI gives for that number.
+    const selection = {
+      output: {
+        command: "evidence.coverage",
+        input,
+        count: { field: "levels[].withoutEvidence", key: [{ type: "system-requirement" }] },
+      },
+    };
+    const listed = await running.cli(["element", "list", "--input", JSON.stringify({ selection }), "--json"]);
+    const ids = (
+      JSON.parse(listed.stdout) as { readonly elements: readonly { readonly shortId: string }[] }
+    ).elements
+      .map((element) => element.shortId)
+      .sort();
+    expect(ids).toHaveLength(2);
+    await counts.filter({ hasText: "Without evidence" }).click();
+    const list = shownLayer(window).locator(".buffer.list");
+    await expect(list.locator("h1")).toContainText("Without evidence");
+    await expect
+      .poll(async () => (await list.locator(".row:not(.fold-row) .id").allTextContents()).sort())
+      .toEqual(ids);
   });
 });

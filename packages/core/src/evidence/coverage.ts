@@ -1,5 +1,6 @@
 // The coverage of a selection (SR-036, D-044; `evidence.coverage`): per level, how many elements have
-// children and how many have evidence, with the elements behind every number (AK2).
+// children and how many have evidence, and how many have not (AK6, before those with), with the elements
+// behind every number (AK2).
 //
 // - A level is an element type with the meaning `need` or `requirement` (own or inherited, SR-012;
 //   a subtype is its own level), in metamodel order; the elements of other types have no level
@@ -136,18 +137,24 @@ export const coverageRecordsOf = (
 
 const ids = (records: readonly ElementRecord[]): string[] => records.map((record) => record.id);
 
-/** The coverage of `elements` (in selection order) by `rules`: one level per level type with a counted element. */
+/**
+ * The coverage of `elements` (in selection order) by `rules`: one level per level type with a counted element.
+ * Per level the numbers without children and without evidence come before those with, 0 included, and so do
+ * their element lists (SR-036 AK6): the order of the schema, which the CLI text, the app's output page and the
+ * JSON of every access keep.
+ */
 export const coverageOf = (elements: readonly ElementRecord[], rules: CoverageRules): CoverageLevel[] =>
   coverageRecordsOf(elements, rules).map((level) => ({
     type: level.type,
     total: level.withChildren.length + level.withoutChildren.length,
+    withoutChildren: level.withoutChildren.length,
+    ...(level.evidence ? { withoutEvidence: level.withoutEvidence.length } : {}),
     withChildren: level.withChildren.length,
     ...(level.evidence ? { withEvidence: level.withEvidence.length } : {}),
     elements: {
-      withChildren: ids(level.withChildren),
       withoutChildren: ids(level.withoutChildren),
-      ...(level.evidence
-        ? { withEvidence: ids(level.withEvidence), withoutEvidence: ids(level.withoutEvidence) }
-        : {}),
+      ...(level.evidence ? { withoutEvidence: ids(level.withoutEvidence) } : {}),
+      withChildren: ids(level.withChildren),
+      ...(level.evidence ? { withEvidence: ids(level.withEvidence) } : {}),
     },
   }));

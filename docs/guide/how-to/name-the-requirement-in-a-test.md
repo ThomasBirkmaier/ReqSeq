@@ -1,8 +1,6 @@
 ---
 title: Name the requirement in a test
 description: Name the requirement a test checks in its name or a property, in Vitest, pytest, Rust, Go, Java or any other tool that writes JUnit XML.
-sidebar:
-  order: 4.1
 ---
 
 A test shows a requirement once it names it, in one of two equivalent ways:

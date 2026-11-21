@@ -1,8 +1,6 @@
 ---
 title: Take a baseline
 description: Freeze the versions of a selection of elements in a baseline, such as the elements of a package, and see what changed since.
-sidebar:
-  order: 8
 ---
 
 A baseline is a named state that no longer changes: a file in the baseline folder (`baselines` in the main repository unless the workspace file names another) with its name, date, the commit of each repository involved and the version of each selected element. The selection is a package, a variant, a filter or IDs; here a package: elements you declare to belong together for any reason, such as all requirements of a use case. When and why is up to you ([what to check first](/how-to/prepare-a-baseline/)).
@@ -14,10 +12,10 @@ ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuse
 1. Create the package with **Create element** (Ctrl+K E, ⌘K E on macOS), type Package.
 2. In the element buffer of each requirement, add the property Package with "Add property" (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S).
 3. Open the package with **Go to element or buffer** (Ctrl+P, ⌘P); its page lists its elements.
-4. Commit the files with Git.
+4. Commit the files.
 5. On the package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Create baseline**; it asks only the name. Commit the new file.
 6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline names. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
-7. **Compare baseline** asks a baseline and an element and gives the two commits and the Git command. Run it from the workspace folder.
+7. **Show Git command to compare baseline** asks a baseline and an element and gives the two commits and the command. Run it from the workspace folder.
 8. On the package page, **Export data** shows the current state of the package in a result buffer.
 
 ## CLI

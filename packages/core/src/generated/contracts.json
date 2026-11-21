@@ -5724,6 +5724,14 @@
                 "info"
               ]
             },
+            "next": {
+              "title": "Next steps",
+              "description": "The step that lists the requirements the info evidence.open-requirements counts: element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check and when severity leaves the info out.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/nextStep"
+              }
+            },
             "checkedElements": {
               "x-elements": "selection",
               "title": "Checked elements",
@@ -5933,6 +5941,29 @@
           {
             "path": "hidden.info",
             "title": "Info"
+          },
+          {
+            "path": "next",
+            "title": "Next steps"
+          },
+          {
+            "path": "next[].command",
+            "title": "Command",
+            "technical": true
+          },
+          {
+            "path": "next[].input",
+            "title": "Known input"
+          },
+          {
+            "path": "next[].open",
+            "title": "Open fields",
+            "technical": true
+          },
+          {
+            "path": "next[].workspace",
+            "title": "Workspace",
+            "technical": true
           },
           {
             "path": "checkedElements",
@@ -31610,7 +31641,7 @@
       {
         "name": "evidence.coverage",
         "title": "Show coverage",
-        "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
+        "summary": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
         "effect": "read",
         "stage": 4,
         "implements": [
@@ -31646,7 +31677,7 @@
               ],
               "title": "Levels",
               "type": "array",
-              "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order. Elements whose status the metamodel marks invalid are not counted; other types have no level.",
+              "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order. Elements whose status the metamodel marks invalid are not counted; other types have no level. Per level the numbers without children and without evidence come before those with, in this order of the properties.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -31660,9 +31691,23 @@
                     "minimum": 0,
                     "description": "The counted elements of the type.",
                     "x-elements": [
-                      "elements/withChildren",
-                      "elements/withoutChildren"
+                      "elements/withoutChildren",
+                      "elements/withChildren"
                     ]
+                  },
+                  "withoutChildren": {
+                    "title": "Without children",
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "How many have no derivation child that counts, 0 included.",
+                    "x-elements": "elements/withoutChildren"
+                  },
+                  "withoutEvidence": {
+                    "title": "Without evidence",
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Only for a type with the meaning `requirement`: how many have no verification record in the view, 0 included.",
+                    "x-elements": "elements/withoutEvidence"
                   },
                   "withChildren": {
                     "title": "With children",
@@ -31681,26 +31726,10 @@
                   "elements": {
                     "title": "Elements per number",
                     "type": "object",
-                    "description": "The UUIDs behind every number, in selection order: pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`.",
+                    "description": "The UUIDs behind every number, in selection order: pass them as `selection.ids` to `element.list`. `withoutEvidence` and `withEvidence` only where the level has `withEvidence`.",
                     "properties": {
-                      "withChildren": {
-                        "title": "With children",
-                        "type": "array",
-                        "items": {
-                          "$ref": "../common.schema.json#/$defs/uuid"
-                        },
-                        "x-elements": true
-                      },
                       "withoutChildren": {
                         "title": "Without children",
-                        "type": "array",
-                        "items": {
-                          "$ref": "../common.schema.json#/$defs/uuid"
-                        },
-                        "x-elements": true
-                      },
-                      "withEvidence": {
-                        "title": "With evidence",
                         "type": "array",
                         "items": {
                           "$ref": "../common.schema.json#/$defs/uuid"
@@ -31714,12 +31743,28 @@
                           "$ref": "../common.schema.json#/$defs/uuid"
                         },
                         "x-elements": true
+                      },
+                      "withChildren": {
+                        "title": "With children",
+                        "type": "array",
+                        "items": {
+                          "$ref": "../common.schema.json#/$defs/uuid"
+                        },
+                        "x-elements": true
+                      },
+                      "withEvidence": {
+                        "title": "With evidence",
+                        "type": "array",
+                        "items": {
+                          "$ref": "../common.schema.json#/$defs/uuid"
+                        },
+                        "x-elements": true
                       }
                     },
                     "additionalProperties": false,
                     "required": [
-                      "withChildren",
-                      "withoutChildren"
+                      "withoutChildren",
+                      "withChildren"
                     ]
                   }
                 },
@@ -31727,6 +31772,7 @@
                 "required": [
                   "type",
                   "total",
+                  "withoutChildren",
                   "withChildren",
                   "elements"
                 ]
@@ -31767,8 +31813,32 @@
             "path": "levels[].total",
             "title": "Total",
             "elements": [
-              "levels[].elements.withChildren",
+              "levels[].elements.withoutChildren",
+              "levels[].elements.withChildren"
+            ],
+            "keys": [
+              [
+                "type"
+              ]
+            ]
+          },
+          {
+            "path": "levels[].withoutChildren",
+            "title": "Without children",
+            "elements": [
               "levels[].elements.withoutChildren"
+            ],
+            "keys": [
+              [
+                "type"
+              ]
+            ]
+          },
+          {
+            "path": "levels[].withoutEvidence",
+            "title": "Without evidence",
+            "elements": [
+              "levels[].elements.withoutEvidence"
             ],
             "keys": [
               [
@@ -31805,26 +31875,26 @@
             "title": "Elements per number"
           },
           {
-            "path": "levels[].elements.withChildren",
-            "title": "With children",
-            "technical": true,
-            "elements": true
-          },
-          {
             "path": "levels[].elements.withoutChildren",
             "title": "Without children",
             "technical": true,
             "elements": true
           },
           {
-            "path": "levels[].elements.withEvidence",
-            "title": "With evidence",
+            "path": "levels[].elements.withoutEvidence",
+            "title": "Without evidence",
             "technical": true,
             "elements": true
           },
           {
-            "path": "levels[].elements.withoutEvidence",
-            "title": "Without evidence",
+            "path": "levels[].elements.withChildren",
+            "title": "With children",
+            "technical": true,
+            "elements": true
+          },
+          {
+            "path": "levels[].elements.withEvidence",
+            "title": "With evidence",
             "technical": true,
             "elements": true
           },
@@ -35609,7 +35679,7 @@
       },
       {
         "name": "baseline.compare",
-        "title": "Compare baseline",
+        "title": "Show Git command to compare baseline",
         "summary": "The two commits and the Git command that show the difference of an element since a baseline. Runs nothing.",
         "effect": "read",
         "stage": 5,
@@ -35741,7 +35811,7 @@
         "name": "baseline.changes",
         "title": "Show changes since baseline",
         "summary": "What changed since a baseline, the newest one by default, and which hints are open, with the next steps: the numbers of baseline.get and the hints of hint.list in one output.",
-        "details": "Without a baseline it takes the one with the latest date and time, at the same time the last by file name, skipping a file that is no valid baseline (named under problems, as baseline.list names it). A given baseline is found as baseline.get finds it, and an unknown or ambiguous one is refused the same way. The next steps are Confirm hints when a hint can be confirmed, Compare baseline when an element is marked changed, and Prepare baseline; a step whose write command is refused while the workspace is read-only is left out. Only reads.",
+        "details": "Without a baseline it takes the one with the latest date and time, at the same time the last by file name, skipping a file that is no valid baseline (named under problems, as baseline.list names it). A given baseline is found as baseline.get finds it, and an unknown or ambiguous one is refused the same way. The next steps are Confirm hints when a hint can be confirmed, Show Git command to compare baseline when an element is marked changed, and Prepare baseline; a step whose write command is refused while the workspace is read-only is left out. Only reads.",
         "effect": "read",
         "stage": 5,
         "implements": [
@@ -35845,7 +35915,7 @@
             },
             "next": {
               "title": "Next steps",
-              "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+              "description": "Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/nextStep"

@@ -1,8 +1,6 @@
 ---
 title: Remove a draft
 description: Remove a draft that was never approved and is in no baseline, without leaving relations or references to it behind.
-sidebar:
-  order: 6
 ---
 
 ReqSeq never deletes an element: one that was approved or is in a baseline is superseded with **Supersede element** (`reqseq element supersede`), so its history stays. An element in status Draft that never had status Approved and is in no baseline you can remove yourself with Git, in three steps:
@@ -93,9 +91,11 @@ ok: true
 warning  trace.no-parent  SR-c67baa  ...
 ...
 info  evidence.open-requirements  ...
+next:
+  reqseq element list ...
 ```
 
-No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last info counts the requirements without a passed test ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
+No error is left. The hint says that the requirement now derives from nothing, so give it another parent or remove it the same way. The last info counts the requirements without a passed test, and the next step lists them ([Check a workspace in CI](/how-to/check-a-workspace-in-ci/)).
 
 ## API
 
