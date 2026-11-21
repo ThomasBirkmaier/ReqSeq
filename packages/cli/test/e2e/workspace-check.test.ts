@@ -656,9 +656,7 @@ describe("the gaps of verification in workspace check (SR-230)", () => {
       "info  evidence.open-requirements  2 requirement(s) with the verification method test have the verification status open in the core  reqseq-workspace.yaml\n",
     );
     // The step is the last part of the output, without --workspace: it runs in the folder checked.
-    const step = /\nnext:\n {2}reqseq (element list) --where '(.*)' {2}List all elements\n$/.exec(
-      check.stdout,
-    );
+    const step = /\nnext:\n {2}reqseq (element list) --where '(.*)' {2}List elements\n$/.exec(check.stdout);
     expect(step?.[1]).toBe("element list");
     const listed = await reqseq([...(step?.[1] ?? "").split(" "), "--where", step?.[2] ?? ""], ws.root);
     expect(listed).toEqual({

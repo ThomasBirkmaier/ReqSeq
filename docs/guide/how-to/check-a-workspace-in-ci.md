@@ -132,7 +132,7 @@ ok: true
 ...
 info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core  reqseq-workspace.yaml
 next:
-  reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}'  List all elements
+  reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}'  List elements
 ```
 
 ```sh
