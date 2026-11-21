@@ -14,12 +14,13 @@ import { readFile, rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandContext, CommandOutput } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord } from "../../evidence/index.js";
 import { evidenceReadState, evidenceRecordsState } from "../../evidence/index.js";
-import { invoke } from "../../runtime/invoke.js";
+import { getCommandRuntime, invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import type { FullList } from "../list.test-helper.js";
+import command from "./coverage.js";
 
 type Output = CommandOutput<"evidence.coverage">;
 type Level = Output["levels"][number];
@@ -107,6 +108,7 @@ const levels = async (
 const NEEDS = {
   type: "need",
   total: 2,
+  withoutChildren: 1,
   withChildren: 1,
   elements: { withChildren: ["N1"], withoutChildren: ["N2"] },
 };
@@ -129,6 +131,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 2,
+        withoutChildren: 1,
+        withoutEvidence: 1,
         withChildren: 1,
         withEvidence: 1,
         elements: {
@@ -148,6 +152,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 2,
+        withoutChildren: 1,
+        withoutEvidence: 1,
         withChildren: 1,
         withEvidence: 1,
         elements: {
@@ -167,6 +173,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 2,
+        withoutChildren: 1,
+        withoutEvidence: 1,
         withChildren: 1,
         withEvidence: 1,
         elements: {
@@ -179,6 +187,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "software-requirement",
         total: 3,
+        withoutChildren: 3,
+        withoutEvidence: 2,
         withChildren: 0,
         withEvidence: 1,
         elements: {
@@ -240,6 +250,95 @@ describe("evidence.coverage (SR-036)", () => {
     expect(list.elements.map((e) => e.shortId)).toEqual(["SR-0000b2"]);
   });
 
+  it("[SR-036/AK-zhys] names per level the numbers without children and without evidence, 0 included, before those with, in the order of the catalog", async () => {
+    const workspace = await open(await fixture());
+    const numbers = (level: Level): unknown[] => [
+      level.type,
+      level.withoutChildren,
+      level.withoutEvidence,
+      level.withChildren,
+      level.withEvidence,
+    ];
+    expect((await coverage(workspace)).levels.map(numbers)).toEqual([
+      ["need", 1, undefined, 1, undefined],
+      ["system-requirement", 1, 1, 1, 1],
+      ["software-requirement", 3, 2, 0, 1],
+    ]);
+    // N1 and S1 have children, S1 a record: the numbers without are there, as 0.
+    const covered = await coverage(workspace, { selection: { ids: [ID.S1, ID.N1] } });
+    expect(covered.levels.map(numbers)).toEqual([
+      ["need", 0, undefined, 1, undefined],
+      ["system-requirement", 0, 0, 1, 1],
+    ]);
+    expect(
+      covered.levels.map((level) => [
+        Object.hasOwn(level, "withoutChildren"),
+        Object.hasOwn(level, "withoutEvidence"),
+      ]),
+    ).toEqual([
+      [true, false],
+      [true, true],
+    ]);
+    // The order of a level and of its element lists is the order of the catalog's output fields.
+    const paths = (getCommandRuntime().contracts.entry("evidence.coverage")?.outputFields ?? []).map(
+      (field) => field.path,
+    );
+    const under = (prefix: string): string[] =>
+      paths.flatMap((path) => {
+        const rest = path.startsWith(prefix) ? path.slice(prefix.length) : undefined;
+        return rest === undefined || rest.includes(".") ? [] : [rest];
+      });
+    expect(under("levels[].")).toEqual([
+      "type",
+      "total",
+      "withoutChildren",
+      "withoutEvidence",
+      "withChildren",
+      "withEvidence",
+      "elements",
+    ]);
+    expect(under("levels[].elements.")).toEqual([
+      "withoutChildren",
+      "withoutEvidence",
+      "withChildren",
+      "withEvidence",
+    ]);
+    const [need, requirements] = (await coverage(workspace)).levels;
+    expect(Object.keys(requirements ?? {})).toEqual(under("levels[]."));
+    expect(Object.keys(requirements?.elements ?? {})).toEqual(under("levels[].elements."));
+    expect(Object.keys(need ?? {})).toEqual(under("levels[].").filter((key) => !key.endsWith("Evidence")));
+    expect(Object.keys(need?.elements ?? {})).toEqual(["withoutChildren", "withChildren"]);
+  });
+
+  it("[SR-036/AK-zhys] [SR-036/AK-xbxh] each number without selects exactly its elements in element.list", async () => {
+    const workspace = await open(await fixture());
+    const counted = async (field: string): Promise<(string | undefined)[]> => {
+      const selection = {
+        output: {
+          command: "evidence.coverage",
+          input: {},
+          count: { field, key: [{ type: "software-requirement" }] },
+        },
+      };
+      const list = (await invoke("element.list", { selection }, { workspace })) as FullList;
+      return names(list.elements.map((e) => e.id)) ?? [];
+    };
+    expect(await counted("levels[].withoutChildren")).toEqual(["F1", "F2", "F3"]);
+    expect(await counted("levels[].withoutEvidence")).toEqual(["F1", "F3"]);
+    expect(await counted("levels[].total")).toEqual(["F1", "F2", "F3"]);
+    // A field without its own case lists nothing rather than the total (`invoke` refuses it before).
+    const none = await command.countedElements?.(
+      // Only the workspace is read; the rest of the context is for `invoke`.
+      { workspace } as CommandContext,
+      {},
+      {
+        field: "levels[].nothing",
+        key: [{ type: "software-requirement" }],
+      },
+    );
+    expect(none?.elements).toEqual([]);
+  });
+
   it("[SR-036/AK-vt44] marks the coverage incomplete when a repository of the workspace is not available", async () => {
     const workspace = await open(await fixture({ "system/reqseq-workspace.yaml": workspaceFile() }));
     const out = await coverage(workspace);
@@ -263,6 +362,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 1,
+        withoutChildren: 1,
+        withoutEvidence: 1,
         withChildren: 0,
         withEvidence: 0,
         elements: { withChildren: [], withoutChildren: ["S4"], withEvidence: [], withoutEvidence: ["S4"] },
@@ -300,6 +401,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 1,
+        withoutChildren: 0,
+        withoutEvidence: 0,
         withChildren: 1,
         withEvidence: 1,
         elements: { withChildren: ["S1"], withoutChildren: [], withEvidence: ["S1"], withoutEvidence: [] },
@@ -323,6 +426,7 @@ describe("evidence.coverage (SR-036)", () => {
     const draft = await open(ws);
     expect((await levels(draft))[0]).toEqual({
       ...NEEDS,
+      withoutChildren: 0,
       withChildren: 2,
       elements: { withChildren: ["N1", "N2"], withoutChildren: [] },
     });
@@ -336,6 +440,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 2,
+        withoutChildren: 1,
+        withoutEvidence: 1,
         withChildren: 1,
         withEvidence: 1,
         elements: {
@@ -357,6 +463,8 @@ describe("evidence.coverage (SR-036)", () => {
     expect((await levels(workspace, { selection: { view: "core", filter: "Requirements" } }))[0]).toEqual({
       type: "system-requirement",
       total: 2,
+      withoutChildren: 1,
+      withoutEvidence: 1,
       withChildren: 1,
       withEvidence: 1,
       elements: {
@@ -372,6 +480,8 @@ describe("evidence.coverage (SR-036)", () => {
     ).toEqual({
       type: "system-requirement",
       total: 3,
+      withoutChildren: 0,
+      withoutEvidence: 2,
       withChildren: 3,
       withEvidence: 1,
       elements: {
@@ -401,6 +511,8 @@ describe("evidence.coverage (SR-036)", () => {
       {
         type: "system-requirement",
         total: 1,
+        withoutChildren: 0,
+        withoutEvidence: 1,
         withChildren: 1,
         withEvidence: 0,
         elements: { withChildren: ["S4"], withoutChildren: [], withEvidence: [], withoutEvidence: ["S4"] },

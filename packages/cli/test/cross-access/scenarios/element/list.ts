@@ -153,6 +153,28 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-036/AK-zhys]",
+    name: "a selection by a number of the coverage: the requirements without evidence",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      selection: {
+        output: {
+          command: "evidence.coverage",
+          input: {},
+          count: { field: "levels[].withoutEvidence", key: [{ type: "system-requirement" }] },
+        },
+      },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[] } }
+      ).output;
+      expect(elements.map((e) => e.shortId)).toEqual(["SR-0000e1"]);
+    },
+  },
+  {
     tag: "[SR-224/AK-v2bx]",
     name: "a selection by the output of a command: every element it affects, not only the page its input names",
     fixture: EXPORT,

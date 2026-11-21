@@ -5,7 +5,8 @@
 // file is not on this machine, so children, elements or evidence locations there are not seen, or a
 // condition of the selection met such a target. `names` names every element the levels list (ThomasBirkmaier/ReqSeq-archive#588),
 // from the selection's records (nothing more is read). Nothing is written. `countedElements` gives the
-// records behind `levels[].total`, `withChildren` and `withEvidence` (SR-224 AK4) from the same level
+// records behind `levels[].total`, `withoutChildren`, `withoutEvidence`, `withChildren` and `withEvidence`
+// (SR-224 AK4, SR-036 AK6) from the same level
 // computation (`coverageRecordsOf`), so a number and its list agree also for SR-088 duplicates.
 import type { CommandContext, CommandInput, CommandOutput, OutputCount } from "../../catalog.js";
 import { defineCommand, matchesKey } from "../../catalog.js";
@@ -46,12 +47,20 @@ const coverageInput = async (ctx: CommandContext, input: CommandInput<"evidence.
 /** The records a number of a level counts, by its field (`levels[].total` and the like). */
 const levelRecords = (level: CoverageRecordLevel, field: string) => {
   switch (field) {
+    case "levels[].withoutChildren":
+      return level.withoutChildren;
+    case "levels[].withoutEvidence":
+      return level.withoutEvidence;
     case "levels[].withChildren":
       return level.withChildren;
     case "levels[].withEvidence":
       return level.withEvidence;
-    default:
+    case "levels[].total":
       return [...level.withChildren, ...level.withoutChildren];
+    default:
+      // `invoke` checks the field against the catalog; a number of the schema without its case lists nothing,
+      // which the count test of `element.list` (list-count.test.ts) shows.
+      return [];
   }
 };
 

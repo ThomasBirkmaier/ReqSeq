@@ -4982,7 +4982,7 @@ export interface EvidenceStatusOutput {
 }
 
 /**
- * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
+ * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json input`.
  */
 export interface EvidenceCoverageInput {
@@ -4991,26 +4991,30 @@ export interface EvidenceCoverageInput {
 }
 
 /**
- * Output of `evidence.coverage`. Coverage of a selection per level: how many have children, how many have evidence; with the element lists.
+ * Output of `evidence.coverage`. Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {
   readonly answer: Answer;
-  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
+  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. Per level the numbers without children and without evidence come before those with (SR-036 AK6), in this order of the properties. */
   readonly levels: readonly {
     readonly type: Key;
     /** The counted elements of the type. */
     readonly total: number;
+    /** How many have no derivation child that counts, 0 included (SR-036 AK6). */
+    readonly withoutChildren: number;
+    /** Only for a type with the meaning `requirement`: how many have no verification record in the view, 0 included (SR-036 AK6). */
+    readonly withoutEvidence?: number;
     /** How many have a derivation child that counts: one whose status is not marked invalid and, with a view, that applies in it; in any repository. */
     readonly withChildren: number;
     /** Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question ThomasBirkmaier/ReqSeq-archive#527). */
     readonly withEvidence?: number;
-    /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`. */
+    /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withoutEvidence` and `withEvidence` only where the level has `withEvidence`. */
     readonly elements: {
-      readonly withChildren: readonly Uuid[];
       readonly withoutChildren: readonly Uuid[];
-      readonly withEvidence?: readonly Uuid[];
       readonly withoutEvidence?: readonly Uuid[];
+      readonly withChildren: readonly Uuid[];
+      readonly withEvidence?: readonly Uuid[];
     };
   }[];
   readonly incomplete?: Incomplete;

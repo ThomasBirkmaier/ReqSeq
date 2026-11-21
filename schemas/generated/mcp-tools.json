@@ -13384,7 +13384,7 @@
     {
       "name": "evidence_coverage",
       "title": "Show evidence coverage",
-      "description": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
+      "description": "Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -13412,7 +13412,7 @@
             ],
             "title": "Levels",
             "type": "array",
-            "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order. Elements whose status the metamodel marks invalid are not counted; other types have no level.",
+            "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order. Elements whose status the metamodel marks invalid are not counted; other types have no level. Per level the numbers without children and without evidence come before those with, in this order of the properties.",
             "items": {
               "type": "object",
               "properties": {
@@ -13429,6 +13429,20 @@
                     "elements/withChildren",
                     "elements/withoutChildren"
                   ]
+                },
+                "withoutChildren": {
+                  "title": "Without children",
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "How many have no derivation child that counts, 0 included.",
+                  "x-elements": "elements/withoutChildren"
+                },
+                "withoutEvidence": {
+                  "title": "Without evidence",
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Only for a type with the meaning `requirement`: how many have no verification record in the view, 0 included.",
+                  "x-elements": "elements/withoutEvidence"
                 },
                 "withChildren": {
                   "title": "With children",
@@ -13447,26 +13461,10 @@
                 "elements": {
                   "title": "Elements per number",
                   "type": "object",
-                  "description": "The UUIDs behind every number, in selection order: pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`.",
+                  "description": "The UUIDs behind every number, in selection order: pass them as `selection.ids` to `element.list`. `withoutEvidence` and `withEvidence` only where the level has `withEvidence`.",
                   "properties": {
-                    "withChildren": {
-                      "title": "With children",
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/$defs/common/$defs/uuid"
-                      },
-                      "x-elements": true
-                    },
                     "withoutChildren": {
                       "title": "Without children",
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/$defs/common/$defs/uuid"
-                      },
-                      "x-elements": true
-                    },
-                    "withEvidence": {
-                      "title": "With evidence",
                       "type": "array",
                       "items": {
                         "$ref": "#/$defs/common/$defs/uuid"
@@ -13480,12 +13478,28 @@
                         "$ref": "#/$defs/common/$defs/uuid"
                       },
                       "x-elements": true
+                    },
+                    "withChildren": {
+                      "title": "With children",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/common/$defs/uuid"
+                      },
+                      "x-elements": true
+                    },
+                    "withEvidence": {
+                      "title": "With evidence",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/common/$defs/uuid"
+                      },
+                      "x-elements": true
                     }
                   },
                   "additionalProperties": false,
                   "required": [
-                    "withChildren",
-                    "withoutChildren"
+                    "withoutChildren",
+                    "withChildren"
                   ]
                 }
               },
@@ -13493,6 +13507,7 @@
               "required": [
                 "type",
                 "total",
+                "withoutChildren",
                 "withChildren",
                 "elements"
               ]
