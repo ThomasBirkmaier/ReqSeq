@@ -37,7 +37,9 @@
 .element .variant-line[aria-expanded] {
   cursor: pointer;
 }
-.element .variant-line[aria-expanded]:focus-visible {
+/* A line of badges keeps its background, which would hide a status half on the selection tone; a ring
+   marks it instead (#2175). */
+.element .variant-line[aria-expanded]:not(:has(> [data-status])):focus-visible {
   outline: none;
   background: var(--select);
 }
@@ -47,8 +49,9 @@
   white-space: pre-wrap;
 }
 
-/* The verification status as badges (SR-157): one pill per view with round ends, the name on the left in
-   greys (the muted tone under the sheet's colour), the status on the right on the selection tone, coloured
+/* The verification status as badges (SR-157), and the validation status as one of the same form (#2175):
+   one pill per view with round ends, the name on the left in greys (the muted tone under the sheet's
+   colour), the status on the right on the selection tone, coloured
    only when failed or outdated (AK3, D-062). Each half reads at 4.5:1 in both schemes (AK4, styles.test.ts).
    The name keeps its width and the status wraps inside its half when the line is too narrow (#1283); only a
    name longer than half the pill ends in "…" (its ID and title are the link's title). The ends stay round:
@@ -57,6 +60,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
+}
+/* The validation badge's whole reason (#2175, #846) takes a row of its own under the pill, the row gap
+   its only distance. */
+.element .variant-line.badges .whole-reason {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+.element .variant-line[aria-expanded]:has(> [data-status]):focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
 }
 /* The first line under the property table keeps apart from its last box (#1273): the badges, or the
    line "Replaced or excluded" above them. */

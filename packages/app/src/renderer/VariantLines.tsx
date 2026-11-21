@@ -1,8 +1,9 @@
 // The muted lines under the boxes of a requirement (D-062: only when they say something): where it is
 // replaced or excluded (SR-046 AK2), its verification status per view as a row of badges, each the name on
 // the left and the status with its details on the right, such as the missing children of an indirect
-// verification (SR-047 AK3, SR-157, SR-034 AK2), and its validation status (SR-038 AK1); on the page of a
-// variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
+// verification (SR-047 AK3, SR-157, SR-034 AK2), and its validation status as a badge of the same form
+// (SR-038 AK1, #2175); on the page of a variant, its hints since its newest baseline (SR-103 AK1, AK7), one
+// line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
 import { useId, useMemo, useState } from "react";
@@ -57,23 +58,17 @@ export const Part = ({
 };
 
 /**
- * A muted line of `parts`. With `whole` (the whole reason the line cuts, #862) it is shown on demand
- * (D-062): on hover as its title, and by a click, Enter, Space or Tab (SR-193), which open and close the whole reason
- * under the line; a link in the line opens its element as before.
+ * The props that let a line show the `whole` reason it cuts (#862) on demand (D-062): on hover as its title,
+ * and by a click, Enter, Space or Tab (SR-193), which open and close the whole reason under the line; a link
+ * in the line opens its element as before. None without `whole`. `open` and `id` place the reason.
  */
-export const CutLine = ({
-  parts,
-  label,
-  whole,
-  className = "variant-line",
-  onOpen,
-}: {
-  readonly parts: readonly LinePart[];
-  readonly label: string;
-  readonly whole?: string | undefined;
-  readonly className?: string;
-  readonly onOpen: (target: ElementBuffer) => void;
-}): React.JSX.Element => {
+const useWholeReason = (
+  whole: string | undefined,
+): {
+  readonly open: boolean;
+  readonly id: string;
+  readonly toggle: React.HTMLAttributes<HTMLElement>;
+} => {
   const [open, setOpen] = useState(false);
   const id = useId();
   const toggle =
@@ -108,16 +103,46 @@ export const CutLine = ({
             }
           },
         };
+  return { open, id, toggle };
+};
+
+/** The whole reason under its line while it is open (`useWholeReason`). */
+const WholeReason = ({
+  open,
+  id,
+  whole,
+}: {
+  readonly open: boolean;
+  readonly id: string;
+  readonly whole: string | undefined;
+}): React.JSX.Element | null =>
+  open && whole !== undefined ? (
+    <span id={id} className="whole-reason">
+      {whole}
+    </span>
+  ) : null;
+
+/** A muted line of `parts`; with `whole`, it shows that whole reason on demand (`useWholeReason`). */
+export const CutLine = ({
+  parts,
+  label,
+  whole,
+  className = "variant-line",
+  onOpen,
+}: {
+  readonly parts: readonly LinePart[];
+  readonly label: string;
+  readonly whole?: string | undefined;
+  readonly className?: string;
+  readonly onOpen: (target: ElementBuffer) => void;
+}): React.JSX.Element => {
+  const { open, id, toggle } = useWholeReason(whole);
   return (
     <p className={className} role="group" aria-label={label} {...toggle}>
       {parts.map((part, at) => (
         <Part key={at} part={part} onOpen={onOpen} />
       ))}
-      {open && whole !== undefined ? (
-        <span id={id} className="whole-reason">
-          {whole}
-        </span>
-      ) : null}
+      <WholeReason open={open} id={id} whole={whole} />
     </p>
   );
 };
@@ -126,29 +151,38 @@ export const CutLine = ({
  * The verification status as badges (SR-157 AK1): a pill per view, its left half the name (a variant's a
  * link to it, AK5), its right half the status with its details; `data-status` gives the right half its
  * colour, which only failed and outdated have (AK3). A hidden ": " between the halves lets a screen reader say
- * "Core: verified".
+ * "Core: verified". The validation status is one badge of the same form under `label` "Validation" (#2175),
+ * whose cut reason shows whole on demand (`whole`, #846).
  */
 export const Badges = ({
   badges,
+  label = "Verification",
+  whole,
   onOpen,
 }: {
   readonly badges: readonly Badge[];
+  readonly label?: string;
+  readonly whole?: string | undefined;
   readonly onOpen: (target: ElementBuffer) => void;
-}): React.JSX.Element => (
-  <p className="variant-line badges" role="group" aria-label="Verification">
-    {badges.map((badge, at) => (
-      <span key={at} className="badge" data-status={badge.status}>
-        <Part part={badge.name} className="badge-name" onOpen={onOpen} />
-        <span className="badge-separator">: </span>
-        <span className="badge-status">
-          {badge.parts.map((part, index) => (
-            <Part key={index} part={part} onOpen={onOpen} />
-          ))}
+}): React.JSX.Element => {
+  const { open, id, toggle } = useWholeReason(whole);
+  return (
+    <p className="variant-line badges" role="group" aria-label={label} {...toggle}>
+      {badges.map((badge, at) => (
+        <span key={at} className="badge" data-status={badge.status}>
+          <Part part={badge.name} className="badge-name" onOpen={onOpen} />
+          <span className="badge-separator">: </span>
+          <span className="badge-status">
+            {badge.parts.map((part, index) => (
+              <Part key={index} part={part} onOpen={onOpen} />
+            ))}
+          </span>
         </span>
-      </span>
-    ))}
-  </p>
-);
+      ))}
+      <WholeReason open={open} id={id} whole={whole} />
+    </p>
+  );
+};
 
 export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): React.JSX.Element => {
   const lines = useMemo(() => variantLines(output), [output]);
@@ -161,8 +195,8 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
         <Badges badges={lines.verification} onOpen={onOpenRelation} />
       )}
       {lines.validation === undefined ? null : (
-        <CutLine
-          parts={lines.validation}
+        <Badges
+          badges={[lines.validation]}
           label="Validation"
           whole={lines.validationTitle}
           onOpen={onOpenRelation}
