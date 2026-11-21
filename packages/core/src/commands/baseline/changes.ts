@@ -9,7 +9,7 @@
 //   no selection (AK6); its problems and those of baseline.list (faulty files, AK7) are `problems`.
 // - The hints are hint.list without a filter (AK2), the page of `limit` from `offset`.
 // - The next steps (AK3, AK4): Confirm hints with the hints open, when a confirmable kind (D-042) has a
-//   hint over all pages; Show Git command to compare baseline with the baseline and the element open, when an element is
+//   hint over all pages; Compare baseline with the baseline and the element open, when an element is
 //   marked changed; Prepare baseline. `invoke` leaves out a step whose write command it refuses while the
 //   workspace is read-only (SR-226 AK6).
 // - `countedElements` gives the elements of `baseline.counts.*` by baseline.get's (SR-224 AK4).

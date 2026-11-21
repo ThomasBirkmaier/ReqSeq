@@ -13,7 +13,11 @@ import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
 import * as files from "../../files/index.js";
+import { differencesOf } from "../../html-export/export.js";
 import { listScript } from "../../html-export/list-script.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState } from "../../model/index.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -235,6 +239,34 @@ describe("html.export: change since a baseline on the element page", () => {
     expect(pages.join(" ")).toMatch(
       /The difference is not available: the file \S+ changed since it was read\./u,
     );
+  });
+});
+
+describe("html.export: the difference since a baseline is what baseline.compare gives (D-080, ADR-0019)", () => {
+  it("gives each differing element of „Release 2“ the difference of baseline.compare", async () => {
+    const { ws } = await made();
+    const baseline = await call(ws, "baseline.get", { baseline: "Release 2", limit: 1000 });
+    const workspace = new Workspace(ws.path("system"));
+    onTestFinished(() => workspace.close());
+    const differences = await differencesOf(
+      await workspace.get(workspaceLayoutState),
+      await workspace.get(metamodelState),
+      await workspace.get(elementStoreState),
+      [baseline],
+    );
+    // N-0000a1 and SR-0000b1 (moved) changed; SR-0000b5, which no file held at the commit, has none.
+    const byId = new Map([...differences].map(([row, difference]) => [row.id.slice(-2), difference]));
+    expect([...byId.keys()].sort()).toEqual(["a1", "b1", "b5"]);
+    for (const id of ["a1", "b1"]) {
+      const compared = await call(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}${id}` });
+      expect(byId.get(id)).toEqual(compared.difference);
+    }
+    expect(byId.get("b5")).toHaveProperty("unavailable");
+    await expect(
+      call(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}b5` }),
+    ).rejects.toMatchObject({
+      code: "ref.unknown",
+    });
   });
 });
 

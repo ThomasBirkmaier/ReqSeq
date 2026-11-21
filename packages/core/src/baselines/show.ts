@@ -23,7 +23,7 @@
 //   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. With `withEvidence`
 //   the same walk also gives the values of an entry's version at its start, for its acceptance
 //   criteria (SR-031, `versionDatesAndValues`, page only); otherwise the content of an old version
-//   is not read: Git shows it (D-033, `baseline.compare`).
+//   is not read here; `baseline.compare` gives its difference (D-033).
 // - With `withEvidence` the command passes how to compute the evidence of an entry (SR-094,
 //   `commands/baseline/get.ts`: the evidence block lies above this one): its verification rows per
 //   view and its validation status (with the reason of an inconclusive one, SR-172), asked for the page only. `names` names the variants of the rows.

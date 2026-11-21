@@ -135,7 +135,7 @@ describe("baseline.changes", () => {
     expect([out.hints, out.hintKinds, out.hintTotal]).toEqual([[], [], 0]);
   });
 
-  it("[SR-241/AK-z038] names Confirm hints, Show Git command to compare baseline with the baseline and Prepare baseline as next steps", async () => {
+  it("[SR-241/AK-z038] names Confirm hints, Compare baseline with the baseline and Prepare baseline as next steps", async () => {
     const ws = await fixture();
     const out = await call(ws, "baseline.changes", {});
     expect(out.baseline?.counts.changed).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ describe("baseline.changes", () => {
     ]);
   });
 
-  it("[SR-241/AK-z038] leaves out Confirm hints without a confirmable hint and Show Git command to compare baseline without a changed element", async () => {
+  it("[SR-241/AK-z038] leaves out Confirm hints without a confirmable hint and Compare baseline without a changed element", async () => {
     const ws = await fixture({ fixture: "SR-043/example", git: true });
     await call(ws, "baseline.create", { name: "Now", selection: {} }, ".");
     const out = await call(ws, "baseline.changes", {}, ".");
