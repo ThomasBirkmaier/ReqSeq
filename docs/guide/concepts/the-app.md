@@ -23,7 +23,7 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ## Messages and the modeline
 
-The command prompt also shows the last message, and a command needing input asks there, argument by argument, with the candidates above it. Enter answers; Ctrl+Enter offers optional arguments or confirms.
+The command prompt also shows the last message, and a command needing input asks there, argument by argument, candidates above. Enter answers; Ctrl+Enter offers optional arguments or confirms.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
@@ -31,7 +31,7 @@ Above it, the modeline describes the buffer (a list by filter, sort and count, a
 
 Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
 
-A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
+A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last, or without elements **Create element**, **Import ReqIF file** and **Connect AI agent**; Enter or a click opens a line. Your buffers come back behind it.
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
@@ -43,7 +43,7 @@ A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph no
 
 ## Help
 
-**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens the documentation of this ReqSeq version in your browser, offline.
+**Help > ReqSeq Documentation**, or **Open documentation**, opens this version's documentation in your browser, offline.
 
 ## Light and dark
 
