@@ -3,6 +3,7 @@
 // that are no text, a relation of a kind the metamodel does not know, and a short page without identifier, title or
 // successor. The pages as a whole are tested in commands/html/export-element.test.ts.
 import { describe, expect, it } from "vitest";
+import { elementPageDisplay } from "../displays/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
@@ -178,26 +179,31 @@ describe("element page sections (SR-232 AK1, AK2)", () => {
       more: Partial<DataExportRelation> = {},
     ): DataExportRelation =>
       relation({ kind, shortId: "SR-000001", title, targetState: "available", ...more });
+    const shown = context({
+      relations: [
+        { key: "based-on", name: "Based on" },
+        { key: "derives-from", name: "Derives from" },
+      ] as unknown as Metamodel["relations"],
+    });
     const html = relationsSection(
-      context({
-        relations: [
-          { key: "based-on", name: "Based on" },
-          { key: "derives-from", name: "Derives from" },
-        ] as unknown as Metamodel["relations"],
-      }),
-      page({
-        element: element({
-          relations: [
-            target("mentions", "One"),
-            target("derives-from", "Two"),
-            target("cites", "Three"),
-            target("based-on", "Four"),
-            target("mentions", "Five"),
-            target("cites", "Incoming", { direction: "in" }),
-            target("owner", "Property", { property: true }),
-          ],
-        }),
-      }),
+      shown,
+      elementPageDisplay(
+        {
+          element: element({
+            relations: [
+              target("mentions", "One"),
+              target("derives-from", "Two"),
+              target("cites", "Three"),
+              target("based-on", "Four"),
+              target("mentions", "Five"),
+              target("cites", "Incoming", { direction: "in" }),
+              target("owner", "Property", { property: true }),
+            ],
+          }),
+          metamodel: { relations: shown.metamodel.relations, properties: [], statuses: [] },
+        },
+        { relations: "outgoing" },
+      ),
     );
     const item = (title: string): string =>
       `<li><a href="../elements/${ID}.html">SR-000001 ${title}</a></li>`;

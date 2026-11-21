@@ -28,7 +28,7 @@ Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS)
 
 A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the verification status too. **Show verification status** shows it per view under each requirement's row, **Show coverage** counts per level.
 
-![A requirement whose test failed: its badge "Core: failed (0 of 1 criteria, AK1 not verified)" and below it its failed evidence record.](../images/app-verification-badges.png)
+![A requirement whose test failed: its badge "Core: failed, 0 of 1 criteria, AK1 not verified" and below it its failed evidence record.](../images/app-verification-badges.png)
 
 ## CLI
 
