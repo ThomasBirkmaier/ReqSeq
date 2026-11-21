@@ -1,7 +1,7 @@
 {
   "name": "workspace.check",
   "title": "Check workspace",
-  "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or from the severity you choose.",
+  "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.",
   "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning, SR-022 AK6): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
   "effect": "read",
   "loadUpfront": true,
@@ -55,7 +55,7 @@
       "failOn": {
         "enum": ["error", "warning", "info"],
         "default": "error",
-        "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not, default `error`; independent of severity. With the default, warnings and info never fail the check."
+        "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check."
       }
     },
     "additionalProperties": false

@@ -937,7 +937,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or from the severity you choose.",
+        "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.",
         "tags": [
           "workspace"
         ],
@@ -998,7 +998,7 @@
                       "info"
                     ],
                     "default": "error",
-                    "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not, default `error`; independent of severity. With the default, warnings and info never fail the check."
+                    "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check."
                   }
                 },
                 "additionalProperties": false
@@ -2600,7 +2600,7 @@
     "/v1/commands/tool.guide": {
       "post": {
         "operationId": "tool_guide",
-        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. It also gives the skill file or the MCP server instructions.",
+        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.",
         "tags": [
           "tool"
         ],
@@ -13218,7 +13218,7 @@
     "/v1/commands/hint.confirm": {
       "post": {
         "operationId": "hint_confirm",
-        "summary": "Confirm hints after a person reviewed them: by hint ID, all hints of one element, or all hints of some kinds. It writes the current version of the target into the relation, the inline reference or the replaced item.",
+        "summary": "Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.",
         "tags": [
           "hint"
         ],
@@ -16419,7 +16419,7 @@
                 "properties": {
                   "file": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "The JUnit XML file to enrich: each test case that names an element gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
+                    "description": "The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
                   },
                   "item": {
                     "$ref": "#/components/schemas/common/$defs/item",
@@ -16496,7 +16496,7 @@
                     "unknown": {
                       "title": "Unknown references",
                       "type": "array",
-                      "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged, and an error problem makes the call fail (CLI exit code 1).",
+                      "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1).",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -20494,7 +20494,7 @@
     "/v1/commands/reqif.export": {
       "post": {
         "operationId": "reqif_export",
-        "summary": "Export a selection as ReqIF 1.2, or the elements of a mapping's source with your statements or as its source model.",
+        "summary": "Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.",
         "tags": [
           "reqif"
         ],
