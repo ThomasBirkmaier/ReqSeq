@@ -2,7 +2,7 @@
 
 Requirements engineering for agents and people: describe a need in plain words, and your agent breaks it down into system requirements, acceptance criteria and tests, which ReqSeq traces through to the evidence record of each test run.
 
-For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your metamodel still misses, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
+For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your elements still lack under your metamodel, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
 
 The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
@@ -16,7 +16,7 @@ The app, CLI, API and MCP run the same commands with the same result, so you can
   <img src="docs/guide/images/chain-light.svg" alt="The chain ReqSeq keeps: your need goes to your agent, which writes a need and a system requirement into ReqSeq through the CLI or MCP, and code and tests into your repository. The test results come to ReqSeq as JUnit XML, and ReqSeq records them as evidence against the version of the system requirement. Each element carries a version, and each relation keeps the version of its target.">
 </picture>
 
-Each command names what the metamodel still misses, such as `trace.no-parent` or `element.missing-required`, and `reqseq workspace check --fail-on warning` turns that into a failed pipeline. The metamodel is yours: a new workspace starts with a standard model you can extend. ReqSeq keeps its own more than 200 system requirements this way, in [`spec/`](spec/README.md).
+Each command names what the elements still lack under the metamodel, such as `trace.no-parent` or `element.missing-required`, and `reqseq workspace check --fail-on warning` turns that into a failed pipeline. The metamodel is yours: a new workspace starts with a standard model you can extend. ReqSeq keeps its own more than 200 system requirements this way, in [`spec/`](spec/README.md).
 
 ## How you connect
 

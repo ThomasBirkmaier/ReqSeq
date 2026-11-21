@@ -42,7 +42,7 @@ based-on:
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
   - { id: 6adc6922-7314-49bd-bfed-ff5f8a7211b4, version: n2:d496a4c7295aafde, title: Feste Schlüssel im Metamodell }
   - { id: 6adc6923-8957-4ae9-8e6c-dc5cd1d097c8, version: n2:04e934b66316908b, title: Ablösen statt löschen }
-  - { id: 7a120e78-ad90-4f95-b966-6017460b8538, version: n2:0a97d893f4ac8dde, title: "Ein Befehl je Tätigkeit, Werte als Schritte" }
+  - { id: 7a120e78-ad90-4f95-b966-6017460b8538, version: n2:4713bc40e4274c0a, title: "Ein Befehl je Tätigkeit, Werte als Schritte" }
 ---
 
 Das Tool muss das [Metamodell](reqseq:6ad4f970-8cdb-4504-a076-156f65bcba67?version=n2:0824c5d4ad47f4a6) über Befehle ändern lassen, die nur seine Dateien schreiben, kein fehlerhaftes Metamodell hinterlassen und über App, Kommandozeile, API und MCP-Server dieselbe [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:164509d02ae16783) liefern.

@@ -251,10 +251,19 @@ test.describe("the physical Ctrl key under macOS", () => {
     await expect(content).toBeFocused();
     await window.keyboard.press("Control+P");
     await window.keyboard.type("X");
-    // The X went in above the last line, which is as it was.
-    await expect.poll(() => content.innerText()).toContain("X");
-    const lines = (await content.innerText()).split("\n").filter((line) => line.trim() !== "");
-    expect(lines.at(-1)?.trim()).toBe("Siehe das Beispiel.");
+    // The X went in above the last line, which is as it was. The link on the last line shows its source while the caret was
+    // there, so the text is polled until its decoration settled (#2165).
+    const lastLine = async (): Promise<string | undefined> => {
+      const text = await content.innerText();
+      return text.includes("X")
+        ? text
+            .split("\n")
+            .filter((line) => line.trim() !== "")
+            .at(-1)
+            ?.trim()
+        : undefined;
+    };
+    await expect.poll(lastLine).toBe("Siehe das Beispiel.");
     await expect(promptLabel(window)).toHaveCount(0);
     // On the first line Ctrl+P goes up into the title, as Up does (ThomasBirkmaier/ReqSeq-archive#621), and in the title, where nothing
     // is above, it is still no "Go to"; Ctrl+N comes back into the text.

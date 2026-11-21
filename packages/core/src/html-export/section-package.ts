@@ -25,6 +25,6 @@ export const packageSection = (context: ElementPageContext, page: ElementPage): 
   const table =
     members.length === 0
       ? "<p>No element names this package.</p>"
-      : `<table><thead><tr><th scope="col">Identifier</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Verification status in the core</th></tr></thead><tbody>${members.map(row).join("")}</tbody></table>`;
+      : `<table tabindex="0"><thead><tr><th scope="col">Identifier</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Verification status in the core</th></tr></thead><tbody>${members.map(row).join("")}</tbody></table>`;
   return `<section class="rq-package"><h2 id="elements">Elements</h2>${table}</section>`;
 };

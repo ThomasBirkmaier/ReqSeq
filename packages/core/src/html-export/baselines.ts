@@ -87,7 +87,7 @@ export const dayOf = (date: string): string => date.slice(0, 10);
 
 /** The content of the page of all baselines (AK2). */
 export const baselinesPageBody = (baselines: readonly ExportBaseline[]): string =>
-  `<table><thead><tr><th scope="col">Name</th><th scope="col">Date</th><th scope="col">Elements</th><th scope="col">Changed</th></tr></thead><tbody>${baselines
+  `<table tabindex="0"><thead><tr><th scope="col">Name</th><th scope="col">Date</th><th scope="col">Elements</th><th scope="col">Changed</th></tr></thead><tbody>${baselines
     .map(
       (b) =>
         `<tr><td><a href="../${baselinePage(b)}">${escapeHtml(b.name)}</a></td><td>${escapeHtml(b.date)}</td><td>${String(entriesOf(b))}</td><td>${String(b.counts.changed)}</td></tr>`,
@@ -146,7 +146,7 @@ const summaryOf = (baseline: ExportBaseline): string => {
 
 /** A table of `rows`, or nothing without one. */
 const table = (heads: readonly string[], rows: readonly string[]): string =>
-  `<table><thead><tr>${heads.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  `<table tabindex="0"><thead><tr>${heads.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
 
 /** The content of the page of `baseline` (AK1); `element` names the element of a row (`rowElementOf`). */
 export const baselinePageBody = (
@@ -213,12 +213,13 @@ export const baselinePageBody = (
 };
 
 /**
- * The styles of a baseline's page and of the elements of a package: their tables as wide as the content and no wider,
- * long values wrapped anywhere, a title kept at least 10rem wide, identifier and status in one line (#2139); the
- * summary line in the docs' larger text.
+ * The styles of a baseline's page and of the elements of a package: from 50em their tables as wide as the content and
+ * no wider, below it the docs' table that scrolls in itself, so a phone does not scroll the page (#2181); long values
+ * wrapped anywhere, a title kept at least 10rem wide, identifier and status in one line (#2139); the summary line in
+ * the docs' larger text.
  */
 export const BASELINE_PAGE_CSS = [
-  ".rq-baseline table:not(:where(.not-content *)), .rq-package table:not(:where(.not-content *)) { display: table; width: 100%; }",
+  "@media (min-width: 50em) { .rq-baseline table:not(:where(.not-content *)), .rq-package table:not(:where(.not-content *)) { display: table; width: 100%; } }",
   ".rq-baseline td, .rq-package td, .rq-baseline td code { overflow-wrap: anywhere; }",
   ".rq-baseline td.rq-title, .rq-package td.rq-title { min-width: 10rem; }",
   ".rq-baseline td.rq-nowrap, .rq-package td.rq-nowrap { white-space: nowrap; }",

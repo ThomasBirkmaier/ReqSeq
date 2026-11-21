@@ -178,17 +178,17 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       [
         "evidence.invalid-record",
         "error",
-        `Test case "k" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, outside the given views (VAR-0aaaaa); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
+        `Test case "k" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, outside the given views (VAR-0aaaaa); an enriched test case is never changed`,
       ],
       [
         "evidence.invalid-record",
         "error",
-        'Test case "k" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)',
+        'Test case "k" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed',
       ],
       [
         "evidence.invalid-record",
         "error",
-        `Test case "k" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN} and the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
+        `Test case "k" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN} and the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed`,
       ],
     ]);
     expect(result).toMatchObject({ changed: false, testCases: 1 });
@@ -243,8 +243,8 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       },
     );
     expect(given.problems.map((p) => p.message)).toEqual([
-      'Test case "both" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)',
-      'Test case "one" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)',
+      'Test case "both" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed',
+      'Test case "one" (line 1) does not fit: it is enriched already for the core, outside the given views (VAR-0aaaaa); an enriched test case is never changed',
     ]);
     // A given core fits a kept test case for the core named by property, and checks it (AK9).
     const core = await enrichViews(suite(kept("log", LOG, ["core"]) + kept("login", LOGIN, ["CORE"])), {
@@ -261,7 +261,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       `<testcase name="a"><properties>${four(LOGIN, V[LOGIN])}${prop("reqseq:variant", "core")}${prop("reqseq:variant", "VAR-0aaaaa")}</properties></testcase>`,
     );
     expect((await enrich(xml)).problems.map((p) => p.message)).toEqual([
-      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
+      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case`,
     ]);
   });
 
@@ -272,7 +272,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => p.message)).toEqual([
-      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
+      `Test case "a" (line 1) is not enriched: reqseq:variant "VAR-0aaaaa" is not a UUID or core; it names the variant ${COAST}: write that UUID, as enrich never changes an enriched test case`,
       'Test case "b" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID or core',
     ]);
     expect(result.changed).toBe(false);

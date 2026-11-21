@@ -1,14 +1,19 @@
+import { FIRST_STEPS } from "@reqseq/core/next-steps";
 import { describe, expect, it } from "vitest";
+import type { CommandListing } from "../shared/protocol.js";
 import { elementBuffer } from "./buffers.js";
 import type { ListedPerspective } from "./buffers.js";
+import { CONNECT_AGENT_ACTION } from "./connect-agent.js";
 import type { RecentRow, TypeCount } from "./overview.js";
 import {
   PERSPECTIVES_SHOWN,
+  firstStepRows,
   openRow,
   overviewRows,
   perspectiveCount,
   perspectiveLine,
   shownPerspectives,
+  stepRows,
   typeLine,
 } from "./overview.js";
 
@@ -109,5 +114,32 @@ describe("the perspectives of the overview", () => {
       reason: "cannot be listed",
       message: "no filter Open",
     });
+  });
+});
+
+describe("the first steps of a workspace without elements (SR-118 AK9)", () => {
+  const listing = (name: string, title: string): CommandListing =>
+    ({ name, title, arguments: [], input: { type: "object" } }) as unknown as CommandListing;
+  const catalog = [
+    listing("element.create", "Create element"),
+    listing("reqif.import", "Import ReqIF file"),
+    listing("workspace.connectAgent", "Connect AI agent"),
+  ];
+
+  it("names core's steps as the command prompt does, and leaves out one the prompt does not run here", () => {
+    const items = [{ id: "command:element.create" }, { id: CONNECT_AGENT_ACTION }];
+    expect(stepRows(FIRST_STEPS, catalog, items, false)).toEqual([
+      { step: FIRST_STEPS[0], name: "Create element", key: "Ctrl+K E" },
+      { step: FIRST_STEPS[2], name: "Connect AI agent" },
+    ]);
+    expect(stepRows(FIRST_STEPS, catalog, items, true)[0]?.key).toBe("⌘K E");
+  });
+
+  it("puts the steps first and the perspectives below them", () => {
+    const steps = stepRows(FIRST_STEPS, catalog, [{ id: "command:element.create" }], false);
+    expect(firstStepRows(steps, [{ name: "Drafts" }]).map((row) => row.kind)).toEqual([
+      "step",
+      "perspective",
+    ]);
   });
 });

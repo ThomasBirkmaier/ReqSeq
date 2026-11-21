@@ -273,7 +273,7 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
         problemAt(
           file,
           lineOf([importVersion.at]),
-          `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version (D-059), not ${importVersion.reason}`,
+          `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version, not ${importVersion.reason}`,
           "error",
         ),
       ];

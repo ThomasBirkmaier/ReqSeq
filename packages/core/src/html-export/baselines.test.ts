@@ -181,7 +181,10 @@ describe("change since a baseline on the element page (SR-232 AK7)", () => {
     expect(html).toContain("R of 2026-11-02: changed; version in the baseline n2:0000000000000001");
     // One row per changed criterion, old and new wording as one word-level difference; the newest baseline open.
     const raw = baselinesSection({ ...ctx, since: since(old) }, page(now, "Same."));
-    expect(raw).toContain('<details class="rq-since-baseline" open><summary><a href="../baselines/');
+    expect(raw).toContain('<p class="rq-since-line"><a href="../baselines/');
+    expect(raw).toContain(
+      '</p><details class="rq-since-baseline" open><summary>Difference since R</summary>',
+    );
     expect(raw).toContain(
       '<dl class="rq-diff"><dt>Acceptance criterion AK1 (k1aa)</dt><dd><div class="rq-diff-text"><del>Old.</del><ins>New.</ins></div></dd>' +
         '<dt>Acceptance criterion AK2 (k2bb), removed</dt><dd><div class="rq-diff-text"><del>Gone.</del></div></dd>' +
