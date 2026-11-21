@@ -23,7 +23,7 @@ To see the evidence as it stood at a baseline, run `reqseq baseline get "Release
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the variant. **Show evidence status** shows the status per view.
+Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘↩ on macOS): the prompt then offers the optional arguments, among them the variant. **Show evidence status** shows the status per view.
 
 ## CLI
 
