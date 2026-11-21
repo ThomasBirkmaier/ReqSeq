@@ -20,6 +20,9 @@ const AGENTS = ".agents/skills/managing-requirements/SKILL.md";
 /** The places of the skill file, in the order of D-079. */
 const SKILLS = [SKILL, AGENTS];
 
+/** The empty file that keeps the new evidence folder in Git (SR-230 AK4). */
+const KEEP = "evidence/.gitkeep";
+
 /** An empty temporary folder (the fixture without files), removed after the test. */
 const emptyFolder = async (): Promise<FixtureWorkspace> => {
   const ws = await createFixtureWorkspace();
@@ -63,8 +66,8 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({
-      answer: "Created workspace Weather station; 5 files written.",
-      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", ...SKILLS],
+      answer: "Created workspace Weather station; 6 files written.",
+      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore", ...SKILLS],
       next: nextIn(ws.root),
       problems: [],
     });
@@ -72,6 +75,7 @@ describe("workspace.init", () => {
       AGENTS,
       SKILL,
       ".gitignore",
+      KEEP,
       "metamodel/standard-model.yaml",
       WORKSPACE_FILE,
     ]);
@@ -124,15 +128,46 @@ describe("workspace.init", () => {
     expect(metamodel.statuses.map((s) => s.key)).toEqual(["draft", "approved", "obsolete"]);
   });
 
-  it("[SR-230/AK-x4g5] names the folder evidence in the main repository as the evidence location", async () => {
+  it("[SR-230/AK-x4g5] names the folder evidence as the evidence location and creates it with an empty .gitkeep", async () => {
     const ws = await emptyFolder();
     const workspace = open(ws.root);
-    await init(workspace, { path: ws.root, name: "W" });
+    const out = await init(workspace, { path: ws.root, name: "W" });
+    expect(out.files).toContain(KEEP);
+    expect(await fs.readFile(ws.path(KEEP), "utf8")).toBe("");
     const status = (await invoke("workspace.status", {}, { workspace })) as CommandOutput<"workspace.status">;
-    // The folder itself is created with the first record (`evidence.folder-missing` is info).
     expect(status.evidence).toEqual([
-      { repository: path.basename(ws.root), path: "evidence", available: false, folder: "evidence" },
+      { repository: path.basename(ws.root), path: "evidence", available: true, folder: "evidence" },
     ]);
+    // The check of the new workspace no longer reports the folder as missing.
+    const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(check.problems.map((p) => p.code)).not.toContain("evidence.folder-missing");
+  });
+
+  it("[SR-230/AK-x4g5] leaves a folder, a file or a link already at the path evidence as it is and does not list it", async () => {
+    const ws = await createFixtureWorkspace({
+      files: {
+        "a/evidence/run.xml": "<testsuites/>",
+        "b/evidence": "a file\n",
+        "c/.keep": "",
+        "d/gone/.keep": "",
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    await fs.symlink(ws.path("a/evidence"), ws.path("c/evidence"), "junction");
+    // A link whose target is gone is something too (lstat), not a place to create the folder.
+    await fs.symlink(ws.path("d/gone"), ws.path("d/evidence"), "junction");
+    await fs.rm(ws.path("d/gone"), { recursive: true });
+    const workspace = open(ws.root);
+    for (const folder of ["a", "b", "c", "d"]) {
+      const out = await init(workspace, { path: folder, name: folder });
+      expect(out.files).not.toContain(KEEP);
+      expect(out.problems?.map((p) => p.code)).not.toContain("workspace.evidence-folder-not-created");
+    }
+    expect(await fs.readdir(ws.path("a/evidence"))).toEqual(["run.xml"]);
+    expect(await fs.readFile(ws.path("b/evidence"), "utf8")).toBe("a file\n");
+    expect((await fs.lstat(ws.path("c/evidence"))).isSymbolicLink()).toBe(true);
+    expect((await fs.lstat(ws.path("d/evidence"))).isSymbolicLink()).toBe(true);
+    await expect(fs.lstat(ws.path("d/gone"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("[SR-229/AK-x7d8] writes the skill file at the root of the Git repository and lists it, or none with skill false", async () => {
@@ -146,6 +181,7 @@ describe("workspace.init", () => {
     expect(out.files).toEqual([
       "metamodel/standard-model.yaml",
       WORKSPACE_FILE,
+      KEEP,
       ".gitignore",
       ...SKILLS.map((file) => `../${file}`),
     ]);
@@ -155,12 +191,12 @@ describe("workspace.init", () => {
     expect(await fs.readFile(ws.path(AGENTS), "utf8")).toBe(skillFile(ENTRIES));
     // A second workspace in the same repository finds ReqSeq's own file the same and does not list it.
     const again = await init(workspace, { path: "other", name: "O" });
-    expect(again.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(again.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore"]);
     expect(again.problems).toEqual([]);
     // `skill: false` writes none.
     const plain = await emptyFolder();
     const none = await init(open(plain.root), { path: plain.root, name: "N", skill: false });
-    expect(none.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(none.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore"]);
     expect(none.problems).toEqual([]);
     await expect(fs.lstat(plain.path(".claude"))).rejects.toMatchObject({ code: "ENOENT" });
   });
@@ -169,8 +205,8 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({ files: { [SKILL]: "my own skill\n" } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: ws.root, name: "W" });
-    expect(out).toMatchObject({ answer: "Created workspace W; 4 files written; 1 problem." });
-    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", AGENTS]);
+    expect(out).toMatchObject({ answer: "Created workspace W; 5 files written; 1 problem." });
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore", AGENTS]);
     expect(out.problems).toEqual([
       {
         code: "workspace.skill-not-written",
@@ -189,7 +225,7 @@ describe("workspace.init", () => {
       const ws = await createFixtureWorkspace({ files: { [SKILL]: own, [AGENTS]: own } });
       onTestFinished(() => ws.cleanup());
       const out = await init(open(ws.root), { path: ws.root, name: "W" });
-      expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+      expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore"]);
       expect(out.problems).toEqual([]);
       expect(await fs.readFile(ws.path(SKILL), "utf8")).toBe(own);
       expect(await fs.readFile(ws.path(AGENTS), "utf8")).toBe(own);
@@ -203,7 +239,7 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({ files: { [SKILL]: edited, [AGENTS]: edited } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: ws.root, name: "W" });
-    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore"]);
     // One warning per place not written.
     expect(out.problems).toEqual(
       SKILLS.map((file) => ({
@@ -245,12 +281,19 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({ files: { "new/.keep": "" } });
     onTestFinished(() => ws.cleanup());
     const out = await init(open(ws.root), { path: "new", name: "New" });
-    expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore", ...SKILLS]);
+    expect(out.files).toEqual([
+      "metamodel/standard-model.yaml",
+      WORKSPACE_FILE,
+      KEEP,
+      ".gitignore",
+      ...SKILLS,
+    ]);
     expect(await listFiles(ws.root)).toEqual([
       `new/${AGENTS}`,
       `new/${SKILL}`,
       "new/.gitignore",
       "new/.keep",
+      `new/${KEEP}`,
       "new/metamodel/standard-model.yaml",
       `new/${WORKSPACE_FILE}`,
     ]);
@@ -283,8 +326,8 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "W", metamodel: { path: "model/std" } });
     expect(out).toEqual({
-      answer: "Created workspace W; 5 files written.",
-      files: ["model/std/standard-model.yaml", WORKSPACE_FILE, ".gitignore", ...SKILLS],
+      answer: "Created workspace W; 6 files written.",
+      files: ["model/std/standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore", ...SKILLS],
       next: nextIn(ws.root),
       problems: [],
     });
@@ -292,8 +335,8 @@ describe("workspace.init", () => {
     const root = await emptyFolder();
     const atRoot = await init(open(root.root), { path: root.root, name: "W", metamodel: { path: "." } });
     expect(atRoot).toEqual({
-      answer: "Created workspace W; 5 files written.",
-      files: ["standard-model.yaml", WORKSPACE_FILE, ".gitignore", ...SKILLS],
+      answer: "Created workspace W; 6 files written.",
+      files: ["standard-model.yaml", WORKSPACE_FILE, KEEP, ".gitignore", ...SKILLS],
       next: nextIn(root.root),
       problems: [],
     });
@@ -307,7 +350,7 @@ describe("workspace.init", () => {
       name: "W",
       metamodel: { repository: "metamodel", path: "model" },
     });
-    expect(out.files).toEqual([WORKSPACE_FILE, ".gitignore", ...SKILLS]);
+    expect(out.files).toEqual([WORKSPACE_FILE, KEEP, ".gitignore", ...SKILLS]);
     expect(out.problems).toEqual([
       {
         code: "workspace.repository-missing",
@@ -425,6 +468,7 @@ describe("workspace.init", () => {
       `spec/${AGENTS}`,
       `spec/${SKILL}`,
       "spec/.gitignore",
+      `spec/${KEEP}`,
       "spec/metamodel/standard-model.yaml",
       "spec/reqseq-workspace.yaml",
     ]);

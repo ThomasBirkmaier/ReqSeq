@@ -29,7 +29,10 @@ describe("createWorkspace and .gitignore", () => {
       name: "W",
       metamodelFile: { name: "standard-model.yaml", text: "reqseq-metamodel: 1\n" },
     });
-    expect(written).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE]);
+    expect(written).toEqual({
+      files: ["metamodel/standard-model.yaml", WORKSPACE_FILE, "evidence/.gitkeep"],
+      problems: [],
+    });
     await expect(fs.lstat(ws.path(".gitignore"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

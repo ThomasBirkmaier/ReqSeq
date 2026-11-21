@@ -992,6 +992,7 @@
             "workspace.invalid",
             "workspace.not-watched",
             "workspace.skill-not-written",
+            "workspace.evidence-folder-not-created",
             "workspace.skill-older-version",
             "workspace.skill-missing",
             "git.unavailable",
@@ -4855,7 +4856,7 @@
         "name": "workspace.init",
         "title": "Create workspace",
         "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
-        "details": "The skill file is written as `tool.guide` with `skill` and `write` writes it, without `replace`, at each of its places: `.claude/skills/managing-requirements/SKILL.md` and `.agents/skills/managing-requirements/SKILL.md` in the root of the Git repository of the folder, or in the folder without Git. Each place written is listed in `files`. ReqSeq's own unchanged file of another version is left as it is and not listed. A file at a place that ReqSeq did not write, or that was changed since, is kept, and one problem `workspace.skill-not-written` per place not written says where and why; the other place is written all the same, and the workspace is created all the same. `skill: false` writes no skill file.",
+        "details": "The skill file is written as `tool.guide` with `skill` and `write` writes it, without `replace`, at each of its places: `.claude/skills/managing-requirements/SKILL.md` and `.agents/skills/managing-requirements/SKILL.md` in the root of the Git repository of the folder, or in the folder without Git. Each place written is listed in `files`. ReqSeq's own unchanged file of another version is left as it is and not listed. A file at a place that ReqSeq did not write, or that was changed since, is kept, and one problem `workspace.skill-not-written` per place not written says where and why; the other place is written all the same, and the workspace is created all the same. `skill: false` writes no skill file. The folder `evidence` is created with an empty `.gitkeep`, so that Git keeps it, when nothing is at its path; a folder, file or link already there is left as it is; when the folder or `.gitkeep` cannot be created, the workspace is created all the same and the problem `workspace.evidence-folder-not-created` says why.",
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
@@ -25654,7 +25655,7 @@
             "all": {
               "type": "boolean",
               "default": false,
-              "description": "Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter. Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`."
+              "description": "Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter. Needs `kind` with confirmable codes only (see `kind`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`."
             },
             "kind": {
               "type": "array",

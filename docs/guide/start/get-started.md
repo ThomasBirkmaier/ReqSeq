@@ -22,10 +22,11 @@ reqseq workspace init . "Weather station"
 ```
 
 ```text title="Output"
-Created workspace Weather station; 5 files written.
+Created workspace Weather station; 6 files written.
 files:
   metamodel/standard-model.yaml
   reqseq-workspace.yaml
+  evidence/.gitkeep
   .gitignore
   .claude/skills/managing-requirements/SKILL.md
   .agents/skills/managing-requirements/SKILL.md
@@ -130,7 +131,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 2 elements and found 2 warnings and 2 info.
+Checked 2 elements and found 2 warnings and 1 info.
 ok: true
 checkedElements: 2
 ...

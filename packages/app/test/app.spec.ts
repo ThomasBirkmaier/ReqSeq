@@ -332,7 +332,7 @@ test.describe("without a workspace", () => {
     await running.window.keyboard.press("Enter");
     await running.window.keyboard.type("Sub");
     await running.window.keyboard.press("Enter");
-    await expect(minibuffer).toHaveText("Created workspace Sub; 5 files written.");
+    await expect(minibuffer).toHaveText("Created workspace Sub; 6 files written.");
     await expect(running.window.getByRole("listbox", { name: "Overview" })).toHaveCount(0);
     await running.window.locator(".echo-open").click();
     // The written file is a path, which "Show details" shows (SR-223 AK2); without a workspace from the
@@ -360,7 +360,7 @@ test.describe("without a workspace", () => {
     await expect(running.window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     await expect(running.window.getByLabel("Modeline")).toContainText("Station");
     await expect(running.window.getByLabel("Modeline")).toContainText("Connect AI agent");
-    await expect(minibuffer).toHaveText("Created workspace Station; 5 files written.");
+    await expect(minibuffer).toHaveText("Created workspace Station; 6 files written.");
     await expect(running.window.locator(".result")).toHaveCount(0);
   });
 });

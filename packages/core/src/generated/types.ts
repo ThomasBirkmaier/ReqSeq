@@ -481,6 +481,7 @@ export type ProblemCode =
   | "workspace.invalid"
   | "workspace.not-watched"
   | "workspace.skill-not-written"
+  | "workspace.evidence-folder-not-created"
   | "workspace.skill-older-version"
   | "workspace.skill-missing"
   | "git.unavailable"
@@ -4405,7 +4406,7 @@ export interface HintConfirmInput {
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element. */
   readonly target?: ElementRef;
-  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
+  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter. Needs `kind` with confirmable codes only (see `kind`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
   /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];

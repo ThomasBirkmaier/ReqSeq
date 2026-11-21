@@ -1,5 +1,5 @@
-// Creating a workspace (SR-014): `reqseq-workspace.yaml`, with the folder `evidence` as its evidence location
-// (SR-230 AK4, the folder is created with the first record), and a metamodel file (the standard model,
+// Creating a workspace (SR-014): `reqseq-workspace.yaml`, with the folder `evidence` as its evidence location,
+// created with an empty `.gitkeep` when nothing was at its path (SR-230 AK4), and a metamodel file (the standard model,
 // passed in by `workspace.init`) in a folder, created when only it is missing (#637). Writes only through the files block,
 // creates files without ever replacing one, and never touches Git (D-036): no `git init`, no commit.
 import fs from "node:fs/promises";
@@ -7,7 +7,7 @@ import path from "node:path";
 import { stringify } from "yaml";
 import { CommandError } from "../catalog.js";
 import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.js";
-import type { WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
+import type { Problem, WorkspaceFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { LOCAL_FILE, WORKSPACE_FILE } from "./config.js";
 import { refuseGitAt } from "./git-folder.js";
@@ -18,6 +18,9 @@ export const DEFAULT_METAMODEL_FOLDER = "metamodel";
 
 /** The evidence location of a new workspace: this folder in the main repository (SR-230 AK4). */
 export const DEFAULT_EVIDENCE_FOLDER = "evidence";
+
+/** The empty file that makes Git keep the new evidence folder (SR-230 AK4). */
+export const EVIDENCE_KEEP_FILE = `${DEFAULT_EVIDENCE_FOLDER}/.gitkeep`;
 
 /** The main repository's name when the folder name has no letter or digit to build one from. */
 export const FALLBACK_REPOSITORY_NAME = "main";
@@ -139,11 +142,16 @@ const checkFolder = async (root: string): Promise<{ readonly create: boolean }> 
  * written it refuses a folder whose parent is missing too (`file.folder-missing`), a folder or
  * metamodel folder in a `.git` folder (`input.invalid`, D-036), a path that is no folder or input
  * that gives an invalid workspace file (`input.invalid`), and a workspace file or metamodel file
- * that exists already (`file.changed-on-disk`). Returns the written files relative to `root`. When
+ * that exists already (`file.changed-on-disk`). Returns the written files relative to `root` and the problems. When
  * the workspace file cannot be written after the metamodel file was, the error keeps its code and
- * names the metamodel file in its message and in `details.written`.
+ * names the metamodel file in its message and in `details.written`. After the workspace file it creates
+ * the evidence folder with `.gitkeep` when nothing, not even a link, was at its path before the call
+ * (SR-230 AK4); a failure there is the warning in `problems`, and the workspace stays created.
  */
-export const createWorkspace = async (root: string, input: NewWorkspace): Promise<readonly string[]> => {
+export const createWorkspace = async (
+  root: string,
+  input: NewWorkspace,
+): Promise<{ readonly files: readonly string[]; readonly problems: readonly Problem[] }> => {
   const { create } = await checkFolder(root);
   const main = repositoryNameFor(root);
   const file = workspaceFileFor(main, input);
@@ -160,6 +168,8 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
       );
     }
   }
+  // Judged before anything is written, so a metamodel folder at that path is no folder that was there.
+  const evidenceTaken = !create && (await exists(path.join(root, DEFAULT_EVIDENCE_FOLDER)));
   // D-036: neither file goes into a `.git` folder, also through a link (#1449).
   await refuseGitAt(root, path.join(root, WORKSPACE_FILE));
   if (metamodelFile !== undefined) {
@@ -186,9 +196,44 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
   } catch (error) {
     throw withWritten(error, written);
   }
-  // The workspace is complete here; the `.gitignore` lines are a convenience and never fail the call.
+  // The workspace is complete here; neither the evidence folder nor the `.gitignore` lines fail the call.
+  const problems: Problem[] = [];
+  if (!evidenceTaken) {
+    const keep = await createEvidenceFolder(root);
+    if (typeof keep === "string") {
+      written.push(keep);
+    } else {
+      problems.push(keep);
+    }
+  }
   const ignore = await ignoreFiles(root).catch(() => undefined);
-  return ignore === undefined ? written : [...written, ignore];
+  return { files: ignore === undefined ? written : [...written, ignore], problems };
+};
+
+/**
+ * Creates the evidence folder with an empty `.gitkeep` (SR-230 AK4): the path written, or the warning
+ * `workspace.evidence-folder-not-created` with the reason. Something already at the path of `.gitkeep` is
+ * named as such; another failure of the files block keeps its message (relative paths only); any other gives
+ * only its error code, since its message holds absolute paths (ADR-0009). A failed write of `.gitkeep` can
+ * leave the folder created, empty and unlisted.
+ */
+const createEvidenceFolder = async (root: string): Promise<string | Problem> => {
+  try {
+    await createFolder(root, DEFAULT_EVIDENCE_FOLDER);
+    return (await writeFileAtomic(root, EVIDENCE_KEEP_FILE, "", null, { kind: "copy" })).path;
+  } catch (error) {
+    const reason = !(error instanceof CommandError)
+      ? `the file system refused it (${(error as NodeJS.ErrnoException | undefined)?.code ?? "unknown"})`
+      : error.code === "file.changed-on-disk"
+        ? `something is already at ${EVIDENCE_KEEP_FILE}`
+        : error.message;
+    return {
+      code: "workspace.evidence-folder-not-created",
+      severity: "warning",
+      message: `${EVIDENCE_KEEP_FILE} was not created: ${reason.replace(/\.$/, "")}`,
+      file: DEFAULT_EVIDENCE_FOLDER,
+    };
+  }
 };
 
 /** The line of `.gitignore` that keeps ReqSeq's temp files out of Git (#271, `TEMP_FILE_PATTERN`). */

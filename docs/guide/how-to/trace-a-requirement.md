@@ -143,7 +143,7 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 5 elements and found 9 warnings and 2 info.
+Checked 5 elements and found 9 warnings and 1 info.
 ok: true
 ...
 warning  trace.no-parent  SR-62fb87  System Requirement SR-62fb87 has no parent: no relation with the meaning derivation names one  ...
