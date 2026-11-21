@@ -237,8 +237,8 @@ const NEXT: Readonly<Record<Client, string>> = {
 const SKILL_WORDS = ["tool", "guide", "--skill", "--write", "--workspace"] as const;
 
 /**
- * The call that writes the skill file into the workspace's repository (AK2, SR-229 AK8), for the shell of
- * Claude Code's command: the program of this installation with absolute paths, as the setup starts it
+ * The call that writes the skill file into the workspace's repository (AK2, SR-229 AK8), for a terminal,
+ * PowerShell on Windows: the program of this installation with absolute paths, as the setup starts it
  * (AK3), so it needs no `reqseq` on the PATH and, on Windows, no `reqseq.cmd`, which cmd.exe would read.
  */
 export const skillCall = (facts: SetupFacts): string => {
@@ -260,6 +260,19 @@ export const skillCall = (facts: SetupFacts): string => {
         call,
         ...env.map(([name]) => `Remove-Item Env:${name}`),
       ].join("; ");
+};
+
+/**
+ * The sentence that names the skill-file call (AK2): for every client but Claude Desktop, which reads no skill
+ * file from the project folder.
+ */
+const skillSentence = (client: Client, facts: SetupFacts): string => {
+  if (client === "claude-desktop") {
+    return "";
+  }
+  const who = client === "other" ? "your agent" : TITLES[client];
+  const shell = facts.platform === "win32" ? "PowerShell" : "a terminal";
+  return ` To give ${who} the skill file, run this in ${shell}: \`${skillCall(facts)}\`.`;
 };
 
 /** The folder whose move ends the setup, as the `valid` sentence names it (AK3). */
@@ -309,7 +322,11 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
   }
   const title = TITLES[client];
   const to = `to connect ${client === "other" ? "it" : title} to the workspace "${facts.workspaceName}"`;
-  const common = { server, valid: validSentence(facts), next: NEXT[client] };
+  const common = {
+    server,
+    valid: validSentence(facts),
+    next: `${NEXT[client]}${skillSentence(client, facts)}`,
+  };
   if (client === "claude-desktop" || client === "cursor") {
     const file = configFile(client, facts);
     return {
@@ -328,9 +345,6 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
   const windows = facts.platform === "win32";
   return {
     ...common,
-    ...(client === "claude-code"
-      ? { next: `${NEXT[client]} To give Claude Code the skill file, run \`${skillCall(facts)}\`.` }
-      : {}),
     answer: `Run this command in ${windows ? "PowerShell" : "a terminal"} ${to}.`,
     setup: {
       form: "command",

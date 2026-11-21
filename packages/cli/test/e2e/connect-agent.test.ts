@@ -3,8 +3,8 @@
 // user would paste it, in sh on Linux and macOS and in Windows PowerShell 5.1 and PowerShell 7 on Windows, with
 // stub programs `claude`, `code` and `codex` that only write down their arguments (shaped like npm installs on
 // Windows: a `.ps1` and a `.cmd`, and `code.cmd`). What the client would start from those arguments, or from
-// the JSON block, is started, and its MCP server answers `initialize` for this workspace. The call under Claude
-// Code's setup is run the same way and writes the skill file.
+// the JSON block, is started, and its MCP server answers `initialize` for this workspace. The call under the
+// setup of every client but Claude Desktop is run the same way and writes the skill file.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -295,10 +295,20 @@ describe("reqseq workspace connect-agent", () => {
     expect([await snapshot(ws.root), await snapshot(home)]).toEqual(before);
   });
 
-  it("[SR-227/AK-fx6t] the call under Claude Code's setup, run as pasted, writes the skill file into the workspace", async () => {
-    const { next } = await connectAgent("claude-code");
-    const call = /run `([^`]+)`\.$/.exec(next)?.[1] ?? "";
+  it("[SR-227/AK-fx6t] the call under the setup of every client but Claude Desktop, run as pasted, writes the skill file into the workspace", async () => {
+    const calls = new Map<string, string>();
+    for (const client of CLIENTS) {
+      const { next } = await connectAgent(client);
+      calls.set(client, /`([^`]+)`\.$/.exec(next)?.[1] ?? "");
+    }
+    expect(calls.get("claude-desktop")).toBe("");
+    calls.delete("claude-desktop");
+    // The call does not depend on the client, so running it once shows it for each.
+    const call = calls.get("claude-code") ?? "";
     expect(call).toContain(" tool guide --skill --write --workspace ");
+    for (const [client, other] of calls) {
+      expect(other, client).toBe(call);
+    }
     const skill = path.join(ws.root, ".claude", "skills", "managing-requirements", "SKILL.md");
     try {
       for (const shell of shells()) {
