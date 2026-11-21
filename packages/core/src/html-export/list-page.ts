@@ -5,35 +5,33 @@
 // there without script (AK5); `assets/list.js` (`list-script.ts`) adds the search field, the filters, the sorting and
 // the grouping on top of it.
 //
-// - Rows, in the order of their identifier (`sortElements` by `identifier`, as `element.list` sorts): identifier
-//   (else the short ID) as a link to the page, title, status ("–" without one), packages, for a requirement type the
-//   verification status in the core as a badge with the number of verified criteria of all ("–" for a requirement
-//   that is not in the core's view, which has none there, as `element.list` gives it, SR-137 AK4), and the number
-//   of open hints of the element (`hint.list`) as a badge, an empty cell for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
-//   the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
-// - Search: each row carries its identifier, short ID and title folded (NFC, lower case) in `data-q`.
-// - Filters (`data-f`): status, packages, the verification status in the core and each property of kind `choice` the
-//   type has, in this order. Each filter lists its values in the order of SR-075 AK1 (`sortValueOf`: the metamodel's
-//   order for statuses and choices, then numbers, then text ignoring case), "–" for an element without one last; a
-//   row names the index of each of its values, so a row with several packages stands in each of them.
-// - Sorting (`data-s`): per column the rank of the row's value in the order of SR-075 AK1, by the first of several
-//   values; `null` for no value, which stays last in both orders. The identifier column ranks every row by
-//   `sortElements` (no identifier: by short ID after them), and descending reverses that order wholly, as SR-075 AK1
-//   says. Rows of equal rank keep the order of the page, so each call gives the same order.
+// The columns, filters, cells, search texts, facets and ranks are the display model of the list (`listDisplay`,
+// ADR-0019 point 7, `displays.md`), built from the entries as `element.list` gives them (`listRowOf`: the
+// verification in the core, the open hints of `hint.list`); this module writes it as HTML:
+//
+// - Rows, in the order of their identifier (`sortElements` by `identifier`, as `element.list` sorts): the identifier
+//   (else the short ID) as a link to the page, the verification status in the core as a badge in the short form of
+//   `verificationLabel` ("–" for a requirement that is not in the core's view, SR-137 AK4), the open hints as a badge,
+//   an empty cell for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the
+//   table and not the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
+// - `data-q` holds the search text, `data-f` the facets and `data-s` the ranks of the model; `data-rq-list` its
+//   columns and filters. The order of SR-075 AK1 that ranks them is `listOrderOf` (`sortValueOf`: the metamodel's
+//   order for statuses and choices, then numbers, then text ignoring case).
 // - Change since a baseline (SR-233 AK2), when the workspace has one: the baselines newest first in `data-rq-list`
 //   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
 //   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column
 //   "Change since baseline" written `hidden` and empty: no baseline is chosen at first, so there is no comparison.
-import { verificationLabel } from "../displays/index.js";
+import type { ListCell, ListMetamodel, ListOrder, ListRowDisplay, ListRowInput } from "../displays/index.js";
+import { listDisplay } from "../displays/index.js";
 import type { DataExportElement, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, keyDefinition, propertyWithMeaning } from "../metamodel/index.js";
+import { findType } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { SortValue } from "../query/index.js";
-import { NO_RANKS, compareSortValues, ranksOf, sortElements, sortValueOf, valuesOf } from "../query/index.js";
+import { NO_RANKS, compareSortValues, ranksOf, sortElements, sortValueOf } from "../query/index.js";
 import { zip } from "../files/index.js";
 import { inTypeOrder } from "../type-order.js";
-import { elementPage, relationText } from "./links.js";
+import { elementPage } from "./links.js";
 import { escapeHtml } from "./markdown.js";
 
 /** The address of the list of the type `type`, relative to the export folder. */
@@ -80,36 +78,9 @@ export interface ListPage {
   readonly body: string;
 }
 
-const NONE = "–";
-
-/** The value of one column or filter of a row: its sort value and the text it shows. */
-interface Value {
-  readonly sort: SortValue;
-  readonly text: string;
-}
-
-/** A column and filter of the list: its label and the values of an entry (none for an entry without one). */
-interface Field {
-  readonly label: string;
-  /** Whether the list shows it as a column (status, packages, verification status), not only as a filter. */
-  readonly column: boolean;
-  readonly values: (entry: ListEntry) => readonly Value[];
-  /** The cell of an entry, when it is not its values' texts. */
-  readonly cell?: (entry: ListEntry) => string;
-}
-
-type CoreEntry = NonNullable<DataExportElement["verification"]>[number];
-
-/**
- * The verification of a requirement in the core's view; none for an element that is no requirement and for a
- * requirement that is not in the core's view (SR-233 AK1, AK4, as SR-137 AK4).
- */
-const coreEntry = (element: DataExportElement): CoreEntry | undefined =>
-  element.verification?.find((entry) => entry.view === "core");
-
-/** The verification status in the core of a requirement, none as for `coreEntry`. */
+/** The verification status in the core of a requirement, none outside the core's view (SR-233 AK1, AK4, as SR-137 AK4). */
 export const coreVerification = (element: DataExportElement): string | undefined =>
-  coreEntry(element)?.status;
+  element.verification?.find((entry) => entry.view === "core")?.status;
 
 /** The colour of the badge of each verification status, as the docs' badges name them. */
 const BADGES: Readonly<Record<VerificationStatus, string>> = {
@@ -124,118 +95,63 @@ const BADGES: Readonly<Record<VerificationStatus, string>> = {
 const badge = (label: string, variant: string): string =>
   `<span class="rq-badge rq-badge-${variant}">${escapeHtml(label)}</span>`;
 
-/** The verification status in the core of a requirement as a badge, in the short form of `verificationLabel` (ADR-0019). */
-const verificationBadge = ({ status, criteria }: CoreEntry): string =>
-  badge(
-    verificationLabel({ status, ...(criteria === undefined ? {} : { criteria }) }, "short"),
-    BADGES[status],
-  );
-
-/**
- * The packages of an element: the targets of its property with the meaning `packages`, each by its title, as the
- * sidebar names it, else as `relationText` names it.
- */
-const packagesOf = (metamodel: Metamodel, element: DataExportElement): readonly string[] => {
-  const key = propertyWithMeaning(metamodel, "packages")?.key;
-  return element.relations
-    .filter((r) => r.property === true && r.kind === key)
-    .map((r) => (r.title === undefined || r.title === "" ? relationText(r) : r.title));
-};
-
-const text = (value: string, ranks: ReadonlyMap<string, number> = NO_RANKS): Value => ({
-  sort: sortValueOf(value, ranks),
-  text: value,
-});
-
-/** The fields of the list of `entries`, all of type `type` (see the file comment). */
-const fieldsOf = (context: ListContext, type: string, entries: readonly ListEntry[]): Field[] => {
-  const { metamodel } = context;
-  const statusRanks = ranksOf(metamodel.statuses);
-  const fields: Field[] = [
-    {
-      label: "Status",
-      column: true,
-      values: ({ element }) => (element.status === undefined ? [] : [text(element.status, statusRanks)]),
-    },
-    {
-      label: "Packages",
-      column: true,
-      values: ({ element }) => packagesOf(metamodel, element).map((name) => text(name)),
-    },
-  ];
-  if (entries.some(({ element }) => element.verification !== undefined)) {
-    fields.push({
-      label: "Verification status in the core",
-      column: true,
-      values: ({ element }) =>
-        [coreVerification(element)]
-          .filter((status): status is string => status !== undefined)
-          .map((status) => text(status)),
-      cell: ({ element }) => {
-        const core = coreEntry(element);
-        return core === undefined ? NONE : verificationBadge(core);
-      },
-    });
-  }
-  for (const key of findType(metamodel, type)?.properties ?? []) {
-    const found = keyDefinition(metamodel, key);
-    if (found?.kind === "property" && found.definition.kind === "choice") {
-      const ranks = ranksOf(found.definition.choices ?? []);
-      fields.push({
-        label: found.definition.name,
-        column: false,
-        values: ({ record }) => valuesOf(record.data[key]).map((v) => text(String(v), ranks)),
-      });
-    }
-  }
-  return fields;
-};
-
-/** The distinct texts of `field` over `entries`, in ascending order (SR-075 AK1). */
-const orderedTexts = (field: Field, entries: readonly ListEntry[]): string[] => {
-  const seen = new Map<string, Value>();
-  for (const value of entries.flatMap(field.values)) {
-    seen.set(value.text, value);
-  }
-  return [...seen.values()].sort((a, b) => compareSortValues(a.sort, b.sort)).map((v) => v.text);
-};
-
-/** The dense rank of each of `values` in ascending order; `null` for none. */
-const ranksBy = (values: readonly (SortValue | undefined)[]): (number | null)[] => {
-  const order = values
-    .map((value, row) => ({ value, row }))
-    .filter((v): v is { value: SortValue; row: number } => v.value !== undefined)
-    .sort((a, b) => compareSortValues(a.value, b.value));
-  const ranks: (number | null)[] = values.map(() => null);
-  let rank = -1;
-  let last: SortValue | undefined;
-  for (const { value, row } of order) {
-    if (last === undefined || compareSortValues(last, value) !== 0) {
-      rank += 1;
-      last = value;
-    }
-    ranks[row] = rank;
-  }
-  return ranks;
-};
-
 /** The JSON of `value` for an attribute. */
 const attribute = (value: unknown): string => escapeHtml(JSON.stringify(value));
 
-/** The class attribute of a column's cells, or nothing. */
-const classOf = ({ className }: { readonly className?: string }): string =>
-  className === undefined ? "" : ` class="${className}"`;
+/** The row of `listDisplay` for an entry: the element as `element.list` gives it, its core verification and hints. */
+export const listRowOf = ({ element, hints }: ListEntry): ListRowInput => ({
+  element,
+  verification: element.verification?.filter((entry) => entry.view === "core"),
+  hints,
+});
 
-/** A column of the list: its label, the sort value, the cell of an entry and the class of its cells. */
-interface Column {
-  readonly label: string;
-  /** `rq-title` on the title's cells, for the styles (`LIST_CSS`). */
-  readonly className?: string;
-  /** Descending reverses the whole order (the identifier, SR-075 AK1). */
-  readonly total?: true;
-  readonly ranks: readonly (number | null)[];
-  readonly cell: (entry: ListEntry) => string;
-}
+/** What `listDisplay` reads of the metamodel. */
+export const listMetamodelOf = (metamodel: Metamodel): ListMetamodel => ({
+  types: metamodel.effectiveTypes,
+  properties: metamodel.properties,
+  statuses: metamodel.statuses,
+});
+
+/** The order of SR-075 AK1 for the values of a list (`sortValueOf`: the metamodel's order of statuses and choices). */
+export const listOrderOf = (metamodel: Metamodel): ListOrder<SortValue> => {
+  const statuses = ranksOf(metamodel.statuses);
+  return {
+    keyOf: (field, value) => {
+      switch (field.kind) {
+        case "status":
+          return sortValueOf(value, statuses);
+        case "choice":
+          return sortValueOf(value, ranksOf(field.choices));
+        case "hints":
+          return sortValueOf(Number(value), NO_RANKS);
+        case "packages":
+        case "title":
+        case "verification":
+          return sortValueOf(value, NO_RANKS);
+      }
+    },
+    compare: compareSortValues,
+  };
+};
+
+/** A cell of the list as HTML. */
+const cellHtml = (row: ListRowDisplay, cell: ListCell): string => {
+  switch (cell.kind) {
+    case "id":
+      return `<a href="../${elementPage(row.ref.id)}">${escapeHtml(cell.text)}</a>`;
+    case "verification":
+      return cell.cell === undefined ? escapeHtml(cell.text) : badge(cell.text, BADGES[cell.cell.status]);
+    case "hints":
+      return cell.count === 0 ? "" : badge(String(cell.count), "caution");
+    case "text":
+      return escapeHtml(cell.text);
+  }
+};
+
+/** The index of the title column, whose cells get the class `rq-title` (`LIST_CSS`). */
+const TITLE_COLUMN = 1;
+
+const classOf = (column: number): string => (column === TITLE_COLUMN ? ' class="rq-title"' : "");
 
 /** `entries` in the order of their identifier (see the file comment). */
 export const sortedByIdentifier = (context: ListContext, entries: readonly ListEntry[]): ListEntry[] => {
@@ -252,7 +168,10 @@ export const sortedByIdentifier = (context: ListContext, entries: readonly ListE
 /** The identifier of an element as rows show it: its identifier, else its short ID. */
 export const identifierOf = (element: DataExportElement): string => element.identifier ?? element.shortId;
 
-/** The list of `sorted`, all of type `type` with a page each, in the order of their identifier (see the file comment). */
+/**
+ * The list of `sorted`, all of type `type` with a page each, in the order of their identifier: the display model of
+ * `listDisplay` as HTML, with the change since a baseline, which only the export shows (see the file comment).
+ */
 export const listPageOf = (
   context: ListContext,
   type: string,
@@ -260,87 +179,37 @@ export const listPageOf = (
   compare?: ListCompare,
 ): ListPage => {
   const comparing = compare !== undefined && compare.baselines.length > 0 ? compare : undefined;
-  const fields = fieldsOf(context, type, sorted);
-  const facets = zip(
-    fields,
-    fields.map((field) => orderedTexts(field, sorted)),
+  const display = listDisplay(
+    { type, rows: sorted.map(listRowOf), metamodel: listMetamodelOf(context.metamodel) },
+    { id: "identifier", order: listOrderOf(context.metamodel) },
   );
-  const columns: Column[] = [
-    {
-      label: "Identifier",
-      total: true,
-      ranks: sorted.map((_, row) => row),
-      cell: ({ element }) =>
-        `<a href="../${elementPage(element.id)}">${escapeHtml(identifierOf(element))}</a>`,
-    },
-    {
-      label: "Title",
-      className: "rq-title",
-      ranks: ranksBy(
-        sorted.map(({ element }) => (element.title === "" ? undefined : text(element.title).sort)),
-      ),
-      cell: ({ element }) => escapeHtml(element.title),
-    },
-    ...fields
-      .filter((field) => field.column)
-      .map((field): Column => ({
-        label: field.label,
-        ranks: ranksBy(sorted.map((entry) => field.values(entry)[0]?.sort)),
-        cell: (entry) =>
-          field.cell?.(entry) ??
-          escapeHtml(
-            field
-              .values(entry)
-              .map((v) => v.text)
-              .join(", ") || NONE,
-          ),
-      })),
-    {
-      label: "Open hints",
-      ranks: ranksBy(sorted.map(({ hints }) => sortValueOf(hints, NO_RANKS))),
-      cell: ({ hints }) => (hints === 0 ? "" : badge(String(hints), "caution")),
-    },
-  ];
   const settings = {
-    columns: [
-      ...columns.map(({ label, total }) => (total === undefined ? { label } : { label, total })),
-      ...(comparing === undefined ? [] : [{ label: CHANGE_LABEL }]),
-    ],
-    filters: facets.map(([field, known]) => ({ label: field.label, values: [...known, NONE] })),
+    columns: [...display.columns, ...(comparing === undefined ? [] : [{ label: CHANGE_LABEL }])],
+    filters: display.filters,
     ...(comparing === undefined
       ? {}
       : { compare: { label: CHANGE_LABEL, baselines: comparing.baselines, values: CHANGE_VALUES } }),
   };
-  const rows = sorted.map((entry, row) => {
-    const { element } = entry;
-    const search = [element.identifier ?? "", element.shortId, element.title]
-      .join("\n")
-      .normalize("NFC")
-      .toLowerCase();
-    const indexes = facets.map(([field, known]) => {
-      const own = field.values(entry).map((v) => known.indexOf(v.text));
-      return own.length === 0 ? [known.length] : [...new Set(own)];
-    });
-    const ranks = [...columns.map((column) => column.ranks[row]), ...(comparing === undefined ? [] : [null])];
+  const rows = zip(display.rows, sorted).map(([row, { record }]) => {
+    const ranks = [...row.ranks, ...(comparing === undefined ? [] : [null])];
     const cells = [
-      ...columns.map((column) => `<td${classOf(column)}>${column.cell(entry)}</td>`),
+      ...row.cells.map((cell, column) => `<td${classOf(column)}>${cellHtml(row, cell)}</td>`),
       ...(comparing === undefined ? [] : ["<td hidden></td>"]),
     ].join("");
-    const change = comparing === undefined ? "" : ` data-b="${attribute(comparing.changeOf(entry.record))}"`;
-    return `<tr data-q="${escapeHtml(search)}" data-f="${attribute(indexes)}" data-s="${attribute(ranks)}"${change}>${cells}</tr>`;
+    const change = comparing === undefined ? "" : ` data-b="${attribute(comparing.changeOf(record))}"`;
+    return `<tr data-q="${escapeHtml(row.search)}" data-f="${attribute(row.facets)}" data-s="${attribute(ranks)}"${change}>${cells}</tr>`;
   });
   const head = [
-    ...columns.map((column) => `<th scope="col"${classOf(column)}>${escapeHtml(column.label)}</th>`),
+    ...display.columns.map((column, at) => `<th scope="col"${classOf(at)}>${escapeHtml(column.label)}</th>`),
     ...(comparing === undefined ? [] : [`<th scope="col" hidden>${CHANGE_LABEL}</th>`]),
   ].join("");
-  const title = findType(context.metamodel, type)?.name ?? type;
   const body = [
     `<div class="rq-list" data-rq-list="${attribute(settings)}">`,
     `<p class="rq-list-count">${escapeHtml(counted(sorted.length))}</p>`,
     `<div class="rq-list-table"><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`,
     "</div>",
   ].join("");
-  return { type, path: listPage(type), title, count: sorted.length, body };
+  return { type, path: listPage(type), title: display.title, count: sorted.length, body };
 };
 
 /** `n elements`. */

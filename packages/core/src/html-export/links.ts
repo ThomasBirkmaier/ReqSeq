@@ -3,7 +3,10 @@
 // the short page of SR-231 AK8 are links; any other is text. A target in a repository that is not on this machine is
 // `UNKNOWN-<tail>, repository <name>, not accessible` (SR-006 AK1), as the relation gives it.
 import type { DataExportRelation } from "../generated/types.js";
+import { relationText } from "../displays/index.js";
 import { escapeHtml } from "./markdown.js";
+
+export { nameOf, relationText } from "../displays/index.js";
 
 /** The page of the element with the UUID `id`, relative to the export folder. */
 export const elementPage = (id: string): string => `elements/${id}.html`;
@@ -19,38 +22,9 @@ export const pageLinks = (ids: ReadonlySet<string>): PageLinks => ({
   href: (id) => (ids.has(id) ? `../${elementPage(id)}` : undefined),
 });
 
-/** An element as a row names it: its identifier, else its short ID, then its title when it has one. */
-export const nameOf = (element: {
-  readonly shortId: string;
-  readonly identifier?: string;
-  readonly title?: string;
-}): string => {
-  const name = element.identifier ?? element.shortId;
-  return element.title === undefined || element.title === "" ? name : `${name} ${element.title}`;
-};
-
 /** `text` as a link to `href`, or as text without one. */
 export const linked = (text: string, href: string | undefined): string =>
   href === undefined ? escapeHtml(text) : `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`;
-
-/** The other end of `relation` as text: named when it is here, else what the relation knows of it. */
-export const relationText = (relation: DataExportRelation): string => {
-  // `shortId` is given for an available and an inaccessible end, `repository` for every end but one whose stored
-  // repository is no text (the schema of `data.export`).
-  const { id, shortId = id, repository = "" } = relation;
-  switch (relation.targetState) {
-    case "available":
-      return nameOf({ ...relation, shortId });
-    case "inaccessible":
-      return `${shortId}, repository ${repository}, not accessible`;
-    case "missing":
-      return `${id}, not found`;
-    case "ambiguous":
-      return `${id}, in several files`;
-    case "unknown-repository":
-      return `${id}, repository ${repository} not in the workspace`;
-  }
-};
 
 /** The other end of `relation` as HTML: a link to its page when it has one (see the file comment). */
 export const relationLink = (links: PageLinks, relation: DataExportRelation): string =>
