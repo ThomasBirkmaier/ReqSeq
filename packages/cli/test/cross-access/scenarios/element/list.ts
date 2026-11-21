@@ -153,6 +153,28 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-036/AK-zhys]",
+    name: "a selection by a number of the coverage: the requirements without evidence",
+    fixture: EXPORT,
+    root: "system",
+    input: {
+      selection: {
+        output: {
+          command: "evidence.coverage",
+          input: {},
+          count: { field: "levels[].withoutEvidence", key: [{ type: "system-requirement" }] },
+        },
+      },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as { output: { elements: readonly { shortId: string }[] } }
+      ).output;
+      expect(elements.map((e) => e.shortId)).toEqual(["SR-0000e1"]);
+    },
+  },
+  {
     name: "a selection by UUID and repository: the copy in that repository only, where ids would be ambiguous (#2024)",
     fixture: {
       ...EXPORT,

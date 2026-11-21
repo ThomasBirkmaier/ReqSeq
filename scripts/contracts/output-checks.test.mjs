@@ -485,7 +485,7 @@ describe("output fields", () => {
     expect(fields.find((f) => f.path === "levels[].total")).toEqual({
       path: "levels[].total",
       title: "Total",
-      elements: ["levels[].elements.withChildren", "levels[].elements.withoutChildren"],
+      elements: ["levels[].elements.withoutChildren", "levels[].elements.withChildren"],
       keys: [["type"]],
     });
     expect(fields.find((f) => f.path === "levels[].elements.withChildren")).toMatchObject({
