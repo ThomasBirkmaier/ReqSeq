@@ -395,7 +395,7 @@ describe("reqif.import of each datatype (SR-053)", () => {
     const error = await failure(workspace);
     expect([error.code, error.message]).toEqual([
       "input.invalid",
-      "mapping.attributes[7].property: property cannot hold delivery: it holds the origin (delivery), which only reqif.import writes",
+      'mapping.attributes[7].property: property cannot hold delivery: it holds the origin (delivery), which only "Import ReqIF file" writes',
     ]);
   });
 

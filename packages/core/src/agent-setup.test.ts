@@ -78,7 +78,7 @@ const refusal = (client: Client, facts: SetupFacts): SetupRefusal => {
 };
 
 describe("setupOf", () => {
-  it("[SR-227/AK-fx6t] gives a terminal command for Claude Code, VS Code and Codex CLI, for PowerShell on Windows, and JSON for the others, with the file only for Claude Desktop and Cursor", () => {
+  it("[SR-227/AK-fx6t] gives a terminal command for Claude Code, VS Code and Codex CLI, for PowerShell on Windows, and JSON for the others, with the file only for Claude Desktop and Cursor, and the skill-file call for all but Claude Desktop", () => {
     for (const facts of [mac, linux, windows]) {
       const shell = facts.platform === "win32" ? "powershell" : "sh";
       for (const client of ["claude-code", "vscode", "codex-cli"] as const) {
@@ -115,9 +115,10 @@ describe("setupOf", () => {
     expect(setup("vscode", windows).setup.text).toBe(
       String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Tools\\ReqSeq\\ReqSeq.exe\",\"args\":[\"C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"],\"env\":{\"ELECTRON_RUN_AS_NODE\":\"1\"}}"`,
     );
-    // Under Claude Code's command, the call that writes the skill file, started as the setup starts the server.
+    // Under the setup of every client but Claude Desktop, the call that writes the skill file, for a terminal
+    // (PowerShell on Windows), started as the setup starts the server.
     expect(setup("claude-code", mac).next).toMatch(
-      /To give Claude Code the skill file, run `\/Applications\/ReqSeq\.app\/Contents\/Resources\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
+      /To give Claude Code the skill file, run this in a terminal: `\/Applications\/ReqSeq\.app\/Contents\/Resources\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
     );
     expect(skillCall({ ...linux, workspace: "/home/ann/my station" })).toBe(
       "/home/ann/ReqSeq/bin/reqseq tool guide --skill --write --workspace '/home/ann/my station'",
@@ -136,9 +137,24 @@ describe("setupOf", () => {
     expect(skillCall({ ...windows, installation: node })).toBe(
       "& 'C:\\Program Files\\nodejs\\node.exe' 'C:\\npm\\reqseq\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'",
     );
-    expect(setup("claude-code", windows).next).toContain(`run \`${skillCall(windows)}\`.`);
-    for (const client of ["claude-desktop", "cursor", "vscode", "codex-cli", "other"] as const) {
-      expect(setup(client, linux).next).not.toContain("tool guide");
+    const who = {
+      "claude-code": "Claude Code",
+      cursor: "Cursor",
+      vscode: "VS Code",
+      "codex-cli": "Codex CLI",
+      other: "your agent",
+    };
+    for (const [client, name] of Object.entries(who) as [keyof typeof who, string][]) {
+      expect(setup(client, linux).next, client).toMatch(
+        new RegExp(` To give ${name} the skill file, run this in a terminal: \`[^\`]+\`\\.$`),
+      );
+      expect(setup(client, linux).next, client).toContain(`\`${skillCall(linux)}\`.`);
+      expect(setup(client, windows).next, client).toContain(
+        `To give ${name} the skill file, run this in PowerShell: \`${skillCall(windows)}\`.`,
+      );
+    }
+    for (const facts of [linux, windows, mac]) {
+      expect(setup("claude-desktop", facts).next).not.toContain("tool guide");
     }
     expect(setup("claude-desktop", mac).setup.file).toBe(
       "/Users/ann/Library/Application Support/Claude/claude_desktop_config.json",

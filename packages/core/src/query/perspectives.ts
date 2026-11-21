@@ -21,6 +21,7 @@ import type { SavedFile, SavedFolder, SavedKind } from "./saved-files.js";
 import { faultySaved, findSaved, inSavedFile, inSavedFileAsync, readSavedFolder } from "./saved-files.js";
 import type { SavedFilter } from "./saved.js";
 import { faultyFilter, findSavedFilter, readSavedFilters } from "./saved.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** The perspectives as saved-files.ts reads and writes them. */
 export const PERSPECTIVES: SavedKind = {
@@ -49,7 +50,7 @@ const notFoundHint = (
 ): string =>
   folder.incomplete
     ? `; its folder is in repository ${String(folder.repository?.name)}, which is not on this machine`
-    : `; ${list} lists them`;
+    : `; ${commandTitle(list)} lists them`;
 
 /** The perspective `name` for the input field `perspective` of `command` (see the file comment). */
 export const perspectiveFor = async (

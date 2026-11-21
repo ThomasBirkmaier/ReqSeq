@@ -208,12 +208,16 @@ describe("renderHuman: verification status (SR-031)", () => {
     expect(renderHuman({ elements, total: 3 })).toBe(
       lines(
         "elements:",
-        "  SR-1  approved  Title 1  [verification: core open 2 of 3 criteria (AK3 not verified), VAR-1 verified 3 of 3 criteria]",
-        "  SR-2  approved  Title 2  [verification: core failed 0 of 2 criteria (AK1, AK2 not verified)]",
+        "  SR-1  approved  Title 1  [verification: core (open, 2 of 3 criteria, AK3 not verified), VAR-1 (verified, 3 of 3 criteria)]",
+        "  SR-2  approved  Title 2  [verification: core (failed, 0 of 2 criteria, AK1, AK2 not verified)]",
         "  VAR-1  draft  Pro",
         "total: 3",
       ),
     );
+  });
+  it("shows the status alone where the criteria carry no counts", () => {
+    const elements = [requirement("1", [{ view: "core", status: "open", criteria: { notVerified: [] } }])];
+    expect(renderHuman({ elements, total: 1 })).toContain("[verification: core open]");
   });
 });
 

@@ -6,7 +6,7 @@
   "effect": "write-files",
   "deletes": "saved-file",
   "whileReadOnly": "refuse",
-  "whileReadOnlyReason": "SR-217 AK7: deleting is refused while the tool refuses write commands (SR-011 AK3).",
+  "whileReadOnlyReason": "SR-217 AK7: deleting is refused while ReqSeq refuses write commands (SR-011 AK3).",
   "stage": 3,
   "implements": ["SR-217"],
   "arguments": [

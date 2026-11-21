@@ -1,6 +1,6 @@
 // Cross-access scenarios of workspace.connectAgent (SR-227): without a client and for each client, every access
 // gives the same setup, as all of them stand for the installation of this process (D-029). Each client gets its
-// form (AK2), Claude Code also the call that writes the skill file (AK2), and the setup names absolute paths
+// form (AK2), every client but Claude Desktop also the call that writes the skill file (AK2), and the setup names absolute paths
 // (AK3). Running the setup is the CLI e2e test (AK5). AK4 needs injected macOS facts (core's tests) and AK6 is
 // about files, which a comparison of outputs does not see (CLI e2e).
 import path from "node:path";
@@ -29,9 +29,9 @@ const COMMANDS: Readonly<Record<string, string>> = {
   "codex-cli": "codex mcp add reqseq ",
 };
 
-/** Checks the form of the setup for `client` (SR-227 AK2), and that only Claude Code's names the call writing the skill file. */
+/** Checks the form of the setup for `client` (SR-227 AK2), and that all but Claude Desktop's name the call writing the skill file. */
 const formOf = (client: string, { setup, next }: Setup): void => {
-  expect(next.includes(" tool guide --skill --write --workspace ")).toBe(client === "claude-code");
+  expect(next.includes(" tool guide --skill --write --workspace ")).toBe(client !== "claude-desktop");
   const command = COMMANDS[client];
   if (command !== undefined) {
     expect(setup.form).toBe("command");

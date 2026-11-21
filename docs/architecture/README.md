@@ -99,6 +99,7 @@ flowchart TB
       data[data<br/>JSON export and store per state]
       reqif[reqif<br/>ReqIF model, parser, mapping files]
       html[html-export<br/>pages of the HTML export, safe Markdown]
+      displays[displays<br/>display models the app and the export share]
       elgraph[graph<br/>element graph, its words, Mermaid text]
       query[query<br/>filter engine, sort, search index, saved filters]
       hints[hints<br/>outdated relations, evidence hints, confirm]
@@ -115,8 +116,8 @@ flowchart TB
       docs[docs-site<br/>offline documentation: request to file, CSP]
     end
     subgraph shared[shared, imported almost everywhere, edges not drawn]
-      state[runtime: workspace, settled, contracts, input-errors, internal-cause<br/>Workspace object, schemas, error causes]
-      catalog[catalog.ts, product.ts, problem-titles.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
+      state[runtime: workspace, settled, contracts, command-titles, input-errors, internal-cause<br/>Workspace object, schemas, command titles, error causes]
+      catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
   cli & api & mcp & app --> index
@@ -125,8 +126,9 @@ flowchart TB
   commands -->|every block except git| blocks
   data --> evidence & files & mm & model & variants & ws
   reqif --> files & mm & model & ws
-  html --> evidence & files & hints & mm & model & query & trace & variants & ws
+  html --> displays & evidence & files & hints & mm & model & query & trace & variants & ws
   elgraph --> evidence & hints & mm & model & trace & variants & ws
+  displays --> elgraph & model
   query --> baselines & evidence & files & mm & model & trace & variants & ws
   hints --> baselines & evidence & files & mm & model & trace & variants & ws
   evidence --> files & mm & model & trace & variants & ws
@@ -146,8 +148,9 @@ An arrow means that at least one module of the source imports a value (a functio
 | `commands` | baselines, data, evidence, files, graph, hints, html-export, metamodel, model, query, reqif, runtime state, trace, variants, version, workspace | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
 | `reqif` | files, metamodel, model, runtime state, workspace | |
-| `html-export` | evidence, files, hints, metamodel, model, query, trace, variants, workspace | runtime state |
+| `html-export` | displays, evidence, files, hints, metamodel, model, query, trace, variants, workspace | runtime state |
 | `graph` | evidence, hints, metamodel, model, runtime state, trace, variants, workspace | |
+| `displays` | graph, model | |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
@@ -157,18 +160,18 @@ An arrow means that at least one module of the source imports a value (a functio
 | `model` | files, git, metamodel, runtime state, version, workspace | |
 | `metamodel` | files, runtime state, workspace | |
 | `workspace` | files, git, runtime state | |
-| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`, `internal-cause`) | no other block | |
+| `files`, `version`, `git`, `docs-site`, runtime state (`workspace`, `settled`, `contracts`, `command-titles`, `input-errors`, `internal-cause`) | no other block | |
 
 `workspace` imports `git` for one question: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456); the layout is the workspace block's, and `git` is a lower layer.
 
-Every block may also import the root modules `catalog.ts`, `product.ts`, `problem-titles.ts` (the title of every problem kind, SR-224 AK6), `build-info.ts` (the build of a delivery, SR-161), `installation.ts` (the installation a process stands for) and `agent-setup.ts` (the setup of a client of an agent, SR-227; it imports only the type `Installation`), `next-steps.ts` (the next steps of SR-226; it imports only generated types) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
+Every block may also import the root modules `catalog.ts`, `product.ts`, `problem-titles.ts` (the title of every problem kind, SR-224 AK6), `hint-order.ts` (which findings are hints and their order, the rule of `hint.list` for one element; it imports nothing), `build-info.ts` (the build of a delivery, SR-161), `installation.ts` (the installation a process stands for) and `agent-setup.ts` (the setup of a client of an agent, SR-227; it imports only the type `Installation`), `next-steps.ts` (the next steps of SR-226; it imports only generated types) and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`, `reqif`, `html-export`, `graph`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git`, `docs-site` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `graph`; `displays`; `data`, `reqif`, `html-export`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (ThomasBirkmaier/ReqSeq-archive#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility |
 |---|---|
 | `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) |
-| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082). State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors |
+| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses, confine the local paths of API and MCP calls to the repositories, SR-142), `warmWorkspace` (SR-082). State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, the titles messages name commands by, readable input errors |
 | `workspace` | Read `reqseq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces |
 | `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) |
 | `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) |
@@ -182,9 +185,10 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |
 | `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013); so far the model and the parser on the XML scanner of `files`, and the mapping files (`mapping`: where they are written, reading and checking them against the metamodel, SR-054) ([block file](../../packages/core/docs/reqif.md)) |
+| `displays` | The display models the app and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
 | `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts; the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
 
-Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `pasted-markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
+Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 

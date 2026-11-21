@@ -5,8 +5,8 @@
 // entry for a variant that excludes or replaces the requirement): the name of the core or the variant, and
 // its status with the details that belong to it. An `open` one without own record names the children that
 // are missing for an indirect verification (SR-034 AK2): "open (missing SR-1, SR-2)"; one from
-// own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
-// AK3 not verified)". The validation status (SR-038
+// own records of a requirement with acceptance criteria counts them (SR-031 AK5), in the long form of core's
+// `verificationLabel` (ADR-0019): "open, 2 of 3 criteria, AK3 (k7f3) not verified". The validation status (SR-038
 // AK1) is a badge of the same form on a line of its own (#2175): "Validation" on the left, the status word
 // alone on the right, "validated", so the badge stays short; the reason of an inconclusive one (SR-172 AK2) is
 // the line's title, shown on demand as written (#846, D-062). Variants, replacements and missing children are
@@ -16,7 +16,7 @@
 import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
-import { criterionLabel } from "@reqseq/core/criterion-items";
+import { verificationLabel } from "@reqseq/core/displays";
 import { shownIdTitle } from "./id-title.js";
 import { CORE_VIEW } from "./views.js";
 
@@ -142,17 +142,6 @@ const missing = (byId: ReadonlyMap<string, ElementName>, children: readonly stri
         { text: ")" },
       ];
 
-type Criteria = NonNullable<Verification["criteria"]>;
-
-/** How many acceptance criteria are verified (SR-031 AK5): " (2 of 3 criteria, AK3 not verified)"; empty without. */
-const criteriaText = (criteria: Criteria | undefined): string => {
-  if (criteria === undefined) {
-    return "";
-  }
-  const open = (criteria.notVerified ?? []).map(criterionLabel);
-  return ` (${String(criteria.verified)} of ${String(criteria.total)} criteria${open.length === 0 ? "" : `, ${open.join(", ")} not verified`})`;
-};
-
 /** Whether the element has a verification or validation status: a requirement or need, or one with a validation record. */
 export const hasStatus = (
   element: Pick<ElementGetOutput["element"], "verification" | "validation">,
@@ -185,10 +174,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
   const verification = element.verification?.map((entry): Badge => ({
     name: entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
     status: entry.status,
-    parts: [
-      { text: `${entry.status}${criteriaText(entry.criteria)}` },
-      ...missing(byId, entry.missingChildren ?? []),
-    ],
+    parts: [{ text: verificationLabel(entry, "long") }, ...missing(byId, entry.missingChildren ?? [])],
   }));
   return {
     use: use.length === 0 ? undefined : joined(use),

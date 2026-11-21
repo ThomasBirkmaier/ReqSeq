@@ -1,7 +1,8 @@
 // "Create workspace" of the start buffer (SR-225 AK4–AK6): the system folder dialog (stubbed in main), then the
 // command prompt asks only the name, pre-filled with the folder's name; Enter creates the workspace with the
 // standard model and opens it. A canceled dialog, Escape and an empty name create nothing, and a chosen folder that
-// is a workspace is opened as it is.
+// is a workspace is opened as it is. The new workspace has no element, so its overview shows the first steps
+// (SR-118 AK9, SR-225 AK3).
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -67,6 +68,58 @@ test("[SR-225/AK-tccz] Create workspace of the start buffer asks only the name, 
   expect(fs.readFileSync(path.join(folder, "reqseq-workspace.yaml"), "utf8")).toContain("name: Station");
   expect(fs.existsSync(path.join(folder, "metamodel", "standard-model.yaml"))).toBe(true);
   await window.screenshot({ path: path.join(SHOTS, "start-create-opened-light.png") });
+});
+
+test("[SR-118/AK-fdqn] [SR-225/AK-tgvr] the new empty workspace shows its first steps in the middle, and a click or Enter runs them as the command prompt does", async () => {
+  const { window } = running;
+  await dialogAnswers(emptyFolder("Buoy"));
+  await createLine().click();
+  await expect(window.locator("#prompt-input")).toHaveValue("Buoy");
+  await window.keyboard.press("Enter");
+  const overview = window.getByRole("listbox", { name: "Overview" });
+  await expect(overview.getByRole("option")).toHaveText([
+    `Create element${process.platform === "darwin" ? "⌘K E" : "Ctrl+K E"}`,
+    "Import ReqIF file",
+    "Connect AI agent",
+  ]);
+  await expect(window.getByRole("listbox", { name: "Start" })).toHaveCount(0);
+  // Without a frame, paler than the side texts, as the lines of the start buffer (SR-225 AK1).
+  const line = overview.locator(".start-line").first();
+  await expect(line).toHaveCSS("border-top-style", "none");
+  const colour = (selector: string): Promise<string> =>
+    window.evaluate((css) => {
+      const probe = document.createElement("span");
+      probe.style.color = css;
+      document.body.append(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    }, selector);
+  await expect(line).toHaveCSS("color", await colour("var(--faint)"));
+  // In the middle of the sheet.
+  const sheet = await window.getByRole("main", { name: "Sheet" }).boundingBox();
+  const lines = await overview.locator(".column").boundingBox();
+  expect(sheet).not.toBeNull();
+  expect(lines).not.toBeNull();
+  if (sheet !== null && lines !== null) {
+    expect(Math.abs(lines.x + lines.width / 2 - (sheet.x + sheet.width / 2))).toBeLessThan(2);
+    expect(Math.abs(lines.y + lines.height / 2 - (sheet.y + sheet.height / 2))).toBeLessThan(40);
+  }
+  // The pointer away from the lines, which a hover would mark.
+  await window.mouse.move(0, 0);
+  await window.screenshot({ path: path.join(SHOTS, "overview-first-steps-light.png") });
+  // A click runs "Import ReqIF file" as the command prompt does: it asks its first argument.
+  const prompt = window.locator("label.prompt-label");
+  await overview.getByRole("option", { name: "Import ReqIF file" }).click();
+  await expect(prompt).toHaveText(/^Import ReqIF file · /);
+  // Escape steps back to the command prompt, then closes it.
+  await window.keyboard.press("Escape");
+  await window.keyboard.press("Escape");
+  await expect(prompt).toHaveCount(0);
+  // The arrow keys mark "Create element", and Enter runs it.
+  await overview.press("ArrowUp");
+  await overview.press("Enter");
+  await expect(prompt).toHaveText("Create element · type:");
 });
 
 test("[SR-225/AK-mw88] a canceled dialog, Escape and an empty name create nothing, and an empty name says that a name is needed", async () => {

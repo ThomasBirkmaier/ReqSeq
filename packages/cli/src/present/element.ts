@@ -1,6 +1,7 @@
 // Part of the CLI output for people (`../present.ts`, whose comment describes the layout): the line
 // of an element with its marks, its details, and the line of a finding.
 import { criterionKey, criterionLabel, criterionText, degreePercent, isCriterionKey } from "@reqseq/core";
+import { verificationLabel } from "@reqseq/core/displays";
 import type { Style } from "../style.js";
 import { PLAIN, cut, widthOf } from "../style.js";
 import type { Namer, Names, Rec } from "./common.js";
@@ -59,15 +60,27 @@ export const viewNamerOf =
   };
 
 /**
- * The acceptance criteria of a verification entry (SR-031 AK5): ` 2 of 3 criteria (AK3 not
- * verified)`; nothing without `criteria`.
+ * The status of a verification entry with its acceptance criteria (SR-031 AK5), in the long form of the display words
+ * (`verificationLabel`, ADR-0019) and in brackets, so the commas of the words do not read as the next view:
+ * `(open, 2 of 3 criteria, AK3 (k7f3) not verified)`; the status alone without counted criteria.
  */
-const criteriaCountText = (criteria: unknown): string => {
-  if (!isRecord(criteria)) {
-    return "";
+const statusText = (entry: Rec): string => {
+  const { criteria } = entry;
+  const status = text(entry["status"]);
+  if (
+    !isRecord(criteria) ||
+    typeof criteria["verified"] !== "number" ||
+    typeof criteria["total"] !== "number"
+  ) {
+    return status;
   }
-  const open = listOf(criteria["notVerified"]).filter(isRecord).map(nameOfCriterion);
-  return ` ${String(criteria["verified"])} of ${String(criteria["total"])} criteria${open.length === 0 ? "" : ` (${open.join(", ")} not verified)`}`;
+  const notVerified = listOf(criteria["notVerified"])
+    .filter(isRecord)
+    .map((c) => ({
+      ...(typeof c["criterion"] === "number" ? { criterion: c["criterion"] } : {}),
+      ...(typeof c["key"] === "string" ? { key: c["key"] } : {}),
+    }));
+  return `(${verificationLabel({ status, criteria: { verified: criteria["verified"], total: criteria["total"], notVerified } }, "long")})`;
 };
 
 /**
@@ -88,7 +101,7 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
   };
   const entryText = (e: Rec): string => {
     const missing = listOf(e["missingChildren"]).map((id) => named(text(id)));
-    return `${named(text(e["view"]))} ${text(e["status"])}${criteriaCountText(e["criteria"])}${missing.length === 0 ? "" : ` (missing ${missing.join(", ")})`}`;
+    return `${named(text(e["view"]))} ${statusText(e)}${missing.length === 0 ? "" : ` (missing ${missing.join(", ")})`}`;
   };
   return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };

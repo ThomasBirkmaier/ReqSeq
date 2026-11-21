@@ -299,7 +299,6 @@ export const carryLengths = (
   }
   for (const doc of added) {
     const of = inner._fieldLength.get(doc);
-    /* v8 ignore else -- every document MiniSearch holds has its lengths, an added one too. */
     if (of !== undefined) {
       for (const [field, length] of of.entries()) {
         lengths[doc * fields + field] = length;
@@ -798,13 +797,10 @@ const describer = (
         ),
       0,
     );
-    if (spent + perDocument > pass) {
+    if (all === undefined && spent + perDocument > pass) {
+      // Every hit at once; `doc` is one of `found`, so the call below finds it in `all`.
       all = describeAll(inner, specs, options, found);
-      const described = all.get(doc);
-      /* v8 ignore else -- only documents of `found` are described: those are the hits of the scoring. */
-      if (described !== undefined) {
-        return described;
-      }
+      return describe(doc);
     }
     spent += perDocument;
     const one = describeOne(inner, specs, options, doc);

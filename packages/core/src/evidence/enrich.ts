@@ -72,7 +72,7 @@ import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
-import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
+import { metamodelState, typeName, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
@@ -192,7 +192,7 @@ const kindProblems = (testCase: JunitTestCase, ids: readonly string[], context: 
             line: testCase.line,
             targetId: id,
             targetRepository: other.repository,
-            message: `${testCaseText(testCase)} names element ${id} of type ${other.type}, so its record counts for no status: a verification record names a requirement`,
+            message: `${testCaseText(testCase)} names element ${id} of type ${other.typeName}, so its record counts for no status: a verification record names a requirement`,
           },
         ];
   });
@@ -582,7 +582,7 @@ export const enrichJunitFile = async (
       const record = found.get(id);
       return record === undefined || requirements.has(record.type)
         ? undefined
-        : { type: record.type, repository: record.repository };
+        : { typeName: typeName(metamodel, record.type), repository: record.repository };
     },
     namePattern: pattern === undefined ? undefined : nameMatcher(pattern, typePrefixes),
     // Asked only for an element `resolve` found, which `resolverOf` put into `found`.

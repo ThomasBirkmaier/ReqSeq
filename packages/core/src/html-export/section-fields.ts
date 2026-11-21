@@ -1,8 +1,10 @@
 // The list of fields at the top of an element's page (SR-232 AK1): type, identifier, short ID, status (without one
 // "–") and packages, each package by its title (else as a relation names it); the repository when the workspace has
 // more than one; for a requirement its verification status in the core and in each variant it applies in ("not in the
-// core" when the core does not hold it), and for a need its validation status. Status and verification status are
+// core" when the core does not hold it), worded by `verificationLabel` (ADR-0019), and for a need its validation status. Status and verification status are
 // badges, as on the docs site. Each row has a button that copies its value (`copyButton`), the text the row shows.
+import type { ElementPageDisplay, VerificationCell } from "../displays/index.js";
+import { verificationLabel } from "../displays/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import { findType, propertyWithMeaning } from "../metamodel/index.js";
 import { badge, verificationVariant } from "./element-badge.js";
@@ -28,13 +30,8 @@ const badged = (label: string, value: string, variant: Parameters<typeof badge>[
   copy: value,
 });
 
-type Verification = NonNullable<DataExportElement["verification"]>[number];
-
-/** A verification status as the row shows it: the status, and the criteria counted from own records. */
-const verificationText = (entry: Verification): string =>
-  entry.criteria === undefined
-    ? entry.status
-    : `${entry.status}, ${String(entry.criteria.verified)} of ${String(entry.criteria.total)} criteria`;
+/** A verification status as the row shows it: the long form of the display words (`verificationLabel`). */
+const verificationText = (cell: VerificationCell): string => verificationLabel(cell, "long");
 
 /** The name of the view `view` (`core` or a variant's UUID), as rows and criteria name it. */
 export const viewName = (context: ElementPageContext, view: string): string => {
@@ -51,16 +48,16 @@ export const viewName = (context: ElementPageContext, view: string): string => {
 };
 
 /** The rows of the verification status (see the file comment); none for an element that is no requirement. */
-const verificationRows = (context: ElementPageContext, element: DataExportElement): Row[] => {
-  if (element.verification === undefined) {
+const verificationRows = (context: ElementPageContext, cells: ElementPageDisplay["verification"]): Row[] => {
+  if (cells === undefined) {
     return [];
   }
-  const core = element.verification.find((entry) => entry.view === "core");
+  const core = cells.find((entry) => entry.view === "core");
   return [
     core === undefined
       ? plain("Verification status in the core", "not in the core")
       : badged("Verification status in the core", verificationText(core), verificationVariant(core.status)),
-    ...element.verification
+    ...cells
       .filter((entry) => entry.view !== "core")
       .map((entry) =>
         badged(
@@ -96,7 +93,11 @@ const packagesRow = (context: ElementPageContext, element: DataExportElement): R
 };
 
 /** The list of fields (see the file comment). */
-export const fieldsSection = (context: ElementPageContext, page: ElementPage): string => {
+export const fieldsSection = (
+  context: ElementPageContext,
+  page: ElementPage,
+  display: ElementPageDisplay,
+): string => {
   const { element } = page.data;
   const rows: Row[] = [
     plain("Type", findType(context.metamodel, element.type)?.name ?? element.type),
@@ -105,7 +106,7 @@ export const fieldsSection = (context: ElementPageContext, page: ElementPage): s
     element.status === undefined ? plain("Status", NONE) : badged("Status", element.status, "default"),
     packagesRow(context, element),
     ...(context.layout.repositories.length > 1 ? [plain("Repository", element.repository)] : []),
-    ...verificationRows(context, element),
+    ...verificationRows(context, display.verification),
     ...(element.validation === undefined ? [] : [plain("Validation status", element.validation)]),
   ];
   const html = rows

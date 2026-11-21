@@ -93,7 +93,7 @@ export interface EnrichOptions {
    */
   readonly outOfVariant: (id: string, view: string) => string | undefined;
   /**
-   * The type and repository of the element `id` when a verification record cannot name it (its type
+   * The type name and repository of the element `id` when a verification record cannot name it (its type
    * has no meaning `requirement`, D-012), else undefined (#843); absent: no element is checked.
    */
   readonly notRequirement?: ((id: string) => NotRequirement | undefined) | undefined;
@@ -108,7 +108,8 @@ export interface EnrichOptions {
 
 /** An element a verification record cannot name (`notRequirement`). */
 export interface NotRequirement {
-  readonly type: string;
+  /** The name of its type in the metamodel, as a message names it (#2200). */
+  readonly typeName: string;
   readonly repository: string;
 }
 

@@ -39,6 +39,7 @@ import {
 import type { Workspace } from "../../runtime/workspace.js";
 import { isCoreRequirement, variantTypes } from "../../variants/index.js";
 import { filesNote, listed, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 type Input = CommandInput<"variant.exclude">;
 type Output = CommandOutput<"variant.exclude">;
@@ -53,7 +54,7 @@ const stateOf = async (workspace: Workspace, input: Input) => {
   if (!variantTypes(metamodel).has(variant.type)) {
     throw new CommandError(
       "input.invalid",
-      `${input.variant} is no variant: variant.exclude takes an element whose type has the meaning variant`,
+      `${input.variant} is no variant: ${commandTitle("variant.exclude")} takes an element whose type has the meaning variant`,
       { ref: input.variant, reason: "not-a-variant" },
     );
   }

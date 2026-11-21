@@ -137,7 +137,7 @@ describe("identifiers as element references (ThomasBirkmaier/ReqSeq-archive#305)
       "metamodel/model.yaml": model.replace("meaning: identifier", "meaning: bogus"),
     });
     const cause =
-      "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
+      '; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing ("Check workspace" lists its problems)';
     expect((await failure(opened, "element.get", { ref: "SR-036" })).toJSON()).toEqual({
       code: "ref.unknown",
       message: `No element has the identifier "SR-036"${cause}`,

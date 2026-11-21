@@ -1,6 +1,6 @@
 {
   "name": "element.list",
-  "title": "List all elements",
+  "title": "List elements",
   "summary": "Elements of a selection, sorted; optionally as derivation tree or in groups.",
   "effect": "read",
   "stage": 3,

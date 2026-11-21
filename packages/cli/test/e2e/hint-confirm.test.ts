@@ -114,12 +114,12 @@ describe("reqseq hint confirm (SR-027)", () => {
     const none = await reqseq(["hint", "confirm", "--ref", A], ws.root);
     expect([none.code, none.stdout]).toEqual([
       0,
-      `Confirmed 0 hints; no file written; 1 problem.\nconfirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints\n`,
+      `Confirmed 0 hints; no file written; 1 problem.\nconfirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it; "List hints" gives the open hints\n`,
     ]);
     const empty = await reqseq(["hint", "confirm"], ws.root);
     expect([empty.code, empty.stderr]).toEqual([
       2,
-      "error input.invalid: Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)\n",
+      'error input.invalid: Give hintIds, ref or target: which hints to confirm ("List hints" gives the open ones)\n',
     ]);
   });
 

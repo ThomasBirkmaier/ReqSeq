@@ -16,6 +16,7 @@ import {
   readSavedFolder,
   savedSlug,
 } from "./saved-files.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** Saved filter files end in `.yaml` (D-056). */
 export const FILTER_FILE_EXTENSION = SAVED_FILE_EXTENSION;
@@ -77,7 +78,7 @@ export const savedFilterFor = async (
   }
   const where = saved.incomplete
     ? `; its folder is in repository ${String(saved.repository?.name)}, which is not on this machine`
-    : "; filter.list lists the saved filters";
+    : `; ${commandTitle("filter.list")} lists the saved filters`;
   throw new CommandError(
     "input.invalid",
     `${field}: no saved filter is named ${JSON.stringify(name)}${where}`,

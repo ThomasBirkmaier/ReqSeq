@@ -9,6 +9,7 @@ import {
   elementBuffer,
   filteredList,
   graphBuffer,
+  inRepositoryList,
   outputSelectionList,
   metamodelBuffer,
   neighbourhoodBuffer,
@@ -116,7 +117,7 @@ const everyKind = (): Buffer[] => [
   },
   { ...metamodelBuffer("text"), selected: "type:need" },
   {
-    ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { secret: "output" }, 7),
+    ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence records SR-1", { secret: "output" }, 7),
     cursor: 0,
   },
   // A perspective buffer that differs from its perspective: it comes back as saved (SR-214 AK7).
@@ -220,7 +221,13 @@ describe("buffer session (SR-115 AK4)", () => {
     });
     expect(metamodel).toEqual(metamodelBuffer("text"));
     expect(result).toEqual(
-      resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
+      resultBuffer(
+        "evidence.list",
+        { ref: "SR-1" },
+        "List evidence records SR-1",
+        undefined,
+        RESTORED_REVISION,
+      ),
     );
     expect(perspective).toEqual(perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED }));
     // Buffers as they open first, with nothing chosen, come back the same; an element shown read-only
@@ -353,7 +360,7 @@ describe("buffer session (SR-115 AK4)", () => {
   });
 
   it("keeps Show details of a result over a restart, since it holds until the buffer is closed (SR-223 AK2)", async () => {
-    const shown = resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { a: 1 }, 7);
+    const shown = resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence records SR-1", { a: 1 }, 7);
     const storage = memory();
     saveSession(() => storage, "key", sessionText([{ ...shown, details: true }]));
     const restored = await restoreSession(
@@ -363,7 +370,13 @@ describe("buffer session (SR-115 AK4)", () => {
     );
     expect(restored.buffers).toEqual([
       {
-        ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
+        ...resultBuffer(
+          "evidence.list",
+          { ref: "SR-1" },
+          "List evidence records SR-1",
+          undefined,
+          RESTORED_REVISION,
+        ),
         details: true,
       },
     ]);
@@ -401,6 +414,38 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(loadSession(() => storage, "odd").buffers).toEqual([]);
   });
 
+  it("[SR-115/AK-qtv5] keeps the list of a number of a write command by UUID and repository over a restart (#2024)", async () => {
+    const counted = inRepositoryList("Set status · Changed elements", [
+      { id: "uuid-1", repository: "spec" },
+      { id: "uuid-9", repository: "sensor" },
+    ]);
+    const storage = memory();
+    saveSession(() => storage, "key", sessionText([counted]));
+    // Restored as stored: an item that names no element now is refused by core when the list is read (ref.unknown).
+    expect(
+      (
+        await restoreSession(
+          loadSession(() => storage, "key"),
+          names.call,
+          CATALOG,
+        )
+      ).buffers,
+    ).toEqual([counted]);
+    const stepWith = (inRepository: unknown): unknown => ({
+      kind: "list",
+      steps: [{ label: "x", selection: { inRepository } }],
+    });
+    const odd = {
+      buffers: [
+        stepWith({ id: "uuid-1" }),
+        stepWith([{ id: "uuid-1" }]),
+        stepWith([{ id: 1, repository: "spec" }]),
+      ],
+    };
+    saveSession(() => storage, "odd", JSON.stringify(odd));
+    expect(loadSession(() => storage, "odd").buffers).toEqual([]);
+  });
+
   it("[SR-115/AK-qtv5] leaves out an element that is gone and a result that is no implemented read command", async () => {
     const session: StoredSession = {
       buffers: [
@@ -408,7 +453,7 @@ describe("buffer session (SR-115 AK4)", () => {
         { kind: "element", id: "uuid-9", repository: "spec" },
         { kind: "graph", id: "uuid-1", repository: "spec", depth: 2 },
         { kind: "result", command: "element.setStatus", input: { refs: ["SR-1"] }, name: "Set status" },
-        { kind: "result", command: "evidence.list", input: {}, name: "List evidence" },
+        { kind: "result", command: "evidence.list", input: {}, name: "List evidence records" },
         { kind: "result", command: "trace.plan", input: {}, name: "Plan" },
         { kind: "search", query: "wind" },
         { kind: "search", query: "wind" },

@@ -1,7 +1,7 @@
 // The commander tree, generated from the command catalog (ADR-0002 rule 3, ADR-0009). No command is
 // named here: groups, actions, arguments and flags all come from the catalog entries.
 import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
-import { GET_STARTED } from "@reqseq/core";
+import { catalogGroupName, GET_STARTED } from "@reqseq/core";
 import { Command, Help, Option } from "commander";
 import type { InputField, PartFlag } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
@@ -442,7 +442,7 @@ export function buildProgram(options: ProgramOptions): Command {
     const name = entry.name.slice(0, entry.name.indexOf("."));
     let group = groups.get(name);
     if (group === undefined) {
-      group = program.command(name).description(`${name} commands`).usage("<action> [options]");
+      group = program.command(name).description(catalogGroupName(name)).usage("<action> [options]");
       groups.set(name, group);
     }
     addCommand(group, entry, options);

@@ -225,8 +225,9 @@ describe("reqseq help and version", () => {
     const result = await run(["--help"]);
     expect(result.code).toBe(EXIT.ok);
     expect(result.stdout).toContain("Usage: reqseq [options] [command]");
-    expect(result.stdout).toMatch(/test <action> \[options\]\s+test commands/);
-    expect(result.stdout).toMatch(/other <action> \[options\]\s+other commands/);
+    // A group without a name for people (`catalogGroupName`) is shown by its key.
+    expect(result.stdout).toMatch(/test <action> \[options\]\s+test\n/);
+    expect(result.stdout).toMatch(/other <action> \[options\]\s+other\n/);
   });
 
   it("lists the commands of a group in kebab-case, unimplemented ones marked", async () => {

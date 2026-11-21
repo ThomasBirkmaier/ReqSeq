@@ -91,6 +91,7 @@ import type { ElementHints } from "./get.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateIn } from "./locate.js";
 import { elementContent, elementView, titleKeyOf } from "./view.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** What `element.create` and `element.update` return. */
 export interface ElementWriteResult {
@@ -181,7 +182,7 @@ const RELATIONS_HINT: Readonly<Record<PropertyKeyField, string>> = {
   set: "add and remove relations with addRelations and removeRelations",
   unset: "add and remove relations with addRelations and removeRelations",
   setItems: "add and remove relations with addRelations and removeRelations",
-  property: "add relations with relation.add",
+  property: `add relations with ${commandTitle("relation.add")}`,
 };
 
 /**
@@ -216,7 +217,7 @@ export const propertyKeyRefusal = (
   const origin = originMeaning(keyDefinition(metamodel, key)?.definition);
   if (origin !== undefined) {
     return {
-      message: `${field} cannot hold ${key}: it holds the origin (${origin}), which only reqif.import writes`,
+      message: `${field} cannot hold ${key}: it holds the origin (${origin}), which only ${commandTitle("reqif.import")} writes`,
       details: { key, reason: "origin" },
     };
   }
@@ -1122,7 +1123,7 @@ const requirePrecondition = (input: UpdateElementInput): void => {
   const needs = input.text !== undefined || input.title !== undefined || input.setItems !== undefined;
   if (needs && input.expectedFileSha256 === undefined) {
     throw invalid(
-      "expectedFileSha256 is required to change text, title or setItems: pass fileSha256 of element.get",
+      `expectedFileSha256 is required to change text, title or setItems: pass the fileSha256 that ${commandTitle("element.get")} gives`,
       {
         field: "expectedFileSha256",
         reason: "precondition-missing",

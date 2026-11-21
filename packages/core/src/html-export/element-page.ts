@@ -1,4 +1,5 @@
-// The page of an element in the HTML export (SR-232): one call per section, in the order the page shows them, each
+// The page of an element in the HTML export (SR-232): the display model of the element page (`elementPageDisplay`,
+// ADR-0019) built once, then one call per section, in the order the page shows them, each
 // section in a module of its own, so a new section is one more call here.
 //
 // - fields (`section-fields.ts`, AK1): type, identifier, short ID, status, packages, verification or validation status;
@@ -13,6 +14,7 @@
 // - on the page of a variant, what it adds, replaces and excludes and its verification degree (`variants.ts`,
 //   SR-234 AK4);
 // - the change since each baseline (`section-baselines.ts`, AK7).
+import { elementPageDisplay } from "../displays/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -71,17 +73,23 @@ export const ELEMENT_PAGE_CSS = [
 ];
 
 /** The content of `page` (see the file comment). */
-export const elementPageBody = async (context: ElementPageContext, page: ElementPage): Promise<string> =>
-  [
-    fieldsSection(context, page),
-    hintsSection(page),
+export const elementPageBody = async (context: ElementPageContext, page: ElementPage): Promise<string> => {
+  // Built just before the page and dropped after it (ADR-0019 point 8).
+  const display = elementPageDisplay(
+    { element: page.data.element, hints: page.data.hints ?? [], metamodel: context.metamodel },
+    { relations: "outgoing" },
+  );
+  return [
+    fieldsSection(context, page, display),
+    hintsSection(display),
     `<section class="rq-text">${await page.markdown(page.text, "Text")}</section>`,
     packageSection(context, page),
     await criteriaSection(context, page),
     evidenceSection(context, page),
     await propertiesSection(context, page),
-    relationsSection(context, page),
+    relationsSection(context, display),
     neighbourhoodSection(context, page),
     variantSection(context, page),
     baselinesSection(context, page),
   ].join("");
+};

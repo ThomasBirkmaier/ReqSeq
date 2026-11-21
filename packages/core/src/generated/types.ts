@@ -552,11 +552,17 @@ export type Answer = string;
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
   readonly ids?: readonly ElementRef[];
+  /** Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown. */
+  readonly inRepository?: readonly {
+    readonly id: UuidRef;
+    /** Workspace name of the repository. */
+    readonly repository: string;
+  }[];
   /** Name of a saved filter (SR-070). */
   readonly filter?: string;
   readonly where?: FilterCondition;
@@ -2218,7 +2224,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
     readonly path?: OutputPath;
-    /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
+    /** The absolute path of the repository folder on this machine, symbolic links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
     readonly absolutePath?: OutputPath;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
@@ -2240,7 +2246,7 @@ export interface WorkspaceStatusOutput {
     /** Workspace name of the repository of the evidence location. */
     readonly repository: string;
     readonly path: RelativePath;
-    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
+    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a symbolic link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
     /** The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location. */
     readonly folder?: OutputPath;
@@ -2441,7 +2447,7 @@ export interface WorkspaceConnectAgentOutput {
   };
   /** That the setup holds as long as ReqSeq stays where it is, with that place. Only with a client. */
   readonly valid?: string;
-  /** How to go on after pasting the setup; for Claude Code also the command-line call, with the program of the setup, that writes the skill file. Only with a client. */
+  /** How to go on after pasting the setup; for every client but Claude Desktop also the command-line call, with the program of the setup, that writes the skill file, as a command for the terminal (PowerShell on Windows). Only with a client. */
   readonly next?: string;
 }
 
@@ -3608,10 +3614,7 @@ export interface ElementBulkUpdateOutput {
   /** Number of affected elements (SR-071 AK2). */
   readonly count: number;
   /** The elements whose file the change rewrites, in store order. */
-  readonly affected: readonly {
-    readonly id: Uuid;
-    readonly shortId: ShortId;
-  }[];
+  readonly affected: readonly CountedElement[];
   /** Elements of the selection that have the result already: those of `unchangedElements`. */
   readonly unchanged: number;
   /** The elements of the selection that have the result already, in store order. */
@@ -3620,6 +3623,8 @@ export interface ElementBulkUpdateOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read. */
     readonly reason: "not-a-property" | "unknown-type";
     /** Why the element was left out, for people. */
@@ -3655,6 +3660,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly changed: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** Acceptance criteria of the element that got a criterion key. */
     readonly assigned: number;
   }[];
@@ -3662,6 +3669,8 @@ export interface ElementAssignCriterionKeysOutput {
   readonly skipped: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Workspace name of the repository of its file. */
+    readonly repository: string;
     /** `unknown-type`: the metamodel has no type of the element, so it is only read (SR-016 AK3). */
     readonly reason: "unknown-type";
     /** Why the element was left out, for people. */
@@ -4194,7 +4203,7 @@ export interface TraceMatrixOutput {
 }
 
 /**
- * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
+ * Input of `trace.graph` as `run` gets it: validated, properties with a `default` filled in. The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json input`.
  */
 export interface TraceGraphInput {
@@ -4204,28 +4213,28 @@ export interface TraceGraphInput {
   readonly repository?: string;
   /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
-  /** Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  /** Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
   readonly allLevels: boolean;
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
-  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   /** Only the elements of the graph that this view holds, and the verification status in it: `core` or a variant ID; without it every element, and the verification status of the core. */
   readonly view?: View;
-  /** Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no link between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
+  /** Also give `evidence`, a summary of the evidence (verification records and test cases) of each element shown below the element (SR-111 AK3). Evidence is no relation or reference between elements, so `kinds` and `meanings` do not choose it, and it is no node: `limit` counts the elements only. */
   readonly withEvidence: boolean;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
 }
 
 /**
- * Output of `trace.graph`. The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds, with each requirement's verification status.
+ * Output of `trace.graph`. The graph of one element: what its relations and references lead to above it and what points at it below, to a depth, over the chosen kinds, with each requirement's verification status.
  * Schema: `schemas/commands/trace.graph.json output`.
  */
 export interface TraceGraphOutput {
   readonly answer: Answer;
   readonly root: Uuid;
-  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
+  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the relations and references were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -4241,9 +4250,9 @@ export interface TraceGraphOutput {
     readonly repository: string;
     /** Path relative to the repository. */
     readonly file: OutputPath;
-    /** Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to. */
+    /** Its relations and references in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to. */
     readonly expanded: boolean;
-    /** 0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004). */
+    /** 0 for the element; -d for an element reached d steps up along the relations and references the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along those that point at it. The source of a relation or reference is placed below its target (ADR-0004). */
     readonly level: number;
     /** In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` and `variant.core-changed` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044). Empty when none holds. The verification status is `verification` (SR-136). */
     readonly marks: readonly ("outdated" | "superseded")[];
@@ -4254,13 +4263,13 @@ export interface TraceGraphOutput {
     /** SR-136 AK3, AK6: for a need (type with the meaning `need`), the verification degree (SR-037) of the requirements derived directly from it, in the graph's view: its derivation children in the whole workspace whatever depth, kinds and meanings the graph shows, each once, counted as evidence.degree counts them. `share` is left out when none counts (no valid derived requirement). Without a relation kind with the meaning `derivation`, or while the metamodel is not valid, none counts. */
     readonly degree?: DataExportVerificationDegree;
   }[];
-  /** Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
+  /** Every followed relation or reference from one node to another, also one the walks did not take (one between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). One from an element to itself is no edge. Not listed: unresolved relations and references (`element.get` and `workspace.check` report them). */
   readonly edges: readonly {
-    /** The element whose file stores the link. */
+    /** The element whose file stores the relation or reference. */
     readonly source: Uuid;
     /** Workspace name of the repository of `source`. */
     readonly sourceRepository: string;
-    /** The element the link points at (ADR-0004). */
+    /** The element the relation or reference points at (ADR-0004). */
     readonly target: Uuid;
     /** Workspace name of the repository of `target`. */
     readonly targetRepository: string;
@@ -4272,7 +4281,7 @@ export interface TraceGraphOutput {
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
-    /** The link stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
+    /** The relation or reference stores a version of normal form 1 or 2, its target has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
   /** Only with `withEvidence`: one summary of the evidence below each node that has any (SR-111 AK3), in the order of `nodes`; `[]` when none has. Only nodes at level 0 or below whose evidence level (`level`) is within the depth asked (`maxDepth`, every level with `allLevels`), whether `expanded` or not; none above the element. The counts are those of trace.chain's `evidence` (`chainEvidenceOf`) in the view, the core without one (SR-047, SR-173): only verification records (D-007). The details are in trace.chain and evidence.list. */
@@ -4307,7 +4316,7 @@ export interface TraceGraphOutput {
 }
 
 /**
- * Input of `trace.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Input of `trace.mermaid` as `run` gets it: validated, properties with a `default` filled in. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.
  * Schema: `schemas/commands/trace.mermaid.json input`.
  */
 export interface TraceMermaidInput {
@@ -4317,11 +4326,11 @@ export interface TraceMermaidInput {
   readonly repository?: string;
   /** The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
   readonly maxDepth?: number;
-  /** Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  /** Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
   readonly allLevels: boolean;
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
-  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
   readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   /** Only the elements of the graph that this view holds: `core` or a variant ID; without it every element. */
   readonly view?: View;
@@ -4330,7 +4339,7 @@ export interface TraceMermaidInput {
 }
 
 /**
- * Output of `trace.mermaid`. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.
+ * Output of `trace.mermaid`. The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.
  * Schema: `schemas/commands/trace.mermaid.json output`.
  */
 export interface TraceMermaidOutput {
