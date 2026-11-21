@@ -76,8 +76,8 @@ describe("assembleContent", () => {
       "start/first.mdx",
     ]);
     const page = await readFile(join(paths.contentDir, "start", "first.mdx"), "utf8");
-    expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="App">\n\nA.\n');
-    expect(page).toContain('<TabItem label="CLI">\n\n[B](/ReqSeq/b/)\n');
+    expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="App">\n');
+    expect(page).toContain('<p class="access-tab-label">CLI</p>\n\n\n[B](/ReqSeq/b/)\n');
     expect(await readFile(join(paths.contentDir, "reference", "commands", "x.mdx"), "utf8")).toBe(
       page.replace("/ReqSeq/b/", "/b/"),
     );

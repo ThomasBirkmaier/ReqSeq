@@ -99,7 +99,7 @@ export async function assembleContent(
   }
   for (const file of (await files(paths.contentDir)).filter((name) => name.endsWith(".md"))) {
     const path = join(paths.contentDir, ...file.split("/"));
-    const tabbed = accessTabs(await readFile(path, "utf8"));
+    const tabbed = accessTabs(await readFile(path, "utf8"), file);
     if (tabbed !== undefined) {
       await writeFile(`${path}x`, tabbed, { flag: "wx" });
       await rm(path);
