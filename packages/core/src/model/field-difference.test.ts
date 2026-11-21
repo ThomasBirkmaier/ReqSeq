@@ -147,5 +147,20 @@ describe("fieldDifference (SR-232 AK7)", () => {
     expect(
       fieldDifference(metamodel, requirement({}), requirement({ "requirement-type": "quality" })).properties,
     ).toEqual([{ key: "requirement-type", before: undefined, after: "quality" }]);
+    expect(
+      fieldDifference(metamodel, requirement({ "requirement-type": "quality" }), requirement({})).properties,
+    ).toEqual([{ key: "requirement-type", before: "quality" }]);
+    // A matched criterion without text now is changed, not removed; an empty ID names no target.
+    const emptied = fieldDifference(
+      metamodel,
+      requirement({ "acceptance-criteria": ["A.", null], "derives-from": [{ id: "" }] }),
+      requirement({ "acceptance-criteria": [null, "B.", null] }),
+    );
+    expect(emptied.criteria).toEqual([
+      { numberBefore: 1, numberAfter: 1, before: "A.", after: "" },
+      { numberBefore: 2, numberAfter: 2, before: "", after: "B." },
+      { numberAfter: 3, after: "" },
+    ]);
+    expect(emptied.removedRelations).toEqual([]);
   });
 });

@@ -24,7 +24,7 @@ export default defineCommand({
     return sentence(
       count === 0
         ? `Found no difference in text, acceptance criteria, properties or relations of ${span}`
-        : `Found ${counted(count, "difference")} in text, acceptance criteria, properties and relations of ${span}; the Git command of this output shows the whole file`,
+        : `Found ${counted(count, "difference")} in text, acceptance criteria, properties and relations of ${span}; the Git command of this output shows the whole diff of the file`,
     );
   },
   run: async ({ workspace }, input): Promise<Output> =>

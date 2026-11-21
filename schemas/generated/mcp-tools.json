@@ -1451,7 +1451,7 @@
             },
             "criteria": {
               "title": "Acceptance criteria",
-              "description": "Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`).",
+              "description": "Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`); a criterion without text has the wording \"\".",
               "type": "array",
               "x-key": [
                 "key",
@@ -1556,11 +1556,6 @@
           "description": "A relation target that was added or removed, as the file stores it.",
           "type": "object",
           "properties": {
-            "title": {
-              "title": "Title",
-              "description": "The title the entry stores, where it stores one.",
-              "type": "string"
-            },
             "kind": {
               "title": "Relation",
               "description": "The relation kind or relation property key.",
@@ -1568,11 +1563,19 @@
             },
             "id": {
               "title": "Target",
-              "$ref": "#/$defs/common/$defs/uuid"
+              "description": "The ID of the target as the file stores it: a UUID, unless a file at the commit of the baseline holds another value.",
+              "type": "string",
+              "minLength": 1,
+              "x-technical": true
             },
             "repository": {
               "title": "Repository",
               "description": "Workspace name of the target's repository, where the entry stores one.",
+              "type": "string"
+            },
+            "title": {
+              "title": "Title",
+              "description": "The title the entry stores, where it stores one.",
               "type": "string"
             }
           },

@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { expect } from "vitest";
 import type { Copy } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 import { EXPORT } from "../../fixtures.js";
@@ -80,12 +81,19 @@ scenariosOf("baseline.compare", [
     expect: "error",
   },
   {
+    // By UUID: the short ID of an element no file holds is not known.
     name: "an element whose file is missing in the local copy (SR-051 AK7)",
     fixture: EXPORT,
     root: "system",
-    input: { baseline: "Release 2", ref: "SR-0000b1" },
+    input: { baseline: "Release 2", ref: "61061061-0000-4000-8000-0000000000b1" },
     tag: "[SR-051/AK-x9z6]",
     expect: "error",
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        const { error } = result.outcome as { error: { code: string; details: Record<string, unknown> } };
+        expect([error.code, error.details["reason"]]).toEqual(["element.not-found", "missing"]);
+      }
+    },
     prepare: async (copy) => {
       await changedSinceBaseline(copy);
       await fs.rm(path.join(copy.root, "requirements", "SR-0000000000b1.md"), { force: true });

@@ -731,7 +731,7 @@ export interface FieldDifference {
     /** The text in the local copy. */
     readonly after: string;
   };
-  /** Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`). */
+  /** Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`); a criterion without text has the wording "". */
   readonly criteria: readonly {
     /** Its criterion key, where one of the two files gives it one. */
     readonly key?: string;
@@ -762,13 +762,14 @@ export interface FieldDifference {
  * Schema: `schemas/common.schema.json#/$defs/changedRelation`.
  */
 export interface ChangedRelation {
-  /** The title the entry stores, where it stores one. */
-  readonly title?: string;
   /** The relation kind or relation property key. */
   readonly kind: string;
-  readonly id: Uuid;
+  /** The ID of the target as the file stores it: a UUID, unless a file at the commit of the baseline holds another value. */
+  readonly id: string;
   /** Workspace name of the target's repository, where the entry stores one. */
   readonly repository?: string;
+  /** The title the entry stores, where it stores one. */
+  readonly title?: string;
 }
 
 /**

@@ -13,10 +13,11 @@
 //   when the file names none or the repository does not have it (AK6). `to`: HEAD, `null` when the
 //   file differs from HEAD, so the command compares with the working copy.
 // - Refused (AK7), each with its reason: Git cannot read the repository (`git.unavailable`), no
-//   file held the element at the commit (`ref.unknown`), no file holds the listed copy in the local
-//   copy (`element.not-found`, `reason: missing`), or its file there cannot be read as an element
-//   (`file.faulty`, `reason`: the code of the store's problem with that file, or `changed` when the
-//   file changed since it was read).
+//   file held the element at the commit (`ref.unknown`), no readable file holds the listed copy in
+//   the local copy (`element.not-found`, `reason: missing`), or its file there, at its path at the
+//   commit, cannot be read as an element or is skipped (`file.faulty`, `reason`: the code of the
+//   store's problem with that file, or `changed` when the file changed since it was read). A file
+//   moved since and faulty at its new path is found by no path, so it counts as missing.
 // - `file` and `oldFile`: the path now and, when the file moved since `from`, the path then. A file
 //   moved to a path Git does not track: `git diff` does not show untracked files, so the command
 //   shows only the deletion until the new path is added to Git (`git add -N`); ReqSeq never stages.
@@ -147,13 +148,18 @@ const outputOf = (
 
 /** Why the local copy has no element file for the listed copy at `file`, the path at the baseline (AK7). */
 const noLocalFile = (store: ElementStore, element: Element, ref: string, file: string): CommandError => {
+  // A faulty file, or one the store skips (a link), at the path of the baseline; a file moved since and faulty
+  // at its new path is not found by its path, so the message says "readable".
   const problem = store.problems.find(
-    (p) => p.severity === "error" && p.repository === element.repository && p.file === file,
+    (p) =>
+      (p.severity === "error" || p.code === "file.skipped") &&
+      p.repository === element.repository &&
+      p.file === file,
   );
   return problem === undefined
     ? new CommandError(
         "element.not-found",
-        `No file of repository ${element.repository} in the local copy holds ${ref}; it was ${file} at the commit of the baseline`,
+        `No readable element file of repository ${element.repository} in the local copy holds ${ref}; it was ${file} at the commit of the baseline`,
         { ref, repository: element.repository, file, reason: "missing" },
       )
     : new CommandError(

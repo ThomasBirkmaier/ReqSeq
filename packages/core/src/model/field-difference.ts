@@ -119,7 +119,9 @@ const criteriaDifference = (
         ...(key === undefined ? {} : { key }),
         numberBefore: old.number,
         ...(now === undefined ? {} : { numberAfter: now.number }),
-        ...sides(shown(old.text), now === undefined ? undefined : shown(now.text)),
+        // Added or removed by whether it matched; a matched criterion without text has the wording "".
+        before: shown(old.text) ?? "",
+        ...(now === undefined ? {} : { after: shown(now.text) ?? "" }),
       });
     }
   }
@@ -127,7 +129,7 @@ const criteriaDifference = (
     changed.push({
       ...(now.key === undefined ? {} : { key: now.key }),
       numberAfter: now.number,
-      ...sides(undefined, shown(now.text)),
+      after: shown(now.text) ?? "",
     });
   }
   return changed;
@@ -138,7 +140,8 @@ const relationsOf = (metamodel: Metamodel, data: ElementContent["data"]): Map<st
   const targets = new Map<string, ChangedRelation>();
   for (const [key, relation] of relationKeysOf(metamodel)) {
     for (const [, item] of relationItems(key, relation, data[key])) {
-      if (hasId(item)) {
+      // An empty ID names no target (the output's `id` has at least one character).
+      if (hasId(item) && item.id !== "") {
         const repository = typeof item["repository"] === "string" ? item["repository"] : undefined;
         const title = typeof item["title"] === "string" ? item["title"] : undefined;
         targets.set(`${key}\0${item.id}\0${String(repository)}`, {

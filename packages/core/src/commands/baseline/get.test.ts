@@ -5,7 +5,7 @@
 // The fixture's own `release-1.yaml` stores no selection. CLI end to end: baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, symlink } from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput, InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -513,7 +513,7 @@ describe("baseline.compare", () => {
     const { ws, first, second } = await made();
     expect(await call(ws, "baseline.compare", { baseline: "Release 2", ref: "SR-0000b1" })).toEqual({
       answer:
-        "Found 1 difference in text, acceptance criteria, properties and relations of requirements/SR-0000000000b1.md in system from commit be3a664c1ea9 to commit 29b78339451d; the Git command of this output shows the whole file.",
+        "Found 1 difference in text, acceptance criteria, properties and relations of requirements/SR-0000000000b1.md in system from commit be3a664c1ea9 to commit 29b78339451d; the Git command of this output shows the whole diff of the file.",
       repository: "system",
       from: first,
       to: second,
@@ -658,6 +658,13 @@ describe("baseline.compare", () => {
       "file.faulty",
       { repository: "system", file: "needs/N-0000000000a1.md", reason: "file.invalid-yaml" },
     ]);
+    // A link the store skips at that path.
+    await rm(ws.path("system/needs/N-0000000000a1.md"));
+    await symlink("N-elsewhere.md", ws.path("system/needs/N-0000000000a1.md"));
+    expect(await refused("Release 2", `${ID}a1`)).toEqual([
+      "file.faulty",
+      { repository: "system", file: "needs/N-0000000000a1.md", reason: "file.skipped" },
+    ]);
     await ws.git(["rm", "-qf", "needs/N-0000000000a1.md"], "system");
     const gone = await failure(ws, "baseline.compare", { baseline: "Release 2", ref: `${ID}A1` });
     expect([gone.code, gone.details]).toEqual([
@@ -671,6 +678,30 @@ describe("baseline.compare", () => {
       "git.unavailable",
       "sensor",
     ]);
+  });
+
+  it("gives a relation target the file at the baseline commit names by another ID than a UUID as stored", async () => {
+    const { ws, second } = await made();
+    const stored = `derives-from:\n  - { id: ${ID}a1, version: ${V.a1} }`;
+    await edit(ws, B1, stored, "derives-from:\n  - { id: SR-0000a1 }");
+    const odd = await ws.commit("system", "odd target");
+    await ws.write(
+      "system/baselines/Odd.yaml",
+      baselineText(
+        "Odd",
+        [],
+        [`  - { name: system, commit: ${odd} }`],
+        [`  - { id: ${ID}b1, version: ${V.b1} }`],
+      ),
+    );
+    await edit(ws, B1, "derives-from:\n  - { id: SR-0000a1 }", stored);
+    // The output is checked against its schema in tests (REQSEQ_VALIDATE_OUTPUT).
+    const out = await call(ws, "baseline.compare", { baseline: "Odd", ref: "SR-0000b1" });
+    expect([out.difference.removedRelations, out.difference.addedRelations]).toEqual([
+      [{ kind: "derives-from", id: "SR-0000a1" }],
+      [{ kind: "derives-from", id: `${ID}a1` }],
+    ]);
+    expect(out.from).not.toBe(second);
   });
 
   it("refuses when Git or the file changes between its reads", async () => {

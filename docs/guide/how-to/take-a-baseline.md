@@ -69,7 +69,7 @@ A baseline needs committed files, so in your repository, after a commit:
 1. `reqseq baseline create "Review 1" --package PKG-65ba20` writes `Review-1.yaml` in the baseline folder. With uncommitted files it refuses with `baseline.uncommitted-changes`. Commit the new file.
 2. `reqseq baseline list` lists them with date and element count.
 3. `reqseq baseline get "Review 1"` lists each element with its state, its version in the baseline and, when it differs, the current one; `--with-evidence` adds the verification and validation status at the baseline (see the warning above).
-4. `reqseq baseline compare "Review 1" SR-c67baa` gives the old and new wording of each changed text, criterion and property and the relations added and removed (`difference`), the commits (`to` `null` while uncommitted) and a command like `git -C . diff <from> <to> -- system-requirement/SR-…md`. A relation change, not `changed` in `baseline get`, shows there.
+4. `reqseq baseline compare "Review 1" SR-c67baa` gives the old and new text, criteria and properties and the relations added and removed (`difference`), the commits (`to` `null` while uncommitted) and a command like `git -C . diff <from> <to> -- system-requirement/SR-…md`. `baseline get` does not mark a relation change as `changed`; `difference` shows it.
 5. `reqseq data export --baseline "Review 1"` gives the elements the baseline lists, as they are now.
 
 Two baselines are two files, so `git diff --no-index baselines/Review-1.yaml baselines/Review-2.yaml` shows which elements and versions differ.
