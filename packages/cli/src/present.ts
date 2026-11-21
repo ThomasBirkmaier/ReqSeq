@@ -24,6 +24,9 @@
 //   the root, `validation  DATE  RESULT  ITEM  BELEG  [version V]` (#646). An element reached by a relation
 //   whose meaning is not `derivation` names its kind (`[has-stakeholder]`), and a direction with such
 //   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
+//   The groups of a neighbourhood (`incoming`, SR-107 AK6) follow under `incoming:`, one line per group,
+//   `<- KIND  COUNT` (`reference` for the inline references), its elements one line each below it, and
+//   `showing N of COUNT` when it lists fewer than it counts.
 // - A graph (`nodes` of elements with a `level`) with `evidence` summaries (trace.graph `withEvidence`,
 //   SR-111 AK3) lists its nodes, each with its summary on the line below it:
 //   `evidence: 2 test cases, 1 record · 2 passed, 1 failed`; the edges stay YAML.
@@ -177,7 +180,7 @@ export function renderHuman(output: unknown, details = true, terminal?: Terminal
     appendAll(lines, chainLines(rest, namesIn(rest)));
   }
   const shown = chain
-    ? new Set(["root", "nodes", "edges", "gaps", "evidence", "validationRecords", "unresolved"])
+    ? new Set(["root", "nodes", "edges", "gaps", "evidence", "validationRecords", "unresolved", "incoming"])
     : new Set<string>();
   if (isMatrix(rest)) {
     // The evidence header (the degree, SR-126 AK4) stands above the rows that hold the status.

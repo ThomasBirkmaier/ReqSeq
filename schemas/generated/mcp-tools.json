@@ -10563,6 +10563,114 @@
               ]
             }
           },
+          "incoming": {
+            "title": "Incoming by kind",
+            "type": "array",
+            "description": "The relations and references that point at the root directly, as the down walk follows them: one group per relation kind and per property of kind `relation`, in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view. Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`.",
+            "x-key": [
+              "link",
+              "kind"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "link": {
+                  "title": "Relation or reference",
+                  "enum": [
+                    "relation",
+                    "reference"
+                  ],
+                  "description": "Relations of one key, or the inline references."
+                },
+                "kind": {
+                  "title": "Relation kind",
+                  "$ref": "#/$defs/common/$defs/key",
+                  "description": "The frontmatter key, only for `link: relation`."
+                },
+                "property": {
+                  "title": "Property",
+                  "const": true,
+                  "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
+                },
+                "meaning": {
+                  "title": "Meaning",
+                  "enum": [
+                    "derivation",
+                    "replacement",
+                    "succession",
+                    "exclusion",
+                    "reference"
+                  ],
+                  "description": "The meaning of the relation kind, `reference` for the inline references; left out for a kind without a meaning and for a property."
+                },
+                "count": {
+                  "title": "Count",
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "The number of all elements of the group; `element.list` with this count gives them all.",
+                  "x-elements": "selection"
+                },
+                "elements": {
+                  "title": "Elements",
+                  "type": "array",
+                  "maxItems": 100,
+                  "description": "The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored), then, with the same identifier and without one, by short ID.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "title": "Element",
+                        "$ref": "#/$defs/common/$defs/uuid"
+                      },
+                      "shortId": {
+                        "title": "Short ID",
+                        "$ref": "#/$defs/common/$defs/shortId"
+                      },
+                      "identifier": {
+                        "title": "Identifier",
+                        "type": "string",
+                        "description": "Its identifier; left out when it has none."
+                      },
+                      "type": {
+                        "title": "Type",
+                        "description": "Key of its type.",
+                        "type": "string"
+                      },
+                      "title": {
+                        "title": "Title",
+                        "description": "Its title; empty without one.",
+                        "type": "string"
+                      },
+                      "status": {
+                        "title": "Status",
+                        "description": "Its status key as written; left out when it has none.",
+                        "type": "string"
+                      },
+                      "repository": {
+                        "title": "Repository",
+                        "description": "Workspace name of the repository of its file.",
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "shortId",
+                      "type",
+                      "title",
+                      "repository"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "link",
+                "count",
+                "elements"
+              ]
+            }
+          },
           "incomplete": {
             "$ref": "#/$defs/common/$defs/incomplete"
           },

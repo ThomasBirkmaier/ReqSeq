@@ -125,6 +125,7 @@ const CASES: readonly {
   { options: GRAPH, command: "element.search", input: { query: "show", group: "package", limit: 1 } },
   { options: GROUP, command: "element.search", input: { query: "wind", group: "package", limit: 1 } },
   { options: GRAPH, command: "trace.graph", input: { ref: "N-00a001" } },
+  { options: GRAPH, command: "trace.neighbourhood", input: { ref: "N-00a001", limit: 1 } },
   { options: GRAPH, command: "trace.matrix", input: { limit: 1 } },
   { options: GRAPH, command: "tool.info", input: {} },
   { options: GRAPH, command: "metamodel.get", input: {} },

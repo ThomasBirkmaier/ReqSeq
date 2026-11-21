@@ -58,6 +58,9 @@ The neighbourhood of N-7fe707 has 2 elements.
 N-7fe707  draft  See the wind speed
 children:
   1  SR-c67baa  draft  Show the wind speed  [not expanded]
+incoming:
+  <- derives-from  1
+    SR-c67baa  draft  Show the wind speed
 total: 2
 ```
 

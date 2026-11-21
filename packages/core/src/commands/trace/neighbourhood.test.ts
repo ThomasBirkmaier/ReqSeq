@@ -438,3 +438,169 @@ describe("trace.neighbourhood (SR-107)", () => {
     expect([none.code, none.details]).toMatchObject(["ref.unknown", { ref: id }]);
   });
 });
+
+/** The UUID of the n-th added requirement. */
+const added = (n: number): string => `${P}1a${String(n).padStart(10, "0")}`;
+
+/** A requirement that derives from N1 (twice with `twice`), with `specId` as its identifier. */
+const derived = (n: number, specId: string | undefined, twice = false): [string, string] => {
+  const link = `  - { id: ${ID.N1}, version: n1:323df2732ed684b0 }\n`;
+  return [
+    `requirements/SR-1a${String(n).padStart(10, "0")}.md`,
+    `---\nid: ${added(n)}\ntype: system-requirement\nstatus: draft\ntitle: Requirement ${String(n)}\n` +
+      (specId === undefined ? "" : `spec-id: ${specId}\n`) +
+      `requirement-type: functional\nacceptance-criteria:\n  - Given wind, when it blows, then it is shown.\n` +
+      `derives-from:\n${link}${twice ? link : ""}---\n\nText.\n`,
+  ];
+};
+
+/** The fixture's metamodel with `spec-id`, a property with the meaning `identifier`. */
+const withIdentifier = async (fixture: FixtureWorkspace): Promise<void> => {
+  const file = fixture.path("metamodel/standard-model.yaml");
+  const model = (await fs.readFile(file, "utf8"))
+    .replace("        topic,\n      ]", "        topic,\n        spec-id,\n      ]")
+    .replace(
+      "  - { key: source-identifier,",
+      "  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\n  - { key: source-identifier,",
+    );
+  await fs.writeFile(file, model);
+};
+
+/** The groups as `[kind or link, property, meaning, count, shown]`; `-` for an absent field. */
+const groups = (output: Output): unknown[] =>
+  (output.incoming ?? []).map((g) => [
+    g.kind ?? g.link,
+    g.property ?? "-",
+    g.meaning ?? "-",
+    g.count,
+    g.elements.map((e) => nameOf(e.id)),
+  ]);
+
+describe("trace.neighbourhood incoming by kind (SR-107 AK5, AK6)", () => {
+  it("[SR-107/AK-qy39] counts every element of a kind and gives the first 100 by identifier, then short ID", async () => {
+    const { workspace } = await open(NEIGHBOURHOOD, async (fixture) => {
+      await withIdentifier(fixture);
+      // SR-102 first in the store, SR-1 last: the order comes from the identifiers, not the files.
+      const files = Array.from({ length: 102 }, (_, n) => derived(n, `SR-${String(102 - n)}`, n === 0));
+      files.push(derived(102, "SR-5"), derived(103, undefined));
+      for (const [file, text] of files) {
+        await fixture.write(file, text);
+      }
+    });
+    const output = await neighbourhood(workspace, { ref: ID.N1, direction: "down", limit: 1 });
+    const [group] = output.incoming ?? [];
+    expect([output.incoming?.length, group?.kind, group?.count, group?.elements.length]).toEqual([
+      1,
+      "derives-from",
+      106,
+      100,
+    ]);
+    const shown = group?.elements.map((e) => e.identifier) ?? [];
+    expect(shown).toEqual([
+      ...["SR-1", "SR-2", "SR-3", "SR-4", "SR-5", "SR-5"],
+      ...Array.from({ length: 94 }, (_, n) => `SR-${String(n + 6)}`),
+    ]);
+    // The two with the same identifier by short ID; the one deriving twice once.
+    const fives = group?.elements.filter((e) => e.identifier === "SR-5").map((e) => e.shortId) ?? [];
+    expect(fives).toEqual([...fives].sort());
+    expect(new Set(group?.elements.map((e) => e.id)).size).toBe(100);
+    expect(group?.elements[0]).toEqual({
+      id: added(101),
+      shortId: expect.any(String) as string,
+      identifier: "SR-1",
+      type: "system-requirement",
+      title: "Requirement 101",
+      status: "draft",
+      repository: "system",
+    });
+    // Not paged: another page gives the same groups.
+    expect((await neighbourhood(workspace, { ref: ID.N1, direction: "down", offset: 50 })).incoming).toEqual(
+      output.incoming,
+    );
+  });
+
+  it("gives one group per key in metamodel order, the references last, each element once", async () => {
+    const { workspace } = await open();
+    expect(groups(await neighbourhood(workspace, { ref: ID.S1 }))).toEqual([
+      ["derives-from", "-", "derivation", 1, ["C1"]],
+      ["excludes", "-", "exclusion", 1, ["V1"]],
+      ["reference", "-", "reference", 1, ["E"]],
+    ]);
+    expect(groups(await neighbourhood(workspace, { ref: ID.P1, direction: "down" }))).toEqual([
+      ["packages", true, "-", 2, ["S1", "S2"]],
+    ]);
+  });
+
+  it("keeps the elements of a view and a successor in any view (SR-107 AK5, SR-072 AK3)", async () => {
+    const successor = added(900);
+    const { workspace } = await open(NEIGHBOURHOOD, async (fixture) => {
+      await fixture.write(
+        "requirements/SR-1a0000000900.md",
+        `---\nid: ${successor}\ntype: system-requirement\ntitle: See the gusts\n` +
+          `requirement-type: functional\nacceptance-criteria:\n  - Given gusts, when they blow, then they are shown.\n` +
+          `supersedes:\n  - { id: ${ID.N1}, version: n1:323df2732ed684b0 }\n---\n\nText.\n`,
+      );
+      await fixture.write(
+        "variants/V-0f0000000001.md",
+        `---\nid: ${ID.V1}\ntype: variant\nstatus: draft\ntitle: Indoor display\nexcludes:\n` +
+          `  - { id: ${ID.S1}, version: n1:9bb10523fac3b72b }\n  - { id: ${successor} }\n---\n\nIndoor.\n`,
+      );
+    });
+    const output = await neighbourhood(workspace, { ref: ID.N1, direction: "down", view: ID.V1 });
+    expect(groups(output)).toEqual([
+      ["derives-from", "-", "derivation", 1, ["S2"]],
+      ["supersedes", "-", "succession", 1, [successor]],
+    ]);
+    // Without a status, none is given.
+    expect(output.incoming?.[1]?.elements[0]?.status).toBeUndefined();
+  });
+
+  it("gives no groups when the root's incoming links were not looked at", async () => {
+    const { workspace } = await open();
+    expect((await neighbourhood(workspace, { ref: ID.N1, direction: "up" })).incoming).toBeUndefined();
+    expect((await neighbourhood(workspace, { ref: ID.N1, maxDepth: 0 })).incoming).toBeUndefined();
+    expect((await neighbourhood(workspace, { ref: ID.S1, allLevels: true })).incoming).toHaveLength(3);
+  });
+
+  it("[SR-224/AK-h9kx] the count of a group gives all its elements through element.list", async () => {
+    const { workspace } = await open({
+      ...NEIGHBOURHOOD,
+      files: { "reqseq-workspace.yaml": WITH_VAULT },
+    });
+    const list = async (input: object, key: object): Promise<[string[], boolean | undefined]> => {
+      const output = (await invoke(
+        "element.list",
+        {
+          selection: {
+            output: {
+              command: "trace.neighbourhood",
+              input,
+              count: { field: "incoming[].count", key: [key] },
+            },
+          },
+        },
+        { workspace },
+      )) as CommandOutput<"element.list">;
+      return [output.elements?.map((e) => nameOf(e.id)) ?? [], output.incomplete];
+    };
+    expect(await list({ ref: ID.P1 }, { link: "relation", kind: "packages" })).toEqual([["S1", "S2"], true]);
+    expect(await list({ ref: ID.S1 }, { link: "reference" })).toEqual([["E"], true]);
+    expect(await list({ ref: ID.S1 }, { link: "relation", kind: "nope" })).toEqual([[], true]);
+    expect(await list({ ref: ID.S1, direction: "up" }, { link: "reference" })).toEqual([[], true]);
+    const here = (await open()).workspace;
+    const view = (await invoke(
+      "element.list",
+      {
+        selection: {
+          output: {
+            command: "trace.neighbourhood",
+            input: { ref: ID.N1, view: ID.V1 },
+            count: { field: "incoming[].count", key: [{ link: "relation", kind: "derives-from" }] },
+          },
+        },
+      },
+      { workspace: here },
+    )) as CommandOutput<"element.list">;
+    expect([view.elements?.map((e) => nameOf(e.id)), view.incomplete ?? false]).toEqual([["S2"], false]);
+  });
+});

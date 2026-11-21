@@ -30,8 +30,16 @@
 // - Pages (SR-082 AK4): as in `chainOutput`. The walks are always complete; the page holds `limit`
 //   nodes from `offset` (the root, the up walk, the down walk) and the edges that lead to them in
 //   their walk, so each edge is on one page.
+// - Incoming groups (SR-107 AK5, AK6, `incomingGroups`): the followed links that point at the root,
+//   the steps of its down walk, one group per relation key in the order of `context.keys` and one
+//   for the inline references last; each element once per group, also one with several links of the
+//   key or one that points at itself. In a view only the elements it holds, but a successor of the
+//   root (meaning `succession`) always (SR-072 AK3). `count` counts all elements of a group;
+//   `elements` lists the first `GROUP_LIMIT` in the order `order` gives (the command's: identifier,
+//   then short ID, SR-075 AK1).
 // - Cost: linear in the elements and links reached; the output adds one short ID and one title per
-//   node of the page, and the current version of each edge target of the page (`versionsOf`).
+//   node of the page, and the current version of each edge target of the page (`versionsOf`). The
+//   groups sort the root's direct sources once and build at most `GROUP_LIMIT` rows per group.
 import type { CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { MetamodelRelationKind, TraceNeighbourhoodOutput } from "../generated/types.js";
@@ -47,6 +55,7 @@ import {
   currentVersionsOf,
   formsOfEntry,
   hasId,
+  identifierField,
   incomingTo,
   isOutdatedVersion,
   referenceTargetState,
@@ -224,6 +233,47 @@ const incomingOf = (context: NeighbourhoodContext, element: ElementRecord): Expa
     }
   }
   return { steps, unresolved: NONE, incomplete: context.unavailable };
+};
+
+/** The most elements an incoming group lists (SR-107 AK6). */
+export const GROUP_LIMIT = 100;
+
+/** A group of the links that point at the root (see the file comment). */
+export interface IncomingGroup {
+  /** The relation key; undefined for the inline references. */
+  readonly key: string | undefined;
+  /** Every element of the group, each once, in store order. */
+  readonly sources: readonly ElementRecord[];
+}
+
+/**
+ * The incoming groups of `root` (see the file comment): the sources of its followed incoming links
+ * by key, the keys in the order of `context.keys`, the inline references last. `includes` keeps the
+ * elements of a view; a successor always stays.
+ */
+export const incomingGroups = (
+  context: NeighbourhoodContext,
+  root: ElementRecord,
+  includes?: (element: ElementRecord) => boolean,
+): IncomingGroup[] => {
+  const meanings = relationMeanings(context.metamodel);
+  const bySlot = new Map<string | undefined, Set<ElementRecord>>();
+  for (const { link } of incomingOf(context, root).steps) {
+    const key = link.kind === "relation" ? link.key : undefined;
+    if (
+      includes === undefined ||
+      includes(link.source) ||
+      (key !== undefined && meanings.get(key) === "succession")
+    ) {
+      const sources = bySlot.get(key) ?? new Set<ElementRecord>();
+      sources.add(link.source);
+      bySlot.set(key, sources);
+    }
+  }
+  return [...context.keys.keys(), undefined].flatMap((key) => {
+    const sources = bySlot.get(key);
+    return sources === undefined ? [] : [{ key, sources: [...sources] }];
+  });
 };
 
 /** Which way the neighbourhood goes from its root (the `direction` of `trace.neighbourhood`). */
@@ -417,4 +467,41 @@ export const neighbourhoodOutput = async (
     };
   });
   return { root: n.root.id, nodes, total: start, edges, incomplete: n.incomplete };
+};
+
+type IncomingOutput = NonNullable<TraceNeighbourhoodOutput["incoming"]>;
+
+/**
+ * The incoming groups as `trace.neighbourhood` gives them (catalog output `incoming`): each group's
+ * key described as an edge's (`keyInfo`), the count of all its elements, and the first
+ * `GROUP_LIMIT` of them in the order `order` gives. Only those rows are built.
+ */
+export const incomingOutput = (
+  groups: readonly IncomingGroup[],
+  context: NeighbourhoodOutputContext,
+  order: (elements: readonly ElementRecord[]) => readonly ElementRecord[],
+): IncomingOutput => {
+  const { shortIds, metamodel } = context;
+  const titleOf = titles(metamodel);
+  const infoOf = keyInfo(metamodel);
+  return groups.map(({ key, sources }) => ({
+    ...(key === undefined
+      ? { link: "reference" as const, meaning: "reference" as const }
+      : { link: "relation" as const, kind: key, ...infoOf(key) }),
+    count: sources.length,
+    elements: order(sources)
+      .slice(0, GROUP_LIMIT)
+      .map((element) => {
+        const status = element.data["status"];
+        return {
+          id: element.id,
+          shortId: shortIds.of(element),
+          ...identifierField(shortIds, element),
+          type: element.type,
+          title: titleOf(element),
+          ...(typeof status === "string" ? { status } : {}),
+          repository: element.repository,
+        };
+      }),
+  }));
 };
