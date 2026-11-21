@@ -287,6 +287,8 @@ describe("workspace.check", () => {
       ok: true,
       problems: [],
       checkedElements: 4,
+      // The step that lists the open requirements of that info (SR-230 AK2, `check-gaps.test.ts`).
+      next: [expect.objectContaining({ command: "element.list" })],
     });
   });
 

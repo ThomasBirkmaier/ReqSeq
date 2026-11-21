@@ -82,9 +82,13 @@ const fixture = async (
 /** The answer of a check without findings (SR-224 AK1). */
 const NO_PROBLEM = (checked: number): string => `Checked ${String(checked)} elements and found no problem.`;
 
-/** `run` without the info of SR-230 AK2 about open requirements, in the lines and in the JSON. */
+/** `run` without the info of SR-230 AK2 about open requirements and its next step, in the lines and in the JSON. */
 const GAP_LINE = /^info {2}evidence\.open-requirements .*\n/gm;
-const withoutGaps = (result: Run): Run => ({ ...result, stdout: result.stdout.replace(GAP_LINE, "") });
+const GAP_STEP = /^next:\n {2}reqseq element list .*\n$/m;
+const withoutGaps = (result: Run): Run => ({
+  ...result,
+  stdout: result.stdout.replace(GAP_LINE, "").replace(GAP_STEP, ""),
+});
 
 /** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
 const checkBoth = async (
@@ -642,18 +646,21 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
 });
 
 describe("the gaps of verification in workspace check (SR-230)", () => {
-  it("[SR-230/AK-k09q] names the call that lists exactly the open requirements, and the call runs as given", async () => {
+  it("[SR-230/AK-k09q] gives the number in the info and the call that lists exactly them as the next step, and the call runs as given", async () => {
     // fixtures/SR-126/matrix has an evidence location; b04 (skipped test) and b06 (no evidence) are open.
     const ws = await createFixtureWorkspace({ fixture: "SR-126/matrix" });
     fixtures.push(ws);
     const check = await reqseq(["workspace", "check"], ws.root);
     expect(check.code).toBe(0);
-    const line =
-      /^info {2}evidence\.open-requirements {2}(\d+) .*; reqseq (element list) --where '(.*)' lists them {2}reqseq-workspace\.yaml$/m.exec(
-        check.stdout,
-      );
-    expect(line?.[1]).toBe("2");
-    const listed = await reqseq([...(line?.[2] ?? "").split(" "), "--where", line?.[3] ?? ""], ws.root);
+    expect(check.stdout).toContain(
+      "info  evidence.open-requirements  2 requirement(s) with the verification method test have the verification status open in the core  reqseq-workspace.yaml\n",
+    );
+    // The step is the last part of the output, without --workspace: it runs in the folder checked.
+    const step = /\nnext:\n {2}reqseq (element list) --where '(.*)' {2}List all elements\n$/.exec(
+      check.stdout,
+    );
+    expect(step?.[1]).toBe("element list");
+    const listed = await reqseq([...(step?.[1] ?? "").split(" "), "--where", step?.[2] ?? ""], ws.root);
     expect(listed).toEqual({
       code: 0,
       stdout:
@@ -661,6 +668,10 @@ describe("the gaps of verification in workspace check (SR-230)", () => {
       stderr: "",
     });
     expect((await reqseq(["workspace", "check", "--fail-on", "info"], ws.root)).code).toBe(1);
+    // A severity selection that hides the info drops the step too (SR-019 AK5).
+    const warnings = await reqseq(["workspace", "check", "--severity", "warning"], ws.root);
+    expect(warnings.stdout).not.toContain("evidence.open-requirements");
+    expect(warnings.stdout).not.toContain("next:");
   });
 
   it("[SR-230/AK-qymg] warns at the workspace file without an evidence location, and only in a full check", async () => {

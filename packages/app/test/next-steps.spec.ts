@@ -1,13 +1,14 @@
 // The next steps of an output (SR-226 AK5): the output of "Create workspace" names connecting an AI agent and
 // creating an element as its next steps (SR-226 AK2); its page shows them as its last lines, each with the name of its
-// command and its key where it has one, and Enter or a click runs it, the command prompt asking the open inputs.
+// command and its key where it has one, and Enter or a click runs it, the command prompt asking the open inputs. The
+// step of a workspace check (SR-230 AK2) opens the list of the open requirements with its filter.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, shownLayer } from "./support/app.js";
 
 const SHOTS =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -106,4 +107,35 @@ test("[SR-226/AK-sfy2] a next step that names a workspace other than the open on
   await page.locator(".line.step").last().click();
   await expect(window.getByLabel("Modeline")).toContainText("Buoy");
   await expect(window.locator("label.prompt-label")).toHaveText("Create element · type:");
+});
+
+test("[SR-226/AK-sfy2] the next step of a workspace check opens the list of the open requirements with its filter (SR-230 AK2)", async () => {
+  // fixtures/SR-126/matrix has an evidence location; in the core b04 (skipped test) and b06 (no evidence) are open.
+  await running.close();
+  running = await launchApp({ fixture: "SR-126/matrix" }, { colorScheme: "light" });
+  const { window } = running;
+  await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+  await window.keyboard.press(COMMANDS);
+  await window.keyboard.type("Check workspace");
+  await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText("Check workspace");
+  await window.keyboard.press("Enter");
+  const page = shownLayer(window).locator(".result.output");
+  await expect(page).toBeVisible();
+  // The info gives only the number; the step that lists them is the last line, by the name of its command.
+  await expect(page).toContainText(
+    "2 requirement(s) with the verification method test have the verification status open in the core",
+  );
+  const step = page.locator(".line.step");
+  await expect(step.locator(".text")).toHaveText(["List all elements"]);
+  await expect(page.locator(".line").last()).toHaveText(/^List all elements/);
+  await window.screenshot({ path: path.join(SHOTS, "sr-230-next-step-light.png") });
+
+  // A click opens the list with the step's filter: the open requirements, not every element.
+  await step.click();
+  const list = shownLayer(window).locator(".buffer.list");
+  await expect(list.locator("h1")).toContainText("Elements of the next step");
+  await expect
+    .poll(async () => (await list.locator(".row:not(.fold-row) .id").allTextContents()).sort())
+    .toEqual(["SR-126b04", "SR-126b06"]);
+  await window.screenshot({ path: path.join(SHOTS, "sr-230-next-step-list-light.png") });
 });

@@ -2283,6 +2283,8 @@ export interface WorkspaceCheckOutput {
     /** Info problems left out. */
     readonly info: number;
   };
+  /** The step that lists the requirements the info evidence.open-requirements counts (SR-230 AK2): element.list with their filter, and with limit when they are more than its default page, up to its largest page. Given only while problems shows that info: absent in a restricted check (SR-092) and when severity leaves the info out. */
+  readonly next?: readonly NextStep[];
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */

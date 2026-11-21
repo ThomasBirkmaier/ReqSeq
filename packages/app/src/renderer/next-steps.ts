@@ -3,8 +3,10 @@
 // it has one (`appCommandEntry`). Choosing one runs that entry of the command prompt with the step's known inputs
 // given (`ActionContext.given`, as the matrix gives them, SR-199), so the prompt asks only the open ones (SR-108
 // AK6). A step whose workspace is not the open one opens that workspace first and runs there (`stepRunner`). An
-// app action that covers the command (`coveringAction`, such as "Connect AI agent") takes no given inputs: it asks
-// all of its inputs itself. Layout and lookup only: which steps an output names is core's (ADR-0002).
+// app action that covers the command (`coveringAction`, such as "Connect AI agent") asks all of its inputs itself;
+// only "List all elements" reads the given ones of its command: a step of `element.list`, such as the open
+// requirements of a workspace check (SR-230 AK2), opens the list with the step's selection (`givenSelection`).
+// Layout and lookup only: which steps an output names is core's (ADR-0002).
 import type { NextStep } from "@reqseq/core";
 import type { CommandListing, RecentWorkspaceEntry } from "../shared/protocol.js";
 import type { WorkspaceControls } from "./workspaces.js";

@@ -47,7 +47,9 @@
 //   they are about the running process, not about the files.
 // - The gaps of verification (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location while a
 //   requirement exists (a warning), else the count of the requirements with method test whose status
-//   is open in the core (one info); computed per call after SR-103, only in a full check.
+//   is open in the core (one info); computed per call after SR-103, only in a full check. The info gives only
+//   the number; the `element.list` call that lists them is the output's `next` (SR-226), there only while
+//   `problems` shows the info, so a severity selection that hides it (SR-019 AK5) drops the step too.
 // - The skill file (SR-229 AK10, `tool/guide/skill-check.ts`), per place of D-079: ReqSeq's own skill file with an
 //   older version and other content than this version writes (one info per place), and a place where nothing lies
 //   while another holds ReqSeq's own file (one info per such place); read per call after the gaps, only in a full check.
@@ -57,8 +59,9 @@ import type { CommandContext, CommandInput, CommandOutput, Problem } from "../..
 import { defineCommand } from "../../catalog.js";
 import {
   evidenceProblemsState,
+  OPEN_REQUIREMENTS,
   olderCriterionProblems,
-  verificationGapProblems,
+  verificationGaps,
 } from "../../evidence/index.js";
 import { metamodelState, repositoryMetamodelProblems } from "../../metamodel/index.js";
 import {
@@ -222,15 +225,16 @@ export default defineCommand({
     }
     // Asked on every call: the criteria of records of an older version (SR-028 AK5, of Git) and SR-103.
     // SR-230 AK1, AK2: only in a full check (`restricted`), at the workspace file (`evidence/gaps.ts`).
+    const gaps = await verificationGaps(ctx.workspace, {
+      layout,
+      metamodel,
+      store,
+      restricted: changed !== undefined,
+    });
     const perCall = [
       ...(await olderCriterionProblems(ctx.workspace)),
       ...(await sinceBaselineOf(ctx.workspace, { layout, metamodel, store })),
-      ...(await verificationGapProblems(ctx.workspace, {
-        layout,
-        metamodel,
-        store,
-        restricted: changed !== undefined,
-      })),
+      ...gaps.problems,
       // SR-229 AK10: only in a full check, at the places of the skill file.
       ...(await skillProblems(ctx.workspace, { restricted: changed !== undefined })),
     ];
@@ -245,10 +249,14 @@ export default defineCommand({
     for (const problem of shown) {
       findings.push(problem);
     }
+    const shownProblems = shownOf(findings, input.severity);
+    // SR-230 AK2: the step that lists the open requirements, only while their info is shown.
+    const next = shownProblems.problems.some((p) => p.code === OPEN_REQUIREMENTS) ? gaps.next : undefined;
     return {
       ok: !findings.some((p) => RANK[p.severity] >= RANK[input.failOn]),
-      ...shownOf(findings, input.severity),
+      ...shownProblems,
       checkedElements: restriction?.selected.length ?? store.elements.length,
+      ...(next === undefined ? {} : { next: [next] }),
     };
   },
   // The elements `checkedElements` counts (SR-224 AK4): those the restriction keeps, else every element.

@@ -106,7 +106,7 @@ The status counts the newest record of the current version, so a passed test of 
 
 Only a full check reports a gap, at the workspace file. Without an evidence location, which `workspace init` writes, no test result counts, and a warning names the entry to add.
 
-With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. It names the call that lists them; `--fail-on info` fails the step while any is left:
+With one, an info counts the requirements whose verification status is `open` in the core, except those in a status the metamodel marks invalid and those with a verification method other than test. The call under `next:` lists them; `--fail-on info` fails the step while any is left:
 
 ```yaml title="reqseq-workspace.yaml"
 reqseq-workspace: 1
@@ -133,7 +133,9 @@ reqseq workspace check
 Checked 2 elements and found 3 warnings and 1 info.
 ok: true
 ...
-info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core; reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}' lists them  reqseq-workspace.yaml
+info  evidence.open-requirements  1 requirement(s) with the verification method test have the verification status open in the core  reqseq-workspace.yaml
+next:
+  reqseq element list --where '{"all":[{"not":{"invalid":true}},{"verification":["open"]},{"any":[{"property":"verification-method","op":"eq","value":"test"},{"property":"verification-method","op":"missing"}]}]}'  List all elements
 ```
 
 ```sh

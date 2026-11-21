@@ -241,8 +241,8 @@ problems:
     remedy: Add an entry under `evidence` in the workspace file, the folder `evidence` of the main repository, and write the evidence records and enriched JUnit files there.
   evidence.open-requirements:
     title: Open verification status
-    cause: Requirements whose status is not marked invalid and whose verification method is test, or that have no verification method, have the verification status open in the core. Without a property with the meaning `verification-method` every such requirement counts. One info gives their number and the `element list` call that lists them. A full workspace check reports it while the metamodel is valid and an evidence location is named; a check restricted to changed elements does not.
-    remedy: Run the call the message gives to see them, then write their tests and record the results in an evidence location. With `--fail-on info` the check fails while any are left.
+    cause: Requirements whose status is not marked invalid and whose verification method is test, or that have no verification method, have the verification status open in the core. Without a property with the meaning `verification-method` every such requirement counts. One info gives their number; the check names the `element.list` call that lists them as its next step, as long as it shows the info. A full workspace check reports it while the metamodel is valid and an evidence location is named; a check restricted to changed elements does not.
+    remedy: Run the next step of the check to see them, then write their tests and record the results in an evidence location. With `--fail-on info` the check fails while any are left.
   baseline.invalid:
     title: Invalid baseline
     cause: A baseline file cannot be read or does not match its format, for example an element copy or a repository listed twice.
