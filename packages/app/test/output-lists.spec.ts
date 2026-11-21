@@ -4,16 +4,17 @@
 // of all elements, with the values per element at its rows with "Show details". Such a list has the list's context
 // menu (SR-198 AK1) and its rows the element's (SR-197 AK1, AK4), it is never saved as a perspective or a saved
 // filter (SR-214 AK5, SR-219 AK8), it comes back after a restart (SR-115 AK4), and the records of older versions of
-// "Show affected elements" stand above it (SR-024 AK4). The output of "Show evidence status", which the catalog marks
+// "Show affected elements" stand above it (SR-024 AK4). The output of "Show verification status", which the catalog marks
 // `staysOutputPage` (SR-224 AK8), stays an output page with each entry's values below its row. The light screenshots go to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import path from "node:path";
-import { readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, recordRequests, shownLayer } from "./support/app.js";
+import { copyFixture, launchApp, listAll, recordRequests, shownLayer } from "./support/app.js";
 
 const SHOTS =
   process.env["REQSEQ_SCREENSHOTS"] ??
@@ -150,6 +151,62 @@ test.describe("lists from outputs", () => {
     await expect.poll(() => rowIds(window)).toEqual(checked);
   });
 
+  test("[SR-223/AK-zc7t] the number of a write command opens only the counted copy of a UUID another repository holds too", async () => {
+    // fixtures/SR-089/missing-targets: "Warn of gusts" of `sensor` copied into `system` as a need, which has no
+    // property Note, so a bulk update of Note counts the copy in `sensor` only (#2024, SR-088).
+    const from = path.join(FIXTURES, "SR-089/missing-targets");
+    const gusts = await readFile(path.join(from, "sensor/anemometer/SR-1e0f9a8b7c6d.md"), "utf8");
+    const model = await readFile(path.join(from, "system/metamodel/model.yaml"), "utf8");
+    const workspace = await copyFixture({
+      fixture: "SR-089/missing-targets",
+      files: {
+        "system/needs/N-1e0f9a8b7c6d.md": gusts.replace("type: system-requirement", "type: need"),
+        "system/metamodel/model.yaml": model
+          .replace(
+            "properties: [title, parent-item, see-also]",
+            "properties: [title, parent-item, see-also, note]",
+          )
+          .replace(
+            "  - { key: title, name: Title, kind: text, meaning: title }\n",
+            "  - { key: title, name: Title, kind: text, meaning: title }\n  - { key: note, name: Note, kind: text }\n",
+          ),
+      },
+    });
+    const home = await realpath(await mkdtemp(path.join(tmpdir(), "reqseq-app-home-")));
+    running = await launchApp(undefined, {
+      kept: {
+        home,
+        workspace: { root: path.join(workspace.root, "system"), cleanup: () => workspace.cleanup() },
+      },
+    });
+    const { window } = running;
+    await listAll(window);
+    await run(window, "Bulk update elements", "Note", "set");
+    await window.keyboard.type("calm");
+    await window.keyboard.press("Enter");
+    // The preview, with the confirmation asked; Escape twice leaves the prompt, nothing written.
+    const page = shownLayer(window).locator(".result.output");
+    await expect(page.locator(".line.count", { hasText: "Affected elements" })).toBeVisible();
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("Escape");
+    const preview = await cli(running, [
+      "element",
+      "bulk-update",
+      "--input",
+      JSON.stringify({ selection: {}, property: "note", operation: "set", value: "calm" }),
+    ]);
+    const affected = preview["affected"] as readonly { shortId: string; repository: string }[];
+    expect(affected.map((each) => `${each.repository}:${each.shortId}`)).toEqual([
+      "system:SR-f7a8b9",
+      "sensor:SR-8b7c6d",
+    ]);
+    await page.locator(".line.count", { hasText: "Affected elements" }).click();
+    await expect(list(window).locator("h1")).toContainText("Affected elements");
+    // As many rows as the number: not the need N-8b7c6d, the copy of the UUID in `system`.
+    await expect.poll(() => rowIds(window)).toEqual(affected.map((each) => each.shortId).sort());
+    await window.screenshot({ path: path.join(SHOTS, "sr-223-write-count-list-light.png") });
+  });
+
   test("[SR-223/AK-qwkc] an output whose elements are its answer is a list under its answer that filters, sorts and groups; details show at its rows", async () => {
     running = await launchApp(await withRecord());
     const { window } = running;
@@ -174,7 +231,9 @@ test.describe("lists from outputs", () => {
     await showDetails(window);
     const gusts = list(window).locator(".row", { hasText: "SR-00b002" });
     await expect(gusts.locator(".row-detail", { hasText: "Distance" })).toContainText("1");
-    await expect(gusts.locator(".row-detail", { hasText: "Link kind" })).toContainText("relation");
+    await expect(gusts.locator(".row-detail", { hasText: "Relation or reference" })).toContainText(
+      "relation",
+    );
     await window.screenshot({ path: path.join(SHOTS, "sr-223-answer-list-details-light.png") });
     await showDetails(window);
     await expect(list(window).locator(".row-detail")).toHaveCount(0);
@@ -216,7 +275,7 @@ test.describe("lists from outputs", () => {
   test("[SR-223/AK-qwkc] the evidence status stays an output page: each element's row with its verification status below it, the element's own values only with Show details", async () => {
     running = await launchApp(await withRecord());
     const { window } = running;
-    await run(window, "Show evidence status");
+    await run(window, "Show verification status");
     const shown = await cli(running, ["evidence", "status"]);
     const page = shownLayer(window).locator(".result.output");
     // An output page under its answer (SR-223 AK1), no list of its elements.

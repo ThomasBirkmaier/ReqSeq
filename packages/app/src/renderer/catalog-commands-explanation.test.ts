@@ -76,7 +76,7 @@ describe("the explanation line of the command prompt (SR-210)", () => {
         : { key: item(items, "Open documentation").hint }),
       keyReference: true,
     });
-    // By the same title, and by `covers`: the command's summary, without its arguments.
+    // By `covers`: the command's summary, without its arguments.
     expect(item(items, "List all elements").explain).toEqual({ summary: command("element.list").summary });
     expect(item(items, "Go to element or buffer").explain).toEqual({
       summary: command("element.get").summary,

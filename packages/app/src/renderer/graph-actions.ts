@@ -96,6 +96,8 @@ export const GRAPH_ACTIONS: readonly Action[] = [
     id: "neighbourhood-back",
     title: "Show element",
     description: "Show the element of the shown neighbourhood again.",
+    // The title of `element.get`, which "Go to element or buffer" covers; this one covers no command.
+    covers: [],
     shortcut: NEIGHBOURHOOD_SHORTCUT,
     available: isNeighbourhood,
     run: (context: ActionContext): void => {
@@ -124,6 +126,8 @@ export const GRAPH_ACTIONS: readonly Action[] = [
     id: "graph-back",
     title: "Show element",
     description: "Show the element of the shown graph again.",
+    // The title of `element.get`, which "Go to element or buffer" covers; this one covers no command.
+    covers: [],
     shortcut: GRAPH_SHORTCUT,
     available: isGraph,
     run: (context: ActionContext): void => {

@@ -182,7 +182,7 @@ describe("App", () => {
       Promise.resolve([
         {
           name: "workspace.status",
-          title: "Show workspace status",
+          title: "Show workspace",
           effect: "read",
           implemented: true,
         } as unknown as CommandListing,
