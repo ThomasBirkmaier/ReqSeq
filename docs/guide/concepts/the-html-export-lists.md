@@ -27,4 +27,4 @@ Search, filters and sorting need JavaScript, and so does grouping; without it th
 
 ## Package pages
 
-The page of a package is its element page with a section Elements: each element that names the package, with identifier, title, status and verification status in the core ("–" for a requirement that is not in the core's view). An element in several packages stands on each of their pages (SR-233 AK4).
+The page of a package is its element page with a section Elements: each element that names the package, with identifier, title, status and, for a requirement, the verification status in the core ("–" for one that is not in the core's view). An element in several packages stands on each of their pages (SR-233 AK4).

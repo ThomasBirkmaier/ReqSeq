@@ -7,8 +7,8 @@
 // - Rows, in the order of their identifier (`sortElements` by `identifier`, as `element.list` sorts): identifier
 //   (else the short ID) as a link to the page, title, status ("–" without one), packages, for a requirement type the
 //   verification status in the core as a badge with the number of verified criteria of all ("–" for a requirement
-//   that is not in the core's view, which has none there, as `element.list` gives it, SR-137 AK4), and the number of open hints of the element (`hint.list`) as a badge, an empty cell
-//   for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
+//   that is not in the core's view, which has none there, as `element.list` gives it, SR-137 AK4), and the number
+//   of open hints of the element (`hint.list`) as a badge, an empty cell for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
 //   the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
 // - Search: each row carries its identifier, short ID and title folded (NFC, lower case) in `data-q`.
 // - Filters (`data-f`): status, packages, the verification status in the core and each property of kind `choice` the
