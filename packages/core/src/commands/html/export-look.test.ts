@@ -140,10 +140,13 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
     expect(
       [...listToc.matchAll(/<a href="#([^"]+)"[^>]*><span[^>]*>([^<]*)</gu)].map((m) => [m[1], m[2]]),
     ).toEqual([["_top", "Overview"]]);
-    // Beside that column the list table fits its container on wide screens: heads wrap, the title takes the rest.
+    // Beside that column the list table fits its container on wide screens: heads wrap, the title takes the rest;
+    // on a phone, the tables of a baseline scroll in themselves, not the page.
+    expect(list).toContain('<th scope="col" class="rq-title">Title</th>');
     const own = await read(site, "assets/reqseq.css");
+    expect(own).toContain("@media (min-width: 50em) { .rq-baseline table:not(:where(.not-content *))");
     expect(own).toContain(
-      "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; }",
+      "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; } .rq-list .rq-list-table .rq-title { width: 100%; overflow-wrap: anywhere; } }",
     );
     expect(await read(site, "assets/reqseq.js")).toContain('matchMedia("(min-width: 50em)")');
     expect(await read(site, "assets/theme.js")).toContain("prefers-color-scheme: light");

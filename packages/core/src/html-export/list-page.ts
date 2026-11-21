@@ -214,9 +214,15 @@ const ranksBy = (values: readonly (SortValue | undefined)[]): (number | null)[] 
 /** The JSON of `value` for an attribute. */
 const attribute = (value: unknown): string => escapeHtml(JSON.stringify(value));
 
-/** A column of the list: its label, the sort value and the cell of an entry. */
+/** The class attribute of a column's cells, or nothing. */
+const classOf = ({ className }: { readonly className?: string }): string =>
+  className === undefined ? "" : ` class="${className}"`;
+
+/** A column of the list: its label, the sort value, the cell of an entry and the class of its cells. */
 interface Column {
   readonly label: string;
+  /** `rq-title` on the title's cells, for the styles (`LIST_CSS`). */
+  readonly className?: string;
   /** Descending reverses the whole order (the identifier, SR-075 AK1). */
   readonly total?: true;
   readonly ranks: readonly (number | null)[];
@@ -268,6 +274,7 @@ export const listPageOf = (
     },
     {
       label: "Title",
+      className: "rq-title",
       ranks: ranksBy(
         sorted.map(({ element }) => (element.title === "" ? undefined : text(element.title).sort)),
       ),
@@ -315,14 +322,14 @@ export const listPageOf = (
     });
     const ranks = [...columns.map((column) => column.ranks[row]), ...(comparing === undefined ? [] : [null])];
     const cells = [
-      ...columns.map((column) => `<td>${column.cell(entry)}</td>`),
+      ...columns.map((column) => `<td${classOf(column)}>${column.cell(entry)}</td>`),
       ...(comparing === undefined ? [] : ["<td hidden></td>"]),
     ].join("");
     const change = comparing === undefined ? "" : ` data-b="${attribute(comparing.changeOf(entry.record))}"`;
     return `<tr data-q="${escapeHtml(search)}" data-f="${attribute(indexes)}" data-s="${attribute(ranks)}"${change}>${cells}</tr>`;
   });
   const head = [
-    ...columns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`),
+    ...columns.map((column) => `<th scope="col"${classOf(column)}>${escapeHtml(column.label)}</th>`),
     ...(comparing === undefined ? [] : [`<th scope="col" hidden>${CHANGE_LABEL}</th>`]),
   ].join("");
   const title = findType(context.metamodel, type)?.name ?? type;
@@ -414,8 +421,9 @@ export const LIST_CSS = [
   ".rq-tokens button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.12rem 0.4rem 0.12rem 0.6rem; border-radius: 0.35rem; background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
   ".rq-tokens button:focus-visible { outline: 2px solid var(--sl-color-text-accent); }",
   ".rq-tokens .rq-hint { color: var(--sl-color-gray-3); }",
-  // On wide screens, beside the column "On this page", the table fits its container: column heads and badges wrap, a
-  // long word of a text breaks, the other columns take what their values need and the title the rest (#2181).
-  "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; } .rq-list .rq-list-table td { overflow-wrap: anywhere; } .rq-list .rq-list-table :is(th, td):nth-child(2) { width: 100%; } }",
+  // On wide screens, beside the column "On this page", the table fits its container: column heads and badges wrap
+  // between words, a long word of a title breaks, the other columns take what their values need and the title the
+  // rest (#2181).
+  "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; } .rq-list .rq-list-table .rq-title { width: 100%; overflow-wrap: anywhere; } }",
   "@media print { .rq-list .rq-list-table { max-height: none; overflow: visible; } }",
 ];
