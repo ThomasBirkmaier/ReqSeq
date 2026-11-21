@@ -24,7 +24,7 @@ const input = (over: Partial<StartPageInput> = {}): StartPageInput => ({
   missing: [],
   degree: { total: 0, counts: { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 } },
   entries: [],
-  types: [],
+  overview: { types: [] },
   lists: [],
   baseline: undefined,
   ...over,

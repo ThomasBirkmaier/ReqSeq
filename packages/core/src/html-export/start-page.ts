@@ -10,8 +10,10 @@
 // - the elements with open hints (`hint.list`) and their number, by identifier;
 // - the number of changed and added elements since the newest baseline, as `baseline.get` counts them (the command
 //   gives them, `NewestBaseline`), the baseline a link to its page, or that there is none;
-// - per type with at least one element with a page, in the metamodel's order, the number of those elements, with a
-//   link to its list where it has one (`list-page.ts`; types with the meaning package or variant have none).
+// - the type lines of the shared display model (`overviewDisplay`, ADR-0019): per type with at least one element with
+//   a page, in the order of `element.facets`, the number of those elements, with a link to its list where it has one
+//   (`list-page.ts`; types with the meaning package or variant have none).
+import type { OverviewDisplay } from "../displays/index.js";
 import type { DataExportVerificationDegree } from "../generated/types.js";
 import { degreeClause } from "../evidence/degree-text.js";
 import type { ListEntry, ListPage } from "./list-page.js";
@@ -41,8 +43,8 @@ export interface StartPageInput {
   readonly degree: DataExportVerificationDegree;
   /** The elements with a page, by identifier. */
   readonly entries: readonly ListEntry[];
-  /** The number of elements with a page per type, in the metamodel's order, with the name of the type. */
-  readonly types: readonly { readonly type: string; readonly name: string; readonly count: number }[];
+  /** The type lines, counting the elements with a page. */
+  readonly overview: OverviewDisplay;
   readonly lists: readonly ListPage[];
   /** Undefined when the workspace has no baseline. */
   readonly baseline: NewestBaseline | undefined;
@@ -87,9 +89,10 @@ export const startPageBody = (input: StartPageInput): string => {
   );
   const hinted = input.entries.filter((entry) => entry.hints > 0);
   const listOf = new Map(input.lists.map((list) => [list.type, list]));
-  const types = input.types
-    .map(({ type, name, count }) => {
-      const list = listOf.get(type);
+  const lines = input.overview.types;
+  const types = lines
+    .map(({ name, count, target }) => {
+      const list = listOf.get(target.list);
       const label = list === undefined ? escapeHtml(name) : `<a href="${list.path}">${escapeHtml(name)}</a>`;
       return `<tr><td>${label}</td><td>${String(count)}</td></tr>`;
     })
@@ -111,7 +114,7 @@ export const startPageBody = (input: StartPageInput): string => {
     '<h2 id="since-baseline">Since the newest baseline</h2>',
     `<p>${baselineText(input.baseline)}</p>`,
     '<h2 id="types">Elements by type</h2>',
-    input.types.length === 0
+    lines.length === 0
       ? "<p>No elements.</p>"
       : `<table><thead><tr><th scope="col">Type</th><th scope="col">Elements</th></tr></thead><tbody>${types}</tbody></table>`,
   ].join("");

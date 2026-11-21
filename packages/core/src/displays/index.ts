@@ -7,4 +7,5 @@ export * from "./hint-list.js";
 export * from "./labels.js";
 export * from "./neighbourhood.js";
 export * from "./open-hints.js";
+export * from "./overview.js";
 export * from "./verification.js";

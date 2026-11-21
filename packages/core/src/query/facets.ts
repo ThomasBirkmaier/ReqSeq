@@ -27,6 +27,7 @@
 import type { OutputCount } from "../catalog.js";
 import { matchesKey } from "../catalog.js";
 import type { ElementFacetsOutput, MetamodelProperty } from "../generated/types.js";
+import { inTypeOrder } from "../type-order.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findNamed, findType } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
@@ -306,13 +307,13 @@ export const facetsOf = (
   const { types, statuses, tallies } = tally(selected, properties, few, maxValues);
   const order = new Map(metamodel.statuses.map((s, i) => [s.key, i]));
   const rank = (key: string): number => order.get(key) ?? order.size;
-  const typeOrder = new Map(metamodel.types.map((t, i) => [t.key, i]));
-  const typeRank = (key: string): number => typeOrder.get(key) ?? typeOrder.size;
   return {
     // Metamodel order with the type's name, then other type keys in store order (name = key).
-    types: [...types]
-      .map(([key, count]) => ({ key, name: findType(metamodel, key)?.name ?? key, count }))
-      .sort((a, b) => typeRank(a.key) - typeRank(b.key)),
+    types: inTypeOrder(
+      [...types].map(([key, count]) => ({ key, name: findType(metamodel, key)?.name ?? key, count })),
+      (type) => type.key,
+      metamodel.types,
+    ),
     // Metamodel order, then the other statuses in store order (the sort is stable).
     statuses: [...statuses].map(([key, count]) => ({ key, count })).sort((a, b) => rank(a.key) - rank(b.key)),
     properties: tallies.map((t) => facetOf(selected, t, few, maxValues)),
