@@ -263,8 +263,7 @@ export const skillCall = (facts: SetupFacts): string => {
 };
 
 /**
- * The sentence that names the skill-file call (AK2): for every client but Claude Desktop, which reads no skill
- * file from the project folder.
+ * The sentence that names the skill-file call: for every client but Claude Desktop (AK2).
  */
 const skillSentence = (client: Client, facts: SetupFacts): string => {
   if (client === "claude-desktop") {

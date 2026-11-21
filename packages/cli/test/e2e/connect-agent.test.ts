@@ -296,11 +296,10 @@ describe("reqseq workspace connect-agent", () => {
   });
 
   it("[SR-227/AK-fx6t] the call under the setup of every client but Claude Desktop, run as pasted, writes the skill file into the workspace", async () => {
-    const calls = new Map<string, string>();
-    for (const client of CLIENTS) {
-      const { next } = await connectAgent(client);
-      calls.set(client, /`([^`]+)`\.$/.exec(next)?.[1] ?? "");
-    }
+    const outputs = await Promise.all(CLIENTS.map((client) => connectAgent(client)));
+    const calls = new Map<string, string>(
+      CLIENTS.map((client, i) => [client, /`([^`]+)`\.$/.exec(outputs[i]?.next ?? "")?.[1] ?? ""]),
+    );
     expect(calls.get("claude-desktop")).toBe("");
     calls.delete("claude-desktop");
     // The call does not depend on the client, so running it once shows it for each.
@@ -309,20 +308,27 @@ describe("reqseq workspace connect-agent", () => {
     for (const [client, other] of calls) {
       expect(other, client).toBe(call);
     }
-    const skill = path.join(ws.root, ".claude", "skills", "managing-requirements", "SKILL.md");
+    // Both places of the skill file (D-079).
+    const places = [".claude", ".agents"];
     try {
       for (const shell of shells()) {
-        await fs.rm(path.join(ws.root, ".claude"), { recursive: true, force: true });
+        for (const folder of places) {
+          await fs.rm(path.join(ws.root, folder), { recursive: true, force: true });
+        }
         const script = path.join(top, process.platform === "win32" ? "skill.ps1" : "skill.sh");
         await fs.writeFile(script, `${process.platform === "win32" ? "\uFEFF" : ""}${call}\n`);
         const [command, args] = shell.run(script);
         const result = await run(command, args, { NODE_OPTIONS: `--import=${blockNetwork}` });
         expect(result.code, `${shell.name}: ${result.stderr}`).toBe(0);
-        expect(await fs.readFile(skill, "utf8"), shell.name).toMatch(/^---\nname: managing-requirements\n/);
+        for (const folder of places) {
+          const skill = path.join(ws.root, folder, "skills", "managing-requirements", "SKILL.md");
+          expect(await fs.readFile(skill, "utf8"), `${shell.name}: ${folder}`).toMatch(
+            /^---\nname: managing-requirements\n/,
+          );
+        }
       }
     } finally {
-      // Both places of the skill file (D-079).
-      for (const folder of [".claude", ".agents"]) {
+      for (const folder of places) {
         await fs.rm(path.join(ws.root, folder), { recursive: true, force: true });
       }
     }
