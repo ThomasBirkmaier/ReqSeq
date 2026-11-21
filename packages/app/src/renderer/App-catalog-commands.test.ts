@@ -101,6 +101,41 @@ describe("App, catalog commands in the command prompt (ThomasBirkmaier/ReqSeq-ar
     expect(calls(fake.invoke, "trace.affected")).toEqual([{ ref: "uuid-2" }]);
   });
 
+  it("opens the list with the selection of a next step of element.list, as the open requirements of a check (SR-226 AK5, SR-230 AK2)", async () => {
+    const where = { all: [{ not: { invalid: true } }, { verification: ["open"] }] };
+    const fake = fakeBridge({
+      ...workspace(),
+      "baseline.list": () => ({
+        baselines: [],
+        next: [{ command: "element.list", input: { selection: { where }, limit: 300 }, open: [] }],
+      }),
+    });
+    const bridge = {
+      ...fake.bridge,
+      commands: () =>
+        Promise.resolve([
+          listing("baseline.list"),
+          listing("element.list", { title: "List all elements", arguments: [] }),
+        ] as never),
+    };
+    await render(bridge);
+    await runCommand("List baselines");
+    const step = container.querySelector(".line.step");
+    if (step === null) {
+      throw new Error("No step");
+    }
+    expect(step.textContent).toContain("List all elements");
+    fake.invoke.mockClear();
+    await click(step);
+    await flush();
+    // The list asks with the step's selection; it pages by itself, so the step's limit is not its page.
+    const listed = calls(fake.invoke, "element.list") as { selection?: unknown }[];
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed.every((input) => JSON.stringify(input.selection) === JSON.stringify({ where }))).toBe(true);
+    // Named as the lists of an output are: the name of its buffer and the title of the next steps.
+    expect(text("Modeline")).toContain("List baselines · Next steps");
+  });
+
   it("opens the workspace a next step names when it is not the open one, then runs the step there (SR-226 AK5)", async () => {
     const fake = fakeBridge({
       ...workspace(),

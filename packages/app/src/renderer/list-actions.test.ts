@@ -24,6 +24,31 @@ describe("list actions", () => {
     expect(second.dispatched).toEqual([{ type: "open", buffer: listBuffer("All elements") }]);
   });
 
+  it("list all elements from a next step of element.list lists with the step's selection (SR-226 AK5)", () => {
+    const selection = { where: { verification: ["open"] } } as const;
+    const { context, dispatched } = setup([element]);
+    const label = "Check workspace · Next steps";
+    const given = { "element.list": [{ field: "selection", value: selection, label }] };
+    action("list-all").run({ ...context, given });
+    expect(dispatched).toEqual([{ type: "open", buffer: listBuffer(label, selection) }]);
+    // Given inputs of another command, or a selection that is no object, list every element.
+    const other = setup([element]);
+    action("list-all").run({
+      ...other.context,
+      given: { "relation.add": [{ field: "selection", value: selection, label: "" }] },
+    });
+    for (const value of ["open", ["open"], null]) {
+      action("list-all").run({
+        ...other.context,
+        given: { "element.list": [{ field: "selection", value, label: "" }] },
+      });
+    }
+    expect(other.dispatched).toHaveLength(4);
+    expect(new Set(other.dispatched.map((d) => JSON.stringify(d)))).toEqual(
+      new Set([JSON.stringify({ type: "open", buffer: listBuffer("All elements") })]),
+    );
+  });
+
   it("filters by a type of the metamodel and keeps the sort", async () => {
     const { context, asked, dispatched, call } = setup([filtered], {
       "metamodel.get": {
