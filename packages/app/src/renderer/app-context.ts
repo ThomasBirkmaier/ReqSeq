@@ -272,7 +272,7 @@ export interface ViewParts {
   readonly kindNames: ReadonlyMap<string, string>;
   /** The last change of the metamodel made in the app (SR-130 AK7). */
   readonly metamodelChange: MetamodelChange;
-  readonly overview: Omit<AreaViews["overview"], "recent" | "openPerspective">;
+  readonly overview: Omit<AreaViews["overview"], "recent" | "openPerspective" | "runStep">;
   readonly recent: readonly RecentEntry[];
   readonly latest: RefObject<ActionContext>;
   readonly forgetName: (key: string) => void;
@@ -345,6 +345,8 @@ export const areaViews = (parts: ViewParts): AreaViews => {
       openPerspective: (name) => {
         void openPerspective(latest.current, name);
       },
+      // A first step of a workspace without elements runs as a next step does (SR-118 AK9).
+      runStep,
     },
     element: (buffer) => ({
       onGone: forgetName,

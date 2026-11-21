@@ -24,7 +24,8 @@ import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import type { OverviewData } from "./OverviewView.js";
 import { OverviewView } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import type { PerspectiveRow, RecentRow } from "./overview.js";
+import type { NextStep } from "./next-steps.js";
+import type { PerspectiveRow, RecentRow, StepRow } from "./overview.js";
 import type { RecentEntry } from "./recent.js";
 import type { OutputField } from "./result.js";
 import type { NextSteps } from "./ResultView.js";
@@ -125,6 +126,10 @@ export interface AreaViews {
     readonly recent: readonly RecentEntry[];
     /** Opens a perspective of the overview (SR-118 AK7). */
     readonly openPerspective: (name: string) => void;
+    /** The first steps of a workspace without elements that the command prompt runs here (SR-118 AK9). */
+    readonly steps: readonly StepRow[];
+    /** Runs a first step as the command prompt does (SR-118 AK9). */
+    readonly runStep: (step: NextStep) => void;
   };
   /** The props of the view of an element buffer. */
   readonly element: (buffer: ElementBuffer) => ElementProps;
@@ -192,6 +197,8 @@ const BufferView = ({
         perspectives={views.overview.perspectives}
         recents={views.overview.recents}
         onPerspective={views.overview.openPerspective}
+        steps={views.overview.steps}
+        onStep={views.overview.runStep}
         outside={outside}
         dispatch={dispatch}
         onData={onData}
