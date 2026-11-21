@@ -271,16 +271,16 @@ describe("evidence.record (SR-030)", () => {
     const need = await refusedLeavingNothing(
       fixture,
       () => record(workspace, { ref: "N-00a001", ...INSPECTION }),
-      "D-012",
+      "wrong-type",
     );
     expect(need.message).toBe(
-      "N-00a001 is of type need: a verification record names a requirement, a validation record a need or a requirement (D-012)",
+      "N-00a001 is of type need: a verification record names a requirement, a validation record a need or a requirement",
     );
     for (const kind of ["verification", "validation"]) {
       await refusedLeavingNothing(
         fixture,
         () => record(workspace, { ref: "UC-00e001", ...INSPECTION, kind }),
-        "D-012",
+        "wrong-type",
       );
     }
   });
@@ -575,7 +575,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
     );
     expect([error.code, error.message, error.details]).toEqual([
       "input.invalid",
-      "Not written: a validation record names no variant, it holds for the core (D-007, SR-038 AK4)",
+      "Not written: a validation record names no variant, it holds for the core",
       { command: "evidence.record", fields: ["variant"], reason: "validation-with-variant", variant: COAST },
     ]);
   });
@@ -594,7 +594,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
       "not-valid-in-variant",
     );
     expect([desert.message, desert.details?.["variant"]]).toEqual([
-      "SR-000ab2 does not apply in VAR-c3c3c3, so a record for it there would count nowhere (SR-040)",
+      "SR-000ab2 does not apply in VAR-c3c3c3, so a record for it there would count nowhere",
       "40a0e000-0000-4000-8000-c3c3c3c3c3c3",
     ]);
     const error = await refusedLeavingNothing(fixture, () =>
@@ -738,7 +738,7 @@ describe("evidence.record and the evidence state (S12, S1 of the plan review)", 
 describe("evidence.record inconclusive validation (SR-172)", () => {
   const INCONCLUSIVE = { ref: "N-00a001", kind: "validation", result: "inconclusive", date: DATE } as const;
   const WHY = "The field test needs frost:\nnone so far";
-  const REQUIRED = "reason is required: a record with the result inconclusive needs a reason (SR-172 AK1)";
+  const REQUIRED = "reason is required: a record with the result inconclusive needs a reason";
 
   it("[SR-172/AK-gy05] refuses an inconclusive validation without a reason, or with a blank one, naming reason, and writes nothing", async () => {
     const { fixture, workspace } = await open();
@@ -786,7 +786,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
         {
           field: "result",
           message:
-            "result: only a validation record can be inconclusive, a verification record is passed or failed (SR-172)",
+            "result: only a validation record can be inconclusive, a verification record is passed or failed",
         },
       ],
     });
@@ -797,7 +797,7 @@ describe("evidence.record inconclusive validation (SR-172)", () => {
       errors: [
         {
           field: "reason",
-          message: "reason: only a record with the result inconclusive has a reason (SR-172)",
+          message: "reason: only a record with the result inconclusive has a reason",
         },
       ],
     });
