@@ -81,9 +81,13 @@ const ENDLESS = {
   ),
 };
 
-/** An element of a type the metamodel does not know: the type lines name it by its key, after the known types. */
+/**
+ * Elements of two types the metamodel does not know: the type lines name them by their key, after the known types, in
+ * the order of `element.facets`. "memo" sorts before "note" by key, but its file comes after.
+ */
 const MYSTERY = {
   "notes/X-7.md": element(uuid(7), "note", "status: draft\ntitle: Remember the vane\n"),
+  "zz-memos/M-8.md": element(uuid(8), "memo", "status: draft\ntitle: Oil the vane\n"),
 };
 
 const openFixture = async (files: Readonly<Record<string, string>>) => {
@@ -161,6 +165,7 @@ describe("the export builds its display models from what the commands give (ADR-
       ["need", 2],
       ["system-requirement", 4],
       ["note", 1],
+      ["memo", 1],
     ]);
     expect(shown).toEqual(
       model.types.map(({ name, count, target }) => ({
@@ -169,5 +174,10 @@ describe("the export builds its display models from what the commands give (ADR-
         count,
       })),
     );
+    // The sidebar's "Lists" follow the same order.
+    const listLinks = [
+      ...new Set([...start.matchAll(/href="(?:\.\/)?lists\/([^"]+)\.html"/gu)].map(([, key]) => key)),
+    ];
+    expect(listLinks).toEqual(model.types.map(({ target }) => target.list));
   });
 });

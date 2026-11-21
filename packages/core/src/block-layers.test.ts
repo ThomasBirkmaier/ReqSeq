@@ -37,6 +37,7 @@ type Shared =
   | "product"
   | "problem-titles"
   | "hint-order"
+  | "type-order"
   | "build-info"
   | "installation"
   | "agent-setup"
@@ -174,6 +175,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   product: { values: ["generated"] },
   "problem-titles": { values: ["generated"] },
   "hint-order": { values: [] },
+  "type-order": { values: [] },
   "build-info": { values: [] },
   installation: { values: [] },
   "agent-setup": { values: [], types: ["installation"] },
@@ -186,6 +188,7 @@ const EVERY_BLOCK_MAY_IMPORT: ReadonlySet<Unit | Shared> = new Set([
   "product",
   "problem-titles",
   "hint-order",
+  "type-order",
   "build-info",
   "installation",
   "agent-setup",
@@ -219,6 +222,7 @@ const ROOT_MODULES: ReadonlySet<string> = new Set([
   "product",
   "problem-titles",
   "hint-order",
+  "type-order",
   "build-info",
   "installation",
   "agent-setup",

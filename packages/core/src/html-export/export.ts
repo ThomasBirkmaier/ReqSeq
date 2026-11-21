@@ -29,6 +29,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import type { OverviewDisplay } from "../displays/index.js";
 import { overviewDisplay, typeCounts } from "../displays/index.js";
 import type { ExportFolder } from "../files/index.js";
 import { imageExtension, openExportFolder, readElementText, readFileSnapshot } from "../files/index.js";
@@ -419,7 +420,8 @@ const packagesWithMembers = (
 
 /**
  * What the pages of the export share besides the element pages: the elements with a page (`paged`) as the lists show
- * them, by identifier; the lists; the sidebar; and the elements of each package by its UUID.
+ * them, by identifier; the type lines of the start page; the lists in their order; the sidebar; and the elements of
+ * each package by its UUID.
  */
 const siteOf = async (
   workspace: Workspace,
@@ -430,6 +432,7 @@ const siteOf = async (
   more: Navigation,
 ): Promise<{
   readonly entries: readonly ListEntry[];
+  readonly overview: OverviewDisplay;
   readonly lists: readonly ListPage[];
   readonly navigation: Navigation;
   readonly members: ReadonlyMap<string, readonly ListEntry[]>;
@@ -446,7 +449,11 @@ const siteOf = async (
         hints: hints.get(hintKey(record.id, record.repository)) ?? 0,
       })),
   );
-  const lists = listsOf(context, entries).map(({ type, entries: listed }) =>
+  // The type lines count the elements the lists hold, in the order `element.facets` gives them (ADR-0019 point 9(a));
+  // the lists follow that order.
+  const shown = data.filter(({ record }) => paged.has(record)).map(({ element }) => element);
+  const overview = overviewDisplay({ types: typeCounts(shown, metamodel) });
+  const lists = listsOf(context, entries, overview.types).map(({ type, entries: listed }) =>
     listPageOf(context, type, listed, compare),
   );
   const packages = packagesWithMembers(metamodel, entries);
@@ -462,7 +469,7 @@ const siteOf = async (
     ...more,
   ];
   const members = new Map([...packages].map(([entry, listed]) => [entry.element.id, listed]));
-  return { entries, lists, navigation, members };
+  return { entries, overview, lists, navigation, members };
 };
 
 /** The key of an element copy in the rows of a baseline. */
@@ -759,7 +766,7 @@ export const writeHtmlExport = async (
               ],
       },
     ];
-    const { entries, lists, navigation, members } = await siteOf(
+    const { entries, overview, lists, navigation, members } = await siteOf(
       workspace,
       { metamodel, store, shortIds },
       data,
@@ -802,14 +809,12 @@ export const writeHtmlExport = async (
     }
     const degree = await selectionDegree(workspace, store.elements, { kind: "core" });
     await writeOverviews(folder, framed, { baselines, rowElement, views, entries, degree });
-    // The type lines count the elements the lists hold, in the order `element.facets` gives them (ADR-0019 point 9(a)).
-    const listed = data.filter(({ record }) => paged.has(record)).map(({ element }) => element);
     const start = startPageBody({
       made,
       missing,
       degree,
       entries,
-      overview: overviewDisplay({ types: typeCounts(listed, metamodel) }),
+      overview,
       lists,
       baseline: options.newestBaseline,
     });

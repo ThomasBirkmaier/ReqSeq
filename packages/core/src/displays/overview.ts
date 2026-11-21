@@ -8,6 +8,7 @@
 // status (SR-231 AK1), the same numbers `element.facets` gives for the selection `{ where: { invalid: false } }`,
 // except for the copies of a UUID several files share, which get no page and so are not counted.
 import type { ElementFacetsOutput, MetamodelGetOutput } from "../generated/types.js";
+import { inTypeOrder } from "../type-order.js";
 
 /** A type with its number of elements, as `element.facets` gives it. */
 export type TypeCount = ElementFacetsOutput["types"][number];
@@ -33,8 +34,8 @@ export interface OverviewInput {
 
 /**
  * The number of `elements` of each type, as `element.facets` counts the types of a selection: exactly the type
- * written, in the order of the metamodel's types with their name, then other type keys in the order they first
- * appear, named by the key. One pass over `elements`.
+ * written, with its name, in the order of `inTypeOrder` (unknown keys as they first appear, named by the key). One
+ * pass over `elements`.
  */
 export const typeCounts = (
   elements: readonly { readonly type: string }[],
@@ -44,11 +45,12 @@ export const typeCounts = (
   for (const { type } of elements) {
     counts.set(type, (counts.get(type) ?? 0) + 1);
   }
-  const known = new Map(metamodel.types.map((type, index) => [type.key, { index, name: type.name }]));
-  const rank = (key: string): number => known.get(key)?.index ?? known.size;
-  return [...counts]
-    .map(([key, count]) => ({ key, name: known.get(key)?.name ?? key, count }))
-    .sort((a, b) => rank(a.key) - rank(b.key));
+  const names = new Map(metamodel.types.map((type) => [type.key, type.name]));
+  return inTypeOrder(
+    [...counts].map(([key, count]) => ({ key, name: names.get(key) ?? key, count })),
+    (type) => type.key,
+    metamodel.types,
+  );
 };
 
 /** The type lines of the overview and the start page (see the file comment). */
