@@ -29,6 +29,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import { overviewDisplay, typeCounts } from "../displays/index.js";
 import type { ExportFolder } from "../files/index.js";
 import { imageExtension, openExportFolder, readElementText, readFileSnapshot } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -79,7 +80,7 @@ import { NOTICES_FILE, noticesText } from "./notices.js";
 import type { Navigation } from "./page.js";
 import { ASSETS, DOCS_CSS, OWN_CSS, page } from "./page.js";
 import type { ListCompare, ListContext, ListEntry, ListPage } from "./list-page.js";
-import { LIST_SCRIPT, listPageOf, listsOf, sortedByIdentifier, typeOrder } from "./list-page.js";
+import { LIST_SCRIPT, listPageOf, listsOf, sortedByIdentifier } from "./list-page.js";
 import { listScript } from "./list-script.js";
 import type { NewestBaseline } from "./start-page.js";
 import { startPageBody } from "./start-page.js";
@@ -414,20 +415,6 @@ const packagesWithMembers = (
     }
   }
   return members;
-};
-
-/** The number of `entries` per type, in the order of the metamodel's types, an unknown type after them by its key. */
-const typeCounts = (
-  metamodel: Metamodel,
-  entries: readonly ListEntry[],
-): { readonly type: string; readonly name: string; readonly count: number }[] => {
-  const counts = new Map<string, number>();
-  for (const { record } of entries) {
-    counts.set(record.type, (counts.get(record.type) ?? 0) + 1);
-  }
-  return [...counts]
-    .sort(([a], [b]) => typeOrder(metamodel)(a, b))
-    .map(([type, count]) => ({ type, name: findType(metamodel, type)?.name ?? type, count }));
 };
 
 /**
@@ -815,12 +802,14 @@ export const writeHtmlExport = async (
     }
     const degree = await selectionDegree(workspace, store.elements, { kind: "core" });
     await writeOverviews(folder, framed, { baselines, rowElement, views, entries, degree });
+    // The type lines count the elements the lists hold, in the order `element.facets` gives them (ADR-0019 point 9(a)).
+    const listed = data.filter(({ record }) => paged.has(record)).map(({ element }) => element);
     const start = startPageBody({
       made,
       missing,
       degree,
       entries,
-      types: typeCounts(metamodel, entries),
+      overview: overviewDisplay({ types: typeCounts(listed, metamodel) }),
       lists,
       baseline: options.newestBaseline,
     });

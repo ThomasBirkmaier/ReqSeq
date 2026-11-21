@@ -5,4 +5,5 @@ export * from "./element-page.js";
 export * from "./element-ref.js";
 export * from "./labels.js";
 export * from "./open-hints.js";
+export * from "./overview.js";
 export * from "./verification.js";
