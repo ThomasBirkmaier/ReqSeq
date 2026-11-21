@@ -2,6 +2,7 @@
 // same identifier prefix. On fixtures/enabler-305/identifiers, whose types keep their spec ID in
 // spec-id (meaning identifier): SR-036 and SR-037, N-001 and D-047.
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -29,7 +30,11 @@ const open = async (
   onTestFinished(() => workspace.close());
   const read = async (): Promise<Record<string, string>> => {
     const entries = await fs.readdir(ws.root, { recursive: true });
-    const markdown = entries.filter((entry) => entry.endsWith(".md")).sort();
+    // readdir gives native separators; the fixture helper and the keys take forward slashes.
+    const markdown = entries
+      .map((entry) => entry.split(path.sep).join("/"))
+      .filter((entry) => entry.endsWith(".md"))
+      .sort();
     return Object.fromEntries(
       await Promise.all(
         markdown.map(async (file) => [file, await fs.readFile(ws.path(file), "utf8")] as const),
