@@ -1,5 +1,5 @@
-// The order of `workspace.check` for the hints of one element, and which findings are hints (SR-026, glossary
-// "Hinweis"): the rule `hint.list` applies to the problems of one element (`hints/list.ts`). A root module that
+// The order of the hints of one element, `workspace.check`'s after the warning of an element without a version, and
+// which findings are hints (SR-026, glossary "Hinweis"): the rule `hint.list` applies to the problems of one element (`hints/list.ts`). A root module that
 // imports nothing, like `problem-titles.ts`, so the display models (`displays/`, ADR-0019 point 3) and the app's
 // renderer bundle use the same rule without the model.
 
@@ -31,17 +31,26 @@ export const CHECK_ORDER: readonly (readonly string[])[] = [
   ["relation.outdated", "variant.core-changed"],
 ];
 
-const RANK: ReadonlyMap<string, number> = new Map(
-  CHECK_ORDER.flatMap((codes, rank) => codes.map((code) => [code, rank] as const)),
-);
+/**
+ * The code of the warning about an element whose version cannot be computed (`noVersionProblem` of `model/view.ts`,
+ * ThomasBirkmaier/ReqSeq-archive#276): a hint, since it is a warning about an element (#2231). No state of the check
+ * gives it; `hint.list` takes it from the current versions and puts it before the hints of `CHECK_ORDER`, as
+ * `workspace.check` puts the findings of the files before its states.
+ */
+export const NO_VERSION_CODE = "file.faulty";
 
-/** The codes of the hints the whole-workspace path of `hint.list` can give (`CHECK_ORDER`). */
+const RANK: ReadonlyMap<string, number> = new Map([
+  [NO_VERSION_CODE, 0],
+  ...CHECK_ORDER.flatMap((codes, rank) => codes.map((code) => [code, rank + 1] as const)),
+]);
+
+/** The codes of the hints the whole-workspace path of `hint.list` can give (`NO_VERSION_CODE`, then `CHECK_ORDER`). */
 export const CHECK_HINT_CODES: ReadonlySet<string> = new Set(RANK.keys());
 
 /**
- * The problems of one element whose code the check gives as a hint (`CHECK_ORDER`), in the order of
- * `workspace.check`; any other (such as the `file.faulty` warning of an element without a version
- * that `element.get` adds, ThomasBirkmaier/ReqSeq-archive#276) is left out. Stable: within one state the element's own order stays.
+ * The problems of one element whose code `hint.list` gives as a hint (`CHECK_HINT_CODES`), in its order: the warning
+ * of an element without a version (`NO_VERSION_CODE`) first, then the order of `workspace.check`; any other is left
+ * out. Stable: within one state the element's own order stays.
  */
 export const inCheckOrder = <P extends { readonly code: string }>(problems: readonly P[]): P[] => {
   const ranked = problems.flatMap((problem) => {

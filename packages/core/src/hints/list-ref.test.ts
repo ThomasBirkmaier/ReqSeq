@@ -62,7 +62,7 @@ const MORE_HINTS: FixtureOptions = {
   },
 };
 
-/** GUSTS with a counted value without a normal form: element.get adds a `file.faulty` warning (ThomasBirkmaier/ReqSeq-archive#276), no hint. */
+/** GUSTS with a counted value without a normal form: element.get adds a `file.faulty` warning (ThomasBirkmaier/ReqSeq-archive#276), a hint (#2231). */
 const ENDLESS: FixtureOptions = {
   fixture: "SR-001/two-elements",
   files: {
@@ -177,6 +177,7 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
       "element.unknown-property",
       "element.unknown-type",
       "element.wrong-value-kind",
+      "file.faulty",
       "relation.not-allowed",
       "relation.outdated",
       "relation.target-superseded",
@@ -239,6 +240,42 @@ describe("hint.list with ref takes the single-element path (#145)", () => {
         hint("element.unknown-property"),
         hint("variant.core-changed"),
       ]).map((h) => h.code),
-    ).toEqual(["element.unknown-property", "trace.no-parent", "relation.outdated", "variant.core-changed"]);
+    ).toEqual([
+      "file.faulty",
+      "element.unknown-property",
+      "trace.no-parent",
+      "relation.outdated",
+      "variant.core-changed",
+    ]);
+    expect(inCheckOrder([hint("trace.no-parent"), hint("file.yaml-warning")]).map((h) => h.code)).toEqual([
+      "trace.no-parent",
+    ]);
+  });
+
+  it("[SR-026/AK-vs4d] lists the warning of an element without a version, as element.get gives it, in both paths (#2231)", async () => {
+    const id = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
+    const workspace = await open(ENDLESS);
+    const { element } = (await invoke(
+      "element.get",
+      { ref: id },
+      { workspace },
+    )) as CommandOutput<"element.get">;
+    const byRef = await list(workspace, { ref: id });
+    expect(byRef.hints.map((h) => h.code)).toEqual([
+      "file.faulty",
+      "element.wrong-value-kind",
+      "trace.no-parent",
+    ]);
+    expect(byRef.hints.map((h) => h.message).sort()).toEqual(
+      (element.problems ?? []).map((p) => p.message).sort(),
+    );
+    const whole = await list(await open(ENDLESS), { kind: ["file.faulty"] });
+    expect(whole.hints).toEqual([byRef.hints[0]]);
+    expect(whole.hints[0]).toMatchObject({
+      severity: "warning",
+      elementId: id,
+      file: "requirements/SR-1d2e3f4a5b6c.md",
+    });
+    expect(whole.hints[0]?.message).toMatch(/^No version: requirements\/SR-1d2e3f4a5b6c\.md of repository /u);
   });
 });
