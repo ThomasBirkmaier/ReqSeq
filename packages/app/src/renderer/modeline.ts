@@ -1,5 +1,6 @@
 // What the modeline and the command prompt show of the open workspace (`workspace.status`). Pure display
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
+import { hintCounts, openHints } from "@reqseq/core/displays";
 import type { DataExportElement } from "@reqseq/core";
 import type { InvokeResult } from "../shared/protocol.js";
 import { initHint } from "../shared/open-hint.js";
@@ -7,7 +8,6 @@ import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName, perspectiveModified } from "./buffers.js";
 import { shownId } from "./id-title.js";
 import { depthLabel, filterLabel } from "./graph.js";
-import { isOutdatedCode } from "./outdated-codes.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 import type { MatrixSpot } from "./matrix-menu.js";
 import type { ResultSummary } from "./result.js";
@@ -236,9 +236,10 @@ export const headText = (head: ElementHead): string =>
 
 /**
  * The parts for an element: ID, type and status in one, on a package page the number of its elements
- * (SR-114 AK3: the type is the „Art“), then what is worth a mark. The counts of SR-114 AK2 come from the
- * hints of `element.get` (core, SR-080): "outdated" counts those with a code of `OUTDATED_CODES`, the
- * outdated relations, inline references and changed core requirements of replacements (SR-045) alike (`element.get` sets no `relations[].outdated`, and an
+ * (SR-114 AK3: the type is the „Art“), then what is worth a mark. The counts of SR-114 AK2 are of the open hints
+ * of the element as `hint.list` gives them, taken from `element.get` by core's rule (`openHints`, ADR-0019 point
+ * 9(c), assumption of #2231): "outdated" counts the outdated relations, inline references and changed core
+ * requirements of replacements (SR-045) alike (`hintCounts`; `element.get` sets no `relations[].outdated`, and an
  * inline reference is no relation); "hints" counts the others, so an outdated one is not counted twice.
  */
 const elementParts = (
@@ -246,9 +247,7 @@ const elementParts = (
   typeNames: ReadonlyMap<string, string>,
 ): string[] => {
   const { element, members } = data;
-  const problems = element.problems ?? [];
-  const outdated = problems.filter((problem) => isOutdatedCode(problem.code)).length;
-  const hints = problems.length - outdated;
+  const { outdated, other: hints } = hintCounts(openHints(element.problems));
   return [
     headText(elementHead(element, typeNames)),
     ...(members === undefined

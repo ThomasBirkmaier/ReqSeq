@@ -96,6 +96,7 @@ import {
   viewRuleOf,
 } from "../variants/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
+import { inCheckOrder, isHint } from "../hint-order.js";
 import { elementHints } from "./element.js";
 import { outdatedEvidenceProblemsState } from "./evidence.js";
 import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
@@ -132,57 +133,7 @@ export const HINT_STATES = [
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 
-/**
- * The codes of the hints of each state of `HINT_STATES`, in that order, then the since-baseline
- * hints and the outdated relations: the order of `workspace.check` for the hints of one element.
- */
-const CHECK_ORDER: readonly (readonly string[])[] = [
-  ["element.missing-required"],
-  ["element.unknown-property", "element.unknown-type"],
-  ["element.missing-status", "element.status-not-allowed"],
-  ["element.statement-without-text"],
-  ["relation.target-superseded"],
-  ["variant.superseded-in-validity"],
-  ["variant.nested"],
-  ["variant.target-not-core"],
-  ["element.wrong-value-kind"],
-  ["element.too-many-items"],
-  ["element.criterion-key-missing", "element.criterion-key-invalid", "element.criterion-key-duplicate"],
-  ["relation.not-allowed"],
-  ["relation.too-few", "relation.too-many"],
-  ["element.duplicate-identifier"],
-  ["relation.cross-repository-title"],
-  ["relation.not-a-link", "relation.reference-style", "relation.unresolved-link"],
-  ["trace.cycle"],
-  ["trace.no-parent"],
-  ["evidence.outdated"],
-  [...SINCE_BASELINE_CODES],
-  ["relation.outdated", "variant.core-changed"],
-];
-
-const RANK: ReadonlyMap<string, number> = new Map(
-  CHECK_ORDER.flatMap((codes, rank) => codes.map((code) => [code, rank] as const)),
-);
-
-/** The codes of the hints the whole-workspace path of `hint.list` can give (`CHECK_ORDER`). */
-export const CHECK_HINT_CODES: ReadonlySet<string> = new Set(RANK.keys());
-
-/**
- * The problems of one element whose code the check gives as a hint (`CHECK_ORDER`), in the order of
- * `workspace.check`; any other (such as the `file.faulty` warning of an element without a version
- * that `element.get` adds, ThomasBirkmaier/ReqSeq-archive#276) is left out. Stable: within one state the element's own order stays.
- */
-export const inCheckOrder = (problems: readonly Problem[]): Problem[] => {
-  const ranked = problems.flatMap((problem) => {
-    const rank = RANK.get(problem.code);
-    return rank === undefined ? [] : [{ problem, rank }];
-  });
-  return ranked.sort((a, b) => a.rank - b.rank).map((entry) => entry.problem);
-};
-
-/** Whether `problem` is a hint: a warning about an element (glossary "Hinweis"). */
-export const isHint = (problem: Problem): problem is Problem & { readonly elementId: string } =>
-  problem.severity === "warning" && problem.elementId !== undefined;
+export { CHECK_HINT_CODES, inCheckOrder, isHint } from "../hint-order.js";
 
 /** The key of the property with the meaning `packages` and whether it holds a list. */
 interface PackagesKey {

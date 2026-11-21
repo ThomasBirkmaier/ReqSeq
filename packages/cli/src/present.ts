@@ -7,8 +7,8 @@
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, ThomasBirkmaier/ReqSeq-archive#305), `[emergent]` when it
 //   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
 //   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
-//   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open 2 of 3 criteria (AK3 (k7f3)
-//   not verified)`, with the key where the criterion has one, SR-205 AK2), then its validation status (`[validation: validated]`, SR-038;
+//   `core open (missing SR-0000b2)`, the criteria of SR-031 AK5 as `core open, 2 of 3 criteria, AK3 (k7f3)
+//   not verified` (`verificationLabel`), with the key where the criterion has one, SR-205 AK2), then its validation status (`[validation: validated]`, SR-038;
 //   an inconclusive one with its reason on one line, `[validation: inconclusive — <reason>]`, SR-172);
 //   a list of them one such line per element, a search hit with its snippet (SR-174) on the line
 //   below it, `  text: …line…` or the property's name instead of `text`, on a terminal cut to its width

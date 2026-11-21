@@ -89,7 +89,7 @@ describe("lists (SR-233 AK1)", () => {
     const cells = (id: string): string =>
       String(new RegExp(`>${id}</a></td>(.*?)</tr>`, "u").exec(page.body)?.[1]);
     expect(cells("REQ-1")).toContain(
-      '<td><span class="rq-badge rq-badge-success">verified 2/3</span></td><td></td>',
+      '<td><span class="rq-badge rq-badge-success">verified · 2 of 3</span></td><td></td>',
     );
     expect(cells("REQ-2")).toContain(
       '<td><span class="rq-badge rq-badge-caution">open</span></td><td><span class="rq-badge rq-badge-caution">2</span></td>',

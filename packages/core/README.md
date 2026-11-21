@@ -112,6 +112,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - Evidence block (`src/evidence/`): [records, folders, state, index](docs/evidence-records.md), [status and degree](docs/evidence-status.md), [views and export](docs/evidence-views.md)
 - [Baselines block (`src/baselines/`): reading, creating, showing and comparing baseline files](docs/baselines.md)
 - ReqIF block (`src/reqif/`): [model and parser](docs/reqif.md), [mapping files](docs/reqif-mapping.md)
+- [Displays block (`src/displays/`, `@reqseq/core/displays`): the display models the app and the HTML export share](docs/displays.md)
 - HTML export block (`src/html-export/`): [pages, safe content and the export folder](docs/html-export.md)
 - [Git reader (`src/git/reader.ts`)](docs/git.md)
 - [Docs-site block (`src/docs-site/`): the offline documentation site, request to file, CSP](docs/docs-site.md)
