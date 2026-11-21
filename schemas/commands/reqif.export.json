@@ -1,8 +1,8 @@
 {
   "name": "reqif.export",
   "title": "Export ReqIF",
-  "summary": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
-  "details": "With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
+  "summary": "Export a selection as ReqIF 1.2, or the elements of a mapping's source with your statements or as its source model.",
+  "details": "Each element goes by IDENTIFIER `_` plus its UUID, with its text as XHTML and as `reqseq-markdown`, its relations as SPEC-RELATIONs, and targets outside the export as stubs. With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
   "effect": "write-files",
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",
