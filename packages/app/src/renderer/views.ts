@@ -98,8 +98,9 @@ const viewOf = (name: string, input: Input): string | undefined => {
 
 /**
  * The input with `view` where the command takes it. An input that names a view keeps it, and a selection
- * by `ids` names elements rather than a set to show (the values of one element, the names of buffers), so
- * it reads them in every view. Every other command, writes and `element.get` among them, is left as it is.
+ * by `ids` or `inRepository` names elements rather than a set to show (the values of one element, the names of
+ * buffers, the elements a number counts), so it reads them in every view. Every other command, writes and
+ * `element.get` among them, is left as it is.
  */
 export const withView = (name: string, input: Input, view: string): Input => {
   if (AS_FIELD.has(name)) {

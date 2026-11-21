@@ -98,25 +98,22 @@ const storedSelection = (
     throw invalidAt(context, refused.field, refused.message);
   }
   const [view] = selected.views;
+  // Sets, so a selection of 50,000 IDs stays one pass (N-036).
   const named = [
-    ...(selection.ids === undefined ? [] : [[...new Set(selection.ids.map(recordOf))]]),
+    ...(selection.ids === undefined ? [] : [new Set(selection.ids.map(recordOf))]),
     ...(selection.inRepository === undefined
       ? []
       : [
-          [
-            ...new Set(
-              selection.inRepository.flatMap((item) => resolveInRepository(store, shortIds, item, true)),
-            ),
-          ],
+          new Set(selection.inRepository.flatMap((item) => resolveInRepository(store, shortIds, item, true))),
         ]),
   ];
-  const [first] = named;
+  const [first, ...others] = named;
   return {
     ...(first === undefined
       ? {}
       : {
-          ids: first
-            .filter((r) => named.every((records) => records.includes(r)))
+          ids: [...first]
+            .filter((r) => others.every((records) => records.has(r)))
             .map((r) => (r.repository === home ? r.id : { id: r.id, repository: r.repository })),
         }),
     ...(wheres.length === 0 ? {} : { where: wheres.length === 1 ? wheres[0] : { all: wheres } }),

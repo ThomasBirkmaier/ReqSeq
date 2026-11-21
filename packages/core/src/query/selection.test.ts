@@ -96,7 +96,7 @@ describe("selection by UUID and repository (inRepository, #2024)", () => {
       (e: unknown) => (e as CommandError).toJSON(),
     );
 
-  it("[SR-101/AK-w8dm] selects the copy of a UUID in the repository named, which ids refuses as ambiguous", async () => {
+  it("selects the copy of a UUID in the repository named, which ids refuses as ambiguous", async () => {
     const workspace = await openCopied();
     const caller = callerOf(workspace);
     const sensor = await resolveSelection(
@@ -122,7 +122,7 @@ describe("selection by UUID and repository (inRepository, #2024)", () => {
     expect((await resolveSelection(caller, { inRepository: [] }, "element.list")).elements).toEqual([]);
   });
 
-  it("[SR-101/AK-w8dm] holds with every other part of the selection, ids included", async () => {
+  it("holds with every other part of the selection, ids included", async () => {
     const workspace = await openCopied();
     const caller = callerOf(workspace);
     const inRepository = [
@@ -143,7 +143,7 @@ describe("selection by UUID and repository (inRepository, #2024)", () => {
     expect(where(withWhere.elements)).toEqual([`sensor:${GUSTS_FILE}`]);
   });
 
-  it("[SR-101/AK-w8dm] selects both copies of a UUID in one repository", async () => {
+  it("selects both copies of a UUID in one repository", async () => {
     const selected = await resolveSelection(
       callerOf(await openCopiedFile()),
       { inRepository: [{ id: COPIED, repository: "system" }] },
@@ -152,7 +152,7 @@ describe("selection by UUID and repository (inRepository, #2024)", () => {
     expect(selected.elements.map((e) => e.file).sort()).toEqual([...COPIED_FILES].sort());
   });
 
-  it("[SR-101/AK-w8dm] refuses an item that names no element, as an ids item", async () => {
+  it("refuses an item that names no element, as an ids item", async () => {
     const workspace = await openCopied();
     expect(await errorOf(workspace, { inRepository: [{ id: GUSTS_COPY, repository: "vault" }] })).toEqual({
       code: "ref.unknown",

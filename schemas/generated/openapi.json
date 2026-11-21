@@ -22037,7 +22037,7 @@
                 }
               },
               "inRepository": {
-                "title": "Elements in a repository",
+                "title": "IDs with their repository",
                 "type": "array",
                 "description": "Explicit IDs named with their repository: each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown.",
                 "items": {

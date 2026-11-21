@@ -153,7 +153,6 @@ scenariosOf("element.list", [
     },
   },
   {
-    tag: "[SR-101/AK-w8dm]",
     name: "a selection by UUID and repository: the copy in that repository only, where ids would be ambiguous (#2024)",
     fixture: {
       ...EXPORT,
