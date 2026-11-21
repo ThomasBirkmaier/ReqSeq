@@ -157,7 +157,7 @@ describe("renderHuman: a chain", () => {
         "  <- derives-from  3",
         "    SR-a (Ra)  Title SR-a",
         "    SR-b (Rb)  Title SR-b",
-        "    showing 2 of 3",
+        "    2 of 3 shown",
         "  <- reference  1",
         "    SR-c (Rc)  Title SR-c",
         "total: 1",

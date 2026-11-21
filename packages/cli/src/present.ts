@@ -26,7 +26,7 @@
 //   an element is headed `upward:` or `downward:` instead of `parents:` or `children:` (#643).
 //   The groups of a neighbourhood (`incoming`, SR-107 AK6) follow under `incoming:`, one line per group,
 //   `<- KIND  COUNT` (`reference` for the inline references), its elements one line each below it, and
-//   `showing N of COUNT` when it lists fewer than it counts.
+//   `N of COUNT shown` when it lists fewer than it counts.
 // - A graph (`nodes` of elements with a `level`) with `evidence` summaries (trace.graph `withEvidence`,
 //   SR-111 AK3) lists its nodes, each with its summary on the line below it:
 //   `evidence: 2 test cases, 1 record · 2 passed, 1 failed`; the edges stay YAML.

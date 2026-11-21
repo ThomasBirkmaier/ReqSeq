@@ -284,8 +284,8 @@ export const chainLines = (chain: Chain, names: Names): string[] => {
 };
 
 /**
- * The groups of a neighbourhood (`incoming`): `<- KIND  COUNT`, its elements below it, and `showing N of
- * COUNT` when it lists fewer; none without groups.
+ * The groups of a neighbourhood (`incoming`): `<- KIND  COUNT`, its elements below it, and `N of COUNT shown`
+ * when it lists fewer; none without groups.
  */
 const incomingLines = (chain: Chain): string[] => {
   const groups = listOf(chain["incoming"]).filter(isRecord);
@@ -300,7 +300,7 @@ const incomingLines = (chain: Chain): string[] => {
       return [
         `  ${join(`<- ${text(group["kind"]) === "" ? text(group["link"]) : text(group["kind"])}`, String(count))}`,
         ...elements.map((element) => `    ${elementLine(element)}`),
-        ...(elements.length < count ? [`    showing ${String(elements.length)} of ${String(count)}`] : []),
+        ...(elements.length < count ? [`    ${String(elements.length)} of ${String(count)} shown`] : []),
       ];
     }),
   ];

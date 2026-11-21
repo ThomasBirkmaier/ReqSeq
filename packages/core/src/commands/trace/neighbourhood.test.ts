@@ -482,7 +482,10 @@ describe("trace.neighbourhood incoming by kind (SR-107 AK5, AK6)", () => {
       await withIdentifier(fixture);
       // SR-102 first in the store, SR-1 last: the order comes from the identifiers, not the files.
       const files = Array.from({ length: 102 }, (_, n) => derived(n, `SR-${String(102 - n)}`, n === 0));
-      files.push(derived(102, "SR-5"), derived(103, undefined));
+      // A second SR-5 (short ID SR-000102) in a file before that of the first (SR-000097): the store order is
+      // the reverse of the short IDs, so only the tie-break puts SR-000097 first.
+      const [, second] = derived(102, "SR-5");
+      files.push(["requirements/SR-0a0000000000.md", second], derived(103, undefined));
       for (const [file, text] of files) {
         await fixture.write(file, text);
       }
@@ -501,8 +504,8 @@ describe("trace.neighbourhood incoming by kind (SR-107 AK5, AK6)", () => {
       ...Array.from({ length: 94 }, (_, n) => `SR-${String(n + 6)}`),
     ]);
     // The two with the same identifier by short ID; the one deriving twice once.
-    const fives = group?.elements.filter((e) => e.identifier === "SR-5").map((e) => e.shortId) ?? [];
-    expect(fives).toEqual([...fives].sort());
+    const fives = group?.elements.filter((e) => e.identifier === "SR-5").map((e) => e.id);
+    expect(fives).toEqual([added(97), added(102)]);
     expect(new Set(group?.elements.map((e) => e.id)).size).toBe(100);
     expect(group?.elements[0]).toEqual({
       id: added(101),

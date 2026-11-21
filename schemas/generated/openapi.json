@@ -11613,7 +11613,7 @@
                     "incoming": {
                       "title": "Incoming by kind",
                       "type": "array",
-                      "description": "The relations and references that point at the root directly, as the down walk follows them: one group per relation kind and per property of kind `relation`, in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view. Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`.",
+                      "description": "The relations and references that point at the root directly, as the down walk follows them: one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view. Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`.",
                       "x-key": [
                         "link",
                         "kind"
@@ -11661,7 +11661,7 @@
                             "title": "Elements",
                             "type": "array",
                             "maxItems": 100,
-                            "description": "The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored), then, with the same identifier and without one, by short ID.",
+                            "description": "The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID.",
                             "items": {
                               "type": "object",
                               "properties": {

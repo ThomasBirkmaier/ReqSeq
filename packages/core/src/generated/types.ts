@@ -4088,7 +4088,7 @@ export interface TraceNeighbourhoodOutput {
     /** The relation or reference stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
-  /** The relations and references that point at the root directly, as the down walk follows them (SR-107 AK5, AK6): one group per relation kind and per property of kind `relation`, in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view (SR-072 AK3). Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`. */
+  /** The relations and references that point at the root directly, as the down walk follows them (SR-107 AK5, AK6): one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view (SR-072 AK3). Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`. */
   readonly incoming?: readonly {
     /** Relations of one key, or the inline references. */
     readonly link: "relation" | "reference";
@@ -4100,7 +4100,7 @@ export interface TraceNeighbourhoodOutput {
     readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The number of all elements of the group; `element.list` with this count gives them all. */
     readonly count: number;
-    /** The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored, SR-075 AK1), then, with the same identifier and without one, by short ID. */
+    /** The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored, SR-075 AK1), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID. */
     readonly elements: readonly {
       readonly id: Uuid;
       readonly shortId: ShortId;

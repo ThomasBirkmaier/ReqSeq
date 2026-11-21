@@ -31,7 +31,7 @@
 //   nodes from `offset` (the root, the up walk, the down walk) and the edges that lead to them in
 //   their walk, so each edge is on one page.
 // - Incoming groups (SR-107 AK5, AK6, `incomingGroups`): the followed links that point at the root,
-//   the steps of its down walk, one group per relation key in the order of `context.keys` and one
+//   the steps of its down walk, one group per relation key in the order of `context.keys` (properties, then relation kinds) and one
 //   for the inline references last; each element once per group, also one with several links of the
 //   key or one that points at itself. In a view only the elements it holds, but a successor of the
 //   root (meaning `succession`) always (SR-072 AK3). `count` counts all elements of a group;
