@@ -168,6 +168,19 @@ describe("listDisplay", () => {
     expect(display.rows.map((r) => r.ranks[1])).toEqual([0, 0]);
   });
 
+  it('keeps a real value "–" apart from the rows without a value', () => {
+    const display = listDisplay(
+      {
+        type: "note",
+        rows: [row("a", { type: "note", properties: { mood: "–" } }), row("b", { type: "note" })],
+        metamodel: METAMODEL,
+      },
+      { id: "identifier", order: ORDER },
+    );
+    expect(display.filters.at(-1)).toEqual({ label: "Mood", values: ["–", "–"] });
+    expect(display.rows.map((r) => r.facets.at(-1))).toEqual([[0], [1]]);
+  });
+
   it("names a row by its short ID with the identifier for the app (SR-084 AK4), and a type without requirements has no verification", () => {
     const shown = listDisplay({ type: "req", rows, metamodel: METAMODEL }, { id: "shownId", order: ORDER });
     expect(shown.rows.map((r) => r.cells[0])).toEqual([

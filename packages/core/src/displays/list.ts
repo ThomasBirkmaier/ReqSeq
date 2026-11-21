@@ -189,27 +189,37 @@ const valuesOf = (value: unknown): readonly unknown[] => {
   return value === undefined || value === null ? [] : [value];
 };
 
-/** Sorts `texts` (distinct) by `order` for `field`, asking `keyOf` once each. */
-const sortedTexts = <K>(order: ListOrder<K>, field: ListField, texts: Iterable<string>): string[] =>
+/** The distinct `texts` with their keys by `order` for `field`, sorted once; `keyOf` is asked once each. */
+const sortedOf = <K>(
+  order: ListOrder<K>,
+  field: ListField,
+  texts: Iterable<string>,
+): { readonly text: string; readonly key: K }[] =>
   [...texts]
     .map((text) => ({ text, key: order.keyOf(field, text) }))
-    .sort((a, b) => order.compare(a.key, b.key))
-    .map(({ text }) => text);
-
-/** The dense rank of each of the distinct `values` by `order` for `field`. */
-const ranksOf = <K>(order: ListOrder<K>, field: ListField, values: Iterable<string>): Map<string, number> => {
-  const distinct = [...values]
-    .map((value) => ({ value, key: order.keyOf(field, value) }))
     .sort((a, b) => order.compare(a.key, b.key));
+
+/**
+ * The dense rank of each text of `sorted` that `ranked` holds (all when it is not given), by walking `sorted` once:
+ * two texts the order holds equal get one rank.
+ */
+const denseRanksOf = <K>(
+  order: ListOrder<K>,
+  sorted: readonly { readonly text: string; readonly key: K }[],
+  ranked?: ReadonlySet<string>,
+): Map<string, number> => {
   const ranks = new Map<string, number>();
+  let previous: { readonly key: K } | null = null;
   let rank = -1;
-  let last: K | undefined;
-  for (const { value, key } of distinct) {
-    if (last === undefined || order.compare(last, key) !== 0) {
-      rank += 1;
-      last = key;
+  for (const entry of sorted) {
+    if (ranked !== undefined && !ranked.has(entry.text)) {
+      continue;
     }
-    ranks.set(value, rank);
+    if (previous === null || order.compare(previous.key, entry.key) !== 0) {
+      rank += 1;
+      previous = entry;
+    }
+    ranks.set(entry.text, rank);
   }
   return ranks;
 };
@@ -267,12 +277,15 @@ export const listDisplay = <K>(
     return { row, pairs };
   });
   for (const state of states) {
-    state.values = [...sortedTexts(order, state.field.field, state.seen), EMPTY_VALUE];
-    state.index = new Map(state.values.map((value, at) => [value, at]));
-    state.ranks = state.field.column ? ranksOf(order, state.field.field, state.firsts) : new Map();
+    const sorted = sortedOf(order, state.field.field, state.seen);
+    const values = sorted.map(({ text }) => text);
+    // The index of the values seen, before "–" is appended: a real value "–" keeps its own place.
+    state.index = new Map(values.map((value, at) => [value, at]));
+    state.values = [...values, EMPTY_VALUE];
+    state.ranks = state.field.column ? denseRanksOf(order, sorted, state.firsts) : new Map();
   }
-  const titleRanks = ranksOf(order, { kind: "title" }, titles);
-  const hintRanks = ranksOf(order, { kind: "hints" }, hints);
+  const titleRanks = denseRanksOf(order, sortedOf(order, { kind: "title" }, titles));
+  const hintRanks = denseRanksOf(order, sortedOf(order, { kind: "hints" }, hints));
   const shown = states.filter((state) => state.field.column);
   return {
     type,

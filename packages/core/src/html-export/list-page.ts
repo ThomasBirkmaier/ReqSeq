@@ -146,7 +146,7 @@ const cellHtml = (row: ListRowDisplay, cell: ListCell): string => {
   }
 };
 
-/** The class of the cells of the title column (`LIST_CSS`). */
+/** The index of the title column, whose cells get the class `rq-title` (`LIST_CSS`). */
 const TITLE_COLUMN = 1;
 
 const classOf = (column: number): string => (column === TITLE_COLUMN ? ' class="rq-title"' : "");
