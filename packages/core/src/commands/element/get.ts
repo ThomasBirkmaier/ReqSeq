@@ -33,7 +33,7 @@ export default defineCommand({
     if (input.view !== undefined) {
       throw new CommandError(
         "input.invalid",
-        `${commandTitle("element.get")} cannot show the view of a variant yet (SR-043): leave out the view`,
+        `${commandTitle("element.get")} cannot show the view of a variant yet: leave out the view`,
         { command: "element.get", fields: ["view"] },
       );
     }

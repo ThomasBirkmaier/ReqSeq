@@ -192,7 +192,7 @@ const kindProblems = (testCase: JunitTestCase, ids: readonly string[], context: 
             line: testCase.line,
             targetId: id,
             targetRepository: other.repository,
-            message: `${testCaseText(testCase)} names element ${id} of type ${other.typeName}, so its record counts for no status: a verification record names a requirement (D-012)`,
+            message: `${testCaseText(testCase)} names element ${id} of type ${other.typeName}, so its record counts for no status: a verification record names a requirement`,
           },
         ];
   });
@@ -447,7 +447,7 @@ const keptProblems = (
             elementId: resolution.id,
             storedVersion: stored,
             currentVersion: current.version,
-            message: `${testCaseText(plan.testCase)} is enriched already with version ${stored}, which is no longer current; it is kept (D-026: the version it was tested against)`,
+            message: `${testCaseText(plan.testCase)} is enriched already with version ${stored}, which is no longer current; it is kept (the version it was tested against)`,
           },
         ]
       : [];

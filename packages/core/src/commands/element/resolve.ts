@@ -122,7 +122,7 @@ const criterionOf = (
   if (others.length > 0) {
     throw new CommandError(
       "ref.ambiguous",
-      `${reference.ref} has ${String(found.length)} acceptance criteria with the criterion key ${key} (${found.map((c) => `AK${String(c.criterion)}`).join(", ")}); give each its own key (SR-204)`,
+      `${reference.ref} has ${String(found.length)} acceptance criteria with the criterion key ${key} (${found.map((c) => `AK${String(c.criterion)}`).join(", ")}); give each its own key`,
       {
         ref: given,
         criterion: key,

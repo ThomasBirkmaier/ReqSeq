@@ -210,7 +210,7 @@ const planObject = async (
       code: "omitted-type",
       reason:
         context.own && t.identifier === STATEMENT_TYPE
-          ? "a statement of a statements export of ReqSeq (SR-058) is not imported: the import takes no statement back into the element it answers (spec question #583)"
+          ? "a statement of a statements export of ReqSeq is not imported: the import takes no statement back into the element it answers"
           : `the mapping omits its type ${nameOf(t)}`,
     });
     return undefined;

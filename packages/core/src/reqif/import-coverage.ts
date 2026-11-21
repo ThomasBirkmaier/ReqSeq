@@ -138,7 +138,7 @@ const checkObjectType = (
   if (missing.length > 0) {
     coverage.wrong.push({
       field: `mapping.types[${String(at)}].type`,
-      message: `type ${base.type.key} has no ${missing.join(", ")}, which hold the origin of every imported element (SR-057)`,
+      message: `type ${base.type.key} has no ${missing.join(", ")}, which hold the origin of every imported element`,
     });
   }
   for (const a of t.attributes) {

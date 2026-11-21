@@ -630,7 +630,7 @@ describe("built-in meanings", () => {
     const problem = (key: string, line: number, not: string): Problem => ({
       code: "metamodel.invalid",
       severity: "error",
-      message: `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version (D-059), not ${not}`,
+      message: `Property ${key} has the meaning import-version, which needs kind text without many and never counts to the version, not ${not}`,
       file: "model/properties.yaml",
       line,
     });
