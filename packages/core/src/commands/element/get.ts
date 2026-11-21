@@ -19,6 +19,7 @@ import { getElement } from "../../model/index.js";
 import { shownWithNames } from "../../data/index.js";
 import { elementHints } from "../../hints/index.js";
 import { incompleteNote, named, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 export default defineCommand({
   name: "element.get",
@@ -32,7 +33,7 @@ export default defineCommand({
     if (input.view !== undefined) {
       throw new CommandError(
         "input.invalid",
-        "element.get cannot show the view of a variant yet: leave out view",
+        `${commandTitle("element.get")} cannot show the view of a variant yet: leave out the view`,
         { command: "element.get", fields: ["view"] },
       );
     }

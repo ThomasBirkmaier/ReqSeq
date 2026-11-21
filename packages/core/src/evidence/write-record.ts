@@ -55,7 +55,8 @@ import type {
   EvidenceRecordOutput,
   WorkspaceLocation,
 } from "../generated/types.js";
-import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
+import type { Metamodel } from "../metamodel/index.js";
+import { metamodelState, typeName, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
@@ -223,17 +224,18 @@ const invalid = (message: string, details: Readonly<Record<string, unknown>>): C
 
 /** Rule 1, D-012: the element may get a record of `kind`; `input.invalid` naming D-012 otherwise. */
 const checkKind = (
-  types: { readonly requirements: ReadonlySet<string>; readonly needs: ReadonlySet<string> },
+  metamodel: Metamodel,
   element: ElementRecord,
   kind: EvidenceRecordInput["kind"],
   ref: string,
 ): void => {
-  const isRequirement = types.requirements.has(element.type);
-  if (isRequirement || (kind === "validation" && types.needs.has(element.type))) {
+  const has = (meaning: "requirement" | "need"): boolean =>
+    typesWithMeaning(metamodel, meaning).some((t) => t.key === element.type);
+  if (has("requirement") || (kind === "validation" && has("need"))) {
     return;
   }
   throw invalid(
-    `${ref} is of type ${element.type}: a verification record names a requirement, a validation record a need or a requirement`,
+    `${ref} is of type ${typeName(metamodel, element.type)}: a verification record names a requirement, a validation record a need or a requirement`,
     { fields: ["ref"], reason: "wrong-type", type: element.type },
   );
 };
@@ -671,9 +673,7 @@ const prepare = async (
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const element = resolveRef(store, shortIds, input.ref);
-  const keys = (meaning: "requirement" | "need"): Set<string> =>
-    new Set(typesWithMeaning(metamodel, meaning).map((t) => t.key));
-  checkKind({ requirements: keys("requirement"), needs: keys("need") }, element, input.kind, input.ref);
+  checkKind(metamodel, element, input.kind, input.ref);
   const independent = variantIndependentOf(await workspace.get(workspaceLayoutState));
   const variant = variantOf(
     recordViewContext({ workspace, metamodel, store, shortIds }, independent),

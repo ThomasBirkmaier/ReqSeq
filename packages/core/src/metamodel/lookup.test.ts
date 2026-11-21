@@ -13,6 +13,7 @@ import {
   markdownKeysOf,
   metamodelState,
   typeForNewElement,
+  typeName,
   workspaceAccess,
 } from "./index.js";
 
@@ -81,6 +82,17 @@ describe("typeForNewElement", () => {
       details: { type: "item", reason: "abstract" },
     });
     expect(typeForNewElement(metamodel, "software-requirement").required).toEqual(["title", "component"]);
+  });
+});
+
+describe("typeName", () => {
+  it("names a type by its name, and a type the metamodel does not have by its key (#2200)", async () => {
+    const metamodel = await open((await fixture()).root).get(metamodelState);
+    expect([typeName(metamodel, "software-requirement"), typeName(metamodel, "no-such-type")]).toEqual([
+      findType(metamodel, "software-requirement")?.name,
+      "no-such-type",
+    ]);
+    expect(typeName(metamodel, "software-requirement")).not.toBe("software-requirement");
   });
 });
 

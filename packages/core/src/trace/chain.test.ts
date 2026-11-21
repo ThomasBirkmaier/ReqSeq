@@ -833,12 +833,12 @@ describe("trace chain output", () => {
       [
         "metamodel.meaning-unassigned",
         "warning",
-        "No type of the metamodel has the meaning need, which trace.chain needs. Add `meaning: need` to a type in the metamodel files.",
+        'No type of the metamodel has the meaning need, which "Show trace chain" needs. Add `meaning: need` to a type in the metamodel files.',
       ],
       [
         "metamodel.meaning-unassigned",
         "warning",
-        "No type of the metamodel has the meaning requirement, which trace.chain needs. Add `meaning: requirement` to a type in the metamodel files.",
+        'No type of the metamodel has the meaning requirement, which "Show trace chain" needs. Add `meaning: requirement` to a type in the metamodel files.',
       ],
     ]);
     const invalid: Metamodel = { ...opened.graph.metamodel, valid: false };

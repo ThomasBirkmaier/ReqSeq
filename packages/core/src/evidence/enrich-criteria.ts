@@ -7,6 +7,7 @@ import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { CRITERION_PROPERTY, criterionRefsOf } from "./junit-model.js";
 import type { CriteriaPlan, EnrichOptions } from "./enrich-model.js";
 import { ELEMENT, isUuidOf } from "./enrich-model.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /**
  * Criteria by element (the criteria of `criteriaOf`, or a set), as a text to compare with the
@@ -69,7 +70,7 @@ const handCriterion = (
 
 /** The remedy for criteria without key (SR-204 AK3). */
 const assignKeys = (ref: string): string =>
-  `give the acceptance criteria of ${ref} criterion keys with element.assignCriterionKeys`;
+  `give the acceptance criteria of ${ref} criterion keys with ${commandTitle("element.assignCriterionKeys")}`;
 
 /** How many of the criteria `items` carry the criterion key `key`. */
 const carriers = (items: readonly unknown[], key: string): number =>

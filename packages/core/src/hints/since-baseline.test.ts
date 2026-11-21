@@ -255,11 +255,11 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(refused.map((p) => [p.hintId, p.message])).toEqual([
       [
         undefined,
-        "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
+        'kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it',
       ],
       [
         id,
-        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it`,
+        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it`,
       ],
     ]);
     expect(rows(await listed(workspace))).toHaveLength(1);
@@ -286,7 +286,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
           code: "hint.not-confirmable",
           severity: "error",
           message:
-            "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
+            'kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it',
         },
       ],
     });
@@ -305,7 +305,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       [
         "hint.not-confirmable",
         "error",
-        "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them",
+        '1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant ("Create baseline" with the view of the variant), not by confirming them',
       ],
     ]);
     // Given by its UUID, as the app does, the refusal still names the short ID (#444).

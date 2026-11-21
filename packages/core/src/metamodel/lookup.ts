@@ -27,6 +27,10 @@ const indexOf = (metamodel: Metamodel): ReadonlyMap<MetamodelKey, EffectiveType>
 export const findType = (metamodel: Metamodel, key: MetamodelKey): EffectiveType | undefined =>
   indexOf(metamodel).get(key);
 
+/** How a message names the type `key` (#2200): by its name, or by the key for a type the metamodel does not have. */
+export const typeName = (metamodel: Metamodel, key: MetamodelKey): string =>
+  findType(metamodel, key)?.name ?? key;
+
 /**
  * The type a new element gets (for `element.create`, SR-001, SR-064): its key goes into the file,
  * its effective `properties` and `required` are what the element has. Throws `input.invalid` with

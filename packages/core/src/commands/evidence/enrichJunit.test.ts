@@ -456,7 +456,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       line: 3,
       targetId: need,
       targetRepository: "system",
-      message: `Test case "[N-0e0843] [SR-0b0036] shows the need" (line 3) names element ${need} of type need, so its record counts for no status: a verification record names a requirement`,
+      message: `Test case "[N-0e0843] [SR-0b0036] shows the need" (line 3) names element ${need} of type Need, so its record counts for no status: a verification record names a requirement`,
     };
     const first = await enrich(workspace, { file: "results/need.xml" });
     expect(first).toMatchObject({ testCases: 2, files: ["results/need.xml"], problems: [warning] });

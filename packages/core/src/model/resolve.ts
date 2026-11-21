@@ -23,6 +23,7 @@ import { isUuid } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { isShortIdForm, normalizeRef } from "./uuid.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /**
  * Which of the elements a reference names is meant: the repository and/or the file (relative to the
@@ -97,7 +98,7 @@ const named = (shortIds: ShortIds, ref: string): Named => {
 const faultyMetamodel = (shortIds: ShortIds, canonical: string): string =>
   shortIds.metamodelValid || isUuid(canonical)
     ? ""
-    : "; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (workspace.check lists its problems)";
+    : `; the metamodel is not valid, so types or the identifier property of a faulty metamodel file may be missing (${commandTitle("workspace.check")} lists its problems)`;
 
 /** What `ref` was taken as, for the message of `ref.unknown`. */
 const formOf = (canonical: string): string =>

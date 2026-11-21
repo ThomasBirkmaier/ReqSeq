@@ -462,7 +462,7 @@ describe("trace.graph (SR-111)", () => {
       [
         "metamodel.meaning-unassigned",
         "warning",
-        "No relation kind of the metamodel has the meaning derivation, which trace.graph needs. Add `meaning: derivation` to a relation kind in the metamodel files.",
+        'No relation kind of the metamodel has the meaning derivation, which "Show graph" needs. Add `meaning: derivation` to a relation kind in the metamodel files.',
       ],
     ]);
     expect(output.nodes.find((n) => n.id === ID.N1)?.degree).toEqual({
