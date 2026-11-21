@@ -6,12 +6,29 @@ import type { CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import {
+  degreeClause,
   degreePercent,
   degreeShareOf,
   minimumHeadText,
   packageSummaryText,
   summaryViewText,
 } from "./degree-text.js";
+
+describe("degreeClause (SR-037)", () => {
+  const counts = { open: 0, verified: 0, indirect: 0, failed: 0, outdated: 0 };
+
+  it("agrees noun and verb with the requirements counted, not with the verified ones (#2270)", () => {
+    expect(degreeClause({ total: 1, share: 0, counts: { ...counts, open: 1 } }, " in the core")).toBe(
+      "0 of 1 requirement in the core is verified or indirectly verified (0 %)",
+    );
+    expect(degreeClause({ total: 3, share: 1 / 3, counts: { ...counts, verified: 1, open: 2 } })).toBe(
+      "1 of 3 requirements are verified or indirectly verified (33.3 %)",
+    );
+    expect(degreeClause({ total: 0, counts }, " in view core")).toBe(
+      "0 of 0 requirements in view core are verified or indirectly verified",
+    );
+  });
+});
 
 describe("minimumHeadText (SR-153)", () => {
   it("names the rows that meet the minima, of those they apply to, and their share rounded down", () => {

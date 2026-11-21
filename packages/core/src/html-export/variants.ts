@@ -11,7 +11,7 @@
 //   as a link where it has a page, and its verification degree. No comparison with other variants: a variant builds
 //   on the core only (D-020).
 import type { DataExportVerificationDegree } from "../generated/types.js";
-import { degreePercent } from "../evidence/degree-text.js";
+import { degreeClause } from "../evidence/degree-text.js";
 import type { ElementRecord } from "../model/index.js";
 import { findType } from "../metamodel/index.js";
 import { titleKeyOrEmpty } from "../model/index.js";
@@ -47,11 +47,7 @@ export interface VariantView {
 const STATUSES = ["open", "verified", "indirect", "failed", "outdated"] as const;
 
 /** `n of m requirements are verified or indirectly verified (p %)`. */
-export const degreeSentence = (degree: DataExportVerificationDegree): string => {
-  const verified = degree.counts.verified + degree.counts.indirect;
-  const share = degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`;
-  return `${String(verified)} of ${String(degree.total)} ${degree.total === 1 ? "requirement" : "requirements"} ${verified === 1 ? "is" : "are"} verified or indirectly verified${share}.`;
-};
+export const degreeSentence = (degree: DataExportVerificationDegree): string => `${degreeClause(degree)}.`;
 
 const head = (labels: readonly string[]): string =>
   `<thead><tr>${labels.map((l) => `<th scope="col">${escapeHtml(l)}</th>`).join("")}</tr></thead>`;

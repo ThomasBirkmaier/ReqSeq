@@ -13,7 +13,7 @@
 // - per type with at least one element with a page, in the metamodel's order, the number of those elements, with a
 //   link to its list where it has one (`list-page.ts`; types with the meaning package or variant have none).
 import type { DataExportVerificationDegree } from "../generated/types.js";
-import { degreePercent } from "../evidence/degree-text.js";
+import { degreeClause } from "../evidence/degree-text.js";
 import type { ListEntry, ListPage } from "./list-page.js";
 import { verificationBadge } from "./badge.js";
 import { coreVerification, identifierOf } from "./list-page.js";
@@ -79,8 +79,6 @@ const baselineText = (baseline: NewestBaseline | undefined): string => {
 /** The content of the start page (see the file comment). */
 export const startPageBody = (input: StartPageInput): string => {
   const { degree } = input;
-  const verified = degree.counts.verified + degree.counts.indirect;
-  const share = degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`;
   const counts = (["open", "verified", "indirect", "failed", "outdated"] as const)
     .map((status) => verificationBadge(status, `${status} ${String(degree.counts[status])}`))
     .join(" ");
@@ -102,7 +100,7 @@ export const startPageBody = (input: StartPageInput): string => {
       ? ""
       : `<p class="rq-incomplete"><strong>This export is incomplete:</strong> ${escapeHtml(`repository ${input.missing.join(", ")} ${input.missing.length === 1 ? "is" : "are"} not on this machine, so ${input.missing.length === 1 ? "its" : "their"} elements are missing.`)}</p>`,
     '<h2 id="verification-degree">Verification degree</h2>',
-    `<p>${escapeHtml(`${String(verified)} of ${String(degree.total)} ${degree.total === 1 ? "requirement" : "requirements"} in the core ${verified === 1 ? "is" : "are"} verified or indirectly verified${share}.`)}</p>`,
+    `<p>${escapeHtml(`${degreeClause(degree, " in the core")}.`)}</p>`,
     `<p class="rq-degree">${counts}</p>`,
     '<h2 id="not-verified">Failed, outdated or open requirements</h2>',
     elementTable(attention, "Verification status in the core", ({ element }) =>

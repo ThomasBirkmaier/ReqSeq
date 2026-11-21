@@ -173,7 +173,7 @@ describe("evidence.degree (SR-037)", () => {
     const selection = { ids: [R01, R09, RV] };
     // No variant: RV is left out, R09 is open in the core although it is verified in Pro.
     expect(await degree(workspace, { selection })).toEqual({
-      answer: "1 of 2 requirements in view core is verified or indirectly verified (50 %).",
+      answer: "1 of 2 requirements in view core are verified or indirectly verified (50 %).",
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: "core",
       incomplete: false,
@@ -202,7 +202,7 @@ describe("evidence.degree (SR-037)", () => {
     // the variant of the view for readers (ThomasBirkmaier/ReqSeq-archive#588).
     const pro = { id: V, repository: "system", shortId: "VAR-00c001", title: "Pro" };
     expect(await degree(workspace, { selection: { ids: [R01, RV], view: "VAR-00c001" } })).toEqual({
-      answer: "1 of 2 requirements in view VAR-00c001 is verified or indirectly verified (50 %).",
+      answer: "1 of 2 requirements in view VAR-00c001 are verified or indirectly verified (50 %).",
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: V,
       incomplete: false,

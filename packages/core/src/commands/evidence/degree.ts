@@ -25,8 +25,8 @@ import {
 import { namesField, namesOf } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 import type { View } from "../../variants/index.js";
-import { counted, incompleteNote, sentence, viewNamed } from "../answer.js";
-import { degreePercent } from "../../evidence/degree-text.js";
+import { incompleteNote, sentence, viewNamed } from "../answer.js";
+import { degreeClause } from "../../evidence/degree-text.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 
@@ -50,10 +50,8 @@ export const countedOfDegree = async (
 export default defineCommand({
   name: "evidence.degree",
   answer: (output) => {
-    const { degree } = output;
-    const verified = degree.counts.verified + degree.counts.indirect;
     return sentence(
-      `${String(verified)} of ${counted(degree.total, "requirement")} in view ${viewNamed(output.view, output.names)} ${verified === 1 ? "is" : "are"} verified or indirectly verified${degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`}`,
+      degreeClause(output.degree, ` in view ${viewNamed(output.view, output.names)}`),
       incompleteNote(output.incomplete),
     );
   },

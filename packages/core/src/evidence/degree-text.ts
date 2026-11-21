@@ -85,6 +85,19 @@ export const summaryViewText = (view: string, names: readonly SummaryName[] | un
 const SUMMARY_STATUSES = ["verified", "indirect", "failed", "outdated", "open"] as const;
 
 /**
+ * The sentence on a degree without its period, e.g. "1 of 3 requirements in the core are verified or indirectly
+ * verified (33.3 %)": `where` (" in the core", " in view core", or empty) follows the noun, the noun and its verb
+ * agree with `total`, not with the verified count, and the share is left out when the degree has none. The HTML
+ * export's start page and variant pages and the answer of `evidence.degree` build it here.
+ */
+export const degreeClause = (degree: SummaryDegree & { readonly total: number }, where = ""): string => {
+  const verified = degree.counts.verified + degree.counts.indirect;
+  const one = degree.total === 1;
+  const share = degree.share === undefined ? "" : ` (${degreePercent(degree.share)})`;
+  return `${String(verified)} of ${String(degree.total)} ${one ? "requirement" : "requirements"}${where} ${one ? "is" : "are"} verified or indirectly verified${share}`;
+};
+
+/**
  * The line of a package page (SR-112 AK3, AK4): the coverage summed over the requirement levels (those with
  * `withEvidence`; needs are not in it), then the degree with the view it is for (`summaryViewText`) and the
  * count of each status that occurs, e.g.
