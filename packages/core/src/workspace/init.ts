@@ -211,22 +211,25 @@ export const createWorkspace = async (
 
 /**
  * Creates the evidence folder with an empty `.gitkeep` (SR-230 AK4): the path written, or the warning
- * `workspace.evidence-folder-not-created` with the reason. A failure of the files block keeps its message
- * (relative paths only); any other gives only its error code, since its message holds absolute paths (ADR-0009).
+ * `workspace.evidence-folder-not-created` with the reason. Something already at the path of `.gitkeep` is
+ * named as such; another failure of the files block keeps its message (relative paths only); any other gives
+ * only its error code, since its message holds absolute paths (ADR-0009). A failed write of `.gitkeep` can
+ * leave the folder created, empty and unlisted.
  */
 const createEvidenceFolder = async (root: string): Promise<string | Problem> => {
   try {
     await createFolder(root, DEFAULT_EVIDENCE_FOLDER);
     return (await writeFileAtomic(root, EVIDENCE_KEEP_FILE, "", null, { kind: "copy" })).path;
   } catch (error) {
-    const reason =
-      error instanceof CommandError
-        ? error.message
-        : `the file system refused it (${(error as NodeJS.ErrnoException | undefined)?.code ?? "unknown"})`;
+    const reason = !(error instanceof CommandError)
+      ? `the file system refused it (${(error as NodeJS.ErrnoException | undefined)?.code ?? "unknown"})`
+      : error.code === "file.changed-on-disk"
+        ? `something is already at ${EVIDENCE_KEEP_FILE}`
+        : error.message;
     return {
       code: "workspace.evidence-folder-not-created",
       severity: "warning",
-      message: `The evidence folder ${DEFAULT_EVIDENCE_FOLDER} was not created with ${EVIDENCE_KEEP_FILE}: ${reason.replace(/\.$/, "")}`,
+      message: `${EVIDENCE_KEEP_FILE} was not created: ${reason.replace(/\.$/, "")}`,
       file: DEFAULT_EVIDENCE_FOLDER,
     };
   }

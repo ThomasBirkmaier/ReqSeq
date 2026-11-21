@@ -309,7 +309,7 @@ problems:
     remedy: Keep the file, or write the skill file with `reqseq tool guide --skill --write`, with `--replace` to replace a file ReqSeq did not write.
   workspace.evidence-folder-not-created:
     title: Evidence folder not created
-    cause: "`workspace.init` created the workspace but not its evidence folder `evidence` with the empty file `.gitkeep`, for example because the folder cannot be written. The message gives the reason."
+    cause: "`workspace.init` created the workspace but not its evidence folder `evidence` with the empty file `.gitkeep`, for example because the folder cannot be written or something is already at `evidence/.gitkeep`. The message gives the reason. When only `.gitkeep` failed, the folder `evidence` can be left empty and is not listed."
     remedy: Create the folder `evidence` with an empty `.gitkeep`, so that Git keeps it, or record the first evidence there; `evidence.record` creates the folder.
   workspace.skill-older-version:
     title: Skill file of an older ReqSeq version

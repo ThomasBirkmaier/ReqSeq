@@ -88,6 +88,13 @@ describe("createWorkspace when the evidence folder cannot be created", () => {
         new CommandError("file.read-only", "Not written: evidence/.gitkeep is read-only."),
         "Not written: evidence/.gitkeep is read-only",
       ],
+      [
+        new CommandError(
+          "file.changed-on-disk",
+          "Not written: evidence/.gitkeep already exists. Read it again first",
+        ),
+        "something is already at evidence/.gitkeep",
+      ],
       [Object.assign(new Error("/abs/path"), { code: "EIO" }), "the file system refused it (EIO)"],
       [new Error("/abs/path"), "the file system refused it (unknown)"],
     ] as const) {
@@ -106,7 +113,7 @@ describe("createWorkspace when the evidence folder cannot be created", () => {
           {
             code: "workspace.evidence-folder-not-created",
             severity: "warning",
-            message: `The evidence folder evidence was not created with evidence/.gitkeep: ${reason}`,
+            message: `evidence/.gitkeep was not created: ${reason}`,
             file: "evidence",
           },
         ],

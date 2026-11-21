@@ -413,7 +413,9 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     // The metamodel folder takes the path of `.gitkeep`, so the file cannot be created there.
     const input = JSON.stringify({ path: "b", name: "B", metamodel: { path: "evidence/.gitkeep" } });
     const warned = await cli(ws, ["workspace", "init", "--input", input], ".");
-    expect(warned.out).toContain("warning  workspace.evidence-folder-not-created");
+    expect(warned.out).toContain(
+      "warning  workspace.evidence-folder-not-created  evidence/.gitkeep was not created: something is already at evidence/.gitkeep",
+    );
     expect([plain.code, warned.code]).toEqual([EXIT.ok, EXIT.ok]);
   });
 
