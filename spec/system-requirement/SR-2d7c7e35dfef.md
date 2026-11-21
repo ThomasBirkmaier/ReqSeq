@@ -15,8 +15,8 @@ verification-method: test
 derives-from:
   - { id: f7e0d304-30ac-43c8-9683-1c432a0f119a, version: n2:2d5ec8cb0a706279, title: Mit der Maus bedienen }
 based-on:
-  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:edf409dedc817a32, title: Kontextmenü per Rechtsklick }
-  - { id: 7a120e78-ad90-4f95-b966-6017460b8538, version: n2:0a97d893f4ac8dde, title: "Ein Befehl je Tätigkeit, Werte als Schritte" }
+  - { id: 08ee8add-ef27-4972-ab4c-e0b8bcad916e, version: n2:8117ac1db1815417, title: Kontextmenü per Rechtsklick }
+  - { id: 7a120e78-ad90-4f95-b966-6017460b8538, version: n2:4713bc40e4274c0a, title: "Ein Befehl je Tätigkeit, Werte als Schritte" }
 refines:
   - { id: 1faf2c14-c73c-45d7-862a-e9f1a217e6c9, version: n2:e6a91a2159f476e9, title: Befehle per Rechtsklick am Ort aufrufen }
 ---

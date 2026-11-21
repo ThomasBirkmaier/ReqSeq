@@ -17,11 +17,11 @@ packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 verification-method: test
 refines:
-  - { id: 2c4b0595-c212-42b7-81be-b18556f3b2fe, version: n2:5f60fbaad3979d5c, title: Properties als Boxen bearbeiten }
+  - { id: 2c4b0595-c212-42b7-81be-b18556f3b2fe, version: n2:ebd830c09da98c09, title: Properties als Boxen bearbeiten }
 derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
 ---
 
 Die App muss bei einer Property mit festen Werten die Werteauswahl der Befehlszeile auch per Mausklick öffnen und einen Wert per Klick setzen lassen.
