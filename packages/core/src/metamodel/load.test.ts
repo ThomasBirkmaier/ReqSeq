@@ -704,21 +704,9 @@ describe("loadMetamodel", () => {
     expect(
       metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.line, p.message]),
     ).toEqual([
-      [
-        "model/z-more.yaml",
-        3,
-        "Property key status is a field every element has (D-012); choose another key",
-      ],
-      [
-        "model/z-more.yaml",
-        5,
-        "Relation kind key id is a field every element has (D-012); choose another key",
-      ],
-      [
-        "model/z-more.yaml",
-        6,
-        "Relation kind key type is a field every element has (D-012); choose another key",
-      ],
+      ["model/z-more.yaml", 3, "Property key status is a field every element has; choose another key"],
+      ["model/z-more.yaml", 5, "Relation kind key id is a field every element has; choose another key"],
+      ["model/z-more.yaml", 6, "Relation kind key type is a field every element has; choose another key"],
     ]);
   });
 

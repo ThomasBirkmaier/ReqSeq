@@ -365,3 +365,31 @@ export const lazyCommand = <N extends CommandName>(
  */
 export const defineTestCommand = <In, Out>(def: CommandDefinition<In, Out>): CommandDefinition<In, Out> =>
   def;
+
+// The names of the catalog groups for people (#2201): the command line's help and the docs command index
+// show them in place of the keys before the dot of a command name; a group named by a glossary term uses its
+// english-term (#1428).
+
+/** The name for people of each catalog group, by its key. */
+export const CATALOG_GROUP_NAMES: Readonly<Record<string, string>> = {
+  workspace: "Workspace",
+  tool: "ReqSeq",
+  metamodel: "Metamodel",
+  element: "Elements",
+  relation: "Relations",
+  trace: "Traceability",
+  hint: "Hints",
+  filter: "Saved filters",
+  perspective: "Perspectives",
+  evidence: "Verification",
+  data: "Data",
+  variant: "Variants",
+  baseline: "Baselines",
+  reqif: "ReqIF",
+  html: "HTML export",
+};
+
+const GROUP_NAMES = new Map(Object.entries(CATALOG_GROUP_NAMES));
+
+/** The name for people of the catalog group `key`, or the key itself for a group without one (test commands). */
+export const catalogGroupName = (key: string): string => GROUP_NAMES.get(key) ?? key;

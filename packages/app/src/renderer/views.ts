@@ -66,12 +66,14 @@ const isRecord = (value: unknown): value is Input => typeof value === "object" &
 /**
  * The selection in the view: a selection that names a view keeps it, and one by `ids` names elements
  * rather than a set to show (the values of one element, the names of buffers), so it reads them in every
- * view. Also a selection taken from the shown list into a write (`element.bulkUpdate`, `data.store`,
+ * view. So does one by `inRepository`, the elements a number of a write command's output counts (SR-223 AK5,
+ * #2024): in a variant window the view would drop counted elements, and the list would show fewer rows than its
+ * number. Also a selection taken from the shown list into a write (`element.bulkUpdate`, `data.store`,
  * `baseline.create`): the command acts on the set the list shows.
  */
 export const selectionInView = (selection: object | undefined, view: string): Input => {
   const given = (selection ?? {}) as Input;
-  if (given["view"] !== undefined || given["ids"] !== undefined) {
+  if (given["view"] !== undefined || given["ids"] !== undefined || given["inRepository"] !== undefined) {
     return given;
   }
   // The command of `selection.output` runs in the window's view unless its input names one (SR-223 AK5), and the
@@ -96,8 +98,9 @@ const viewOf = (name: string, input: Input): string | undefined => {
 
 /**
  * The input with `view` where the command takes it. An input that names a view keeps it, and a selection
- * by `ids` names elements rather than a set to show (the values of one element, the names of buffers), so
- * it reads them in every view. Every other command, writes and `element.get` among them, is left as it is.
+ * by `ids` or `inRepository` names elements rather than a set to show (the values of one element, the names of
+ * buffers, the elements a number counts), so it reads them in every view. Every other command, writes and
+ * `element.get` among them, is left as it is.
  */
 export const withView = (name: string, input: Input, view: string): Input => {
   if (AS_FIELD.has(name)) {

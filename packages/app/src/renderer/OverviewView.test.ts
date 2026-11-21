@@ -11,6 +11,8 @@ import type { Call } from "./call.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { RecentEntry } from "./recent.js";
 import type { BufferData } from "./modeline.js";
+import type { NextStep } from "./next-steps.js";
+import type { StepRow } from "./overview.js";
 import {
   asCall,
   click,
@@ -58,9 +60,15 @@ describe("OverviewView", () => {
   /** The overview as the app uses it: the loading hook, the view, and what it reported. */
   const mount = async (
     call: Call,
-    initial: { recent?: RecentEntry[]; active?: boolean; turn?: () => Promise<void> } = {},
+    initial: {
+      recent?: RecentEntry[];
+      active?: boolean;
+      turn?: () => Promise<void>;
+      steps?: readonly StepRow[];
+    } = {},
   ) => {
     const opened: Buffer[] = [];
+    const stepped: NextStep[] = [];
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
     const actions: BufferAction[] = [];
@@ -93,6 +101,8 @@ describe("OverviewView", () => {
         perspectives: overview.perspectives,
         recents: overview.recents,
         onPerspective: (name) => perspectives.push(name),
+        steps: initial.steps ?? [],
+        onStep: (step) => stepped.push(step),
         dispatch: (action) => {
           actions.push(action);
           if (action.type === "open") {
@@ -113,6 +123,7 @@ describe("OverviewView", () => {
     };
     return {
       opened,
+      stepped,
       data,
       echoed,
       actions,
@@ -473,6 +484,37 @@ describe("OverviewView", () => {
     );
     expect(options()).toEqual(["Need 1", "System Requirement 3"]);
     expect(view.echoed).toEqual(["The folder cannot be read"]);
+  });
+
+  describe("a workspace in which core counts no element (SR-118 AK9)", () => {
+    const STEPS: readonly StepRow[] = [
+      { step: { command: "element.create", input: {}, open: [] }, name: "Create element", key: "Ctrl+K E" },
+      { step: { command: "reqif.import", input: {}, open: [] }, name: "Import ReqIF file" },
+    ];
+    const EMPTY = { total: 0, types: [], incomplete: false };
+
+    it("shows the first steps in the middle, then only the perspectives, and runs a step on a click or Enter", async () => {
+      const call = fakeCall({ ...withPerspectives(["Drafts"]), "element.facets": () => EMPTY });
+      const view = await mount(asCall(call), { recent: [entry(1)], steps: STEPS });
+      // No recent element and no type line: the steps, then the perspectives.
+      expect(options()).toEqual(["Create elementCtrl+K E", "Import ReqIF file", "Drafts 6"]);
+      expect(texts(".group")).toEqual(["Perspectives"]);
+      expect(listbox().classList.contains("first-steps")).toBe(true);
+      expect(query(".start-line").getAttribute("aria-label")).toBe("Create element");
+      expect(texts(".start-key")).toEqual(["Ctrl+K E"]);
+      await click(nth([...container.querySelectorAll<HTMLElement>(".start-line")], 1));
+      await press(listbox(), "ArrowUp");
+      await press(listbox(), "Enter");
+      expect(view.stepped.map((step) => step.command)).toEqual(["reqif.import", "element.create"]);
+      expect(view.opened).toEqual([]);
+      expect(view.data.at(-1)).toEqual(["overview", { kind: "overview", total: 0, incomplete: false }]);
+    });
+
+    it("shows no first step in a workspace with elements", async () => {
+      await mount(asCall(fakeCall(handlers())), { steps: STEPS });
+      expect(options()).toEqual(["Need 1", "System Requirement 3"]);
+      expect(listbox().classList.contains("first-steps")).toBe(false);
+    });
   });
 
   it("counts the perspectives again when the workspace changed, and drops a count of the revision before", async () => {

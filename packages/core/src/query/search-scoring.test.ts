@@ -8,12 +8,15 @@ import type { SearchDocument } from "./search-index.js";
 import { WORD_FIELDS, engineOptionsFor, normalizeWord, WORD_SEPARATOR } from "./search-index.js";
 import type { ScoringOptions } from "./search-scoring.js";
 import {
+  carryLengths,
   documentKeys,
+  lengthsOf,
   nextShortId,
   phraseCandidates,
   scoreDocuments,
   scoreWords,
   searchOptionsOf,
+  shortIdOfDocument,
 } from "./search-scoring.js";
 
 const TEXTS = [
@@ -285,6 +288,25 @@ describe("late documents (SR-068 AK5)", () => {
     for (const words of [["package"], ["review"], ["sensors", "in-review"], ["pakage"]]) {
       same(mini, words, scoring);
     }
+  });
+});
+
+describe("carryLengths", () => {
+  it("leaves an added short ID MiniSearch holds no lengths of at zero, as a fresh build does", () => {
+    const mini = engine();
+    lengthsOf(mini, 0);
+    mini.add({ key: "r\0kept.md", title: "Kept", text: "kept words", parts: [] });
+    mini.add({ key: "r\0gone.md", title: "Gone", text: "gone again", parts: [] });
+    const gone = Number(shortIdOfDocument(mini, "r\0gone.md"));
+    mini.discard("r\0gone.md");
+    carryLengths(mini, 1, [], [gone - 1, gone]);
+    const carried = lengthsOf(mini, 1);
+    // Another generation: built from MiniSearch's lengths in full.
+    expect(carried.lengths).toEqual(lengthsOf(mini, 2).lengths);
+    const { fields } = carried;
+    const of = (doc: number): number[] => [...carried.lengths.subarray(doc * fields, (doc + 1) * fields)];
+    expect(of(gone).every((n) => n === 0)).toBe(true);
+    expect(of(gone - 1).some((n) => n > 0)).toBe(true);
   });
 });
 

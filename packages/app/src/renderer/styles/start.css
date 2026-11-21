@@ -31,3 +31,23 @@
 .start-key {
   font-variant-numeric: tabular-nums;
 }
+
+/* The first steps of a workspace without elements (SR-118 AK9) are lines of the start buffer in the overview: in
+   the middle of the sheet, the perspectives below them in the overview's own lines. The overview's line keeps
+   their padding and pointer. */
+.overview.first-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overview.first-steps .column {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.overview .line.start-line {
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}

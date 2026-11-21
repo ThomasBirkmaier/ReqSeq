@@ -157,7 +157,7 @@ describe("element.bulkUpdate (SR-071)", () => {
     });
     expect(out).toMatchObject({ applied: true, count: 7, unchanged: 0, skipped: [], problems: [] });
     expect(ids(out.affected)).toEqual(REQUIREMENTS);
-    expect(out.affected[0]).toEqual({ id: B1, shortId: "SR-0000b1" });
+    expect(out.affected[0]).toEqual({ id: B1, shortId: "SR-0000b1", repository: "system" });
     expect(out.files).toEqual(filesOf(REQUIREMENTS));
     const after = await texts(fixture.root);
     expectOnlyKeyChanged(before, after, "topic", filesOf(REQUIREMENTS));
@@ -425,12 +425,14 @@ describe("element.bulkUpdate (SR-071)", () => {
       {
         id: id("e1"),
         shortId: "D-0000e1",
+        repository: "system",
         reason: "not-a-property",
         message: "Type Decision (decision) has no property Topic (topic)",
       },
       {
         id: X9,
         shortId: "UNKNOWN-000099",
+        repository: "system",
         reason: "unknown-type",
         message: "The metamodel has no type nope, so ReqSeq only reads other/X-000000000099.md",
       },

@@ -130,7 +130,7 @@ test.describe("the command prompt", () => {
     const status = await running.cli(["workspace", "status"]);
     expect((JSON.parse(status.stdout) as { readOnly?: boolean }).readOnly).toBe(true);
     // Reading still works, and so does Agent guide, which writes the skill file (SR-229 AK8).
-    await finds(window, "Show evidence coverage");
+    await finds(window, "Show coverage");
     await finds(window, "Agent guide");
     for (const write of ["Set status", "Create relation", "Bulk update elements", "Create element"]) {
       await findsNothing(window, write);
@@ -323,8 +323,8 @@ test.describe("the command prompt", () => {
     await fs.mkdir(SHOTS, { recursive: true });
     await window.screenshot({ path: path.join(SHOTS, "sr-133-prompt-element-light.png") });
     // A command that does not fit is found by typing.
-    await window.keyboard.type("workspace status");
-    await expect(names(window).first()).toHaveText("Show workspace status");
+    await window.keyboard.type("show workspace");
+    await expect(names(window).first()).toHaveText("Show workspace");
     await window.keyboard.press("Escape");
     await listAll(window);
     await window.keyboard.press("ControlOrMeta+Shift+P");

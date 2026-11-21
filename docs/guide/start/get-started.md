@@ -35,6 +35,8 @@ next:
   reqseq element create <type> <title>              Create element
 ```
 
+Next, **Connect AI agent** prints the setup for your AI agent's client ([Connect an AI agent](/how-to/connect-an-ai-agent/)).
+
 ReqSeq never commits: put the folder under Git yourself.
 
 In the app: click **Create workspace** and choose the folder; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. Details: [Open or create a workspace](/how-to/open-a-workspace/).
@@ -79,7 +81,7 @@ warning  element.missing-required  ...
 warning  trace.no-parent  ...
 ```
 
-A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. All three are hints; the third says that it has no parent yet.
+A system requirement also needs a requirement type and acceptance criteria, which ReqSeq never fills in for you: set them in the file or with `reqseq element update SR-c67baa --set requirement-type=functional`. `trace.no-parent` says it has no parent yet.
 
 Relate the requirement to the need it derives from, with your own short IDs:
 
@@ -94,7 +96,7 @@ files:
 No problems.
 ```
 
-The relation keeps the version of the need. When the need changes, ReqSeq marks the relation as outdated, so you know to review the requirement.
+The relation keeps the version of the need, so a changed need shows the relation as outdated.
 
 In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property; **Add property** fills a skipped one later. Then run **Create relation** (Ctrl+K R, ⌘K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
 
@@ -115,7 +117,7 @@ total: 2
 No problems.
 ```
 
-The chain runs from the need to its requirements and their evidence records; the gap says that no test shows the requirement yet.
+The chain runs from the need to its requirements and their evidence records; the gap says no test shows the requirement yet.
 
 In the app: open the need with Ctrl+P (⌘P) and a word of its title, then press Ctrl+J (⌘J) for its neighbourhood, or run **Show trace chain**.
 
