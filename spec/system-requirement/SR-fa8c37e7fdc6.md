@@ -26,7 +26,7 @@ refines:
   - { id: 6adc6c49-e383-41ed-ac99-941741a85262, version: n2:94718d1b8a2e216c, title: Nachweisgrad einer Auswahl berechnen }
   - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
   - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:024241ac485bc13f, title: Den nächsten Schritt nennen }
-  - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:798c8d0e5dbc0787, title: Baseline anzeigen und vergleichen }
+  - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:990f6c5b33e39b59, title: Baseline anzeigen und vergleichen }
   - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:b75e257d9422d17a, title: Requirements ohne bestandenen Test schnell finden }
 based-on:
   - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
