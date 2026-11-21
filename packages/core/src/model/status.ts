@@ -184,9 +184,10 @@ export const setElementStatus = async (
     after.set(`${element.record.repository}\0${element.record.file}`, element);
   }
   const files = written.map((w) => w.file);
-  // A required property without a value blocks no status (D-030); the output names it (SR-243 AK4).
+  // A required property without a value blocks no status (D-030); the output names it (SR-243 AK4),
+  // without saying that no file changes, as the call may just have written it.
   const missing = [...after.values()].flatMap(({ file, record }) =>
-    locateIn(file, requiredFindings(record, metamodel)),
+    locateIn(file, requiredFindings(record, metamodel, { unchangedNote: false })),
   );
   // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, ThomasBirkmaier/ReqSeq-archive#84).
   const superseded =

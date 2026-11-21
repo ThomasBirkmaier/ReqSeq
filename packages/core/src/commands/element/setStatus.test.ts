@@ -167,9 +167,10 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
       allowed: ["draft", "approved", "obsolete"],
     });
     const set = await setStatus(opened, { refs: ["SR-e88fb3"], status: "approved" });
-    expect([set.answer, set.files]).toEqual([
+    expect([set.answer, set.files, set.problems?.map((p) => p.code)]).toEqual([
       "Set the status of 1 element to approved; 2 problems.",
       ["requirements/SR-6328cee88fb3.md"],
+      ["element.missing-required", "element.missing-required"],
     ]);
   });
 
@@ -394,6 +395,10 @@ describe("element.setStatus names the required properties without a value (SR-24
     ];
     expect(named(set)).toEqual(missing);
     expect(set.answer).toBe("Set the status of 3 elements to approved; 4 problems.");
+    // The file was just written, so the message does not say that no file changes.
+    expect(set.problems?.[0]?.message).toBe(
+      "Required property Requirement Type (requirement-type) of type System Requirement (system-requirement) has no value",
+    );
     // The status is set already: no file is written, the properties are still named.
     const again = await setStatus(ws, { refs, status: "approved" });
     expect([again.files, named(again)]).toEqual([[], missing]);
