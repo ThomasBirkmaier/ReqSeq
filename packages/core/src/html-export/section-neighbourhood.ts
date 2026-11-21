@@ -45,7 +45,7 @@
 // - Cost: per page two bounded walks over the derivations and one step over the other links, and their answers; the
 //   current versions are read once for the export (`neighbourhoodSource`).
 import type { ElementRef, NeighbourhoodAnswer, NeighbourhoodDisplay } from "../displays/index.js";
-import { boundNote, emptyValueLabel, neighbourhoodDisplay, shownId } from "../displays/index.js";
+import { boundNote, emptyValueLabel, neighbourhoodDisplay, shownId, targetKey } from "../displays/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import { UNKNOWN_TYPE_PREFIX, hasId, relationItems, relationKeysOf, targetState } from "../model/index.js";
@@ -272,7 +272,7 @@ export const neighbourhoodSection = async (
         incoming: Number.POSITIVE_INFINITY,
       },
       open: "all",
-      withoutPackageMembers: context.members.has(page.record.id)
+      withoutPackageMembers: context.members.has(targetKey(page.record))
         ? propertyWithMeaning(context.metamodel, "packages")?.key
         : undefined,
     },

@@ -136,8 +136,21 @@ const packagesOf = (key: string | undefined, element: ListRowInput["element"]): 
     .filter((r) => r.property === true && r.kind === key)
     .map((r) => (r.title === undefined || r.title === "" ? relationText(r) : r.title));
 
+/**
+ * The identifier column of a row: "identifier", the identifier else the short ID (the export, SR-233 AK1, AK4);
+ * "shownId", the short ID with the identifier (the app, SR-084 AK4).
+ */
+export const rowId = (
+  element: Pick<ListRowInput["element"], "shortId" | "identifier">,
+  id: ListOptions<unknown>["id"],
+): string =>
+  id === "identifier"
+    ? (element.identifier ?? element.shortId)
+    : shownId(element.shortId, element.identifier);
+
 /** The verification cell of a row, the first of its view. */
-const cellOf = (row: ListRowInput): VerificationCell | undefined => row.verification?.[0];
+export const rowCell = (row: Pick<ListRowInput, "verification">): VerificationCell | undefined =>
+  row.verification?.[0];
 
 const fieldsOf = (metamodel: ListMetamodel, type: string): Field[] => {
   const definition = metamodel.types.find((t) => t.key === type);
@@ -162,7 +175,7 @@ const fieldsOf = (metamodel: ListMetamodel, type: string): Field[] => {
       field: { kind: "verification" },
       column: true,
       values: (row) => {
-        const cell = cellOf(row);
+        const cell = rowCell(row);
         return cell === undefined ? [] : [cell.status];
       },
     });
@@ -300,16 +313,12 @@ export const listDisplay = <K>(
     rows: read.map(({ row, pairs }, at) => {
       const { element } = row;
       const columns = pairs.filter(({ state }) => state.field.column);
-      const id =
-        options.id === "identifier"
-          ? (element.identifier ?? element.shortId)
-          : shownId(element.shortId, element.identifier);
       const cells: ListCell[] = [
-        { kind: "id", text: id },
+        { kind: "id", text: rowId(element, options.id) },
         { kind: "text", text: element.title },
         ...columns.map(({ state, texts }): ListCell => {
           if (state.field.field.kind === "verification") {
-            const cell = cellOf(row);
+            const cell = rowCell(row);
             return {
               kind: "verification",
               cell,

@@ -44,7 +44,7 @@ export interface ElementPageContext {
   readonly layout: Pick<WorkspaceLayout, "repositories">;
   readonly links: PageLinks;
   readonly neighbourhood: NeighbourhoodSource;
-  /** The elements with a page of each package, by the package's UUID, by identifier (`section-package.ts`). */
+  /** The elements with a page of each package, by `targetKey` of the package, by identifier (`section-package.ts`). */
   readonly members: ReadonlyMap<string, readonly ListEntry[]>;
   /** The rows of an element in the baselines, newest first (`section-baselines.ts`); none without baselines. */
   readonly since?: SinceOf;
