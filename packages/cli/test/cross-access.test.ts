@@ -820,7 +820,7 @@ describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
 });
 
 describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-151/AK-c801] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr", async () => {
+  it("[SR-151/AK-c801] the CLI without options prints exactly the text of core, API and MCP, and the problems only on stderr, after the answer of an output with more than the text", async () => {
     const texts = runtime.contracts.commands.filter((e) => e.textOutput !== undefined);
     expect(texts.map((e) => e.name).sort()).toEqual(["metamodel.mermaid", "tool.guide", "trace.mermaid"]);
     for (const entry of texts) {
@@ -839,11 +839,17 @@ describe("cross-access: text output (SR-151)", { timeout: TEST_TIMEOUT }, () => 
         const stderr = new Sink();
         const argv = [...argvFor(entry, scenario.input, runtime.contracts.schemas), "--workspace", root];
         const code = await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime });
+        // An output with more than the text, such as the places of the skill file (SR-229 AK8), also gives its
+        // answer on stderr, first: the answer of core on the copy as the CLI finds it, after core wrote there.
+        const more = Object.keys(core.output).some((key) => ![field, "answer", "problems"].includes(key));
+        const answer = more
+          ? `${String(((await viaCore(root, entry, scenario.input)) as { output: Record<string, unknown> }).output["answer"])}\n`
+          : "";
         expect([scenario.name, code, stdout.text, stderr.text]).toEqual([
           scenario.name,
           outcomeExitCode(core.output),
           text,
-          problems.join(""),
+          `${answer}${problems.join("")}`,
         ]);
         for (const outcome of [
           await viaApi(root, entry, scenario.input, cache),

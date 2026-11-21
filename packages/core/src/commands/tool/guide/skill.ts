@@ -1,6 +1,6 @@
 // The skill file of SR-229 AK7: an Agent Skills file named `managing-requirements` with the workflows of
 // AK7 as numbered steps, written by `tool.guide` with `skill` (and at the place of D-079 with `write`,
-// guide/skill-file.ts). It is built from the catalog only, never from a workspace, so it holds no name of a
+// guide/skill-file.ts, at each place of D-079). It is built from the catalog only, never from a workspace, so it holds no name of a
 // metamodel and is the same for every workspace of one ReqSeq version. Every command appears both ways, as
 // the MCP tool and as the command-line call (`renderCall`). The rules of AK5 and AK13 and the pipeline
 // paragraph of AK11 stay in the agent guide; the skill points to it. The one exception is the rule that
@@ -19,8 +19,14 @@ import { METAMODEL_CHANGES } from "./text.js";
 /** The name of the skill (AK7), which is also the name of its folder (D-079). */
 export const SKILL_NAME = "managing-requirements";
 
-/** The skill file relative to the Git root, or to the workspace folder without Git (D-079), with `/`. */
-export const SKILL_FILE = `.claude/skills/${SKILL_NAME}/SKILL.md`;
+/**
+ * The places of the skill file relative to the Git root, or to the workspace folder without Git, with `/`, in the
+ * order of D-079: where Claude Code looks, then where other clients look. Each gets the same content.
+ */
+export const SKILL_FILES = [
+  `.claude/skills/${SKILL_NAME}/SKILL.md`,
+  `.agents/skills/${SKILL_NAME}/SKILL.md`,
+] as const;
 
 /** What the skill does and when it applies, in third person (AK7: at most 1,024 characters). */
 export const SKILL_DESCRIPTION =

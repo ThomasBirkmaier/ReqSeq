@@ -482,6 +482,7 @@ export type ProblemCode =
   | "workspace.not-watched"
   | "workspace.skill-not-written"
   | "workspace.skill-older-version"
+  | "workspace.skill-missing"
   | "git.unavailable"
   | "git.revision-missing"
   | "reqif.replaces-local"
@@ -534,7 +535,7 @@ export interface CommandErrorObject {
     | "internal";
   /** What went wrong, for people. */
   readonly message: string;
-  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `tool.guide` with `write` when a place of the skill file was not written, whatever the code: `command` and `places`, each place in order as the output lists it, a place not written with `error` (`code`, `message`, `details`) instead of `action`. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
@@ -2250,7 +2251,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json input`.
  */
 export interface WorkspaceCheckInput {
@@ -2260,12 +2261,12 @@ export interface WorkspaceCheckInput {
   readonly changedSince?: string;
   /** Lowest severity of the problems shown; does not change ok or the exit code. Problems left out are counted in hidden. */
   readonly severity: "error" | "warning" | "info";
-  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check. */
+  /** Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check. */
   readonly failOn: "error" | "warning" | "info";
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.
  * Schema: `schemas/commands/workspace.check.json output`.
  */
 export interface WorkspaceCheckOutput {
@@ -2517,7 +2518,7 @@ export interface ToolInfoOutput {
 }
 
 /**
- * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Input of `tool.guide` as `run` gets it: validated, properties with a `default` filled in. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json input`.
  */
 export interface ToolGuideInput {
@@ -2527,29 +2528,29 @@ export interface ToolGuideInput {
   readonly skill: boolean;
   /** Give the MCP server instructions instead of the agent guide: only the rules, and the call that reads the guide. It reads nothing from the workspace, so it works without one. Not together with `skill`. */
   readonly instructions: boolean;
-  /** Also write the skill file into the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
+  /** Also write the skill file at each of its places in the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
   readonly write: boolean;
-  /** Replace a skill file that ReqSeq did not write or that was changed since (needs `write`). */
+  /** Replace a skill file that ReqSeq did not write or that was changed since, at every place (needs `write`). */
   readonly replace: boolean;
 }
 
 /**
- * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.
+ * Output of `tool.guide`. The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.
  * Schema: `schemas/commands/tool.guide.json output`.
  */
 export interface ToolGuideOutput {
   readonly answer: Answer;
   /** The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
-  /** The skill file `write` wrote; only with `write`. */
-  readonly file?: {
-    /** The skill file, relative to the workspace root, with `/`. */
+  /** Each place of the skill file with what `write` did there, in the order `.claude/…`, then `.agents/…`; only with `write`. */
+  readonly places?: readonly {
+    /** The skill file at this place, relative to the workspace root, with `/`. */
     readonly path: OutputPath;
     /** `created`: there was no file; `replaced`: the file was replaced; `unchanged`: it was already the file of this version. */
     readonly action: "created" | "replaced" | "unchanged";
     /** The ReqSeq version that wrote the replaced file. */
     readonly previousVersion?: string;
-  };
+  }[];
 }
 
 /**
@@ -4385,7 +4386,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json input`.
  */
 export interface HintConfirmInput {
@@ -4397,14 +4398,14 @@ export interface HintConfirmInput {
   readonly target?: ElementRef;
   /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
-  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (SR-103 AK5, see `ref`). */
+  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];
   /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
   readonly expected?: number;
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.
+ * Output of `hint.confirm`. Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.
  * Schema: `schemas/commands/hint.confirm.json output`.
  */
 export interface HintConfirmOutput {
@@ -4903,11 +4904,11 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json input`.
  */
 export interface EvidenceEnrichJunitInput {
-  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
+  /** The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5). */
   readonly file: LocalPath;
   /** The item under test, for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
@@ -4924,7 +4925,7 @@ export interface EvidenceEnrichJunitInput {
 }
 
 /**
- * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.
+ * Output of `evidence.enrichJunit`. Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.
  * Schema: `schemas/commands/evidence.enrichJunit.json output`.
  */
 export interface EvidenceEnrichJunitOutput {
@@ -4935,7 +4936,7 @@ export interface EvidenceEnrichJunitOutput {
   readonly withoutReference: number;
   /** With `skipNotInView`: the elements left out of a test case because they apply in none of the given views, counted once per test case and element (SR-029 AK11); a test case with no element left is marked (AK12, see `skipNotInView`). Information only: it does not change the exit code. */
   readonly notInView: number;
-  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
+  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1). */
   readonly unknown: readonly {
     /** The `name` of the test case. */
     readonly testCase: string;
@@ -5235,7 +5236,7 @@ export interface BaselineListOutput {
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json input`.
  */
 export interface BaselineGetInput {
@@ -5250,7 +5251,7 @@ export interface BaselineGetInput {
 }
 
 /**
- * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since (SR-051); with withEvidence also the verification and validation status at their version in the baseline (SR-094).
+ * Output of `baseline.get`. The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.
  * Schema: `schemas/commands/baseline.get.json output`.
  */
 export interface BaselineGetOutput {
@@ -5615,7 +5616,7 @@ export interface ReqifSaveMappingOutput {
 }
 
 /**
- * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Input of `reqif.export` as `run` gets it: validated, properties with a `default` filled in. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
@@ -5636,7 +5637,7 @@ export interface ReqifExportInput {
 }
 
 /**
- * Output of `reqif.export`. Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.
+ * Output of `reqif.export`. Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.
  * Schema: `schemas/commands/reqif.export.json output`.
  */
 export interface ReqifExportOutput {

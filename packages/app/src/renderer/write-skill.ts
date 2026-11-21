@@ -1,7 +1,8 @@
 // "Write skill file" (SR-229 AK16): the catalog command `tool.guide` with `skill` and `write`, run at once without
-// asking an argument, also with Ctrl/Cmd+Enter. Core writes the file by its rules (AK8) and gives the answer; the
-// output page shows it with the text of the skill file, and a refusal is core's error in the command line, with
-// no buffer opened (ADR-0002: the app only gives the fixed input).
+// asking an argument, also with Ctrl/Cmd+Enter. Core writes the file at each place of D-079 by its rules (AK8) and
+// gives the answer, which names each place with its result; the output page shows it with the text of the skill
+// file once, and a place not written is core's error in the command line, which names each place with its result,
+// with no buffer opened (ADR-0002: the app only gives the fixed input).
 import type { CommandListing } from "../shared/protocol.js";
 import type { CatalogContext } from "./catalog-arguments.js";
 import { startCommand } from "./catalog-commands.js";

@@ -5,6 +5,7 @@ import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
 // Built by `pnpm docs:generate` (the @reqseq/docs package), which every site build runs first.
+import { focusableCodeBlocks } from "../dist/code-focus.js";
 import { writeLlmsFiles } from "../dist/llms.js";
 import { writeSearchIndex } from "../dist/search-index.js";
 
@@ -49,6 +50,8 @@ export default defineConfig({
         ? []
         : [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
+      // A tab stop on each code block, so that a keyboard user can scroll a wide one (#2190).
+      expressiveCode: { plugins: [focusableCodeBlocks()] },
       // The search (SR-141 AK1): MiniSearch over search-index.json instead of Pagefind, online and offline.
       pagefind: false,
       components: { Search: "./src/components/Search.astro" },

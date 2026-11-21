@@ -36,7 +36,7 @@ refines:
   - { id: 39cd1be4-4927-4c92-ace2-2ea5eb9fde56, version: n2:05176b3d9f1a47cc, title: In der App zwischen Perspektiven wechseln }
   - { id: 30bb227d-2fc6-40d0-8450-2318af473702, version: n2:0ff87a9bd44b4435, title: Argumente mit festen Werten in der Befehlszeile aus den Treffern wählen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
 ---
 

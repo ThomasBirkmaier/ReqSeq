@@ -25,7 +25,7 @@ derives-from:
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:3eed09fb96e61f0a, title: In Buffern arbeiten }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
 ---
 
 Die App muss jeden Wechsel zum vorherigen oder nächsten [Buffer](reqseq:0dec8101-c777-49b0-8516-3cb674573638?version=n2:a6ae4348e2f95e2c) als waagrechte Bewegung zeigen, die höchstens 200 ms dauert und keine Eingabe aufhält, und dafür den vorherigen und den nächsten Buffer vorab zeichnen, soweit das Lesen dafür kurz dauert.

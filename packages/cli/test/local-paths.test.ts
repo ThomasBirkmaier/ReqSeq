@@ -334,15 +334,28 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     return ws;
   };
   const SKILL = ".claude/skills/managing-requirements/SKILL.md";
-  const refused = {
-    code: "input.invalid",
-    message:
-      "Not written: the skill file lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run `reqseq tool guide --skill --write` in the workspace folder",
+  const AGENTS = ".agents/skills/managing-requirements/SKILL.md";
+  /** The refusal of one place outside the repositories, which names the place and the command line. */
+  const outside = (file: string): { message: string; details: Record<string, unknown> } => ({
+    message: `Not written: the skill file ../${file} lies outside the repositories of the workspace, and through the API and the MCP server ReqSeq writes only inside them; run \`reqseq tool guide --skill --write\` in the workspace folder`,
     details: {
       command: "tool.guide",
       reason: "outside-repositories",
       field: "skill file",
-      path: `../${SKILL}`,
+      path: `../${file}`,
+    },
+  });
+  /** The error of tool.guide with write: each place with its result (SR-229 AK8). */
+  const refused = {
+    code: "input.invalid",
+    // The reason is the same at both places, so it is given once.
+    message: `Not written at every place of the skill file: ../${SKILL}: not written: ${outside(SKILL).message.replace(/^Not written: /, "")}; ../${AGENTS}: not written, for the same reason`,
+    details: {
+      command: "tool.guide",
+      places: [SKILL, AGENTS].map((file) => ({
+        path: `../${file}`,
+        error: { code: "input.invalid", ...outside(file) },
+      })),
     },
   };
 
@@ -371,15 +384,15 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
         }
         expect(body).toMatchObject({
           files: ["metamodel/standard-model.yaml", "reqseq-workspace.yaml", ".gitignore"],
-          problems: [
-            {
-              code: "workspace.skill-not-written",
-              severity: "warning",
-              message: refused.message,
-              file: `../${SKILL}`,
-            },
-          ],
+          // One warning per place, each with the place and the reason.
+          problems: [SKILL, AGENTS].map((file) => ({
+            code: "workspace.skill-not-written",
+            severity: "warning",
+            message: outside(file).message,
+            file: `../${file}`,
+          })),
         });
+        await expect(fs.access(ws.path(AGENTS))).rejects.toMatchObject({ code: "ENOENT" });
         if (present === undefined) {
           await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
         } else {
@@ -400,7 +413,7 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     expect([plain.code, warned.code]).toEqual([EXIT.ok, EXIT.ok]);
   });
 
-  it("[SR-229/AK-v09f] the API and the MCP server write nothing at a Git root above the workspace and name the command line; the command line writes it", async () => {
+  it("[SR-229/AK-v09f] the API and the MCP server write at neither place at a Git root above the workspace, fail naming both and the command line; the command line writes both", async () => {
     const ws = await below();
     const reply = await mcp(ws, "tool.guide", { skill: true, write: true }, "spec");
     expect(reply).toEqual({ isError: true, body: refused });
@@ -414,8 +427,16 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
       "spec",
     );
     await expect(fs.access(ws.path(SKILL))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.access(ws.path(AGENTS))).rejects.toMatchObject({ code: "ENOENT" });
     const written = await cli(ws, ["tool", "guide", "--skill", "--write"], "spec");
     expect(written.code).toBe(EXIT.ok);
-    expect(await fs.readFile(ws.path(SKILL), "utf8")).toMatch(/^---\nname: managing-requirements\n/);
+    // Standard output is the skill file alone; standard error names each place with its result.
+    expect(written.out.startsWith("---\nname: managing-requirements\n")).toBe(true);
+    expect(
+      written.out.endsWith(`Created the skill file ../${SKILL}, and created the skill file ../${AGENTS}.\n`),
+    ).toBe(true);
+    for (const file of [SKILL, AGENTS]) {
+      expect(await fs.readFile(ws.path(file), "utf8")).toMatch(/^---\nname: managing-requirements\n/);
+    }
   });
 });

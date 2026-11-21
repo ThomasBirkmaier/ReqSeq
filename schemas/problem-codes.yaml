@@ -305,12 +305,16 @@ problems:
     remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
   workspace.skill-not-written:
     title: Skill file not written
-    cause: "`workspace.init` created the workspace but did not write the skill file: a file at its place was not written by ReqSeq or was changed since, the place is a link or meets Git, or, through the API and the MCP server, it lies outside the repositories of the workspace. The message says which."
+    cause: "`workspace.init` created the workspace but did not write the skill file at one of its places, `.claude/skills/managing-requirements/SKILL.md` or `.agents/skills/managing-requirements/SKILL.md`: a file there was not written by ReqSeq or was changed since, the place is a link, a file is in the way of its folders, it meets Git, the write failed, or, through the API and the MCP server, it lies outside the repositories of the workspace. Each place not written is one problem; the message says which and why."
     remedy: Keep the file, or write the skill file with `reqseq tool guide --skill --write`, with `--replace` to replace a file ReqSeq did not write.
   workspace.skill-older-version:
     title: Skill file of an older ReqSeq version
-    cause: The skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older ReqSeq version, and its content differs from what this ReqSeq version writes. A file that differs only in its ReqSeq version, one written by a newer ReqSeq version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.
-    remedy: Run the call the message gives (`reqseq tool guide --skill --write`). It adds `--replace` when the file was changed since ReqSeq wrote it, which drops those changes.
+    cause: The skill file for AI agents at one of its places (`.claude/skills/managing-requirements/SKILL.md` and `.agents/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older ReqSeq version, and its content differs from what this ReqSeq version writes. Each such place is one problem. A file that differs only in its ReqSeq version, one written by a newer ReqSeq version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.
+    remedy: Run the call the message gives (`reqseq tool guide --skill --write`). It adds `--replace` when the file was changed since ReqSeq wrote it, which drops those changes. The message also says when the call would replace or not write a file at the other place.
+  workspace.skill-missing:
+    title: Skill file missing at a place
+    cause: One place of the skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` or `.agents/skills/managing-requirements/SKILL.md`) holds a skill file ReqSeq wrote, of any version, and the other holds nothing, so the agents that look only there do not find the skill. A place where something else is in the way, such as a link or a file, is not reported. A full workspace check reports it; a check restricted to changed elements does not.
+    remedy: Run the call the message gives (`reqseq tool guide --skill --write`), which creates the file there. The message also says when the call would not write the file at the other place.
   git.unavailable:
     title: Git cannot read the repository
     cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.

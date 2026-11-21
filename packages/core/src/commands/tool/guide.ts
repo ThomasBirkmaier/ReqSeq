@@ -2,8 +2,10 @@
 // with the facts of the workspace metamodel or the reason they are missing (AK2, AK4). The text is
 // guide/text.ts. With `instructions` the output is the MCP server instructions instead (AK17), which the MCP
 // server sends in its `initialize` result.
-// With `skill` the output is the skill file instead (AK7, guide/skill.ts), which `write` also writes at the
-// place of D-079 (AK8, guide/skill-file.ts); `replace` replaces a file there that is not ReqSeq's own.
+// With `skill` the output is the skill file instead (AK7, guide/skill.ts), which `write` also writes at each
+// place of D-079 (AK8, guide/skill-file.ts), listed in `places` in its order; `replace` replaces a file that is not
+// ReqSeq's own at every place. A refused place makes the call fail after the other places were written, with one
+// error that names each place with its result (`writtenOrThrow`).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { CommandCatalog } from "../../generated/types.js";
@@ -11,7 +13,8 @@ import { contractsBundle } from "../../runtime/contracts.js";
 import { sentence } from "../answer.js";
 import { readGuideFacts } from "./guide/facts.js";
 import { skillFile } from "./guide/skill.js";
-import { writeSkillFile } from "./guide/skill-file.js";
+import type { SkillWritten } from "./guide/skill-file.js";
+import { writeSkillFiles, writtenOrThrow } from "./guide/skill-file.js";
 import { agentGuide, serverInstructions } from "./guide/text.js";
 
 /** The catalog commands of this version, which the guide's calls name. */
@@ -47,15 +50,25 @@ const excludes = (field: string, other: string): CommandError =>
     ],
   });
 
-/** The verb of the answer for what a write did to the skill file. */
-const FILE_ACTION = { created: "Created", replaced: "Replaced", unchanged: "Left" } as const;
+/** The verb of the answer for what a write did to the skill file at one place. */
+const FILE_ACTION = { created: "created", replaced: "replaced", unchanged: "left" } as const;
+
+/** What the write did at each place, in the order of D-079: `Created the skill file A, and left the skill file B unchanged`. */
+const placesAnswer = (places: readonly SkillWritten[]): string => {
+  const parts = places.map(
+    (place) =>
+      `${FILE_ACTION[place.action]} the skill file ${place.path}${place.action === "unchanged" ? " unchanged" : ""}`,
+  );
+  const text = parts.join(", and ");
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+};
 
 export default defineCommand({
   name: "tool.guide",
   answer: (output, input) =>
     sentence(
-      output.file !== undefined
-        ? `${FILE_ACTION[output.file.action]} the skill file ${output.file.path}${output.file.action === "unchanged" ? " unchanged" : ""}`
+      output.places !== undefined
+        ? placesAnswer(output.places)
         : input.instructions
           ? "Gave the MCP server instructions"
           : input.skill
@@ -88,13 +101,10 @@ export default defineCommand({
     if (!input.write) {
       return { guide };
     }
-    const result = await writeSkillFile(ctx.workspace, ENTRIES, {
+    const places = await writeSkillFiles(ctx.workspace, ENTRIES, {
       replace: input.replace,
       localPaths: ctx.localPaths,
     });
-    if ("refused" in result) {
-      throw result.refused;
-    }
-    return { guide, file: result.written };
+    return { guide, places: writtenOrThrow(places) };
   },
 });

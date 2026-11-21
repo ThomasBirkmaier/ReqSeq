@@ -12,7 +12,7 @@ const failure = vi.hoisted((): { error: Error } => ({ error: new Error("boom") }
 
 vi.mock("../tool/guide/skill-file.js", async (actual) => ({
   ...(await actual<typeof SkillFile>()),
-  writeSkillFile: () => Promise.reject(failure.error),
+  writeSkillFiles: () => Promise.reject(failure.error),
 }));
 
 describe("workspace.init when the skill file cannot be written", () => {

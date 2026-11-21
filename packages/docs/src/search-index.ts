@@ -50,9 +50,15 @@ const ENTITIES: Readonly<Record<string, string>> = {
   nbsp: " ",
 };
 
+// Inline elements run on with the text around them (`<code>x</code>.` reads "x."), so their tags leave no space; any
+// other tag ends a word.
+const INLINE_TAG =
+  /<\/?(?:a|abbr|b|bdi|bdo|cite|code|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)\b[^>]*>/gi;
+
 /** Text of an HTML fragment: tags removed, entities decoded, white space collapsed. */
 export function htmlText(html: string): string {
   return html
+    .replace(INLINE_TAG, "")
     .replace(/<[^>]*>/g, " ")
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity: string, name: string) => {
       if (name.startsWith("#")) {
