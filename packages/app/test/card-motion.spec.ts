@@ -103,8 +103,9 @@ const rises = async (window: Page): Promise<Started[]> =>
 /**
  * Holds the next rise of the card at 70 ms: each of its animations is paused there in the task that makes
  * it, before its first frame, as `record` takes them. Waiting for a frame to find the rise running instead
- * never ends on a slow runner where the rise ended first (#2258). `window.halfway` settles once the card's
- * rise is held, one frame later, so a part made in that frame is held too.
+ * never ends on a slow runner where the rise ended first (#2258). Only the parts of the card and its
+ * backdrop are held, not the slash menu. `window.halfway` settles one frame after the card's rise is held;
+ * parts made later are held until `window.halfwayStop` is called.
  */
 const holdHalfway = (window: Page): Promise<void> =>
   window.evaluate(() => {
@@ -114,10 +115,14 @@ const holdHalfway = (window: Page): Promise<void> =>
       for (const animation of document.getAnimations()) {
         const { effect } = animation;
         const { animationName } = animation as CSSAnimation;
+        const target = effect instanceof KeyframeEffect ? effect.target : null;
+        // A part of the card or its backdrop, as in `record`, not the slash menu.
+        const ofCard =
+          (target?.closest(".card") ?? null) !== null || target?.classList.contains("card-backdrop") === true;
         if (
           !["card-rise", "card-show"].includes(animationName) ||
-          !(effect instanceof KeyframeEffect) ||
-          effect.target?.closest(".card-leaving") !== null
+          !ofCard ||
+          (target?.closest(".card-leaving") ?? null) !== null
         ) {
           continue;
         }
@@ -130,14 +135,14 @@ const holdHalfway = (window: Page): Promise<void> =>
       }
       return rise;
     };
-    (window as unknown as { halfway: Promise<void> }).halfway = new Promise((done) => {
+    const halfway = window as unknown as { halfway: Promise<void>; halfwayStop: () => void };
+    halfway.halfway = new Promise((done) => {
       let rising = false;
       const observer = new MutationObserver(() => {
         if (hold() && !rising) {
           rising = true;
           requestAnimationFrame(() => {
             hold();
-            observer.disconnect();
             done();
           });
         }
@@ -147,6 +152,9 @@ const holdHalfway = (window: Page): Promise<void> =>
         childList: true,
         attributeFilter: ["data-motion"],
       });
+      halfway.halfwayStop = () => {
+        observer.disconnect();
+      };
     });
   });
 
@@ -274,6 +282,9 @@ test.describe("the card of the command line in motion", () => {
       await window.keyboard.press("ControlOrMeta+Shift+P");
       await window.evaluate(() => (window as unknown as { halfway: Promise<void> }).halfway);
       await window.screenshot({ path: path.join(OUT, `sr-182-card-halfway-${scheme}.png`) });
+      await window.evaluate(() => {
+        (window as unknown as { halfwayStop: () => void }).halfwayStop();
+      });
     });
   }
 
