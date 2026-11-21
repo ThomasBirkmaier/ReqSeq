@@ -9,7 +9,7 @@
 //   verification status in the core as a badge with the number of verified criteria of all ("not in the core" when
 //   the core does not hold it), and the number of open hints of the element (`hint.list`) as a badge, an empty cell
 //   for none. The table stands in a container of its own that scrolls, so a narrow screen scrolls the table and not
-//   the page (#2138).
+//   the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
 // - Search: each row carries its identifier, short ID and title folded (NFC, lower case) in `data-q`.
 // - Filters (`data-f`): status, packages, the verification status in the core and each property of kind `choice` the
 //   type has, in this order. Each filter lists its values in the order of SR-075 AK1 (`sortValueOf`: the metamodel's
@@ -414,5 +414,8 @@ export const LIST_CSS = [
   ".rq-tokens button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.12rem 0.4rem 0.12rem 0.6rem; border-radius: 0.35rem; background: var(--sl-color-accent-low); color: var(--sl-color-white); }",
   ".rq-tokens button:focus-visible { outline: 2px solid var(--sl-color-text-accent); }",
   ".rq-tokens .rq-hint { color: var(--sl-color-gray-3); }",
+  // On wide screens, beside the column "On this page", the table fits its container: column heads and badges wrap, a
+  // long word of a text breaks, the other columns take what their values need and the title the rest (#2181).
+  "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; } .rq-list .rq-list-table td { overflow-wrap: anywhere; } .rq-list .rq-list-table :is(th, td):nth-child(2) { width: 100%; } }",
   "@media print { .rq-list .rq-list-table { max-height: none; overflow: visible; } }",
 ];

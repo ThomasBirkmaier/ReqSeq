@@ -213,12 +213,13 @@ export const baselinePageBody = (
 };
 
 /**
- * The styles of a baseline's page and of the elements of a package: their tables as wide as the content and no wider,
- * long values wrapped anywhere, a title kept at least 10rem wide, identifier and status in one line (#2139); the
- * summary line in the docs' larger text.
+ * The styles of a baseline's page and of the elements of a package: from 50em their tables as wide as the content and
+ * no wider, below it the docs' table that scrolls in itself, so a phone does not scroll the page (#2181); long values
+ * wrapped anywhere, a title kept at least 10rem wide, identifier and status in one line (#2139); the summary line in
+ * the docs' larger text.
  */
 export const BASELINE_PAGE_CSS = [
-  ".rq-baseline table:not(:where(.not-content *)), .rq-package table:not(:where(.not-content *)) { display: table; width: 100%; }",
+  "@media (min-width: 50em) { .rq-baseline table:not(:where(.not-content *)), .rq-package table:not(:where(.not-content *)) { display: table; width: 100%; } }",
   ".rq-baseline td, .rq-package td, .rq-baseline td code { overflow-wrap: anywhere; }",
   ".rq-baseline td.rq-title, .rq-package td.rq-title { min-width: 10rem; }",
   ".rq-baseline td.rq-nowrap, .rq-package td.rq-nowrap { white-space: nowrap; }",
