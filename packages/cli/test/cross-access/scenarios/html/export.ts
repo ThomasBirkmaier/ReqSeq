@@ -659,7 +659,7 @@ scenariosOf("html.export", [
         const href = /href="\.\.\/(baselines\/[0-9a-f]{12}\.html)">Release 2</u.exec(index)?.[1];
         const page = contentOf(String(files[`system/site/${String(href)}`]));
         expect(page).toContain('<h2 id="commits">Commits</h2>');
-        expect(page).toContain(`<h2 id="changed">Changed (1)</h2><table>`);
+        expect(page).toContain(`<h2 id="changed">Changed (1)</h2><table tabindex="0">`);
         expect(page).toContain(`<a href="../elements/${ID}b1.html">SR-0000b1</a>`);
         expect(page).toContain('<h2 id="unchanged">Unchanged (1)</h2>');
         expect(page).toContain("This baseline stores no selection");

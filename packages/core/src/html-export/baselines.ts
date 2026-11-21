@@ -87,7 +87,7 @@ export const dayOf = (date: string): string => date.slice(0, 10);
 
 /** The content of the page of all baselines (AK2). */
 export const baselinesPageBody = (baselines: readonly ExportBaseline[]): string =>
-  `<table><thead><tr><th scope="col">Name</th><th scope="col">Date</th><th scope="col">Elements</th><th scope="col">Changed</th></tr></thead><tbody>${baselines
+  `<table tabindex="0"><thead><tr><th scope="col">Name</th><th scope="col">Date</th><th scope="col">Elements</th><th scope="col">Changed</th></tr></thead><tbody>${baselines
     .map(
       (b) =>
         `<tr><td><a href="../${baselinePage(b)}">${escapeHtml(b.name)}</a></td><td>${escapeHtml(b.date)}</td><td>${String(entriesOf(b))}</td><td>${String(b.counts.changed)}</td></tr>`,
@@ -146,7 +146,7 @@ const summaryOf = (baseline: ExportBaseline): string => {
 
 /** A table of `rows`, or nothing without one. */
 const table = (heads: readonly string[], rows: readonly string[]): string =>
-  `<table><thead><tr>${heads.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  `<table tabindex="0"><thead><tr>${heads.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
 
 /** The content of the page of `baseline` (AK1); `element` names the element of a row (`rowElementOf`). */
 export const baselinePageBody = (
