@@ -14,7 +14,9 @@
 // - Incoming: every relation, relation property and inline reference that points at the element and is no derivation
 //   (those are the children), one group per key and one for the inline references, in the order they first appear,
 //   headed by `relationGroupLabel`; an element that points with two keys stands in both, and the element itself
-//   where it points at itself.
+//   where it points at itself. On a package page (SR-232 AK9) the group of the property with the meaning `packages`
+//   is left out as a whole (`withoutPackageMembers`), its rows and outdated marks with it: the page lists its elements
+//   already. The app's buffer keeps it (SR-107 AK2).
 // - Bound (SR-232 AK5 for the export, the `limit` of the app's calls): a part shows its `bound` nearest elements (the
 //   walk is breadth first), and says so (`more`) when the walk reached more or the answer is one page of more. The
 //   tree is drawn from the shown elements only.
@@ -102,6 +104,11 @@ export interface NeighbourhoodOptions {
   readonly bound: { readonly parents: number; readonly children: number; readonly incoming: number };
   /** The children whose rows below them stand, by key; `all` for every one. */
   readonly open: readonly string[] | "all";
+  /**
+   * On a package page (SR-232 AK9): the key of the property with the meaning `packages`, whose incoming group is left
+   * out as a whole; undefined keeps every group. The bound counts the walk's elements as they are.
+   */
+  readonly withoutPackageMembers?: string | undefined;
 }
 
 const NO_ANSWER: NeighbourhoodAnswer = { nodes: [], edges: [], total: 0 };
@@ -265,6 +272,7 @@ const incomingOf = (
   bound: number,
   names: RelationNames,
   invalid: ReadonlySet<string>,
+  withoutPackageMembers: string | undefined,
 ): Part<IncomingGroupDisplay> => {
   const nodes = allNodes(answer);
   const { shown, more } = shownOf(answer, "down", bound);
@@ -273,8 +281,10 @@ const incomingOf = (
   for (const edge of answer.edges) {
     const key = keyOf(edge.sourceRepository, edge.source);
     const node = sources.get(key);
-    if (edge.direction === "down" && edge.meaning !== "derivation" && node !== undefined) {
-      const property = edge.property === true;
+    const property = edge.property === true;
+    // A property's edge always has its key, so undefined leaves out nothing.
+    const members = property && edge.kind === withoutPackageMembers;
+    if (edge.direction === "down" && edge.meaning !== "derivation" && node !== undefined && !members) {
       const group = `${property ? "property" : "kind"}:${edge.kind ?? ""}`;
       const found = groups.get(group) ?? {
         label: relationGroupLabel({ kind: edge.kind, property, direction: "in" }, names),
@@ -296,6 +306,12 @@ export const neighbourhoodDisplay = (
   return {
     parents: parentsOf(input.parents ?? NO_ANSWER, options.bound.parents, invalid),
     children: childrenOf(input.children ?? NO_ANSWER, options, invalid),
-    incoming: incomingOf(input.incoming ?? NO_ANSWER, options.bound.incoming, input.metamodel, invalid),
+    incoming: incomingOf(
+      input.incoming ?? NO_ANSWER,
+      options.bound.incoming,
+      input.metamodel,
+      invalid,
+      options.withoutPackageMembers,
+    ),
   };
 };
