@@ -7,9 +7,10 @@
 // are missing for an indirect verification (SR-034 AK2): "open (missing SR-1, SR-2)"; one from
 // own records of a requirement with acceptance criteria counts them (SR-031 AK5): "open (2 of 3 criteria,
 // AK3 not verified)". The validation status (SR-038
-// AK1) is a line of its own: "Validation — validated"; an inconclusive one gives its reason on that line
-// (SR-172 AK2): "Validation — inconclusive: <reason>", one line, cut at `REASON_LENGTH`; a cut one gives the
-// whole reason as written as the line's title, shown on demand (#846, D-062). Variants, replacements and missing children are
+// AK1) is a badge of the same form on a line of its own (#2175): "Validation" on the left, the status on the
+// right, "validated"; an inconclusive one gives its reason there (SR-172 AK2): "inconclusive: <reason>", one
+// line, cut at `REASON_LENGTH`; a cut one gives the whole reason as written as the line's title, shown on
+// demand (#846, D-062). Variants, replacements and missing children are
 // named by `names`; one `names` lacks is named by its UUID.
 // On the page of a variant, one line per hint about a core requirement since its newest baseline (SR-103:
 // changed, or new in its view), with core's message as `element.get` and the CLI give it (SR-080).
@@ -29,8 +30,8 @@ export interface VariantLines {
   readonly use: readonly LinePart[] | undefined;
   /** Its verification status, one badge per view; undefined when `element.get` gives none (not a requirement). */
   readonly verification: readonly Badge[] | undefined;
-  /** Its validation status (SR-038), apart from the verification status; undefined when `element.get` gives none. */
-  readonly validation: readonly LinePart[] | undefined;
+  /** Its validation status (SR-038) as a badge, apart from the verification status; undefined when `element.get` gives none. */
+  readonly validation: Badge | undefined;
   /** The whole reason of an inconclusive validation, as written, when the validation line cuts it; else undefined. */
   readonly validationTitle: string | undefined;
   /** The variant's hints since its newest baseline (SR-103), in core's order: whether new, and core's message. */
@@ -38,13 +39,14 @@ export interface VariantLines {
 }
 
 type Verification = NonNullable<ElementGetOutput["element"]["verification"]>[number];
+type Validation = NonNullable<ElementGetOutput["element"]["validation"]>;
 
-/** The verification status of one view as a badge (SR-157 AK1). */
+/** The verification status of one view as a badge (SR-157 AK1), or the validation status in the same form (#2175). */
 export interface Badge {
-  /** The left half: the word for the core, or the variant, a link to it (AK5). */
+  /** The left half: the word for the core, or the variant, a link to it (AK5); "Validation" for the validation status. */
   readonly name: LinePart;
   /** Core's status word, which picks the colour of the right half (AK3). */
-  readonly status: Verification["status"];
+  readonly status: Verification["status"] | Validation;
   /** The right half: the status with its details, the missing children as links (SR-031 AK5, SR-034 AK2). */
   readonly parts: readonly LinePart[];
 }
@@ -99,11 +101,12 @@ export const reasonLine = (reason: string): string => {
   return line;
 };
 
-/** The validation line: "Validation — <status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */
-const validationLine = (element: ElementGetOutput["element"]): string =>
-  `Validation — ${String(element.validation)}${
-    element.validationReason === undefined ? "" : `: ${reasonLine(element.validationReason)}`
-  }`;
+/** The validation badge: "Validation" and "<status>", with ": <reason>" for an inconclusive one (SR-172 AK2). */
+const validationBadge = (status: Validation, reason: string | undefined): Badge => ({
+  name: { text: "Validation" },
+  status,
+  parts: [{ text: `${status}${reason === undefined ? "" : `: ${reasonLine(reason)}`}` }],
+});
 
 /** An element by UUID: a link with `label` of its name, or its UUID when `names` lacks it. */
 const named = (
@@ -191,7 +194,10 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
   return {
     use: use.length === 0 ? undefined : joined(use),
     verification: verification === undefined || verification.length === 0 ? undefined : verification,
-    validation: element.validation === undefined ? undefined : [{ text: validationLine(element) }],
+    validation:
+      element.validation === undefined
+        ? undefined
+        : validationBadge(element.validation, element.validationReason),
     validationTitle:
       element.validation === undefined || element.validationReason === undefined
         ? undefined

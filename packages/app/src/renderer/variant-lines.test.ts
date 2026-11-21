@@ -125,33 +125,37 @@ describe("the lines of a requirement's variants", () => {
     ]);
   });
 
-  it("[SR-038/AK-w0j6] gives the validation status on a line of its own, apart from the verification status", () => {
+  it("[SR-038/AK-w0j6] gives the validation status as a badge of its own, apart from the verification status", () => {
     const lines = variantLines(
       output({ verification: [{ view: "core", status: "open" }], validation: "validated" }),
     );
-    expect(text(lines.validation)).toBe("Validation — validated");
+    // A badge of the same form as the verification status (#2175); its status picks its colour.
+    expect(halves(lines.validation === undefined ? undefined : [lines.validation])).toEqual([
+      "Validation | validated",
+    ]);
+    expect(lines.validation?.status).toBe("validated");
     expect(halves(lines.verification)).toEqual(["Core | open"]);
     expect(variantLines(output({})).validation).toBeUndefined();
   });
 
-  it("[SR-172/AK-j3vg] gives an inconclusive validation with its reason on one line, cut when long", () => {
+  it("[SR-172/AK-j3vg] gives an inconclusive validation with its reason in the badge on one line, cut when long", () => {
     const lines = variantLines(
       output({ validation: "inconclusive", validationReason: "No frost\n\tyet,\u0007 see notes" }),
     );
-    expect(text(lines.validation)).toBe("Validation — inconclusive: No frost yet, see notes");
+    expect(text(lines.validation?.parts)).toBe("inconclusive: No frost yet, see notes");
     const long = variantLines(output({ validation: "inconclusive", validationReason: "x".repeat(300) }));
-    expect(text(long.validation)).toBe(`Validation — inconclusive: ${"x".repeat(REASON_LENGTH - 1)}…`);
+    expect(text(long.validation?.parts)).toBe(`inconclusive: ${"x".repeat(REASON_LENGTH - 1)}…`);
     // Cut by graphemes: an emoji, also one of several code points, is never split.
     const emoji = variantLines(output({ validation: "inconclusive", validationReason: "👍🏽".repeat(300) }));
-    expect(text(emoji.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
+    expect(text(emoji.validation?.parts)).toBe(`inconclusive: ${"👍🏽".repeat(REASON_LENGTH - 1)}…`);
     // Longer than the limit in code units, but not in graphemes: not cut.
     const fits = variantLines(
       output({ validation: "inconclusive", validationReason: "👍🏽".repeat(REASON_LENGTH) }),
     );
-    expect(text(fits.validation)).toBe(`Validation — inconclusive: ${"👍🏽".repeat(REASON_LENGTH)}`);
+    expect(text(fits.validation?.parts)).toBe(`inconclusive: ${"👍🏽".repeat(REASON_LENGTH)}`);
   });
 
-  it("gives the whole reason as written as the title of a cut validation line, else none (#846)", () => {
+  it("gives the whole reason as written as the title of a cut validation badge, else none (#846)", () => {
     const whole = `First line\n${"x".repeat(300)}`;
     expect(
       variantLines(output({ validation: "inconclusive", validationReason: whole })).validationTitle,
