@@ -1,7 +1,7 @@
 // The sections of an element's page and the names of linked elements (SR-232 AK1, AK2, SR-231 AK8) for what a
 // workspace seldom shows: every state of a relation's other end, an unknown variant, a requirement in no view, values
-// that are no text, a relation of a kind the metamodel does not know, and a short page without identifier, title or successor. The pages as a whole are tested in
-// commands/html/export-element.test.ts.
+// that are no text, a relation of a kind the metamodel does not know, and a short page without identifier, title or
+// successor. The pages as a whole are tested in commands/html/export-element.test.ts.
 import { describe, expect, it } from "vitest";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
