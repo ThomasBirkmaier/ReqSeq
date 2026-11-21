@@ -35,7 +35,7 @@ next:
   reqseq element create <type> <title>              Create element
 ```
 
-Then run **Connect AI agent** for your AI agent's setup ([Connect an AI agent](/how-to/connect-an-ai-agent/)).
+Next, **Connect AI agent** prints the setup for your AI agent's client ([Connect an AI agent](/how-to/connect-an-ai-agent/)).
 
 ReqSeq never commits: put the folder under Git yourself.
 
@@ -96,7 +96,7 @@ files:
 No problems.
 ```
 
-The relation keeps the version of the need, so a changed need shows it as outdated.
+The relation keeps the version of the need, so a changed need shows the relation as outdated.
 
 In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property; **Add property** fills a skipped one later. Then run **Create relation** (Ctrl+K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
 
