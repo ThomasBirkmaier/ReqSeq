@@ -198,9 +198,12 @@
   margin: 0 auto;
 }
 
+/* The next step and the line on where the setup holds name long absolute paths without a space: they wrap inside
+   the column like the block does, instead of running past the window (#2169). */
 .result.agent-setup p {
   margin: 0 0 1rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .result.agent-setup .valid {
