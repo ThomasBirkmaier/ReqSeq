@@ -7,8 +7,10 @@ import {
   REFERENCE_NAME,
   kindName,
   relationNames,
+  idTitle,
   ringOf,
   shownId,
+  shownIdTitle,
   statusOf,
   typeName,
   verificationWords,
@@ -54,6 +56,17 @@ describe("graph words", () => {
     ]);
     const names = new Map([["need", "Need"]]);
     expect([typeName(names, "need"), typeName(names, "other")]).toEqual(["Need", "other"]);
+  });
+
+  it("names an element by its shown ID and title, the title left out when it is the ID's or identifier's text (#545)", () => {
+    expect(shownIdTitle("SR-3c90b0", "SR-036", "Title")).toBe("SR-3c90b0 (SR-036) Title");
+    expect(shownIdTitle("PKG-1a2b3c", "Später", "Später")).toBe("PKG-1a2b3c (Später)");
+    expect(shownIdTitle("N-1a2b3c", undefined, "")).toBe("N-1a2b3c");
+    expect([idTitle("VAR-002", "Linux"), idTitle("Später", "Später"), idTitle("N-1")]).toEqual([
+      "VAR-002 Linux",
+      "Später",
+      "N-1",
+    ]);
   });
 
   it("[SR-154/AK-rhrj] names a kind or relation property by the metamodel, else its key, a reference by its word", () => {
