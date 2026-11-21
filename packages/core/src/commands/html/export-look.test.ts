@@ -119,6 +119,9 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       expect(page).toMatch(/<button popovertarget="starlight__sidebar" class="sl-menu-button[^"]*"/u);
       expect(page).toContain('<sl-sidebar-pane id="starlight__sidebar"');
     }
+    // The browser tab names the page and the site, the start page the site alone (#2206).
+    const siteName = String(/<title>[^<]+ \| ([^|<]+)<\/title>/u.exec(await read(site, `elements/${WIND}.html`))?.[1]);
+    expect(await read(site, "index.html")).toContain(`<title>${siteName}</title>`);
     // The docs' right column "On this page" on every page, with Overview and a link to each section, so content and
     // header keep one position on every page (#2181).
     const start = await read(site, "index.html");
