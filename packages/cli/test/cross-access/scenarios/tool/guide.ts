@@ -1,7 +1,8 @@
 // Cross-access scenarios of tool.guide (SR-229), in addition to the default one (cross-access.test.ts): the
 // same input gives the same guide in every access, for both `names` and without a workspace, the same skill
-// file, which says before its first workflow that project rules go first (AK7), and the same write of it in
-// a workspace folder at the root of its Git repository (AK8). That the API and the MCP server refuse a place
+// file, which says before its first workflow that project rules go first (AK7), and the same write of it at both
+// places in a workspace folder at the root of its Git repository (AK8), and the same failure when one place holds a
+// file ReqSeq did not write: the other place is written, and the error names both (AK8). That the API and the MCP server refuse a place
 // outside the repositories (SR-142, the exception to SR-080 AK2) is local-paths.test.ts. The MCP server
 // instructions (AK17) are the same in every access and for a folder with or without a workspace; that the
 // MCP server sends them as its instructions is server.test.ts in packages/mcp.
@@ -12,6 +13,7 @@ import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 
 const SKILL = ".claude/skills/managing-requirements/SKILL.md";
+const AGENTS = ".agents/skills/managing-requirements/SKILL.md";
 const PRECEDENCE = "Project rules take precedence over this skill and the agent guide.";
 
 /** The start of the MCP server instructions, the same for every folder (SR-229 AK17). */
@@ -105,12 +107,39 @@ scenariosOf("tool.guide", [
     },
     check: (results) => {
       for (const [access, { outcome, changed }] of Object.entries(results)) {
-        const file = "output" in outcome ? (outcome.output as { file?: unknown }).file : undefined;
+        const places = "output" in outcome ? (outcome.output as { places?: unknown }).places : undefined;
+        const expected = [SKILL, AGENTS].map((file) => ({ path: file, action: "created" }));
         if (
-          JSON.stringify(file) !== JSON.stringify({ path: SKILL, action: "created" }) ||
-          !changed.includes(SKILL)
+          JSON.stringify(places) !== JSON.stringify(expected) ||
+          !changed.includes(SKILL) ||
+          !changed.includes(AGENTS)
         ) {
-          throw new Error(`${access} did not create ${SKILL}: ${JSON.stringify(file)} ${changed.join(", ")}`);
+          throw new Error(
+            `${access} did not create both places: ${JSON.stringify(places)} ${changed.join(", ")}`,
+          );
+        }
+      }
+    },
+  },
+  {
+    name: "fails when one place holds a file ReqSeq did not write, after writing the other place",
+    tag: "[SR-229/AK-v09f]",
+    fixture: { ...ONE_REPOSITORY, files: { [SKILL]: "# My own skill\n" } },
+    input: { skill: true, write: true },
+    expect: "error",
+    check: (results) => {
+      for (const [access, { outcome, changed }] of Object.entries(results)) {
+        const error = "error" in outcome ? (outcome.error as { code?: string; message?: string }) : {};
+        if (
+          error.code !== "file.exists" ||
+          !(error.message ?? "").includes(`${SKILL}: not written:`) ||
+          !(error.message ?? "").includes(`${AGENTS}: created`) ||
+          changed.includes(SKILL) ||
+          !changed.includes(AGENTS)
+        ) {
+          throw new Error(
+            `${access} did not fail naming both places: ${JSON.stringify(error)} ${changed.join(", ")}`,
+          );
         }
       }
     },

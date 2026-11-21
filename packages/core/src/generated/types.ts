@@ -482,6 +482,7 @@ export type ProblemCode =
   | "workspace.not-watched"
   | "workspace.skill-not-written"
   | "workspace.skill-older-version"
+  | "workspace.skill-missing"
   | "git.unavailable"
   | "git.revision-missing"
   | "reqif.replaces-local"
@@ -534,7 +535,7 @@ export interface CommandErrorObject {
     | "internal";
   /** What went wrong, for people. */
   readonly message: string;
-  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
+  /** Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there (SR-226 AK1). For `tool.guide` with `write` when a place of the skill file was not written, whatever the code: `command` and `places`, each place in order as the output lists it, a place not written with `error` (`code`, `message`, `details`) instead of `action`. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`. */
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
@@ -2527,9 +2528,9 @@ export interface ToolGuideInput {
   readonly skill: boolean;
   /** Give the MCP server instructions instead of the agent guide: only the rules, and the call that reads the guide. It reads nothing from the workspace, so it works without one. Not together with `skill`. */
   readonly instructions: boolean;
-  /** Also write the skill file into the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
+  /** Also write the skill file at each of its places in the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same. */
   readonly write: boolean;
-  /** Replace a skill file that ReqSeq did not write or that was changed since (needs `write`). */
+  /** Replace a skill file that ReqSeq did not write or that was changed since, at every place (needs `write`). */
   readonly replace: boolean;
 }
 
@@ -2541,15 +2542,15 @@ export interface ToolGuideOutput {
   readonly answer: Answer;
   /** The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline. */
   readonly guide: string;
-  /** The skill file `write` wrote; only with `write`. */
-  readonly file?: {
-    /** The skill file, relative to the workspace root, with `/`. */
+  /** Each place of the skill file with what `write` did there, in the order `.claude/…`, then `.agents/…`; only with `write`. */
+  readonly places?: readonly {
+    /** The skill file at this place, relative to the workspace root, with `/`. */
     readonly path: OutputPath;
     /** `created`: there was no file; `replaced`: the file was replaced; `unchanged`: it was already the file of this version. */
     readonly action: "created" | "replaced" | "unchanged";
     /** The ReqSeq version that wrote the replaced file. */
     readonly previousVersion?: string;
-  };
+  }[];
 }
 
 /**
@@ -4397,7 +4398,7 @@ export interface HintConfirmInput {
   readonly target?: ElementRef;
   /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter (#644). Needs `kind` with confirmable codes only (`relation.outdated`, `variant.core-changed`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
-  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (SR-103 AK5, see `ref`). */
+  /** Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];
   /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
   readonly expected?: number;

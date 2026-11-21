@@ -105,7 +105,7 @@ const OLD_SKILL = ((): string => {
 
 scenariosOf("workspace.check", [
   {
-    name: "an older skill file of ReqSeq with other content is one info with the call that renews it (#1920)",
+    name: "an older skill file of ReqSeq with other content is one info with the call that renews it (#1920), and the empty other place one info with the call that creates it",
     fixture: {
       fixture: "SR-001/two-elements",
       files: { ".claude/skills/managing-requirements/SKILL.md": OLD_SKILL },
@@ -118,13 +118,21 @@ scenariosOf("workspace.check", [
         .output;
       expect(
         problems
-          .filter((p) => p["code"] === "workspace.skill-older-version")
-          .map((p) => [p["severity"], p["file"], String(p["message"]).split("; ")[1]]),
+          .filter((p) => String(p["code"]).startsWith("workspace.skill-"))
+          .map((p) => [p["code"], p["severity"], p["file"], String(p["message"]).split("; ")[1]]),
       ).toEqual([
         [
+          "workspace.skill-older-version",
           "info",
           ".claude/skills/managing-requirements/SKILL.md",
           "`reqseq tool guide --skill --write` renews it",
+        ],
+        // The other place holds nothing (SR-229 AK10).
+        [
+          "workspace.skill-missing",
+          "info",
+          ".agents/skills/managing-requirements/SKILL.md",
+          "`reqseq tool guide --skill --write` creates it",
         ],
       ]);
     },

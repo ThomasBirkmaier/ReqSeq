@@ -993,6 +993,7 @@
             "workspace.not-watched",
             "workspace.skill-not-written",
             "workspace.skill-older-version",
+            "workspace.skill-missing",
             "git.unavailable",
             "git.revision-missing",
             "reqif.replaces-local",
@@ -1056,7 +1057,7 @@
               "type": "string"
             },
             "details": {
-              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
+              "description": "Facts about the error that a client can read without parsing `message`; they depend on the code. For `workspace.not-found`: `file`, the missing workspace file; `below`, the folders one level below that hold one; else `next`, the next step (`#/$defs/nextStep`) that creates a workspace in the folder, when `workspace.init` can create it there. For `tool.guide` with `write` when a place of the skill file was not written, whatever the code: `command` and `places`, each place in order as the output lists it, a place not written with `error` (`code`, `message`, `details`) instead of `action`. For `internal` they may be `command`, the command called; `aborted: true` when its caller aborted the call; `errors` when the output of the command does not match its schema; and `cause` when an unexpected error caused it (one that is not reported as an error of ReqSeq), with its `name`, its `code` when it has one, and the first line of its `message`, at most 160 characters, absolute paths shown as `<workspace>/…` or `<path>`.",
               "type": "object"
             }
           },
@@ -4829,7 +4830,7 @@
         "name": "workspace.init",
         "title": "Create workspace",
         "summary": "Create a workspace with the standard model in a folder, which is created when only it is missing, with the folder `evidence` as its evidence location, and write the skill file for AI agents. Adds `*.reqseq-tmp` (temp files of an interrupted write) to the folder's `.gitignore`.",
-        "details": "The skill file is written as `tool.guide` with `skill` and `write` writes it, without `replace`: to `.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository of the folder, or in the folder without Git. ReqSeq's own unchanged file of another version is left as it is. A file there that ReqSeq did not write, or that was changed since, is kept, and the problem `workspace.skill-not-written` says why; the workspace is created all the same. `skill: false` writes no skill file.",
+        "details": "The skill file is written as `tool.guide` with `skill` and `write` writes it, without `replace`, at each of its places: `.claude/skills/managing-requirements/SKILL.md` and `.agents/skills/managing-requirements/SKILL.md` in the root of the Git repository of the folder, or in the folder without Git. Each place written is listed in `files`. ReqSeq's own unchanged file of another version is left as it is and not listed. A file at a place that ReqSeq did not write, or that was changed since, is kept, and one problem `workspace.skill-not-written` per place not written says where and why; the other place is written all the same, and the workspace is created all the same. `skill: false` writes no skill file.",
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Creates the workspace, so there is no metamodel yet that could make it read-only.",
@@ -4905,7 +4906,7 @@
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath",
-                "description": "Written file, relative to the workspace root; the skill file is `../…` when the root of its Git repository lies above the workspace folder."
+                "description": "Written file, relative to the workspace root; a skill file is `../…` when the root of its Git repository lies above the workspace folder."
               }
             },
             "next": {
@@ -6953,7 +6954,7 @@
         "name": "tool.guide",
         "title": "Agent guide",
         "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.",
-        "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one. With `skill`, the output is the skill file `managing-requirements` in the format of Agent Skills: the workflows as numbered steps, each command as MCP tool and command-line call, no name of the metamodel, and the version of ReqSeq and a checksum in its frontmatter. With `write`, it is written to `.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository of the workspace folder, or in the workspace folder without Git; a file there that ReqSeq did not write, or that was changed since, is replaced only with `replace`. Through the API and the MCP server, a place outside the repositories of the workspace is refused with the command-line call that writes the file. With `instructions`, the output is what the MCP server sends as its instructions: the title of the guide, a paragraph that says to read the guide with `tool_guide` before the first step, and the rules section with MCP tool names; it reads nothing from the folder, so it is the same with or without a workspace, and is at most 4,000 characters long. `instructions` and `skill` cannot be given together.",
+        "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one. With `skill`, the output is the skill file `managing-requirements` in the format of Agent Skills: the workflows as numbered steps, each command as MCP tool and command-line call, no name of the metamodel, and the version of ReqSeq and a checksum in its frontmatter. With `write`, it is written at two places, in this order, each on its own: `.claude/skills/managing-requirements/SKILL.md`, where Claude Code looks, and `.agents/skills/managing-requirements/SKILL.md`, where other clients look, both in the root of the Git repository of the workspace folder, or in the workspace folder without Git. At each place, a file that ReqSeq did not write, or that was changed since, is replaced only with `replace`, which holds for every place. Through the API and the MCP server, a place outside the repositories of the workspace is refused with the command-line call that writes the file. A folder `.agents/skills` linked to `.claude/skills` inside the repository finds the file the first place wrote, so the second place is `unchanged`; a link at `SKILL.md` itself is refused. When a place is not written, the other places are written all the same and the call fails: the error has the code of the first place not written, names each place with its result, and lists them in `details.places`. With `instructions`, the output is what the MCP server sends as its instructions: the title of the guide, a paragraph that says to read the guide with `tool_guide` before the first step, and the rules section with MCP tool names; it reads nothing from the folder, so it is the same with or without a workspace, and is at most 4,000 characters long. `instructions` and `skill` cannot be given together.",
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Writes only the skill file, which holds no name of the metamodel, so a missing or faulty metamodel does not stop it.",
@@ -7010,12 +7011,12 @@
             "write": {
               "type": "boolean",
               "default": false,
-              "description": "Also write the skill file into the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same."
+              "description": "Also write the skill file at each of its places in the repository (needs `skill`): created, replaced when ReqSeq wrote it and nobody changed it, or left when it is the same."
             },
             "replace": {
               "type": "boolean",
               "default": false,
-              "description": "Replace a skill file that ReqSeq did not write or that was changed since (needs `write`)."
+              "description": "Replace a skill file that ReqSeq did not write or that was changed since, at every place (needs `write`)."
             }
           },
           "additionalProperties": false
@@ -7032,35 +7033,38 @@
               "contentMediaType": "text/markdown",
               "description": "The agent guide, with `skill` the skill file, or with `instructions` the MCP server instructions, as Markdown, LF line endings and a final newline."
             },
-            "file": {
-              "title": "Skill file",
-              "description": "The skill file `write` wrote; only with `write`.",
-              "type": "object",
-              "properties": {
-                "path": {
-                  "$ref": "../common.schema.json#/$defs/outputPath",
-                  "description": "The skill file, relative to the workspace root, with `/`."
+            "places": {
+              "title": "Skill file places",
+              "description": "Each place of the skill file with what `write` did there, in the order `.claude/…`, then `.agents/…`; only with `write`.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "$ref": "../common.schema.json#/$defs/outputPath",
+                    "description": "The skill file at this place, relative to the workspace root, with `/`."
+                  },
+                  "action": {
+                    "title": "Done",
+                    "enum": [
+                      "created",
+                      "replaced",
+                      "unchanged"
+                    ],
+                    "description": "`created`: there was no file; `replaced`: the file was replaced; `unchanged`: it was already the file of this version."
+                  },
+                  "previousVersion": {
+                    "title": "Previous version",
+                    "type": "string",
+                    "description": "The ReqSeq version that wrote the replaced file."
+                  }
                 },
-                "action": {
-                  "title": "Done",
-                  "enum": [
-                    "created",
-                    "replaced",
-                    "unchanged"
-                  ],
-                  "description": "`created`: there was no file; `replaced`: the file was replaced; `unchanged`: it was already the file of this version."
-                },
-                "previousVersion": {
-                  "title": "Previous version",
-                  "type": "string",
-                  "description": "The ReqSeq version that wrote the replaced file."
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "path",
-                "action"
-              ]
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "action"
+                ]
+              }
             }
           },
           "additionalProperties": false,
@@ -7079,20 +7083,20 @@
             "title": "Agent guide"
           },
           {
-            "path": "file",
-            "title": "Skill file"
+            "path": "places",
+            "title": "Skill file places"
           },
           {
-            "path": "file.path",
+            "path": "places[].path",
             "title": "Path",
             "technical": true
           },
           {
-            "path": "file.action",
+            "path": "places[].action",
             "title": "Done"
           },
           {
-            "path": "file.previousVersion",
+            "path": "places[].previousVersion",
             "title": "Previous version"
           }
         ]
@@ -25610,7 +25614,7 @@
             },
             "kind": {
               "type": "array",
-              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` give `hint.not-confirmable` (see `ref`).",
+              "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (see `ref`).",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problemCode"
               }

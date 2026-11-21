@@ -19,7 +19,7 @@ import { loadContracts } from "../runtime/contracts.js";
 import { createCommandRuntime } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { commands } from "./index.js";
-import { SKILL_FILE } from "./tool/guide/skill.js";
+import { SKILL_FILES } from "./tool/guide/skill.js";
 import {
   APPROVED,
   EVIDENCE_RECORD,
@@ -142,12 +142,12 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       expect(outcomes).toContain("output");
       expect(outcomes).toContain("error");
       // A created element has the initial status; it is no change of a status.
-      // A record (evidence.record, SR-030) and the skill file (workspace.init, SR-229 AK9) have no status;
+      // A record (evidence.record, SR-030) and the skill file at its places (workspace.init, SR-229 AK9) have no status;
       // every other new Markdown file is an element.
       const added = Object.entries(statusLines(fixture.root)).filter(
         ([file]) =>
           !(file in STATUS_LINES) &&
-          !file.split(path.sep).join("/").endsWith(SKILL_FILE) &&
+          !SKILL_FILES.some((skill) => file.split(path.sep).join("/").endsWith(skill)) &&
           !fs.readFileSync(path.join(fixture.root, file), "utf8").startsWith("---\nreqseq-record: 1\n"),
       );
       expect(added.map(([, line]) => line).filter((line) => line !== "status: draft")).toEqual([]);
