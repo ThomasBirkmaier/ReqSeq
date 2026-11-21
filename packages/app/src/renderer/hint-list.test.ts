@@ -94,7 +94,7 @@ const OUTPUT: HintListOutput = {
 describe("hint list layout", () => {
   it("heads every kind the hint list of core gives with a label of its own", async () => {
     // The codes of `CHECK_ORDER` and of `SINCE_BASELINE_CODES` in core, read from its source.
-    const source = await readFile(join(import.meta.dirname, "../../../core/src/hints/list.ts"), "utf8");
+    const source = await readFile(join(import.meta.dirname, "../../../core/src/hint-order.ts"), "utf8");
     const order = source.slice(
       source.indexOf("const CHECK_ORDER"),
       source.indexOf("];", source.indexOf("const CHECK_ORDER")),

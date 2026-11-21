@@ -1,6 +1,8 @@
-// The neighbourhood on an element's page (SR-232 AK5, AK6), as the app's neighbourhood buffer shows it (SR-107), from
-// the walks of `trace.neighbourhood` (`traceNeighbourhood`) with its marks of an edge (`edgeMarks`: repeated, SR-107
-// AK3; outdated, SR-107 AK4).
+// The neighbourhood on an element's page (SR-232 AK5, AK6), as the app's neighbourhood buffer shows it (SR-107): the
+// display model `neighbourhoodDisplay` (ADR-0019) of the answers `trace.neighbourhood` gives for the walks below
+// (`traceNeighbourhood` and `neighbourhoodOutput`, unpaged), with its marks of an edge (repeated, SR-107 AK3; outdated,
+// SR-107 AK4). The rows, groups, order and words are the model's; this module adds what only the export has (the
+// lines and parents of SR-232 AK8) and the HTML.
 //
 // - Parents: the up walk over the derivations, the topmost first; each level one step less indented, the direct
 //   parents last, each element once (its shortest depth). A parent that a derivation of the walk points at with an
@@ -11,9 +13,9 @@
 //   outdated.
 // - Incoming: every other relation, relation property and inline reference that points at the element (the incoming
 //   walk follows no derivation: those are the children), one group per key and one for the inline references, the
-//   groups in the order they first appear (as in the app). A group is named as `trace.matrix` names an incoming
-//   column: a relation kind's inverse name, else its name, and a property by its name; two keys with the same name
-//   stay two groups. Outdated ones are marked.
+//   groups in the order they first appear. A group is named by `relationGroupLabel`, as `trace.matrix` names an
+//   incoming column: a relation kind's inverse name, else its name, and a property by its name; two keys with the
+//   same name stay two groups. Outdated ones are marked.
 // - Each row: short ID with the identifier, title and status ("–" without one), as a link to the element's page. An
 //   element with an invalid status (D-044) is a row without a link, also where the earlier export left a short page
 //   (SR-231 AK8), and the walks go on through it (AK6); an element without a page (several files share its UUID)
@@ -37,31 +39,26 @@
 //   the pages of the performance suite's workspace come to about 29 GB. Each walk stops one element past the bound
 //   (`maxNodes`), so a page costs its bound, not its chain.
 //   The incoming links are one step and have no bound.
-// - Cost: per page two bounded walks over the derivations and one step over the other links; the current versions
-//   and the names of the incoming groups are read once for the export (`neighbourhoodSource`).
-import type { ElementRecord, IncomingLink } from "../model/index.js";
-import {
-  UNKNOWN_TYPE_PREFIX,
-  hasId,
-  invalidStatuses,
-  relationItems,
-  relationKeysOf,
-  targetState,
-  titleKeyOrEmpty,
-} from "../model/index.js";
-import type { NeighbourhoodContext, NeighbourhoodWalk, TraceContext, VersionLookup } from "../trace/index.js";
-import { edgeMarks, neighbourhoodContext, traceNeighbourhood } from "../trace/index.js";
-import type { WalkEdge } from "../trace/walk.js";
+// - Cost: per page two bounded walks over the derivations and one step over the other links, and their answers; the
+//   current versions are read once for the export (`neighbourhoodSource`).
+import type { ElementRef, NeighbourhoodAnswer, NeighbourhoodDisplay } from "../displays/index.js";
+import { boundNote, emptyValueLabel, neighbourhoodDisplay, shownId } from "../displays/index.js";
+import type { ElementRecord } from "../model/index.js";
+import { UNKNOWN_TYPE_PREFIX, hasId, relationItems, relationKeysOf, targetState } from "../model/index.js";
+import type {
+  NeighbourhoodContext,
+  NeighbourhoodOutputContext,
+  NeighbourhoodWalk,
+  TraceContext,
+  VersionLookup,
+  VersionsOf,
+} from "../trace/index.js";
+import { neighbourhoodContext, neighbourhoodOutput, traceNeighbourhood } from "../trace/index.js";
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { escapeHtml } from "./markdown.js";
 
-type Edge = WalkEdge<IncomingLink>;
-
 /** The most parents and the most children a page shows (see the file comment). */
 export const NEIGHBOURHOOD_LIMIT = 100;
-
-/** The group key of inline references; no relation key is empty. */
-const REFERENCES = "";
 
 /** What the section reads besides the page (see the file comment). */
 export interface NeighbourhoodSource {
@@ -69,86 +66,49 @@ export interface NeighbourhoodSource {
   readonly derivations: NeighbourhoodContext;
   /** The incoming walk: every relation key that is no derivation, and the inline references. */
   readonly incoming: NeighbourhoodContext;
-  /** The name of each group of incoming links by its key, in the order of the metamodel. */
-  readonly groupNames: ReadonlyMap<string, string>;
   readonly versionOf: VersionLookup;
-  /** The keys of the statuses marked invalid. */
-  readonly invalid: ReadonlySet<string>;
-  readonly titleKey: string;
 }
 
 /** The source of the section for a workspace's trace context and the current versions of its elements. */
 export const neighbourhoodSource = (trace: TraceContext, versionOf: VersionLookup): NeighbourhoodSource => {
   const { metamodel } = trace;
   const keys = relationKeysOf(metamodel);
-  // A key that is both a property and a relation kind counts as the property (`relationKeysOf`).
-  const groupNames = new Map<string, string>([
-    ...metamodel.relations
-      .filter((kind) => kind.meaning !== "derivation")
-      .map((kind) => [kind.key, kind["inverse-name"] ?? kind.name] as const),
-    ...metamodel.properties.filter((p) => keys.has(p.key)).map((p) => [p.key, p.name] as const),
+  // A key that is both a property and a relation kind counts once.
+  const kinds = new Set([
+    ...metamodel.relations.filter((kind) => kind.meaning !== "derivation").map((kind) => kind.key),
+    ...metamodel.properties.filter((p) => keys.has(p.key)).map((p) => p.key),
   ]);
   return {
     derivations: neighbourhoodContext(trace, { meanings: ["derivation"] }),
-    incoming: neighbourhoodContext(trace, { kinds: [...groupNames.keys()], meanings: ["reference"] }),
-    groupNames: new Map([...groupNames, [REFERENCES, "inline reference"]]),
+    incoming: neighbourhoodContext(trace, { kinds: [...kinds], meanings: ["reference"] }),
     versionOf,
-    invalid: new Set(invalidStatuses(metamodel).keys()),
-    titleKey: titleKeyOrEmpty(metamodel),
   };
 };
 
-/** The ID a row shows: the short ID, with the identifier when the element has one. */
-const shownId = (context: ElementPageContext, element: ElementRecord): string => {
-  const identifier = context.shortIds.identifierOf(element);
-  const shortId = context.shortIds.of(element);
-  return identifier === undefined ? shortId : `${shortId} (${identifier})`;
-};
+/** What the HTML of the section reads of the page context. */
+type HtmlContext = Pick<ElementPageContext, "links" | "layout" | "shortIds">;
 
-/** The hover text of an outdated `edge` to `target`: which end points to an older version, by which key. */
-const outdatedNote = (context: ElementPageContext, edge: Edge, target: ElementRecord): string =>
-  `${shownId(context, edge.link.source)} points to an older version of ${shownId(context, target)} (${edge.link.kind === "relation" ? edge.link.key : "inline reference"})`;
-
-const outdatedMark = (notes: readonly string[]): string =>
-  notes.length === 0
-    ? ""
-    : ` <span class="rq-outdated" title="${escapeHtml(notes.join("; "))}">link outdated</span>`;
-
-/** Whether one edge of `walked` is a repetition, and its outdated mark. */
-const edgeMark = (
-  context: ElementPageContext,
-  walked: NeighbourhoodWalk,
-  edge: Edge,
-): { repeated: boolean; mark: string } => {
-  const marks = edgeMarks(walked, edge, context.neighbourhood.versionOf);
-  return {
-    repeated: marks.repeated,
-    mark: outdatedMark(marks.outdated ? [outdatedNote(context, edge, marks.target)] : []),
-  };
-};
+const outdatedMark = (note: string | undefined): string =>
+  note === undefined ? "" : ` <span class="rq-outdated" title="${escapeHtml(note)}">link outdated</span>`;
 
 /**
  * One row (see the file comment); `marks` stand after the title. The cells are the row's three `span`s, styled by
  * place, so that a page of many rows stays small.
  */
-const row = (context: ElementPageContext, element: ElementRecord, level: number, marks: string): string => {
-  const title = element.data[context.neighbourhood.titleKey];
-  const status = element.data["status"];
-  const cells = `<span>${escapeHtml(shownId(context, element))}</span><span>${escapeHtml(typeof title === "string" ? title : "")}${marks}</span><span>${escapeHtml(typeof status === "string" ? status : "–")}</span>`;
-  const invalid = typeof status === "string" && context.neighbourhood.invalid.has(status);
-  const href = invalid ? undefined : context.links.href(element.id);
+const row = (context: HtmlContext, ref: ElementRef, level: number, marks: string): string => {
+  const cells = `<span>${escapeHtml(shownId(ref.shortId, ref.identifier))}</span><span>${escapeHtml(ref.title)}${marks}</span><span>${escapeHtml(emptyValueLabel(ref.status))}</span>`;
+  const href = ref.invalid ? undefined : context.links.href(ref.id);
   return item(
     level,
     href === undefined ? `<span>${cells}</span>` : `<a href="${escapeHtml(href)}">${cells}</a>`,
   );
 };
-
 /** A list item of `content`, indented by `level`. */
 const item = (level: number, content: string): string =>
   `<li${level === 0 ? "" : ` style="--rq-level:${String(level)}"`}>${content}</li>`;
 
 /** A parent in a repository that is not on this machine, and the depth it stands at (see the file comment). */
-interface InaccessibleParent {
+export interface InaccessibleParent {
   readonly id: string;
   readonly repository: string;
   readonly depth: number;
@@ -185,14 +145,14 @@ const inaccessibleParents = (
 };
 
 /** The row of an inaccessible parent: as an outgoing relation names it, without a link and without a status. */
-const inaccessibleRow = (context: ElementPageContext, parent: InaccessibleParent, level: number): string =>
+const inaccessibleRow = (context: HtmlContext, parent: InaccessibleParent, level: number): string =>
   item(
     level,
     `<span><span>${escapeHtml(`${UNKNOWN_TYPE_PREFIX}-${context.shortIds.tail(parent.id)}`)}</span><span>${escapeHtml(`repository ${parent.repository}, not accessible`)}</span><span></span></span>`,
   );
 
 /** The line on the repositories not on this machine, where `what` may be missing (see the file comment); none without. */
-const missingLine = (context: ElementPageContext, what: string): string => {
+const missingLine = (context: HtmlContext, what: string): string => {
   const missing = context.layout.repositories.filter((r) => !r.available).map((r) => r.name);
   if (missing.length === 0) {
     return "";
@@ -214,119 +174,131 @@ const group = (heading: string, { rows, more }: Part, none: string): string =>
     : none === ""
       ? ""
       : `<p class="rq-nb-none">${none}</p>`) +
-  (more ? `<p class="rq-nb-none">Only the nearest ${String(NEIGHBOURHOOD_LIMIT)} are shown.</p>` : "");
+  (more ? `<p class="rq-nb-none">${escapeHtml(boundNote(NEIGHBOURHOOD_LIMIT))}</p>` : "");
 
-/** The elements of `walked` a page shows (the nearest, see the file comment), and whether the walk reached more. */
-const shownOf = (walked: NeighbourhoodWalk) => {
-  // The walk stops one element past the bound: `more` holds only when it reached that one.
-  const nodes = walked.result.nodes.slice(1, NEIGHBOURHOOD_LIMIT + 1);
-  return { nodes, more: walked.result.nodes.length > NEIGHBOURHOOD_LIMIT + 1 };
-};
-
-/** The parents, the topmost level first (see the file comment). */
-const parentRows = (context: ElementPageContext, up: NeighbourhoodWalk): Part => {
-  const { nodes, more } = shownOf(up);
-  const notes = new Map<ElementRecord, string[]>();
-  for (const edge of up.result.edges) {
-    const marks = edgeMarks(up, edge, context.neighbourhood.versionOf);
-    if (marks.outdated) {
-      const list = notes.get(marks.target) ?? [];
-      list.push(outdatedNote(context, edge, marks.target));
-      notes.set(marks.target, list);
-    }
-  }
-  const placed = [
-    ...nodes.map((node) => ({
-      depth: node.depth,
-      html: (level: number) => row(context, node.element, level, outdatedMark(notes.get(node.element) ?? [])),
-    })),
-    ...inaccessibleParents(context, up.result.nodes.slice(0, NEIGHBOURHOOD_LIMIT + 1)).map((parent) => ({
-      depth: parent.depth,
-      html: (level: number) => inaccessibleRow(context, parent, level),
-    })),
-  ];
-  const top = Math.max(0, ...placed.map((entry) => entry.depth));
-  // A stable sort: within a level, the order of the walk, then the inaccessible parents.
-  const rows = placed.sort((a, b) => b.depth - a.depth).map((entry) => entry.html(top - entry.depth));
-  return { rows, more };
-};
-
-/** The children of `root` as a tree of the shown elements, depth first in walk order (see the file comment). */
-const childRows = (context: ElementPageContext, root: ElementRecord, down: NeighbourhoodWalk): Part => {
-  const { nodes, more } = shownOf(down);
-  const shown = new Set(nodes.map((node) => node.element));
-  const below = new Map<ElementRecord, Edge[]>();
-  for (const edge of down.result.edges) {
-    if (shown.has(edge.to)) {
-      const list = below.get(edge.from) ?? [];
-      list.push(edge);
-      below.set(edge.from, list);
-    }
-  }
-  const rows: string[] = [];
-  // A stack instead of recursion: a chain can be thousands of levels deep. Only an edge the walk took leads further,
-  // and each element is reached by one such edge, so every element is expanded once.
-  const stack: { readonly edge: Edge; readonly level: number }[] = [];
-  const push = (element: ElementRecord, level: number): void => {
-    for (const edge of [...(below.get(element) ?? [])].reverse()) {
-      stack.push({ edge, level });
-    }
+/** The parents, the topmost level first, with the inaccessible ones at their depth (see the file comment). */
+const parentRows = (
+  context: HtmlContext,
+  parents: NeighbourhoodDisplay["parents"],
+  inaccessible: readonly InaccessibleParent[],
+): Part => {
+  const levels = new Map<number, ((level: number) => string)[]>();
+  const place = (depth: number, html: (level: number) => string): void => {
+    const list = levels.get(depth) ?? [];
+    list.push(html);
+    levels.set(depth, list);
   };
-  push(root, 0);
-  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
-    const { edge, level } = next;
-    const { repeated, mark } = edgeMark(context, down, edge);
-    rows.push(
-      row(context, edge.to, level, (repeated ? ' <span class="rq-repeated">repeated</span>' : "") + mark),
-    );
-    if (!repeated) {
-      push(edge.to, level + 1);
-    }
+  for (const parent of parents.rows.flat()) {
+    place(parent.depth, (level) => row(context, parent.ref, level, outdatedMark(parent.outdated)));
   }
-  return { rows, more };
+  for (const parent of inaccessible) {
+    place(parent.depth, (level) => inaccessibleRow(context, parent, level));
+  }
+  const top = Math.max(0, ...levels.keys());
+  // Within a level, the order of the walk, then the inaccessible parents.
+  const rows = [...levels]
+    .sort(([a], [b]) => b - a)
+    .flatMap(([depth, html]) => html.map((of) => of(top - depth)));
+  return { rows, more: parents.more };
 };
 
-/** The group key of an incoming link. */
-const groupKey = (edge: Edge): string => (edge.link.kind === "relation" ? edge.link.key : REFERENCES);
+/** The children as the model's tree, every row open (see the file comment). */
+const childRows = (context: HtmlContext, children: NeighbourhoodDisplay["children"]): Part => ({
+  rows: children.rows.map((child) =>
+    row(
+      context,
+      child.ref,
+      child.level - 1,
+      (child.repeated ? ' <span class="rq-repeated">repeated</span>' : "") + outdatedMark(child.outdated),
+    ),
+  ),
+  more: children.more,
+});
 
-/** The incoming links by key, in the order they first appear (see the file comment). */
-const incomingGroups = (context: ElementPageContext, incoming: NeighbourhoodWalk): string[] => {
-  const { edges } = incoming.result;
-  // One group per name of the source: the walk follows exactly those keys, so every edge finds its group.
-  const groups = [...context.neighbourhood.groupNames].map(([key, name]) => ({
-    key,
-    name,
-    rows: [] as string[],
-  }));
-  const byKey = new Map(groups.map((found) => [found.key, found.rows]));
-  for (const edge of edges) {
-    byKey.get(groupKey(edge))?.push(row(context, edge.to, 0, edgeMark(context, incoming, edge).mark));
-  }
-  const first = (key: string): number => edges.findIndex((edge) => groupKey(edge) === key);
-  return groups
-    .filter((found) => found.rows.length > 0)
-    .sort((a, b) => first(a.key) - first(b.key))
-    .map((found) => group(`← ${found.name}`, { rows: found.rows, more: false }, ""));
+/** The answers of the walks of a page, as `trace.neighbourhood` gives them, unpaged (see the file comment). */
+export interface NeighbourhoodAnswers {
+  /** The up walk, then the down walk, over the derivations, each bounded one element past `NEIGHBOURHOOD_LIMIT`. */
+  readonly derived: NeighbourhoodAnswer;
+  /** One step down over every other key and the inline references. */
+  readonly pointing: NeighbourhoodAnswer;
+  /** The up walk itself, for the parents in a repository that is not on this machine. */
+  readonly up: NeighbourhoodWalk;
+}
+
+/** The answers of the walks from `record` (see the file comment). */
+export const neighbourhoodAnswers = async (
+  source: Pick<NeighbourhoodSource, "derivations" | "incoming">,
+  context: NeighbourhoodOutputContext,
+  record: ElementRecord,
+  versionsOf: VersionsOf,
+): Promise<NeighbourhoodAnswers> => {
+  // `both` gives the up walk, then the down walk.
+  const walks = traceNeighbourhood(source.derivations, record, {
+    direction: "both",
+    maxNodes: NEIGHBOURHOOD_LIMIT + 1,
+  });
+  const links = traceNeighbourhood(source.incoming, record, { direction: "down", maxDepth: 1 });
+  const every = { offset: 0, limit: Number.MAX_SAFE_INTEGER };
+  const [derived, pointing] = await Promise.all([
+    neighbourhoodOutput(walks, context, every, versionsOf),
+    neighbourhoodOutput(links, context, every, versionsOf),
+  ]);
+  const [up] = walks.walks as [NeighbourhoodWalk];
+  return { derived, pointing, up };
 };
 
 /** The section of the neighbourhood (see the file comment). */
-export const neighbourhoodSection = (context: ElementPageContext, page: ElementPage): string => {
-  const { derivations, incoming } = context.neighbourhood;
-  // `both` gives the up walk, then the down walk; `down` the down walk alone.
-  const [up, down] = traceNeighbourhood(derivations, page.record, {
-    direction: "both",
-    maxNodes: NEIGHBOURHOOD_LIMIT + 1,
-  }).walks as [NeighbourhoodWalk, NeighbourhoodWalk];
-  const [links] = traceNeighbourhood(incoming, page.record, { direction: "down", maxDepth: 1 }).walks as [
-    NeighbourhoodWalk,
-  ];
+export const neighbourhoodSection = async (
+  context: ElementPageContext,
+  page: ElementPage,
+): Promise<string> => {
+  const { versionOf } = context.neighbourhood;
+  const { derived, pointing, up } = await neighbourhoodAnswers(
+    context.neighbourhood,
+    { metamodel: context.metamodel, shortIds: context.shortIds },
+    page.record,
+    () => Promise.resolve(versionOf),
+  );
+  const display = neighbourhoodDisplay(
+    { parents: derived, children: derived, incoming: pointing, metamodel: context.metamodel },
+    {
+      bound: {
+        parents: NEIGHBOURHOOD_LIMIT,
+        children: NEIGHBOURHOOD_LIMIT,
+        incoming: Number.POSITIVE_INFINITY,
+      },
+      open: "all",
+    },
+  );
+  return neighbourhoodHtml(
+    context,
+    display,
+    inaccessibleParents(context, up.result.nodes.slice(0, NEIGHBOURHOOD_LIMIT + 1)),
+  );
+};
+
+/** The HTML of the section for the display model and the parents in repositories not on this machine. */
+export const neighbourhoodHtml = (
+  context: HtmlContext,
+  display: NeighbourhoodDisplay,
+  inaccessible: readonly InaccessibleParent[],
+): string => {
   const children = missingLine(context, "Children");
   return [
     '<section class="rq-neighbourhood"><h2 id="neighbourhood">Neighbourhood</h2>',
-    group("Parents", parentRows(context, up), "No parents"),
-    group("Children", childRows(context, page.record, down), children === "" ? "No children" : ""),
+    group("Parents", parentRows(context, display.parents, inaccessible), "No parents"),
+    group("Children", childRows(context, display.children), children === "" ? "No children" : ""),
     children,
-    ...incomingGroups(context, links),
+    ...display.incoming.rows.map((found) =>
+      group(
+        found.label,
+        {
+          rows: found.entries.map((entry) => row(context, entry.ref, 0, outdatedMark(entry.outdated))),
+          more: false,
+        },
+        "",
+      ),
+    ),
     missingLine(context, "Incoming relations and references"),
     "</section>",
   ].join("");

@@ -5,6 +5,7 @@
 // element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TraceNeighbourhoodOutput } from "@reqseq/core";
+import { boundNote } from "@reqseq/core/displays";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -50,7 +51,8 @@ interface Fetched {
   readonly depth: number;
 }
 
-const cutNote = (what: string): string => `Only the first ${String(NEIGHBOURHOOD_MAX)} ${what} are shown`;
+/** The note under a part the limit of the call cut (`boundNote`, as the export words it). */
+const cutNote = boundNote(NEIGHBOURHOOD_MAX);
 
 /** The three cells of a row; `before` and `after` stand next to the title. */
 const Cells = ({
@@ -369,7 +371,7 @@ export const NeighbourhoodView = ({
               ))}
             </div>
             {tree.rows.length === 0 ? <p className="quiet">No children</p> : null}
-            {tree.cut ? <p className="quiet">{cutNote("elements of the tree")}</p> : null}
+            {tree.cut ? <p className="quiet">{cutNote}</p> : null}
           </section>
         )}
         {groups.map((group) => {
@@ -404,7 +406,7 @@ export const NeighbourhoodView = ({
             </section>
           );
         })}
-        {incoming?.cut === true ? <p className="quiet">{cutNote("incoming links")}</p> : null}
+        {incoming?.cut === true ? <p className="quiet">{cutNote}</p> : null}
       </div>
     </div>
   );
