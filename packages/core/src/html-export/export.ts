@@ -30,11 +30,11 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { OverviewDisplay } from "../displays/index.js";
-import { overviewDisplay, typeCounts } from "../displays/index.js";
+import { isPackageType, overviewDisplay, packageMembers, typeCounts } from "../displays/index.js";
 import type { ExportFolder } from "../files/index.js";
 import { imageExtension, openExportFolder, readElementText, readFileSnapshot } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, metamodelState, propertyWithMeaning } from "../metamodel/index.js";
+import { findType, metamodelState } from "../metamodel/index.js";
 import { selectionDegree } from "../evidence/index.js";
 import { listHints } from "../hints/index.js";
 import { NO_RANKS, compareSortValues, sortElements, sortValueOf } from "../query/index.js";
@@ -81,7 +81,7 @@ import { NOTICES_FILE, noticesText } from "./notices.js";
 import type { Navigation } from "./page.js";
 import { ASSETS, DOCS_CSS, OWN_CSS, page } from "./page.js";
 import type { ListCompare, ListContext, ListEntry, ListPage } from "./list-page.js";
-import { LIST_SCRIPT, listPageOf, listsOf, sortedByIdentifier } from "./list-page.js";
+import { LIST_SCRIPT, listMetamodelOf, listPageOf, listsOf, sortedByIdentifier } from "./list-page.js";
 import { listScript } from "./list-script.js";
 import type { NewestBaseline } from "./start-page.js";
 import { startPageBody } from "./start-page.js";
@@ -393,29 +393,28 @@ const packageLabel = ({ element }: ListEntry): string =>
 
 /**
  * The packages with a page (elements of a type with the meaning package), by title, each with the elements of
- * `entries` whose property with the meaning `packages` names it, in the order of `entries` (SR-233 AK4).
+ * `entries` whose property with the meaning `packages` names it, in the order of `entries` (SR-233 AK4): the rule of
+ * `element.list` `where.package`, read from the relations `listElements` gives (`packageMembers`, ADR-0019 point 2).
  */
 const packagesWithMembers = (
   metamodel: Metamodel,
   entries: readonly ListEntry[],
-): Map<ListEntry, ListEntry[]> => {
-  const key = propertyWithMeaning(metamodel, "packages")?.key;
+): {
+  readonly packages: readonly ListEntry[];
+  readonly members: ReadonlyMap<string, readonly ListEntry[]>;
+} => {
+  const shape = listMetamodelOf(metamodel);
   const packages = entries
-    .filter(({ record }) => findType(metamodel, record.type)?.meaning === "package")
+    .filter(({ element }) => isPackageType(shape, element.type))
     .map((entry) => ({ entry, sort: sortValueOf(packageLabel(entry), NO_RANKS) }))
-    .sort((a, b) => compareSortValues(a.sort, b.sort));
-  const byId = new Map(packages.map(({ entry }) => [entry.element.id, entry]));
-  const members = new Map<ListEntry, ListEntry[]>(packages.map(({ entry }) => [entry, []]));
-  for (const entry of entries) {
-    const named = entry.element.relations.filter((r) => r.property === true && r.kind === key);
-    for (const id of new Set(named.map((r) => r.id))) {
-      const owner = byId.get(id);
-      if (owner !== undefined) {
-        members.get(owner)?.push(entry);
-      }
-    }
-  }
-  return members;
+    .sort((a, b) => compareSortValues(a.sort, b.sort))
+    .map(({ entry }) => entry);
+  const members = packageMembers(
+    packages.map(({ element }) => element),
+    entries,
+    shape,
+  );
+  return { packages, members };
 };
 
 /**
@@ -456,19 +455,18 @@ export const siteOf = async (
   const lists = listsOf(context, entries, overview.types).map(({ type, entries: listed }) =>
     listPageOf(context, type, listed, compare),
   );
-  const packages = packagesWithMembers(metamodel, entries);
+  const { packages, members } = packagesWithMembers(metamodel, entries);
   const navigation: Navigation = [
     { label: "Lists", links: lists.map((list) => ({ path: list.path, label: list.title })) },
     {
       label: "Packages",
-      links: [...packages.keys()].map((entry) => ({
+      links: packages.map((entry) => ({
         path: elementPage(entry.element.id),
         label: packageLabel(entry),
       })),
     },
     ...more,
   ];
-  const members = new Map([...packages].map(([entry, listed]) => [entry.element.id, listed]));
   return { entries, overview, lists, navigation, members };
 };
 

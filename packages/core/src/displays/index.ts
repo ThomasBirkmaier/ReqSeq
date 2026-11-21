@@ -9,5 +9,6 @@ export * from "./list.js";
 export * from "./neighbourhood.js";
 export * from "./open-hints.js";
 export * from "./overview.js";
+export * from "./package.js";
 export * from "./relation-text.js";
 export * from "./verification.js";
