@@ -107,10 +107,14 @@ export interface BulkSelection {
   readonly shortIds: ShortIds;
 }
 
-/** An element as the result names it. */
+/**
+ * An element as the result names it: with its repository, so a list of the elements a number counts holds
+ * only the counted copy of a UUID (SR-223 AK5, #2024).
+ */
 export interface NamedElement {
   readonly id: string;
   readonly shortId: string;
+  readonly repository: string;
 }
 
 /** An element left out (AK3). */
@@ -125,7 +129,7 @@ export interface BulkUpdateResult {
   /** The elements whose file the change rewrites (rewrote), in store order. */
   readonly affected: readonly NamedElement[];
   /** Elements that allow the property and have the result already, in store order (SR-224 AK4). */
-  readonly unchanged: readonly (NamedElement & { readonly repository: string })[];
+  readonly unchanged: readonly NamedElement[];
   readonly skipped: readonly SkippedElement[];
   /** Written files relative to the workspace root, `/` as separator; empty in a preview. */
   readonly files: readonly string[];
@@ -594,7 +598,11 @@ export const bulkUpdateElements = async (
   const property = propertyOf(metamodel, input.property);
   const value = refsOf(selection, property, input.operation, valueOf(metamodel, property, input));
   const layout = await workspace.get(workspaceLayoutState);
-  const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
+  const named = (record: ElementRecord): NamedElement => ({
+    id: record.id,
+    shortId: shortIds.of(record),
+    repository: record.repository,
+  });
   const skipped: SkippedElement[] = [];
   const candidates: { readonly record: ElementRecord; readonly type: MetamodelEffectiveType }[] = [];
   for (const record of selection.elements) {
@@ -628,14 +636,14 @@ export const bulkUpdateElements = async (
     readonly named: NamedElement;
     readonly parsed: ParsedContent | undefined;
   })[] = [];
-  const unchanged: (NamedElement & { readonly repository: string })[] = [];
+  const unchanged: NamedElement[] = [];
   for (const { record, type, repository, current } of await readAllUnchanged(workspace, layout, candidates)) {
     const edits = await editsFor(plan, current.record, current.file.snapshot.sha256);
     const { bytes, changed, parsed } = editElementFile(current.file, { edits, keyOrder: type.properties });
     if (changed) {
       planned.push({ repository, current, bytes, named: named(record), parsed });
     } else {
-      unchanged.push({ ...named(record), repository: record.repository });
+      unchanged.push(named(record));
     }
   }
   const fingerprint = planFingerprint(

@@ -290,8 +290,7 @@ const changedCores = (context: SinceBaselineContext, memo: Memo): ElementRecord[
     return [];
   }
   const update = storeUpdate(memo.store, context.store);
-  /* v8 ignore next 3 -- undefined only when the repositories differ, which a new workspace layout
-     makes, and with it a new metamodel, which `findingsOf` checks before it asks for this. */
+  // Nothing tells which records stayed the same (`storeUpdate`): the full pass.
   if (update === undefined) {
     return undefined;
   }

@@ -210,3 +210,42 @@ export const resolveRef = (
 /** `resolveRef` of one item of a list input (`refs`, `selection.ids`): see `oneValueNote` (#1790). */
 export const resolveListRef = (store: ElementStore, shortIds: ShortIds, ref: string): ElementRecord =>
   resolveRef(store, shortIds, ref, {}, true);
+
+/** A UUID named with the repository of its file (`selection.inRepository`, D-058). */
+export interface InRepository {
+  readonly id: string;
+  readonly repository: string;
+}
+
+/**
+ * Every element with the UUID of `item` in its repository, in store order (`selection.inRepository`, #2024): two
+ * copies of the UUID in that repository are both named (SR-088), unless `one` asks for one element, which is then
+ * `ref.ambiguous`. An item that names no element is `ref.unknown` as `resolveRef` gives it with `copy`, with the
+ * candidates in other repositories.
+ */
+export const resolveInRepository = (
+  store: ElementStore,
+  shortIds: ShortIds,
+  item: InRepository,
+  one = false,
+): readonly ElementRecord[] => {
+  const copy = { repository: item.repository };
+  const match = narrow(resolveId(store.byId, normalizeRef(item.id)), copy);
+  switch (match.kind) {
+    case "found":
+      return [match.element];
+    case "ambiguous":
+      if (!one) {
+        return match.elements;
+      }
+      throw new CommandError(
+        "ref.ambiguous",
+        `${item.id} names more than one element in repository ${item.repository}, which the UUID and repository cannot tell apart; see the candidates`,
+        { ref: item.id, ...copy, candidates: candidatesOf(match.elements) },
+      );
+    case "unknown":
+    case "elsewhere":
+      // The same match there: `ref.unknown`, with the candidates in other repositories when there are some.
+      return [resolveRef(store, shortIds, item.id, copy, true)];
+  }
+};

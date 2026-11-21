@@ -29,3 +29,13 @@ export const GET_STARTED: readonly NextStep[] = [
   { command: "element.create", input: {}, open: ["type", "title"] },
   { command: "tool.guide", input: {}, open: [] },
 ];
+
+/**
+ * The first steps of a workspace in which the tool counts no element (SR-118 AK9): create an element, import a
+ * ReqIF file, connect an AI agent. The app's overview shows them as its lines, each by its command's name.
+ */
+export const FIRST_STEPS: readonly NextStep[] = [
+  { command: "element.create", input: {}, open: ["type", "title"] },
+  { command: "reqif.import", input: {}, open: ["file", "delivery"] },
+  { command: "workspace.connectAgent", input: {}, open: ["client"] },
+];

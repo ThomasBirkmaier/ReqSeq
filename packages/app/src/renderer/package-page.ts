@@ -180,4 +180,4 @@ export const selectionCoverageBuffer = (
   coverage: EvidenceCoverageOutput,
   revision: number,
 ): ResultBuffer =>
-  resultBuffer("evidence.coverage", { selection }, `Show evidence coverage ${name}`, coverage, revision);
+  resultBuffer("evidence.coverage", { selection }, `Show coverage ${name}`, coverage, revision);
