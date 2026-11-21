@@ -76,14 +76,13 @@ const refused = async (opened: Opened, input: Record<string, unknown>, reason: s
 };
 
 describe("element.create with nextIdentifier (SR-245)", () => {
-  it("[SR-245/AK-tskf] follows the highest number of the type, superseded and invalid ones counted, others not", async () => {
+  it("[SR-245/AK-tskf] follows the highest number of the type, other types and identifiers without a number not counted", async () => {
     const specIds = Array.from({ length: 243 }, (_, i) => `SR-${String(i + 1)}`).filter(
       (id) => id !== "SR-36" && id !== "SR-37",
     );
     const opened = await open({
       ...elements(...specIds),
-      // An invalid status counts (SR-245 AK1); the fixture's SR-036 and SR-037 count as 36 and 37.
-      ...element(0x200, "sr-200", "system-requirement", "obsolete"),
+      // The fixture's SR-036 and SR-037 count as 36 and 37.
       // Another type, an identifier that ends in white space, one of digits only and a file that is no element count for nothing.
       ...element(0x201, "SR-900", "decision"),
       ...element(0x202, "SR-901 "),
@@ -95,6 +94,24 @@ describe("element.create with nextIdentifier (SR-245)", () => {
     expect(out.incomplete).toBeUndefined();
     const file = await opened.read(out.files[0] ?? "");
     expect(file).toContain("spec-id: SR-244\n");
+  });
+
+  it("[SR-245/AK-tskf] counts an element with an invalid status and a superseded one", async () => {
+    // obsolete is marked invalid in the fixture's metamodel.
+    const invalid = await open({
+      ...elements("SR-40"),
+      ...element(0x200, "sr-300", "system-requirement", "obsolete"),
+    });
+    expect(identifierOf(await create(invalid, { nextIdentifier: true }))).toBe("sr-301");
+    // SR-400 superseded by SR-040 through element.supersede, which also sets the invalid status.
+    const superseded = await open(elements("SR-400", "SR-40"));
+    await invoke(
+      "element.supersede",
+      { ref: "SR-400", status: "obsolete", successor: "SR-40" },
+      { workspace: superseded.workspace },
+    );
+    expect(await superseded.read("more/SR-000000000101.md")).toContain("supersedes:");
+    expect(identifierOf(await create(superseded, { nextIdentifier: true }))).toBe("SR-401");
   });
 
   it("[SR-245/AK-tskf] has no upper bound", async () => {

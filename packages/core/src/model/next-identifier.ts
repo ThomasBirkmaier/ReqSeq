@@ -9,7 +9,7 @@ import { CommandError } from "../catalog.js";
 import type { ElementInputValue, MetamodelEffectiveType } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord } from "./elements.js";
-import { identifierKeyOf, identifierMatch, identifierValue } from "./identifier-index.js";
+import { byPlace, identifierKeyOf, identifierMatch, identifierValue } from "./identifier-index.js";
 import type { ElementStore } from "./store.js";
 
 /** Prefixes an `identifier.prefixes` refusal names at most (SR-245 AK3). */
@@ -40,11 +40,7 @@ const split = (identifier: string): { readonly prefix: string; readonly digits: 
     : { prefix: identifier.slice(0, start), digits: identifier.slice(start) };
 };
 
-/** By repository, then path, by code units (SR-245 AK2): files are unique, so this never ties. */
-const byPlace = (a: ElementRecord, b: ElementRecord): number =>
-  a.repository !== b.repository ? (a.repository < b.repository ? -1 : 1) : a.file < b.file ? -1 : 1;
-
-/** Whether `a` comes before `b` as the identifier the next one follows: higher number, more digits, place (SR-245 AK2). */
+/** Whether `a` comes before `b` as the identifier the next one follows: higher number, more digits, then the first by repository and path (`byPlace`, SR-245 AK2). */
 const before = (a: Counted, b: Counted): boolean =>
   a.number !== b.number
     ? a.number > b.number
