@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { accessTabs } from "./access-tabs.js";
 import { LLMS_FILE, LLMS_FULL_FILE, llmsFull, llmsIndex, pageUrl, textPage, writeLlmsFiles } from "./llms.js";
 
 const page = (title: string, extra = "", body = "Text.") => `---\ntitle: ${title}\n${extra}---\n\n${body}\n`;
@@ -34,6 +35,7 @@ describe("llms.txt", () => {
     expect(pageUrl("index.md", "/ReqSeq")).toBe("/ReqSeq/");
     expect(pageUrl("how-to/install-reqseq.md", "/ReqSeq")).toBe("/ReqSeq/how-to/install-reqseq/");
     expect(pageUrl("reference/commands/index.md", "/")).toBe("/reference/commands/");
+    expect(pageUrl("reference/commands/element-create.mdx", "/")).toBe("/reference/commands/element-create/");
   });
 
   it("lists the pages by section in sidebar order and leaves out an empty section and a landing page without description", () => {
@@ -77,8 +79,13 @@ describe("llms.txt", () => {
     await writeFile(join(content, "how-to", "open-a-workspace.md"), page("Open", "sidebar:\n  order: 9\n"));
     await writeFile(join(content, "how-to", "install-reqseq.md"), page("Install"));
     await writeFile(join(content, "reference", "commands", "index.md"), page("Commands", "", "All."));
+    const ways = "## App\n\nA.\n\n## CLI\n\n<!-- tested -->\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.";
+    await writeFile(
+      join(content, "reference", "commands", "x.mdx"),
+      String(accessTabs(page("X", "sidebar:\n  order: 1\n", ways))),
+    );
     await writeFile(join(content, "reference", "commands", "image.png"), "");
-    expect(await writeLlmsFiles(content, dist, "/ReqSeq", "ReqSeq 1.0")).toBe(6);
+    expect(await writeLlmsFiles(content, dist, "/ReqSeq", "ReqSeq 1.0")).toBe(7);
     expect(await readFile(join(dist, LLMS_FILE), "utf8")).toBe(
       [
         "# ReqSeq 1.0",
@@ -98,6 +105,7 @@ describe("llms.txt", () => {
         "## Commands",
         "",
         "- [Commands](/ReqSeq/reference/commands/)",
+        "- [X](/ReqSeq/reference/commands/x/)",
         "",
       ].join("\n"),
     );
@@ -108,6 +116,7 @@ describe("llms.txt", () => {
       ),
     ).toBe(true);
     expect(full.indexOf("# A\n")).toBeGreaterThan(full.indexOf("# C\n"));
-    expect(full.endsWith("# Commands\n\nPage: /ReqSeq/reference/commands/\n\nAll.\n")).toBe(true);
+    expect(full).toContain("# Commands\n\nPage: /ReqSeq/reference/commands/\n\nAll.\n");
+    expect(full.endsWith(`# X\n\nPage: /ReqSeq/reference/commands/x/\n\n${ways}\n`)).toBe(true);
   });
 });

@@ -109,6 +109,7 @@ export {
 } from "./matrix.js";
 export type {
   EdgeMarks,
+  IncomingGroup,
   Neighbourhood,
   NeighbourhoodContext,
   NeighbourhoodDirection,
@@ -124,6 +125,9 @@ export {
   checkRelationKinds,
   currentVersionLookup,
   edgeMarks,
+  GROUP_LIMIT,
+  incomingGroups,
+  incomingOutput,
   neighbourhoodContext,
   neighbourhoodOutput,
   traceNeighbourhood,

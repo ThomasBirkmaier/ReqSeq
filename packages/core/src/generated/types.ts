@@ -1663,7 +1663,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning, D-059; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation (SR-220).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import, SR-057; `import-version` is the import version, D-059: the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID people read and name besides the UUID, from another source or by a running scheme of the project, such as the spec ID SR-036 or a customer ID, D-017; unique per type; `element.create` with `nextIdentifier` gives the one after the highest of the type with the same identifier prefix, SR-245; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, ThomasBirkmaier/ReqSeq-archive#305). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number, D-072, SR-028 AK4; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning, D-059; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language, D-059; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation (SR-220).
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -3301,6 +3301,10 @@ export interface ElementCreateInput {
   readonly repository?: string;
   /** Folder relative to the repository; default from the type. */
   readonly folder?: string;
+  /** Give the element the identifier after the highest of its type with the same identifier prefix, the part before the digits 0 to 9 at its end (SR-245): that number plus one, padded to as many digits (`C-003` gives `C-004`, `C-999` gives `C-1000`), with the prefix as written there; prefixes compare in any case. Counts the elements of exactly this type on this machine, superseded ones too. Refused when the type has no property with the meaning identifier, the identifier is also in `properties`, none counts and no `identifierPrefix` is given, or they carry several prefixes and none is given. */
+  readonly nextIdentifier?: boolean;
+  /** Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space. */
+  readonly identifierPrefix?: string;
 }
 
 /**
@@ -3314,6 +3318,8 @@ export interface ElementCreateOutput {
   readonly names?: readonly ElementName[];
   /** Written files, relative to the workspace root. */
   readonly files: readonly OutputPath[];
+  /** With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9). */
+  readonly incomplete?: Incomplete;
   readonly problems?: readonly Problem[];
 }
 
@@ -3593,7 +3599,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json input`.
  */
 export interface ElementSetStatusInput {
@@ -3604,12 +3610,13 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own (D-030, SR-087). A required property without a value blocks no status (SR-243).
  * Schema: `schemas/commands/element.setStatus.json output`.
  */
 export interface ElementSetStatusOutput {
   readonly answer: Answer;
   readonly files: readonly OutputPath[];
+  /** For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2). */
   readonly problems?: readonly Problem[];
 }
 
@@ -4143,6 +4150,34 @@ export interface TraceNeighbourhoodOutput {
     /** The relation or reference stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
+  /** The relations and references that point at the root directly, as the down walk follows them (SR-107 AK5, AK6): one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view (SR-072 AK3). Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`. */
+  readonly incoming?: readonly {
+    /** Relations of one key, or the inline references. */
+    readonly link: "relation" | "reference";
+    /** The frontmatter key, only for `link: relation`. */
+    readonly kind?: Key;
+    /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
+    readonly property?: true;
+    /** The meaning of the relation kind, `reference` for the inline references; left out for a kind without a meaning and for a property. */
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
+    /** The number of all elements of the group; `element.list` with this count gives them all. */
+    readonly count: number;
+    /** The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored, SR-075 AK1), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID. */
+    readonly elements: readonly {
+      readonly id: Uuid;
+      readonly shortId: ShortId;
+      /** Its identifier; left out when it has none. */
+      readonly identifier?: string;
+      /** Key of its type. */
+      readonly type: string;
+      /** Its title; empty without one. */
+      readonly title: string;
+      /** Its status key as written; left out when it has none. */
+      readonly status?: string;
+      /** Workspace name of the repository of its file. */
+      readonly repository: string;
+    }[];
+  }[];
   readonly incomplete: Incomplete;
   /** The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it (#1874). */
   readonly names?: readonly ElementName[];
@@ -4442,7 +4477,7 @@ export interface HintListOutput {
     /** Hints of this kind that pass the filters. */
     readonly count: number;
   }[];
-  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
+  /** The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check, after the warning of each element whose version cannot be computed (file.faulty, as element.get gives it), which workspace.check does not give; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element, #172), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates, D-013). In this order: the warnings without a version, then the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters. */
   readonly hints: readonly Problem[];
   /** The number of all hints that pass the filters; `hints` holds the page of `limit` from `offset`. */
   readonly total: number;

@@ -4,7 +4,15 @@ import { scenariosOf } from "../../scenario.js";
 import type { FixtureOptions } from "@reqseq/testkit";
 import type { Result } from "../../scenario.js";
 import type { Written } from "../../fixtures.js";
-import { FILTER, NESTED, NESTED_A, NEW_CRITERION_KEYS, changedFiles, requiredKey } from "../../fixtures.js";
+import {
+  FILTER,
+  IDENTIFIERS,
+  NESTED,
+  NESTED_A,
+  NEW_CRITERION_KEYS,
+  changedFiles,
+  requiredKey,
+} from "../../fixtures.js";
 
 /** SR-013/own-meanings with an abstract type and a type that inherits from it without the mark (SR-012 AK4). */
 const ABSTRACT: FixtureOptions = {
@@ -22,6 +30,32 @@ const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git
 const TWO_REPOSITORIES: FixtureOptions = { fixture: "SR-021/targets", git: ["system", "sensor"] };
 /** A list property with max-items 3 (SR-171 AK4). */
 const MAX_ITEMS: FixtureOptions = { fixture: "SR-171/max-items", git: true };
+
+/** A requirement of fixtures/enabler-305/identifiers with the spec ID `specId` (SR-245). */
+const specRequirement = (tail: string, specId: string): Record<string, string> => ({
+  [`requirements/SR-0000000b${tail}.md`]:
+    `---\nid: 30500000-0000-4000-8000-0000000b${tail}\ntype: system-requirement\nstatus: draft\n` +
+    `title: Requirement ${tail}\nspec-id: ${specId}\n---\n`,
+});
+/** The spec IDs of fixtures/enabler-305/identifiers and more requirements (SR-245). */
+const identifiersWith = (files: Record<string, string>): FixtureOptions => ({ ...IDENTIFIERS, files });
+/** IDENTIFIERS with the decision's spec ID `D-`, which ends in no digit, so no decision identifier counts (SR-245 AK8). */
+const NO_DECISION_IDENTIFIER = identifiersWith({
+  "decisions/D-0000000c0047.md":
+    "---\nid: 30500000-0000-4000-8000-0000000c0047\ntype: decision\nstatus: draft\ntitle: The spec lives in ReqSeq\nspec-id: D-\n---\n",
+});
+/** IDENTIFIERS whose workspace file lists a second repository, vault, that is not on this machine (SR-245 AK9). */
+const IDENTIFIERS_WITHOUT_VAULT = identifiersWith({
+  "reqseq-workspace.yaml":
+    "reqseq-workspace: 1\nname: ReqSeq spec\nrepositories:\n" +
+    '  - { name: spec, url: "git@git.example.com:reqseq/spec.git", main: true }\n' +
+    '  - { name: vault, url: "git@git.example.com:reqseq/vault.git", path: ../vault }\n' +
+    "metamodel: { repository: spec, path: metamodel }\n",
+});
+
+/** The identifier of the new element core gives (SR-245). */
+const identifierOf = (result: Result | undefined): unknown =>
+  (result?.outcome as { output: Written }).output.element.properties["spec-id"];
 
 /** The error core gives, as far as these checks read it. */
 const errorOf = (result: Result | undefined): { code?: string; details?: Record<string, unknown> } =>
@@ -302,5 +336,126 @@ scenariosOf("element.create", [
     name: "malformed input: readable messages, no regular expression (ThomasBirkmaier/ReqSeq-archive#309)",
     input: { type: "System Requirement", title: 3 },
     expect: "error",
+  },
+  {
+    name: "nextIdentifier gives the identifier after the highest of the type (SR-245)",
+    tag: "[SR-245/AK-tskf]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(identifierOf(results["core"])).toBe("SR-038");
+      expect(results["core"]?.files["system-requirement/SR-<tail12>.md"]).toContain("spec-id: SR-038\n");
+    },
+  },
+  {
+    name: "nextIdentifier keeps the digits of the identifier it follows, at least as many as the number needs (SR-245)",
+    tag: "[SR-245/AK-w5bw]",
+    fixture: identifiersWith(specRequirement("0999", "SR-0999")),
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(identifierOf(results["core"])).toBe("SR-1000");
+    },
+  },
+  {
+    name: "nextIdentifier without a prefix is refused while the identifiers carry several, and names them (SR-245)",
+    tag: "[SR-245/AK-zh91]",
+    fixture: identifiersWith(specRequirement("0100", "REQ-7")),
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({
+        reason: "several-prefixes",
+        count: 2,
+        // SR- has two identifiers, SR-036 and SR-037, so it comes first.
+        prefixes: ["SR-", "REQ-"],
+      });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "nextIdentifier with a prefix no identifier carries starts with 1 (SR-245)",
+    tag: "[SR-245/AK-kscz]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true, identifierPrefix: "Story-" },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(identifierOf(results["core"])).toBe("Story-1");
+    },
+  },
+  {
+    name: "a new identifier prefix that ends with a digit is refused, nothing is written (SR-245)",
+    tag: "[SR-245/AK-kvz3]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true, identifierPrefix: "Story-1" },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "invalid-prefix" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "nextIdentifier for a type without a property with the meaning identifier is refused (SR-245)",
+    tag: "[SR-245/AK-qp1p]",
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "no-identifier-property" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "nextIdentifier with the identifier also given as a property is refused (SR-245)",
+    tag: "[SR-245/AK-pf8m]",
+    fixture: IDENTIFIERS,
+    input: {
+      type: "system-requirement",
+      title: "Next",
+      nextIdentifier: true,
+      properties: { "spec-id": "SR-100" },
+    },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "identifier-given" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "nextIdentifier without an identifier that counts and without a prefix is refused (SR-245)",
+    tag: "[SR-245/AK-fk37]",
+    fixture: NO_DECISION_IDENTIFIER,
+    input: { type: "decision", title: "Next", nextIdentifier: true },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "no-identifiers" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "nextIdentifier while a repository is missing follows the elements here and is incomplete (SR-245)",
+    tag: "[SR-245/AK-tc56]",
+    fixture: IDENTIFIERS_WITHOUT_VAULT,
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(identifierOf(results["core"])).toBe("SR-038");
+      expect((results["core"]?.outcome as { output: { incomplete?: boolean } }).output.incomplete).toBe(true);
+    },
+  },
+  {
+    name: "an identifier prefix without nextIdentifier is refused (SR-245)",
+    tag: "[SR-245/AK-cyr4]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Next", identifierPrefix: "SR-" },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).details).toMatchObject({ reason: "prefix-without-next-identifier" });
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
   },
 ]);

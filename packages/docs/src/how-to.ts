@@ -8,13 +8,14 @@ import { SHORTCUT_TABLES, appCommandEntry } from "@reqseq/app";
 import type { CatalogEntry } from "@reqseq/core";
 import { toolName } from "@reqseq/mcp";
 import type { GeneratedContracts } from "./access.js";
+import { ACCESSES } from "./access-tabs.js";
 import type { GuidePage } from "./examples.js";
 
 /** The folder of the how-to pages below docs/guide/. */
 export const HOW_TO_FOLDER = "how-to";
 
 /** The section headings every how-to page has, in this order. */
-export const ACCESSES: readonly string[] = ["App", "CLI", "API", "MCP"];
+export { ACCESSES };
 
 /** What the accesses of this build offer: command prompt entries, and the input fields of each command. */
 export interface AccessNames {

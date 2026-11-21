@@ -3770,7 +3770,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation.",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID people read and name besides the UUID, from another source or by a running scheme of the project, such as the spec ID SR-036 or a customer ID; unique per type; `element.create` with `nextIdentifier` gives the one after the highest of the type with the same identifier prefix; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation.",
           "enum": [
             "title",
             "validity",
@@ -14060,7 +14060,8 @@
           "SR-064",
           "SR-084",
           "SR-091",
-          "SR-102"
+          "SR-102",
+          "SR-245"
         ],
         "arguments": [
           {
@@ -14094,6 +14095,15 @@
             "field": "folder",
             "complete": "text",
             "class": "path"
+          },
+          {
+            "field": "nextIdentifier",
+            "complete": "boolean"
+          },
+          {
+            "field": "identifierPrefix",
+            "complete": "text",
+            "class": "name"
           }
         ],
         "input": {
@@ -14130,6 +14140,14 @@
             "folder": {
               "type": "string",
               "description": "Folder relative to the repository; default from the type."
+            },
+            "nextIdentifier": {
+              "type": "boolean",
+              "description": "Give the element the identifier after the highest of its type with the same identifier prefix, the part before the digits 0 to 9 at its end: that number plus one, padded to as many digits (`C-003` gives `C-004`, `C-999` gives `C-1000`), with the prefix as written there; prefixes compare in any case. Counts the elements of exactly this type on this machine, superseded ones too. Refused when the type has no property with the meaning identifier, the identifier is also in `properties`, none counts and no `identifierPrefix` is given, or they carry several prefixes and none is given."
+            },
+            "identifierPrefix": {
+              "type": "string",
+              "description": "Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space."
             }
           },
           "additionalProperties": false,
@@ -14163,6 +14181,10 @@
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath"
               }
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete",
+              "description": "With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted."
             },
             "problems": {
               "title": "Problems",
@@ -14588,6 +14610,11 @@
             "path": "files",
             "title": "Files",
             "technical": true
+          },
+          {
+            "path": "incomplete",
+            "title": "Incomplete",
+            "normal": false
           },
           {
             "path": "problems",
@@ -18639,7 +18666,7 @@
       {
         "name": "element.setStatus",
         "title": "Set status",
-        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own. A required property without a value blocks no status.",
         "details": "Only a status of each element's type is taken (`statuses` of the type in metamodel.get); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional.",
         "effect": "write-files",
         "loadUpfront": true,
@@ -18648,7 +18675,8 @@
         "stage": 1,
         "implements": [
           "SR-017",
-          "SR-087"
+          "SR-087",
+          "SR-243"
         ],
         "arguments": [
           {
@@ -18705,6 +18733,7 @@
             },
             "problems": {
               "title": "Problems",
+              "description": "For each element, element.missing-required for each required property without a value; then, with a status the metamodel marks invalid, the hints on relations to these elements.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
@@ -23148,6 +23177,114 @@
                 ]
               }
             },
+            "incoming": {
+              "title": "Incoming by kind",
+              "type": "array",
+              "description": "The relations and references that point at the root directly, as the down walk follows them: one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view. Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`.",
+              "x-key": [
+                "link",
+                "kind"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "title": "Relation or reference",
+                    "enum": [
+                      "relation",
+                      "reference"
+                    ],
+                    "description": "Relations of one key, or the inline references."
+                  },
+                  "kind": {
+                    "title": "Relation kind",
+                    "$ref": "../common.schema.json#/$defs/key",
+                    "description": "The frontmatter key, only for `link: relation`."
+                  },
+                  "property": {
+                    "title": "Property",
+                    "const": true,
+                    "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
+                  },
+                  "meaning": {
+                    "title": "Meaning",
+                    "enum": [
+                      "derivation",
+                      "replacement",
+                      "succession",
+                      "exclusion",
+                      "reference"
+                    ],
+                    "description": "The meaning of the relation kind, `reference` for the inline references; left out for a kind without a meaning and for a property."
+                  },
+                  "count": {
+                    "title": "Count",
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The number of all elements of the group; `element.list` with this count gives them all.",
+                    "x-elements": "selection"
+                  },
+                  "elements": {
+                    "title": "Elements",
+                    "type": "array",
+                    "maxItems": 100,
+                    "description": "The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "title": "Element",
+                          "$ref": "../common.schema.json#/$defs/uuid"
+                        },
+                        "shortId": {
+                          "title": "Short ID",
+                          "$ref": "../common.schema.json#/$defs/shortId"
+                        },
+                        "identifier": {
+                          "title": "Identifier",
+                          "type": "string",
+                          "description": "Its identifier; left out when it has none."
+                        },
+                        "type": {
+                          "title": "Type",
+                          "description": "Key of its type.",
+                          "type": "string"
+                        },
+                        "title": {
+                          "title": "Title",
+                          "description": "Its title; empty without one.",
+                          "type": "string"
+                        },
+                        "status": {
+                          "title": "Status",
+                          "description": "Its status key as written; left out when it has none.",
+                          "type": "string"
+                        },
+                        "repository": {
+                          "title": "Repository",
+                          "description": "Workspace name of the repository of its file.",
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "shortId",
+                        "type",
+                        "title",
+                        "repository"
+                      ]
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "link",
+                  "count",
+                  "elements"
+                ]
+              }
+            },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"
             },
@@ -23291,6 +23428,70 @@
           {
             "path": "edges[].outdated",
             "title": "Outdated"
+          },
+          {
+            "path": "incoming",
+            "title": "Incoming by kind"
+          },
+          {
+            "path": "incoming[].link",
+            "title": "Relation or reference"
+          },
+          {
+            "path": "incoming[].kind",
+            "title": "Relation kind"
+          },
+          {
+            "path": "incoming[].property",
+            "title": "Property"
+          },
+          {
+            "path": "incoming[].meaning",
+            "title": "Meaning"
+          },
+          {
+            "path": "incoming[].count",
+            "title": "Count",
+            "elements": "selection",
+            "keys": [
+              [
+                "link",
+                "kind"
+              ]
+            ]
+          },
+          {
+            "path": "incoming[].elements",
+            "title": "Elements"
+          },
+          {
+            "path": "incoming[].elements[].id",
+            "title": "Element",
+            "technical": true
+          },
+          {
+            "path": "incoming[].elements[].shortId",
+            "title": "Short ID"
+          },
+          {
+            "path": "incoming[].elements[].identifier",
+            "title": "Identifier"
+          },
+          {
+            "path": "incoming[].elements[].type",
+            "title": "Type"
+          },
+          {
+            "path": "incoming[].elements[].title",
+            "title": "Title"
+          },
+          {
+            "path": "incoming[].elements[].status",
+            "title": "Status"
+          },
+          {
+            "path": "incoming[].elements[].repository",
+            "title": "Repository"
           },
           {
             "path": "incomplete",
@@ -25558,7 +25759,7 @@
             "hints": {
               "title": "Hints",
               "type": "array",
-              "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
+              "description": "The open hints: problems of severity warning about one element (the element should be checked; a hint blocks nothing and changes no status), from the same whole-workspace problems as workspace.check, after the warning of each element whose version cannot be computed (file.faulty, as element.get gives it), which workspace.check does not give; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line, and its title elementTitle), its target where it has one (targetId; with targetRepository, targetShortId, targetIdentifier and targetTitle when it was resolved to one element), for an outdated verification or validation status (`evidence.outdated`) the view whose status is outdated (view) and its reason (message; for an outdated relation with both versions and their dates). In this order: the warnings without a version, then the order of workspace.check. Only the page of `limit` hints from `offset` (in this order) is listed; `total` counts every hint that passes the filters.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               }

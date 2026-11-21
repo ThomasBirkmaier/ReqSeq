@@ -17,7 +17,7 @@ ReqSeq never deletes an element. You supersede an approved one: it gets an inval
 
 ## CLI
 
-The commands start from a new workspace; in yours, use your own short IDs.
+Start from a new workspace; in yours, use your own short IDs.
 
 ```sh
 reqseq workspace init . "Weather station"
@@ -83,11 +83,16 @@ reqseq element set-status approved --refs N-7fe707 --refs SR-c67baa --refs SR-5e
 ```
 
 ```text title="Output"
-Set the status of 3 elements to approved.
+Set the status of 3 elements to approved; 4 problems.
 files:
 ...
-No problems.
+warning  element.missing-required  ...
+warning  element.missing-required  ...
+warning  element.missing-required  ...
+warning  element.missing-required  ...
 ```
+
+The status is set even where a required property has no value; the output names each one.
 
 Before you change the need, see what traces to it:
 
@@ -202,7 +207,7 @@ POST /v1/commands/element.supersede
 { "ref": "SR-5e1d0a", "status": "obsolete", "successor": "SR-62fb87" }
 ```
 
-The answer is the output of the command as JSON, the same as `--json` of the CLI.
+The answer is the command's output as JSON, as `--json` gives it.
 
 ## MCP
 
