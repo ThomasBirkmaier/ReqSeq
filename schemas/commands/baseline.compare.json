@@ -1,6 +1,6 @@
 {
   "name": "baseline.compare",
-  "title": "Compare baseline",
+  "title": "Show Git command to compare baseline",
   "summary": "The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.",
   "effect": "read",
   "stage": 5,

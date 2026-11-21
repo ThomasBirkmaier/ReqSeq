@@ -598,10 +598,7 @@ describe("NeighbourhoodView", () => {
         }),
       ),
     );
-    expect(texts(".quiet")).toEqual([
-      "Only the first 5000 elements of the tree are shown",
-      "Only the first 5000 incoming links are shown",
-    ]);
+    expect(texts(".quiet")).toEqual(["Only the nearest 5000 are shown.", "Only the nearest 5000 are shown."]);
   });
 
   it("leaves the keys of a link in the parents line to the link", async () => {

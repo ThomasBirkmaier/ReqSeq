@@ -367,7 +367,13 @@ describe("reqif.import (SR-053)", () => {
     const missing = await failure(workspace, { ...INPUT, file: "in/missing.reqif" });
     expect([missing.code, missing.message]).toEqual([
       "file.faulty",
-      "file: cannot read missing.reqif: ENOENT",
+      `file: there is no file ${path.resolve(fixture.root, "in", "missing.reqif")}`,
+    ]);
+    // Any other reason keeps its code; a file in place of a folder is ENOTDIR (Windows: no such file).
+    const under = await failure(workspace, { ...INPUT, file: "in/not.reqif/x.reqif" });
+    expect([under.code, under.message]).toEqual([
+      "file.faulty",
+      expect.stringMatching(/^file: (cannot read x\.reqif: ENOTDIR|there is no file .*x\.reqif)$/),
     ]);
     const unnamed = await failure(workspace, { file: "in/lieferung.reqif", delivery: "x" });
     expect([unnamed.code, unnamed.details?.["fields"]]).toEqual(["input.invalid", ["mapping"]]);

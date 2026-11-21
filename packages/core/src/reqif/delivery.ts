@@ -27,9 +27,11 @@ const readBytes = async (root: string, given: string): Promise<Uint8Array> => {
   try {
     handle = await fs.open(absolute, READ_NOW);
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    // A missing file names the path looked at, so a typo or a wrong folder shows (#2261).
     throw new CommandError(
       "file.faulty",
-      `file: cannot read ${name}: ${String((error as NodeJS.ErrnoException).code)}`,
+      code === "ENOENT" ? `file: there is no file ${absolute}` : `file: cannot read ${name}: ${String(code)}`,
       { fields: ["file"] },
     );
   }
