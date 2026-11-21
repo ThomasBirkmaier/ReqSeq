@@ -8994,22 +8994,7 @@
                       "type": "array",
                       "description": "The elements whose file the change rewrites, in store order.",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "title": "Element",
-                            "$ref": "#/components/schemas/common/$defs/uuid"
-                          },
-                          "shortId": {
-                            "title": "Short ID",
-                            "$ref": "#/components/schemas/common/$defs/shortId"
-                          }
-                        },
-                        "additionalProperties": false,
-                        "required": [
-                          "id",
-                          "shortId"
-                        ]
+                        "$ref": "#/components/schemas/common/$defs/countedElement"
                       },
                       "x-elements": true
                     },
@@ -9045,6 +9030,11 @@
                             "title": "Short ID",
                             "$ref": "#/components/schemas/common/$defs/shortId"
                           },
+                          "repository": {
+                            "title": "Repository",
+                            "type": "string",
+                            "description": "Workspace name of the repository of its file."
+                          },
                           "reason": {
                             "title": "Reason",
                             "description": "`not-a-property`: the type of the element does not have the property. `unknown-type`: the metamodel has no type of the element, so it is only read.",
@@ -9063,6 +9053,7 @@
                         "required": [
                           "id",
                           "shortId",
+                          "repository",
                           "reason",
                           "message"
                         ]
@@ -9283,6 +9274,11 @@
                             "title": "Short ID",
                             "$ref": "#/components/schemas/common/$defs/shortId"
                           },
+                          "repository": {
+                            "title": "Repository",
+                            "type": "string",
+                            "description": "Workspace name of the repository of its file."
+                          },
                           "assigned": {
                             "title": "Criteria with a new key",
                             "type": "integer",
@@ -9294,6 +9290,7 @@
                         "required": [
                           "id",
                           "shortId",
+                          "repository",
                           "assigned"
                         ]
                       },
@@ -9314,6 +9311,11 @@
                             "title": "Short ID",
                             "$ref": "#/components/schemas/common/$defs/shortId"
                           },
+                          "repository": {
+                            "title": "Repository",
+                            "type": "string",
+                            "description": "Workspace name of the repository of its file."
+                          },
                           "reason": {
                             "title": "Reason",
                             "description": "`unknown-type`: the metamodel has no type of the element, so it is only read.",
@@ -9331,6 +9333,7 @@
                         "required": [
                           "id",
                           "shortId",
+                          "repository",
                           "reason",
                           "message"
                         ]
@@ -22023,7 +22026,7 @@
             "title": "Incomplete"
           },
           "selection": {
-            "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.",
+            "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.",
             "type": "object",
             "properties": {
               "ids": {
@@ -22031,6 +22034,30 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/common/$defs/elementRef"
+                }
+              },
+              "inRepository": {
+                "title": "Elements in a repository",
+                "type": "array",
+                "description": "Explicit IDs named with their repository: each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "title": "Element",
+                      "$ref": "#/components/schemas/common/$defs/uuidRef"
+                    },
+                    "repository": {
+                      "title": "Repository",
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "repository"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "filter": {

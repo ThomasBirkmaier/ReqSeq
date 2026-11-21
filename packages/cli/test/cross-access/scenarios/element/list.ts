@@ -153,6 +153,32 @@ scenariosOf("element.list", [
     },
   },
   {
+    tag: "[SR-101/AK-w8dm]",
+    name: "a selection by UUID and repository: the copy in that repository only, where ids would be ambiguous (#2024)",
+    fixture: {
+      ...EXPORT,
+      files: {
+        "system/requirements/SR-0000000000e1.md":
+          "---\nid: 61061061-0000-4000-8000-0000000000e1\ntype: system-requirement\nstatus: draft\ntitle: Heat the anemometer\n---\n",
+      },
+    },
+    root: "system",
+    input: {
+      selection: { inRepository: [{ id: "61061061-0000-4000-8000-0000000000E1", repository: "sensor" }] },
+    },
+    expect: "output",
+    check: (results) => {
+      const { elements } = (
+        results["core"]?.outcome as {
+          output: { elements: readonly { repository: string; file: string }[] };
+        }
+      ).output;
+      expect(elements.map((e) => `${e.repository}:${e.file}`)).toEqual([
+        "sensor:requirements/SR-0000000000e1.md",
+      ]);
+    },
+  },
+  {
     tag: "[SR-224/AK-v2bx]",
     name: "a selection by the output of a command: every element it affects, not only the page its input names",
     fixture: EXPORT,

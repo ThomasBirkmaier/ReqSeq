@@ -358,6 +358,7 @@ describe("inputFields", () => {
           ),
       );
     };
+    // `selection.inRepository`, a list of objects, gets no flag: JSON input only (#2024).
     expect(flags("element.list")).toEqual({
       ids: "selection.ids:property[]",
       filter: "selection.filter:property",

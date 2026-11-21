@@ -605,7 +605,7 @@
       "title": "Incomplete"
     },
     "selection": {
-      "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, optionally seen through a variant view.",
+      "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline, the output of a read command or explicit IDs, also named with their repository, optionally seen through a variant view.",
       "type": "object",
       "properties": {
         "ids": {
@@ -613,6 +613,27 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/elementRef"
+          }
+        },
+        "inRepository": {
+          "title": "Elements in a repository",
+          "type": "array",
+          "description": "Explicit IDs (SR-101) named with their repository (D-058): each a UUID and the workspace name of the repository of its file, for every element with that UUID there. An item that names none is ref.unknown.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "title": "Element",
+                "$ref": "#/$defs/uuidRef"
+              },
+              "repository": {
+                "title": "Repository",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["id", "repository"],
+            "additionalProperties": false
           }
         },
         "filter": {

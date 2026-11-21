@@ -217,8 +217,8 @@ export {
   shortIdsBuiltFrom,
 } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
-export { resolveListRef, resolveRef } from "./resolve.js";
-export type { ElementCopy } from "./resolve.js";
+export { resolveInRepository, resolveListRef, resolveRef } from "./resolve.js";
+export type { ElementCopy, InRepository } from "./resolve.js";
 export { isKnownVersion, isOutdatedVersion, isVersion } from "./is-version.js";
 export {
   elementVersion,

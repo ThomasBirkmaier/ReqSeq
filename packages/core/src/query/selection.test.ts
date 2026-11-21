@@ -6,6 +6,15 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandError } from "../catalog.js";
+import {
+  COPIED,
+  COPIED_FILES,
+  GUSTS_COPY,
+  GUSTS_FILE,
+  openCopied,
+  openCopiedFile,
+} from "../commands/copied.test-helper.js";
+import type { ElementSelection } from "../generated/types.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { SelectionContext } from "./selection.js";
 import { resolveSelection } from "./selection.js";
@@ -72,6 +81,96 @@ describe("selection by baseline", () => {
       message:
         'selection.baseline: no baseline is named "Release 1" and no baseline file has that name; the baselines folder is in repository sensor, which is not on this machine',
       details: { command: "data.export", fields: ["selection.baseline"] },
+    });
+  });
+});
+
+describe("selection by UUID and repository (inRepository, #2024)", () => {
+  /** A need of fixtures/SR-089/missing-targets, in `system` only. */
+  const NEED = "7d2c9e4f-1a3b-4c5d-8e6f-0a1b2c3d4e5f";
+  const where = (elements: readonly { readonly repository: string; readonly file: string }[]): string[] =>
+    elements.map((e) => `${e.repository}:${e.file}`);
+  const errorOf = async (workspace: Workspace, selection: ElementSelection): Promise<unknown> =>
+    resolveSelection(callerOf(workspace), selection, "element.list").then(
+      () => undefined,
+      (e: unknown) => (e as CommandError).toJSON(),
+    );
+
+  it("[SR-101/AK-w8dm] selects the copy of a UUID in the repository named, which ids refuses as ambiguous", async () => {
+    const workspace = await openCopied();
+    const caller = callerOf(workspace);
+    const sensor = await resolveSelection(
+      caller,
+      { inRepository: [{ id: GUSTS_COPY.toUpperCase(), repository: "sensor" }] },
+      "element.list",
+    );
+    expect(where(sensor.elements)).toEqual([`sensor:${GUSTS_FILE}`]);
+    const both = await resolveSelection(
+      caller,
+      {
+        inRepository: [
+          { id: GUSTS_COPY, repository: "sensor" },
+          { id: GUSTS_COPY, repository: "system" },
+          { id: GUSTS_COPY, repository: "sensor" },
+        ],
+      },
+      "element.list",
+    );
+    // Store order, each once.
+    expect(where(both.elements)).toEqual([`system:${GUSTS_FILE}`, `sensor:${GUSTS_FILE}`]);
+    expect(await errorOf(workspace, { ids: [GUSTS_COPY] })).toMatchObject({ code: "ref.ambiguous" });
+    expect((await resolveSelection(caller, { inRepository: [] }, "element.list")).elements).toEqual([]);
+  });
+
+  it("[SR-101/AK-w8dm] holds with every other part of the selection, ids included", async () => {
+    const workspace = await openCopied();
+    const caller = callerOf(workspace);
+    const inRepository = [
+      { id: GUSTS_COPY, repository: "sensor" },
+      { id: NEED, repository: "system" },
+    ];
+    const withIds = await resolveSelection(
+      caller,
+      { inRepository, ids: [NEED, "SR-c4d5e6f7a8b9"] },
+      "element.list",
+    );
+    expect(withIds.elements.map((e) => e.id)).toEqual([NEED]);
+    const withWhere = await resolveSelection(
+      caller,
+      { inRepository, where: { type: ["system-requirement"] } },
+      "element.list",
+    );
+    expect(where(withWhere.elements)).toEqual([`sensor:${GUSTS_FILE}`]);
+  });
+
+  it("[SR-101/AK-w8dm] selects both copies of a UUID in one repository", async () => {
+    const selected = await resolveSelection(
+      callerOf(await openCopiedFile()),
+      { inRepository: [{ id: COPIED, repository: "system" }] },
+      "element.list",
+    );
+    expect(selected.elements.map((e) => e.file).sort()).toEqual([...COPIED_FILES].sort());
+  });
+
+  it("[SR-101/AK-w8dm] refuses an item that names no element, as an ids item", async () => {
+    const workspace = await openCopied();
+    expect(await errorOf(workspace, { inRepository: [{ id: GUSTS_COPY, repository: "vault" }] })).toEqual({
+      code: "ref.unknown",
+      message: `${GUSTS_COPY} names no element in repository vault; see the candidates for where it is`,
+      details: {
+        ref: GUSTS_COPY,
+        repository: "vault",
+        candidates: [
+          { id: GUSTS_COPY, repository: "system", file: GUSTS_FILE },
+          { id: GUSTS_COPY, repository: "sensor", file: GUSTS_FILE },
+        ],
+      },
+    });
+    const unknown = "0f0e0d0c-0b0a-4908-8706-050403020100";
+    expect(await errorOf(workspace, { inRepository: [{ id: unknown, repository: "system" }] })).toEqual({
+      code: "ref.unknown",
+      message: `No element has the UUID "${unknown}"`,
+      details: { ref: unknown },
     });
   });
 });
