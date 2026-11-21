@@ -5566,7 +5566,7 @@
       {
         "name": "workspace.check",
         "title": "Check workspace",
-        "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. ok is false, and the CLI exits 1, on problems at or above failOn (default error).",
+        "summary": "Check the whole workspace, or only what changed, against the metamodel and list every problem found. It fails on errors, or on problems at or above the severity you choose.",
         "details": "The checks: faulty files, required and unknown properties, statuses outside the type and missing statuses, requirements with a statement but no text (a warning), missing targets, cycles, requirements without a parent (a warning): elements of a type with the meaning requirement that name no parent through a relation kind with the meaning derivation, so based-on does not count, and elements with a status the metamodel marks invalid (such as superseded) are left out; `metamodel.get` lists both meanings under `meanings`; elements with more or fewer relations of a kind than its limits allow (a hint), lists with more entries than the property's max-items (a hint), duplicate IDs, relations into another repository that store a title (a warning), outdated relations, evidence records that cannot be read or name an unknown element, and a repository that is a workspace of its own whose metamodel counts other properties to the version.",
         "effect": "read",
         "loadUpfront": true,
@@ -5641,7 +5641,7 @@
                 "info"
               ],
               "default": "error",
-              "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
+              "description": "Lowest severity of a problem that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, `error`, warnings and info never fail the check."
             }
           },
           "additionalProperties": false
@@ -6954,7 +6954,7 @@
       {
         "name": "tool.guide",
         "title": "Agent guide",
-        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace; with `skill`, the skill file instead, and with `instructions`, the MCP server instructions.",
+        "summary": "The guide for an AI agent that works with ReqSeq: the steps from need to verification degree with the command of each step, the rules, and the types, statuses and evidence locations of this workspace. On request it gives the skill file or the MCP server instructions instead.",
         "details": "The text is the same in every access for the same input. `names` chooses whether commands appear as command-line calls or as MCP tool names; the calls for a pipeline are always command-line calls. Without a workspace, or with a metamodel that cannot be read, the guide leaves out the facts of the metamodel and says why; without a workspace it names the call that creates one. With `skill`, the output is the skill file `managing-requirements` in the format of Agent Skills: the workflows as numbered steps, each command as MCP tool and command-line call, no name of the metamodel, and the version of ReqSeq and a checksum in its frontmatter. With `write`, it is written at two places, in this order, each on its own: `.claude/skills/managing-requirements/SKILL.md`, where Claude Code looks, and `.agents/skills/managing-requirements/SKILL.md`, where other clients look, both in the root of the Git repository of the workspace folder, or in the workspace folder without Git. At each place, a file that ReqSeq did not write, or that was changed since, is replaced only with `replace`, which holds for every place. Through the API and the MCP server, a place outside the repositories of the workspace is refused with the command-line call that writes the file. A folder `.agents/skills` linked to `.claude/skills` inside the repository finds the file the first place wrote, so the second place is `unchanged`; a link at `SKILL.md` itself is refused. When a place is not written, the other places are written all the same and the call fails: the error has the code of the first place not written, names each place with its result, and lists them in `details.places`. With `instructions`, the output is what the MCP server sends as its instructions: the title of the guide, a paragraph that says to read the guide with `tool_guide` before the first step, and the rules section with MCP tool names; it reads nothing from the folder, so it is the same with or without a workspace, and is at most 4,000 characters long. `instructions` and `skill` cannot be given together.",
         "effect": "write-files",
         "whileReadOnly": "allow",
@@ -25540,7 +25540,7 @@
       {
         "name": "hint.confirm",
         "title": "Confirm hints",
-        "summary": "Confirm hints after a person reviewed them, by ID (hintIds), all of one element (ref, target) or all of some codes (all with kind and expected): writes the current target version into the relation, the inline reference or the replaces item.",
+        "summary": "Confirm hints after a person reviewed them: by hint ID, all confirmable hints of one element, or those of the whole workspace with some codes. It writes the current version of the target into the relation, the inline reference or the `replaces` item.",
         "details": "With all, `expected` is the total of hint.list with that kind. It writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`; `relation.outdated`) or into the `replaces` item (`variant.core-changed`), and nothing else but the current titles of the file's same-repository targets. An ID no open hint has gives a warning, for example one confirmed already.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
@@ -30203,7 +30203,7 @@
                 "verification",
                 "validation"
               ],
-              "description": "Verification of a requirement, or validation of a need or a requirement. A validation record counts for the validation status only."
+              "description": "Verification of a requirement, or validation of a need or a requirement. Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only."
             },
             "method": {
               "enum": [
@@ -30640,7 +30640,7 @@
       {
         "name": "evidence.enrichJunit",
         "title": "Enrich JUnit file",
-        "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
+        "summary": "Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.",
         "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
         "effect": "write-files",
         "loadUpfront": true,
@@ -30689,7 +30689,7 @@
           "properties": {
             "file": {
               "$ref": "../common.schema.json#/$defs/localPath",
-              "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
+              "description": "The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (version from the tested state)."
             },
             "item": {
               "$ref": "../common.schema.json#/$defs/item",
@@ -30758,7 +30758,7 @@
             "unknown": {
               "title": "Unknown references",
               "type": "array",
-              "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged.",
+              "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1).",
               "items": {
                 "type": "object",
                 "properties": {
@@ -34629,7 +34629,7 @@
       {
         "name": "baseline.get",
         "title": "Show baseline",
-        "summary": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; with withEvidence also the verification and validation status at their version in the baseline.",
+        "summary": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.",
         "details": "With withEvidence: the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named. The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
         "effect": "read",
         "staysOutputPage": true,
@@ -38351,8 +38351,8 @@
       {
         "name": "reqif.export",
         "title": "Export ReqIF",
-        "summary": "Export a selection, or with `statements` or `sourceModel` the elements of the mapping's source, as ReqIF 1.2: IDENTIFIER `_` plus the UUID, text as XHTML and as `reqseq-markdown`, relations as SPEC-RELATIONs, targets outside the export as stubs.",
-        "details": "With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
+        "summary": "Export a selection as ReqIF 1.2, or the elements of a mapping's source back to it, with their statements or in its source model.",
+        "details": "Without `statements` or `sourceModel`, each element goes by IDENTIFIER `_` plus its UUID, with its text as XHTML and as `reqseq-markdown`, its relations as SPEC-RELATIONs, and targets outside the export as stubs. With `statements`, each element goes by its source IDENTIFIER with only its statement. With `sourceModel`, it goes by its source IDENTIFIER in the source's types and attributes, without `reqseq-markdown` and without SPEC-RELATIONs; a value that does not fit its attribute refuses the export.",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Exports the types and properties of the metamodel, which is missing or faulty.",

@@ -127,6 +127,8 @@ const harness = (gate: ReadGate) => {
       recents: [],
       recent: [],
       openPerspective: () => undefined,
+      steps: [],
+      runStep: () => undefined,
     },
     element,
     gate,

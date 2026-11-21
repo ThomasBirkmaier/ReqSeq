@@ -71,7 +71,7 @@ const findingsOf = (context: SupersededContext, scope: Scope, record: ElementRec
     const problem: Problem = {
       code: "variant.nested",
       severity: "warning",
-      message: `${scope.validity.label} of ${source} names ${named}, but a variant builds only on the core (D-020)`,
+      message: `${scope.validity.label} of ${source} names ${named}, but a variant builds only on the core`,
       repository: record.repository,
       file: record.file,
       elementId: record.id,

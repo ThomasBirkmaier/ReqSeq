@@ -74,7 +74,7 @@
       },
       "kind": {
         "enum": ["verification", "validation"],
-        "description": "Verification of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3)."
+        "description": "Verification of a requirement, or validation of a need or a requirement (D-007, D-012). Any other element is `input.invalid` with `details.reason` `wrong-type`. A validation record counts for the validation status only (SR-030 AK3)."
       },
       "method": {
         "enum": ["test", "analysis", "inspection", "demonstration"],

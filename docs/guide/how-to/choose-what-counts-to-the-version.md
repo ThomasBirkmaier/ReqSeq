@@ -1,5 +1,5 @@
 ---
-title: Choose what counts to the version
+title: Decide which changes make a new version
 description: Mark the properties whose change gives an element a new version, so that its evidence and the relations to it become outdated.
 sidebar:
   order: 5.1

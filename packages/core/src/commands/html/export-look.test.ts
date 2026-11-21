@@ -119,8 +119,13 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       expect(page).toMatch(/<button popovertarget="starlight__sidebar" class="sl-menu-button[^"]*"/u);
       expect(page).toContain('<sl-sidebar-pane id="starlight__sidebar"');
     }
-    // The docs' right column "On this page" on a page with sections, with Overview and a link to each section;
-    // a page without sections has none, as on the docs site.
+    // The browser tab names the page and the site, the start page the site alone (#2206).
+    const siteName = String(
+      /<title>[^<]+ \| ([^|<]+)<\/title>/u.exec(await read(site, `elements/${WIND}.html`))?.[1],
+    );
+    expect(await read(site, "index.html")).toContain(`<title>${siteName}</title>`);
+    // The docs' right column "On this page" on every page, with Overview and a link to each section, so content and
+    // header keep one position on every page (#2181).
     const start = await read(site, "index.html");
     expect(start).toMatch(/^<html [^>]* data-has-toc>$/mu);
     const toc = String(/<starlight-toc[^]*?<\/starlight-toc>/u.exec(start)?.[0]);
@@ -135,8 +140,19 @@ describe("html.export looks like the docs (SR-231 AK4)", () => {
       ["types", "Elements by type"],
     ]);
     const list = await read(site, "lists/system-requirement.html");
-    expect(list).not.toContain("right-sidebar-container");
-    expect(list).not.toContain("data-has-toc");
+    expect(list).toMatch(/^<html [^>]* data-has-toc>$/mu);
+    const listToc = String(/<starlight-toc[^]*?<\/starlight-toc>/u.exec(list)?.[0]);
+    expect(
+      [...listToc.matchAll(/<a href="#([^"]+)"[^>]*><span[^>]*>([^<]*)</gu)].map((m) => [m[1], m[2]]),
+    ).toEqual([["_top", "Overview"]]);
+    // Beside that column the list table fits its container on wide screens: heads wrap, the title takes the rest;
+    // on a phone, the tables of a baseline scroll in themselves, not the page.
+    expect(list).toContain('<th scope="col" class="rq-title">Title</th>');
+    const own = await read(site, "assets/reqseq.css");
+    expect(own).toContain("@media (min-width: 50em) { .rq-baseline table:not(:where(.not-content *))");
+    expect(own).toContain(
+      "@media (min-width: 72rem) { .rq-list .rq-list-table :is(th, td) { padding-inline: 0.4rem; } .rq-list .rq-list-table thead th, .rq-list .rq-badge { white-space: normal; } .rq-list .rq-list-table .rq-title { width: 100%; overflow-wrap: anywhere; } }",
+    );
     expect(await read(site, "assets/reqseq.js")).toContain('matchMedia("(min-width: 50em)")');
     expect(await read(site, "assets/theme.js")).toContain("prefers-color-scheme: light");
   });

@@ -5,17 +5,17 @@ sidebar:
   order: 1
 ---
 
-The app works like a text editor: you run everything from one command prompt, and what you open is a buffer. On macOS, read ⌘ for Ctrl and ⌥ for Alt in every key but Ctrl+click.
+The app works like a text editor: you run everything from one command prompt, and what you open is a buffer.
 
 ## Open a workspace
 
-On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O, the key of **File > Open Workspace…**, opens the folder dialog. **Open workspace** in the command prompt offers recent workspaces, or takes a folder path.
+On Windows and Linux the menu bar is hidden until you press Alt. Ctrl+O (⌘O), the key of **File > Open Workspace…**, opens the folder dialog. **Open workspace** offers recent workspaces, or takes a folder path.
 
 ## The command prompt
 
-Ctrl+Shift+P, or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the marked entry, Escape steps back, then closes.
+Ctrl+Shift+P (⌘⇧P), or a click on the bottom line, opens the command prompt: up to nine commands for the shown buffer, most used first, then **All commands…**. Typing searches all (`tr ch` finds **Show trace chain**). Enter runs the marked entry, Escape steps back, then closes.
 
-An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F for **Search elements**; others follow the prefix key Ctrl+K, such as Ctrl+K E for **Create element**. Press Ctrl+K and wait for the next letters.
+An entry with a key shows it, so the prompt teaches the keys. The most frequent commands have one of their own, such as Ctrl+Shift+F (⌘⇧F) for **Search elements**; others follow the prefix key Ctrl+K (⌘K), such as Ctrl+K E (⌘K E) for **Create element**. Press it and wait for the next letters.
 
 The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result ([command reference](/reference/commands/)), except those whose output the app shows elsewhere; F1 on one opens its reference page.
 
@@ -23,27 +23,27 @@ The prompt's ReqSeq commands are those of CLI, API and MCP, with the same result
 
 ## Messages and the modeline
 
-The command prompt also shows the last message, and a command needing input asks there, argument by argument, with the candidates above it. Enter answers; Ctrl+Enter offers optional arguments or confirms.
+The prompt also shows the last message, and a command needing input asks there, argument by argument, candidates above. Enter answers; Ctrl+Enter (⌘↩) offers optional arguments or confirms.
 
 Above it, the modeline describes the buffer (a list by filter, sort and count, an element by ID, type, status and hints) and names the workspace.
 
 ## Buffers
 
-Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P goes to any buffer or element by name; Alt+P and Alt+N, the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B) saves an element's input first.
+Lists, search results, elements, neighbourhoods, graphs, matrices, the metamodel and command output each open in a buffer; opening one again shows it. Ctrl+P (⌘P) goes to any buffer or element by name; Alt+P (⌥P) and Alt+N (⌥N), the mouse buttons Back and Forward, a two-finger swipe on the trackpad and, except on macOS, a sideways mouse wheel go back and forth with a sideways slide. **Close buffer** (Ctrl+K B, ⌘K B) saves an element's input first.
 
-A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last; Enter or a click opens a line. Your buffers come back behind it.
+A workspace opens on the overview: counts per type and for up to ten **Perspectives**, and the elements you opened last, or without elements those of **Create element**, **Import ReqIF file** and **Connect AI agent** runnable there; Enter or a click opens or runs a line. Your buffers come back behind it.
 
 ![The overview of a workspace with one need and one system requirement, and the modeline at the bottom.](../images/app-overview.png)
 
-**Split window** shows two buffers side by side; the other pane previews the element you mark in a list or graph, until you work in it. Alt+O switches panes, **Unsplit window** ends the split.
+**Split window** shows two buffers side by side; the other pane previews the element you mark in a list or graph, until you work in it. Alt+O (⌥O) switches panes, **Unsplit window** ends the split.
 
 ## Context menus
 
-A right-click (on macOS also Ctrl+click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, lists every command there.
+A right-click (on macOS also Control-click) on a row, the text, a field, a graph node or a matrix cell opens the commands for that place, named and keyed as in the prompt. Its last entry, **All commands…**, lists every command there.
 
 ## Help
 
-**Help > ReqSeq Documentation**, or **Open documentation** in the command prompt, opens the documentation of this ReqSeq version in your browser, offline.
+**Help > ReqSeq Documentation**, or **Open documentation**, opens this version's documentation in your browser, offline.
 
 ## Light and dark
 
@@ -51,6 +51,6 @@ The app follows your system; **Toggle dark mode** switches until it quits, **Fol
 
 ## Following an agent
 
-While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O) shows the element it read or changed last, in one buffer that shows its next step too (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
+While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O, ⌘⇧O) shows the element it read or changed last, in one buffer that shows its next step too (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
 
 All keys: [keyboard shortcuts](/reference/keyboard-shortcuts/).

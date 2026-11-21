@@ -1,7 +1,7 @@
 // The sections of an element's page and the names of linked elements (SR-232 AK1, AK2, SR-231 AK8) for what a
 // workspace seldom shows: every state of a relation's other end, an unknown variant, a requirement in no view, values
-// that are no text, and a short page without identifier, title or successor. The pages as a whole are tested in
-// commands/html/export-element.test.ts.
+// that are no text, a relation of a kind the metamodel does not know, and a short page without identifier, title or
+// successor. The pages as a whole are tested in commands/html/export-element.test.ts.
 import { describe, expect, it } from "vitest";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -13,6 +13,7 @@ import { criteriaSection } from "./section-criteria.js";
 import { viewName } from "./section-fields.js";
 import type { NeighbourhoodSource } from "./section-neighbourhood.js";
 import { propertiesSection } from "./section-properties.js";
+import { relationsSection } from "./section-relations.js";
 import { stubPageBody } from "./stub-page.js";
 
 const ID = "aaaa1111-1111-4111-8111-000000000001";
@@ -168,6 +169,41 @@ describe("element page sections (SR-232 AK1, AK2)", () => {
     expect(
       await criteriaSection(plain, page({ element: element(), criteria: { property: "ak", criteria: [] } })),
     ).toBe("");
+  });
+
+  it("[SR-232/AK-cj5d] shows a relation of a kind the metamodel does not know by its key, after the known kinds", () => {
+    const target = (
+      kind: string,
+      title: string,
+      more: Partial<DataExportRelation> = {},
+    ): DataExportRelation =>
+      relation({ kind, shortId: "SR-000001", title, targetState: "available", ...more });
+    const html = relationsSection(
+      context({
+        relations: [
+          { key: "based-on", name: "Based on" },
+          { key: "derives-from", name: "Derives from" },
+        ] as unknown as Metamodel["relations"],
+      }),
+      page({
+        element: element({
+          relations: [
+            target("mentions", "One"),
+            target("derives-from", "Two"),
+            target("cites", "Three"),
+            target("based-on", "Four"),
+            target("mentions", "Five"),
+            target("cites", "Incoming", { direction: "in" }),
+            target("owner", "Property", { property: true }),
+          ],
+        }),
+      }),
+    );
+    const item = (title: string): string =>
+      `<li><a href="../elements/${ID}.html">SR-000001 ${title}</a></li>`;
+    expect(html).toBe(
+      `<section class="rq-relations"><h2 id="relations">Relations</h2><dl><dt>Based on</dt><dd><ul>${item("Four")}</ul></dd><dt>Derives from</dt><dd><ul>${item("Two")}</ul></dd><dt>mentions</dt><dd><ul>${item("One")}${item("Five")}</ul></dd><dt>cites</dt><dd><ul>${item("Three")}</ul></dd></dl></section>`,
+    );
   });
 });
 

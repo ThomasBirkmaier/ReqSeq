@@ -233,8 +233,8 @@ const checkKind = (
     return;
   }
   throw invalid(
-    `${ref} is of type ${element.type}: a verification record names a requirement, a validation record a need or a requirement (D-012)`,
-    { fields: ["ref"], reason: "D-012", type: element.type },
+    `${ref} is of type ${element.type}: a verification record names a requirement, a validation record a need or a requirement`,
+    { fields: ["ref"], reason: "wrong-type", type: element.type },
   );
 };
 
@@ -502,7 +502,7 @@ const coreOutOfView = (
   if (out === undefined) {
     return;
   }
-  throw invalid(`${context.shortIds.of(element)} ${out.why}; give a variant whose view holds it (SR-047)`, {
+  throw invalid(`${context.shortIds.of(element)} ${out.why}; give a variant whose view holds it`, {
     fields: ["variant"],
     reason: "counts-in-no-view",
   });
@@ -590,7 +590,7 @@ const criterionPositionOf = (items: readonly unknown[], given: number | string):
   if (found.length > 1) {
     throw refusedCriterion(
       given,
-      `is carried by ${String(found.length)} criteria of the current version; give each its own key first (SR-204)`,
+      `is carried by ${String(found.length)} criteria of the current version; give each its own key first`,
       "criterion-key-duplicate",
     );
   }
@@ -624,7 +624,7 @@ const criteriaOfInput = (
     if (!isKeyedCriterion(item)) {
       throw refusedCriterion(
         position,
-        "has no criterion key; give the criteria their keys first (SR-204)",
+        "has no criterion key; give the criteria their keys first",
         "criterion-without-key",
       );
     }
@@ -632,7 +632,7 @@ const criteriaOfInput = (
     if (items.filter((other) => criterionKey(other) === key).length > 1) {
       throw refusedCriterion(
         position,
-        `has the key ${key}, which another criterion of the current version carries too; give each its own key first (SR-204)`,
+        `has the key ${key}, which another criterion of the current version carries too; give each its own key first`,
         "criterion-key-duplicate",
       );
     }

@@ -49,7 +49,7 @@ A match starts and ends at a word boundary (the start or end of the name, a char
 
 ## App
 
-Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘Enter on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
+Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘↩ on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
 
 ## CLI
 

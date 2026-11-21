@@ -28,7 +28,7 @@ derives-from:
   - { id: cbfe7443-9220-429d-a879-93d5c730a7fe, version: n2:43968194ec3757d7, title: Einfacher Einstieg in die Daten }
   - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:cf0f20e3864572ec, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
 refines:
   - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n2:3eed09fb96e61f0a, title: In Buffern arbeiten }
   - { id: 784dfd2a-c6c6-4e7a-8e3a-b46a977e700e, version: n2:35bd2dc7e36cec6b, title: Statuszeile zeigen }
