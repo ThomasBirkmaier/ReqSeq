@@ -1,6 +1,7 @@
 // The gaps of verification of workspace.check (SR-230 AK1, AK2, `evidence/gaps.ts`): no evidence location
 // while a requirement exists (a warning), else one info with the number of requirements with method test
-// whose verification status is open in the core and the `element.list` call that lists exactly them.
+// whose verification status is open in the core, and as the output's next step (SR-226) the `element.list`
+// call that lists exactly them.
 // fixtures/SR-126/matrix (its README lists every element and its status) has an evidence location; in the
 // core b04 (skipped test) and b06 (no evidence) are open, b10 is obsolete. Cross-access:
 // packages/cli/test/cross-access/scenarios/workspace/check.ts.
@@ -10,7 +11,7 @@ import { createFixtureWorkspace, defaultFixturesDir } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import path from "node:path";
 import type { CommandOutput, Problem } from "../../catalog.js";
-import { openRequirementsWhere } from "../../evidence/index.js";
+import { openRequirementsStep, openRequirementsWhere } from "../../evidence/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -32,19 +33,15 @@ const check = async (workspace: Workspace, input: Readonly<Record<string, unknow
 /** The gaps of verification among the problems of a check. */
 const gaps = (out: Output): Problem[] => out.problems.filter((p) => GAPS.has(p.code));
 
-/** The short IDs `element.list` gives for the `where` and `limit` of an info of AK2, read from its message. */
-const listed = async (workspace: Workspace, problem: Problem | undefined): Promise<string[]> => {
-  const [, where = "{}", limit] =
-    /--where '(.*)'(?: --limit (\d+))? lists them$/.exec(problem?.message ?? "") ?? [];
-  const out = (await invoke(
-    "element.list",
-    {
-      selection: { where: JSON.parse(where) as unknown },
-      ...(limit === undefined ? {} : { limit: Number(limit) }),
-    },
-    { workspace },
-  )) as CommandOutput<"element.list">;
-  return (out.elements ?? []).map((e) => e.shortId);
+/** The short IDs the one next step of a check of AK2 lists, run as it is given. */
+const listed = async (workspace: Workspace, out: Output): Promise<string[]> => {
+  expect(out.next).toHaveLength(1);
+  const [step] = out.next ?? [];
+  expect(step).toMatchObject({ command: "element.list", open: [] });
+  const list = (await invoke(step?.command ?? "", step?.input ?? {}, {
+    workspace,
+  })) as CommandOutput<"element.list">;
+  return (list.elements ?? []).map((e) => e.shortId);
 };
 
 const MATRIX = "SR-126/matrix";
@@ -146,30 +143,48 @@ describe("workspace.check without an evidence location (SR-230 AK1)", () => {
 });
 
 describe("workspace.check with requirements whose verification status is open (SR-230 AK2)", () => {
-  it("[SR-230/AK-k09q] gives one info at the workspace file with their number and the call that lists exactly them", async () => {
+  it("[SR-230/AK-k09q] gives one info at the workspace file with their number, and the call that lists exactly them as the next step", async () => {
     const workspace = await open({ fixture: MATRIX });
     const out = await check(workspace);
-    const where = JSON.stringify(openRequirementsWhere("verification-method"));
     expect(gaps(out)).toEqual([
       {
         code: "evidence.open-requirements",
         severity: "info",
         file: "reqseq-workspace.yaml",
-        message: `2 requirement(s) with the verification method test have the verification status open in the core; reqseq element list --where '${where}' lists them`,
+        message:
+          "2 requirement(s) with the verification method test have the verification status open in the core",
+      },
+    ]);
+    // The step names no workspace, as the steps of the baseline commands: it runs in the one checked.
+    expect(out.next).toEqual([
+      {
+        command: "element.list",
+        input: { selection: { where: openRequirementsWhere("verification-method") } },
+        open: [],
       },
     ]);
     expect(out.ok).toBe(true);
     expect((await check(workspace, { failOn: "info" })).ok).toBe(false);
     // b04 (skipped: no execution) and b06 (none); verified, indirect, failed, outdated and obsolete ones not.
-    expect(await listed(workspace, gaps(out)[0])).toEqual(["SR-126b04", "SR-126b06"]);
+    expect(await listed(workspace, out)).toEqual(["SR-126b04", "SR-126b06"]);
+  });
+
+  it("[SR-230/AK-k09q] drops the next step with the info when the severity selection hides it (SR-019 AK5)", async () => {
+    const workspace = await open({ fixture: MATRIX });
+    const out = await check(workspace, { severity: "warning" });
+    expect(gaps(out)).toEqual([]);
+    expect(out.next).toBeUndefined();
+    expect(out.hidden?.info).toBeGreaterThan(0);
+    expect((await check(workspace, { severity: "info" })).next).toHaveLength(1);
   });
 
   it("[SR-230/AK-k09q] counts the method test or no value, and no requirement with an invalid status", async () => {
     const workspace = await open(METHODS);
-    const [info] = gaps(await check(workspace));
+    const out = await check(workspace);
+    const [info] = gaps(out);
     expect(info?.message.startsWith("4 requirement(s) with the verification method test have")).toBe(true);
     // b06 is verified by inspection, b12 obsolete, b15 verified by analysis.
-    expect(await listed(workspace, info)).toEqual(["SR-126b04", "SR-126b11", "SR-126b13", "SR-126b14"]);
+    expect(await listed(workspace, out)).toEqual(["SR-126b04", "SR-126b11", "SR-126b13", "SR-126b14"]);
   });
 
   it("[SR-230/AK-k09q] counts every requirement when no property has the meaning verification method", async () => {
@@ -183,12 +198,11 @@ describe("workspace.check with requirements whose verification status is open (S
         ),
       },
     });
-    const [info] = gaps(await check(workspace));
-    const where = JSON.stringify(openRequirementsWhere(undefined));
-    expect(info?.message).toBe(
-      `6 requirement(s) have the verification status open in the core; reqseq element list --where '${where}' lists them`,
-    );
-    expect(await listed(workspace, info)).toEqual([
+    const out = await check(workspace);
+    const [info] = gaps(out);
+    expect(info?.message).toBe("6 requirement(s) have the verification status open in the core");
+    expect(out.next?.[0]?.input).toEqual({ selection: { where: openRequirementsWhere(undefined) } });
+    expect(await listed(workspace, out)).toEqual([
       "SR-126b04",
       "SR-126b06",
       "SR-126b11",
@@ -198,10 +212,13 @@ describe("workspace.check with requirements whose verification status is open (S
     ]);
   });
 
-  it("[SR-230/AK-k09q] leaves the info out of a check restricted to changed elements (SR-092)", async () => {
+  it("[SR-230/AK-k09q] leaves the info and its step out of a check restricted to changed elements (SR-092)", async () => {
     const workspace = await open({ fixture: MATRIX, git: true });
-    expect(gaps(await check(workspace, { changedFiles: ["requirements/SR-000000126b04.md"] }))).toEqual([]);
-    expect(gaps(await check(workspace, { changedSince: "HEAD" }))).toEqual([]);
+    for (const input of [{ changedFiles: ["requirements/SR-000000126b04.md"] }, { changedSince: "HEAD" }]) {
+      const out = await check(workspace, input);
+      expect(gaps(out)).toEqual([]);
+      expect(out.next).toBeUndefined();
+    }
   });
 
   it("[SR-230/AK-k09q] names a page that holds them all when they are more than the default page of element.list", async () => {
@@ -214,10 +231,23 @@ describe("workspace.check with requirements whose verification status is open (S
       ];
     });
     const workspace = await open({ fixture: MATRIX, files: Object.fromEntries(added) });
-    const [info] = gaps(await check(workspace));
+    const out = await check(workspace);
+    const [info] = gaps(out);
     expect(info?.message.startsWith("203 requirement(s)")).toBe(true);
-    expect(info?.message.endsWith("' --limit 203 lists them")).toBe(true);
-    expect(await listed(workspace, info)).toHaveLength(203);
+    expect(out.next?.[0]?.input["limit"]).toBe(203);
+    expect(await listed(workspace, out)).toHaveLength(203);
+  });
+
+  it("[SR-230/AK-k09q] names the largest page when they are more than it holds", () => {
+    // 5,001 open requirements: a step for a workspace of that size, without building one.
+    expect(openRequirementsStep("verification-method", 5001)).toEqual({
+      command: "element.list",
+      input: { selection: { where: openRequirementsWhere("verification-method") }, limit: 5000 },
+      open: [],
+    });
+    expect(openRequirementsStep(undefined, 200).input).toEqual({
+      selection: { where: openRequirementsWhere(undefined) },
+    });
   });
 
   it("gives no info when no requirement with method test is open", async () => {
@@ -236,6 +266,8 @@ describe("workspace.check with requirements whose verification status is open (S
         }),
       ),
     });
-    expect(gaps(await check(workspace))).toEqual([]);
+    const out = await check(workspace);
+    expect(gaps(out)).toEqual([]);
+    expect(out.next).toBeUndefined();
   });
 });

@@ -53,8 +53,8 @@ export interface ResultViewProps {
 export interface NextSteps {
   /** The name the command prompt gives `command`, and its key where it has one. */
   readonly entry: (command: string) => StepEntry;
-  /** Runs the step from the command prompt with its known inputs given. */
-  readonly run: (step: NextStep) => void;
+  /** Runs the step from the command prompt with its known inputs given; `label` names a list it opens. */
+  readonly run: (step: NextStep, label?: string) => void;
 }
 
 /**
@@ -201,7 +201,7 @@ export const ResultView = ({
   const open = (at: number): void => {
     const line = lines[at];
     if (line?.step !== undefined) {
-      steps?.run(line.step);
+      steps?.run(line.step, line.stepLabel);
     } else if (line?.kind === "group" && line.group !== undefined) {
       if (line.list === undefined) {
         fold(line.group, line.unfolded !== true, at);

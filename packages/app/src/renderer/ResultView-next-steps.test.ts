@@ -100,7 +100,8 @@ describe("the next steps of an output page (SR-226 AK5)", () => {
       stepLines()[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       await Promise.resolve();
     });
-    expect(run).toHaveBeenLastCalledWith(CREATE);
+    // With the name of a list the step opens, as the lists of an output are named.
+    expect(run).toHaveBeenLastCalledWith(CREATE, "Create workspace · Next steps");
     // Enter on the selected step runs it.
     await show({ entry: () => ({ name: "Connect AI agent" }), run }, 3);
     await act(async () => {
@@ -109,7 +110,7 @@ describe("the next steps of an output page (SR-226 AK5)", () => {
         ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
       await Promise.resolve();
     });
-    expect(run).toHaveBeenLastCalledWith(CONNECT);
+    expect(run).toHaveBeenLastCalledWith(CONNECT, "Create workspace · Next steps");
     expect(run).toHaveBeenCalledTimes(2);
   });
 
