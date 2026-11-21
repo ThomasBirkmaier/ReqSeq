@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -370,6 +371,13 @@ describe("reqif.import (SR-053)", () => {
     ]);
     const unnamed = await failure(workspace, { file: "in/lieferung.reqif", delivery: "x" });
     expect([unnamed.code, unnamed.details?.["fields"]]).toEqual(["input.invalid", ["mapping"]]);
+    // A mapping name without a file names its path and the commands that make one (#2226).
+    const noMapping = await failure(workspace, { ...INPUT, mapping: "kunde" });
+    expect([noMapping.code, noMapping.details?.["reason"], noMapping.message]).toEqual([
+      "input.invalid",
+      "source-missing",
+      `mapping: the mapping file ${path.resolve(fixture.root, "kunde")} does not exist; "Analyse ReqIF file" shows the types and attributes of the delivery, "Save ReqIF mapping" saves a mapping file for them`,
+    ]);
     expect(await tree(fixture)).toEqual(before);
   });
 
