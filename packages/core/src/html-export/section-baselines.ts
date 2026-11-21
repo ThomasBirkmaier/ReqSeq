@@ -116,7 +116,7 @@ export const baselinesSection = (context: ElementPageContext, page: ElementPage)
 /** The styles of the section. */
 export const BASELINES_CSS = [
   ".sl-markdown-content .rq-since-line { margin: 0.5rem 0; }",
-  "details.rq-since-baseline { margin: 0 0 0.5rem; }",
+  ".sl-markdown-content details.rq-since-baseline { margin: 0 0 0.5rem; }",
   "details.rq-since-baseline > summary { cursor: pointer; }",
   ".sl-markdown-content dl.rq-diff { margin: 0.5rem 0 0; padding-inline-start: 1rem; border-inline-start: 2px solid var(--sl-color-gray-5); }",
   ".sl-markdown-content dl.rq-diff dt { margin-top: 0.5rem; font-weight: 600; font-size: var(--sl-text-sm); }",
