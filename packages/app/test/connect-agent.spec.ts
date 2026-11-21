@@ -130,6 +130,17 @@ test.describe("Connect AI agent", () => {
       expect(await running.app.evaluate(({ clipboard }) => clipboard.readText())).toBe(expected.setup.text);
       await buffer.locator(".setup").hover();
       await window.screenshot({ path: path.join(OUT, "connect-agent-light.png") });
+      // Long paths wrap inside the column, also in a narrow window: no part runs past it (#2169).
+      await running.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setContentSize(480, 800);
+      });
+      await expect
+        .poll(() =>
+          buffer
+            .locator(".column > *")
+            .evaluateAll((parts) => parts.filter((part) => part.scrollWidth > part.clientWidth).length),
+        )
+        .toBe(0);
     } finally {
       await running.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), before);
     }
