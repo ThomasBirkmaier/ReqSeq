@@ -1,8 +1,6 @@
 ---
 title: Record test results in CI
 description: Add the one pipeline step that ties the JUnit file of a test run to the requirements, in GitHub Actions, GitLab CI or any other CI service.
-sidebar:
-  order: 4.2
 ---
 
 After the tests, the pipeline runs one line per JUnit file, `reqseq evidence enrich-junit results.xml "$BUILD" --workspace "$REQSEQ_WORKSPACE" --output "$REQSEQ_WORKSPACE/evidence/ci/results-$BUILD.xml"`, as in the snippets below. In PowerShell, write `$env:BUILD` for `$BUILD`. The machine needs the `reqseq` command line on its path ([Install ReqSeq](/how-to/install-reqseq/)) and a checkout of the workspace at the state the tests test against.

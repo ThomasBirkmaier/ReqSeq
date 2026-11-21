@@ -1,8 +1,6 @@
 ---
 title: Check a workspace in CI
 description: Let a pipeline check the workspace on every change, only the changed elements if you like, and fail on errors or warnings.
-sidebar:
-  order: 3
 ---
 
 `workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence files and gaps of verification. In a pipeline it decides by its exit code whether the step passes.

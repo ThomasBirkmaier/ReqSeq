@@ -1,8 +1,6 @@
 ---
 title: Manage a product variant
 description: Set up a variant on the shared core, replace or exclude core requirements for it, and see its view, its difference to the core and the core changes it has to follow.
-sidebar:
-  order: 10
 ---
 
 A variant is an element of the type Variant, beside the core. A requirement without the property Validity belongs to the core and applies in every variant; one with Validity applies only in the variants it names. A variant changes the core in two ways:

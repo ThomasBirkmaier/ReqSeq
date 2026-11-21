@@ -1,8 +1,6 @@
 ---
 title: Open or create a workspace
 description: Open a workspace in the app, from the command line, the API and MCP, switch to one you opened before, or create a new one.
-sidebar:
-  order: 9
 ---
 
 A workspace is a folder with a `reqseq-workspace.yaml`, often the folder `spec/` of a Git repository. The app shows one workspace per window; the command line, the API and the MCP server each work in the workspace they find or are given.

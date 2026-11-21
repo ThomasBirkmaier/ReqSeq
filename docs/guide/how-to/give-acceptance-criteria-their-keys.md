@@ -1,8 +1,6 @@
 ---
 title: Assign criterion keys to existing acceptance criteria
 description: Give every acceptance criterion without a criterion key in a selection its key in one step, for files written by hand or from an older workspace.
-sidebar:
-  order: 4.4
 ---
 
 Every acceptance criterion carries a criterion key, so a test or a verification record that names it by key still names it after criteria are added or moved (SR-204, D-072). ReqSeq gives the key when a criterion is created or changed. A criterion written by hand, or one from a workspace of an older ReqSeq version, has none until it is changed; `workspace check` reports such a requirement with the hint `element.criterion-key-missing` (SR-204 AK10).
