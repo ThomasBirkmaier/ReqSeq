@@ -2218,7 +2218,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     /** Where the repository lies, as configured: from `.reqseq/local.yaml`, else from the workspace file. */
     readonly path?: OutputPath;
-    /** The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
+    /** The absolute path of the repository folder on this machine, symbolic links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories. */
     readonly absolutePath?: OutputPath;
     readonly commit?: Commit;
     /** The workspace file marks the repository variant-independent (SR-173): a record without variant for one of its elements counts in every view the element applies in. Left out without the mark. */
@@ -2240,7 +2240,7 @@ export interface WorkspaceStatusOutput {
     /** Workspace name of the repository of the evidence location. */
     readonly repository: string;
     readonly path: RelativePath;
-    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
+    /** ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a symbolic link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not. */
     readonly available: boolean;
     /** The location relative to the workspace root, with `/`, in the form `folder` of evidence.record takes; `.` for the workspace root itself. evidence.record refuses it while the repository of the location is not on this machine. Left out when the workspace file does not list the repository of the location. */
     readonly folder?: OutputPath;

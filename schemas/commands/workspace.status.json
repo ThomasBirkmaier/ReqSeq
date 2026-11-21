@@ -47,7 +47,7 @@
             "absolutePath": {
               "title": "Absolute path",
               "$ref": "../common.schema.json#/$defs/outputPath",
-              "description": "The absolute path of the repository folder on this machine, links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories."
+              "description": "The absolute path of the repository folder on this machine, symbolic links resolved, so that two copies of a repository can be told apart (`path` may be `.`, #1793). Only for available repositories."
             },
             "commit": {
               "title": "Commit",
@@ -112,7 +112,7 @@
             "available": {
               "title": "Available",
               "type": "boolean",
-              "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not.",
+              "description": "ReqSeq reads the folder for evidence: its repository is available, it exists and the reading rules do not skip it (a symbolic link, `.git`, `node_modules`, an `ignore` glob, another or a nested repository). `workspace check` says why not.",
               "x-normal": true
             },
             "folder": {
