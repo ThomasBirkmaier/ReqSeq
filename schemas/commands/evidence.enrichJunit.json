@@ -1,7 +1,7 @@
 {
   "name": "evidence.enrichJunit",
   "title": "Enrich JUnit file",
-  "summary": "Tie the test cases of a JUnit XML file to the elements they name, adding UUID, version, item, date and the views run, so the file is test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the CLI exits 1.",
+  "summary": "Tie the test cases of a JUnit XML file to the elements they name, so that the file becomes test evidence. Test cases with an unknown reference or a view that does not fit are listed, and the command fails.",
   "details": "A test case names an element by short ID, UUID or identifier, or by a short ID in another form that a name pattern finds; each given view (a variant's UUID, or `core`) is added. Test cases with an unknown reference, or whose views do not fit, stay unchanged and are listed. The output counts the test cases that name no element, and with `skipNotInView` the elements left out because they apply in none of the given views; a test case whose elements all apply in none of them is marked with those views instead of enriched.",
   "effect": "write-files",
   "loadUpfront": true,
@@ -23,7 +23,7 @@
     "properties": {
       "file": {
         "$ref": "../common.schema.json#/$defs/localPath",
-        "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)."
+        "description": "The JUnit XML file to enrich: each test case it enriches gets the element's UUID and version, the item under test, the date and the views run. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)."
       },
       "item": {
         "$ref": "../common.schema.json#/$defs/item",
@@ -87,7 +87,7 @@
       "unknown": {
         "title": "Unknown references",
         "type": "array",
-        "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged.",
+        "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged. Each gives an error problem, so the call fails (CLI exit code 1).",
         "items": {
           "type": "object",
           "properties": {

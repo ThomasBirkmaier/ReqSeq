@@ -1,5 +1,5 @@
 ---
-title: Limit relations and list entries
+title: Set how many relations and list entries an element must or may have
 description: Say in the metamodel how many relations of a kind an element must or may have, and how many entries a list property may hold.
 sidebar:
   order: 5.2

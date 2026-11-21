@@ -456,7 +456,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       line: 3,
       targetId: need,
       targetRepository: "system",
-      message: `Test case "[N-0e0843] [SR-0b0036] shows the need" (line 3) names element ${need} of type need, so its record counts for no status: a verification record names a requirement (D-012)`,
+      message: `Test case "[N-0e0843] [SR-0b0036] shows the need" (line 3) names element ${need} of type need, so its record counts for no status: a verification record names a requirement`,
     };
     const first = await enrich(workspace, { file: "results/need.xml" });
     expect(first).toMatchObject({ testCases: 2, files: ["results/need.xml"], problems: [warning] });
@@ -761,8 +761,8 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     const strict = await enrich(workspace, { file: "results/run.xml", variant: ["core", "VAR-0000c2"] });
     expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
     expect(strict.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000a3] [SR-0000b2] rain and storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040); SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040); SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000a3] [SR-0000b2] rain and storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere',
     ]);
   });
 
@@ -885,21 +885,21 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     // The core given: the test case that names Mountain is another variant (AK8); SR-0000b1 holds only in Coast.
     expect(output.problems.map((p) => p.message)).toEqual([
       'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (core)',
-      'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere',
     ]);
     await fixture.write("results/run.xml", before);
     const coast = await enrich(workspace, { file: "results/run.xml", variant: ["VAR-0000c1"] });
     expect(coast.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000a2] wind" (line 1) is not enriched: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere (SR-047)',
-      'Test case "[SR-0000a1] response" (line 1) is not enriched: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead (SR-047)',
+      'Test case "[SR-0000a2] wind" (line 1) is not enriched: SR-0000a2 is excluded in VAR-0000c1, so a record for it there would count nowhere',
+      'Test case "[SR-0000a1] response" (line 1) is not enriched: SR-0000a1 is replaced in VAR-0000c1 by SR-0000b1, so a record for it there would count nowhere; record SR-0000b1 instead',
       'Test case "[SR-0000b2] storm" (line 1) is not enriched: reqseq:variant "VAR-0000c2" names a view that is not among the given ones (VAR-0000c1)',
     ]);
     await fixture.write("results/run.xml", before);
     const own = await enrich(workspace, { file: "results/run.xml" });
     // Without views a test case is for the core, which does not hold SR-0000b1 either (SR-047 AK5).
     expect(own.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere (SR-040)',
-      'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere',
+      'Test case "[SR-0000b1] response" (line 1) is not enriched: SR-0000b1 does not apply in core, so a record for it there would count nowhere',
     ]);
     expect(await variantRecords(fixture)).toEqual([
       ["[SR-0000a2] wind", uuid43("a2"), undefined],
@@ -918,7 +918,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
       [
         "evidence.invalid-record",
         "error",
-        `Test case "[SR-0000a3] rain" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, outside the given views (VAR-0000c1); an enriched test case is never changed (D-026: version from the tested state; spec question ThomasBirkmaier/ReqSeq-archive#529 Q5)`,
+        `Test case "[SR-0000a3] rain" (line 1) does not fit: it is enriched already for the variant ${MOUNTAIN}, outside the given views (VAR-0000c1); an enriched test case is never changed`,
       ],
     ]);
     expect(again.files).toEqual([]);
@@ -929,7 +929,7 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     const { fixture, workspace } = await openExample('<testcase name="[SR-0000b2] storm"/>');
     const output = await enrich(workspace, { file: "results/run.xml", variant: ["core"] });
     expect(output.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere (SR-040)',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere',
     ]);
     expect(await variantRecords(fixture)).toEqual([]);
   });

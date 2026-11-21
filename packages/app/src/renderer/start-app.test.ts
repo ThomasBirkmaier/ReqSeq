@@ -132,8 +132,8 @@ describe("the start buffer", () => {
     expect(query("label.prompt-label").textContent).toBe(NONE_OPENED);
   });
 
-  it("[SR-225/AK-tgvr] an opened workspace shows its overview, and the start commands no longer", async () => {
-    const { handlers, change } = await start();
+  it("[SR-225/AK-tgvr] an opened workspace shows its overview, and the start commands no longer; one without elements its first steps", async () => {
+    const { handlers, change, listed } = await start();
     expect(shownOne('[aria-label="Start"]')).not.toBeNull();
     handlers["workspace.status"] = () => STATUS;
     await change("opened");
@@ -141,6 +141,33 @@ describe("the start buffer", () => {
     expect(shownOne('[aria-label="Overview"]')).not.toBeNull();
     expect(shownOne('[aria-label="Start"]')).toBeNull();
     expect(shownAll(".start-line")).toEqual([]);
+    // An opened workspace without elements shows the overview's own lines (SR-118 AK9), as the catalog has them;
+    // a read-only one leaves out the write commands the command prompt does not offer there (SR-133 AK1).
+    const empty = (readOnly: boolean): unknown => ({ name: "Buoy", readOnly });
+    listed.catalog = [
+      listing("element.create", "reqseq element create [options]"),
+      listing("reqif.import", "reqseq reqif import <file> [options]"),
+      listing("workspace.connectAgent", "reqseq workspace connect-agent [options]"),
+    ];
+    handlers["element.facets"] = () => ({
+      total: 0,
+      types: [],
+      statuses: [],
+      properties: [],
+      incomplete: false,
+    });
+    handlers["workspace.status"] = () => empty(false);
+    await change("opened");
+    await flush();
+    const steps = (): string[] =>
+      shownAll('[aria-label="Overview"] .start-label').map((line) => line.textContent);
+    expect(steps()).toEqual(["Create element", "Import ReqIF file", "Connect AI agent"]);
+    expect(shownOne('[aria-label="Start"]')).toBeNull();
+    handlers["workspace.status"] = () => empty(true);
+    await change("opened");
+    await flush();
+    expect(steps()).not.toContain("Create element");
+    expect(steps()).not.toContain("Import ReqIF file");
   });
 
   it("[SR-225/AK-tccz] Create workspace takes the folder main gives, asks only the name, pre-filled, and Enter creates it with the standard model and opens it", async () => {

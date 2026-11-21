@@ -198,7 +198,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
         "error",
         `evidence/${day}-N-00a004-validation.md`,
         6,
-        "Invalid evidence record, not counted: /variant: a validation record names no variant, it holds for the core (D-007, SR-038 AK4)",
+        "Invalid evidence record, not counted: /variant: a validation record names no variant, it holds for the core",
       ]),
     );
   });
@@ -272,7 +272,7 @@ describe("an inconclusive validation (SR-172) on fixtures/SR-172/inconclusive", 
         "error",
         "evidence/2026-11-01-N-00a005-validation.md",
         6,
-        "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason (SR-172 AK1)",
+        "Invalid evidence record, not counted: /reason: a record with the result inconclusive needs a reason",
       ],
     ]);
   });

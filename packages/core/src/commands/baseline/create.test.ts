@@ -285,6 +285,48 @@ describe("baseline.create", () => {
     expect((await create(ws, "Release-1", PACKAGE)).files).toEqual(["baselines/Release-1-2.yaml"]);
   });
 
+  it("[SR-050/AK-cvrg] stores the elements inRepository names as ids, only those ids names too, and refuses two copies in one repository (#2024)", async () => {
+    const ws = await fixture();
+    // e1 of sensor copied twice into system, committed: three files share its UUID (SR-088).
+    const e1 = fs.readFileSync(ws.path("sensor/requirements/SR-0000000000e1.md"));
+    await ws.write("system/requirements/SR-0000000000e1.md", e1);
+    await ws.write("system/copies/SR-0000000000e1.md", e1);
+    await ws.commit("system");
+    const sensor = await create(ws, "Sensor copy", {
+      inRepository: [{ id: `${ID}E1`, repository: "sensor" }],
+    });
+    expect(read(ws, sensor.baseline.file)).toContain(
+      `selection:\n  ids:\n    - { id: ${ID}e1, repository: sensor }\nrepositories:`,
+    );
+    expect(bodyOf(ws, sensor)).toMatch(
+      new RegExp(`elements:\\n  - \\{ id: ${ID}e1, version: [^,]+, repository: sensor \\}\\n$`),
+    );
+    const both = await create(ws, "Both", {
+      ids: [`${ID}b1`, `${ID}b2`],
+      inRepository: [
+        { id: `${ID}b1`, repository: "system" },
+        { id: `${ID}e1`, repository: "sensor" },
+      ],
+    });
+    expect(read(ws, both.baseline.file)).toContain(`selection:\n  ids:\n    - ${ID}b1\nrepositories:`);
+    expect(bodyOf(ws, both)).toMatch(new RegExp(`elements:\\n  - \\{ id: ${ID}b1, version: [^,}]+ \\}\\n$`));
+    const error = await failure(ws, "Two copies", {
+      inRepository: [{ id: `${ID}e1`, repository: "system" }],
+    });
+    expect([error.code, error.message, error.details]).toEqual([
+      "ref.ambiguous",
+      `${ID}e1 names more than one element in repository system, which the UUID and repository cannot tell apart; see the candidates`,
+      {
+        ref: `${ID}e1`,
+        repository: "system",
+        candidates: [
+          { id: `${ID}e1`, repository: "system", file: "copies/SR-0000000000e1.md" },
+          { id: `${ID}e1`, repository: "system", file: "requirements/SR-0000000000e1.md" },
+        ],
+      },
+    ]);
+  });
+
   it("[SR-050/AK-k905] a repository without a commit refuses the baseline naming it", async () => {
     const ws = await fixture(["system"]);
     const refusal = async (): Promise<unknown> => {

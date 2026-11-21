@@ -9,6 +9,7 @@ import {
   elementBuffer,
   filteredList,
   graphBuffer,
+  inRepositoryList,
   outputSelectionList,
   metamodelBuffer,
   neighbourhoodBuffer,
@@ -407,6 +408,38 @@ describe("buffer session (SR-115 AK4)", () => {
           kind: "list",
           steps: [{ label: "y", selection: { output: { command: "c", input: {}, count: 2 } } }],
         } as never,
+      ],
+    };
+    saveSession(() => storage, "odd", JSON.stringify(odd));
+    expect(loadSession(() => storage, "odd").buffers).toEqual([]);
+  });
+
+  it("[SR-115/AK-qtv5] keeps the list of a number of a write command by UUID and repository over a restart (#2024)", async () => {
+    const counted = inRepositoryList("Set status · Changed elements", [
+      { id: "uuid-1", repository: "spec" },
+      { id: "uuid-9", repository: "sensor" },
+    ]);
+    const storage = memory();
+    saveSession(() => storage, "key", sessionText([counted]));
+    // Restored as stored: an item that names no element now is refused by core when the list is read (ref.unknown).
+    expect(
+      (
+        await restoreSession(
+          loadSession(() => storage, "key"),
+          names.call,
+          CATALOG,
+        )
+      ).buffers,
+    ).toEqual([counted]);
+    const stepWith = (inRepository: unknown): unknown => ({
+      kind: "list",
+      steps: [{ label: "x", selection: { inRepository } }],
+    });
+    const odd = {
+      buffers: [
+        stepWith({ id: "uuid-1" }),
+        stepWith([{ id: "uuid-1" }]),
+        stepWith([{ id: 1, repository: "spec" }]),
       ],
     };
     saveSession(() => storage, "odd", JSON.stringify(odd));

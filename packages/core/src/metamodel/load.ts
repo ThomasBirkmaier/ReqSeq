@@ -355,7 +355,7 @@ const structuralKeyProblems = (
       locatedProblem(
         located,
         ["key"],
-        `${label} key ${located.definition.key} is a field every element has (D-012); choose another key`,
+        `${label} key ${located.definition.key} is a field every element has; choose another key`,
       ),
     );
 
