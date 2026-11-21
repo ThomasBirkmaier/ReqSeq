@@ -3585,7 +3585,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation.",
+          "description": "Built-in meaning: `title`; `validity` (list of variants); `packages`; `emergent` (emergent behaviour; a choice without `many` whose key `yes` is the mark; otherwise a warning and nothing is marked); `verification-method`; `statement` (the statement for ReqIF); `source`, `source-identifier`, `import-date`, `delivery`, `import-version` (origin of imported elements, written only by ReqIF import; `import-version` is the import version, the version of what the import wrote, right after the last import, kind `text` without `many` and never `content`); `identifier` (an ID people read and name besides the UUID, from another source or by a running scheme of the project, such as the spec ID SR-036 or a customer ID; unique per type; `element.create` with `nextIdentifier` gives the one after the highest of the type with the same identifier prefix; element references accept it besides the UUID and short ID, and outputs show it next to the short ID). A property with the meaning `identifier` is of kind `text` without `many`. `acceptance-criteria` (the acceptance criteria of a requirement, counted from 1 in their order, which evidence records name by criterion key or by number; kind `text` with `many`, otherwise a warning and no criterion is read). `synonyms` (designations of the element with the same meaning; kind `text` with `many`, otherwise a warning) and `translation` (the element's designation in another language; kind `text`, otherwise a warning); the designations of an element are its title, its synonyms and its translation.",
           "enum": [
             "title",
             "validity",
@@ -7919,6 +7919,14 @@
           "folder": {
             "type": "string",
             "description": "Folder relative to the repository; default from the type."
+          },
+          "nextIdentifier": {
+            "type": "boolean",
+            "description": "Give the element the identifier after the highest of its type with the same identifier prefix, the part before the digits 0 to 9 at its end: that number plus one, padded to as many digits (`C-003` gives `C-004`, `C-999` gives `C-1000`), with the prefix as written there; prefixes compare in any case. Counts the elements of exactly this type on this machine, superseded ones too. Refused when the type has no property with the meaning identifier, the identifier is also in `properties`, none counts and no `identifierPrefix` is given, or they carry several prefixes and none is given."
+          },
+          "identifierPrefix": {
+            "type": "string",
+            "description": "Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space."
           }
         },
         "additionalProperties": false,
@@ -7952,6 +7960,10 @@
             "items": {
               "$ref": "#/$defs/common/$defs/outputPath"
             }
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted."
           },
           "problems": {
             "title": "Problems",

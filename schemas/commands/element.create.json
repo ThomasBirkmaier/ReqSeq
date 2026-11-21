@@ -18,7 +18,8 @@
     "SR-064",
     "SR-084",
     "SR-091",
-    "SR-102"
+    "SR-102",
+    "SR-245"
   ],
   "arguments": [
     { "field": "type", "complete": "type" },
@@ -27,7 +28,9 @@
     { "field": "properties", "complete": "properties", "flag": "set" },
     { "field": "relations", "complete": "relations" },
     { "field": "repository", "complete": "repository" },
-    { "field": "folder", "complete": "text", "class": "path" }
+    { "field": "folder", "complete": "text", "class": "path" },
+    { "field": "nextIdentifier", "complete": "boolean" },
+    { "field": "identifierPrefix", "complete": "text", "class": "name" }
   ],
   "input": {
     "type": "object",
@@ -63,6 +66,14 @@
       "folder": {
         "type": "string",
         "description": "Folder relative to the repository; default from the type."
+      },
+      "nextIdentifier": {
+        "type": "boolean",
+        "description": "Give the element the identifier after the highest of its type with the same identifier prefix, the part before the digits 0 to 9 at its end (SR-245): that number plus one, padded to as many digits (`C-003` gives `C-004`, `C-999` gives `C-1000`), with the prefix as written there; prefixes compare in any case. Counts the elements of exactly this type on this machine, superseded ones too. Refused when the type has no property with the meaning identifier, the identifier is also in `properties`, none counts and no `identifierPrefix` is given, or they carry several prefixes and none is given."
+      },
+      "identifierPrefix": {
+        "type": "string",
+        "description": "Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space."
       }
     },
     "additionalProperties": false,
@@ -87,6 +98,10 @@
         "description": "Written files, relative to the workspace root.",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
+      },
+      "incomplete": {
+        "$ref": "../common.schema.json#/$defs/incomplete",
+        "description": "With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9)."
       },
       "problems": {
         "title": "Problems",

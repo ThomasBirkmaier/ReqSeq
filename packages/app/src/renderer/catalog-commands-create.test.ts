@@ -123,6 +123,8 @@ describe('"Create element": the required properties asked in the command line (S
       "relations",
       "repository",
       "folder",
+      "nextIdentifier",
+      "identifierPrefix",
     ]);
   });
 
@@ -223,6 +225,8 @@ describe('"Create element": the required properties asked in the command line (S
       "relations",
       "repository",
       "folder",
+      "nextIdentifier",
+      "identifierPrefix",
     ]);
     item(more.items, "Run").run();
     await flush();

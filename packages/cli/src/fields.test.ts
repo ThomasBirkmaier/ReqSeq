@@ -274,6 +274,8 @@ describe("inputFields", () => {
       "relations:--relations:flag",
       "repository:--repository:flag",
       "folder:--folder:flag",
+      "nextIdentifier:--next-identifier:flag",
+      "identifierPrefix:--identifier-prefix:flag",
     ]);
     const update = getCommandRuntime().contracts.entry("element.update");
     const listed = [...(create ? inputFields(create) : []), ...(update ? inputFields(update) : [])];

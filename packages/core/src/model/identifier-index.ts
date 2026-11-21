@@ -51,7 +51,7 @@ export const identifierMatch = (value: string): string => value.toLowerCase();
  * full build or an update), so every access lists candidates alike (SR-080). A file holds one
  * element, so no two elements have the same repository and file.
  */
-const byPlace = (a: ElementRecord, b: ElementRecord): number =>
+export const byPlace = (a: ElementRecord, b: ElementRecord): number =>
   a.repository !== b.repository ? (a.repository < b.repository ? -1 : 1) : a.file < b.file ? -1 : 1;
 
 /** The records of a UUID; none when the store has no element with it. */
