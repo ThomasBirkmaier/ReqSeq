@@ -1,6 +1,6 @@
 // Baselines on the built app (SR-050, SR-051, SR-094): "Create baseline" on a package page, "Show
-// baseline" and "Show Git command to compare baseline" from the command prompt, each compared with what the CLI gives for the
-// same input (SR-080). The workspaces are copies of fixtures made Git repositories here, opened in place:
+// baseline" and "Show Git command to compare baseline" from the command prompt, each compared with
+// what the CLI gives for the same input (SR-080). The workspaces are copies of fixtures made Git repositories here, opened in place:
 // `launchApp` would copy them again. fixtures/SR-061/export (repositories `system` and `sensor`): the baseline
 // „Release 2“ of the package Display (PKG-0000d1) is written at the first commit; a second commit changes
 // SR-0000b1, supersedes SR-0000b2, adds SR-0000b3 to the package and changes N-0000a1, which is in no
