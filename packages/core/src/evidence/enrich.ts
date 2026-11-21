@@ -72,7 +72,7 @@ import { CommandError } from "../catalog.js";
 import { readFileSnapshot, shown, writeFileAtomic, zip } from "../files/index.js";
 import type { FileSnapshot } from "../files/index.js";
 import type { EvidenceEnrichJunitInput, EvidenceEnrichJunitOutput } from "../generated/types.js";
-import { findType, metamodelState, typesWithMeaning } from "../metamodel/index.js";
+import { metamodelState, typeName, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
@@ -582,7 +582,7 @@ export const enrichJunitFile = async (
       const record = found.get(id);
       return record === undefined || requirements.has(record.type)
         ? undefined
-        : { typeName: findType(metamodel, record.type)?.name ?? record.type, repository: record.repository };
+        : { typeName: typeName(metamodel, record.type), repository: record.repository };
     },
     namePattern: pattern === undefined ? undefined : nameMatcher(pattern, typePrefixes),
     // Asked only for an element `resolve` found, which `resolverOf` put into `found`.

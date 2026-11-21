@@ -21,6 +21,7 @@ export type { Metamodel } from "./load.js";
 export {
   allowsType,
   findType,
+  typeName,
   hasWorkingStatus,
   keyDefinition,
   markdownKeysOf,

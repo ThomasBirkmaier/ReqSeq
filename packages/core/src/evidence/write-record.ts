@@ -56,7 +56,7 @@ import type {
   WorkspaceLocation,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, metamodelState, typesWithMeaning } from "../metamodel/index.js";
+import { metamodelState, typeName, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import {
   acceptanceCriteriaKeyOf,
@@ -235,7 +235,7 @@ const checkKind = (
     return;
   }
   throw invalid(
-    `${ref} is of type ${findType(metamodel, element.type)?.name ?? element.type}: a verification record names a requirement, a validation record a need or a requirement (D-012)`,
+    `${ref} is of type ${typeName(metamodel, element.type)}: a verification record names a requirement, a validation record a need or a requirement (D-012)`,
     { fields: ["ref"], reason: "D-012", type: element.type },
   );
 };
