@@ -55,7 +55,7 @@ scenariosOf("baseline.changes", [
     },
   },
   {
-    name: "Confirm hints, Compare baseline and Prepare baseline as the next steps (SR-241 AK3)",
+    name: "Confirm hints, Show Git command to compare baseline and Prepare baseline as the next steps (SR-241 AK3)",
     fixture: EXPORT,
     root: "system",
     input: {},

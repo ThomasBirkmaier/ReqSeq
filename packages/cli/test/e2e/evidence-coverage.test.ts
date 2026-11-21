@@ -55,10 +55,49 @@ describe("reqseq evidence coverage (SR-036)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     // By short ID and title, as other listings (ThomasBirkmaier/ReqSeq-archive#588); `--json` keeps the UUIDs.
     expect(result.stdout).toContain(
-      "withChildren:\n        - N-0000a1  See the wind\n      withoutChildren:\n        - N-0000a2  Warn of storms\n",
+      "withoutChildren:\n        - N-0000a2  Warn of storms\n      withChildren:\n        - N-0000a1  See the wind\n",
     );
     expect(result.stdout).not.toContain(P);
     expect(result.stdout).not.toContain("names:");
+  });
+
+  it("[SR-036/AK-zhys] reqseq evidence coverage prints per level the numbers without before those with, 0 included", async () => {
+    const result = await coverage({ selection: { filter: "Requirements" } }, []);
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    expect(result.stdout).toContain(
+      [
+        "  - type: system-requirement",
+        "    total: 2",
+        "    withoutChildren: 1",
+        "    withoutEvidence: 2",
+        "    withChildren: 1",
+        "    withEvidence: 0",
+        "    elements:",
+        "      withoutChildren:",
+        "        - SR-0000b2  Measure every second",
+        "      withoutEvidence:",
+        "        - SR-0000b1  Measure wind speed",
+        "        - SR-0000b2  Measure every second",
+        "      withChildren:",
+        "        - SR-0000b1  Measure wind speed",
+        "      withEvidence: []",
+      ].join("\n"),
+    );
+    // A level whose elements all have children: the number without is printed as 0.
+    const covered = await coverage({ selection: { ids: [`${P}a1`] } }, []);
+    expect([covered.code, covered.stderr]).toEqual([0, ""]);
+    expect(covered.stdout).toContain(
+      [
+        "  - type: need",
+        "    total: 1",
+        "    withoutChildren: 0",
+        "    withChildren: 1",
+        "    elements:",
+        "      withoutChildren: []",
+        "      withChildren:",
+        "        - N-0000a1  See the wind",
+      ].join("\n"),
+    );
   });
 
   it("[SR-036/AK-xbxh] reqseq evidence coverage --json keeps the UUIDs and names them in names (ThomasBirkmaier/ReqSeq-archive#588)", async () => {

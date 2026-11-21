@@ -164,7 +164,7 @@ describe("parentLevels", () => {
     expect(more).toBe(true);
   });
 
-  it("[SR-107/AK-b9c5] marks a parent whose link from the element is outdated, and no other", () => {
+  it("[SR-107/AK-b9c5] marks a parent that an outdated link of a shown element points at, as the export does", () => {
     const { levels } = parentLevels(
       answer(
         [node("C1", 0), node("S1", 1, up()), node("N1", 2, up())],
@@ -173,7 +173,7 @@ describe("parentLevels", () => {
     );
     // The hover text names the direction: the element's link points to an older version of the parent (#513).
     expect(levels.map((level) => level.map((parent) => parent.outdated))).toEqual([
-      [undefined],
+      ["X-S1 (S1) points to an older version of X-N1 (N1) (derives-from)"],
       ["X-C1 (C1) points to an older version of X-S1 (S1) (derives-from)"],
     ]);
   });

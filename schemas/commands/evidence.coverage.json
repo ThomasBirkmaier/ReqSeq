@@ -1,7 +1,7 @@
 {
   "name": "evidence.coverage",
   "title": "Show coverage",
-  "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
+  "summary": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
   "effect": "read",
   "stage": 4,
   "implements": ["SR-036", "SR-042", "SR-101"],
@@ -24,7 +24,7 @@
         "x-key": ["type"],
         "title": "Levels",
         "type": "array",
-        "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level.",
+        "description": "One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question ThomasBirkmaier/ReqSeq-archive#527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. Per level the numbers without children and without evidence come before those with (SR-036 AK6), in this order of the properties.",
         "items": {
           "type": "object",
           "properties": {
@@ -37,7 +37,21 @@
               "type": "integer",
               "minimum": 0,
               "description": "The counted elements of the type.",
-              "x-elements": ["elements/withChildren", "elements/withoutChildren"]
+              "x-elements": ["elements/withoutChildren", "elements/withChildren"]
+            },
+            "withoutChildren": {
+              "title": "Without children",
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many have no derivation child that counts, 0 included (SR-036 AK6).",
+              "x-elements": "elements/withoutChildren"
+            },
+            "withoutEvidence": {
+              "title": "Without evidence",
+              "type": "integer",
+              "minimum": 0,
+              "description": "Only for a type with the meaning `requirement`: how many have no verification record in the view, 0 included (SR-036 AK6).",
+              "x-elements": "elements/withoutEvidence"
             },
             "withChildren": {
               "title": "With children",
@@ -56,22 +70,10 @@
             "elements": {
               "title": "Elements per number",
               "type": "object",
-              "description": "The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`.",
+              "description": "The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withoutEvidence` and `withEvidence` only where the level has `withEvidence`.",
               "properties": {
-                "withChildren": {
-                  "title": "With children",
-                  "type": "array",
-                  "items": { "$ref": "../common.schema.json#/$defs/uuid" },
-                  "x-elements": true
-                },
                 "withoutChildren": {
                   "title": "Without children",
-                  "type": "array",
-                  "items": { "$ref": "../common.schema.json#/$defs/uuid" },
-                  "x-elements": true
-                },
-                "withEvidence": {
-                  "title": "With evidence",
                   "type": "array",
                   "items": { "$ref": "../common.schema.json#/$defs/uuid" },
                   "x-elements": true
@@ -81,26 +83,34 @@
                   "type": "array",
                   "items": { "$ref": "../common.schema.json#/$defs/uuid" },
                   "x-elements": true
+                },
+                "withChildren": {
+                  "title": "With children",
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" },
+                  "x-elements": true
+                },
+                "withEvidence": {
+                  "title": "With evidence",
+                  "type": "array",
+                  "items": { "$ref": "../common.schema.json#/$defs/uuid" },
+                  "x-elements": true
                 }
               },
               "additionalProperties": false,
-              "required": ["withChildren", "withoutChildren"]
+              "required": ["withoutChildren", "withChildren"]
             }
           },
           "additionalProperties": false,
-          "required": ["type", "total", "withChildren", "elements"]
+          "required": ["type", "total", "withoutChildren", "withChildren", "elements"]
         }
       },
-      "incomplete": {
-        "$ref": "../common.schema.json#/$defs/incomplete"
-      },
+      "incomplete": { "$ref": "../common.schema.json#/$defs/incomplete" },
       "names": {
         "title": "Named elements",
         "type": "array",
         "description": "Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (ThomasBirkmaier/ReqSeq-archive#588). Left out when no level lists an element.",
-        "items": {
-          "$ref": "../common.schema.json#/$defs/elementName"
-        }
+        "items": { "$ref": "../common.schema.json#/$defs/elementName" }
       }
     },
     "additionalProperties": false,
