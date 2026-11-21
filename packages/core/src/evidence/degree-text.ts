@@ -4,8 +4,8 @@
 // assumption of spec question ThomasBirkmaier/ReqSeq-archive#592 Q3). One rule on every access: the CLI's readable output imports it
 // from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
 // imports nothing, so the renderer bundle loads no other part of core with it. The line of a package page
-// (SR-112 AK3) and the head of a matrix column with minima (SR-153 AK1) are built here too, so the app,
-// the CLI and every test that compares with them use one rule.
+// (SR-112 AK3), the head of a matrix column with minima (SR-153 AK1) and the sentence on a degree
+// (`degreeClause`) are built here too, so the app, the CLI and every test that compares with them use one rule.
 
 /**
  * `share` (0 to 1) as a percentage rounded down to one decimal, with a space before `%`. The `1e-9`
