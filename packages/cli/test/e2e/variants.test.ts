@@ -10,7 +10,7 @@ import { fileSha256, reqseq, requireBuiltCli } from "../support/reqseq.js";
 const A = "39039039-0000-4000-8000-0000000000a1";
 const FILE_B = "variants/VAR-0000000000b2.md";
 const NESTED_B =
-  "Property Validity (validity) of Variant VAR-0000b2 names Variant VAR-0000a1, but a variant builds only on the core (D-020)";
+  "Property Validity (validity) of Variant VAR-0000b2 names Variant VAR-0000a1, but a variant builds only on the core";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -58,7 +58,7 @@ describe("reqseq variants (SR-039)", () => {
     );
     expect(create.code).toBe(2);
     expect(create.stderr).toMatch(
-      /^error variant\.nested: Not written: Property Validity \(validity\) of the new variant names Variant VAR-0000a1, but a variant builds only on the core \(D-020\)\. Write the variant without validity entries; a relation between variants is allowed\n$/,
+      /^error variant\.nested: Not written: Property Validity \(validity\) of the new variant names Variant VAR-0000a1, but a variant builds only on the core\. Write the variant without validity entries; a relation between variants is allowed\n$/,
     );
     const shaB = await fileSha256("VAR-0000b2", { cwd: ws.root });
     const update = await reqseq(

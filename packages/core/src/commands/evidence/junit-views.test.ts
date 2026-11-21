@@ -145,7 +145,7 @@ describe("a JUnit test case for several views (SR-093 AK5)", () => {
         "warning",
         "evidence/ci/views.xml",
         `${P}a2`,
-        `The verification record of SR-0000a2 for ${view} counts in no view: SR-0000a2 does not apply in ${short}, so a record for it there would count nowhere (SR-040)`,
+        `The verification record of SR-0000a2 for ${view} counts in no view: SR-0000a2 does not apply in ${short}, so a record for it there would count nowhere`,
       ]),
     );
   });

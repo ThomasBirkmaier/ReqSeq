@@ -96,7 +96,11 @@ export const assignCriterionKeys = async (
 ): Promise<AssignCriterionKeysResult> => {
   const { metamodel, store, shortIds } = selection;
   const key = acceptanceCriteriaKeyOf(metamodel);
-  const named = (record: ElementRecord): NamedElement => ({ id: record.id, shortId: shortIds.of(record) });
+  const named = (record: ElementRecord): NamedElement => ({
+    id: record.id,
+    shortId: shortIds.of(record),
+    repository: record.repository,
+  });
   const skipped: UnknownTypeElement[] = [];
   const candidates: {
     readonly record: ElementRecord;

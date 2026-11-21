@@ -1,7 +1,10 @@
-import { SHORTCUT_TABLES } from "@reqseq/app";
+import { fileURLToPath } from "node:url";
+import { SHORTCUT_TABLES, shortcutReference } from "@reqseq/app";
+import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
+import { readGuidePages } from "./examples.js";
 import type { AccessNames } from "./how-to.js";
-import { accessNames, checkHowTos, howToProblems } from "./how-to.js";
+import { accessNames, checkHowTos, howToProblems, keyPairs, shortcutProblems } from "./how-to.js";
 
 const names: AccessNames = {
   appEntries: new Set(["Show trace chain"]),
@@ -138,5 +141,59 @@ describe("checkHowTos", () => {
     expect(() => checkHowTos([page({ App: "x" }, "how-to/a.md"), other], names)).toThrow(
       'docs: how-to pages\nhow-to/a.md: no section "## CLI" with its steps, or why it is not possible there\n',
     );
+  });
+});
+
+describe("shortcutProblems", () => {
+  const keys = keyPairs([
+    {
+      title: "T",
+      about: "",
+      rows: [
+        { keys: ["Ctrl+K E"], mac: ["⌘K E"], does: "Create element" },
+        { keys: ["Ctrl+P"], mac: ["⌘P"], does: "Go to" },
+        { keys: ["Up", "Ctrl+P"], mac: ["Up", "⌃P"], does: "Previous row" },
+        { keys: ["Ctrl+Enter"], mac: ["⌘↩"], does: "More" },
+        { keys: ["Ctrl+Shift+Z", "Ctrl+Y"], mac: ["⌘⇧Z"], does: "Redo" },
+        { keys: [], mac: ["⌘W"], does: "Close the window" },
+      ],
+    },
+  ]);
+  const problems = (text: string): string[] => shortcutProblems({ path: "how-to/x.md", text }, keys);
+
+  it("pairs the n-th key of a row on Windows and Linux with its n-th key on macOS", () => {
+    expect(keys.pairs.get("Ctrl+P")).toEqual(new Set(["⌘P", "⌃P"]));
+    expect(keys.plainOnly).toEqual(new Set(["Ctrl+Y"]));
+    expect(keys.macOnly).toEqual(new Set(["⌘W"]));
+  });
+
+  it("accepts each key with its macOS key after a comma or in parentheses, and keys of one system alone", () => {
+    expect(
+      problems(
+        "Run it (Ctrl+K E, ⌘K E), then Ctrl+Enter (⌘↩); Ctrl+P (⌃P) or Ctrl+P, ⌘P. Ctrl+Y redoes, ⌘W closes.\n" +
+          "Ctrl+P, ⌘P A dialog opens.\n" +
+          "```sh\nCtrl+Q\n```\nIn code `Ctrl+X` and plain keys like Enter or Ctrl-C are not checked.",
+      ),
+    ).toEqual([]);
+  });
+
+  it("names a key without its macOS key, with a wrong one, one the app does not have, and a lone macOS key", () => {
+    expect(
+      problems("Ctrl+K E alone, Ctrl+Enter (⌘Enter), Ctrl+P, ⌘K P, Ctrl+Alt+X, Ctrl+Y (⌘Y), and ⌘↩ alone."),
+    ).toEqual([
+      'how-to/x.md: "Ctrl+K E" without its macOS key "⌘K E"',
+      'how-to/x.md: "Ctrl+Enter" is "⌘↩" on macOS, not "⌘Enter"',
+      'how-to/x.md: "Ctrl+P" is "⌘P" or "⌃P" on macOS, not "⌘K P"',
+      'how-to/x.md: "Ctrl+Alt+X" is no key of the app',
+      'how-to/x.md: "Ctrl+Y" has no macOS key, not "⌘Y"',
+      'how-to/x.md: "⌘↩" without its key on Windows and Linux before it',
+    ]);
+  });
+
+  it("gives every key of the guide's pages with its macOS key as the app shows it", async () => {
+    const pages = await readGuidePages(fileURLToPath(new URL("../../../docs/guide/", import.meta.url)));
+    const keysOfApp = keyPairs(shortcutReference(getCommandRuntime().contracts.commands));
+    expect(pages.length).toBeGreaterThan(20);
+    expect(pages.flatMap((page) => shortcutProblems(page, keysOfApp))).toEqual([]);
   });
 });

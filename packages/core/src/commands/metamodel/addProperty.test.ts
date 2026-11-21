@@ -163,7 +163,7 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
       kind: "text",
     });
     expect(made.details).toMatchObject({ reason: "metamodel-invalid" });
-    expect(made.message).toContain("Property key status is a field every element has (D-012)");
+    expect(made.message).toContain("Property key status is a field every element has");
     for (const key of ["id", "type"]) {
       const given = await failure(workspace, "metamodel.addProperty", {
         type: "note",
@@ -173,7 +173,7 @@ describe("metamodel.addProperty gives a type a property (SR-238 AK1)", () => {
         kind: "text",
       });
       expect(given.details).toMatchObject({ reason: "metamodel-invalid" });
-      expect(given.message).toContain(`Property key ${key} is a field every element has (D-012)`);
+      expect(given.message).toContain(`Property key ${key} is a field every element has`);
     }
     expect(await read(MODEL)).toBe(SMALL_MODEL);
   });

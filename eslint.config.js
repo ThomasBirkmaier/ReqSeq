@@ -35,6 +35,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/out/**",
       "**/coverage/**",
+      // Build output of scripts/build/html-export-vendor.mjs (mermaid.js), git-ignored like dist (#2249).
+      "packages/core/vendor/**",
       "spec/**",
       "scripts/spec-export/raw/**",
       ".claude/worktrees/**",

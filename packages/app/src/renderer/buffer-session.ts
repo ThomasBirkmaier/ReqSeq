@@ -269,6 +269,14 @@ const isOutput = (value: unknown): boolean =>
   isObject(value["input"]) &&
   (value["count"] === undefined || (isObject(value["count"]) && isText(value["count"]["field"])));
 
+/**
+ * The `selection.inRepository` of a list of the elements a number of a write command's output counts (SR-223 AK5): a
+ * UUID and a repository per item. Core refuses an item that names no element now (`ref.unknown`).
+ */
+const isInRepository = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.every((item: unknown) => isObject(item) && isText(item["id"]) && isText(item["repository"]));
+
 const isStep = (value: unknown): value is FilterStep =>
   isObject(value) &&
   isText(value["label"]) &&
@@ -277,6 +285,7 @@ const isStep = (value: unknown): value is FilterStep =>
   (value["selection"]["where"] === undefined || isObject(value["selection"]["where"])) &&
   (value["selection"]["filter"] === undefined || isText(value["selection"]["filter"])) &&
   (value["selection"]["output"] === undefined || isOutput(value["selection"]["output"])) &&
+  (value["selection"]["inRepository"] === undefined || isInRepository(value["selection"]["inRepository"])) &&
   (value["output"] === undefined || value["output"] === true);
 
 const isSteps = (value: unknown): value is readonly FilterStep[] =>

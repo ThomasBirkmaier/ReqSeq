@@ -17,7 +17,7 @@ const C = "39039039-0000-4000-8000-0000000000c3";
 const FILE_B = "variants/VAR-0000000000b2.md";
 const FILE_C = "variants/VAR-0000000000c3.md";
 const NESTED_B =
-  "Property Validity (validity) of Variant VAR-0000b2 names Variant VAR-0000a1, but a variant builds only on the core (D-020)";
+  "Property Validity (validity) of Variant VAR-0000b2 names Variant VAR-0000a1, but a variant builds only on the core";
 
 interface Opened {
   readonly fixture: FixtureWorkspace;
@@ -97,7 +97,7 @@ describe("a variant as an element (SR-039)", () => {
       }),
     ).toEqual(
       refused(
-        "Property Validity (validity) of the new variant names Variant VAR-0000a1, but a variant builds only on the core (D-020)",
+        "Property Validity (validity) of the new variant names Variant VAR-0000a1, but a variant builds only on the core",
         "element.create",
         [],
       ),
@@ -110,7 +110,7 @@ describe("a variant as an element (SR-039)", () => {
     // element.update that gives C a validity entry is refused too.
     expect(await failure(opened, "element.update", { ref: C, set: { validity: [{ id: A }] } })).toEqual(
       refused(
-        "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core (D-020)",
+        "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core",
         "element.update",
         [C],
       ),
@@ -123,7 +123,7 @@ describe("a variant as an element (SR-039)", () => {
         code: "variant.nested",
         severity: "warning",
         message:
-          "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core (D-020)",
+          "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core",
         repository: "system",
         file: FILE_C,
         line: 9,
@@ -137,7 +137,7 @@ describe("a variant as an element (SR-039)", () => {
     ]);
     expect(await failure(opened, "element.bulkUpdate", { ...bulk, confirm: true })).toEqual(
       refused(
-        "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core (D-020)",
+        "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core",
         "element.bulkUpdate",
         [C],
       ),
@@ -206,7 +206,7 @@ describe("a variant as an element (SR-039)", () => {
     const desert = (line: number, named: string): unknown => ({
       code: "variant.nested",
       severity: "warning",
-      message: `Property Validity (validity) of Variant VAR-0000d4 names ${named}, but a variant builds only on the core (D-020)`,
+      message: `Property Validity (validity) of Variant VAR-0000d4 names ${named}, but a variant builds only on the core`,
       repository: "system",
       file: "variants/VAR-0000000000d4.md",
       line,

@@ -45,21 +45,21 @@ export const outOfView = (
   if (view.kind === "core" || !appliesIn(validityOf(context.metamodel), element, view)) {
     return {
       reason: "not-valid-in-variant",
-      why: `does not apply in ${variant}, so a record for it there would count nowhere (SR-040)`,
+      why: `does not apply in ${variant}, so a record for it there would count nowhere`,
     };
   }
   // Out of the view though it applies: the variant excludes it, or a requirement replaces it there.
   if (rule.excludes(element)) {
     return {
       reason: "excluded-in-variant",
-      why: `is excluded in ${variant}, so a record for it there would count nowhere (SR-047)`,
+      why: `is excluded in ${variant}, so a record for it there would count nowhere`,
     };
   }
   const replacements = rule.replacedBy(element);
   const names = replacements.map((r) => shortIds.of(r)).join(", ");
   return {
     reason: "replaced-in-variant",
-    why: `is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
+    why: `is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead`,
     replacedBy: replacements.map((r) => r.id),
   };
 };
