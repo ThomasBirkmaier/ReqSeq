@@ -323,7 +323,7 @@ test.describe("the command prompt", () => {
     await fs.mkdir(SHOTS, { recursive: true });
     await window.screenshot({ path: path.join(SHOTS, "sr-133-prompt-element-light.png") });
     // A command that does not fit is found by typing.
-    await window.keyboard.type("workspace status");
+    await window.keyboard.type("show workspace");
     await expect(names(window).first()).toHaveText("Show workspace");
     await window.keyboard.press("Escape");
     await listAll(window);
