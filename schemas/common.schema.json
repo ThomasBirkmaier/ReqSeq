@@ -888,6 +888,150 @@
       "description": "A file or folder as an output names it: relative to the workspace root or to the repository the field names, with `/`, or absolute where the field says so.",
       "type": "string"
     },
+    "fieldDifference": {
+      "title": "Difference",
+      "description": "What changed in an element between two of its files, by the rule of the HTML export (SR-051 AK5, SR-232 AK7): the text, each acceptance criterion matched by its criterion key, and each property that counts to the version under the metamodel of the local copy, each with its old and new wording in full, and the relations added and removed. The stored version and title of a target never count. Empty lists where nothing changed.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "title": "Text",
+          "description": "The old and the new text; left out when the text did not change.",
+          "type": "object",
+          "properties": {
+            "before": {
+              "title": "Before",
+              "description": "The text at the commit of the baseline.",
+              "type": "string"
+            },
+            "after": {
+              "title": "After",
+              "description": "The text in the local copy.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": ["before", "after"]
+        },
+        "criteria": {
+          "title": "Acceptance criteria",
+          "description": "Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`); a criterion without text has the wording \"\".",
+          "type": "array",
+          "x-key": ["key", "numberBefore", "numberAfter"],
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "title": "Criterion key",
+                "description": "Its criterion key, where one of the two files gives it one.",
+                "type": "string"
+              },
+              "numberBefore": {
+                "title": "Number before",
+                "description": "Its number in the old file, counted from 1.",
+                "type": "integer",
+                "minimum": 1
+              },
+              "numberAfter": {
+                "title": "Number after",
+                "description": "Its number in the new file, counted from 1.",
+                "type": "integer",
+                "minimum": 1
+              },
+              "before": {
+                "title": "Before",
+                "description": "Its wording in the old file; left out when it was added.",
+                "type": "string"
+              },
+              "after": {
+                "title": "After",
+                "description": "Its wording in the new file; left out when it was removed.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "x-normal": []
+        },
+        "properties": {
+          "title": "Properties",
+          "description": "Each property that changed, by its key; a list one item per line after `- `, any value other than a string as JSON, and no `before` or `after` where it is absent.",
+          "type": "array",
+          "x-key": ["key"],
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "title": "Property",
+                "description": "The key of the property.",
+                "type": "string"
+              },
+              "before": {
+                "title": "Before",
+                "description": "Its value in the old file; left out where it is absent.",
+                "type": "string"
+              },
+              "after": {
+                "title": "After",
+                "description": "Its value in the new file; left out where it is absent.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["key"]
+          },
+          "x-normal": []
+        },
+        "addedRelations": {
+          "title": "Relations added",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/changedRelation"
+          },
+          "x-normal": []
+        },
+        "removedRelations": {
+          "title": "Relations removed",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/changedRelation"
+          },
+          "x-normal": []
+        }
+      },
+      "additionalProperties": false,
+      "required": ["criteria", "properties", "addedRelations", "removedRelations"]
+    },
+    "changedRelation": {
+      "title": "Relation",
+      "description": "A relation target that was added or removed, as the file stores it.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "title": "Relation",
+          "description": "The relation kind or relation property key.",
+          "type": "string"
+        },
+        "id": {
+          "title": "Target",
+          "description": "The ID of the target as the file stores it: a UUID, unless a file at the commit of the baseline holds another value.",
+          "type": "string",
+          "minLength": 1,
+          "x-technical": true
+        },
+        "repository": {
+          "title": "Repository",
+          "description": "Workspace name of the target's repository, where the entry stores one.",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "description": "The title the entry stores, where it stores one.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["kind", "id"]
+    },
     "baselineSince": {
       "title": "Changes since the baseline",
       "description": "A baseline and its elements per state since it, as baseline.get gives them for it (SR-051): the same numbers over all pages.",

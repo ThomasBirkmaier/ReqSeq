@@ -720,6 +720,59 @@ export type Duration = number;
 export type OutputPath = string;
 
 /**
+ * What changed in an element between two of its files, by the rule of the HTML export (SR-051 AK5, SR-232 AK7): the text, each acceptance criterion matched by its criterion key, and each property that counts to the version under the metamodel of the local copy, each with its old and new wording in full, and the relations added and removed. The stored version and title of a target never count. Empty lists where nothing changed.
+ * Schema: `schemas/common.schema.json#/$defs/fieldDifference`.
+ */
+export interface FieldDifference {
+  /** The old and the new text; left out when the text did not change. */
+  readonly text?: {
+    /** The text at the commit of the baseline. */
+    readonly before: string;
+    /** The text in the local copy. */
+    readonly after: string;
+  };
+  /** Each acceptance criterion that changed, was added (no `before`) or was removed (no `after`); a criterion without text has the wording "". */
+  readonly criteria: readonly {
+    /** Its criterion key, where one of the two files gives it one. */
+    readonly key?: string;
+    /** Its number in the old file, counted from 1. */
+    readonly numberBefore?: number;
+    /** Its number in the new file, counted from 1. */
+    readonly numberAfter?: number;
+    /** Its wording in the old file; left out when it was added. */
+    readonly before?: string;
+    /** Its wording in the new file; left out when it was removed. */
+    readonly after?: string;
+  }[];
+  /** Each property that changed, by its key; a list one item per line after `- `, any value other than a string as JSON, and no `before` or `after` where it is absent. */
+  readonly properties: readonly {
+    /** The key of the property. */
+    readonly key: string;
+    /** Its value in the old file; left out where it is absent. */
+    readonly before?: string;
+    /** Its value in the new file; left out where it is absent. */
+    readonly after?: string;
+  }[];
+  readonly addedRelations: readonly ChangedRelation[];
+  readonly removedRelations: readonly ChangedRelation[];
+}
+
+/**
+ * A relation target that was added or removed, as the file stores it.
+ * Schema: `schemas/common.schema.json#/$defs/changedRelation`.
+ */
+export interface ChangedRelation {
+  /** The relation kind or relation property key. */
+  readonly kind: string;
+  /** The ID of the target as the file stores it: a UUID, unless a file at the commit of the baseline holds another value. */
+  readonly id: string;
+  /** Workspace name of the target's repository, where the entry stores one. */
+  readonly repository?: string;
+  /** The title the entry stores, where it stores one. */
+  readonly title?: string;
+}
+
+/**
  * A baseline and its elements per state since it, as baseline.get gives them for it (SR-051): the same numbers over all pages.
  * Schema: `schemas/common.schema.json#/$defs/baselineSince`.
  */
@@ -4109,6 +4162,34 @@ export interface TraceNeighbourhoodOutput {
     /** The relation or reference stores a version of normal form 1 or 2, its target is available and has a current version, and the two differ, compared in the stored version's form (SR-025, ADR-0005). */
     readonly outdated: boolean;
   }[];
+  /** The relations and references that point at the root directly, as the down walk follows them (SR-107 AK5, AK6): one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view (SR-072 AK3). Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`. */
+  readonly incoming?: readonly {
+    /** Relations of one key, or the inline references. */
+    readonly link: "relation" | "reference";
+    /** The frontmatter key, only for `link: relation`. */
+    readonly kind?: Key;
+    /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
+    readonly property?: true;
+    /** The meaning of the relation kind, `reference` for the inline references; left out for a kind without a meaning and for a property. */
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
+    /** The number of all elements of the group; `element.list` with this count gives them all. */
+    readonly count: number;
+    /** The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored, SR-075 AK1), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID. */
+    readonly elements: readonly {
+      readonly id: Uuid;
+      readonly shortId: ShortId;
+      /** Its identifier; left out when it has none. */
+      readonly identifier?: string;
+      /** Key of its type. */
+      readonly type: string;
+      /** Its title; empty without one. */
+      readonly title: string;
+      /** Its status key as written; left out when it has none. */
+      readonly status?: string;
+      /** Workspace name of the repository of its file. */
+      readonly repository: string;
+    }[];
+  }[];
   readonly incomplete: Incomplete;
   /** The root, so a reader names it by short ID, identifier and title on every page, also one whose `nodes` do not hold it (#1874). */
   readonly names?: readonly ElementName[];
@@ -5371,7 +5452,7 @@ export interface BaselineGetOutput {
 }
 
 /**
- * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
+ * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The difference of an element since a baseline: its old and new text, acceptance criteria and properties and the relations added and removed, with the two commits and the Git command that show it (SR-051 AK4, AK5). Runs nothing.
  * Schema: `schemas/commands/baseline.compare.json input`.
  */
 export interface BaselineCompareInput {
@@ -5382,7 +5463,7 @@ export interface BaselineCompareInput {
 }
 
 /**
- * Output of `baseline.compare`. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
+ * Output of `baseline.compare`. The difference of an element since a baseline: its old and new text, acceptance criteria and properties and the relations added and removed, with the two commits and the Git command that show it (SR-051 AK4, AK5). Runs nothing.
  * Schema: `schemas/commands/baseline.compare.json output`.
  */
 export interface BaselineCompareOutput {
@@ -5398,6 +5479,8 @@ export interface BaselineCompareOutput {
   readonly oldFile?: OutputPath;
   /** git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access. */
   readonly command: readonly string[];
+  /** What changed since the baseline (SR-051 AK5); empty lists when nothing changed. */
+  readonly difference: FieldDifference;
 }
 
 /**
@@ -5433,7 +5516,7 @@ export interface BaselineChangesOutput {
   readonly hintTotal: number;
   /** The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline. */
   readonly problems?: readonly Problem[];
-  /** Confirm hints, Show Git command to compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
+  /** Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
   readonly next: readonly NextStep[];
   readonly incomplete?: Incomplete;
   /** The variant of the baseline's view, as baseline.get names it. Left out in the core. */

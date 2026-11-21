@@ -1,4 +1,4 @@
-// html.export, the neighbourhood on an element's page (SR-232 AK5, AK6, AK8): parents up to the top, children as a tree
+// html.export, the neighbourhood on an element's page (SR-232 AK5, AK6, AK8, AK9): parents up to the top, children as a tree
 // with repetitions, incoming relations and references by kind, outdated links marked, elements with an invalid status
 // without a link while the chain goes on through them, and the repositories that are not on this machine.
 import fs from "node:fs/promises";
@@ -589,5 +589,88 @@ describe("html.export names the repositories that are not on this machine in the
     expect(parents).toContain(`${inaccessible(0, "UNKNOWN-1a2b3c", "vault")}${MORE}`);
     expect(rowsIn(children)).toBe(100);
     expect(children).toContain(`${MORE}${missingLine("Children")}`);
+  });
+});
+
+describe("html.export leaves the package membership out of the neighbourhood of a package page (SR-232 AK9)", () => {
+  const PACKAGE_METAMODEL = `reqseq-metamodel: 1
+types:
+  - { key: package, name: Package, prefix: PKG, meaning: package, properties: [title], required: [title] }
+  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, packages], required: [title] }
+  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, packages], required: [title] }
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: packages, name: Package, kind: relation, many: true, target-types: [package], meaning: packages }
+relations:
+  - { key: derives-from, name: Derives from, meaning: derivation }
+  - { key: based-on, name: Based on, inverse-name: Basis for }
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: obsolete, name: Obsolete, invalid: true }
+`;
+  const PKG = uuid(20);
+  const LONE = uuid(21);
+  const MEMBER = uuid(22);
+  const GONE_MEMBER = uuid(23);
+  const BASED = uuid(24);
+  const ALONE = uuid(25);
+  const NEED = uuid(26);
+  const sr = (id: string, front: string): string =>
+    element(id, "system-requirement", `status: draft\ntitle: Req ${id.slice(-2)}\n${front}`);
+
+  const exportedSections = async () => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-001/two-elements",
+      files: {
+        "metamodel/standard-model.yaml": PACKAGE_METAMODEL,
+        "packages/PKG-20.md": element(PKG, "package", "status: draft\ntitle: Display\n"),
+        "packages/PKG-21.md": element(LONE, "package", "status: draft\ntitle: Alone\n"),
+        "needs/N-26.md": element(NEED, "need", "status: draft\ntitle: See the wind\n"),
+        // An outdated membership, a `packages` value that names a need (no package, against its target types), and an
+        // inline reference to the package.
+        "requirements/SR-22.md": sr(
+          MEMBER,
+          `packages:\n  - { id: ${PKG}, ${STALE} }\n  - { id: ${NEED} }\n`,
+        ).replace("Text.", `See [the display](reqseq:${PKG}).`),
+        "requirements/SR-23.md": element(
+          GONE_MEMBER,
+          "system-requirement",
+          `status: obsolete\ntitle: Req 23\npackages:\n  - { id: ${PKG} }\n`,
+        ),
+        "requirements/SR-24.md": sr(BASED, `based-on:\n  - { id: ${PKG} }\n`),
+        "requirements/SR-25.md": sr(ALONE, `packages:\n  - { id: ${LONE} }\n`),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await exported(workspace);
+    return (id: string) => sectionOf(fixture, id);
+  };
+
+  it("[SR-232/AK-chx5] shows no row of package membership, also not of an element with an invalid status, and keeps the other incoming groups", async () => {
+    const section = await (await exportedSections())(PKG);
+    expect(section).toContain(
+      `<h3>← Basis for</h3><ul class="rq-nb">${linked(BASED, 0, "SR-000024", "Req 24", "draft")}</ul>` +
+        `<h3>← inline reference</h3><ul class="rq-nb">${linked(MEMBER, 0, "SR-000022", "Req 22", "draft")}</ul></section>`,
+    );
+    expect(section).not.toContain("← Package");
+    expect(section).not.toContain("link outdated");
+    expect(section).not.toContain("SR-000023");
+    expect(section.split("<li").length - 1).toBe(2);
+  });
+
+  it("[SR-232/AK-chx5] reads as for an element without incoming links when package membership is the only one", async () => {
+    const section = await (await exportedSections())(LONE);
+    expect(section).toBe(
+      '<section class="rq-neighbourhood"><h2 id="neighbourhood">Neighbourhood</h2>' +
+        '<h3>Parents</h3><p class="rq-nb-none">No parents</p><h3>Children</h3><p class="rq-nb-none">No children</p></section>',
+    );
+  });
+
+  it("[SR-232/AK-chx5] keeps the group on the page of an element that is no package", async () => {
+    expect(await (await exportedSections())(NEED)).toContain(
+      `<h3>← Package</h3><ul class="rq-nb">${linked(MEMBER, 0, "SR-000022", "Req 22", "draft")}</ul>`,
+    );
   });
 });

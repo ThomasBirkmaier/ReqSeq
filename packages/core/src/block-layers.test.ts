@@ -128,7 +128,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
     ],
     types: ["runtime state"],
   },
-  displays: { values: ["graph", "model"] },
+  displays: { values: ["graph", "model", "query"] },
   graph: {
     values: ["evidence", "hints", "metamodel", "model", "runtime state", "trace", "variants", "workspace"],
   },
@@ -161,7 +161,7 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
   evidence: { values: ["files", "metamodel", "model", "runtime state", "trace", "variants", "workspace"] },
   trace: { values: ["metamodel", "model", "runtime state", "workspace"] },
   variants: { values: ["metamodel", "model", "runtime state", "workspace"] },
-  baselines: { values: ["files", "model", "runtime state", "workspace"] },
+  baselines: { values: ["files", "metamodel", "model", "runtime state", "workspace"] },
   model: { values: ["files", "git", "metamodel", "runtime state", "version", "workspace"] },
   metamodel: { values: ["files", "runtime state", "workspace"] },
   // git: whether Git tracks `.reqseq/local.yaml` before the layout uses it (SR-004 AK8, #1456).

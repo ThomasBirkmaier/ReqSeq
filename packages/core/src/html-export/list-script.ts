@@ -19,6 +19,10 @@
 //   (`data-b`) and sorts in the order of its values, and a chip filters by it; with none, the column and the chip are
 //   hidden and their choice is cleared. The chip offers no grouping.
 //
+// The groups (the values of each filter, in order), the facets and the ranks come from the display model of the list
+// (`listDisplay`, ADR-0019 point 7) as the page writes it; the script only combines the filters, counts the hits and
+// searches.
+//
 // An open menu of a chip closes on a click outside it and on Escape, which puts the focus on its chip when the focus
 // was in its menu (#2138).
 
