@@ -66,6 +66,23 @@ describe("assembleContent", () => {
     );
   });
 
+  it("turns a hand-written or generated page with the four ways in into MDX with tabs, after the base links", async () => {
+    const ways = "## App\n\nA.\n\n## CLI\n\n[B](/b/)\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
+    await writeFile(join(paths.guideDir, "start", "first.md"), ways);
+    const pages = [{ path: "reference/commands/x.md", text: ways }];
+    expect(await assembleContent(paths, pages, "/ReqSeq")).toEqual([
+      "index.md",
+      "reference/commands/x.mdx",
+      "start/first.mdx",
+    ]);
+    const page = await readFile(join(paths.contentDir, "start", "first.mdx"), "utf8");
+    expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="App">\n');
+    expect(page).toContain('<p class="access-tab-label">CLI</p>\n\n\n[B](/ReqSeq/b/)\n');
+    expect(await readFile(join(paths.contentDir, "reference", "commands", "x.mdx"), "utf8")).toBe(
+      page.replace("/ReqSeq/b/", "/b/"),
+    );
+  });
+
   it("never lets a generated page replace a hand-written one", async () => {
     await expect(assembleContent(paths, [{ path: "index.md", text: "# Generated\n" }])).rejects.toThrow(
       /EEXIST/,

@@ -8521,7 +8521,7 @@
     "/v1/commands/element.setStatus": {
       "post": {
         "operationId": "element_setStatus",
-        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own.",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Besides element.supersede the only command that changes a status; no command changes one on its own. A required property without a value blocks no status.",
         "tags": [
           "element"
         ],
@@ -8529,7 +8529,8 @@
         "x-reqseq-stage": 1,
         "x-reqseq-implements": [
           "SR-017",
-          "SR-087"
+          "SR-087",
+          "SR-243"
         ],
         "requestBody": {
           "required": true,
@@ -8587,6 +8588,7 @@
                     },
                     "problems": {
                       "title": "Problems",
+                      "description": "For each element, element.missing-required for each required property without a value; then, with a status the metamodel marks invalid, the hints on relations to these elements.",
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/problem"
@@ -11615,6 +11617,114 @@
                           "cyclic",
                           "repeated",
                           "outdated"
+                        ]
+                      }
+                    },
+                    "incoming": {
+                      "title": "Incoming by kind",
+                      "type": "array",
+                      "description": "The relations and references that point at the root directly, as the down walk follows them: one group per property of kind `relation` (such as `packages`), then per relation kind, each in the order of the metamodel, then one for the inline references; only the keys with at least one element. Each element is in a group once, also with several relations of its key, and so is the root where it points at itself. In a view only the elements the view holds, but a successor of the root (a relation kind with the meaning `succession`) in any view. Given when the root's incoming links were looked at: `direction` `down` or `both`, and `maxDepth` not 0. Not paged by `limit` and `offset`.",
+                      "x-key": [
+                        "link",
+                        "kind"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "link": {
+                            "title": "Relation or reference",
+                            "enum": [
+                              "relation",
+                              "reference"
+                            ],
+                            "description": "Relations of one key, or the inline references."
+                          },
+                          "kind": {
+                            "title": "Relation kind",
+                            "$ref": "#/components/schemas/common/$defs/key",
+                            "description": "The frontmatter key, only for `link: relation`."
+                          },
+                          "property": {
+                            "title": "Property",
+                            "const": true,
+                            "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
+                          },
+                          "meaning": {
+                            "title": "Meaning",
+                            "enum": [
+                              "derivation",
+                              "replacement",
+                              "succession",
+                              "exclusion",
+                              "reference"
+                            ],
+                            "description": "The meaning of the relation kind, `reference` for the inline references; left out for a kind without a meaning and for a property."
+                          },
+                          "count": {
+                            "title": "Count",
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The number of all elements of the group; `element.list` with this count gives them all.",
+                            "x-elements": "selection"
+                          },
+                          "elements": {
+                            "title": "Elements",
+                            "type": "array",
+                            "maxItems": 100,
+                            "description": "The first 100 elements of the group: by identifier ascending in natural order (digit runs as numbers, case ignored), the elements with the same identifier by short ID, and the elements without an identifier last, by short ID.",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "title": "Element",
+                                  "$ref": "#/components/schemas/common/$defs/uuid"
+                                },
+                                "shortId": {
+                                  "title": "Short ID",
+                                  "$ref": "#/components/schemas/common/$defs/shortId"
+                                },
+                                "identifier": {
+                                  "title": "Identifier",
+                                  "type": "string",
+                                  "description": "Its identifier; left out when it has none."
+                                },
+                                "type": {
+                                  "title": "Type",
+                                  "description": "Key of its type.",
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "title": "Title",
+                                  "description": "Its title; empty without one.",
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "title": "Status",
+                                  "description": "Its status key as written; left out when it has none.",
+                                  "type": "string"
+                                },
+                                "repository": {
+                                  "title": "Repository",
+                                  "description": "Workspace name of the repository of its file.",
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "id",
+                                "shortId",
+                                "type",
+                                "title",
+                                "repository"
+                              ]
+                            }
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "link",
+                          "count",
+                          "elements"
                         ]
                       }
                     },

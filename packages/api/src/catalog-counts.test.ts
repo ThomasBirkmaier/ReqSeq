@@ -204,6 +204,7 @@ const READS: readonly { options: FixtureOptions; root?: string; command: string;
   { options: GRAPH, command: "element.list", input: { withVerification: true, group: "status", limit: 1 } },
   { options: GRAPH, command: "element.search", input: { query: "weather", withVerification: true } },
   { options: GRAPH, command: "trace.graph", input: { ref: "N-00a001" } },
+  { options: GRAPH, command: "trace.neighbourhood", input: { ref: "N-00a001", limit: 1 } },
   {
     options: GRAPH,
     command: "trace.related",

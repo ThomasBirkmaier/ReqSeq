@@ -15,7 +15,10 @@
 //   walk follows no derivation: those are the children), one group per key and one for the inline references, the
 //   groups in the order they first appear. A group is named by `relationGroupLabel`, as `trace.matrix` names an
 //   incoming column: a relation kind's inverse name, else its name, and a property by its name; two keys with the
-//   same name stay two groups. Outdated ones are marked.
+//   same name stay two groups. Outdated ones are marked. On a package page (`members` has it, SR-233 AK4) the group of
+//   the property with the meaning `packages` is left out as a whole (SR-232 AK9), with its rows of elements without a
+//   page and its outdated marks: the page lists its elements above. Without another group the section reads as for an
+//   element without incoming links. The page of an element that is no package keeps the group.
 // - Each row: short ID with the identifier, title and status ("–" without one), as a link to the element's page. An
 //   element with an invalid status (D-044) is a row without a link, also where the earlier export left a short page
 //   (SR-231 AK8), and the walks go on through it (AK6); an element without a page (several files share its UUID)
@@ -42,7 +45,8 @@
 // - Cost: per page two bounded walks over the derivations and one step over the other links, and their answers; the
 //   current versions are read once for the export (`neighbourhoodSource`).
 import type { ElementRef, NeighbourhoodAnswer, NeighbourhoodDisplay } from "../displays/index.js";
-import { boundNote, emptyValueLabel, neighbourhoodDisplay, shownId } from "../displays/index.js";
+import { boundNote, emptyValueLabel, neighbourhoodDisplay, shownId, targetKey } from "../displays/index.js";
+import { propertyWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
 import { UNKNOWN_TYPE_PREFIX, hasId, relationItems, relationKeysOf, targetState } from "../model/index.js";
 import type {
@@ -268,6 +272,9 @@ export const neighbourhoodSection = async (
         incoming: Number.POSITIVE_INFINITY,
       },
       open: "all",
+      withoutPackageMembers: context.members.has(targetKey(page.record))
+        ? propertyWithMeaning(context.metamodel, "packages")?.key
+        : undefined,
     },
   );
   return neighbourhoodHtml(

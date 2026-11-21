@@ -11,7 +11,8 @@ import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
-type Output = CommandOutput<"element.setStatus">;
+// The runtime adds the answer to every output (SR-224).
+type Output = CommandOutput<"element.setStatus"> & { readonly answer: string };
 
 /** The elements of fixtures/SR-017/own-statuses. */
 const WIND = { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", file: "requirements/REQ-6328cee88fb3.md" };
@@ -165,11 +166,12 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
       reason: "unknown-status",
       allowed: ["draft", "approved", "obsolete"],
     });
-    expect(await setStatus(opened, { refs: ["SR-e88fb3"], status: "approved" })).toEqual({
-      answer: "Set the status of 1 element to approved.",
-      files: ["requirements/SR-6328cee88fb3.md"],
-      problems: [],
-    });
+    const set = await setStatus(opened, { refs: ["SR-e88fb3"], status: "approved" });
+    expect([set.answer, set.files, set.problems?.map((p) => p.code)]).toEqual([
+      "Set the status of 1 element to approved; 2 problems.",
+      ["requirements/SR-6328cee88fb3.md"],
+      ["element.missing-required", "element.missing-required"],
+    ]);
   });
 
   it("[SR-002/AK-b8j5] keeps the UUID and the file name when the status changes", async () => {
@@ -344,5 +346,77 @@ describe("element.setStatus writes only the status", () => {
       files: [WIND.file, BARE.file],
       problems: [],
     });
+  });
+});
+
+describe("element.setStatus names the required properties without a value (SR-243 AK4)", () => {
+  /** A third element of fixtures/SR-001/two-elements: no status, an empty and an absent required property. */
+  const RAIN = {
+    id: "5a6b7c8d-1111-4222-8333-0a0b0c0d0e0f",
+    file: "requirements/SR-0a0b0c0d0e0f.md",
+    content:
+      "---\nid: 5a6b7c8d-1111-4222-8333-0a0b0c0d0e0f\ntype: system-requirement\ntitle: Show rain\nrequirement-type:\n---\n\nThe station shows the rain.\n",
+  };
+  const WIND_ID = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
+  const GUSTS_ID = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
+
+  const opened = async (): Promise<Opened> => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-001/two-elements",
+      files: { [RAIN.file]: RAIN.content },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    return { fixture, workspace };
+  };
+
+  /** Each problem as element, code, key and line. */
+  const named = (output: Output): unknown[] =>
+    (output.problems ?? []).map((p) => [p.elementId, p.code, p.severity, p.key, p.line]);
+
+  it("[SR-243/AK-h5mc] sets the status and names every required property without a value of each element", async () => {
+    const ws = await opened();
+    const refs = [WIND_ID, GUSTS_ID, RAIN.id];
+    const set = await setStatus(ws, { refs, status: "approved" });
+    expect(set.files).toEqual([
+      "requirements/SR-6328cee88fb3.md",
+      "requirements/SR-1d2e3f4a5b6c.md",
+      RAIN.file,
+    ]);
+    // The line of the empty key, in the file as written.
+    const rain = (await read(ws, RAIN.file)).split("\n");
+    const line = rain.indexOf("requirement-type:") + 1;
+    const missing = [
+      [WIND_ID, "element.missing-required", "warning", "requirement-type", undefined],
+      [WIND_ID, "element.missing-required", "warning", "acceptance-criteria", undefined],
+      [RAIN.id, "element.missing-required", "warning", "requirement-type", line],
+      [RAIN.id, "element.missing-required", "warning", "acceptance-criteria", undefined],
+    ];
+    expect(named(set)).toEqual(missing);
+    expect(set.answer).toBe("Set the status of 3 elements to approved; 4 problems.");
+    // The file was just written, so the message does not say that no file changes.
+    expect(set.problems?.[0]?.message).toBe(
+      "Required property Requirement Type (requirement-type) of type System Requirement (system-requirement) has no value",
+    );
+    // The status is set already: no file is written, the properties are still named.
+    const again = await setStatus(ws, { refs, status: "approved" });
+    expect([again.files, named(again)]).toEqual([[], missing]);
+    // An element whose required properties all have a value gives none.
+    expect(await setStatus(ws, { refs: [GUSTS_ID], status: "draft" })).toEqual({
+      answer: "Set the status of 1 element to draft.",
+      files: ["requirements/SR-1d2e3f4a5b6c.md"],
+      problems: [],
+    });
+  });
+
+  it("[SR-243/AK-h5mc] names them before the hints of a status marked invalid (SR-072 AK2)", async () => {
+    const ws = await opened();
+    const set = await setStatus(ws, { refs: [WIND_ID], status: "obsolete" });
+    expect((set.problems ?? []).map((p) => [p.code, p.elementId, p.key])).toEqual([
+      ["element.missing-required", WIND_ID, "requirement-type"],
+      ["element.missing-required", WIND_ID, "acceptance-criteria"],
+      ["relation.target-superseded", GUSTS_ID, "derives-from"],
+    ]);
   });
 });

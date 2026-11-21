@@ -284,3 +284,42 @@ describe("neighbourhoodDisplay, incoming", () => {
     });
   });
 });
+
+describe("neighbourhoodDisplay on a package page (SR-232 AK9)", () => {
+  /** P is the package: M names it and refers to it, G (invalid status) names it, U is based on it. */
+  const members = (others: boolean): NeighbourhoodAnswer =>
+    answer(
+      [node("P", 0), node("M", 1), node("G", 1, { status: "obsolete" }), node("U", 1)],
+      [
+        edge("M", "P", { kind: "packages", property: true, meaning: undefined, outdated: true }),
+        edge("G", "P", { kind: "packages", property: true, meaning: undefined }),
+        ...(others
+          ? [
+              edge("U", "P", { kind: "based-on", meaning: undefined }),
+              edge("M", "P", { link: "reference", kind: undefined, meaning: "reference" }),
+            ]
+          : []),
+      ],
+    );
+  const groups = (others: boolean, withoutPackageMembers: string | undefined) =>
+    neighbourhoodDisplay(
+      { incoming: members(others), metamodel: METAMODEL },
+      { ...ALL, withoutPackageMembers },
+    ).incoming.rows.map((group) => [group.label, group.entries.map((entry) => entry.ref.id)]);
+
+  it("[SR-232/AK-chx5] leaves out the group of the packages property with its rows, also of an invalid status, and keeps every other group", () => {
+    expect(groups(true, "packages")).toEqual([
+      ["← Basis for", ["U"]],
+      ["← inline reference", ["M"]],
+    ]);
+  });
+
+  it("[SR-232/AK-chx5] has no incoming group when package membership is the only incoming link", () => {
+    expect(groups(false, "packages")).toEqual([]);
+  });
+
+  it("[SR-232/AK-chx5] keeps the group without the option, as on the page of an element that is no package", () => {
+    expect(groups(false, undefined)).toEqual([["← Packages", ["M", "G"]]]);
+    expect(groups(true, "based-on")).toContainEqual(["← Packages", ["M", "G"]]);
+  });
+});
