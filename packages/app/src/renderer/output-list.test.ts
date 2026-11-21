@@ -210,7 +210,7 @@ describe("the numbers of elements of an output", () => {
     expect(flat.some((line) => line.list !== undefined)).toBe(false);
   });
 
-  it("[SR-223/AK-zc7t] a number of a write command opens the elements its output names, by UUID", () => {
+  it("[SR-223/AK-zc7t] a number of a write command opens the elements its output names, by UUID and repository", () => {
     const fields = [
       { path: "versionsChanged", title: "Versions changed", elements: ["versionsChangedElements"] },
       { path: "missing", title: "Missing", elements: ["missingElements"] },
@@ -218,19 +218,34 @@ describe("the numbers of elements of an output", () => {
     ] as OutputField[];
     const written = { command: "metamodel.addType", input: {}, name: "Add type", written: true };
     const lines = resultLines(
-      { versionsChanged: 2, missing: 0, versionsChangedElements: [{ id: "u-1" }, "u-2", { id: 3 }] },
+      {
+        versionsChanged: 2,
+        missing: 0,
+        versionsChangedElements: [
+          { id: "u-1", repository: "system" },
+          { id: "u-1", repository: "sensor" },
+          { id: "u-1", repository: "system" },
+          { id: "u-2" },
+          "u-3",
+          { id: 4, repository: "system" },
+        ],
+      },
       fields,
       false,
       [],
       written,
     );
+    // Each counted copy once, and no copy of u-1 in another repository (#2024).
     expect(lines.find((line) => line.label === "Versions changed")?.list?.selection).toEqual({
-      where: { property: "id", op: "in", value: ["u-1", "u-2"] },
+      inRepository: [
+        { id: "u-1", repository: "system" },
+        { id: "u-1", repository: "sensor" },
+      ],
     });
     // No elements named: no list.
     expect(lines.find((line) => line.label === "Missing")?.list).toBeUndefined();
     const nested = resultLines(
-      { groups: [{ count: 1, ids: ["u-7"] }] },
+      { groups: [{ count: 1, ids: [{ id: "u-7", repository: "system" }] }] },
       [
         { path: "groups[].count", title: "Count", elements: ["groups[].ids"], keys: [[]] },
         { path: "groups[].ids", title: "IDs", elements: true },
@@ -240,7 +255,7 @@ describe("the numbers of elements of an output", () => {
       written,
     );
     expect(nested.find((line) => line.label === "Count")?.list?.selection).toEqual({
-      where: { property: "id", op: "in", value: ["u-7"] },
+      inRepository: [{ id: "u-7", repository: "system" }],
     });
   });
 });

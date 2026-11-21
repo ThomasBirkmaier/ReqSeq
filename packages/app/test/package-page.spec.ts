@@ -347,7 +347,7 @@ test.describe("the line under the title of a package page", () => {
     // The ten requirements have no evidence: each is listed under the number of those without.
     expect(without).toHaveLength(10);
     await shownLayer(window).locator("article .package-summary [role=link]").click();
-    await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
+    await expect(window.getByLabel("Modeline")).toContainText("Show coverage");
     const rows = shownLayer(window).locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
     const count = shownLayer(window).locator(".result .line", {

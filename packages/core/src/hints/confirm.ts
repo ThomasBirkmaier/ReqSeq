@@ -92,6 +92,7 @@ import { CONFIRMABLE_CODES, hintIdOf, parseHintId } from "./hint-id.js";
 import type { Candidate, ShownContext } from "./outdated.js";
 import { outdatedOfShown, outdatedRelationsState } from "./outdated.js";
 import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 const COMMAND: CommandName = "hint.confirm";
 
@@ -131,8 +132,7 @@ interface Source {
   readonly found: Found[];
 }
 
-const NOT_CONFIRMABLE =
-  "only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in hint.list) is confirmed, by writing the current version (D-042); other hints go away when what they report is changed";
+const NOT_CONFIRMABLE = `only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in ${commandTitle("hint.list")}) is confirmed, by writing the current version; other hints go away when what they report is changed`;
 
 const notConfirmable = (
   id: string,
@@ -148,7 +148,7 @@ const notConfirmable = (
 const sinceBaselineRefusal = (given: string, code: string, note = ""): Problem => ({
   code: "hint.not-confirmable",
   severity: "error",
-  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)${note}`,
+  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (${commandTitle("baseline.create")} with the view of the variant), not by confirming it${note}`,
 });
 
 /** The refusal of `kind` for each since-baseline code it names. */
@@ -171,7 +171,7 @@ const refusalAtVariant = async (context: ShownContext, input: ConfirmInput): Pro
         {
           code: "hint.not-confirmable",
           severity: "error",
-          message: `${String(hints.length)} open hints at ${context.shortIds.of(record)} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)`,
+          message: `${String(hints.length)} open hints at ${context.shortIds.of(record)} (${codes}) are not confirmed: they are settled only by a new baseline of the variant (${commandTitle("baseline.create")} with the view of the variant), not by confirming them`,
           elementId: record.id,
         },
       ];
@@ -198,7 +198,7 @@ const refusalOf = (id: string): Problem => {
 const notFound = (id: string, target: HintTarget): Problem => ({
   code: "hint.not-found",
   severity: "warning",
-  message: `No open hint has the ID ${id}, so nothing was written for it (a warning, exit code 0): it is confirmed already, or the relation, its target or the file changed since; hint.list gives the open hints`,
+  message: `No open hint has the ID ${id}, so nothing was written for it: it is confirmed already, or the relation, its target or the file changed since; ${commandTitle("hint.list")} gives the open hints`,
   repository: target.sourceRepository,
   file: target.file,
   elementId: target.source,
@@ -434,9 +434,10 @@ const assertSelects = (input: ConfirmInput): void => {
       ]);
     }
     if (input.kind === undefined) {
-      throw invalidInput("all needs kind: the codes of the hints a person reviewed (hint.list --kind)", [
-        "kind",
-      ]);
+      throw invalidInput(
+        `all needs kind: the codes of the hints a person reviewed (the kind filter of ${commandTitle("hint.list")})`,
+        ["kind"],
+      );
     }
     const other = input.kind.filter(
       (code) => !(CONFIRMABLE_CODES as readonly string[]).includes(code) && !SINCE_BASELINE_CODES.has(code),
@@ -448,15 +449,16 @@ const assertSelects = (input: ConfirmInput): void => {
       );
     }
     if (input.expected === undefined) {
-      throw invalidInput("all needs expected: the total of hint.list with the same kind, as reviewed", [
-        "expected",
-      ]);
+      throw invalidInput(
+        `all needs expected: the total of ${commandTitle("hint.list")} with the same kind, as reviewed`,
+        ["expected"],
+      );
     }
     return;
   }
   if (!byElement && input.hintIds === undefined) {
     throw invalidInput(
-      "Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)",
+      `Give hintIds, ref or target: which hints to confirm (${commandTitle("hint.list")} gives the open ones)`,
       ["hintIds", "ref", "target"],
     );
   }
@@ -470,7 +472,7 @@ const assertExpected = (input: ConfirmInput, count: number): void => {
   if (input.expected !== undefined && input.expected !== count) {
     throw new CommandError(
       "input.invalid",
-      `expected: the call now confirms ${String(count)} hints, not ${String(input.expected)}; nothing was written. List them again with hint.list`,
+      `expected: the call now confirms ${String(count)} hints, not ${String(input.expected)}; nothing was written. List them again with ${commandTitle("hint.list")}`,
       { command: COMMAND, fields: ["expected"], expected: input.expected, count, reason: "count-changed" },
     );
   }
@@ -536,8 +538,8 @@ const nothingSelected = (input: ConfirmInput): Problem => {
     severity: "warning",
     message:
       about.length === 0
-        ? "No hint ID is given, so nothing was written (a warning, exit code 0); hint.list gives the open hints"
-        : `No open hint ${about.join(" ")} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+        ? `No hint ID is given, so nothing was written; ${commandTitle("hint.list")} gives the open hints`
+        : `No open hint ${about.join(" ")} can be confirmed, so nothing was written for it; ${commandTitle("hint.list")} gives the open hints`,
   };
 };
 

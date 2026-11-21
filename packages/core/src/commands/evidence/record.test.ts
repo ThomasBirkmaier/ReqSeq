@@ -287,7 +287,7 @@ describe("evidence.record (SR-030)", () => {
       ]);
     }
     expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: [2] })).message).toBe(
-      "Not written: acceptance criterion 2 has no criterion key; give the criteria their keys first (SR-204)",
+      "Not written: acceptance criterion 2 has no criterion key; give the criteria their keys first",
     );
     expect(await filesOf(fixture)).toEqual(before);
   });

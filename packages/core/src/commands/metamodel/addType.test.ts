@@ -236,7 +236,7 @@ describe("metamodel commands: the frame as metamodel.addType shows it (SR-236)",
     const denied = await failure(readOnly.workspace, RISK);
     expect([denied.code, denied.message, denied.details]).toEqual([
       "file.read-only",
-      "The metamodel repository models is read-only; metamodel.addType changes no file",
+      'The metamodel repository models is read-only; "Add type" changes no file',
       { repository: "models" },
     ]);
     expect(await readOnly.read(OWN.types)).toBe(before);

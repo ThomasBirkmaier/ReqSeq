@@ -61,7 +61,7 @@ describe("createWorkspace when the workspace file cannot be written", () => {
     expect(error).toMatchObject({
       code: "file.read-only",
       message:
-        "Not written: reqseq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running workspace.init again.",
+        'Not written: reqseq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running "Create workspace" again.',
       details: { written: ["metamodel/standard-model.yaml"] },
     });
   });

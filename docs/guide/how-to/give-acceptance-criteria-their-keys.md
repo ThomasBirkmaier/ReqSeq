@@ -74,6 +74,7 @@ count: 1
 changed:
   - id: 20420420-0000-4000-8000-00000000a204
     shortId: SR-00a204
+    repository: ...
     assigned: 2
 skipped: none
 files:

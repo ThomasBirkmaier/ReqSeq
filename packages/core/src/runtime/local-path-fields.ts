@@ -79,11 +79,11 @@ export const localPathFields = (
     at: LocalPathField,
   ): void => {
     if (Array.isArray(node["items"]) && mentions(node["items"], from, new Set())) {
-      throw new Error(`a local path in the items array of ${shown(at)} would not be checked (SR-142)`);
+      throw new Error(`a local path in the items array of ${shown(at)} would not be checked`);
     }
     for (const key of UNFOLLOWED) {
       if (key in node && mentions(node[key], from, new Set())) {
-        throw new Error(`a local path under ${key} of ${shown(at)} would not be checked (SR-142)`);
+        throw new Error(`a local path under ${key} of ${shown(at)} would not be checked`);
       }
     }
   };
@@ -102,7 +102,7 @@ export const localPathFields = (
     if (visiting.has(node)) {
       // A schema that refers back to itself has local paths at every depth: no list holds them.
       if (mentions(node, from, new Set())) {
-        throw new Error(`a local path in the recursive schema at ${shown(at)} would not be checked (SR-142)`);
+        throw new Error(`a local path in the recursive schema at ${shown(at)} would not be checked`);
       }
       return;
     }
@@ -112,7 +112,7 @@ export const localPathFields = (
       const next = resolve(ref, from);
       if (next.node === undefined) {
         throw new Error(
-          `the $ref ${ref} at ${shown(at)} does not resolve, so its local paths would not be checked (SR-142)`,
+          `the $ref ${ref} at ${shown(at)} does not resolve, so its local paths would not be checked`,
         );
       }
       walk(next.node, next.base, at);

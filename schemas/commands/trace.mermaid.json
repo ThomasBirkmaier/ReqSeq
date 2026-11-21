@@ -1,8 +1,8 @@
 {
   "name": "trace.mermaid",
   "title": "Show graph as Mermaid",
-  "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per link, without the evidence.",
-  "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the link is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
+  "summary": "The graph of one element as trace.graph gives it, written as a Mermaid flowchart: one node per element, one edge per relation or reference, without the evidence.",
+  "details": "The same nodes and edges as `trace.graph` for the same input, as text. Each node shows the short ID with the identifier, the type, the title, the marks and the verification; each edge goes from the source to the target and is labelled with the name of its kind, and `outdated` when the relation or reference is outdated. The element has a thicker frame. The first line is a comment when the graph is cut by `limit` or incomplete. The CLI prints the text alone, so its output redirected to a file is a Mermaid diagram. A graph near the default `limit` of 500 nodes can be larger than Mermaid draws with its default settings (at most 500 edges and 50,000 characters of text); for a large graph ask with a smaller `maxDepth` or `limit`.",
   "effect": "read",
   "stage": 3,
   "implements": ["SR-151"],
@@ -61,7 +61,7 @@
       "allLevels": {
         "type": "boolean",
         "default": false,
-        "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+        "description": "Go as far as the relations and references go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
       },
       "kinds": {
         "type": "array",
@@ -77,7 +77,7 @@
         "items": {
           "enum": ["derivation", "replacement", "succession", "exclusion", "reference"]
         },
-        "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+        "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a relation or reference is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
       },
       "view": {
         "description": "Only the elements of the graph that this view holds: `core` or a variant ID; without it every element.",

@@ -79,6 +79,12 @@ export default defineCommand({
     if (input.instructions && input.skill) {
       throw excludes("instructions", "skill");
     }
+    // Before the `needs` checks, so the refusal names the real reason instead of a field the instructions exclude.
+    for (const field of ["write", "replace"] as const) {
+      if (input.instructions && input[field]) {
+        throw excludes(field, "instructions");
+      }
+    }
     if (input.write && !input.skill) {
       throw needs("write", "skill");
     }

@@ -340,7 +340,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         storedVersion: "n1:0000000000000000",
         currentVersion: V[LOGIN],
         message:
-          'Test case "[SR-0c0037] kept" (line 1) is enriched already with version n1:0000000000000000, which is no longer current; it is kept (D-026: the version it was tested against)',
+          'Test case "[SR-0c0037] kept" (line 1) is enriched already with version n1:0000000000000000, which is no longer current; it is kept (the version it was tested against)',
       },
     ]);
   });

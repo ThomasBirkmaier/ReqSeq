@@ -485,8 +485,10 @@ const FILTER_ACTION: Action = {
 
 export const LIST_ACTIONS: readonly Action[] = [
   {
+    // It covers `element.list` ("List elements"), so the command prompt lists it once (ADR-0010, command-prompt.md).
     id: "list-all",
     title: "List all elements",
+    covers: ["element.list"],
     available: (context: ActionContext): boolean => context.workspace,
     run: (context: ActionContext): void => {
       context.dispatch({

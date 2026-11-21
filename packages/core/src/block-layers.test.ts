@@ -200,7 +200,14 @@ const RUNTIME_ENTRY = new Set([
   "output-count",
   "answer-names",
 ]);
-const RUNTIME_STATE = new Set(["workspace", "settled", "contracts", "input-errors", "internal-cause"]);
+const RUNTIME_STATE = new Set([
+  "workspace",
+  "settled",
+  "contracts",
+  "command-titles",
+  "input-errors",
+  "internal-cause",
+]);
 const BLOCK_FOLDERS: ReadonlySet<string> = new Set(
   LAYERS.flat().filter((unit) => unit !== "runtime entry" && unit !== "runtime state"),
 );

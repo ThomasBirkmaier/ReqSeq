@@ -261,7 +261,7 @@ describe("reqif.export with statements (SR-058)", () => {
       ["_cr-1", "_cr-2", "_cr-3"].map((identifier) => [
         identifier,
         "omitted-type",
-        "a statement of a statements export of ReqSeq (SR-058) is not imported: the import takes no statement back into the element it answers (spec question #583)",
+        "a statement of a statements export of ReqSeq is not imported: the import takes no statement back into the element it answers",
       ]),
     );
   });

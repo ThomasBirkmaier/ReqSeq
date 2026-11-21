@@ -673,7 +673,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
       expect([error?.code, error?.details, error?.message]).toEqual([
         "input.invalid",
         { field: "expectedFileSha256", reason: "precondition-missing" },
-        "expectedFileSha256 is required to change text, title or setItems: pass fileSha256 of element.get",
+        'expectedFileSha256 is required to change text, title or setItems: pass the fileSha256 that "Show element" gives',
       ]);
     }
     expect(await read(opened, WIND.file)).toBe(before);

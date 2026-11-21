@@ -1,5 +1,6 @@
 import { loadContracts } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
+import { inRepositoryList } from "./buffers.js";
 import type { Call } from "./call.js";
 import {
   AS_FIELD,
@@ -79,6 +80,16 @@ describe("the view the window shows (SR-043 AK1)", () => {
     const named = { view: "core" };
     const ids = { ids: ["SR-1"] };
     expect([selectionInView(named, "A"), selectionInView(ids, "A")]).toEqual([named, ids]);
+  });
+
+  it("[SR-223/AK-zc7t] reads the list of a number of a write command in every view, so a variant window shows every counted element", () => {
+    const counted = inRepositoryList("Add type · Versions changed", [
+      { id: "61061061-0000-4000-8000-0000000000b1", repository: "system" },
+    ]);
+    expect(selectionInView(counted.selection, "A")).toBe(counted.selection);
+    expect(withView("element.list", { selection: counted.selection }, "A")).toEqual({
+      selection: counted.selection,
+    });
   });
 
   it("calls in the view shown, and without one as it is", async () => {

@@ -101,13 +101,15 @@ describe("element.assignCriterionKeys (SR-204 AK3)", () => {
     const out = await assign(opened, {});
 
     expect(out.count).toBe(3);
-    expect(out.changed.map((c) => [c.id, c.assigned])).toEqual([
-      [PLAIN.id, 3],
-      [MIXED.id, 1],
-      [GUSTS.id, 1],
+    expect(out.changed.map((c) => [c.id, c.repository, c.assigned])).toEqual([
+      [PLAIN.id, "system", 3],
+      [MIXED.id, "system", 1],
+      [GUSTS.id, "system", 1],
     ]);
     expect(out.files).toEqual([PLAIN.file, MIXED.file, GUSTS.file]);
-    expect(out.skipped.map((s) => [s.id, s.reason])).toEqual([[UNKNOWN.id, "unknown-type"]]);
+    expect(out.skipped.map((s) => [s.id, s.repository, s.reason])).toEqual([
+      [UNKNOWN.id, "system", "unknown-type"],
+    ]);
     // Every criterion has a key; equal texts get different ones.
     const plain = criteriaOf(await opened.read(PLAIN.file)) as { key: string; text: string }[];
     expect(plain.map((c) => c.text)).toEqual([
