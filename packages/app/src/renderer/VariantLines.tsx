@@ -1,8 +1,9 @@
 // The muted lines under the boxes of a requirement (D-062: only when they say something): where it is
 // replaced or excluded (SR-046 AK2), its verification status per view as a row of badges, each the name on
 // the left and the status with its details on the right, such as the missing children of an indirect
-// verification (SR-047 AK3, SR-157, SR-034 AK2), and its validation status as a badge of the same form (SR-038 AK1, #2175); on the page of a
-// variant, its hints since its newest baseline (SR-103 AK1, AK7), one line each. Layout only:
+// verification (SR-047 AK3, SR-157, SR-034 AK2), and its validation status as a badge of the same form
+// (SR-038 AK1, #2175); on the page of a variant, its hints since its newest baseline (SR-103 AK1, AK7), one
+// line each. Layout only:
 // `variant-lines.ts` builds them from the element buffer's last answer of `element.get`, so they ask
 // nothing of their own and follow the element's reads. A variant or replacement is a link to its element.
 import { useId, useMemo, useState } from "react";

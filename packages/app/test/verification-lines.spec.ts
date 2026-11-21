@@ -74,6 +74,7 @@ test.describe("the validation status", () => {
     await expect(line(window, "Validation").locator(".badge-status")).toHaveText(["validated"]);
     // A need has a validation status and no verification status (D-012).
     await openEditor(window, "Know the wind");
+    await expect(line(window, "Validation").locator(".badge-name")).toHaveText(["Validation"]);
     await expect(line(window, "Validation").locator(".badge-status")).toHaveText(["validated"]);
     await expect(line(window, "Verification")).toHaveCount(0);
   });
