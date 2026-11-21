@@ -38,6 +38,10 @@ export default defineConfig({
   // Offline, the scripts get source maps that no page names, so that `stage.mjs --docs-site` can tell each script's
   // packages from them (ADR-0015); it deletes them before the site is staged.
   vite: { build: { sourcemap: offline ? "hidden" : false } },
+  // Every stylesheet as a file, never inlined: `reqseq serve docs` allows no inline `<style>` (`style-src 'self'`),
+  // and the HTML export takes the docs theme from the linked stylesheets (`docs:export-theme`). The tabs of the four
+  // ways in (#2192) move a small rule out of the shared stylesheet, which Astro would otherwise inline.
+  build: { inlineStylesheets: "never" },
   // The screenshots of docs/guide/images/ are served as they are: Astro's default service needs Sharp, a native
   // package that the site's install (--ignore-scripts) does not build. A missing image still fails the build.
   image: { service: passthroughImageService() },

@@ -1,5 +1,6 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, sep } from "node:path";
+import { accessTabs } from "./access-tabs.js";
 import type { Page } from "./reference.js";
 
 /** Where the hand-written pages are read from and where the Starlight site reads its content (ADR-0017). */
@@ -53,7 +54,8 @@ export function withBase(text: string, base: string): string {
 /**
  * Replaces the content folder of the site with a copy of the hand-written pages (their site links with `base`) plus
  * the generated `pages`, and returns its files, relative and with `/`, sorted. A copy, not a symbolic link, so the
- * build reads the same files on every system. A generated page never replaces a hand-written one.
+ * build reads the same files on every system. A generated page never replaces a hand-written one. A page with the
+ * sections of the four ways in becomes `.mdx` with them as tabs (`accessTabs`).
  */
 export async function assembleContent(
   paths: ContentPaths,
@@ -94,6 +96,14 @@ export async function assembleContent(
     const file = join(paths.contentDir, ...page.path.split("/"));
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, page.text, { flag: "wx" });
+  }
+  for (const file of (await files(paths.contentDir)).filter((name) => name.endsWith(".md"))) {
+    const path = join(paths.contentDir, ...file.split("/"));
+    const tabbed = accessTabs(await readFile(path, "utf8"));
+    if (tabbed !== undefined) {
+      await writeFile(`${path}x`, tabbed, { flag: "wx" });
+      await rm(path);
+    }
   }
   return files(paths.contentDir);
 }

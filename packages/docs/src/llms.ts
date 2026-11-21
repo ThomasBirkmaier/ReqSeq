@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { parse } from "yaml";
+import { withoutAccessTabs } from "./access-tabs.js";
 
 // The documentation as plain text for AI assistants (llmstxt.org): `llms.txt`, an index with one line per page, and
 // `llms-full.txt`, every page as Markdown. The integration in packages/docs/site/astro.config.mjs writes both into
@@ -60,10 +61,10 @@ export function textPage(path: string, text: string): TextPage {
   };
 }
 
-/** The address of a page below `base`: `how-to/install-reqseq.md` → `/ReqSeq/how-to/install-reqseq/`. */
+/** The address of a page below `base`: `how-to/install-reqseq.md` (or `.mdx`) → `/ReqSeq/how-to/install-reqseq/`. */
 export function pageUrl(path: string, base: string): string {
   const prefix = base.endsWith("/") ? base : `${base}/`;
-  const page = path.replace(/\.md$/, "").replace(/(^|\/)index$/, "");
+  const page = path.replace(/\.mdx?$/, "").replace(/(^|\/)index$/, "");
   return page === "" ? prefix : `${prefix}${page}/`;
 }
 
@@ -149,7 +150,8 @@ export function llmsFull(pages: readonly TextPage[], base: string, title: string
 
 /**
  * Writes `LLMS_FILE` and `LLMS_FULL_FILE` into the built site `dist` from the Markdown pages of the content folder
- * `contentDir`, with addresses below `base`. Gives the number of pages in `llms.txt`.
+ * `contentDir`, with addresses below `base`; an `.mdx` page with tabs for the ways in has them back as its sections,
+ * so the files keep the full text. Gives the number of pages in `llms.txt`.
  */
 export async function writeLlmsFiles(
   contentDir: string,
@@ -159,11 +161,12 @@ export async function writeLlmsFiles(
 ): Promise<number> {
   const files = (await readdir(contentDir, { recursive: true }))
     .map((file) => file.split(/[\\/]/).join("/"))
-    .filter((file) => file.endsWith(".md"))
+    .filter((file) => file.endsWith(".md") || file.endsWith(".mdx"))
     .sort();
   const pages: TextPage[] = [];
   for (const file of files) {
-    pages.push(textPage(file, await readFile(join(contentDir, ...file.split("/")), "utf8")));
+    const text = await readFile(join(contentDir, ...file.split("/")), "utf8");
+    pages.push(textPage(file, file.endsWith(".mdx") ? withoutAccessTabs(text) : text));
   }
   await writeFile(join(dist, LLMS_FILE), llmsIndex(pages, base, title));
   await writeFile(join(dist, LLMS_FULL_FILE), llmsFull(pages, base, title));
