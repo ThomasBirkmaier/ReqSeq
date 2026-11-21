@@ -216,10 +216,10 @@ export function keyPairs(sections: readonly ShortcutSection[]): KeyPairs {
 /** A key name after the modifiers, longest first; a letter not followed by another one. */
 const KEY_NAME =
   "(?:Page Up|Page Down|Backspace|Escape|Enter|Space|Click|click|Home|Tab|Up|Down|Left|Right|End|F\\d{1,2}|[A-Za-z])(?![A-Za-z])";
-/** A key with Ctrl, Alt or Shift, as Windows and Linux write it ("Ctrl+Shift+P"), and a letter after the prefix key. */
-const PLAIN_KEY = `(?:Ctrl|Alt|Shift)(?:\\+(?:Ctrl|Alt|Shift))*\\+${KEY_NAME}(?: [A-Z](?!\\w))?`;
-/** A key as macOS writes it ("⌘⇧P", "⌥⌘A", "⌘↩"). */
-const MAC_KEY = `[⌃⌥⌘⇧]+(?:↩|${KEY_NAME})(?: [A-Z](?!\\w))?`;
+/** A key with Ctrl, Alt or Shift, as Windows and Linux write it ("Ctrl+Shift+P"), or the prefix key with its letter. */
+const PLAIN_KEY = `Ctrl\\+K [A-Z](?!\\w)|(?:Ctrl|Alt|Shift)(?:\\+(?:Ctrl|Alt|Shift))*\\+${KEY_NAME}`;
+/** A key as macOS writes it ("⌘⇧P", "⌥⌘A", "⌘↩"), or the prefix key with its letter. */
+const MAC_KEY = `⌘K [A-Z](?!\\w)|[⌃⌥⌘⇧]+(?:↩|${KEY_NAME})`;
 
 /** The text of a page outside fenced blocks and code spans, where keys are named in prose. */
 const prose = (text: string): string => {
@@ -239,7 +239,9 @@ const prose = (text: string): string => {
 /**
  * The keys a page names wrongly: each key with Ctrl, Alt or Shift comes with its macOS key as the app shows it, after
  * a comma or in parentheses ("Ctrl+K E, ⌘K E", "Ctrl+Enter (⌘↩)"), and each macOS key after its key on Windows and
- * Linux, unless the key exists on one system only. Keys without a modifier (Enter, Escape) are named once.
+ * Linux, unless the key exists on one system only. Keys without a modifier (Enter, Escape) are named once. A key that
+ * means different things (Ctrl+P is ⌘P for "Go to" and ⌃P in a list) passes with either macOS key: the sentence
+ * around it is not read.
  */
 export function shortcutProblems(page: GuidePage, keys: KeyPairs): string[] {
   const text = prose(page.text);

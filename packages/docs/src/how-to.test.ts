@@ -171,6 +171,7 @@ describe("shortcutProblems", () => {
     expect(
       problems(
         "Run it (Ctrl+K E, ⌘K E), then Ctrl+Enter (⌘↩); Ctrl+P (⌃P) or Ctrl+P, ⌘P. Ctrl+Y redoes, ⌘W closes.\n" +
+          "Ctrl+P, ⌘P A dialog opens.\n" +
           "```sh\nCtrl+Q\n```\nIn code `Ctrl+X` and plain keys like Enter or Ctrl-C are not checked.",
       ),
     ).toEqual([]);
