@@ -581,7 +581,7 @@ scenariosOf("element.list", [
       expect(coreError(results)).toMatchObject({
         code: "input.invalid",
         message:
-          'Perspective "Gone" (perspectives/gone.yaml): perspective: its saved filter "Old ones" does not exist; filter.list lists them',
+          'Perspective "Gone" (perspectives/gone.yaml): perspective: its saved filter "Old ones" does not exist; "List saved filters" lists them',
       });
     },
   },

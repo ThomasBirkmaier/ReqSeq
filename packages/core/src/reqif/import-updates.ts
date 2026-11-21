@@ -42,7 +42,7 @@ export const matchedElement = (
   const { record } = existing;
   if (record.type !== ownType) {
     const at = context.coverage.typeEntries.get(t.identifier);
-    const name = (key: string): string => findType(context.metamodel, key)?.name ?? key;
+    const name = (key: string): string => `${findType(context.metamodel, key)?.name ?? key} (${key})`;
     throw new CommandError(
       "input.invalid",
       `Not imported: ${object.identifier} is ${record.file} of type ${name(record.type)}, which an import does not change to ${name(ownType)}`,

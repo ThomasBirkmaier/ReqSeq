@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { CommandName } from "../catalog.js";
 import { commandTitle } from "./command-titles.js";
 
 describe("commandTitle", () => {
@@ -8,6 +7,6 @@ describe("commandTitle", () => {
   });
 
   it("falls back to the name of a command the catalog does not have", () => {
-    expect(commandTitle("test.none" as CommandName)).toBe('"test.none"');
+    expect(commandTitle("test.none")).toBe('"test.none"');
   });
 });

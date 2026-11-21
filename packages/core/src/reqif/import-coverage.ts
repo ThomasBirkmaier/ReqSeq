@@ -11,6 +11,7 @@ import type { ReqifAttributeDefinition, ReqifFile, ReqifIdentifiable, ReqifSpecT
 import type { OriginKeys } from "./origin.js";
 import { datatypeOf, matches, nameOf } from "./import-context.js";
 import type { AttributeEntry, Coverage, Index } from "./import-context.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 /** The mapping entry of attribute `a` of type `t`, and its index; one with `source-type` first. */
 const attributeEntry = (
@@ -186,7 +187,7 @@ export const checkCoverage = (
   if (unmapped.length > 0) {
     throw new CommandError(
       "reqif.unmapped",
-      `Not imported: the mapping neither maps nor omits ${unmapped.map((u) => `${u.kind} ${u.source}`).join(", ")}; map or omit each with reqif.saveMapping or in the mapping file`,
+      `Not imported: the mapping neither maps nor omits ${unmapped.map((u) => `${u.kind} ${u.source}`).join(", ")}; map or omit each with ${commandTitle("reqif.saveMapping")} or in the mapping file`,
       { unmapped },
     );
   }

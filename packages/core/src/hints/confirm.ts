@@ -435,7 +435,7 @@ const assertSelects = (input: ConfirmInput): void => {
     }
     if (input.kind === undefined) {
       throw invalidInput(
-        `all needs kind: the codes of the hints a person reviewed (the kind of ${commandTitle("hint.list")})`,
+        `all needs kind: the codes of the hints a person reviewed (the kind filter of ${commandTitle("hint.list")})`,
         ["kind"],
       );
     }

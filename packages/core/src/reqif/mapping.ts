@@ -177,7 +177,7 @@ const propertyViolations = (
     return [{ field, message: `${key} is no property of the metamodel` }];
   }
   if (type !== undefined && !type.properties.includes(key)) {
-    return [{ field, message: `${key} is no property of type ${type.name}` }];
+    return [{ field, message: `${key} is no property of type ${type.name} (${type.key})` }];
   }
   return [];
 };

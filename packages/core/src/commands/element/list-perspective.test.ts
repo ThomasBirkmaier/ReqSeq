@@ -206,7 +206,7 @@ describe("element.list with a perspective (SR-213)", () => {
     expect(await refusal(workspace, { perspective: "Gone" })).toEqual({
       code: "input.invalid",
       message:
-        'Perspective "Gone" (perspectives/gone.yaml): perspective: its saved filter "Old ones" does not exist; filter.list lists them',
+        'Perspective "Gone" (perspectives/gone.yaml): perspective: its saved filter "Old ones" does not exist; "List saved filters" lists them',
       fields: ["perspective"],
     });
     expect(await refusal(workspace, { perspective: "Faulty" })).toEqual({
@@ -292,7 +292,7 @@ describe("element.list with a perspective (SR-213)", () => {
     });
     expect(await refusal(workspace, { perspective: "Open ones" })).toEqual({
       code: "input.invalid",
-      message: 'perspective: no perspective is named "Open ones"; perspective.list lists them',
+      message: 'perspective: no perspective is named "Open ones"; "List perspectives" lists them',
       fields: ["perspective"],
     });
     expect(await refusal(workspace, { perspective: "seen" })).toMatchObject({
