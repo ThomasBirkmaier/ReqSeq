@@ -1,8 +1,8 @@
 // The elements of a package on its page (SR-233 AK4): the page of an element of a type with the meaning package is its
 // package page, and this section lists the elements with a page whose property with the meaning `packages` names it,
 // by identifier, each with identifier (a link to its page), title, status ("–" without one) and verification status in
-// the core as a badge ("–" for an element that is no requirement). An element in several packages stands on each of
-// their pages.
+// the core as a badge ("–" for an element that is no requirement and for a requirement that is not in the core's view,
+// as in the lists). An element in several packages stands on each of their pages.
 import type { ElementPage, ElementPageContext } from "./element-page.js";
 import { verificationBadge } from "./badge.js";
 import type { ListEntry } from "./list-page.js";

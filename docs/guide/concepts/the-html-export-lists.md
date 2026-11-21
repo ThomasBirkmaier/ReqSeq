@@ -19,7 +19,7 @@ The start page `index.html` carries the name of the workspace. It names the comm
 
 ## Lists
 
-Each type with an element that has a page gets a list, `lists/<type key>.html`, except the types with the meaning package or variant. A row names the identifier (else the short ID) with a link to the page, the title, the status, the packages, for a requirement the verification status in the core, and the number of open hints. Elements with an invalid status are in no list (SR-233 AK1, SR-231 AK1).
+Each type with an element that has a page gets a list, `lists/<type key>.html`, except the types with the meaning package or variant. A row names the identifier (else the short ID) with a link to the page, the title, the status, the packages, for a requirement the verification status in the core ("–" for one that is not in the core's view), and the number of open hints. Elements with an invalid status are in no list (SR-233 AK1, SR-231 AK1).
 
 Above the table, a search field keeps the rows whose identifier, short ID or title holds the text, ignoring case. Filters by status, package, verification status and each property with fixed values offer their values, each with the number of rows that have it under the search and the other filters; several values of one filter match any of them, several filters all of them. A click on a column head sorts by it, again for descending, in the order of SR-075 AK1; the packages sort by the title of the first, and rows without a value stay last. "Group" groups the rows by one filter (SR-233 AK1); a row with several packages stands in each of their groups.
 
@@ -27,4 +27,4 @@ Search, filters and sorting need JavaScript, and so does grouping; without it th
 
 ## Package pages
 
-The page of a package is its element page with a section Elements: each element that names the package, with identifier, title, status and verification status in the core. An element in several packages stands on each of their pages (SR-233 AK4).
+The page of a package is its element page with a section Elements: each element that names the package, with identifier, title, status and, for a requirement, the verification status in the core ("–" for one that is not in the core's view). An element in several packages stands on each of their pages (SR-233 AK4).
