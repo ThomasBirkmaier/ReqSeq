@@ -131,13 +131,7 @@ const fake = () => {
     "trace.neighbourhood": (input) => {
       const children =
         input["ref"] === "uuid-1" && input["direction"] === "down" && input["meanings"] !== undefined;
-      // The walk's nodes say their direction, as `trace.neighbourhood` gives them.
-      const node = (element: Stored, depth: number) => ({
-        ...view(element),
-        depth,
-        expanded: true,
-        ...(depth === 0 ? {} : { direction: "down" }),
-      });
+      const node = (element: Stored, depth: number) => ({ ...view(element), depth, expanded: true });
       const edge = (source: string) => ({
         source,
         sourceRepository: "spec",

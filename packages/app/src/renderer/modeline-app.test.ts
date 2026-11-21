@@ -41,7 +41,6 @@ const HINTED = row(1, {
     {
       code: "relation.outdated",
       severity: "warning",
-      elementId: "uuid-1",
       message: "The inline reference to SR-000002 is outdated",
       hintId: "spec/uuid-1/@text/0123456789abcdef?target=uuid-2&repository=spec",
       targetId: "uuid-2",
@@ -50,13 +49,12 @@ const HINTED = row(1, {
     {
       code: "relation.outdated",
       severity: "warning",
-      elementId: "uuid-1",
       message: "The relation based-on to SR-000002 is outdated",
       hintId: "spec/uuid-1/based-on/uuid-2?target=uuid-2",
       targetId: "uuid-2",
       storedVersion: "1",
     },
-    { code: "trace.cycle", severity: "warning", elementId: "uuid-1", message: "SR-000001 is in a cycle" },
+    { code: "relation.cycle", severity: "warning", message: "SR-000001 is in a cycle" },
   ],
 });
 

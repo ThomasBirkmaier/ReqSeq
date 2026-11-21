@@ -88,7 +88,7 @@ export const elementPageBody = async (context: ElementPageContext, page: Element
     evidenceSection(context, page),
     await propertiesSection(context, page),
     relationsSection(context, display),
-    await neighbourhoodSection(context, page),
+    neighbourhoodSection(context, page),
     variantSection(context, page),
     baselinesSection(context, page),
   ].join("");

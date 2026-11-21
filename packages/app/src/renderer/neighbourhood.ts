@@ -1,11 +1,8 @@
 // The neighbourhood of an element (SR-107): the inputs of `trace.neighbourhood` and the rows its answers
 // give. The parents line, the tree of the children (derivations only, opened level by level) and the
-// incoming relations and references grouped by kind, from core's display model of the neighbourhood
-// (`neighbourhoodDisplay`, ADR-0019), which the HTML export renders too. No React: the order of the rows is
-// the walk's order, the app sorts nothing.
+// incoming relations and references grouped by kind. Pure display of the command's output (ADR-0002),
+// no React: the order of the rows is the walk's order, the app sorts nothing.
 import type { TraceNeighbourhoodInput, TraceNeighbourhoodOutput } from "@reqseq/core";
-import { NO_NAMES, neighbourhoodDisplay } from "@reqseq/core/displays";
-import type { ElementRef, NeighbourhoodInput, RelationNames } from "@reqseq/core/displays";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
 import { shownId } from "./id-title.js";
@@ -16,6 +13,9 @@ import type { Row } from "./rows.js";
 const PARENTS_MAX = 200;
 /** The most nodes of the tree and of the incoming relations asked for; more end the sheet with a quiet line. */
 export const NEIGHBOURHOOD_MAX = 5000;
+
+type Node = TraceNeighbourhoodOutput["nodes"][number];
+type Edge = TraceNeighbourhoodOutput["edges"][number];
 
 /** The element a neighbourhood is of. */
 interface Subject {
@@ -51,14 +51,34 @@ export const incomingInput = (subject: Subject): Partial<TraceNeighbourhoodInput
   limit: NEIGHBOURHOOD_MAX,
 });
 
-/** The app's caps are the `limit` of its calls (ADR-0019 point 9(a)); it marks no invalid status. */
-const modelOf = (names: RelationNames): NeighbourhoodInput["metamodel"] => ({ ...names, statuses: [] });
+const keyOf = (repository: string, id: string): string => `${repository}:${id}`;
 
-const bound = { parents: PARENTS_MAX, children: NEIGHBOURHOOD_MAX, incoming: NEIGHBOURHOOD_MAX };
+const nodesByKey = (output: TraceNeighbourhoodOutput): ReadonlyMap<string, Node> =>
+  new Map(output.nodes.map((node) => [keyOf(node.repository, node.id), node]));
 
 /** The label of an element: its title, else its ID. */
-const nameOf = (ref: ElementRef): string =>
-  ref.title === "" ? shownId(ref.shortId, ref.identifier) : ref.title;
+const nameOf = (node: Node): string =>
+  node.title === "" ? shownId(node.shortId, node.identifier) : node.title;
+
+/** The ID of an end of an edge, as the rows show it: its short ID with the identifier (SR-084 AK4). */
+const idOf = (nodes: ReadonlyMap<string, Node>, repository: string, id: string): string => {
+  const node = nodes.get(keyOf(repository, id));
+  return node === undefined ? id : shownId(node.shortId, node.identifier);
+};
+
+/**
+ * The hover text of an outdated link, which names its direction (#513): "SR-147 points to an older version
+ * of SR-076 (refines)", with the relation's key or "inline reference"; undefined when the link is current.
+ * The word itself stands at the other end of the link in both views.
+ */
+const outdatedNote = (nodes: ReadonlyMap<string, Node>, edge: Edge): string | undefined => {
+  if (!edge.outdated) {
+    return undefined;
+  }
+  const source = idOf(nodes, edge.sourceRepository, edge.source);
+  const target = idOf(nodes, edge.targetRepository, edge.target);
+  return `${source} points to an older version of ${target} (${edge.kind ?? "inline reference"})`;
+};
 
 /** A parent in the line above the title. */
 export interface Parent {
@@ -77,25 +97,39 @@ export interface Parents {
   readonly more: boolean;
 }
 
-/**
- * The parents of `trace.neighbourhood { direction: "up", allLevels }`, the top level first (AK1), from the display
- * model of the neighbourhood (`neighbourhoodDisplay`).
- */
+/** The parents of `trace.neighbourhood { direction: "up", allLevels }`, the top level first (AK1). */
 export const parentLevels = (output: TraceNeighbourhoodOutput): Parents => {
-  const { parents } = neighbourhoodDisplay(
-    { parents: output, metamodel: modelOf(NO_NAMES) },
-    { bound, open: [] },
-  );
+  const nodes = nodesByKey(output);
+  const root = output.nodes.find((node) => node.depth === 0);
+  // One note per parent; two outdated links of the element to the same parent are named both.
+  const outdated = new Map<string, string>();
+  for (const edge of output.edges) {
+    const note = outdatedNote(nodes, edge);
+    if (
+      note !== undefined &&
+      edge.direction === "up" &&
+      edge.source === output.root &&
+      edge.sourceRepository === root?.repository
+    ) {
+      const key = keyOf(edge.targetRepository, edge.target);
+      const before = outdated.get(key);
+      outdated.set(key, before === undefined ? note : `${before}; ${note}`);
+    }
+  }
+  const byDepth = new Map<number, Parent[]>();
+  for (const node of output.nodes.filter((candidate) => candidate.direction === "up")) {
+    const level = byDepth.get(node.depth) ?? [];
+    level.push({
+      open: elementBufferOf(node),
+      name: nameOf(node),
+      label: shownId(node.shortId, node.identifier),
+      outdated: outdated.get(keyOf(node.repository, node.id)),
+    });
+    byDepth.set(node.depth, level);
+  }
   return {
-    levels: parents.rows.map((level) =>
-      level.map((parent) => ({
-        open: elementBufferOf(parent.ref),
-        name: nameOf(parent.ref),
-        label: shownId(parent.ref.shortId, parent.ref.identifier),
-        outdated: parent.outdated,
-      })),
-    ),
-    more: parents.more,
+    levels: [...byDepth.entries()].sort(([a], [b]) => b - a).map(([, level]) => level),
+    more: output.total > output.nodes.length,
   };
 };
 
@@ -124,28 +158,52 @@ export interface Tree {
 }
 
 /**
- * The children as rows in the order of the walk, depth first: the direct children, and below a row of `open` its
- * children, one level further for each, from the display model of the neighbourhood (`neighbourhoodDisplay`). A
- * repeated row is a leaf (AK3): its children are under its first appearance.
+ * The children as rows in the order of the walk, depth first: the direct children, and below a row of
+ * `open` its children, one level further for each. A repeated row is a leaf (AK3): its children are under
+ * its first appearance.
  */
 export const treeRows = (output: TraceNeighbourhoodOutput, open: readonly string[]): Tree => {
-  const { children } = neighbourhoodDisplay(
-    { children: output, metamodel: modelOf(NO_NAMES) },
-    { bound, open },
-  );
-  return {
-    rows: children.rows.map((child) => ({
-      row: rowOf(child.ref, child.level - 1, [], false),
-      key: child.key,
-      level: child.level,
-      repeated: child.repeated,
-      outdated: child.outdated,
-      expandable: child.expandable,
-      opened: child.opened,
-      parent: child.parent,
-    })),
-    cut: children.more,
+  const nodes = nodesByKey(output);
+  const childrenOf = new Map<string, Edge[]>();
+  for (const edge of output.edges) {
+    const key = keyOf(edge.targetRepository, edge.target);
+    const siblings = childrenOf.get(key) ?? [];
+    siblings.push(edge);
+    childrenOf.set(key, siblings);
+  }
+  const rows: TreeRow[] = [];
+  const walk = (parentKey: string, level: number, parent: number | undefined): void => {
+    for (const edge of childrenOf.get(parentKey) ?? []) {
+      const key = keyOf(edge.sourceRepository, edge.source);
+      const node = nodes.get(key);
+      if (node === undefined) {
+        continue;
+      }
+      const opened = !edge.repeated && open.includes(key);
+      let expandable: boolean | undefined = false;
+      if (!edge.repeated) {
+        expandable = node.expanded ? childrenOf.has(key) : undefined;
+      }
+      const at = rows.length;
+      rows.push({
+        row: rowOf(node, level - 1, [], false),
+        key,
+        level,
+        repeated: edge.repeated,
+        outdated: outdatedNote(nodes, edge),
+        expandable,
+        opened,
+        parent,
+      });
+      if (opened) {
+        walk(key, level + 1, at);
+      }
+    }
   };
+  for (const root of output.nodes.filter((node) => node.depth === 0)) {
+    walk(keyOf(root.repository, root.id), 1, undefined);
+  }
+  return { rows, cut: output.total > output.nodes.length };
 };
 
 /**
@@ -174,27 +232,24 @@ export interface Incoming {
 }
 
 /**
- * The incoming relations and references by kind, the kinds in the order they first appear and the entries in the
- * order of the answer (AK2), each kind headed by `relationGroupLabel` with `names`, from the display model of the
- * neighbourhood (`neighbourhoodDisplay`). The derivations are the children and left out. An element that points
- * with two kinds is listed under both.
+ * The incoming relations and references by kind, the kinds in the order they first appear and the
+ * entries in the order of the answer (AK2). The derivations are the children and left out. An element
+ * that points with two kinds is listed under both.
  */
-export const incomingGroups = (
-  output: TraceNeighbourhoodOutput,
-  names: RelationNames = NO_NAMES,
-): Incoming => {
-  const { incoming } = neighbourhoodDisplay(
-    { incoming: output, metamodel: modelOf(names) },
-    { bound, open: [] },
-  );
+export const incomingGroups = (output: TraceNeighbourhoodOutput): Incoming => {
+  const nodes = nodesByKey(output);
+  const groups = new Map<string, GroupEntry[]>();
+  for (const edge of output.edges.filter((candidate) => candidate.meaning !== "derivation")) {
+    const node = nodes.get(keyOf(edge.sourceRepository, edge.source));
+    if (node !== undefined) {
+      const heading = `← ${edge.kind ?? "inline reference"}`;
+      const entries = groups.get(heading) ?? [];
+      entries.push({ row: rowOf(node, 0, [], false), outdated: outdatedNote(nodes, edge) });
+      groups.set(heading, entries);
+    }
+  }
   return {
-    groups: incoming.rows.map((group) => ({
-      heading: group.label,
-      entries: group.entries.map((entry) => ({
-        row: rowOf(entry.ref, 0, [], false),
-        outdated: entry.outdated,
-      })),
-    })),
-    cut: incoming.more,
+    groups: [...groups.entries()].map(([heading, entries]) => ({ heading, entries })),
+    cut: output.total > output.nodes.length,
   };
 };

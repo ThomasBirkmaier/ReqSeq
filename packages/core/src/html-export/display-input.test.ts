@@ -1,19 +1,16 @@
-// ADR-0019 point 2 (D-080): the HTML export builds the display models of an element's page and neighbourhood from the
-// same shapes the commands give. This test builds both models twice on one fixture, once from the export's batch
-// (`elementDataOf`, `hintsByElement`, `neighbourhoodAnswers`) and once from the answers of `element.get`, `hint.list`
-// and `trace.neighbourhood`, and checks that they are the same.
+// ADR-0019 point 2 (D-080): the HTML export builds the display model of an element's page from the same shapes the
+// commands give. This test builds the model twice on one fixture, once from the export's batch (`elementDataOf`) and
+// once from the answers of `element.get` and `hint.list`, and checks that they are the same.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { InvokedOutput } from "../catalog.js";
-import { elementPageDisplay, neighbourhoodDisplay, openHints } from "../displays/index.js";
+import { elementPageDisplay, openHints } from "../displays/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { elementStoreState, shortIdState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { currentVersionLookup, traceContext } from "../trace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { elementDataOf } from "./element-data.js";
-import { NEIGHBOURHOOD_LIMIT, neighbourhoodAnswers, neighbourhoodSource } from "./section-neighbourhood.js";
 
 const METAMODEL = `reqseq-metamodel: 1
 types:
@@ -123,7 +120,7 @@ describe("the export builds its display models from what the commands give (ADR-
     }
   });
 
-  it("[SR-114/AK-bfpp] counts the hints of hint.list from element.get by its rule, also where element.get has a warning more (#2231)", async () => {
+  it("takes the hint section of hint.list from element.get by its rule, also where element.get has a warning more (#2231)", async () => {
     const workspace = await open();
     for (const id of [ROOT, USER, SUB]) {
       const got = await call(workspace, "element.get", { ref: id });
@@ -135,63 +132,5 @@ describe("the export builds its display models from what the commands give (ADR-
     const hints = await call(endless, "hint.list", { ref: GUSTS });
     expect(gusts.element.problems?.map((p) => p.code)).toContain("file.faulty");
     expect(openHints(gusts.element.problems).map((p) => p.code)).toEqual(hints.hints.map((h) => h.code));
-  });
-
-  it("gives the same neighbourhood model from its walks as from trace.neighbourhood", async () => {
-    const workspace = await open();
-    const [trace, store, shortIds] = await Promise.all([
-      traceContext(workspace),
-      workspace.get(elementStoreState),
-      workspace.get(shortIdState),
-    ]);
-    const options = {
-      bound: {
-        parents: NEIGHBOURHOOD_LIMIT,
-        children: NEIGHBOURHOOD_LIMIT,
-        incoming: Number.POSITIVE_INFINITY,
-      },
-      open: "all" as const,
-    };
-    const source = neighbourhoodSource(trace, () => undefined);
-    for (const id of [ROOT, SUB, TOP]) {
-      const record = store.byId.get(id)?.[0];
-      if (record === undefined) {
-        throw new Error(`no element ${id}`);
-      }
-      const answers = await neighbourhoodAnswers(
-        source,
-        { metamodel: trace.metamodel, shortIds },
-        record,
-        currentVersionLookup(workspace),
-      );
-      const fromExport = neighbourhoodDisplay(
-        {
-          parents: answers.derived,
-          children: answers.derived,
-          incoming: answers.pointing,
-          metamodel: trace.metamodel,
-        },
-        options,
-      );
-      const walk = { ref: id, meanings: ["derivation"], allLevels: true, limit: 5000 };
-      const parents = await call(workspace, "trace.neighbourhood", { ...walk, direction: "up" });
-      const children = await call(workspace, "trace.neighbourhood", { ...walk, direction: "down" });
-      const incoming = await call(workspace, "trace.neighbourhood", {
-        ref: id,
-        direction: "down",
-        maxDepth: 1,
-        limit: 5000,
-      });
-      const fromCommands = neighbourhoodDisplay(
-        {
-          parents,
-          children,
-          incoming,
-          metamodel: trace.metamodel,
-        },
-        options,
-      );
-      expect(fromExport).toEqual(fromCommands);
-    }
   });
 });

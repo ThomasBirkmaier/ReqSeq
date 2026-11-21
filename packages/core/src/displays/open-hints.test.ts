@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hintCounts, openHints } from "./open-hints.js";
+import { openHints } from "./open-hints.js";
 
 const hint = (code: string, extra: object = {}) => ({ code, severity: "warning", elementId: "e", ...extra });
 
@@ -19,11 +19,5 @@ describe("openHints", () => {
       "relation.outdated",
     ]);
     expect(openHints(undefined)).toEqual([]);
-  });
-
-  it("counts the outdated relations, references and replacements apart from the other hints (SR-114 AK2)", () => {
-    expect(
-      hintCounts([hint("relation.outdated"), hint("variant.core-changed"), hint("trace.cycle")]),
-    ).toEqual({ outdated: 2, other: 1 });
   });
 });

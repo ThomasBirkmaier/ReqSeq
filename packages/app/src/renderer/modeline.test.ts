@@ -161,19 +161,12 @@ describe("bufferView", () => {
             },
             { kind: "k", direction: "out", id: "c", accessible: true, targetState: "available" },
           ],
-          problems: [
-            { code: "relation.outdated", severity: "warning", elementId: "u" },
-            { code: "trace.no-parent", severity: "warning", elementId: "u" },
-            { code: "trace.cycle", severity: "warning", elementId: "u" },
-          ],
+          problems: [{ code: "relation.outdated" }, { code: "x" }, { code: "y" }],
         }),
       }),
     ).toEqual(["SR-000001 · system-requirement · draft", "read-only", "1 outdated", "2 hints"]);
     expect(
-      bufferView(buffer, {
-        kind: "element",
-        element: element({ problems: [{ code: "trace.no-parent", severity: "warning", elementId: "u" }] }),
-      }).at(-1),
+      bufferView(buffer, { kind: "element", element: element({ problems: [{ code: "x" }] }) }).at(-1),
     ).toBe("1 hint");
   });
 
@@ -184,21 +177,13 @@ describe("bufferView", () => {
     // `element.get` gives every outdated relation and inline reference as a hint `relation.outdated`.
     const inline = {
       code: "relation.outdated",
-      severity: "warning",
-      elementId: "u",
       hintId: "spec/u/@text/0123456789abcdef?target=t&repository=spec",
       targetId: "t",
       storedVersion: "1",
     };
-    const relation = {
-      code: "relation.outdated",
-      severity: "warning",
-      elementId: "u",
-      hintId: "spec/u/based-on/t?target=t",
-      targetId: "t",
-    };
-    const cycle = { code: "trace.cycle", severity: "warning", elementId: "u" };
-    const superseded = { code: "relation.target-superseded", severity: "warning", elementId: "u" };
+    const relation = { code: "relation.outdated", hintId: "spec/u/based-on/t?target=t", targetId: "t" };
+    const cycle = { code: "relation.cycle" };
+    const superseded = { code: "element.superseded-target" };
     expect(parts([])).toEqual(["SR-000001 · system-requirement · draft"]);
     expect(parts([inline])).toEqual(["SR-000001 · system-requirement · draft", "1 outdated"]);
     expect(parts([inline, relation, cycle])).toEqual([
@@ -207,11 +192,6 @@ describe("bufferView", () => {
       "1 hint",
     ]);
     expect(parts([cycle, superseded])).toEqual(["SR-000001 · system-requirement · draft", "2 hints"]);
-    // Only the hints `hint.list` gives for the element count (ADR-0019 point 9(c), assumption of #2231): not the
-    // `file.faulty` warning of a file without a version, nor a warning that names no element.
-    const faulty = { code: "file.faulty", severity: "warning", elementId: "u" };
-    const unassigned = { code: "metamodel.meaning-unassigned", severity: "warning" };
-    expect(parts([cycle, faulty, unassigned])).toEqual(["SR-000001 · system-requirement · draft", "1 hint"]);
     // A changed core requirement at its replacement is an outdated relation too (SR-045).
     const coreChanged = { ...relation, code: "variant.core-changed" };
     expect(parts([coreChanged, cycle])).toEqual([
@@ -321,7 +301,7 @@ describe("bufferView", () => {
 
   it("[SR-106/AK-ydc8] [SR-106/AK-v420] says that the file changed or is gone on disk, after the counts", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
-    const hinted = element({ problems: [{ code: "trace.no-parent", severity: "warning", elementId: "u" }] });
+    const hinted = element({ problems: [{ code: "x" }] });
     expect(bufferView(buffer, { kind: "element", element: hinted, modified: true, disk: "changed" })).toEqual(
       ["SR-000001 · system-requirement", "modified", "1 hint", "changed on disk"],
     );

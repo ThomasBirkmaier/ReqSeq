@@ -131,9 +131,8 @@ export default tseslint.config(
             testkitInProduct,
             testCommandInProduct,
             {
-              // Every module outside `displays/` except the import-free ones of ADR-0019 point 3 (and `hint-order`).
-              regex:
-                "^(node:.*|\\.\\./(?!(evidence/degree-text|graph/words|model/criterion-items|query/fold|problem-titles|hint-order)\\.js$).*)$",
+              // Everything but another display model (`./x`, not `./../x`) and the import-free modules named here.
+              regex: String.raw`^(?!\./(?!\.)|\.\./(?:graph/words|model/criterion-items|problem-titles|hint-order)\.js$)`,
               allowTypeImports: true,
               message:
                 "A display model imports only types, other displays modules and import-free modules (ADR-0019).",

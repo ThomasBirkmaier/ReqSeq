@@ -61,13 +61,17 @@ export const viewNamerOf =
 
 /**
  * The status of a verification entry with its acceptance criteria (SR-031 AK5), in the long form of the display words
- * (`verificationLabel`, ADR-0019): `open, 2 of 3 criteria, AK3 (k7f3) not verified`; the status alone without
- * `criteria`.
+ * (`verificationLabel`, ADR-0019) and in brackets, so the commas of the words do not read as the next view:
+ * `(open, 2 of 3 criteria, AK3 (k7f3) not verified)`; the status alone without counted criteria.
  */
 const statusText = (entry: Rec): string => {
   const { criteria } = entry;
   const status = text(entry["status"]);
-  if (!isRecord(criteria)) {
+  if (
+    !isRecord(criteria) ||
+    typeof criteria["verified"] !== "number" ||
+    typeof criteria["total"] !== "number"
+  ) {
     return status;
   }
   const notVerified = listOf(criteria["notVerified"])
@@ -76,13 +80,7 @@ const statusText = (entry: Rec): string => {
       ...(typeof c["criterion"] === "number" ? { criterion: c["criterion"] } : {}),
       ...(typeof c["key"] === "string" ? { key: c["key"] } : {}),
     }));
-  return verificationLabel(
-    {
-      status,
-      criteria: { verified: Number(criteria["verified"]), total: Number(criteria["total"]), notVerified },
-    },
-    "long",
-  );
+  return `(${verificationLabel({ status, criteria: { verified: criteria["verified"], total: criteria["total"], notVerified } }, "long")})`;
 };
 
 /**
