@@ -19,3 +19,9 @@ export const badge = (label: string, variant: string): string =>
 /** The badge of a verification status, labelled `label` (the status itself by default). */
 export const verificationBadge = (status: string, label = status): string =>
   badge(label, VARIANT.get(status) ?? "default");
+
+/**
+ * The docs' badge breaks anywhere (`overflow-wrap: anywhere`), so in a table cell its word took the cell's narrowest
+ * width and broke inside ("outda|ted"); in the export a badge breaks only between words (#2206).
+ */
+export const BADGE_CSS = [".sl-badge { overflow-wrap: normal; }"];

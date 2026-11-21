@@ -168,15 +168,22 @@ describe("html.export: change since a baseline on the element page", () => {
     const b1Html = await page(site, `elements/${ID}b1.html`);
     const b1 = text(b1Html);
     expect(b1).toContain(`Release 2 of 2026-11-02: changed; version in the baseline ${V.b1} of ${firstDate}`);
-    // Each baseline with a difference is collapsible, the newest open; one row per changed field, word by word. The
-    // file moved since: its old path holds the old text.
+    // Each baseline is a line with the link to its page; the difference below it is collapsible, the newest open,
+    // and its summary holds no link (WCAG 4.1.2, #2206); one row per changed field, word by word. The file moved
+    // since: its old path holds the old text.
     expect(b1Html).toContain(
-      '<details class="rq-since-baseline" open><summary><a href="../baselines/488e33aa4e6d.html">Release 2</a> of 2026-11-02: changed;',
+      '<p class="rq-since-line"><a href="../baselines/488e33aa4e6d.html">Release 2</a> of 2026-11-02: changed;',
     );
+    expect(b1Html).toContain(
+      '</p><details class="rq-since-baseline" open><summary>Difference since Release 2</summary><dl class="rq-diff">',
+    );
+    expect(b1Html).not.toMatch(/<summary>(?:(?!<\/summary>)[^])*<a /u);
     expect(b1Html).toContain(
       '<dl class="rq-diff"><dt>Text</dt><dd><div class="rq-diff-text">b1: <ins>now </ins>valid for VAR-0000c1',
     );
-    expect(b1Html).toMatch(/<details class="rq-since-baseline"><summary><a href="[^"]+">Release 1<\/a>/u);
+    expect(b1Html).toMatch(
+      /<a href="[^"]+">Release 1<\/a>[^<]*<\/p><details class="rq-since-baseline"><summary>Difference since Release 1</u,
+    );
     // The fixture's metamodel gives the criteria no meaning: they are a property that counts to the version.
     expect(b1Html).toContain(
       '<dt>Acceptance Criteria</dt><dd><div class="rq-diff-text">- Given wind, when the station measures it, then it shows the <del>speed.</del><ins>speed in knots.</ins></div></dd>',
@@ -188,7 +195,7 @@ describe("html.export: change since a baseline on the element page", () => {
     expect(b1).toContain("Relations added Derives from: SR-0000b3 Show the wind direction");
     expect(b1).not.toContain("Relations removed");
     expect(b1).toContain(
-      `Release 1 of 2026-10-23: changed; version in the baseline n1:697a2ad17ed49170 of ${firstDate} The difference is not available: the commit 61aa061aa061 of the baseline is not in the local Git history of repository system.`,
+      `Release 1 of 2026-10-23: changed; version in the baseline n1:697a2ad17ed49170 of ${firstDate} Difference since Release 1 The difference is not available: the commit 61aa061aa061 of the baseline is not in the local Git history of repository system.`,
     );
     // Added to the package, and listed by Release 1 in an older version.
     const b3 = text(await page(site, `elements/${ID}b3.html`));
@@ -211,7 +218,7 @@ describe("html.export: change since a baseline on the element page", () => {
     );
     expect(text(await page(site, `elements/${ID}b2.html`))).toContain("Release 2 of 2026-11-02: unchanged;");
     expect(e1).toContain(
-      "Sensor of 2026-10-01: changed; version in the baseline n1:1111111111111111 The difference is not available: the baseline names no commit of repository sensor.",
+      "Sensor of 2026-10-01: changed; version in the baseline n1:1111111111111111 Difference since Sensor The difference is not available: the baseline names no commit of repository sensor.",
     );
     // A baseline that neither lists nor adds the element: not named.
     expect(text(await page(site, `elements/${ID}d1.html`))).not.toContain("Since baselines");
@@ -395,8 +402,10 @@ describe("html.export: variants", () => {
         "SR-0000b3 Show the wind direction not in the core not in the variant open " +
         "SR-0000e1 Heat the anemometer open open not in the variant Commit",
     );
-    // Each status as a badge in the colour of its kind.
+    // Each status as a badge in the colour of its kind, which breaks only between words: the docs' badge breaks
+    // anywhere, so in a narrow table cell its word broke inside ("outda|ted", #2206).
     expect(await page(site, "variants/index.html")).toContain('<span class="sl-badge danger small');
+    expect(await page(site, "assets/reqseq.css")).toContain(".sl-badge { overflow-wrap: normal; }");
   });
 
   it("names the variant comparison and the page of each variant in the sidebar, by identifier", async () => {

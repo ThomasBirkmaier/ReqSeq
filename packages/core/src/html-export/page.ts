@@ -17,6 +17,7 @@ import {
   DOCS_TOC,
   DOCS_TOC_SCOPE,
 } from "./docs-theme.generated.js";
+import { BADGE_CSS } from "./badge.js";
 import { BASELINE_PAGE_CSS } from "./baselines.js";
 import { ELEMENT_PAGE_CSS } from "./element-page.js";
 import { LIST_CSS } from "./list-page.js";
@@ -39,12 +40,13 @@ const TOC_CSS = ["@media (width < 72rem) { :root[data-has-toc] { --sl-mobile-toc
 /** The docs' stylesheet, as the export writes it. */
 export const DOCS_CSS = DOCS_STYLESHEET;
 
-/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, formulas, the element page, the search field hidden until its script runs, the lists, the start page, the baseline pages and the table of contents. */
+/** The export's own styles, after the docs' ones: errors in the docs' grey, diagrams, badges, formulas, the element page, the search field hidden until its script runs, the lists, the start page, the baseline pages and the table of contents. */
 export const OWN_CSS = [
   ".rq-render-error { color: var(--sl-color-gray-3); }",
   ".rq-render-error-label { font-weight: 600; }",
   "div.rq-render-error { margin-top: 0.5rem; }",
   ".rq-diagram-image { display: block; max-width: 100%; height: auto; }",
+  ...BADGE_CSS,
   ".sl-markdown-content .katex-display { overflow-x: auto; overflow-y: hidden; }",
   ...ELEMENT_PAGE_CSS,
   "reqseq-search[hidden], .rq-search-more[hidden] { display: none; }",
@@ -139,6 +141,10 @@ const tocOf = (body: string): string => {
   return `${DOCS_TOC[0]}${[{ id: "_top", label: "Overview" }, ...sections].map(entry).join("")}${DOCS_TOC[1]}`;
 };
 
+/** The title of the browser tab: `<page> | <site>`, the site's name alone on the start page, whose title it is (#2206). */
+const documentTitle = ({ path, title, siteTitle }: PageInput): string =>
+  path === "index.html" ? escapeHtml(siteTitle) : `${escapeHtml(title)} | ${escapeHtml(siteTitle)}`;
+
 /** The page as HTML. */
 export const page = (input: PageInput): string => {
   const up = "../".repeat(input.path.split("/").length - 1);
@@ -162,7 +168,7 @@ export const page = (input: PageInput): string => {
     `<meta http-equiv="Content-Security-Policy" content="${pagePolicy(input)}">`,
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     '<meta name="robots" content="noindex">',
-    `<title>${escapeHtml(input.title)} | ${escapeHtml(input.siteTitle)}</title>`,
+    `<title>${documentTitle(input)}</title>`,
     `<link rel="stylesheet" href="${up}${ASSETS.docs}">`,
     ...(input.formulas ? [`<link rel="stylesheet" href="${up}${ASSETS.katex}">`] : []),
     `<link rel="stylesheet" href="${up}${ASSETS.own}">`,
