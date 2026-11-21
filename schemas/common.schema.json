@@ -524,6 +524,7 @@
         "workspace.invalid",
         "workspace.not-watched",
         "workspace.skill-not-written",
+        "workspace.evidence-folder-not-created",
         "workspace.skill-older-version",
         "git.unavailable",
         "git.revision-missing",

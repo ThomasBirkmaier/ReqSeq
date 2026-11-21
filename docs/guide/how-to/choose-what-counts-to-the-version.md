@@ -64,10 +64,10 @@ reqseq workspace check
 ```
 
 ```text title="Output"
-Checked 0 elements and found 1 info.
+Checked 0 elements and found no problem.
 ok: true
 checkedElements: 0
-info  evidence.folder-missing  The evidence folder evidence does not exist  ...
+No problems.
 ```
 
 `reqseq metamodel get` then lists `definition` with `content: true`.

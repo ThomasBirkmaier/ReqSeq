@@ -370,7 +370,12 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
           await withApi(ws, async (api) => void (body = (await api("workspace.init", input)).body), "spec");
         }
         expect(body).toMatchObject({
-          files: ["metamodel/standard-model.yaml", "reqseq-workspace.yaml", ".gitignore"],
+          files: [
+            "metamodel/standard-model.yaml",
+            "reqseq-workspace.yaml",
+            "evidence/.gitkeep",
+            ".gitignore",
+          ],
           problems: [
             {
               code: "workspace.skill-not-written",
@@ -397,6 +402,18 @@ describe("the skill file through API and MCP only inside the repositories (SR-22
     await fs.writeFile(ws.path(SKILL), "my own skill\n");
     const warned = await cli(ws, ["workspace", "init", "b", "B"], ".");
     expect(warned.out).toContain("warning  workspace.skill-not-written");
+    expect([plain.code, warned.code]).toEqual([EXIT.ok, EXIT.ok]);
+  });
+
+  it("[SR-230/AK-x4g5] the command line exits from workspace init with the same code when the evidence folder cannot be created", async () => {
+    const ws = await createFixtureWorkspace({ files: { "README.md": "# Repository\n" } });
+    fixtures.push(ws);
+    const plain = await cli(ws, ["workspace", "init", "a", "A"], ".");
+    expect(plain.out).toContain("evidence/.gitkeep");
+    // The metamodel folder takes the path of `.gitkeep`, so the file cannot be created there.
+    const input = JSON.stringify({ path: "b", name: "B", metamodel: { path: "evidence/.gitkeep" } });
+    const warned = await cli(ws, ["workspace", "init", "--input", input], ".");
+    expect(warned.out).toContain("warning  workspace.evidence-folder-not-created");
     expect([plain.code, warned.code]).toEqual([EXIT.ok, EXIT.ok]);
   });
 

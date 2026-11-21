@@ -210,7 +210,7 @@ problems:
   evidence.folder-missing:
     title: Missing evidence folder
     cause: The evidence folder the workspace file names does not exist yet.
-    remedy: None needed; ReqSeq creates it with the first record.
+    remedy: Create the folder with an empty `.gitkeep`, so that Git keeps it, or record the first evidence there; `evidence.record` creates the folder. `workspace.init` creates the folder `evidence` this way.
   evidence.ambiguous-element:
     title: Evidence for an ambiguous element
     cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
@@ -307,6 +307,10 @@ problems:
     title: Skill file not written
     cause: "`workspace.init` created the workspace but did not write the skill file: a file at its place was not written by ReqSeq or was changed since, the place is a link or meets Git, or, through the API and the MCP server, it lies outside the repositories of the workspace. The message says which."
     remedy: Keep the file, or write the skill file with `reqseq tool guide --skill --write`, with `--replace` to replace a file ReqSeq did not write.
+  workspace.evidence-folder-not-created:
+    title: Evidence folder not created
+    cause: "`workspace.init` created the workspace but not its evidence folder `evidence` with the empty file `.gitkeep`, for example because the folder cannot be written. The message gives the reason."
+    remedy: Create the folder `evidence` with an empty `.gitkeep`, so that Git keeps it, or record the first evidence there; `evidence.record` creates the folder.
   workspace.skill-older-version:
     title: Skill file of an older ReqSeq version
     cause: The skill file for AI agents (`.claude/skills/managing-requirements/SKILL.md` in the root of the Git repository, or in the workspace folder without Git) was written by an older ReqSeq version, and its content differs from what this ReqSeq version writes. A file that differs only in its ReqSeq version, one written by a newer ReqSeq version, and one ReqSeq did not write are not reported. A full workspace check reports it; a check restricted to changed elements does not.

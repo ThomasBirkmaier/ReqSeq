@@ -31,7 +31,12 @@ describe("workspace.init when the skill file cannot be written", () => {
         { path: ws.root, name: "W" },
         { workspace },
       )) as CommandOutput<"workspace.init">;
-      expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE, ".gitignore"]);
+      expect(out.files).toEqual([
+        "metamodel/standard-model.yaml",
+        WORKSPACE_FILE,
+        "evidence/.gitkeep",
+        ".gitignore",
+      ]);
       expect(out.problems).toEqual([
         {
           code: "workspace.skill-not-written",
