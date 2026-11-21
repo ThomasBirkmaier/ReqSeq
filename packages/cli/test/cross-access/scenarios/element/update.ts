@@ -358,4 +358,83 @@ scenariosOf("element.update", [
     },
     expect: "output",
   },
+  {
+    name: "a dry run of a change two others point at writes nothing and gives the count and the hash as read (SR-246)",
+    tag: "[SR-246/AK-x516]",
+    fixture: AFFECTED,
+    input: {
+      ref: "SR-00b001",
+      text: "Changed.\n",
+      expectedFileSha256: fixtureSha256("SR-024/affected", "requirements/SR-00000000b001.md"),
+      dryRun: true,
+    },
+    expect: "output",
+    check: (results) => {
+      expect(changedFiles(results["core"])).toEqual([]);
+      expect((results["core"]?.outcome as { output: unknown }).output).toMatchObject({
+        affected: 2,
+        dryRun: true,
+        files: [],
+        filesToWrite: ["requirements/SR-00000000b001.md"],
+        fileSha256: fixtureSha256("SR-024/affected", "requirements/SR-00000000b001.md"),
+      });
+    },
+  },
+  {
+    name: "a dry run gives the affected count of the change (SR-246)",
+    tag: "[SR-246/AK-pwg2]",
+    fixture: AFFECTED,
+    input: {
+      ref: "SR-00b001",
+      text: "Changed.\n",
+      expectedFileSha256: fixtureSha256("SR-024/affected", "requirements/SR-00000000b001.md"),
+      dryRun: true,
+    },
+    expect: "output",
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: { affected: number } }).output.affected).toBe(2);
+    },
+  },
+  {
+    name: "a dry run gives the hash of the file as read (SR-246)",
+    tag: "[SR-246/AK-wy8y]",
+    input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: WIND_SHA256, dryRun: true },
+    expect: "output",
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: { fileSha256: string } }).output.fileSha256).toBe(
+        WIND_SHA256,
+      );
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a dry run with an old SHA-256 is refused as without it: file.changed-on-disk (SR-246)",
+    tag: "[SR-246/AK-x4c8]",
+    input: {
+      ref: "SR-e88fb3",
+      title: "Show the wind speed",
+      expectedFileSha256: "0".repeat(64),
+      dryRun: true,
+    },
+    expect: "error",
+    check: (results) => {
+      expect((results["core"]?.outcome as { error: { code: string } }).error.code).toBe(
+        "file.changed-on-disk",
+      );
+    },
+  },
+  {
+    name: "a dry run is marked, names the file to write and no written file (SR-246)",
+    tag: "[SR-246/AK-y5vf]",
+    input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: WIND_SHA256, dryRun: true },
+    expect: "output",
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: unknown }).output).toMatchObject({
+        answer: "Dry run: would update SR-e88fb3; 1 file to write; no file written; 3 problems.",
+        dryRun: true,
+        files: [],
+        filesToWrite: ["requirements/SR-6328cee88fb3.md"],
+      });
+    },
+  },
 ]);

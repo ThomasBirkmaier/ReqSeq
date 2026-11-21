@@ -3305,6 +3305,8 @@ export interface ElementCreateInput {
   readonly nextIdentifier?: boolean;
   /** Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space. */
   readonly identifierPrefix?: string;
+  /** Dry run (SR-246): the checks and refusals before writing and the same output, but no file or folder is created; `filesToWrite` names the file, `nextIdentifier` the identifier a create gives now. A failure only writing shows, such as a folder that cannot be written, is not shown. */
+  readonly dryRun?: boolean;
 }
 
 /**
@@ -3316,8 +3318,12 @@ export interface ElementCreateOutput {
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
-  /** Written files, relative to the workspace root. */
+  /** Written files, relative to the workspace root; empty in a dry run. */
   readonly files: readonly OutputPath[];
+  /** In a dry run (SR-246): nothing written. */
+  readonly dryRun?: true;
+  /** Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064 AK5). */
+  readonly filesToWrite?: readonly OutputPath[];
   /** With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9). */
   readonly incomplete?: Incomplete;
   readonly problems?: readonly Problem[];
@@ -3568,14 +3574,16 @@ export interface ElementUpdateInput {
   readonly unset?: readonly Key[];
   /** List items by position from 1: 1..n replace, n+1.. append; other items keep their bytes, but each acceptance criterion is written with its key (SR-204). */
   readonly setItems?: Readonly<Record<string, Readonly<Record<string, ElementScalar>>>>;
-  /** Relations to add by kind, as relation.add adds them, in the same file write (#175). A relation the element has with a valid version is kept. */
+  /** Relations to add by kind, as relation.add adds them, in the same write (#175). A relation the element has with a valid version is kept. */
   readonly addRelations?: RelationRefs;
-  /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write (#175). Nothing to remove is an info problem relation.not-found. */
+  /** Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same write (#175). Nothing to remove is an info problem relation.not-found. */
   readonly removeRelations?: RelationRefs;
-  /** Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates. */
+  /** Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change. */
+  /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change. */
   readonly expectedFileSha256?: FileSha256;
+  /** Dry run: checks and output, no write (SR-246). */
+  readonly dryRun?: boolean;
 }
 
 /**
@@ -3587,10 +3595,14 @@ export interface ElementUpdateOutput {
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
-  /** Of the file as written, or as read when nothing changed (SR-106). */
+  /** Of the file as written, or as read when nothing changed or in a dry run (SR-106, SR-246 AK5). */
   readonly fileSha256: FileSha256;
-  /** Written files, relative to the workspace root. */
+  /** Written files, relative to the workspace root; empty in a dry run. */
   readonly files: readonly OutputPath[];
+  /** In a dry run (SR-246): nothing written. */
+  readonly dryRun?: true;
+  /** Only in a dry run: the file an update would write, relative to the workspace root; empty when nothing would change. */
+  readonly filesToWrite?: readonly OutputPath[];
   /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed what the version is computed from in normal form n1 or n2 (the content, D-013, ADR-0005), so also when it changed only the stored version of a reference: a link that stores n1 of this element becomes outdated by it; 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (ThomasBirkmaier/ReqSeq-archive#276). */
   readonly affected: number;
   /** The elements `affected` counts, in store order; empty when it is 0. */

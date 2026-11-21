@@ -378,12 +378,7 @@ export const writeFileAtomic = async (
   const chunks = chunksOf(content);
   const temp = tempPathFor(absolute);
   try {
-    if (!(await linksStayInside(root, path.dirname(absolute)))) {
-      throw new CommandError(
-        "input.invalid",
-        `Not written: the folder of ${file} is linked outside the workspace`,
-      );
-    }
+    await refuseLinkedFolder(root, absolute, file);
     const written =
       expected === null
         ? await create(absolute, file, temp, chunks)
@@ -397,10 +392,21 @@ export const writeFileAtomic = async (
   }
 };
 
+/** Refuses with `input.invalid`, as `writeFileAtomic` does, when the folder of `absolute` is linked out of `root`. */
+const refuseLinkedFolder = async (root: string, absolute: string, file: string): Promise<void> => {
+  if (!(await linksStayInside(root, path.dirname(absolute)))) {
+    throw new CommandError(
+      "input.invalid",
+      `Not written: the folder of ${file} is linked outside the workspace`,
+    );
+  }
+};
+
 /**
- * Refuses, as `writeFileAtomic` would before a replace, unless `relativePath` below `root` is a
- * writable regular file whose bytes are still those of `expected` and still parse as `options.kind`:
- * for a command that changes several files and refuses before it writes the first.
+ * Refuses, as `writeFileAtomic` would before a replace, unless the folder of `relativePath` below `root`
+ * stays inside it and the file is a writable regular file whose bytes are still those of `expected` and
+ * still parse as `options.kind`: for a command that changes several files and refuses before it writes
+ * the first, and for a dry run (SR-246), which writes none.
  */
 export const checkReplaceable = async (
   root: string,
@@ -410,6 +416,7 @@ export const checkReplaceable = async (
 ): Promise<void> => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
+    await refuseLinkedFolder(root, absolute, file);
     await checkUnchanged(absolute, file, expected, options);
   } catch (e) {
     throw toCommandError(e, file, true);

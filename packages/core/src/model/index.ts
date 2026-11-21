@@ -359,6 +359,7 @@ export type {
 } from "./bulk-update.js";
 export type {
   CreateElementInput,
+  DryRun,
   ElementWriteResult,
   ReadElement,
   UpdateElementInput,

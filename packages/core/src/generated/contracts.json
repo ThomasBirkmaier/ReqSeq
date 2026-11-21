@@ -14061,7 +14061,8 @@
           "SR-084",
           "SR-091",
           "SR-102",
-          "SR-245"
+          "SR-245",
+          "SR-246"
         ],
         "arguments": [
           {
@@ -14104,6 +14105,10 @@
             "field": "identifierPrefix",
             "complete": "text",
             "class": "name"
+          },
+          {
+            "field": "dryRun",
+            "complete": "boolean"
           }
         ],
         "input": {
@@ -14148,6 +14153,10 @@
             "identifierPrefix": {
               "type": "string",
               "description": "Only with `nextIdentifier`: the identifier prefix to follow, in any case. One that no identifier of the type carries starts at 1 as written, and is refused when it is empty, longer than 100 characters, ends with a digit, holds a control character or a line break, or starts or ends with white space."
+            },
+            "dryRun": {
+              "type": "boolean",
+              "description": "Dry run: the checks and refusals before writing and the same output, but no file or folder is created; `filesToWrite` names the file, `nextIdentifier` the identifier a create gives now. A failure only writing shows, such as a folder that cannot be written, is not shown."
             }
           },
           "additionalProperties": false,
@@ -14176,7 +14185,21 @@
             },
             "files": {
               "title": "Files",
-              "description": "Written files, relative to the workspace root.",
+              "description": "Written files, relative to the workspace root; empty in a dry run.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath"
+              }
+            },
+            "dryRun": {
+              "title": "Dry run",
+              "type": "boolean",
+              "const": true,
+              "description": "In a dry run: nothing written."
+            },
+            "filesToWrite": {
+              "title": "Files to write",
+              "description": "Only in a dry run: the file a create would write, relative to the workspace root, in the folder a create without it uses.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath"
@@ -14609,6 +14632,15 @@
           {
             "path": "files",
             "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "dryRun",
+            "title": "Dry run"
+          },
+          {
+            "path": "filesToWrite",
+            "title": "Files to write",
             "technical": true
           },
           {
@@ -17843,7 +17875,8 @@
           "SR-065",
           "SR-087",
           "SR-102",
-          "SR-106"
+          "SR-106",
+          "SR-246"
         ],
         "arguments": [
           {
@@ -17889,6 +17922,10 @@
             "field": "expectedFileSha256",
             "complete": "text",
             "class": "output"
+          },
+          {
+            "field": "dryRun",
+            "complete": "boolean"
           }
         ],
         "input": {
@@ -17968,20 +18005,24 @@
             },
             "addRelations": {
               "$ref": "../common.schema.json#/$defs/relationRefs",
-              "description": "Relations to add by kind, as relation.add adds them, in the same file write. A relation the element has with a valid version is kept."
+              "description": "Relations to add by kind, as relation.add adds them, in the same write. A relation the element has with a valid version is kept."
             },
             "removeRelations": {
               "$ref": "../common.schema.json#/$defs/relationRefs",
-              "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same file write. Nothing to remove is an info problem relation.not-found."
+              "description": "Relations to remove by kind, as relation.remove removes them (a UUID as given), in the same write. Nothing to remove is an info problem relation.not-found."
             },
             "repository": {
               "type": "string",
               "minLength": 1,
-              "description": "Which of the elements ref names is meant: the workspace name of its repository (details.candidates of ref.ambiguous). None of them there: ref.unknown, with them as details.candidates."
+              "description": "Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates."
             },
             "expectedFileSha256": {
               "$ref": "../common.schema.json#/$defs/fileSha256",
-              "description": "Write precondition: the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. If the file has other bytes now: file.changed-on-disk, nothing written, also when nothing would change."
+              "description": "Write precondition: the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change."
+            },
+            "dryRun": {
+              "type": "boolean",
+              "description": "Dry run: checks and output, no write."
             }
           },
           "additionalProperties": false,
@@ -18010,11 +18051,25 @@
             "fileSha256": {
               "title": "File SHA-256",
               "$ref": "../common.schema.json#/$defs/fileSha256",
-              "description": "Of the file as written, or as read when nothing changed."
+              "description": "Of the file as written, or as read when nothing changed or in a dry run."
             },
             "files": {
               "title": "Files",
-              "description": "Written files, relative to the workspace root.",
+              "description": "Written files, relative to the workspace root; empty in a dry run.",
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/outputPath"
+              }
+            },
+            "dryRun": {
+              "title": "Dry run",
+              "type": "boolean",
+              "const": true,
+              "description": "In a dry run: nothing written."
+            },
+            "filesToWrite": {
+              "title": "Files to write",
+              "description": "Only in a dry run: the file an update would write, relative to the workspace root; empty when nothing would change.",
               "type": "array",
               "items": {
                 "$ref": "../common.schema.json#/$defs/outputPath"
@@ -18468,6 +18523,15 @@
           {
             "path": "files",
             "title": "Files",
+            "technical": true
+          },
+          {
+            "path": "dryRun",
+            "title": "Dry run"
+          },
+          {
+            "path": "filesToWrite",
+            "title": "Files to write",
             "technical": true
           },
           {

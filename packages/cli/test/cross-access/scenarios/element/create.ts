@@ -458,4 +458,77 @@ scenariosOf("element.create", [
       expect(changedFiles(results["core"])).toEqual([]);
     },
   },
+  {
+    name: "a dry run creates no file or folder (SR-246)",
+    tag: "[SR-246/AK-x516]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Preview", folder: "new/deeper", dryRun: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a dry run of an invalid input is refused as without it (SR-246)",
+    tag: "[SR-246/AK-x4c8]",
+    fixture: FILTER,
+    input: { type: "software-requirement", title: "Smooth", properties: { priority: "3" }, dryRun: true },
+    expect: "error",
+    check: (results) => {
+      expect(errorOf(results["core"]).code).toBe("input.invalid");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
+  {
+    name: "a dry run gives the element and its problems (SR-246)",
+    tag: "[SR-246/AK-pwg2]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Preview", dryRun: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      const { output } = results["core"]?.outcome as { output: Written & { problems: { code: string }[] } };
+      expect(output.element).toMatchObject({ type: "system-requirement", title: "Preview", status: "draft" });
+      expect(output.problems.map((p) => p.code)).toEqual(["trace.no-parent"]);
+    },
+  },
+  {
+    name: "a dry run is marked, names the file to write and no written file (SR-246)",
+    tag: "[SR-246/AK-y5vf]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Preview", dryRun: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect((results["core"]?.outcome as { output: unknown }).output).toMatchObject({
+        dryRun: true,
+        files: [],
+        filesToWrite: ["system-requirement/SR-<tail12>.md"],
+      });
+    },
+  },
+  {
+    name: "the file a dry run names is not in the workspace (SR-246)",
+    tag: "[SR-246/AK-tcxn]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Preview", dryRun: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(Object.keys(results["core"]?.files ?? {})).not.toContain("system-requirement/SR-<tail12>.md");
+    },
+  },
+  {
+    name: "a dry run with nextIdentifier names the identifier a create gives now (SR-246)",
+    tag: "[SR-246/AK-jbkb]",
+    fixture: IDENTIFIERS,
+    input: { type: "system-requirement", title: "Next", nextIdentifier: true, dryRun: true },
+    expect: "output",
+    newElement: true,
+    check: (results) => {
+      expect(identifierOf(results["core"])).toBe("SR-038");
+      expect(changedFiles(results["core"])).toEqual([]);
+    },
+  },
 ]);

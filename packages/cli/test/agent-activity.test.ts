@@ -1,7 +1,8 @@
 // SR-117 on the command line, the local API and the MCP server: the mode „Agent folgen“ is display
 // state of the app, so none of them can switch it (AK4), and the last API or MCP access they record
 // is the same object on every access (SR-080 AK2, `workspace.activity`). The app's side follows with
-// its own tests.
+// its own tests. A dry run (SR-246 AK8) is a read of its element, or no access at all.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -103,6 +104,34 @@ const request = (
     req.end(method === "POST" ? "{}" : undefined);
   });
 
+/** `POST` a JSON body to a path of a local API with its token. */
+const post = (
+  port: number,
+  token: string,
+  route: string,
+  body: unknown,
+): Promise<{ status: number | undefined; body: unknown }> =>
+  new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: "127.0.0.1",
+        port,
+        method: "POST",
+        path: route,
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve({ status: res.statusCode, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+        });
+      },
+    );
+    req.on("error", reject);
+    req.end(JSON.stringify(body));
+  });
+
 /** Every key of a JSON value, at any depth. */
 const keysOf = (value: unknown): string[] =>
   typeof value === "object" && value !== null
@@ -201,5 +230,43 @@ describe("the last agent access on every access (SR-117, SR-080 AK2)", () => {
       await asking.close();
     }
     expect([viaApi, viaMcp]).toEqual([viaCli, viaCli]);
+  });
+});
+
+describe("a dry run as the last agent access (SR-246 AK8)", () => {
+  it("[SR-246/AK-skjx] a dry run of an update over MCP is a read, a dry run of a create over the API keeps it", async () => {
+    const activity = async (): Promise<unknown> =>
+      (JSON.parse((await cli(["workspace", "activity", "--json"])).stdout) as { activity: unknown }).activity;
+    const sha256 = createHash("sha256")
+      .update(await fs.readFile(path.join(fixture.root, "requirements/SR-6328cee88fb3.md")))
+      .digest("hex");
+    const session = await mcpSession();
+    try {
+      const reply = await session.client.callTool({
+        name: "element_update",
+        arguments: { ref: "SR-e88fb3", title: "Show gusts", expectedFileSha256: sha256, dryRun: true },
+      });
+      expect(reply.structuredContent).toMatchObject({ dryRun: true, files: [] });
+    } finally {
+      await session.close();
+    }
+    const read = {
+      access: "mcp",
+      command: "element.update",
+      effect: "read",
+      at: expect.any(String) as unknown,
+      element: { id: ELEMENT_ID, repository: "system" },
+    };
+    expect(await activity()).toEqual(read);
+
+    await withApi(async (port, token) => {
+      const reply = await post(port, token, "/v1/commands/element.create", {
+        type: "system-requirement",
+        title: "Show gusts",
+        dryRun: true,
+      });
+      expect([reply.status, reply.body]).toMatchObject([200, { dryRun: true, files: [] }]);
+    });
+    expect(await activity()).toEqual(read);
   });
 });

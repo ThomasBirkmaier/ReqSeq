@@ -153,9 +153,20 @@ export const PREVIEWED = "element.bulkUpdate" satisfies keyof CommandTypes;
 const CONFIRMING = new Set(["confirm", "plan", "expected"]);
 export type Preview = CommandTypes[typeof PREVIEWED]["output"];
 
-/** Whether the prompt asks `arg` of `command`: never a `selection`, nor a field of the confirmation step. */
+/**
+ * The commands whose `dryRun` the app does not offer yet (SR-246: its criteria name the CLI, the API and the MCP
+ * server; the app's come with a change of the spec of their own), so the prompt never asks it.
+ */
+const DRY_RUN_LATER: ReadonlySet<string> = new Set(["element.create", "element.update"]);
+
+/**
+ * Whether the prompt asks `arg` of `command`: never a `selection`, nor a field of the confirmation step, nor the
+ * `dryRun` the app does not offer yet (`DRY_RUN_LATER`).
+ */
 export const promptable = (command: CommandListing, arg: Argument): boolean =>
-  arg.complete !== "selection" && !(command.name === PREVIEWED && CONFIRMING.has(arg.field));
+  arg.complete !== "selection" &&
+  !(command.name === PREVIEWED && CONFIRMING.has(arg.field)) &&
+  !(arg.field === "dryRun" && DRY_RUN_LATER.has(command.name));
 
 /**
  * The arguments the prompt can ask: all but a `selection`, which the shown list or page gives (`shownSelection`), and

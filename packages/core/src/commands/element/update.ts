@@ -6,21 +6,23 @@
 // the file as written for the next save (SR-106); `repository` picks one copy of a duplicate as in
 // element.get (ThomasBirkmaier/ReqSeq-archive#255). A variant is not written with validity entries (SR-039 AK2, variants/nested.ts).
 // The element has its verification and validation status as element.get gives it (#214), with `names`
-// for its variants and views (#1216).
+// for its variants and views (#1216). With `dryRun` it checks and shows the change without writing
+// (SR-246): `dryRun` and `filesToWrite` in the output, `files` empty, `fileSha256` of the file as read.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { shortIdState, updateElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
-import { counted, filesNote, named, problemsNote, sentence } from "../answer.js";
+import { counted, filesNote, named, problemsNote, sentence, toWriteNote } from "../answer.js";
 
 export default defineCommand({
   name: "element.update",
   answer: (output) =>
     sentence(
-      `Updated ${named(output.element)}`,
+      `${output.dryRun === true ? "Dry run: would update" : "Updated"} ${named(output.element)}`,
       output.affected === 0 ? "" : `${counted(output.affected, "element")} directly affected`,
+      toWriteNote(output.filesToWrite),
       filesNote(output.files),
       problemsNote(output.problems),
     ),
@@ -31,14 +33,15 @@ export default defineCommand({
       elementHints,
       await nestedVariantCheck(ctx.workspace, "element.update"),
     );
-    const { fileSha256, files, problems, affected } = written;
-    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
+    const { fileSha256, files, problems, affected, dryRun } = written;
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun);
     const shortIds = await ctx.workspace.get(shortIdState);
     return {
       element,
       ...names,
       fileSha256,
       files: [...files],
+      ...(dryRun === undefined ? {} : { dryRun: true as const, filesToWrite: [...dryRun.files] }),
       affected,
       // The elements `affected` counts (SR-224 AK4).
       affectedElements: written.affectedElements.map((record) => ({

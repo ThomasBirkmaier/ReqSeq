@@ -78,6 +78,9 @@ export const ACTIVITY_HOLD_MS = 700;
  *   moves the subject: the reference of a successful call names one record;
  * - `written`: for a `write-files` command, the one element whose file it wrote counts when no
  *   subject resolves after the run (no subject, or one whose identifier the call changed).
+ *
+ * A dry run (SR-246, output `dryRun: true`) writes nothing: it is recorded as a read of its subject, and
+ * names no written element, so a dry run of `element.create` records nothing (AK8).
  */
 export interface AccessSubject {
   readonly ref: string | undefined;
@@ -205,6 +208,13 @@ const recordingFolder = (workspace: Workspace, layout: WorkspaceLayout): string 
 };
 
 /**
+ * The effect a call is recorded with: a dry run writes nothing, so it reads (SR-246 AK8). Its output says so
+ * (`dryRun: true`, a constant of the output schema of the commands that take one), not only its input.
+ */
+const effectOf = (call: AccessCall, output: Readonly<Record<string, unknown>>): ActivityAccess["effect"] =>
+  output["dryRun"] === true ? "read" : call.effect;
+
+/**
  * What to record for a successful call (`AccessCall`) with its input and output, from the states the
  * command left (taken when this is called, in one step, ADR-0008); undefined when the call names no
  * one element, the workspace has no usable cache folder, or a state it needs is not built. Never
@@ -242,6 +252,7 @@ export const noteAccess = async (
       typeof given === "string"
         ? subjectRecord(store, shortIds, given, typeof copy === "string" ? copy : undefined)
         : undefined;
+    // A dry run writes no file (`files` is empty), so it names no written element (SR-246 AK8).
     const record = named ?? (written ? writtenRecord(store, layout, output["files"]) : undefined);
     if (record === undefined) {
       return undefined;
@@ -252,7 +263,7 @@ export const noteAccess = async (
       access: {
         access: call.access,
         command: call.command,
-        effect: call.effect,
+        effect: effectOf(call, output),
         at: new Date().toISOString(),
         element: { id: record.id, repository: record.repository },
       },

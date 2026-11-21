@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Prompt } from "./action-types.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import { elementBuffer, overviewBuffer } from "./buffers.js";
+import { askable } from "./catalog-arguments.js";
 import { catalogItems } from "./catalog-commands.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
 import type { Answer } from "./catalog-commands.test-helper.js";
 import {
   CATALOG,
+  command,
   flush,
   setup,
   item,
@@ -655,5 +657,14 @@ describe('"Create element": the other properties and the relations built from ma
     item((await last(asked)).items, "Run").run();
     await flush();
     expect(call.mock.lastCall?.[1]).toMatchObject({ properties: { rationale: "Gusts" } });
+  });
+});
+
+describe("the dry run of create and update (SR-246)", () => {
+  it("is not offered by the prompt: its criteria name the CLI, the API and the MCP server only", () => {
+    for (const name of ["element.create", "element.update"]) {
+      expect(command(name).arguments.some((arg) => arg.field === "dryRun")).toBe(true);
+      expect(askable(command(name)).some((arg) => arg.field === "dryRun")).toBe(false);
+    }
   });
 });

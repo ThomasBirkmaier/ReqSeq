@@ -5,6 +5,8 @@
 // and validation status as element.get gives it (#214), with `names` for its variants and views (#1216).
 // With `nextIdentifier` it gets the identifier after the highest of its type (SR-245,
 // model/next-identifier.ts), and the output is `incomplete` while a repository is not here (AK9).
+// With `dryRun` it checks and shows the element without writing (SR-246): `dryRun` and `filesToWrite`
+// in the output, `files` empty, and the answer says that nothing was written.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createElement } from "../../model/index.js";
@@ -12,13 +14,14 @@ import { elementHints } from "../../hints/index.js";
 import { writtenWithNames } from "../../data/index.js";
 import { nestedVariantCheck } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
-import { filesNote, incompleteNote, named, problemsNote, sentence } from "../answer.js";
+import { filesNote, incompleteNote, named, problemsNote, sentence, toWriteNote } from "../answer.js";
 
 export default defineCommand({
   name: "element.create",
   answer: (output, _input, names) =>
     sentence(
-      `Created ${names.type(output.element.type)} ${named(output.element)}`,
+      `${output.dryRun === true ? "Dry run: would create" : "Created"} ${names.type(output.element.type)} ${named(output.element)}`,
+      toWriteNote(output.filesToWrite),
       filesNote(output.files),
       incompleteNote(output.incomplete),
       problemsNote(output.problems),
@@ -30,8 +33,8 @@ export default defineCommand({
       elementHints,
       await nestedVariantCheck(ctx.workspace, "element.create"),
     );
-    const { files, problems } = written;
-    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element);
+    const { files, problems, dryRun } = written;
+    const { element, ...names } = await writtenWithNames(ctx.workspace, written.element, dryRun);
     const incomplete =
       input.nextIdentifier === true &&
       (await ctx.workspace.get(workspaceLayoutState)).repositories.some((r) => !r.available);
@@ -39,6 +42,7 @@ export default defineCommand({
       element,
       ...names,
       files: [...files],
+      ...(dryRun === undefined ? {} : { dryRun: true as const, filesToWrite: [...dryRun.files] }),
       ...(incomplete ? { incomplete } : {}),
       problems: [...problems],
     };

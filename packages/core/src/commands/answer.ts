@@ -57,6 +57,14 @@ export const sentence = (main: string, ...notes: readonly string[]): string =>
 export const filesNote = (files: readonly unknown[]): string =>
   files.length === 0 ? "no file written" : `${counted(files.length, "file")} written`;
 
+/** The note on the files a dry run would write (SR-246): `1 file to write`, `no file to write`; "" outside a dry run. */
+export const toWriteNote = (files: readonly unknown[] | undefined): string =>
+  files === undefined
+    ? ""
+    : files.length === 0
+      ? "no file to write"
+      : `${counted(files.length, "file")} to write`;
+
 /** The note on the problems of an output, `2 problems`; "" without one. */
 export const problemsNote = (problems: readonly unknown[] | undefined): string =>
   problems === undefined || problems.length === 0 ? "" : counted(problems.length, "problem");

@@ -15,7 +15,13 @@ import { exportedProperties, targetIds, withReplacedExcluded } from "./export.js
 import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { DataExportElement, ElementName } from "../generated/types.js";
-import type { CriterionReferences, ElementRecord, NameContext, ShownElement } from "../model/index.js";
+import type {
+  CriterionReferences,
+  DryRun,
+  ElementRecord,
+  NameContext,
+  ShownElement,
+} from "../model/index.js";
 import {
   criterionReferencesOf,
   currentVersionsOf,
@@ -101,22 +107,29 @@ export interface WrittenWithNames {
  * The element a write returned (`written`, its file as written) with its verification and validation status
  * as `shownWithNames` gives it, from the record of the store after the write, and `names` for the variants of
  * its validity and the views and missing children of its verification (#1216); unchanged and without `names`
- * when the store holds no record of that file (which a write that recorded its file does not leave).
+ * when the store holds no record of that file (which a write that recorded its file does not leave). A dry run
+ * (SR-246) passes what it would write (`DryRun`): the planned record and its versions, which the store does not hold.
  */
 export const writtenWithNames = async (
   workspace: Workspace,
   written: DataExportElement,
+  dryRun?: DryRun,
 ): Promise<WrittenWithNames> => {
   const store = await workspace.get(elementStoreState);
+  const planned = dryRun?.record;
   // By file too: two files of one repository may share a UUID (SR-088).
-  const record = store.byId
-    .get(written.id)
-    ?.find((r) => r.repository === written.repository && r.file === written.file);
+  const record =
+    planned ??
+    store.byId.get(written.id)?.find((r) => r.repository === written.repository && r.file === written.file);
   if (record === undefined) {
     return { element: written };
   }
-  // Both normal forms of the file as written, as `element.get` measures it (also with images).
-  const forms = formsOfEntry((await currentVersionsOf(workspace, [record])).get(record));
+  // Both normal forms of the file as written, as `element.get` measures it (also with images); of a dry run,
+  // those of its planned bytes, which neither the store nor the file on disk holds.
+  const forms =
+    dryRun?.record === undefined
+      ? formsOfEntry((await currentVersionsOf(workspace, [record])).get(record))
+      : dryRun.forms;
   const element = withEvidenceStatus(await workspaceStatus(workspace, [record]), record, written, forms);
   const [metamodel, shortIds] = await Promise.all([
     workspace.get(metamodelState),
