@@ -35,6 +35,7 @@ import {
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 export default defineCommand({
   name: "variant.diff",
@@ -56,7 +57,7 @@ export default defineCommand({
     if (!variantTypes(metamodel).has(variant.type)) {
       throw new CommandError(
         "input.invalid",
-        `${input.variant} is no variant: ${command} takes an element whose type has the meaning variant`,
+        `${input.variant} is no variant: ${commandTitle(command)} takes an element whose type has the meaning variant`,
         { command, fields: ["variant"], ref: input.variant, reason: "not-a-variant" },
       );
     }

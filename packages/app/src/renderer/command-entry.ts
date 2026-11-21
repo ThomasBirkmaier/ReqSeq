@@ -42,16 +42,21 @@ export const SHOWN_IN: Readonly<Record<string, string>> = {
 export const shownIn = (command: NamedCommand): string | undefined =>
   Object.hasOwn(SHOWN_IN, command.name) ? SHOWN_IN[command.name] : undefined;
 
-/** The app action that does what `command` does, so the command prompt lists the action only (ThomasBirkmaier/ReqSeq-archive#85). */
+/**
+ * The app action that does what `command` does, so the command prompt lists the action only (ThomasBirkmaier/ReqSeq-archive#85):
+ * the one whose `covers` names it, else one with its title, unless that one's `covers` is empty.
+ */
 export const coveringAction = (
   command: NamedCommand,
   actions: readonly Action[] = ACTIONS,
 ): Action | undefined =>
-  actions.find((action) => action.title === command.title || (action.covers ?? []).includes(command.name));
+  actions.find((action) => (action.covers ?? []).includes(command.name)) ??
+  actions.find((action) => action.title === command.title && action.covers?.length !== 0);
 
 /**
  * The catalog command `action` runs (SR-210 AK5): the one it `covers`, else the one with its title, when
- * `catalog` lists it. An action that covers several runs one of them by the shown view: none.
+ * `catalog` lists it. An action that covers several runs one of them by the shown view, and one with an
+ * empty `covers` none.
  */
 export const coveredCommand = <C extends NamedCommand>(
   action: Action,

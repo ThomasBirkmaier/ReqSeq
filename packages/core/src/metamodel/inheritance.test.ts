@@ -442,7 +442,7 @@ describe("statuses per type (ThomasBirkmaier/ReqSeq-archive#306)", () => {
       ].map(([line, key]) => [
         "info",
         line,
-        `Type ${String(key)} has an optional status (only invalid statuses: withdrawn): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+        `Type ${String(key)} has an optional status (only invalid statuses: withdrawn): an element of it without status is current, "Supersede element" retires it, and "Set status" with status null makes it current again`,
       ]),
     );
     expect(

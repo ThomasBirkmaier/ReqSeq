@@ -318,7 +318,8 @@ describe("a saved filter called by name in a selection (SR-070 AK3)", () => {
     };
     expect(await refused({ selection: { filter: "Nope" } })).toEqual({
       code: "input.invalid",
-      message: 'selection.filter: no saved filter is named "Nope"; filter.list lists the saved filters',
+      message:
+        'selection.filter: no saved filter is named "Nope"; "List saved filters" lists the saved filters',
       details: { command: "element.list", fields: ["selection.filter"] },
     });
     expect(await refused({ selection: { filter: "broken" } })).toEqual({

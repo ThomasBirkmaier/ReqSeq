@@ -7,6 +7,8 @@ import type {
   MetamodelProperty,
 } from "@reqseq/core";
 import { criterionText } from "@reqseq/core/criterion-items";
+import { NO_NAMES, isPropertyTarget, relationGroupsOf } from "@reqseq/core/displays";
+import type { RelationNames } from "@reqseq/core/displays";
 import { outdatedKey } from "./editor/references.js";
 import type { IdParts } from "./id-title.js";
 import { refIdParts, refIdTitle } from "./id-title.js";
@@ -37,9 +39,8 @@ export const propertyLines = (value: unknown): string[] => {
 /** The label of a relation as the buffer shows it: the short ID with the identifier (SR-084 AK4), then the title. */
 export const relationLabel = (relation: DataExportRelation): string => refIdTitle(relation);
 
-/** A relation that is the value of a property of kind `relation` (ADR-0004), not a relation kind. */
-export const isPropertyTarget = (relation: DataExportRelation): boolean =>
-  relation.property === true && relation.direction === "out";
+/** A relation that is the value of a property of kind `relation` (ADR-0004), not a relation kind (core's rule). */
+export { isPropertyTarget } from "@reqseq/core/displays";
 
 /**
  * The field of the title in the element buffer (ThomasBirkmaier/ReqSeq-archive#621): edited in its heading, saved and compared with the
@@ -240,23 +241,24 @@ export const rowOfRelation = (
 });
 
 export interface RelationGroup {
-  /** The relation kind; incoming relations have an arrow before it ("← derives-from"). */
+  /** The heading of the group (`relationGroupLabel`); incoming relations have an arrow before it ("← Derived by"). */
   readonly heading: string;
   readonly relations: readonly DataExportRelation[];
 }
 
 /**
- * The relations grouped by kind and direction, in the order of their first appearance. The targets of a
- * property of kind `relation` are boxes (SR-104) and not in a group.
+ * The relation groups of the element page's display model (`relationGroupsOf`, ADR-0019): by kind and direction, the
+ * outgoing first, each in the order of the metamodel, each kind by its name from `names` (its key without one). The
+ * targets of a property of kind `relation` are boxes (SR-104) and not in a group.
  */
-export const relationGroups = (relations: readonly DataExportRelation[]): RelationGroup[] => {
-  const groups = new Map<string, DataExportRelation[]>();
-  for (const relation of relations.filter((candidate) => !isPropertyTarget(candidate))) {
-    const heading = relation.direction === "in" ? `← ${relation.kind}` : relation.kind;
-    groups.set(heading, [...(groups.get(heading) ?? []), relation]);
-  }
-  return [...groups].map(([heading, grouped]) => ({ heading, relations: grouped }));
-};
+export const relationGroups = (
+  relations: readonly DataExportRelation[],
+  names: RelationNames = NO_NAMES,
+): RelationGroup[] =>
+  relationGroupsOf(relations, names, { relations: "all" }).map((group) => ({
+    heading: group.label,
+    relations: group.relations,
+  }));
 
 /**
  * The outdated inline references of an element for the editor: `outdatedKey` of the target, the stored

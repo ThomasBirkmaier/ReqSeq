@@ -35,6 +35,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/out/**",
       "**/coverage/**",
+      // Build output of scripts/build/html-export-vendor.mjs (mermaid.js), git-ignored like dist (#2249).
+      "packages/core/vendor/**",
       "spec/**",
       "scripts/spec-export/raw/**",
       ".claude/worktrees/**",
@@ -115,6 +117,31 @@ export default tseslint.config(
     ignores: testFiles,
     rules: {
       "no-restricted-imports": ["error", { patterns: [testkitInProduct, testCommandInProduct] }],
+    },
+  },
+  {
+    // ADR-0019 point 3: the display models run in the app's sandboxed renderer, so they import only types, each
+    // other and the import-free modules of core. This block replaces the options of the core block, so it repeats
+    // its patterns.
+    files: ["packages/core/src/displays/**/*.ts"],
+    ignores: testFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            testkitInProduct,
+            testCommandInProduct,
+            {
+              // Everything but another display model (`./x`, not `./../x`) and the import-free modules named here.
+              regex: String.raw`^(?!\./(?!\.)|\.\./(?:graph/words|model/criterion-items|problem-titles|hint-order)\.js$)`,
+              allowTypeImports: true,
+              message:
+                "A display model imports only types, other displays modules and import-free modules (ADR-0019).",
+            },
+          ],
+        },
+      ],
     },
   },
   {

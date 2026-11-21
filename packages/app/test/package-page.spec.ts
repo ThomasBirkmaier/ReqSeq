@@ -347,7 +347,7 @@ test.describe("the line under the title of a package page", () => {
     // The ten requirements have no evidence: each is listed under the number of those without.
     expect(without).toHaveLength(10);
     await shownLayer(window).locator("article .package-summary [role=link]").click();
-    await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
+    await expect(window.getByLabel("Modeline")).toContainText("Show coverage");
     const rows = shownLayer(window).locator(".result .line.element");
     await expect(rows).toHaveCount(levels.flatMap((level) => Object.values(level.elements).flat()).length);
     // The count line, not the heading of its list of elements, which has the same title (SR-036 AK6).
@@ -369,7 +369,7 @@ test.describe("the line under the title of a package page", () => {
       JSON.parse(cli.stdout) as { readonly levels: readonly Readonly<Record<string, unknown>>[] }
     ).levels;
     await shownLayer(window).locator("article .package-summary [role=link]").click();
-    await expect(window.getByLabel("Modeline")).toContainText("Show evidence coverage");
+    await expect(window.getByLabel("Modeline")).toContainText("Show coverage");
     // Each number of a level is a count line of its own, in the order of the CLI's JSON; 0 is shown too.
     const titles: Readonly<Record<string, string>> = {
       withoutChildren: "Without children",

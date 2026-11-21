@@ -70,6 +70,11 @@ describe("commandPage", () => {
     expect(page(plain)).toContain("\nGets one.\n\nCommand `element.get`.");
   });
 
+  it("heads each group of the index with its name for people, not its key (#2201)", () => {
+    const index = commandIndex([entry("element.get"), entry("reqif.export"), entry("tool.info")], "");
+    expect(index.match(/^## .*$/gm)).toEqual(["## Elements", "## ReqIF", "## ReqSeq"]);
+  });
+
   it("says when a command has no input or no output fields", () => {
     const empty = { type: "object", additionalProperties: false } as const;
     const text = page({ ...entry("element.get"), input: empty, output: empty });

@@ -274,7 +274,7 @@ describe("evidence.record (SR-030)", () => {
       "wrong-type",
     );
     expect(need.message).toBe(
-      "N-00a001 is of type need: a verification record names a requirement, a validation record a need or a requirement",
+      "N-00a001 is of type Need: a verification record names a requirement, a validation record a need or a requirement",
     );
     for (const kind of ["verification", "validation"]) {
       await refusedLeavingNothing(

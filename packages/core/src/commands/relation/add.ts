@@ -20,6 +20,7 @@ import type { Workspace } from "../../runtime/workspace.js";
 import { closedCycle, cycleFindings, upwardGraph } from "../../trace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 import { filesNote, problemsNote, sentence } from "../answer.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 
 /**
  * The hints on the cycle of derivations that the relation closes, read on the element store after
@@ -78,7 +79,7 @@ const keptOutdated = async (
           path,
           problem: {
             ...problem,
-            message: `${problem.message}; relation.add keeps the relation it has and writes nothing: hint.confirm with its hintId stores the current version (with ref ${input.source} and target ${input.target} it confirms every outdated hint of ${input.source} that points at ${input.target}, inline references too)`,
+            message: `${problem.message}; ${commandTitle("relation.add")} keeps the relation it has and writes nothing: ${commandTitle("hint.confirm")} with its hintId stores the current version (with ref ${input.source} and target ${input.target} it confirms every outdated hint of ${input.source} that points at ${input.target}, inline references too)`,
           },
         });
       }

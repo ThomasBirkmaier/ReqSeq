@@ -388,7 +388,7 @@ describe("cycles in the derivations (SR-090)", () => {
         code: "metamodel.meaning-unassigned",
         severity: "info",
         message:
-          "No relation kind of the metamodel has the meaning derivation, which workspace.check needs. Add `meaning: derivation` to a relation kind in the metamodel files.",
+          'No relation kind of the metamodel has the meaning derivation, which "Check workspace" needs. Add `meaning: derivation` to a relation kind in the metamodel files.',
       },
     ]);
     const out = await check(workspace);

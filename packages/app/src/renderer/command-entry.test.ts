@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ACTIONS } from "./actions.js";
-import { appCommandEntry, commandPromptKey, coveringAction, SHOWN_IN, shownIn } from "./command-entry.js";
+import {
+  appCommandEntry,
+  commandPromptKey,
+  coveredCommand,
+  coveringAction,
+  SHOWN_IN,
+  shownIn,
+} from "./command-entry.js";
 
 describe("appCommandEntry", () => {
   it("names the action that covers a command, with its shortcut", () => {
@@ -34,6 +41,28 @@ describe("appCommandEntry", () => {
 
   it("finds a covering action by title too", () => {
     expect(coveringAction({ name: "test.none", title: "Show graph" })?.covers).toEqual(["trace.graph"]);
+  });
+
+  it("names the action whose covers names a command before one that only shares its title (#2201)", () => {
+    const get = { name: "element.get", title: "Show element" };
+    expect(appCommandEntry(get, false)).toEqual({
+      name: "Go to element or buffer",
+      action: true,
+      key: "Ctrl+P",
+    });
+    expect(appCommandEntry({ name: "element.list", title: "List elements" }, false)).toEqual({
+      name: "List all elements",
+      action: true,
+    });
+    // The actions titled "Show element" on a graph, a neighbourhood and an entry run no catalog command.
+    const sameTitle = ACTIONS.filter((action) => action.title === get.title);
+    expect(sameTitle.map((action) => action.id)).toEqual(["neighbourhood-back", "graph-back", "entry-show"]);
+    expect(sameTitle.map((action) => coveredCommand(action, [get]))).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(coveringAction({ name: "test.none", title: "Show element" })).toBeUndefined();
   });
 
   it("names the place that shows the output of a command without an entry of its own, and no key", () => {

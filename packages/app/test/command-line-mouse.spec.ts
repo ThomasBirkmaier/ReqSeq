@@ -204,16 +204,16 @@ test.describe("the command line by mouse", () => {
     await options(window).filter({ hasText: "All commands…" }).click();
     await expect(label(window)).toHaveText("All commands");
     await options(window)
-      .filter({ hasText: /^Show workspace status/ })
+      .filter({ hasText: /^Show workspace/ })
       .click();
     await expect(input(window)).toHaveCount(0);
-    await expect(modeline).toContainText("Show workspace status");
+    await expect(modeline).toContainText("Show workspace");
     await expect(window.locator(".result .line").first()).not.toBeEmpty();
     const result = (await window.locator(".result").textContent()) ?? "";
     const ranModeline = (await modeline.textContent()) ?? "";
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
-    await window.keyboard.type("Show workspace status");
-    await expect(options(window).first().locator(".name")).toHaveText("Show workspace status");
+    await window.keyboard.type("Show workspace");
+    await expect(options(window).first().locator(".name")).toHaveText("Show workspace");
     await window.keyboard.press("Enter");
     await expect(input(window)).toHaveCount(0);
     await expect(window.locator(".result")).toHaveText(result);
@@ -225,9 +225,9 @@ test.describe("the command line by mouse", () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press(`${await modifier(window)}+Shift+P`);
-    await window.keyboard.type("Show workspace status");
+    await window.keyboard.type("Show workspace");
     const hit = options(window).first();
-    await expect(hit.locator(".name")).toHaveText("Show workspace status");
+    await expect(hit.locator(".name")).toHaveText("Show workspace");
     // The raw mouse has no wait of its own: the box is read where the card stands, not while it rises.
     await cardSettled(window);
     const row = await boxOf(hit);
@@ -238,7 +238,7 @@ test.describe("the command line by mouse", () => {
     const line = await boxOf(minibuffer(window));
     await window.mouse.move(line.x + line.width / 2, line.y + line.height / 2, { steps: 5 });
     await window.mouse.up();
-    await expect(window.getByLabel("Modeline")).toContainText("Show workspace status");
+    await expect(window.getByLabel("Modeline")).toContainText("Show workspace");
     await expect(input(window)).toHaveCount(0);
   });
 

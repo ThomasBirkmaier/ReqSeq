@@ -3,6 +3,7 @@
 // path; a missing repository is named instead. On the small model of the test helper.
 import { describe, expect, it } from "vitest";
 import type { CommandName } from "../../catalog.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 import {
   MODEL,
   SMALL_MODEL,
@@ -43,7 +44,7 @@ describe("metamodel changes that need the uses, while an element file cannot be 
         { command, count: 1, files: [{ repository: "system", file: "elements/E-broken.md" }] },
       ]);
       expect(refused.message).toBe(
-        `${command} needs every element to count the uses, and 1 element file cannot be read (system:elements/E-broken.md); nothing is written. Fix them first.`,
+        `${commandTitle(command)} needs every element to count the uses, and 1 element file cannot be read (system:elements/E-broken.md); nothing is written. Fix them first.`,
       );
       expect(await read(MODEL)).toBe(SMALL_MODEL);
       expect(await read("elements/E-broken.md")).toBe(BROKEN);

@@ -1,6 +1,6 @@
 {
   "name": "evidence.coverage",
-  "title": "Show evidence coverage",
+  "title": "Show coverage",
   "summary": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
   "effect": "read",
   "stage": 4,

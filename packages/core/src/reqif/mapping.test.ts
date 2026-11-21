@@ -62,21 +62,42 @@ describe("mapping files (SR-054)", () => {
     expect(read.yaml.path).toBe("acme.yaml");
   });
 
-  it("[SR-008/AK-pm64] is file.faulty for a missing file or one that is no mapping file, input.invalid for one that does not fit", async () => {
-    const { workspace } = await open({
+  it("refuses a mapping file that does not exist with its path and the commands that make one (#2226)", async () => {
+    const { fixture, workspace } = await open({ "notes.txt": "" });
+    const [analyse, save] = await Promise.all(
+      ["reqif.analyze", "reqif.saveMapping"].map(async (name) => {
+        const file = new URL(`../../../../schemas/commands/${name}.json`, import.meta.url);
+        return (JSON.parse(await fs.readFile(file, "utf8")) as { title: string }).title;
+      }),
+    );
+    // The message names the absolute path that was looked for (#1831), also below a file (ENOTDIR).
+    for (const given of ["kunde", "notes.txt/kunde.yaml"]) {
+      const missing = await failure(() => readFrom(workspace, given));
+      expect([missing.code, missing.details]).toEqual([
+        "input.invalid",
+        { command: "reqif.import", fields: ["mapping"], reason: "source-missing" },
+      ]);
+      expect(missing.message).toBe(
+        `mapping: the mapping file ${path.resolve(fixture.root, given)} does not exist; "${String(analyse)}" shows the types and attributes of the delivery, "${String(save)}" saves a mapping file for them`,
+      );
+    }
+  });
+
+  it("[SR-008/AK-pm64] is file.faulty for a file that cannot be read or is no mapping file, input.invalid for one that does not fit", async () => {
+    const { fixture, workspace } = await open({
       "reqif/wrong.yaml": "reqseq-reqif-mapping: 2\n",
       "reqif/extra.yaml": "reqseq-reqif-mapping: 1\nsource: { name: X }\ntypes: []\nbogus: 1\n",
       "reqif/unknown.yaml":
         "reqseq-reqif-mapping: 1\nsource: { name: X }\ntypes: [{ source: A, type: nothing }]\n",
     });
-    const missing = await failure(() => readFrom(workspace, "reqif/missing.yaml"));
-    expect([missing.code, missing.details]).toEqual([
+    await fs.mkdir(fixture.path("reqif/folder.yaml"));
+    const folder = await failure(() => readFrom(workspace, "reqif/folder.yaml"));
+    expect([folder.code, folder.details]).toEqual([
       "file.faulty",
       { command: "reqif.import", fields: ["mapping"] },
     ]);
-    // The message names the absolute path that was looked for (#1831).
-    expect(missing.message).toBe(
-      `mapping: ${path.resolve(workspace.root, "reqif/missing.yaml")}: Cannot read file: ENOENT`,
+    expect(folder.message).toBe(
+      `mapping: ${path.resolve(workspace.root, "reqif/folder.yaml")}: Cannot read file: it is not a regular file`,
     );
     const wrong = await failure(() => readFrom(workspace, "reqif/wrong.yaml"));
     expect(wrong.code).toBe("file.faulty");

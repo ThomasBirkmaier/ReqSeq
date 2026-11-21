@@ -176,11 +176,11 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       expect(result.problems.map((p) => [p.code, p.severity, p.message])).toEqual(
         [
           `"[SR-46fb54/AK1]" ${byNumber}, [SR-46fb54/AK-kaaa]`,
-          `"[SR-46fb54/AK2]" names an acceptance criterion by its number, which has no criterion key yet; give the acceptance criteria of SR-46fb54 criterion keys with element.assignCriterionKeys and name it by its key`,
+          `"[SR-46fb54/AK2]" names an acceptance criterion by its number, which has no criterion key yet; give the acceptance criteria of SR-46fb54 criterion keys with "Assign criterion keys" and name it by its key`,
           `"[SR-46fb54/AK3]" ${byNumber} from the element file`,
           `"[SR-46fb54/AK9]" ${byNumber} from the element file`,
           '"[SR-46fb54/AK-kzzz]" names the criterion key kzzz, which no acceptance criterion of SR-46fb54 in its current version carries; name the key from the element file',
-          '"[SR-0b0036/AK-kzzz]" names the criterion key kzzz, which no acceptance criterion of SR-0b0036 in its current version carries; give the acceptance criteria of SR-0b0036 criterion keys with element.assignCriterionKeys',
+          '"[SR-0b0036/AK-kzzz]" names the criterion key kzzz, which no acceptance criterion of SR-0b0036 in its current version carries; give the acceptance criteria of SR-0b0036 criterion keys with "Assign criterion keys"',
           '"[SR-46fb54/AK-kdup]" names the criterion key kdup, which 2 acceptance criteria of SR-46fb54 in its current version carry; name the key from the element file',
           `"sr_46fb54_ak1" (read by the name pattern) ${byNumber}, kaaa`,
           `"[SR-46fb54/AK1]" ${byNumber}, [SR-46fb54/AK-kaaa]`,

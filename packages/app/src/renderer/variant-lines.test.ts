@@ -120,8 +120,8 @@ describe("the lines of a requirement's variants", () => {
       }),
     );
     expect(halves(lines.verification)).toEqual([
-      "Core | open (2 of 3 criteria, AK3 not verified)",
-      "uuid-coast | verified (3 of 3 criteria)",
+      "Core | open, 2 of 3 criteria, AK3 not verified",
+      "uuid-coast | verified, 3 of 3 criteria",
     ]);
   });
 

@@ -335,7 +335,7 @@ const openKinds = async (window: Page): Promise<{ kinds: Map<string, Kind>; elem
   await command(window, "Show metamodel");
   name = await opened(window, name);
   kinds.set(name, "metamodel");
-  await command(window, "Show workspace status");
+  await command(window, "Show workspace");
   name = await opened(window, name);
   kinds.set(name, "result");
   return { kinds, element };

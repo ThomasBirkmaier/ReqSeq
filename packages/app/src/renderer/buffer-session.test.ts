@@ -117,7 +117,7 @@ const everyKind = (): Buffer[] => [
   },
   { ...metamodelBuffer("text"), selected: "type:need" },
   {
-    ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { secret: "output" }, 7),
+    ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence records SR-1", { secret: "output" }, 7),
     cursor: 0,
   },
   // A perspective buffer that differs from its perspective: it comes back as saved (SR-214 AK7).
@@ -221,7 +221,13 @@ describe("buffer session (SR-115 AK4)", () => {
     });
     expect(metamodel).toEqual(metamodelBuffer("text"));
     expect(result).toEqual(
-      resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
+      resultBuffer(
+        "evidence.list",
+        { ref: "SR-1" },
+        "List evidence records SR-1",
+        undefined,
+        RESTORED_REVISION,
+      ),
     );
     expect(perspective).toEqual(perspectiveBuffer({ name: "Drafts", saved: DRAFTS_SAVED }));
     // Buffers as they open first, with nothing chosen, come back the same; an element shown read-only
@@ -354,7 +360,7 @@ describe("buffer session (SR-115 AK4)", () => {
   });
 
   it("keeps Show details of a result over a restart, since it holds until the buffer is closed (SR-223 AK2)", async () => {
-    const shown = resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", { a: 1 }, 7);
+    const shown = resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence records SR-1", { a: 1 }, 7);
     const storage = memory();
     saveSession(() => storage, "key", sessionText([{ ...shown, details: true }]));
     const restored = await restoreSession(
@@ -364,7 +370,13 @@ describe("buffer session (SR-115 AK4)", () => {
     );
     expect(restored.buffers).toEqual([
       {
-        ...resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
+        ...resultBuffer(
+          "evidence.list",
+          { ref: "SR-1" },
+          "List evidence records SR-1",
+          undefined,
+          RESTORED_REVISION,
+        ),
         details: true,
       },
     ]);
@@ -441,7 +453,7 @@ describe("buffer session (SR-115 AK4)", () => {
         { kind: "element", id: "uuid-9", repository: "spec" },
         { kind: "graph", id: "uuid-1", repository: "spec", depth: 2 },
         { kind: "result", command: "element.setStatus", input: { refs: ["SR-1"] }, name: "Set status" },
-        { kind: "result", command: "evidence.list", input: {}, name: "List evidence" },
+        { kind: "result", command: "evidence.list", input: {}, name: "List evidence records" },
         { kind: "result", command: "trace.plan", input: {}, name: "Plan" },
         { kind: "search", query: "wind" },
         { kind: "search", query: "wind" },

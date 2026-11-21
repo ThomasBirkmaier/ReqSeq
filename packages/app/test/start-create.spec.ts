@@ -67,6 +67,8 @@ test("[SR-225/AK-tccz] Create workspace of the start buffer asks only the name, 
   // With the standard model (SR-014 AK1), in the folder chosen.
   expect(fs.readFileSync(path.join(folder, "reqseq-workspace.yaml"), "utf8")).toContain("name: Station");
   expect(fs.existsSync(path.join(folder, "metamodel", "standard-model.yaml"))).toBe(true);
+  // With its evidence folder, kept in Git by an empty `.gitkeep` (SR-230 AK4).
+  expect(fs.readFileSync(path.join(folder, "evidence", ".gitkeep"), "utf8")).toBe("");
   await window.screenshot({ path: path.join(SHOTS, "start-create-opened-light.png") });
 });
 

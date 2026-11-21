@@ -159,7 +159,7 @@ describe("SR-028 findings of the evidence records", () => {
       ["evidence/2026-10-23-need-test.md", need, "warning"],
     ]);
     expect(found[0]?.message).toBe(
-      `The verification record names element ${need} of type need, so it counts for no status: a verification record names a requirement`,
+      `The verification record names element ${need} of type Need, so it counts for no status: a verification record names a requirement`,
     );
   });
 
@@ -179,7 +179,7 @@ describe("SR-028 findings of the evidence records", () => {
         "evidence/2026-10-23-decision-validation.md",
         decision,
         "warning",
-        `The validation record names element ${decision} of type decision, so it counts for no status: a validation record names a need or a requirement`,
+        `The validation record names element ${decision} of type Decision, so it counts for no status: a validation record names a need or a requirement`,
       ],
     ]);
     const got = (await invoke(

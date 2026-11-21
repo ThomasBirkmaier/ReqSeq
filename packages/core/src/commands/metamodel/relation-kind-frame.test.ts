@@ -4,6 +4,7 @@
 import fs from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
+import { commandTitle } from "../../runtime/command-titles.js";
 import {
   MODEL,
   SMALL_MODEL,
@@ -51,7 +52,7 @@ describe("metamodel commands: the frame over the relation kind commands (SR-236)
       const denied = await failure(locked.workspace, command, input);
       expect([denied.code, denied.message, denied.details]).toEqual([
         "file.read-only",
-        `The metamodel repository system is read-only; ${command} changes no file`,
+        `The metamodel repository system is read-only; ${commandTitle(command)} changes no file`,
         { repository: "system" },
       ]);
       expect(await locked.read(MODEL)).toBe(MODEL_TEXT);

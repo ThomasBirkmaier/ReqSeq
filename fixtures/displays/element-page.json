@@ -1,0 +1,102 @@
+{
+  "metamodel": {
+    "relations": [
+      {
+        "key": "refines",
+        "name": "Refines",
+        "inverse-name": "Refined by"
+      },
+      {
+        "key": "derives-from",
+        "name": "Derives from",
+        "meaning": "derivation"
+      },
+      {
+        "key": "based-on",
+        "name": "Based on",
+        "inverse-name": "Basis for"
+      }
+    ],
+    "properties": [
+      {
+        "key": "packages",
+        "name": "Packages",
+        "kind": "relation"
+      }
+    ],
+    "statuses": [
+      {
+        "key": "draft",
+        "name": "Draft",
+        "initial": true
+      },
+      {
+        "key": "obsolete",
+        "name": "Obsolete",
+        "invalid": true
+      }
+    ]
+  },
+  "element": {
+    "id": "cccc3333-3333-4333-8333-000000000001",
+    "repository": "spec",
+    "shortId": "SR-000001",
+    "identifier": "SR-1",
+    "type": "system-requirement",
+    "title": "Show wind speed",
+    "status": "draft",
+    "properties": {},
+    "relations": [
+      {
+        "kind": "derives-from",
+        "direction": "out",
+        "id": "cccc3333-3333-4333-8333-000000000002",
+        "repository": "spec",
+        "shortId": "N-000002",
+        "title": "Know the wind",
+        "accessible": true,
+        "targetState": "available"
+      },
+      {
+        "kind": "refines",
+        "direction": "out",
+        "id": "cccc3333-3333-4333-8333-000000000003",
+        "repository": "spec",
+        "shortId": "SR-000003",
+        "title": "Show weather",
+        "accessible": true,
+        "targetState": "available"
+      }
+    ],
+    "verification": [
+      {
+        "view": "core",
+        "status": "open",
+        "criteria": {
+          "verified": 1,
+          "total": 2,
+          "notVerified": [
+            {
+              "criterion": 2,
+              "key": "k7f3"
+            }
+          ]
+        }
+      }
+    ],
+    "problems": [
+      {
+        "code": "trace.no-parent",
+        "severity": "warning",
+        "message": "SR-000001 has no parent",
+        "elementId": "cccc3333-3333-4333-8333-000000000001"
+      },
+      {
+        "code": "relation.outdated",
+        "severity": "warning",
+        "message": "The relation refines to SR-000003 is outdated",
+        "elementId": "cccc3333-3333-4333-8333-000000000001"
+      }
+    ]
+  }
+}

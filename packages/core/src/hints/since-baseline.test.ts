@@ -8,11 +8,20 @@ import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
-import { currentFormsOf, currentVersionsState, NORMAL_FORM } from "../model/index.js";
+import { metamodelState } from "../metamodel/index.js";
+import {
+  currentFormsOf,
+  currentVersionsState,
+  elementStoreState,
+  NORMAL_FORM,
+  shortIdState,
+} from "../model/index.js";
 import { WRITTEN_VERSION } from "../model/version-forms.test-helper.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { workspaceLayoutState } from "../workspace/index.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
+import { sinceBaselineProblems } from "./since-baseline.js";
 import { withoutTitles } from "./titles.test-helper.js";
 
 const P = "10310310-0000-4000-8000-0000000000";
@@ -246,11 +255,11 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
     expect(refused.map((p) => [p.hintId, p.message])).toEqual([
       [
         undefined,
-        "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
+        'kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it',
       ],
       [
         id,
-        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it`,
+        `${id} is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it`,
       ],
     ]);
     expect(rows(await listed(workspace))).toHaveLength(1);
@@ -277,7 +286,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
           code: "hint.not-confirmable",
           severity: "error",
           message:
-            "kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it",
+            'kind variant.core-changed-since-baseline is not confirmed: a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it',
         },
       ],
     });
@@ -296,7 +305,7 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       [
         "hint.not-confirmable",
         "error",
-        "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them",
+        '1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant ("Create baseline" with the view of the variant), not by confirming them',
       ],
     ]);
     // Given by its UUID, as the app does, the refusal still names the short ID (#444).
@@ -651,6 +660,33 @@ describe("kept between calls", () => {
       [changed, MOUNTAIN, K1],
       [changed, MOUNTAIN, K2],
     ]);
+  });
+
+  it("computes the hints again for a store that does not say which records stayed the same", async () => {
+    const { workspace } = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    // The baseline file read is kept only once it is no longer racy (`changeStamp`).
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now + 60_000);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const [layout, metamodel, store, shortIds] = await Promise.all([
+      workspace.get(workspaceLayoutState),
+      workspace.get(metamodelState),
+      workspace.get(elementStoreState),
+      workspace.get(shortIdState),
+    ]);
+    const context = { workspace, layout, metamodel, store, shortIds };
+    const expected = [["variant.core-changed-since-baseline", COAST, K1]];
+    expect(rows(await sinceBaselineProblems(context))).toEqual(expected);
+    // Another store object without its repositories (`ElementStore.repositories`): no update from
+    // the kept one is known (`storeUpdate`), so nothing is carried and the full pass gives the same.
+    const { repositories, ...unpatched } = store;
+    expect(repositories).toBeDefined();
+    expect(rows(await sinceBaselineProblems({ ...context, store: unpatched }))).toEqual(expected);
   });
 });
 

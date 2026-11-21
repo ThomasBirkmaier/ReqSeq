@@ -85,6 +85,7 @@ import {
   writeElementFiles,
   writtenElement,
 } from "./write.js";
+import { commandTitle } from "../runtime/command-titles.js";
 
 export type BulkOperation = "set" | "add" | "remove";
 
@@ -158,17 +159,20 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
 const propertyOf = (metamodel: Metamodel, key: string): MetamodelProperty => {
   const found = keyDefinition(metamodel, key);
   if (found?.kind === "relation") {
-    throw invalid(`property: ${key} is a relation kind, not a property; add relations with relation.add`, {
-      key,
-      reason: "relation",
-    });
+    throw invalid(
+      `property: ${key} is a relation kind, not a property; add relations with ${commandTitle("relation.add")}`,
+      {
+        key,
+        reason: "relation",
+      },
+    );
   }
   if (found === undefined) {
     throw invalid(`property: the metamodel has no property ${key}`, { key, reason: "not-a-property" });
   }
   if (key === titleKeyOf(metamodel)) {
     throw invalid(
-      `property: ${key} is the title, which is each element's own; change it with element.update`,
+      `property: ${key} is the title, which is each element's own; change it with ${commandTitle("element.update")}`,
       {
         key,
         reason: "title",
@@ -177,10 +181,13 @@ const propertyOf = (metamodel: Metamodel, key: string): MetamodelProperty => {
   }
   const origin = originMeaning(found.definition);
   if (origin !== undefined) {
-    throw invalid(`property: ${key} holds the origin (${origin}), which only reqif.import writes`, {
-      key,
-      reason: "origin",
-    });
+    throw invalid(
+      `property: ${key} holds the origin (${origin}), which only ${commandTitle("reqif.import")} writes`,
+      {
+        key,
+        reason: "origin",
+      },
+    );
   }
   return found.definition;
 };

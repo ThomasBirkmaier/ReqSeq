@@ -4,7 +4,7 @@
 // of all elements, with the values per element at its rows with "Show details". Such a list has the list's context
 // menu (SR-198 AK1) and its rows the element's (SR-197 AK1, AK4), it is never saved as a perspective or a saved
 // filter (SR-214 AK5, SR-219 AK8), it comes back after a restart (SR-115 AK4), and the records of older versions of
-// "Show affected elements" stand above it (SR-024 AK4). The output of "Show evidence status", which the catalog marks
+// "Show affected elements" stand above it (SR-024 AK4). The output of "Show verification status", which the catalog marks
 // `staysOutputPage` (SR-224 AK8), stays an output page with each entry's values below its row. The light screenshots go to
 // `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import path from "node:path";
@@ -231,7 +231,9 @@ test.describe("lists from outputs", () => {
     await showDetails(window);
     const gusts = list(window).locator(".row", { hasText: "SR-00b002" });
     await expect(gusts.locator(".row-detail", { hasText: "Distance" })).toContainText("1");
-    await expect(gusts.locator(".row-detail", { hasText: "Link kind" })).toContainText("relation");
+    await expect(gusts.locator(".row-detail", { hasText: "Relation or reference" })).toContainText(
+      "relation",
+    );
     await window.screenshot({ path: path.join(SHOTS, "sr-223-answer-list-details-light.png") });
     await showDetails(window);
     await expect(list(window).locator(".row-detail")).toHaveCount(0);
@@ -273,7 +275,7 @@ test.describe("lists from outputs", () => {
   test("[SR-223/AK-qwkc] the evidence status stays an output page: each element's row with its verification status below it, the element's own values only with Show details", async () => {
     running = await launchApp(await withRecord());
     const { window } = running;
-    await run(window, "Show evidence status");
+    await run(window, "Show verification status");
     const shown = await cli(running, ["evidence", "status"]);
     const page = shownLayer(window).locator(".result.output");
     // An output page under its answer (SR-223 AK1), no list of its elements.

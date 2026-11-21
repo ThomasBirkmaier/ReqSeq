@@ -1,6 +1,6 @@
 // workspace.init (SR-014): create a workspace with the shipped standard model as its metamodel in
 // a folder (created when only it is missing, #637), then open it once and return its problems (none for a new standard
-// workspace; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
+// workspace; the warning that the evidence folder was not created comes first, SR-230 AK4; an own metamodel repository that is not there yet shows up here, SR-018), with the next steps
 // (SR-226 AK2), without those the new workspace refuses while it is read-only (AK6). Unless `skill` is false, it also writes the skill file as `tool.guide` with `write` does, without
 // `replace`, at each place of D-079 (SR-229 AK9, `writeSkillFiles`): each place written is listed among the files; an
 // existing own file is left and not listed (SR-014 AK1); each place refused is one problem
@@ -79,7 +79,7 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"workspace.init">> => {
     // `localPath`: the CLI passes it absolute, API and MCP relative to the workspace root.
     const root = path.resolve(ctx.workspace.root, input.path);
-    const files = await createWorkspace(root, {
+    const { files, problems } = await createWorkspace(root, {
       name: input.name,
       metamodel: input.metamodel,
       metamodelFile: { name: STANDARD_MODEL_FILE, text: STANDARD_MODEL_TEXT },
@@ -99,7 +99,7 @@ export default defineCommand({
         // The next steps run in the new workspace (SR-226 AK2), named by its absolute path; while it is
         // read-only (an own metamodel that is not there yet), without those it refuses then (AK6).
         next: await runnableSteps(created, afterInitSteps(root)),
-        problems: [...layout.problems, ...metamodel.problems, ...skill.problems],
+        problems: [...problems, ...layout.problems, ...metamodel.problems, ...skill.problems],
       };
     } finally {
       await created.close();

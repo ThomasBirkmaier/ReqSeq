@@ -50,7 +50,7 @@ export const verificationWords = (node: Verifiable): string[] => {
 };
 
 /**
- * The ID of an element as the app shows it (SR-084 AK4): the short ID with the identifier in brackets
+ * The ID of an element as every display shows it (SR-084 AK4): the short ID with the identifier in brackets
  * behind it, `SR-3c90b0 (SR-036)`, as the CLI prints it (`cli/src/present.ts`); the short ID alone
  * without an identifier.
  */
