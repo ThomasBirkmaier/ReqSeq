@@ -4982,7 +4982,7 @@ export interface EvidenceStatusOutput {
 }
 
 /**
- * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.
+ * Input of `evidence.coverage` as `run` gets it: validated, properties with a `default` filled in. Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json input`.
  */
 export interface EvidenceCoverageInput {
@@ -4991,7 +4991,7 @@ export interface EvidenceCoverageInput {
 }
 
 /**
- * Output of `evidence.coverage`. Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.
+ * Output of `evidence.coverage`. Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.
  * Schema: `schemas/commands/evidence.coverage.json output`.
  */
 export interface EvidenceCoverageOutput {

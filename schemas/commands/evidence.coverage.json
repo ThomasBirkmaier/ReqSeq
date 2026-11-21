@@ -1,7 +1,7 @@
 {
   "name": "evidence.coverage",
   "title": "Show evidence coverage",
-  "summary": "Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.",
+  "summary": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
   "effect": "read",
   "stage": 4,
   "implements": ["SR-036", "SR-042", "SR-101"],
@@ -37,7 +37,7 @@
               "type": "integer",
               "minimum": 0,
               "description": "The counted elements of the type.",
-              "x-elements": ["elements/withChildren", "elements/withoutChildren"]
+              "x-elements": ["elements/withoutChildren", "elements/withChildren"]
             },
             "withoutChildren": {
               "title": "Without children",

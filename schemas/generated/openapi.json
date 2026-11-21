@@ -16877,7 +16877,7 @@
     "/v1/commands/evidence.coverage": {
       "post": {
         "operationId": "evidence_coverage",
-        "summary": "Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.",
+        "summary": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
         "tags": [
           "evidence"
         ],
@@ -16936,8 +16936,8 @@
                             "minimum": 0,
                             "description": "The counted elements of the type.",
                             "x-elements": [
-                              "elements/withChildren",
-                              "elements/withoutChildren"
+                              "elements/withoutChildren",
+                              "elements/withChildren"
                             ]
                           },
                           "withoutChildren": {

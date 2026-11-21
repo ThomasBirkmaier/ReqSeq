@@ -326,17 +326,37 @@ describe("evidence.coverage (SR-036)", () => {
     expect(await counted("levels[].withoutChildren")).toEqual(["F1", "F2", "F3"]);
     expect(await counted("levels[].withoutEvidence")).toEqual(["F1", "F3"]);
     expect(await counted("levels[].total")).toEqual(["F1", "F2", "F3"]);
-    // A field without its own case lists nothing rather than the total (`invoke` refuses it before).
-    const none = await command.countedElements?.(
-      // Only the workspace is read; the rest of the context is for `invoke`.
-      { workspace } as CommandContext,
-      {},
-      {
-        field: "levels[].nothing",
-        key: [{ type: "software-requirement" }],
-      },
+    // Called directly: only the workspace is read; the rest of the context is for `invoke`.
+    const records = async (field: string, type: string): Promise<(string | undefined)[] | undefined> => {
+      const out = await command.countedElements?.(
+        { workspace } as CommandContext,
+        {},
+        { field, key: [{ type }] },
+      );
+      return names(out?.elements.map((e) => e.id) ?? []);
+    };
+    // The elements of `total` come without children first, as `x-elements` of the catalog names them.
+    expect(await records("levels[].total", "system-requirement")).toEqual(["S2", "S1"]);
+    // A field without its own case is an internal error, never the total (`invoke` refuses it before).
+    await expect(records("levels[].nothing", "software-requirement")).rejects.toMatchObject({
+      code: "internal",
+      message: "evidence.coverage has no elements for the number levels[].nothing",
+    });
+  });
+
+  it("[SR-036/AK-zhys] the answer names per level the gaps first, evidence only for requirements", async () => {
+    const workspace = await open(await fixture());
+    // `invoke` adds the answer to the output of the command (SR-224 AK1).
+    const answer = async (input: Readonly<Record<string, unknown>> = {}): Promise<unknown> =>
+      ((await coverage(workspace, input)) as Output & { readonly answer?: string }).answer;
+    expect(await answer()).toBe(
+      "Coverage of 2 Need elements: 1 without children, 1 with children; " +
+        "of 2 System Requirement elements: 1 without children and 1 without evidence, 1 with children and 1 with evidence; " +
+        "of 3 Software Requirement elements: 3 without children and 2 without evidence, 0 with children and 1 with evidence.",
     );
-    expect(none?.elements).toEqual([]);
+    expect(await answer({ selection: { ids: [ID.N1] } })).toBe(
+      "Coverage of 1 Need element: 0 without children, 1 with children.",
+    );
   });
 
   it("[SR-036/AK-vt44] marks the coverage incomplete when a repository of the workspace is not available", async () => {

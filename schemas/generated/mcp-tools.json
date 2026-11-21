@@ -13384,7 +13384,7 @@
     {
       "name": "evidence_coverage",
       "title": "Show evidence coverage",
-      "description": "Coverage of a selection per level: how many have no children and no evidence, then how many have; with the element lists.",
+      "description": "Coverage of a selection per level: how many have no children and, for requirements, no evidence, then how many have them; with the element lists.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -13426,8 +13426,8 @@
                   "minimum": 0,
                   "description": "The counted elements of the type.",
                   "x-elements": [
-                    "elements/withChildren",
-                    "elements/withoutChildren"
+                    "elements/withoutChildren",
+                    "elements/withChildren"
                   ]
                 },
                 "withoutChildren": {
