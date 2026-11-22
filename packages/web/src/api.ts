@@ -123,7 +123,10 @@ export async function openWorkspace(
     throw new ReqSeqError(response.status, body, "open");
   }
   const opened = body as { generation: number; root: string };
-  setGeneration(opened.generation);
+  // A later switch (another tab) may have told a newer generation already: it is never lowered.
+  if (generation === undefined || opened.generation > generation) {
+    setGeneration(opened.generation);
+  }
   return opened;
 }
 
@@ -147,9 +150,14 @@ const PLAIN: Readonly<Record<string, readonly [string, string]>> = {
     "There is no workspace in this folder.",
     "Name the folder that holds reqseq-workspace.yaml, or create a workspace there.",
   ],
-  "file.folder-missing": [
+  "ui.export-folder-missing": [
     "The folder to write into does not exist.",
     "Create it, or name a folder that exists.",
+  ],
+  "ui.delivery-missing": ["The delivery has no name.", "Name it, such as the date or version of the file."],
+  "ui.path-not-absolute": [
+    "This needs the full path of the folder.",
+    "Start it at the root of the drive, or with ~ for your home folder.",
   ],
   "server.stopping": ["reqseq ui is stopping.", "Start it again and open the address it prints."],
 };

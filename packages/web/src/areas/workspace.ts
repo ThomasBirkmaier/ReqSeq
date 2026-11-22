@@ -14,7 +14,7 @@ import type { QueueRow } from "../queues.js";
 import type { Route } from "../router.js";
 import { addRoute, hashOf, isCurrent, withFrom } from "../router.js";
 import { el, load, refOf, store } from "../store.js";
-import { pathField } from "../shell.js";
+import { absoluteFolder, pathField } from "../shell.js";
 import type { Theme } from "../theme.js";
 import { setTheme, theme } from "../theme.js";
 
@@ -29,8 +29,14 @@ type Problem = OutputOf<"workspace.check">["problems"][number];
 // ---------------------------------------------------------------------------------------------------------------
 // Shared pieces
 
-/** Whether a workspace is open: the store has read one. */
-const isOpen = (): boolean => store.epoch > 0;
+let open = true;
+/** Whether the server has a workspace open; `main.ts` sets it when a read says none is open. */
+export const isWorkspaceOpen = (): boolean => open;
+export function setWorkspaceOpen(value: boolean): void {
+  open = value;
+}
+/** Whether a workspace is open and the store has read it. */
+const isOpen = (): boolean => open && store.epoch > 0;
 
 const head = (title: string, sub: string): HTMLElement =>
   h("div", { class: "lh" }, h("h1", { id: "list-h" }, title), sub === "" ? null : h("p", null, sub));
@@ -39,7 +45,7 @@ const head = (title: string, sub: string): HTMLElement =>
 const page = (key: string, title: string, sub: string, ...body: Child[]): HTMLElement => {
   const content = h(
     "section",
-    { class: "wpage", "aria-labelledby": "list-h" },
+    { class: "wpage", "aria-labelledby": "list-h", "data-ws": store.workspaceName },
     head(title, sub),
     h("div", { class: "wbody" }, body),
   );
@@ -76,8 +82,8 @@ const result = (answer: string, ...more: Child[]): HTMLElement =>
   h("div", { class: "notice wok", role: "status" }, h("p", null, answer), more);
 
 /**
- * Runs `action` when `button` is pressed: the button waits, the answer or the error goes into `out`, and the
- * answer is announced once.
+ * Runs `action` when `button` is pressed: the button waits, and the answer or the error goes into `out`, which
+ * is a live region.
  */
 function onPress(
   button: HTMLButtonElement,
@@ -93,7 +99,6 @@ function onPress(
         const shown = await action();
         if (shown !== null) {
           out.replaceChildren(shown);
-          announce(shown.textContent);
         }
       } catch (error) {
         out.replaceChildren(errorBox(error));
@@ -350,22 +355,22 @@ async function workspacesPage(route: Route): Promise<HTMLElement | undefined> {
     label: "Folder of the workspace",
     name: "open-path",
     absolute: true,
-    help: "The folder that holds reqseq-workspace.yaml. ~ stands for your home folder.",
+    help: "The full path of the folder that holds reqseq-workspace.yaml. ~ stands for your home folder.",
   });
   const openButton = button("Open");
-  onPress(openButton, out, () => openAt(openField.input.value.trim()));
+  onPress(openButton, out, async () => openAt(await absoluteFolder(openField.input.value)));
 
   const newField = pathField({
     label: "Folder",
     name: "init-path",
     absolute: true,
-    help: "A new folder, or one without a workspace yet. It is created when it is missing.",
+    help: "The full path of a new folder, or of one without a workspace yet. It is created when it is missing.",
   });
   const nameField = textField("Name", "init-name");
   const skill = h("input", { type: "checkbox", id: "init-skill", checked: true });
   const createButton = button("Create and open");
   onPress(createButton, out, async () => {
-    const folder = newField.input.value.trim();
+    const folder = await absoluteFolder(newField.input.value);
     const created = await call("workspace.init", {
       path: folder,
       name: nameField.input.value.trim(),
@@ -413,12 +418,33 @@ const fileName = (name: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || "workspace";
 
+/** An export's answer; a missing folder above the place to write is said in plain words. */
+async function exporting<T>(running: Promise<T>): Promise<T> {
+  try {
+    return await running;
+  } catch (error) {
+    if (error instanceof ReqSeqError && error.code === "file.folder-missing") {
+      throw new ReqSeqError(
+        error.status,
+        { code: "ui.export-folder-missing", message: error.message, details: error.details },
+        error.command,
+      );
+    }
+    throw error;
+  }
+}
+
 function exportPage(): HTMLElement {
-  const html = pathField({ label: "Folder", name: "html-out", value: `${EXPORTS}/html` });
+  const html = pathField({
+    label: "Folder",
+    name: "html-out",
+    value: `${EXPORTS}/html`,
+    help: "A new or empty folder, or one of an earlier HTML export. The folder above it must exist.",
+  });
   const htmlButton = button("Export HTML");
   const htmlOut = h("div", { "aria-live": "polite" });
   onPress(htmlButton, htmlOut, async () => {
-    const out = await call("html.export", { output: html.input.value.trim() });
+    const out = await exporting(call("html.export", { output: html.input.value.trim() }));
     return result(
       out.answer,
       h("p", null, "Written to ", path(out.folder)),
@@ -434,11 +460,12 @@ function exportPage(): HTMLElement {
     name: "reqif-out",
     value: `${EXPORTS}/${fileName(store.workspaceName)}.reqif`,
     files: true,
+    help: "The folder of the file must exist.",
   });
   const reqifButton = button("Export ReqIF");
   const reqifOut = h("div", { "aria-live": "polite" });
   onPress(reqifButton, reqifOut, async () => {
-    const out = await call("reqif.export", { output: reqif.input.value.trim() });
+    const out = await exporting(call("reqif.export", { output: reqif.input.value.trim() }));
     return result(out.answer, h("p", null, "Written to ", path(out.file)), problemList(out.problems));
   });
 
@@ -585,7 +612,15 @@ function importForm(input: { readonly file: string; readonly mapping?: string },
   );
   const importButton = button("Import");
   const out = h("div", { "aria-live": "polite" });
+  delivery.input.required = true;
   onPress(importButton, out, async () => {
+    if (delivery.input.value.trim() === "") {
+      throw new ReqSeqError(
+        0,
+        { code: "ui.delivery-missing", message: "No name of the delivery" },
+        "reqif.import",
+      );
+    }
     const take = choices.filter((c) => c.take.checked).map((c) => c.conflict.identifier);
     const keep = choices.filter((c) => !c.take.checked).map((c) => c.conflict.identifier);
     const done = await call("reqif.import", {
@@ -789,14 +824,16 @@ function metamodelCard(mermaid: OutputOf<"metamodel.mermaid"> | undefined): HTML
 
 function agentsCard(
   agents: OutputOf<"workspace.agents"> | undefined,
-  clients: OutputOf<"workspace.connectAgent">,
+  clients: OutputOf<"workspace.connectAgent"> | undefined,
 ): HTMLElement {
+  const choices = clients?.clients ?? [];
   const select = h(
     "select",
     { id: "agent-client" },
-    (clients.clients ?? []).map((c) => h("option", { value: c.value }, c.title)),
+    choices.map((c) => h("option", { value: c.value }, c.title)),
   );
   const show = button("Show setup", false);
+  show.disabled = choices.length === 0;
   const out = h("div", { "aria-live": "polite" });
   onPress(show, out, async () => {
     const setup = await call("workspace.connectAgent", {
@@ -924,7 +961,7 @@ async function settingsPage(route: Route): Promise<HTMLElement | undefined> {
     call("tool.info"),
     call("metamodel.mermaid").catch(() => undefined),
     call("workspace.agents").catch(() => undefined),
-    call("workspace.connectAgent"),
+    call("workspace.connectAgent").catch(() => undefined),
   ]);
   if (!isCurrent(route)) {
     return undefined;
@@ -997,10 +1034,15 @@ async function settingsPage(route: Route): Promise<HTMLElement | undefined> {
 const PAGES: Readonly<
   Record<
     string,
-    { readonly title: string; readonly draw: (route: Route) => Promise<HTMLElement | undefined> }
+    {
+      readonly title: string;
+      readonly draw: (route: Route) => Promise<HTMLElement | undefined>;
+      /** A page with forms and their answers: a change of the workspace does not draw it again. */
+      readonly form?: boolean;
+    }
   >
 > = {
-  open: { title: "Workspaces", draw: workspacesPage },
+  open: { title: "Workspaces", draw: workspacesPage, form: true },
   problems: {
     title: "Problems",
     draw: async (route) => {
@@ -1008,9 +1050,9 @@ const PAGES: Readonly<
       return out === undefined || !isCurrent(route) ? undefined : problemsPage(out);
     },
   },
-  export: { title: "Export", draw: () => Promise.resolve(exportPage()) },
-  import: { title: "Import ReqIF", draw: () => Promise.resolve(importPage()) },
-  settings: { title: "Settings", draw: settingsPage },
+  export: { title: "Export", draw: () => Promise.resolve(exportPage()), form: true },
+  import: { title: "Import ReqIF", draw: () => Promise.resolve(importPage()), form: true },
+  settings: { title: "Settings", draw: settingsPage, form: true },
 };
 
 async function render(root: HTMLElement, route: Route): Promise<void> {
@@ -1018,6 +1060,18 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   const shown = PAGES[key];
   if (shown === undefined) {
     location.replace(`#${WORKSPACES}`);
+    return;
+  }
+  // Drawn again after a change of the same workspace (an import writes elements, so does anyone else): a form page
+  // keeps what was typed and answered. Another workspace, or a page that was left, draws it anew.
+  const kept = root.querySelector<HTMLElement>(".wpage[data-ws]");
+  if (
+    shown.form === true &&
+    root.dataset["route"] === route.hash &&
+    kept !== null &&
+    kept.dataset["ws"] === store.workspaceName &&
+    (kept.closest(".app") !== null) === isOpen()
+  ) {
     return;
   }
   if (isOpen()) {
@@ -1033,12 +1087,38 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
 
 addRoute(AREA, render);
 
+/** How long the rail waits for the check, in milliseconds. */
+const RAIL_WAIT = 1500;
+
+/** Writes the count of problems into the rail drawn already, when the check answered after it was drawn. */
+function showCount(): void {
+  const link = document.querySelector<HTMLAnchorElement>(`.rail a[href="${hashOf(AREA, "problems")}"]`);
+  if (link === null || checked?.epoch !== store.epoch) {
+    return;
+  }
+  const count = brokenCount();
+  let b = link.querySelector("b");
+  if (b === null) {
+    b = h("b", { "data-num": "q:w-problems" });
+    link.append(b);
+  }
+  b.textContent = String(count);
+  link.classList.toggle("warn", count > 0 && problemsNow().some((p) => p.severity === "error"));
+}
+
 addRailSection({
   order: 90,
   title: "Workspace",
-  // The rail of every page waits for it: a failed check leaves the count out, never the page.
+  // The rail waits for the check a short time only, so a large workspace does not hold every page: a later answer
+  // fills in the count. A failed check leaves the count out, never the page.
   prepare: async () => {
-    await check().catch(() => undefined);
+    const running = check().then(
+      () => {
+        showCount();
+      },
+      () => undefined,
+    );
+    await Promise.race([running, new Promise((resolve) => setTimeout(resolve, RAIL_WAIT))]);
   },
   links: () => [
     {

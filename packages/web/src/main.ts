@@ -19,7 +19,7 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 // The areas.
 import "./areas/overview.js";
 import "./areas/element.js";
-import { WORKSPACES, WORKSPACE_OPENED } from "./areas/workspace.js";
+import { WORKSPACES, WORKSPACE_OPENED, isWorkspaceOpen, setWorkspaceOpen } from "./areas/workspace.js";
 
 applyTheme();
 
@@ -28,8 +28,6 @@ let stopped = false;
 /** Whether a page of its own was shown; a function, since it changes while a render waits. */
 const isStopped = (): boolean => stopped;
 let rendering = 0;
-/** False while the server has no workspace open: only the page to open or create one is drawn. */
-let workspaceOpen = true;
 
 /** Shows a page of its own and stops: no further call is made. */
 function stop(title: string, text: string): void {
@@ -54,7 +52,7 @@ async function route({ keepFocus = false } = {}): Promise<void> {
   const mine = ++rendering;
   const current = parseHash(location.hash);
   const render = renderOf(current);
-  if (!workspaceOpen && current.hash !== WORKSPACES) {
+  if (!isWorkspaceOpen() && current.hash !== WORKSPACES) {
     location.replace(`#${WORKSPACES}`);
     return;
   }
@@ -92,7 +90,7 @@ async function route({ keepFocus = false } = {}): Promise<void> {
 
 /** No workspace is open: the page to open or create one (area `workspace`) is the only one drawn. */
 function noWorkspace(): void {
-  workspaceOpen = false;
+  setWorkspaceOpen(false);
   if (parseHash(location.hash).hash === WORKSPACES) {
     void route();
   } else {
@@ -112,7 +110,7 @@ async function refresh(ids: readonly string[]): Promise<void> {
     }
     return;
   }
-  workspaceOpen = true;
+  setWorkspaceOpen(true);
   const scrolls = [...root.querySelectorAll(".lscroll, .trace-wrap")].map((x) => x.scrollTop);
   await route({ keepFocus: true });
   root.querySelectorAll(".lscroll, .trace-wrap").forEach((x, at) => {
@@ -209,7 +207,7 @@ function boot(): void {
   });
   // The page opened a workspace and read it: its overview is drawn.
   window.addEventListener(WORKSPACE_OPENED, () => {
-    workspaceOpen = true;
+    setWorkspaceOpen(true);
     if (parseHash(location.hash).hash === HOME) {
       void route();
     } else {

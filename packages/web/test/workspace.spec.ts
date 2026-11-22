@@ -32,6 +32,7 @@ test("without a workspace only the page to open one is shown, and opening one sh
     await page.evaluate(() => {
       location.hash = "/q/drafts";
     });
+    await expect(page).toHaveURL(/#\/w\/open$/);
     await drawn(page, "/w/open");
 
     await page.getByLabel("Folder of the workspace").fill(workspace.root);
@@ -55,6 +56,10 @@ test("a folder without a workspace is refused in plain words", async ({ page }) 
     await page.getByRole("button", { name: "Open", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("There is no workspace in this folder.");
     await expect(page.getByRole("heading", { level: 1, name: "Workspaces" })).toBeVisible();
+    // A relative path is refused: the server and the commands would resolve it from different folders.
+    await page.getByLabel("Folder of the workspace").fill("some/folder");
+    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("This needs the full path of the folder.");
   } finally {
     await server.close();
     await folder.done();
@@ -176,9 +181,14 @@ test("a ReqIF file is checked first and then imported with the delivery named", 
       );
       await plan.getByLabel("Name of the delivery").fill("First delivery");
       await plan.getByRole("button", { name: "Import" }).click();
-      await expect(plan.getByRole("status")).toContainText(/\S/);
+      const done = plan.getByRole("status");
+      await expect(done).toContainText(`Files written: `);
       const list = await run("element.list", { limit: 1 });
       expect(list.total).toBe(analysis.new.length);
+      // The import changed the workspace; the page keeps its answer when it hears of the change.
+      await page.waitForTimeout(1500);
+      await expect(done).toContainText("Files written: ");
+      await expect(plan.getByLabel("Name of the delivery")).toHaveValue("First delivery");
     } finally {
       await server.close();
     }

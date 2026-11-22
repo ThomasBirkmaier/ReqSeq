@@ -1,7 +1,7 @@
 // What a desktop shell would do differently (ADR-0020, Front end): choose a folder or a file. In the browser this
 // is a path field whose completion comes from `workspace.listFolder`; a desktop shell would be a second
 // implementation of this module.
-import { call } from "./api.js";
+import { ReqSeqError, call } from "./api.js";
 import { h } from "./dom.js";
 
 export interface PathFieldOptions {
@@ -66,9 +66,11 @@ export function pathField(options: PathFieldOptions): {
     }
     const { prefix, sep } = prefixOf(typed);
     list.replaceChildren(
-      ...out.entries
-        .slice(0, 200)
-        .map((entry) => h("option", { value: `${prefix}${entry.name}${entry.kind === "file" ? "" : sep}` })),
+      ...out.entries.slice(0, 200).map((entry) => {
+        // A link may lead to a file; in a field for a file it gets no separator.
+        const folder = entry.kind === "folder" || (entry.kind === "link" && options.files !== true);
+        return h("option", { value: `${prefix}${entry.name}${folder ? sep : ""}` });
+      }),
     );
   };
   input.addEventListener("input", () => {
@@ -87,4 +89,17 @@ export function pathField(options: PathFieldOptions): {
       options.help === undefined ? null : h("p", { class: "fhelp", id: `${id}-help` }, options.help),
     ),
   };
+}
+
+/**
+ * The absolute path of the folder `typed` names, as `workspace.listFolder` reads it: `~` is the home folder. A
+ * path that is not absolute is refused, since the server and the commands would resolve it from different folders.
+ */
+export async function absoluteFolder(typed: string): Promise<string> {
+  const trimmed = typed.trim().replace(/[\\/]+$/, "");
+  const out = await call("workspace.listFolder", { path: `${trimmed}/`, absolute: true });
+  if (trimmed === "" || out.folder === undefined || out.problem === "invalid") {
+    throw new ReqSeqError(0, { code: "ui.path-not-absolute", message: `Not a full path: ${typed}` }, "open");
+  }
+  return out.folder;
 }
