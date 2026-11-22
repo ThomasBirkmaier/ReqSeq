@@ -1,9 +1,9 @@
 name: Documentation site
 description: >-
-  Builds the user documentation site (ADR-0017) after `pnpm install` and `pnpm build`: the app's screenshots made
-  anew, the content generated, the site installed, audited and built without network (unshare -rn) into
-  packages/docs/site/dist. Shared by docs-pages.yml (GitHub Pages) and release.yml (job docs-site, the offline build
-  that every delivery ships, SR-141). Linux only.
+  Builds the user documentation site (ADR-0017) after `pnpm install` and `pnpm build`: the content generated, the
+  site installed, audited and built without network (unshare -rn) into packages/docs/site/dist. Shared by
+  docs-pages.yml (GitHub Pages) and release.yml (job docs-site, the offline build that every delivery ships, SR-141).
+  Linux only.
 inputs:
   offline:
     description: "`true` for the build a delivery ships: base `/`, no repository link (REQSEQ_DOCS_OFFLINE=1)"
@@ -12,25 +12,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Display server, libraries for Electron, ffmpeg and ImageMagick for the README animation
+    # unshare below needs unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
+    - name: User namespaces for unshare
       shell: bash
       run: |
-        packages="ffmpeg imagemagick xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
-        if ! dpkg -s $packages >/dev/null 2>&1; then
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
-        fi
-        # Chromium's sandbox and unshare need unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
         if ! unshare -r true 2>/dev/null; then
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
         fi
-    # The app's screenshots on the pages are made anew for every build from the checked-out app (ADR-0017), so the
-    # site never shows a picture older than its version; the copies in docs/guide/images/ are replaced in the checkout.
-    - name: Screenshots of the app
-      shell: bash
-      run: |
-        pnpm --filter @reqseq/app electron:install
-        xvfb-run -a pnpm docs:screenshots
+    # The app's screenshots and the README animation are frozen while the Electron app is paused (#2295): the site
+    # takes the committed copies in docs/guide/images/ as they are, and they may show an older state of the app.
     # The audit sees only the site's lockfile; `pnpm audit --prod` and `licenses:check` of the workspace do not.
     # The page "What's new" needs the release tags (#1259): the callers check out the whole history, and
     # REQSEQ_DOCS_RELEASES=1 stops a build in a shallow clone or without a release tag.
