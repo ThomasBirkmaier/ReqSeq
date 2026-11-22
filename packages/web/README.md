@@ -11,7 +11,7 @@ pnpm --filter @reqseq/web test:ui    # Playwright in Chromium; once: pnpm --filt
 
 1. `token.ts` takes the token from the address (`#token=…`), keeps it in `sessionStorage` and removes it from the address, before the router reads it. Without a token, or when the server refuses it, the page says to open the address `reqseq ui` printed and calls nothing more.
 2. `events.ts` reads `api/events` with `fetch` and the bearer header. One tab per browser holds a Web Lock and reads the stream; it passes every event to the other tabs through a `BroadcastChannel`. The first `workspace` event gives the generation of the open workspace, which every command carries in `X-ReqSeq-Workspace` (`api.ts`).
-3. `store.ts` reads the metamodel, the workspace's name, the variants and every element with its verification, and reads them again after a `change` or `workspace` event.
+3. `store.ts` reads the metamodel, the workspace's name, the variants and every element with its verification, and reads them again after a `change` or `workspace` event, and after a write of the page itself, which no `change` event follows.
 4. `router.ts` draws the page of the hash route.
 
 ## Areas
