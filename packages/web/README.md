@@ -16,6 +16,7 @@ pnpm --filter @reqseq/web test:ui    # Playwright in Chromium; once: pnpm --filt
 
 ## Areas
 
+An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`) or a queue (`addQueue`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame. `shell.ts` holds what a desktop shell would do differently: today a path field whose completion comes from `workspace.listFolder`.
 An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`), a queue (`addQueue`), a tab of the element pages (`addElementTab` in `element-tabs.ts`, which keeps the way back `?from=`) or the name its pages have in "Back to …" (`addPlace`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame.
 
 | Area | Routes |
@@ -28,6 +29,7 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 | `matrix.ts` | `#/matrix[?type=&package=&offset=]`: the trace matrix of one type |
 | `variants.ts` | `#/variant/<ref>`: a variant compared with the core, with exclude and include again |
 | `changes.ts` | `#/c[?b=<baseline>]`, `#/c/<identifier or short ID>[?b=<baseline>]`: the changes since a baseline and the difference of one element word by word, with the decisions on them (status after a confirmation, supersede, a property of many after ReqSeq's preview); `#/r`: the check before a baseline and a new baseline |
+| `workspace.ts` | `#/w/open`, `#/w/problems`, `#/w/export`, `#/w/import`, `#/w/settings`: open, create and switch workspaces (the only page while none is open), the problems of `workspace.check` and the queue `problems`, exports into the repositories (`exports/` proposed), the ReqIF import, and the settings |
 | `lists.ts` | `#/l/all`, `#/l/type/<type>`, `#/l/package/<short ID>`, `#/l/filter/<name>`, `#/l/perspective/<name>`, `#/l/search?q=<words>`: lists with facets, sort and groups (the parameters of `list-state.ts`); saving a list as a filter or perspective, and renaming and deleting one |
 | `palette.ts` | no route: ⌘K (Ctrl+K) finds a list or an element from every workspace page |
 
