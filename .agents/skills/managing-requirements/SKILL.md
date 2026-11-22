@@ -3,8 +3,8 @@ name: managing-requirements
 description: "Works with needs, requirements, acceptance criteria, tests and evidence in a ReqSeq workspace. Use when creating a requirement, implementing a requirement up to its evidence, changing an element whose status is not the initial status, changing the metamodel, or checking the workspace before finishing a piece of work."
 metadata:
   generator: "ReqSeq"
-  reqseq-version: "0.11.1"
-  reqseq-checksum: "sha256:ddbfe3de93d77af7e26e9d24b61722ad80f8127a734e4160e0dd466e6e31f5f2"
+  reqseq-version: "0.12.0"
+  reqseq-checksum: "sha256:b8d81e67094c5bbb7f675bfdee9f3dc26cc2544e538b6c856e1a6b9c4f2186de"
 ---
 
 # Managing requirements with ReqSeq

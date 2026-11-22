@@ -5,7 +5,7 @@ status: approved
 title: Elemente ohne das Tool im Browser lesen
 spec-id: N-086
 packages:
-  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 refines:
   - { id: 6adc50a4-1b5c-4e15-b1ce-ab8ea74f70b0, version: n2:d42b2987bad28fad, title: Lesbar ohne das Tool }
 ---

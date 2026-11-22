@@ -6,7 +6,7 @@ title: Ausgaben gestuft zeigen
 spec-id: D-078
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 
 Die App zeigt die [Ausgabe eines Befehls](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:164509d02ae16783) gestuft: zuerst den [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b), darunter nur, was Handlung verlangt oder die Antwort trägt, und Technisches auf Abruf mit einem Befehl je Buffer. Elemente in einer Ausgabe sind eine Liste wie jede andere, außer bei den Ausgaben, die der Befehlskatalog als „bleibt Ausgabeseite“ kennzeichnet: Ausgaben, deren Antwort der Zustand jedes Eintrags ist, den eine Liste nur auf Abruf zeigen würde. Ein Schreibbefehl öffnet keine Ausgabe, außer der Befehlskatalog kennzeichnet ihn so; der gezeigte Buffer bleibt, und die Befehlszeile meldet den Antwortsatz. Titel, Antwortsatz und die Kennzeichen „technisch“ und „Elemente“ kommen aus dem Befehlskatalog und dem Kern, damit alle Zugänge dasselbe liefern.

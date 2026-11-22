@@ -16,7 +16,7 @@ packages:
 derives-from:
   - { id: 6adc6159-6d45-4ace-9173-5eb99508383c, version: n2:1f7ff4ed17406ff7, title: Prüfung auf veraltete Verweise im Merge Request }
 based-on:
-  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n2:d8bcd2a465d55357, title: Kommandozeile neben der App }
+  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n2:94cfee040d7b0613, title: Kommandozeile neben der Web-Oberfläche }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 ---
 

@@ -29,7 +29,7 @@ verification-method: test
 derives-from:
   - { id: 6adc50a5-7bcc-4472-8749-22e86aaf86bd, version: n2:f032ba6e52d789ed, title: Filter speichern }
 based-on:
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 refines:
   - { id: 6adc6d8b-056d-4adf-9fb6-fdd42fc61300, version: n2:8165fdcf3ba80051, title: Filter als Datei speichern }

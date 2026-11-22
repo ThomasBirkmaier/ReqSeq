@@ -30,7 +30,7 @@ derives-from:
   - { id: 6adc50a5-7bcc-4472-8749-22e86aaf86bd, version: n2:f032ba6e52d789ed, title: Filter speichern }
 based-on:
   - { id: 6adc78cf-bdda-461d-9245-ee53800698fb, version: n2:3bcd34b03d5f6b06, title: Aufbau der Dateien mit fester Länge des Dateinamens }
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 
 Das Tool muss eine [Liste von Elementen](reqseq:a6eba69f-df0b-490c-8bc2-a22659e9d1f7?version=n2:0c815c2205ba5724) mit ihrer [Auswahl](reqseq:f0c30c41-91fa-4ac5-8e7c-9054c84ccfc8?version=n2:29932e80a50c6573), ihrer Gruppierung und ihrer Sortierung als [Perspektive](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:3080b7f3f9c464c9) mit Namen als Datei im [Repository](reqseq:62da75c7-9827-47d1-9566-5bf509291b94?version=n2:a0761b06955a7b20) speichern und jede Perspektive über App, [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:9a4f0d8d27de42ba), API und MCP-Server beim Namen aufrufen lassen.
