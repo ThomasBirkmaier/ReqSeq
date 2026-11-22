@@ -153,11 +153,20 @@ const exists = (file: string): Promise<boolean> =>
 export const isBuildLeftover = (file: string): boolean =>
   /\.(map|d\.ts|d\.mts|d\.cts|tsbuildinfo)$/.test(file);
 
-/** A file or folder of Electron or its packaging (SR-249 AK2: the delivery holds no Electron). */
+/**
+ * A file or folder of Electron or its packaging (SR-249 AK2: the delivery holds no Electron): the `electron`
+ * package, `@electron/`, `electron-updater`, an Electron binary or framework, an asar archive, Chromium's sandbox helper;
+ * a package that only has the word in its name, such as `electron-to-chromium`, is none.
+ */
 export const isElectronPart = (file: string): boolean =>
   file
     .split(/[\\/]/)
-    .some((name) => /electron/i.test(name) || name.endsWith(".asar") || name === "chrome-sandbox");
+    .some(
+      (name) =>
+        /^(?:electron|electron\.exe|electron-updater|@electron|electron framework.*)$/i.test(name) ||
+        name.endsWith(".asar") ||
+        name === "chrome-sandbox",
+    );
 
 /** The files the delivery must hold, and the executable bits it must keep (not on a Windows `host`). */
 async function fileFindings(

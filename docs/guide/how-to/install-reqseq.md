@@ -28,7 +28,7 @@ Unpack the archive and move its folder to a place of your own, renamed so that t
 
 The archives are not signed with a developer certificate. Once after unpacking:
 
-- macOS: remove the download mark from the folder, `xattr -dr com.apple.quarantine ~/ReqSeq`. Without it, macOS may refuse to run the command line.
+- macOS: remove the download mark from the folder, `xattr -dr com.apple.quarantine ~/ReqSeq`.
 - Windows: unblock the zip before unpacking it, `Unblock-File .\ReqSeq-<version>-win-x64.zip`.
 - Linux: nothing to do.
 

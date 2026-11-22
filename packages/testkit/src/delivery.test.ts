@@ -163,11 +163,16 @@ describe("inspectDelivery", () => {
       "third-party notices do not name katex",
       "third-party notices do not name Node.js",
     ]);
-    expect(["chrome-sandbox", "a/Electron Framework", "b/plain.md"].map(isElectronPart)).toEqual([
-      true,
-      true,
-      false,
-    ]);
+    expect(
+      [
+        "chrome-sandbox",
+        "a/Electron Framework.framework",
+        "node_modules/@electron/get",
+        "node_modules/electron",
+        "b/plain.md",
+        "node_modules/electron-to-chromium",
+      ].map(isElectronPart),
+    ).toEqual([true, true, true, true, false, false]);
   });
 
   it("does not check executable bits on a Windows host", async () => {

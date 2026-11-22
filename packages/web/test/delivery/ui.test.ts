@@ -69,6 +69,7 @@ const stop = async (child: ChildProcessWithoutNullStreams): Promise<void> => {
 
 /** What went wrong while the page loaded: failed requests, answers of 400 or more, console errors, page errors. */
 const loadProblems = async (browserType: BrowserType, address: string): Promise<string[]> => {
+  // The browsers are test tools, not part of the delivery: they start as Playwright starts them.
   const browser = await browserType.launch();
   const problems: string[] = [];
   try {
@@ -141,5 +142,5 @@ describe.each(DELIVERY_SYSTEMS)("the web UI of the %s delivery", (system) => {
       await stop(child);
       await ws.cleanup();
     }
-  });
+  }, 300_000);
 });

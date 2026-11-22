@@ -4,7 +4,7 @@
 #
 # macOS and Windows (Git Bash): as the current user, without a network namespace (they have none).
 # Linux: in a network namespace with loopback only, made by root without a user namespace, while the tests run as
-# the calling (non-root) user, so that the browsers of SR-249 AK1 start as they do for a user, with their sandbox.
+# the calling (non-root) user, as a user runs the delivery.
 # The user needs passwordless sudo for the namespace. REQSEQ_DELIVERY_OFFLINE=1 tells the tests they run in the
 # namespace: on Linux the tests without network fail without it, and check the namespace when it is set.
 # PLAYWRIGHT_BROWSERS_PATH, if set, names where the browsers are.

@@ -16,7 +16,7 @@ An agent works with ReqSeq through its client, which starts the MCP server (`req
 
 Run Claude Code's command in the folder where you start Claude Code. For every client but Claude Desktop, the output also names a terminal command with the same absolute paths, `tool guide --skill --write` for the workspace, which writes the skill file `managing-requirements`. On Windows each command is for PowerShell. In a workspace without the skill file, the call writes it; a file there that ReqSeq did not write, or that was changed since, is overwritten only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
 
-The setup holds as long as ReqSeq stays where it is: after a move, print it again. On macOS, an app that was not moved after the download runs from a place the system gives it for this start only, and gets no setup: move `ReqSeq.app` to `/Applications` first. The server is named `reqseq`, so a second workspace in the same client needs another name.
+The setup holds as long as ReqSeq stays where it is: after a move, print it again. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
 From a downloaded release, the setup starts the launcher `bin/reqseq` on macOS and Linux. On Windows, where a client cannot start `reqseq.cmd` without a shell, it names Node.
 
