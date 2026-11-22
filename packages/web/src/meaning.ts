@@ -81,7 +81,14 @@ export function typePlural(mm: Metamodel, key: string): string {
   if (/[^aeiou]y$/i.test(name)) {
     return `${name.slice(0, -1)}ies`;
   }
-  return /(s|x|z|ch|sh)$/i.test(name) ? `${name}es` : `${name}s`;
+  if (/is$/i.test(name)) {
+    return `${name.slice(0, -2)}es`;
+  }
+  if (/(ss|us|x|z|ch|sh)$/i.test(name)) {
+    return `${name}es`;
+  }
+  // A name that ends in s already is taken as a plural ("Requirements").
+  return /s$/i.test(name) ? name : `${name}s`;
 }
 export const statusName = (mm: Metamodel, key: string | undefined): string =>
   statusDef(mm, key)?.name ?? key ?? "";

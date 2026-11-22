@@ -21,7 +21,8 @@ import {
 } from "./meaning.js";
 import { verificationMark } from "./marks.js";
 import type { ElementPart } from "./store.js";
-import { PAGE, el, hasVariants, store, verificationOf, viewSelection } from "./store.js";
+import { allPages, PAGE } from "./pages.js";
+import { el, hasVariants, listAll, store, verificationOf, viewSelection } from "./store.js";
 
 /** A row of a queue: the element and what the queue says about it. */
 export interface QueueRow {
@@ -59,7 +60,8 @@ export interface QueueData {
 }
 
 let data: QueueData | undefined;
-let loading: Promise<QueueData> | undefined;
+/** The read that runs, with the load of the store it reads for. */
+let loading: { readonly epoch: number; readonly data: Promise<QueueData> } | undefined;
 
 /** The data of the queues for the store as it is loaded now. */
 export async function queueData(): Promise<QueueData> {
@@ -67,20 +69,21 @@ export async function queueData(): Promise<QueueData> {
     return data;
   }
   const epoch = store.epoch;
-  if (loading === undefined) {
+  // A read for an older load of the store is not reused: it reads what the store no longer shows.
+  if (loading?.epoch !== epoch) {
     const selection = viewSelection();
     const settled = settledStatuses(store.mm);
-    loading = Promise.all([
+    const variant = hasVariants() && store.view !== "core" ? { variant: store.view } : {};
+    const read = Promise.all([
       call("evidence.degree", { selection }),
-      call("hint.list", {
-        limit: PAGE,
-        ...(hasVariants() && store.view !== "core" ? { variant: store.view } : {}),
-      }),
+      allPages(
+        (offset) => call("hint.list", { limit: PAGE, offset, ...variant }),
+        (page) => page.hints.length,
+      ),
       call("evidence.coverage", { selection }),
       settled.length === 0
-        ? Promise.resolve({ partial: [] })
-        : call("element.list", {
-            limit: PAGE,
+        ? Promise.resolve([])
+        : listAll({
             fields: ["title"],
             selection: {
               ...selection,
@@ -92,20 +95,28 @@ export async function queueData(): Promise<QueueData> {
               },
             },
           }),
-    ])
-      .then(([degree, hints, coverage, open]) => ({
-        epoch,
-        degree,
-        hints: hints.hints,
-        coverage,
-        settledOpen: (open.partial ?? []).map((e) => e.id),
-      }))
+    ]).then(([degree, hints, coverage, open]) => ({
+      epoch,
+      degree,
+      hints: hints.flatMap((page) => page.hints),
+      coverage,
+      settledOpen: open.flatMap((page) => page.partial ?? []).map((e) => e.id),
+    }));
+    loading = { epoch, data: read };
+    void read
+      .catch(() => undefined)
       .finally(() => {
-        loading = undefined;
+        if (loading?.data === read) {
+          loading = undefined;
+        }
       });
   }
-  data = await loading;
-  return data;
+  const read = await loading.data;
+  // Only the read of the newest load becomes the queues' data.
+  if (read.epoch === store.epoch) {
+    data = read;
+  }
+  return read;
 }
 
 const current = (): QueueData => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOME, addRoute, hashOf, parseHash, renderOf } from "./router.js";
+import { HOME, addRoute, hashOf, parseHash, renderOf, withFrom } from "./router.js";
 
 describe("parseHash", () => {
   it("reads the parts, decoded, and the parameters", () => {
@@ -27,5 +27,13 @@ describe("routes", () => {
 
   it("encodes each part of a hash", () => {
     expect(hashOf("e", "A/B C")).toBe("#/e/A%2FB%20C");
+  });
+});
+
+describe("the way back", () => {
+  it("names a route whose parts hold a slash so that it reads back as the same parts", () => {
+    const href = withFrom(hashOf("e", "N-1"), "e", "A/B 1");
+    const back = parseHash(parseHash(href).params.get("from") ?? "");
+    expect(back.parts).toEqual(["e", "A/B 1"]);
   });
 });

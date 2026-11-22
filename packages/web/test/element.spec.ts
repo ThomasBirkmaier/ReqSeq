@@ -6,7 +6,10 @@ import { expect, test } from "./fixtures.js";
 /** The route name of an element: its identifier, else its short ID. */
 const refOf = (e: { identifier?: string; shortId: string }): string => e.identifier ?? e.shortId;
 
-/** A requirement with acceptance criteria and an outgoing relation that is not a property. */
+/**
+ * A requirement of the core view (the page shows the core) with acceptance criteria and an outgoing relation that is
+ * not a property.
+ */
 async function requirementWithTrace(run: Run): Promise<string> {
   const mm = await run("metamodel.get", {});
   const types = mm.types.filter((t) => t.meaning === "requirement" && !t.abstract).map((t) => t.key);
@@ -16,9 +19,11 @@ async function requirementWithTrace(run: Run): Promise<string> {
     selection: { where: { type: types } },
   });
   const criteria = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
+  const validity = mm.properties.find((p) => p.meaning === "validity")?.key ?? "";
   const found = partial.find(
     (e) =>
       Array.isArray(e.properties?.[criteria]) &&
+      !(Array.isArray(e.properties[validity]) && (e.properties[validity] as unknown[]).length > 0) &&
       (e.relations ?? []).some((r) => r.direction === "out" && r.property !== true),
   );
   if (found === undefined) {

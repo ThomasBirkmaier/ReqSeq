@@ -2,7 +2,9 @@
 // and every element with its verification. Loaded once and again after a change; the store only looks things up,
 // every number and status is ReqSeq's. An area keeps data of its own by `store.epoch`, which grows with each load.
 import type { DataExportElementPart, DataExportRowVerification } from "@reqseq/core";
+import type { InputOf, OutputOf } from "./api.js";
 import { call } from "./api.js";
+import { PAGE, allPages } from "./pages.js";
 import type { Metamodel } from "./meaning.js";
 import { propKey, typesWith } from "./meaning.js";
 import { preference, setPreference } from "./preferences.js";
@@ -23,8 +25,12 @@ export interface Store {
   epoch: number;
 }
 
-/** The most elements one page of `element.list` gives. */
-export const PAGE = 5000;
+/** Every page of `element.list` with `input`. */
+export const listAll = (input: InputOf<"element.list">): Promise<OutputOf<"element.list">[]> =>
+  allPages(
+    (offset) => call("element.list", { ...input, limit: PAGE, offset }),
+    (page) => page.partial?.length ?? 0,
+  );
 
 export const store: Store = {
   mm: { types: [], properties: [], relations: [], statuses: [] },
@@ -55,24 +61,20 @@ export async function load(): Promise<Store> {
   store.variants =
     variantTypes.length === 0
       ? []
-      : ((
-          await call("element.list", {
-            limit: 100,
-            fields: ["title", "identifier"],
-            selection: { where: { type: variantTypes } },
-          })
-        ).partial ?? []);
+      : await listAll({ fields: ["title", "identifier"], selection: { where: { type: variantTypes } } }).then(
+          (pages) => pages.flatMap((p) => p.partial ?? []),
+        );
   if (store.view !== "core" && !store.variants.some((v) => v.id === store.view)) {
     setView("core");
   }
-  const list = await call("element.list", {
-    withVerification: true,
-    limit: PAGE,
-    fields: ["title", "status", "type", "identifier"],
-  });
+  const pages = await listAll({ withVerification: true, fields: ["title", "status", "type", "identifier"] });
+  const list = {
+    partial: pages.flatMap((p) => p.partial ?? []),
+    rowVerification: pages.flatMap((p) => p.rowVerification ?? []),
+  };
   const byId = new Map<string, ElementPart>();
   const byRef = new Map<string, ElementPart>();
-  for (const e of list.partial ?? []) {
+  for (const e of list.partial) {
     byId.set(e.id, e);
     byRef.set(e.shortId.toLowerCase(), e);
     if (e.identifier !== undefined) {
@@ -81,7 +83,7 @@ export async function load(): Promise<Store> {
   }
   store.byId = byId;
   store.byRef = byRef;
-  store.verification = new Map((list.rowVerification ?? []).map((r) => [r.id, r]));
+  store.verification = new Map(list.rowVerification.map((r) => [r.id, r]));
   store.epoch += 1;
   return store;
 }

@@ -13,7 +13,7 @@ import { h } from "./dom.js";
 import { hashOf } from "./router.js";
 import { el, refOf } from "./store.js";
 
-/** The context of the texts of the element in `file`, shown on the page of `from`. */
+/** The context of the texts of the element in `file`, shown on the page of `from` (an encoded route, see `fromOf`). */
 const contextOf = (file: string, from: string): TextContext => ({
   elementFile: file,
   ignored: () => false,

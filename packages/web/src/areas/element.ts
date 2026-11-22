@@ -8,7 +8,7 @@ import type {
   ElementGetOutput,
   TraceNeighbourhoodOutput,
 } from "@reqseq/core";
-import { elementPageDisplay, relationGroupLabel } from "@reqseq/core/displays";
+import { boundNote, elementPageDisplay, relationGroupLabel } from "@reqseq/core/displays";
 import { call } from "../api.js";
 import type { Child } from "../dom.js";
 import { h, icon, s } from "../dom.js";
@@ -36,11 +36,36 @@ import {
 import { markdown } from "../markdown.js";
 import { swap } from "../motion.js";
 import type { Route } from "../router.js";
-import { HOME, addRoute, hashOf, parseHash } from "../router.js";
-import { el, refOf, shownId, store, verificationOf } from "../store.js";
+import { HOME, addRoute, fromOf, hashOf, isCurrent, parseHash, withFrom } from "../router.js";
+import { el, refOf, shownId, store, verificationOf, viewSelection } from "../store.js";
 import { queueOf } from "../queues.js";
 
-type Neighbourhood = Pick<TraceNeighbourhoodOutput, "nodes" | "edges">;
+type Neighbourhood = Pick<TraceNeighbourhoodOutput, "nodes" | "edges" | "total">;
+
+/** The most elements the right column reads of what points to the element; more are named as left out. */
+const INCOMING = 500;
+
+/**
+ * What points to the element, one step down, in the chosen view: every relation kind, every relation property but
+ * the packages (a package page has its own list) and the inline references, filtered by the server.
+ */
+const incomingOf = (id: string): Promise<Neighbourhood> => {
+  const packages = propKey(store.mm, "packages");
+  const kinds = [
+    ...store.mm.relations.map((k) => k.key),
+    ...store.mm.properties.filter((p) => p.kind === "relation" && p.key !== packages).map((p) => p.key),
+  ];
+  return call("trace.neighbourhood", {
+    ref: id,
+    direction: "down",
+    maxDepth: 1,
+    kinds,
+    meanings: ["reference"],
+    limit: INCOMING + 1,
+    offset: 0,
+    ...viewSelection(),
+  });
+};
 
 /** The words of the way back: the queue or element the page was opened from, else the overview. */
 function backTarget(from: string | null): { readonly href: string; readonly title: string } {
@@ -138,8 +163,7 @@ const targetOf = (relation: DataExportRelation): { href: string; shown: string; 
 };
 
 /** A link to another element that leads back here. */
-const via = (href: string, from: DataExportElement): string =>
-  `${href}?from=${encodeURIComponent(`/e/${refOf(from)}`)}`;
+const via = (href: string, from: DataExportElement): string => withFrom(href, "e", refOf(from));
 
 const nodeOut = (relation: DataExportRelation, from: DataExportElement): HTMLElement => {
   const target = el(relation.id);
@@ -229,9 +253,12 @@ function rightColumn(element: DataExportElement, nb: Neighbourhood | undefined):
   if (ordered.length === 0) {
     return null;
   }
+  // The answer names the element itself as its first node; `total` counts every element the walk reached.
+  const cut = nb !== undefined && nb.total > nb.nodes.length;
   return h(
     "div",
     { class: "col-right" },
+    cut ? h("p", { class: "none cut" }, boundNote(nb.nodes.length - 1)) : null,
     ordered.map((g) => [
       h("h2", { class: "col-h" }, g.label, " ", h("b", null, g.ids.length)),
       h(
@@ -290,7 +317,7 @@ const textBlock = (
   cls: string,
 ): Promise<HTMLElement> =>
   key === undefined || propDef(store.mm, key)?.markdown === true
-    ? markdown(text, e.file, `/e/${refOf(e)}`, cls)
+    ? markdown(text, e.file, fromOf("e", refOf(e)), cls)
     : Promise.resolve(h("div", { class: `${cls} plain` }, paragraphs(text)));
 
 /** A numbered list under its heading: the acceptance criteria, or a text list of the type. */
@@ -376,7 +403,10 @@ function meta(e: DataExportElement): HTMLElement {
 async function card(got: ElementGetOutput): Promise<HTMLElement> {
   const e = got.element;
   const entries = propEntries(store.mm, e);
-  const [prose, more] = await Promise.all([markdown(e.text, e.file, `/e/${refOf(e)}`, "prose"), texts(e)]);
+  const [prose, more] = await Promise.all([
+    markdown(e.text, e.file, fromOf("e", refOf(e)), "prose"),
+    texts(e),
+  ]);
   return h(
     "article",
     { class: "card", id: "card", "aria-labelledby": "el-title", "data-id": e.id },
@@ -443,7 +473,6 @@ let observer: ResizeObserver | undefined;
 async function render(root: HTMLElement, route: Route): Promise<void> {
   const ref = route.parts[1] ?? "";
   const back = backTarget(route.params.get("from"));
-  const at = location.hash;
   const topbar = (crumb: Child): HTMLElement =>
     h(
       "header",
@@ -455,11 +484,9 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   let nb: Neighbourhood | undefined;
   try {
     got = await call("element.get", { ref });
-    nb = await call("trace.neighbourhood", { ref: got.element.id, direction: "down", limit: 500 }).catch(
-      () => undefined,
-    );
+    nb = await incomingOf(got.element.id).catch(() => undefined);
   } catch (error) {
-    if (location.hash === at) {
+    if (isCurrent(route)) {
       root.replaceChildren(
         h(
           "div",
@@ -477,7 +504,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   }
   const cardEl = await card(got);
   // A page that finishes after the person moved on must not draw over the new one.
-  if (location.hash !== at) {
+  if (!isCurrent(route)) {
     return;
   }
   const e = got.element;
@@ -517,3 +544,9 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
 }
 
 addRoute("e", render);
+
+// The connectors are drawn again only while the element page is shown.
+window.addEventListener("hashchange", () => {
+  observer?.disconnect();
+  observer = undefined;
+});

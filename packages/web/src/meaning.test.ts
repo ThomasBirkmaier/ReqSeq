@@ -41,6 +41,9 @@ const mm: Metamodel = {
     type("base", "Base requirement", { meaning: "requirement", abstract: true }),
     type("goal", "Mission goal", { meaning: "need" }),
     type("box", "Library", { meaning: "package" }),
+    type("ana", "Hazard Analysis"),
+    type("st", "Status"),
+    type("reqs", "Requirements"),
   ],
   properties: [
     { key: "crit", name: "Checks", kind: "text", many: true, meaning: "acceptance-criteria", content: true },
@@ -72,6 +75,9 @@ describe("the metamodel by meaning", () => {
     expect(namesOf(mm, ["cap", "con", "goal"], "requirements")).toBe("requirements");
     expect(typePlural(mm, "box")).toBe("Libraries");
     expect(typePlural(mm, "goal")).toBe("Mission goals");
+    expect(typePlural(mm, "ana")).toBe("Hazard analyses");
+    expect(typePlural(mm, "st")).toBe("Statuses");
+    expect(typePlural(mm, "reqs")).toBe("Requirements");
     expect(settledWords(mm)).toBe("Agreed or shipped");
   });
 

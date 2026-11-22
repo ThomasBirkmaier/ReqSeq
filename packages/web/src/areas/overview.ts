@@ -13,7 +13,7 @@ import { animateValues, swap } from "../motion.js";
 import type { Queue, QueueRow } from "../queues.js";
 import { allQueues, countOf, degreeOf, queueData, queueOf, rowsOf } from "../queues.js";
 import type { Route } from "../router.js";
-import { HOME, addRoute, hashOf } from "../router.js";
+import { HOME, addRoute, hashOf, isCurrent, withFrom } from "../router.js";
 import { el, hasVariants, refOf, shownId, store, variantName, viewSelection } from "../store.js";
 
 const OVERVIEW = "overview";
@@ -21,7 +21,7 @@ const OVERVIEW = "overview";
 /** Where a row leads: the element page, with the way back to this list. */
 const rowHref = (row: QueueRow, from: string): string => {
   const e = el(row.id) ?? row.fallback;
-  return `${hashOf("e", e === undefined ? row.id : refOf(e))}?from=${encodeURIComponent(from)}`;
+  return withFrom(hashOf("e", e === undefined ? row.id : refOf(e)), "q", from);
 };
 
 const item = (row: QueueRow, from: string): HTMLElement => {
@@ -49,7 +49,7 @@ const empty = (text: string): HTMLElement => h("div", { class: "empty" }, h("str
 
 /** The list of the overview: the head of each queue with something in it. */
 function overviewList(degree: DataExportVerificationDegree): HTMLElement {
-  const from = `/q/${OVERVIEW}`;
+  const from = OVERVIEW;
   const groups = allQueues()
     .map((queue) => ({ queue, rows: rowsOf(queue) }))
     .filter(({ rows }) => rows.length > 0);
@@ -257,7 +257,7 @@ function overviewPanel(
 
 /** The page of one queue: all its elements, in groups where it has them. */
 function queueList(queue: Queue): HTMLElement {
-  const from = `/q/${queue.key}`;
+  const from = queue.key;
   const groups = queue.groups().filter((g) => g.rows.length > 0);
   const flat = groups.flatMap((g) => g.rows);
   const noId = flat.length > 0 && flat.every((r) => shownId(el(r.id) ?? r.fallback) === "");
@@ -292,9 +292,16 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   if (queue === undefined) {
     const degree = degreeOf();
     const packages = propKey(store.mm, "packages") === undefined ? [] : await packagesDegree();
+    // A page that finishes after the person moved on must not draw over the new one.
+    if (!isCurrent(route)) {
+      return;
+    }
     await swap(root, frame(OVERVIEW, [overviewList(degree), overviewPanel(degree, packages)]));
     document.title = "Overview · ReqSeq";
   } else {
+    if (!isCurrent(route)) {
+      return;
+    }
     await swap(root, frame(queue.key, queueList(queue), { wide: true }));
     document.title = `${queue.title()} · ReqSeq`;
   }

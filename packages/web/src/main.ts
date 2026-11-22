@@ -135,21 +135,25 @@ async function start(): Promise<void> {
   await route();
 }
 
+/** The page may miss changes (a lost stream, a refused command): it reads again on the next `workspace` event. */
+let stale = false;
+
 function onEvent(event: ServerEvent): void {
   switch (event.type) {
-    case "workspace":
-      if (generation !== event.generation) {
-        const first = generation === undefined;
-        generation = event.generation;
-        setGeneration(event.generation);
-        if (first && !started) {
-          started = true;
-          void start();
-        } else {
-          later([]);
-        }
+    case "workspace": {
+      const changed = generation !== event.generation;
+      const first = generation === undefined;
+      generation = event.generation;
+      setGeneration(event.generation);
+      if (first && !started) {
+        started = true;
+        void start();
+      } else if (changed || stale || event.connected === true) {
+        stale = false;
+        later([]);
       }
       return;
+    }
     case "change":
       later(event.elements);
       return;
@@ -157,6 +161,7 @@ function onEvent(event: ServerEvent): void {
       refused();
       return;
     case "lost":
+      stale = true;
       announce("The server of this page does not answer. The page shows what it read last.");
       return;
   }
@@ -178,8 +183,10 @@ function boot(): void {
   }
   useToken(token);
   window.addEventListener(TOKEN_REFUSED, refused);
+  // A command refused because another workspace was opened: the page reads again when the `workspace` event of
+  // that workspace comes, not at once, which the server would refuse again.
   window.addEventListener(WORKSPACE_CHANGED, () => {
-    later([]);
+    stale = true;
   });
   window.addEventListener(VIEW_CHANGED, () => {
     void (async () => {

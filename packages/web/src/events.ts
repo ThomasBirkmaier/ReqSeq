@@ -2,12 +2,16 @@
 // read with `fetch` and a stream reader, since `EventSource` sets no bearer header. One stream per browser: the
 // tab that holds the lock reads it and passes every event to the other tabs through a BroadcastChannel, so the
 // tabs do not use up the browser's connections per origin. When that tab closes, another one takes the lock.
+// The first `workspace` event of each connection is marked `connected`: what changed while no stream was read (a
+// lost stream, a new tab taking the lock) is read again then. A refused token concerns the tab that holds it only:
+// it is not passed on, and the refused tab gives the lock up.
 
 /** An event of the server: a change of the workspace (scope and UUIDs, no texts), or the open workspace's generation. */
 export type ServerEvent =
   /** `elements`: the UUIDs added, changed and removed, in that order. */
   | { readonly type: "change"; readonly scope: string; readonly elements: readonly string[] }
-  | { readonly type: "workspace"; readonly generation: number }
+  /** `connected`: the first event of a new connection of the stream. */
+  | { readonly type: "workspace"; readonly generation: number; readonly connected?: boolean }
   /** The stream ended; the page keeps showing what it has and reads again when the stream is back. */
   | { readonly type: "lost" }
   /** The server refused the token. */
@@ -95,6 +99,7 @@ async function readStream(token: string, deliver: (event: ServerEvent) => void):
   }
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
+  let first = true;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) {
@@ -104,7 +109,10 @@ async function readStream(token: string, deliver: (event: ServerEvent) => void):
     buffer = parsed.rest;
     for (const raw of parsed.events) {
       const event = toServerEvent(raw);
-      if (event !== undefined) {
+      if (event?.type === "workspace" && first) {
+        first = false;
+        deliver({ ...event, connected: true });
+      } else if (event !== undefined) {
         deliver(event);
       }
     }
@@ -123,7 +131,7 @@ export function listen(token: string, onEvent: (event: ServerEvent) => void): vo
   let leading = false;
   const deliver = (event: ServerEvent): void => {
     if (event.type === "workspace") {
-      last = event;
+      last = { type: "workspace", generation: event.generation };
     }
     onEvent(event);
     channel?.postMessage({ kind: "event", event } satisfies Message);
@@ -133,7 +141,9 @@ export function listen(token: string, onEvent: (event: ServerEvent) => void): vo
     for (;;) {
       const accepted = await readStream(token, deliver).catch(() => true);
       if (!accepted) {
-        deliver({ type: "refused" });
+        // Only this tab's token was refused: the others keep theirs, and one of them takes the lock.
+        leading = false;
+        onEvent({ type: "refused" });
         return;
       }
       deliver({ type: "lost" });
@@ -148,7 +158,7 @@ export function listen(token: string, onEvent: (event: ServerEvent) => void): vo
     const data = message.data;
     if (data.kind === "event") {
       if (data.event.type === "workspace") {
-        last = data.event;
+        last = { type: "workspace", generation: data.event.generation };
       }
       onEvent(data.event);
     } else if (leading && last !== undefined) {
