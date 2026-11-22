@@ -678,7 +678,7 @@ describe(
 );
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-080/AK-wxtg] is a CLI subcommand, an API route, once implemented an MCP tool, and listed by the app", async () => {
+  it("[SR-080/AK-wxtg] is a CLI subcommand, an API route and, once implemented, an MCP tool", async () => {
     const { root } = await copy(DEFAULT);
     const names = runtime.contracts.commands.map((e) => e.name);
     for (const entry of runtime.contracts.commands) {
@@ -739,10 +739,29 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     });
     expect((listed as { commands: { name: string }[] }).commands.map((c) => c.name)).toEqual(names);
     await server.close();
-    // The app's bridge lists the catalog for the command palette (SR-073 AK2), as the API does.
-    const app = connectApp(workspace);
-    expect((await app.bridge.commands()).map((c) => c.name)).toEqual(names);
-    await app.close();
+    await workspace.close();
+  });
+
+  it("[SR-080/AK-wxtg] has no top-level CLI command outside the catalog but those that start a server", async () => {
+    // Starting an access, the web UI or the documentation service is no function (SR-080 AK1): `serve` (`api`,
+    // `docs`) and `mcp` are the only CLI commands without a catalog entry, besides commander's `help`. `ui` joins
+    // them with SR-247.
+    const stdout = new Sink();
+    const code = await runCli({
+      argv: ["--help"],
+      cwd: os.tmpdir(),
+      stdin: Readable.from([]),
+      stdout,
+      stderr: new Sink(),
+      runtime,
+    });
+    expect(code).toBe(EXIT.ok);
+    const listed = (stdout.text.split("\nCommands:\n")[1] ?? "")
+      .split("\n")
+      .flatMap((line) => /^ {2}([a-z][\w-]*)/.exec(line)?.[1] ?? []);
+    const groups = new Set(runtime.contracts.commands.map((entry) => argvFor(entry, {})[0] ?? ""));
+    expect(listed.filter((name) => !groups.has(name))).toEqual(["serve", "mcp", "help"]);
+    expect([...groups].filter((group) => !listed.includes(group))).toEqual([]);
   });
 });
 
