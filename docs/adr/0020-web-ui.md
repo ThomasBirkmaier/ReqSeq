@@ -1,6 +1,6 @@
 # ADR-0020: Web UI: server, token, packages and release without Electron
 
-Status: Accepted · Based on: D-083, D-019, D-029, D-030, D-033, D-036, D-068 · SRs: SR-078, SR-080, SR-142, SR-226, SR-247, SR-248, SR-249, SR-250 · Supersedes: ADR-0010, ADR-0014 · Changes: ADR-0001, ADR-0008, ADR-0009, ADR-0011, ADR-0015, ADR-0016
+Status: Accepted · Based on: D-083, D-019, D-029, D-030, D-033, D-036, D-068 · SRs: SR-078, SR-080, SR-142, SR-226, SR-247, SR-248, SR-249, SR-250 · Supersedes: ADR-0010, ADR-0014 · Changes: ADR-0001, ADR-0008, ADR-0009, ADR-0011, ADR-0015, ADR-0016 · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): second `shell` implementation, `REQSEQ_UI_END_WITH_STDIN`, save-dialog consequence settled by SR-253 AK2
 
 ## Context
 
