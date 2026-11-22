@@ -351,13 +351,11 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const moveTo = async (commit: string): Promise<void> => {
       await git(["update-ref", "refs/heads/main", commit]);
     };
-    // Only the commit on top meets the limit so far. A merge or an amend make a new evaluated commit
-    // for most files (about 0.7 s at this size), and they are recorded until the follow-up issue
-    // makes them fast; so are the far moves.
-    const moves: { readonly name: string; readonly limit: boolean; readonly move: () => Promise<void> }[] = [
+    // A merge from an older commit or an amend of it makes a new evaluated commit for most files,
+    // which the merge's first parent answers (#2382).
+    const moves: { readonly name: string; readonly move: () => Promise<void> }[] = [
       {
         name: "after a new commit (HEAD moved)",
-        limit: true,
         move: async () => {
           await fixture?.write(`${folder}/notes.txt`, "A commit after the sort.\n");
           await fixture?.commit(folder, "notes");
@@ -365,7 +363,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
       {
         name: "after a merge (--no-ff) of a branch from 5 commits back",
-        limit: false,
         move: async () => {
           const made = await fixture?.commitHistory(
             [
@@ -383,7 +380,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
       {
         name: "after an amend of the last commit",
-        limit: false,
         move: async () => {
           const parents = (await git(["rev-parse", "HEAD^1", "HEAD^2"])).split("\n");
           const made = await fixture?.commitHistory(
@@ -395,26 +391,19 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       },
     ];
     const after: PerfMeasurement[] = [];
-    for (const { name, limit, move } of moves) {
+    for (const { name, move } of moves) {
       await move();
       const { result: moved, measurement: afterMove } = await measure(
         `sort: all elements by versionDate, first page, ${name}`,
         sortedList,
-        limit
-          ? {
-              basis:
-                "SR-082 AK4 (element.list sorted by versionDate, once applied since the start, after HEAD moved)",
-              thresholdMs: RESULT_MS,
-            }
-          : {
-              basis:
-                "SR-082 AK4 (recorded until the follow-up issue: a move that adds an evaluated commit to most files)",
-            },
+        {
+          basis:
+            "SR-082 AK4 (element.list sorted by versionDate, once applied since the start, after HEAD moved)",
+          thresholdMs: RESULT_MS,
+        },
       );
       expect(moved.elements.map((e) => e.id)).toEqual(sorted.elements.map((e) => e.id));
-      if (limit) {
-        after.push(afterMove);
-      }
+      after.push(afterMove);
     }
     // Opening one element with its version date after a move waits for the carry of every walk.
     await fixture?.write(`${folder}/notes.txt`, "One more commit.\n");
@@ -445,6 +434,44 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       );
       expect(far.total).toBe(ELEMENTS);
       await moveTo(last);
+    }
+    // Moves that change element files are recorded (the order then follows the changed texts): a
+    // commit on top, and a merge whose side changes them, where those files are read and the others
+    // take the first parent's version.
+    const changed = [...tree.files.keys()]
+      .filter((f) => f.startsWith(`${folder}/`) && f.endsWith(".md"))
+      .slice(0, 100)
+      .map((f) => f.slice(folder.length + 1));
+    // Each from walks at `last` (the far moves left them at the first commit).
+    await sortedList();
+    const changes = Object.fromEntries(
+      changed.map((f) => [f, `${String(tree.files.get(`${folder}/${f}`))}\nChanged.\n`]),
+    );
+    for (const [name, specs] of [
+      [
+        "after a commit that changes 100 element files",
+        [{ name: "changed", parents: [last], files: changes }],
+      ],
+      [
+        "after a merge (--no-ff) whose side from 5 commits back changes 100 element files",
+        [
+          { name: "side", parents: [await git(["rev-parse", "HEAD~5"])], files: changes },
+          { name: "changed", parents: [last, "side"], files: changes },
+        ],
+      ],
+    ] as const) {
+      const made = await fixture?.commitHistory(specs, { repository: folder });
+      await moveTo(String(made?.["changed"]?.id));
+      const { result: moved } = await measure(
+        `sort: all elements by versionDate, first page, ${name}`,
+        sortedList,
+        {
+          basis: "SR-082 AK4 (recorded: a move that changes element files)",
+        },
+      );
+      expect(moved.total).toBe(ELEMENTS);
+      await moveTo(last);
+      await sortedList();
     }
     for (const afterMove of [measurement, ...after]) {
       expect(afterMove.ms, thresholdMessage(afterMove)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));

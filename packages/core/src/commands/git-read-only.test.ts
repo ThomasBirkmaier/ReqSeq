@@ -203,6 +203,50 @@ describe("Git only read (SR-083, D-036)", () => {
     expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
   });
 
+  it("[SR-083/AK-fsx5] compares a merge with its first parent with git commands that read, without writing to the Git folder (#2382)", async () => {
+    const repository = await fixture({ fixture: "SR-001/two-elements", files: FILES, git: true });
+    // Enough files open at the merge that it is compared with its first parent.
+    const ids = Array.from(
+      { length: 100 },
+      (_, i) => `77777777-7777-4777-8777-${i.toString(16).padStart(12, "0")}`,
+    );
+    const texts = (text: string): Record<string, string> =>
+      Object.fromEntries(
+        ids.map((id) => [
+          `requirements/SR-${id.slice(-12)}.md`,
+          `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: Many\n---\n\n${text}\n`,
+        ]),
+      );
+    const base = await repository.commitHistory(
+      [{ name: "base", parents: [await repository.head()], files: texts("Base.") }],
+      {
+        branch: "main",
+      },
+    );
+    await repository.commitHistory(
+      [{ name: "top", parents: [String(base["base"]?.id)], files: texts("Top.") }],
+      {
+        branch: "main",
+      },
+    );
+    await repository.git(["reset", "--hard", "--quiet"]);
+    const workspace = open(repository.root);
+    const sorted = async (): Promise<unknown> =>
+      runtime.invoke("element.list", { sort: [{ by: "versionDate" }] }, { workspace });
+    const before = await sorted();
+    const made = await repository.commitHistory([
+      { name: "side", parents: [String(base["base"]?.id)], files: { "side.txt": "s\n" } },
+      { name: "merge", parents: [await repository.head(), "side"], files: { "side.txt": "s\n" } },
+    ]);
+    await repository.git(["update-ref", "refs/heads/main", String(made["merge"]?.id)]);
+    const folder = gitFolder(repository.root);
+    recordProcesses();
+    expect(await sorted()).toEqual(before);
+    expect(gitFolder(repository.root)).toEqual(folder);
+    expect(started.calls.filter((args) => args.includes("--diff-merges=first-parent"))).toHaveLength(1);
+    expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
+  });
+
   it("[SR-083/AK-fsx5] asks the index whether a local file is tracked without writing to the Git folder (#1456)", async () => {
     const local = "reqseq-local: 1\n";
     const repository = await fixture({
