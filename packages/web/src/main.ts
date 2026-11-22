@@ -120,7 +120,6 @@ async function refresh(ids: readonly string[]): Promise<void> {
     x.scrollLeft,
   ]);
   setWorkspaceOpen(true);
-  const scrolls = [...root.querySelectorAll(".lscroll, .trace-wrap")].map((x) => x.scrollTop);
   await route({ keepFocus: true });
   root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll").forEach((x, at) => {
     x.scrollTop = scrolls[at]?.[0] ?? 0;
