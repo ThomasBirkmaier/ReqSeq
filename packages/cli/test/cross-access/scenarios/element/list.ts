@@ -548,6 +548,8 @@ scenariosOf("element.list", [
       expect(order.indexOf("SR-00b008")).toBeLessThan(order.indexOf("SR-00b009"));
       expect(order.indexOf("SR-00b009")).toBeLessThan(order.indexOf("SR-00b007"));
       expect(order.slice(0, 2)).toEqual(["SR-00b001", "SR-00b002"]);
+      // Indirect (b101) counts as verified, so it comes before outdated (b008).
+      expect(order.indexOf("SR-00b101")).toBeLessThan(order.indexOf("SR-00b008"));
       expect(order.slice(-5)).toEqual(["N-00a001", "N-00a002", "PKG-00d001", "PKG-00d002", "PKG-00d003"]);
     },
   },

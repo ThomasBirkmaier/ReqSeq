@@ -16,7 +16,7 @@
 //   know after them by its key. `status`: the order of the statuses in the metamodel. `title`: the
 //   property with the meaning `title` (`metamodel.meaning-unassigned` without one, SR-013 AK3).
 // - `verification` (SR-075 AK5): the verification status in the view of the list, the core without
-//   one (`sortValuesFor`, as the rows show it, SR-137), ranked by `VERIFICATION_RANKS`: not verified,
+//   one (`sortValuesFor`, as the rows show it, SR-137), ranked by `VERIFICATION_RANKS`: failed,
 //   open, outdated, verified, `indirect` as verified. An element without one (no requirement, or a
 //   requirement outside the view, SR-137 AK4) has no value, so it is last in both orders; equal ones
 //   go to the next key, then the workspace order (AK1). The status is not in the files: the caller
@@ -91,7 +91,7 @@ export interface SortValues {
 }
 
 /**
- * The ranks of the verification statuses (SR-075 AK5): not verified (`failed`), open, outdated, verified;
+ * The ranks of the verification statuses (SR-075 AK5): failed, open, outdated, verified;
  * `indirect` (SR-034) counts as verified. A sort by them and the lists of the HTML export (SR-233 AK1)
  * share it.
  */

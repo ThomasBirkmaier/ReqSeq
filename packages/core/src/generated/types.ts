@@ -1516,7 +1516,7 @@ export interface FilterRelationCondition {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKey {
-  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans. No value last in both orders. */
+  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order?: "asc" | "desc";
@@ -1527,7 +1527,7 @@ export interface FilterSortKey {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKeyWithDefaults {
-  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans. No value last in both orders. */
+  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order: "asc" | "desc";
