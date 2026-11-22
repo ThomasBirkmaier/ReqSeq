@@ -15,11 +15,16 @@ const BUILTINS: ReadonlySet<string> = new Set(builtinModules);
 const isNodeOnly = (specifier: string): boolean =>
   specifier.startsWith("node:") || BUILTINS.has(specifier.split("/")[0] ?? "");
 
-/** The specifiers a module imports at runtime (`import type` is erased). */
+/**
+ * The specifiers a module imports at runtime (`import type` is erased): `import … from`, `export … from`, a
+ * side-effect `import "x"` and a dynamic `import("x")`.
+ */
 const runtimeImports = (source: string): string[] =>
-  [...source.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s+"([^"]+)";/gms)].map((match) =>
-    String(match[1]),
-  );
+  [
+    ...source.matchAll(
+      /^(?:import|export)\s+(?!type\b)[^;]*?from\s+"([^"]+)";|^import\s+"([^"]+)";|\bimport\(\s*"([^"]+)"\s*\)/gms,
+    ),
+  ].map((match) => String(match[1] ?? match[2] ?? match[3]));
 
 const context: TextContext = {
   elementFile: "requirements/SR-1.md",

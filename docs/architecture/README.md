@@ -4,7 +4,7 @@ Status: written before the first implementation; §5 updated to the code on 2026
 
 ## 1. Goals
 
-ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
+ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a web UI in the browser (the desktop app until #2310), a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
 
 ### Quality goals
 
@@ -18,7 +18,7 @@ ReqSeq is a local requirements tool on plain files in Git: one Markdown file per
 
 ## 2. Constraints
 
-- TypeScript and Electron (D-004); Windows 11, macOS 26, Ubuntu 24.04 (SR-076).
+- TypeScript (D-083); a web UI in the browser instead of the Electron app (D-083, ADR-0020); Windows 11, macOS 26, Ubuntu 24.04 (SR-249).
 - Git is the storage; ReqSeq reads Git and writes only files (D-024, D-036, SR-083).
 - English UI and standard model (D-019); the spec stays German.
 - No user or rights management (D-016); no deletion of elements (D-045); status set only by people (D-030).
@@ -72,7 +72,7 @@ ReqSeq talks only to the local file system and the local `git` program. Everythi
 | Detect outdated links without Git history | **Version = content hash** with a versioned normal form. | 0005 |
 | Stay out of collaboration | Git through a read-only allowlist; no commit, push or merge. | 0006 |
 | Speed at 50,000 elements | Files are the database; in-memory model and indexes, per-copy cache, debounced file watching, worker threads for cold start. | 0008 |
-| Offline and secure desktop app | Electron with sandboxed renderer, core in a utility process, all requests blocked. | 0010 |
+| Offline and secure web UI | A loopback server in the CLI process with a token per start, Host and Origin checks and a strict CSP; the pages only call catalog commands (the Electron app until #2310: ADR-0010). | 0020 |
 | Evidence from any tool | Open record format plus a JUnit property convention, enriched by the CLI. | 0012 |
 
 ## 5. Building blocks
@@ -89,7 +89,8 @@ flowchart TB
     cli[packages/cli<br/>commander]
     api[packages/api<br/>node:http, loopback]
     mcp[packages/mcp<br/>MCP SDK, stdio]
-    app[packages/app<br/>Electron + React]
+    app[packages/app<br/>Electron + React, until #2310]
+    web[packages/web<br/>pages of the web UI]
   end
   subgraph core[packages/core/src]
     index[index.ts<br/>public exports]
@@ -120,7 +121,7 @@ flowchart TB
       catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, type-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
-  cli & api & mcp & app --> index
+  cli & api & mcp & app & web --> index
   index --> entry
   entry --> commands & mm & model & query
   commands -->|every block except git| blocks
@@ -186,9 +187,9 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |
 | `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013); so far the model and the parser on the XML scanner of `files`, and the mapping files (`mapping`: where they are written, reading and checking them against the metamodel, SR-054) ([block file](../../packages/core/docs/reqif.md)) |
 | `displays` | The display models the app and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
-| `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts, which the web UI loads as the subpath `markdown` (it imports only the Markdown packages, KaTeX and import-free modules, ADR-0020); the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
+| `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts, which the web UI loads as the subpath `markdown` (it and the core modules it imports load no `node:*` module and import only each other, the Markdown packages and KaTeX, ADR-0020); the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
 
-Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
+Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), the CLI starts the UI server of `@reqseq/api` (`reqseq ui`, ADR-0020), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 
@@ -213,7 +214,7 @@ sequenceDiagram
   C-->>C: build indexes, versions, hints
   C->>G: HEAD commit per repository
   C-->>A: status with repositories, problems
-  C->>FS: start watcher (app, API, MCP only)
+  C->>FS: start watcher (web UI, API, MCP, app only)
 ```
 
 ### 6.2 Edit an element and confirm a hint
@@ -242,7 +243,7 @@ sequenceDiagram
 
 ## 7. Deployment
 
-One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
+One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). From #2308 on it holds CLI, MCP server, web UI and a Node runtime instead of the app (SR-249, ADR-0020). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
 
 ## 8. Cross-cutting concepts
 
