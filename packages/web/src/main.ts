@@ -19,11 +19,13 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 // The areas.
 import "./areas/overview.js";
 import "./areas/element.js";
+import "./areas/edit.js";
 import "./areas/evidence.js";
 import "./areas/trace.js";
 import "./areas/matrix.js";
 import "./areas/variants.js";
 import "./areas/changes.js";
+import { WORKSPACES, WORKSPACE_OPENED, isWorkspaceOpen, setWorkspaceOpen } from "./areas/workspace.js";
 
 applyTheme();
 
@@ -56,6 +58,10 @@ async function route({ keepFocus = false } = {}): Promise<void> {
   const mine = ++rendering;
   const current = parseHash(location.hash);
   const render = renderOf(current);
+  if (!isWorkspaceOpen() && current.hash !== WORKSPACES) {
+    location.replace(`#${WORKSPACES}`);
+    return;
+  }
   if (render === undefined) {
     location.replace(`#${HOME}`);
     return;
@@ -88,6 +94,16 @@ async function route({ keepFocus = false } = {}): Promise<void> {
   }
 }
 
+/** No workspace is open: the page to open or create one (area `workspace`) is the only one drawn. */
+function noWorkspace(): void {
+  setWorkspaceOpen(false);
+  if (parseHash(location.hash).hash === WORKSPACES) {
+    void route();
+  } else {
+    location.replace(`#${WORKSPACES}`);
+  }
+}
+
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** After a change of the workspace: read again and draw the page again, keeping focus and scroll. */
@@ -96,10 +112,7 @@ async function refresh(ids: readonly string[]): Promise<void> {
     await load();
   } catch (error) {
     if (error instanceof ReqSeqError && error.code === "workspace.not-found") {
-      stop(
-        "No workspace open",
-        "reqseq ui runs without a workspace. Start it in the folder of a workspace, or name one with --workspace.",
-      );
+      noWorkspace();
     }
     return;
   }
@@ -107,6 +120,7 @@ async function refresh(ids: readonly string[]): Promise<void> {
     x.scrollTop,
     x.scrollLeft,
   ]);
+  setWorkspaceOpen(true);
   await route({ keepFocus: true });
   root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll").forEach((x, at) => {
     x.scrollTop = scrolls[at]?.[0] ?? 0;
@@ -129,10 +143,7 @@ async function start(): Promise<void> {
     await load();
   } catch (error) {
     if (error instanceof ReqSeqError && error.code === "workspace.not-found") {
-      stop(
-        "No workspace open",
-        "reqseq ui runs without a workspace. Start it in the folder of a workspace, or name one with --workspace.",
-      );
+      noWorkspace();
       return;
     }
     if (!stopped) {
@@ -203,6 +214,15 @@ function boot(): void {
       await route({ keepFocus: true });
       root.querySelector<HTMLElement>("[data-view]")?.focus();
     })();
+  });
+  // The page opened a workspace and read it: its overview is drawn.
+  window.addEventListener(WORKSPACE_OPENED, () => {
+    setWorkspaceOpen(true);
+    if (parseHash(location.hash).hash === HOME) {
+      void route();
+    } else {
+      location.hash = `#${HOME}`;
+    }
   });
   window.addEventListener("hashchange", () => void route());
   listen(token, onEvent);

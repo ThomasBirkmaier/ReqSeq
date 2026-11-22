@@ -16,17 +16,20 @@ pnpm --filter @reqseq/web test:ui    # Playwright in Chromium; once: pnpm --filt
 
 ## Areas
 
+An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`) or a queue (`addQueue`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame. `shell.ts` holds what a desktop shell would do differently: today a path field whose completion comes from `workspace.listFolder`.
 An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`), a queue (`addQueue`), a tab of the element pages (`addElementTab` in `element-tabs.ts`, which keeps the way back `?from=`) or the name its pages have in "Back to …" (`addPlace`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame.
 
 | Area | Routes |
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
 | `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, read only |
+| `edit.ts` (with `edit-pick.ts`) | `#/new[?type=<type>]`, `#/edit/<identifier or short ID>[?from=<route>]`: create and edit an element of any type, its properties and relations |
 | `evidence.ts` | `#/evidence/<ref>`: an element's evidence per criterion, test case and view, and a form to record a check |
 | `trace.ts` | `#/graph/<ref>[?depth=&chain=&evidence=]`: the trace graph over several levels; `#/impact/<ref>`: what a change can affect |
 | `matrix.ts` | `#/matrix[?type=&package=&offset=]`: the trace matrix of one type |
 | `variants.ts` | `#/variant/<ref>`: a variant compared with the core, with exclude and include again |
 | `changes.ts` | `#/c[?b=<baseline>]`, `#/c/<identifier or short ID>[?b=<baseline>]`: the changes since a baseline and the difference of one element word by word, with the decisions on them (status after a confirmation, supersede, a property of many after ReqSeq's preview); `#/r`: the check before a baseline and a new baseline |
+| `workspace.ts` | `#/w/open`, `#/w/problems`, `#/w/export`, `#/w/import`, `#/w/settings`: open, create and switch workspaces (the only page while none is open), the problems of `workspace.check` and the queue `problems`, exports into the repositories (`exports/` proposed), the ReqIF import, and the settings |
 
 ## Rules
 
