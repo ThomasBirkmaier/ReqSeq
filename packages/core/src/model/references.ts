@@ -21,7 +21,10 @@ import { markdownLinksAndMentions } from "./markdown-links.js";
 import type { TargetState } from "./relations.js";
 import { resolveTarget, targetState } from "./relations.js";
 import type { ElementStore } from "./store.js";
+import { queryOf, queryParam, referenceRepository, SCHEME } from "./reference-query.js";
 import { isUuid } from "./uuid.js";
+
+export { queryOf, referenceRepository, SCHEME } from "./reference-query.js";
 
 /** An inline reference `[label](reqseq:<uuid>?version=<version>&repository=<name>)` in a text. */
 export interface InlineReference {
@@ -65,29 +68,6 @@ export interface PropertyReference extends TextReference {
 export type LinkedReference = TextReference & {
   readonly key?: string;
   readonly item?: number;
-};
-
-export const SCHEME = "reqseq:";
-
-/** The query parameters of a destination, in order, as written; empty ones (`?`, `&&`) are none. */
-export const queryOf = (destination: string): string[] => {
-  const query = destination.indexOf("?");
-  return query < 0
-    ? []
-    : destination
-        .slice(query + 1)
-        .split("&")
-        .filter((p) => p !== "");
-};
-
-/** The value of the first parameter `name` of `params`, undefined when there is none. */
-const param = (params: readonly string[], name: string): string | undefined =>
-  params.find((p) => p.startsWith(`${name}=`))?.slice(name.length + 1);
-
-/** The repository a `reqseq:` destination names (`repository=`, as written); an empty one names none. */
-export const referenceRepository = (destination: string): string | undefined => {
-  const named = param(queryOf(destination), "repository");
-  return named === "" ? undefined : named;
 };
 
 /**
@@ -236,7 +216,7 @@ const asReference = ({
   end,
   line,
 }: UnresolvedLink): InlineReference => {
-  const version = param(queryOf(destination), "version");
+  const version = queryParam(queryOf(destination), "version");
   return {
     id: target,
     ...(version === undefined ? {} : { version }),
