@@ -1,10 +1,12 @@
 // The UUID test of the model block, in a module of its own so that `elements.ts`, `references.ts`
-// (which `elements.ts` imports) and the model cache share it.
-import { fileSchemaValidator } from "../runtime/contracts.js";
+// (which `elements.ts` imports), the model cache and the Markdown renderer (`@reqseq/core/markdown`) share it. It
+// imports nothing, so it runs in a browser.
+
+/** The pattern of `common.schema.json#/$defs/uuid`; `uuid.test.ts` checks that both are the same. */
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 /** A UUID as ReqSeq writes it: version 4, lower case (`common.schema.json#/$defs/uuid`, D-017). */
-export const isUuid = (value: unknown): value is string =>
-  fileSchemaValidator("common.schema.json#/$defs/uuid")(value);
+export const isUuid = (value: unknown): value is string => typeof value === "string" && UUID.test(value);
 
 /** A UUID version 4 in any case (`common.schema.json#/$defs/uuidRef`). */
 const ANY_CASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

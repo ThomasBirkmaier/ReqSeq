@@ -5,11 +5,11 @@ import type { Dirent, Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
-import { isTempFile, linksStayInside, systemForm } from "../files/index.js";
+import { isTempFile, linksStayInside } from "../files/index.js";
 import type { RepositoryLocation } from "../workspace/index.js";
+import { isSkippedOnSomeSystem, SKIPPED_NAMES, windowsChanges } from "./portable-names.js";
 
-/** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
-export const SKIPPED_NAMES: ReadonlySet<string> = new Set([".git", "node_modules"]);
+export { isSkippedOnSomeSystem, SKIPPED_NAMES, windowsChanges } from "./portable-names.js";
 
 /** Element files end in `.md` (ADR-0004). ReqSeq's temporary files end in `.reqseq-tmp`, so they never match. */
 export const ELEMENT_FILE_EXTENSION = ".md";
@@ -423,14 +423,8 @@ export const pathState = async (
   }
 };
 
-/** Names Windows reserves for devices, with or without an extension (`NUL`, `com1.md`, `CONIN$`). */
-const DEVICE_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])(?:\..*)?$/iu;
-
 /** A short name of the 8.3 shape Windows gives a long name (`GIT~1`, `NODE_M~1`, `PROGRA~1.TXT`). */
 const SHORT_NAME = /^[^.~]{1,6}~\d{1,6}(?:\.[^.]{0,3})?$/u;
-
-/** Characters Windows refuses in a name, besides the control characters. */
-const WINDOWS_REFUSED = /[<>:"|?*]/;
 
 /**
  * The rule that leaves out a name wherever the repository is checked out (repositories move between
@@ -445,19 +439,6 @@ const portableRule = (name: string): NewFileRule | undefined => {
   }
   return windowsChanges(name) || SHORT_NAME.test(name) ? "not-portable" : undefined;
 };
-
-/**
- * Whether Windows or macOS take `name` for `.git` or `node_modules` (any case, trailing dots and
- * spaces dropped).
- */
-export const isSkippedOnSomeSystem = (name: string): boolean => SKIPPED_NAMES.has(systemForm(name));
-
-/**
- * Whether Windows changes or refuses `name`: a trailing dot or space, one of `<>:"|?*`, a control
- * character or a device name (`NUL`, `com1.png`).
- */
-export const windowsChanges = (name: string): boolean =>
-  /\p{Cc}/u.test(name) || /[. ]$/.test(name) || WINDOWS_REFUSED.test(name) || DEVICE_NAME.test(name);
 
 /**
  * Invisible format characters (zero-width and direction marks, the byte order mark, the soft
