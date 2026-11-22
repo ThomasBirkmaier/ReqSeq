@@ -6,11 +6,15 @@
 // The keys that read more than the files (`SortValues`) are read first (`sortValuesFor`), then the sort
 // runs: `verification` (SR-075 AK5) in the view of the selection, `views[0]` as the rows take it
 // (`rowsVerification`, SR-137), the core without one, through the provider the filter on the
-// verification status uses (`evidenceStatusState`), so its state is built once and kept (SR-082 AK4).
-import type { CommandName } from "../catalog.js";
+// verification status uses (`evidenceStatusState`), so its state is built once and kept (SR-082 AK4);
+// `versionDate` (SR-075 AK6) for the whole selection (`versionTimesOf`, version-times.ts), from the
+// walks of the version dates that the workspace keeps per HEAD (SR-082 AK4), with the warnings of the
+// order in `SortValues.problems`. `element.list` reads them itself and passes them on, to show the warnings.
+import type { CommandName, Problem } from "../catalog.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import { evidenceStatusState } from "./evidence.js";
+import { versionTimesOf } from "./version-times.js";
 import { inPerspective } from "./perspectives.js";
 import { inSavedFilter, savedSort } from "./saved.js";
 import type { Selected } from "./selection.js";
@@ -23,15 +27,17 @@ import { checkSortKeys, sortElements, sortGroups } from "./sort.js";
  * starts with `hierarchy` (`sortElements`). Without `sort` (undefined), the first stored sort, also
  * an empty one: of the saved filter of the selection (SR-070 AK3: the same elements in the same
  * order), of the perspective (SR-213 AK5), of the perspective's saved filter; with none, the
- * workspace order. An explicit `sort`, also an empty one, wins over all of them.
+ * workspace order. An explicit `sort`, also an empty one, wins over all of them. `values` are those of
+ * `sortValuesFor` for the same `selected` and `sort`, read here when not given.
  */
 export const orderedSelection = async (
   workspace: Workspace,
   selected: Selected,
   command: CommandName,
   sort: SortKeys | undefined,
+  given?: SortValues,
 ): Promise<SortedElements> => {
-  const values = await sortValuesFor(workspace, selected, sort);
+  const values = given ?? (await sortValuesFor(workspace, selected, sort));
   return withSort(selected, sort, (keys, storedSort) =>
     sortElements({ ...selected, command, storedSort, values }, selected.elements, keys),
   );
@@ -49,14 +55,27 @@ export const sortValuesFor = async (
   sort: SortKeys | undefined,
 ): Promise<SortValues> => {
   const keys = withSort(selected, sort, (given) => given);
-  if (!keys.some((key) => key.by === "verification")) {
-    return {};
-  }
+  const by = new Set(keys.map((key) => key.by));
+  return {
+    ...(by.has("verification") ? await verificationOf(workspace, selected) : {}),
+    ...(by.has("versionDate") ? await versionDateOf(workspace, selected) : {}),
+  };
+};
+
+const verificationOf = async (workspace: Workspace, selected: Selected): Promise<SortValues> => {
   const statuses = await workspace.get(evidenceStatusState);
   await statuses.ready?.();
   const view = selected.views[0] ?? CORE;
   return { verification: (element) => statuses.verification(element, view) };
 };
+
+const versionDateOf = async (workspace: Workspace, selected: Selected): Promise<SortValues> => {
+  const { versionTimes, problems } = await versionTimesOf(workspace, selected.elements);
+  return { versionDate: versionTimes, problems };
+};
+
+/** The warnings of the order in `values` (`sort.incomplete`), for the output of a command. */
+export const sortProblems = (values: SortValues): readonly Problem[] => values.problems ?? [];
 
 /** Checks the sort `orderedSelection` would use for the same input, without sorting (`checkSortKeys`). */
 export const checkedSort = (selected: Selected, command: CommandName, sort: SortKeys | undefined): void => {
@@ -67,21 +86,20 @@ export const checkedSort = (selected: Selected, command: CommandName, sort: Sort
 
 /**
  * The groups of `selected` (`groupsOf` gives the groups of an element, of `count`), each in the
- * order `orderedSelection` gives for the same `sort`, with its own tree under `hierarchy` (`sortGroups`).
+ * order `orderedSelection` gives for the same `sort`, with its own tree under `hierarchy` (`sortGroups`);
+ * `values` are those of `sortValuesFor` for the same `selected` and `sort`.
  */
-export const orderedGroups = async (
-  workspace: Workspace,
+export const orderedGroups = (
   selected: Selected,
   command: CommandName,
   sort: SortKeys | undefined,
   groupsOf: (element: ElementRecord) => readonly number[],
   count: number,
-): Promise<SortedElements[]> => {
-  const values = await sortValuesFor(workspace, selected, sort);
-  return withSort(selected, sort, (keys, storedSort) =>
+  values: SortValues,
+): SortedElements[] =>
+  withSort(selected, sort, (keys, storedSort) =>
     sortGroups({ ...selected, command, storedSort, values }, selected.elements, keys, groupsOf, count),
   );
-};
 
 type SortKeys = Parameters<typeof sortElements>[2];
 
