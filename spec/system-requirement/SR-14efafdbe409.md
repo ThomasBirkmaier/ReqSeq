@@ -1,7 +1,7 @@
 ---
 id: f163b2f7-43b0-4066-a981-14efafdbe409
 type: system-requirement
-status: approved
+status: obsolete
 title: Perspektiven und gespeicherte Filter in der App aus einer Liste speichern und neu aufbauen
 spec-id: SR-219
 rationale: Auf einer Liste soll gespeichert werden, was sie zeigt; neu aufgebaut wird ohne Liste, zum Beispiel über mehrere Typen. Enter auf dem übernehmenden Treffer schloss den Befehl nach der Bedingung ab, Gruppierung und Sortierung waren nur über Ctrl+Enter zu erreichen, und „Save perspective“ stand bei der Suche vor „Save list as perspective“; so entstanden Perspektiven ohne die gewählten Bedingungen, Gruppierung und Sortierung. Deshalb heißen die Befehle nach dem, woher ihr Inhalt kommt, und der Aufbau fragt alle Schritte. Über Kommandozeile, API und MCP-Server bleiben `perspective save` und `filter save` (D-029); dieselbe Eingabe schreibt dieselbe Datei (SR-215 AK10). Ein gespeicherter Filter nennt keinen anderen und hat keine Gruppierung (AK8). Ohne Sortierschlüssel speichert eine neue Perspektive die Standardsortierung wie „Save list as perspective“ (SR-214 AK5), damit alle Zugänge dieselbe Reihenfolge liefern (SR-213 AK4); ein gespeicherter Filter speichert eine Sortierung nur, wenn sie gewählt ist, weil sie sonst die Sortierung einer Perspektive ersetzen würde, die ihn nennt (SR-213 AK5). Dieselben Listen wie bei „Save list as perspective“ sind ausgenommen, damit beide Befehle auf denselben Listen stehen.
@@ -37,7 +37,7 @@ refines:
   - { id: 30bb227d-2fc6-40d0-8450-2318af473702, version: n2:863fe33cae4ae56e, title: Argumente mit festen Werten in der Befehlszeile aus den Treffern wählen }
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 
 Die App muss einen gespeicherten Filter aus der gezeigten [Liste von Elementen](reqseq:a6eba69f-df0b-490c-8bc2-a22659e9d1f7?version=n2:0c815c2205ba5724) mit nur einem Namen speichern lassen, wie eine [Perspektive](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:3080b7f3f9c464c9) (SR-214), und Perspektiven und gespeicherte Filter ohne Liste in der [Befehlszeile](reqseq:8014c1d5-3d19-4c70-8d12-5696db492f77?version=n2:a3b284c17b1349e8) Schritt für Schritt neu aufbauen lassen; dabei speichert sie erst nach dem letzten Schritt.

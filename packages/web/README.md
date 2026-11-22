@@ -4,14 +4,14 @@ The pages of the web UI that `reqseq ui` serves (ADR-0020, D-083): TypeScript, b
 
 ```sh
 pnpm --filter @reqseq/web build      # dist/: index.html, scripts, styles and the woff2 fonts as files
-pnpm --filter @reqseq/web test:ui    # Playwright in Chromium; once: pnpm --filter @reqseq/web exec playwright install chromium --only-shell
+pnpm --filter @reqseq/web test:ui    # Playwright; once: pnpm --filter @reqseq/web exec playwright install --with-deps --only-shell chromium firefox webkit
 ```
 
 ## How a page starts
 
 1. `token.ts` takes the token from the address (`#token=…`), keeps it in `sessionStorage` and removes it from the address, before the router reads it. Without a token, or when the server refuses it, the page says to open the address `reqseq ui` printed and calls nothing more.
 2. `events.ts` reads `api/events` with `fetch` and the bearer header. One tab per browser holds a Web Lock and reads the stream; it passes every event to the other tabs through a `BroadcastChannel`. The first `workspace` event gives the generation of the open workspace, which every command carries in `X-ReqSeq-Workspace` (`api.ts`).
-3. `store.ts` reads the metamodel, the workspace's name, the variants and every element with its verification, and reads them again after a `change` or `workspace` event.
+3. `store.ts` reads the metamodel, the workspace's name, the variants and every element with its verification, and reads them again after a `change` or `workspace` event, and after a write of the page itself, which no `change` event follows.
 4. `router.ts` draws the page of the hash route.
 
 ## Areas
@@ -41,4 +41,4 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 
 ## Tests
 
-`test/` holds the Playwright tests (Chromium) and the test starter `start-ui.ts`, which is not shipped: it writes one of the test kit's generated workspaces into a temporary folder and starts `createUiServer` of `@reqseq/api` on it with the pages of `dist/`. The fixtures run one server per worker; `ui.run` asks core in the test process what a page should show. Each Playwright project takes one workspace: the copy of the specification with a generated history runs every test, the workspace with an unusual metamodel and the one without identifiers run the tests of the pages. The unit tests of the pure modules (`src/*.test.ts`) run with Vitest; coverage is reported without a threshold (ADR-0016).
+`test/` holds the Playwright tests (Chromium) and the test starter `start-ui.ts`, which is not shipped: it writes one of the test kit's generated workspaces into a temporary folder and starts `createUiServer` of `@reqseq/api` on it with the pages of `dist/`. The fixtures run one server per worker; `ui.run` asks core in the test process what a page should show. Each Playwright project takes one workspace: the copy of the specification with a generated history runs every test, the workspace with an unusual metamodel and the one without identifiers run the tests of the pages. The contract tests (`contract-*.spec.ts`) are the only ones with AK tags (SR-248, SR-078 AK3); they run on the workspace with the unusual metamodel in Chromium, Firefox and WebKit (projects `contract-<browser>`). For SR-248 AK2 `contract-processes.spec.ts` starts the built `reqseq ui --no-open` with the preload of the test kit (`packages/testkit/preload/record-access.mjs`), which records each program started and each file opened with its step (`access-record.ts`); `pnpm build` comes first. The unit tests of the pure modules (`src/*.test.ts`) run with Vitest; coverage is reported without a threshold (ADR-0016).

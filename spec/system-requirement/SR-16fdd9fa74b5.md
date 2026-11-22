@@ -1,7 +1,7 @@
 ---
 id: 7c003135-cc59-44fb-bddf-16fdd9fa74b5
 type: system-requirement
-status: approved
+status: obsolete
 title: Element im anderen Bereich öffnen
 spec-id: SR-150
 rationale: "Ohne geteiltes Fenster soll sich das markierte Element mit „Open to the right“ oder „Open to the left“ auf dieser Seite öffnen lassen. Im geteilten Fenster soll der andere Bereich zeigen, was im aktiven Bereich gerade ausgewählt ist. Der Bereich, in dem markiert wurde, bleibt aktiv (AK1 bis AK3). Nach dem Ausprobieren gilt: Der andere Bereich ist eine Vorschau, die der Auswahl folgt, auch beim Wechsel von Paket zu Paket (AK4). Betritt der Benutzer die Vorschau, bleibt sie stehen, denn zwei Elemente sollen sich weiter nebeneinander stellen lassen; einen Schalter zum Ein- und Ausschalten gibt es nicht (AK5). Die Vorschau soll gleich beim Teilen erscheinen und nicht erst nach „Open to the right“ (AK6). Alt+O wechselt die Seite, weil Ctrl/Cmd+O schon einen Arbeitsbereich öffnet und die Ctrl-Taste auf macOS dem Editor gehört (AK7). Die aktive Seite soll dezent erkennbar sein, ohne dass die Lesbarkeit leidet, denn Lesen ist der Hauptzweck (AK8)."

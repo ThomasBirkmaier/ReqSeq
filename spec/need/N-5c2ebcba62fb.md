@@ -1,7 +1,7 @@
 ---
 id: 711f88ce-3127-4fe2-9f96-5c2ebcba62fb
 type: need
-status: approved
+status: obsolete
 title: Vom Wert einer Property zu allen Elementen mit diesem Wert
 spec-id: N-079
 rationale: Ein Klick auf eine Property wie topic soll einen Buffer mit allen Elementen öffnen, die denselben Wert haben, ähnlich wie in Logseq; bei Freitext-Properties klappt das so nicht, das ist zu berücksichtigen.

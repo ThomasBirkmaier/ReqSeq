@@ -1,3 +1,4 @@
+export * from "./access-record.js";
 export * from "./delivery.js";
 export * from "./evidence-records.js";
 export * from "./fixture-workspace.js";

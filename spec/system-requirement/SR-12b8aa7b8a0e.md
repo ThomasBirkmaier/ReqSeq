@@ -12,7 +12,7 @@ acceptance-criteria:
     text: Gegeben Elemente mit deutschem Inhalt, wenn sie angezeigt werden, dann zeigt das Tool den Inhalt unverändert.
 verification-method: inspection
 packages:
-  - { id: 5c0075c7-0fad-483a-b35e-af77d1499468, version: n2:23c8afe7316d80f6, title: Bedienung der App }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 derives-from:
   - { id: 6ad49f57-47f2-4570-a046-b1af59b51503, version: n1:7406bb900e631830, title: "Einfach, minimalistisch und ästhetisch" }
 based-on:

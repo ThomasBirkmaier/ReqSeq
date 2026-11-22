@@ -20,7 +20,7 @@ import { propDef, propKey, propOfType, relKind, sentence, typeDef, typeName, typ
 import { markdown } from "../markdown.js";
 import type { Route } from "../router.js";
 import { HOME, addRoute, hashOf, isCurrent, parseHash } from "../router.js";
-import { refOf, store } from "../store.js";
+import { load, refOf, store } from "../store.js";
 import type { Target } from "./edit-pick.js";
 import { picker, reopenPick, takeOpenPick, targetOf } from "./edit-pick.js";
 
@@ -487,6 +487,19 @@ async function check(d: Draft): Promise<void> {
   redraw({ focus: "ed-check" });
 }
 
+/**
+ * After a write of the form: the store is read again and the page drawn again. No change event follows a write the
+ * server made itself (its watcher finds the element store already current), so the page asks itself. The page moves
+ * on first and does not wait for the read.
+ */
+function reread(): void {
+  void load()
+    .then(() => {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    })
+    .catch(() => undefined);
+}
+
 /** Saves the form and opens the element. */
 async function save(d: Draft): Promise<void> {
   d.busy = true;
@@ -497,11 +510,13 @@ async function save(d: Draft): Promise<void> {
       draft = undefined;
       announce(out.answer);
       location.hash = hashOf("e", refOf(out.element));
+      reread();
     } else {
       const out = await call("element.update", updateInput(d, false));
       draft = undefined;
       announce(out.answer);
       location.hash = d.back;
+      reread();
     }
   } catch (error) {
     d.busy = false;
@@ -1347,6 +1362,7 @@ async function giveKeys(d: Draft): Promise<void> {
       draft = undefined;
       announce(out.answer);
       await rerender();
+      reread();
     }
   } catch (error) {
     d.busy = false;

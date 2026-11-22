@@ -1,7 +1,7 @@
 ---
 id: e1aca253-af02-4724-8748-baebce42f2bf
 type: system-requirement
-status: approved
+status: obsolete
 title: Die App an der Spezifikation des Tools als Animation in der README zeigen
 spec-id: SR-203
 rationale: Die README zeigt die App im Gebrauch an der Spezifikation des Tools selbst, damit Besucher sofort sehen, wie das Tool arbeitet. Die Schritte des Einstiegs zeigt die Dokumentation (SR-140). Dieses Kriterium muss nur unter Linux gelten, nicht unter Windows und macOS; deshalb steht es in einem Requirement, das nur für die Variante Linux gilt.
