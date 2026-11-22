@@ -519,7 +519,18 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
         firstPackage === undefined
           ? null
           : h("span", { class: "crumb" }, el(firstPackage.id)?.title ?? firstPackage.title ?? ""),
-        elementTabs(e, "e", route.params.get("from")),
+        [
+          elementTabs(e, "e", route.params.get("from")),
+          // The form of the edit area; the way back leads here.
+          h(
+            "a",
+            {
+              class: "btn sm edit-link",
+              href: `${hashOf("edit", refOf(e))}?from=${encodeURIComponent(route.hash)}`,
+            },
+            "Edit",
+          ),
+        ],
       ),
       h("main", { id: "main", class: "trace-wrap", tabindex: -1 }, trace),
     ),
