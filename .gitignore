@@ -36,3 +36,8 @@ packages/docs/site/.astro/
 .stryker-tmp/
 # Vendor files of the HTML export (scripts/build/html-export-vendor.mjs), built by core's `build` and its tests
 packages/core/vendor/
+
+# The desktop shell (ADR-0021): Cargo's build folder, and the schemas and permissions tauri-build writes on each build
+packages/shell/target/
+packages/shell/shell/gen/
+packages/shell/shell/permissions/

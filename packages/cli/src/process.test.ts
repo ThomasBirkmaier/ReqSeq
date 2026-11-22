@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import type { OutputStream, ProcessLike } from "./process.js";
-import { connectProcess } from "./process.js";
+import { connectProcess, inputEnded } from "./process.js";
 
 class FakeStream extends EventEmitter implements OutputStream {
   readonly written: string[] = [];
@@ -109,6 +109,29 @@ describe("connectProcess", () => {
       expect(proc.exit).not.toHaveBeenCalled();
       proc.emit("SIGINT");
       expect(proc.exit).toHaveBeenCalledWith(130);
+    }
+  });
+});
+
+describe("inputEnded", () => {
+  class FakeInput extends EventEmitter {
+    readonly resume = vi.fn();
+    readonly destroy = vi.fn();
+  }
+
+  it("reads the input and resolves at its end, its close or an error; release stops reading", async () => {
+    for (const event of ["end", "close", "error"] as const) {
+      const input = new FakeInput();
+      const { ended, release } = inputEnded(input);
+      expect(input.resume).toHaveBeenCalledOnce();
+      let done = false;
+      void ended.then(() => (done = true));
+      await Promise.resolve();
+      expect(done).toBe(false);
+      input.emit(event);
+      await ended;
+      release();
+      expect(input.destroy).toHaveBeenCalledOnce();
     }
   });
 });

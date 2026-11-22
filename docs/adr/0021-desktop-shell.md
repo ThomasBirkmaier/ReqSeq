@@ -25,7 +25,7 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
 - **Tests and checks.** `packages/shell/package.json` (`@reqseq/shell`, private) holds the e2e tests in `packages/shell/e2e/` with their own `vitest.shell.config.ts`. The root globs (`packages/*/test/**`, `packages/*/test/e2e/**`) do not reach them. `pnpm typecheck` covers them. `pnpm build` and `pnpm test` do not touch Rust.
 - **Pages.** The pages reach the shell only through ADR-0020's `shell` module in `packages/web/src/shell.ts`. It gets a second implementation, chosen at run time with `isTauri()`, that calls `invoke` of `@tauri-apps/api/core`, pinned exactly to the release that matches the `tauri` crate. Links in element text open through this module too (#2377).
 
-### Start (SR-252 AK1, AK2)
+### Start (SR-252 AK1, AK2, AK10)
 
 1. **Window first.** The shell creates its window hidden, with nothing loaded. If that fails, the shell ends as AK8 says before any server starts.
 2. **The server process.** The shell starts the release's runtime directly, not its launcher script. On Windows this means no `cmd.exe`, no batch parsing and no extra process; on Unix no `sh`.
@@ -34,8 +34,7 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
    - Standard input is a pipe whose write end only the shell holds. Standard output and error are pipes.
    - On Windows the server starts with `CREATE_NO_WINDOW`, so no console window opens. `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` limits the inherited handles to these three pipes. On Unix the server starts in its own process group, so a Ctrl-C in the shell's terminal reaches only the shell.
 3. **Where.** The server's current folder is the root of the file system: `/`, or `%SystemDrive%\` on Windows. The CLI looks for `reqseq-workspace.yaml` from the current folder upwards (ADR-0009), and the root is the only folder with no folder above it.
-   - If the root holds that file, the shell tests it as the CLI does (`isFile`: links followed, a regular file only) and reads nothing. It starts no server and ends as AK5 says, naming that file as the reason.
-   - This case is the question #2386. Its answer may change this.
+   - If the root holds that file, the shell tests it as the CLI does (`isFile`: links followed, a regular file only) and reads nothing, so a file it cannot read counts too. It starts no server and ends as AK5 says, naming that file with its path as the reason (SR-252 AK10).
 4. **The address.** The shell reads standard output line by line until a line `ReqSeq UI on <address>` (the CLI's line, ADR-0020). The address must be `http://` with a loopback host and a port, and must carry `#token=`. Anything else is AK5.
    - Afterwards the shell keeps reading both pipes, so the server never blocks on a full pipe.
    - It keeps the last 2,000 characters of standard error, decoded as UTF-8 with replacement characters.
@@ -156,6 +155,7 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 | SR-252 AK7 | e2e with recorded connections, an element with a remote image and raw HTML | all three |
 | SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display; e2e on Windows: no usable WebView2 runtime (A3) | Ubuntu 24.04, Windows |
 | SR-252 AK9 | e2e: the pages' calls recorded while elements with links and raw HTML load; then one click | all three |
+| SR-252 AK10 | unit: the rule; e2e: a readable and an unreadable workspace file in the folder the e2e build takes for the root (`REQSEQ_SHELL_E2E_ROOT`), no server started, the reason names the file | all three (unreadable: macOS, Linux) |
 | SR-253 AK1 | e2e: each of the four commands, a plugin command and an unknown name refused; unit: dialog inputs | all three |
 | SR-253 AK2 | e2e: a chosen path outside the repositories is refused by the command | all three |
 | SR-249 AK3 | release test (#2379) | all three |
@@ -227,7 +227,7 @@ Each assumption is checked in #2377, except A10, which #2379 checks. If one fail
 - **ADR-0020.** The `shell` module gets its second implementation. Its Start and stop list gets `REQSEQ_UI_END_WITH_STDIN`. Its consequence "A save dialog for a place outside the repositories, with a desktop shell, needs a spec change of SR-248 AK4" is settled by SR-253 AK2: a chosen path is bounded like a typed one. Its release table gains the shell's files (#2379).
 - **Preferences** do not persist between starts of the shell, because the port and so the origin are new on each start.
 - **CI.** A pull request that changes the CLI, the API, the pages or the release build also builds Rust, on Linux in a draft and on Windows, macOS and Linux when ready.
-- **The root case.** The shell cannot start when the root of the file system holds a workspace file (#2386).
+- **The root case.** The shell cannot start when the root of the file system, or on Windows of the system drive, holds a workspace file (SR-252 AK10).
 
 ## Rejected
 

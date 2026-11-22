@@ -505,6 +505,29 @@ describe("reqseq ui", () => {
     }
   });
 
+  it("stops when the input it was given ends, as the desktop shell asks", async () => {
+    let end = (): void => undefined;
+    const ended = new Promise<void>((resolve) => (end = resolve));
+    let asked = 0;
+    const opts = options(["ui", "--no-open"], {
+      cwd: await station(),
+      runtime: getCommandRuntime(),
+      webFolder: await pages(),
+      inputEnded: () => {
+        asked += 1;
+        return ended;
+      },
+    });
+    const exit = runCli(opts);
+    await until(opts.out, "Stop with Ctrl-C.\n");
+    const url = /^ReqSeq UI on (\S+)$/m.exec(opts.out.text)?.[1] ?? "";
+    expect(await get(url)).toBe(200);
+    expect(asked).toBe(1);
+    end();
+    expect(await exit).toBe(EXIT.ok);
+    await expect(get(url)).rejects.toThrow();
+  });
+
   it("does not start on an invalid port or a workspace that is missing", async () => {
     for (const argv of [
       ["ui", "--no-open", "--port", "x"],

@@ -1,0 +1,446 @@
+// The e2e tests of the desktop shell (SR-252, ADR-0021, Test seam): the e2e build of `reqseq-shell` with the CLI
+// of the checkout, driven through its test driver. The recording tests (AK2, AK6, AK7) run on Linux with
+// `strace -f`; on Linux CI the suite runs under Xvfb and a D-Bus session inside `unshare -rn`, so every connection
+// to another machine is refused.
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
+import type { Shell } from "./support.js";
+import {
+  FAKE_SERVER,
+  OPENER,
+  descends,
+  endShells,
+  loopback,
+  openWorkspace,
+  readTrace,
+  requireBuilt,
+  startShell,
+  stopsAnswering,
+  tempFolder,
+} from "./support.js";
+
+const linux = process.platform === "linux";
+const windows = process.platform === "win32";
+const ELEMENT = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
+const LINK = "https://example.org/guide?from=reqseq";
+
+beforeAll(() => {
+  requireBuilt();
+});
+
+afterEach(async () => {
+  await endShells();
+});
+
+/** The fixture workspace with an element whose text holds links, a remote image and raw HTML. */
+async function workspace(): Promise<FixtureWorkspace> {
+  const ws = await createFixtureWorkspace({
+    fixture: "SR-004/one-repository",
+    files: {
+      "requirements/SR-6328cee88fb3.md": [
+        "---",
+        `id: ${ELEMENT}`,
+        "type: system-requirement",
+        "status: draft",
+        "title: Show wind speed",
+        "---",
+        "",
+        `The station shows the current wind speed. See [the guide](${LINK}), [write to us](mailto:someone@example.org)`,
+        "and the picture ![wind](https://192.0.2.7/wind.png).",
+        "",
+        '<a href="https://192.0.2.8/raw">raw link</a> <img src="https://192.0.2.9/raw.png"> <iframe src="https://192.0.2.10/"></iframe>',
+        "",
+      ].join("\n"),
+    },
+  });
+  onTestFinished(() => ws.cleanup());
+  return ws;
+}
+
+/** A folder whose `xdg-open` (Linux) or opener script (macOS, Windows) records each address it gets. */
+async function opener(): Promise<{ env: Record<string, string>; opened: () => Promise<string[][]> }> {
+  const folder = await tempFolder("opener");
+  onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
+  const record = path.join(folder, "opened.jsonl");
+  const env: Record<string, string> = { REQSEQ_OPENED: record };
+  if (linux) {
+    await fs.writeFile(
+      path.join(folder, "xdg-open"),
+      `#!/bin/sh\nexec "${process.execPath}" "${OPENER}" "$@"\n`,
+      { mode: 0o755 },
+    );
+    env["PATH"] = `${folder}${path.delimiter}${process.env["PATH"] ?? ""}`;
+  } else {
+    env["REQSEQ_SHELL_E2E_OPENER"] = OPENER;
+  }
+  const opened = async (): Promise<string[][]> => {
+    const text = await fs.readFile(record, "utf8").catch(() => "");
+    return text
+      .split("\n")
+      .filter((l) => l !== "")
+      .map((l) => JSON.parse(l) as string[]);
+  };
+  return { env, opened };
+}
+
+/** Shows the element with the links in the page and waits until its link is there. */
+async function showElement(shell: Shell, ws: FixtureWorkspace): Promise<void> {
+  await openWorkspace(shell, ws.root);
+  await showRoute(shell, `#/e/${ELEMENT}`);
+  await shell.evalUntil(
+    "the element's link",
+    `document.querySelector('a[href=${JSON.stringify(LINK)}]') !== null`,
+  );
+}
+
+/** Goes to `route` until the page stays there: right after an open, the page may still go to its workspace page. */
+async function showRoute(shell: Shell, route: string): Promise<void> {
+  await shell.evalUntil(
+    `the route ${route}`,
+    `(() => { if (location.hash !== ${JSON.stringify(route)}) { location.hash = ${JSON.stringify(route)}; return false; } return document.readyState === "complete"; })()`,
+  );
+}
+
+/** A page script that asks the shell to open `address` and keeps the answer in `window.__open[key]`. */
+const askOpen = (key: string, address: string): string => `(() => {
+  window.__open = window.__open || {};
+  window.__TAURI_INTERNALS__.invoke("open_address", { address: ${JSON.stringify(address)} })
+    .then(() => { window.__open[${JSON.stringify(key)}] = "opened"; }, (e) => { window.__open[${JSON.stringify(key)}] = "refused: " + String(e); });
+  return true;
+})()`;
+
+const answer = (shell: Shell, key: string): Promise<unknown> =>
+  shell.evalUntil(`the answer for ${key}`, `(window.__open || {})[${JSON.stringify(key)}] || null`);
+
+describe("SR-252: the desktop shell shows the web UI of its release", () => {
+  it("[SR-252/AK-gq7j] the address stops answering within 5 s however the shell ends, and closing the window ends it", async () => {
+    const ends: { name: string; end: (shell: Shell) => void; clean: boolean }[] = [
+      {
+        name: "window closed",
+        end: (s) => {
+          s.send({ close: true });
+        },
+        clean: true,
+      },
+      {
+        name: "crash",
+        end: (s) => {
+          s.send({ crash: true });
+        },
+        clean: false,
+      },
+      ...(windows
+        ? [{ name: "TerminateProcess", end: (s: Shell) => s.child.kill(), clean: false }]
+        : (["SIGTERM", "SIGINT", "SIGHUP", "SIGKILL"] as const).map((signal) => ({
+            name: signal,
+            end: (s: Shell) => s.child.kill(signal),
+            clean: signal !== "SIGKILL",
+          }))),
+    ];
+    for (const { name, end, clean } of ends) {
+      const shell = await startShell();
+      const port = await shell.port();
+      await shell.event("page-load", (v) => String(v).startsWith("Finished"));
+      end(shell);
+      const took = await stopsAnswering(port);
+      expect([name, took !== undefined && took <= 5_000]).toEqual([name, true]);
+      const { code } = await shell.exited;
+      if (clean) {
+        expect([name, code]).toEqual([name, 0]);
+      }
+    }
+  }, 180_000);
+
+  it("[SR-252/AK-bdg4] a server that fails, prints no address or ends is killed and named, and no page of it loads", async () => {
+    const pids = await tempFolder("pids");
+    onTestFinished(() => fs.rm(pids, { recursive: true, force: true }));
+    const fake = (mode: string, extra: Record<string, string> = {}) =>
+      startShell({
+        cli: FAKE_SERVER,
+        env: { REQSEQ_FAKE: mode, REQSEQ_FAKE_PID: path.join(pids, mode), ...extra },
+      });
+    const gone = async (mode: string): Promise<boolean> => {
+      const pid = Number(await fs.readFile(path.join(pids, mode), "utf8"));
+      for (let i = 0; i < 50; i++) {
+        try {
+          process.kill(pid, 0);
+        } catch {
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return false;
+    };
+
+    // It ends with an error: the last 2,000 characters of its standard error are the reason.
+    const fails = await fake("fails");
+    expect((await fails.exited).code).not.toBe(0);
+    const reason = (await fails.event("report")) as string;
+    expect(reason).toContain("Error: the port is taken");
+    expect(reason).not.toContain("HEAD");
+    expect(fails.stderr).toContain("Error: the port is taken");
+    expect(fails.all("page-load")).toEqual([]);
+    expect(fails.all("shown")).toEqual([]);
+
+    // It prints no address: killed, and the reason says so (the wait is shortened from 30 s in the e2e build).
+    const silent = await fake("silent", { REQSEQ_SHELL_E2E_ADDRESS_WAIT_MS: "2000" });
+    expect((await silent.exited).code).not.toBe(0);
+    expect(await silent.event("report")).toBe(
+      "The ReqSeq UI server printed no loopback address within 30 s.",
+    );
+    expect(await gone("silent")).toBe(true);
+    expect(silent.all("page-load")).toEqual([]);
+
+    // It prints the address of another machine: killed, and nothing loaded from there.
+    const elsewhere = await fake("elsewhere");
+    expect((await elsewhere.exited).code).not.toBe(0);
+    expect(String(await elsewhere.event("report"))).toContain("not a loopback address");
+    expect(await gone("elsewhere")).toBe(true);
+    expect(elsewhere.all("page-load")).toEqual([]);
+
+    // It cannot start at all.
+    const missing = await startShell({ node: path.join(pids, "no-such-node") });
+    expect((await missing.exited).code).not.toBe(0);
+    expect(String(await missing.event("report"))).toMatch(/^The ReqSeq UI server could not start: /);
+
+    // It ends while the shell shows it: the shell names it and loads nothing more.
+    const ends = await fake("ends");
+    await ends.shown();
+    expect((await ends.exited).code).not.toBe(0);
+    expect(String(await ends.event("report"))).toContain("Error: the server stopped");
+    const loadsAfterReport = ends.events.slice(ends.events.findIndex((e) => e.kind === "report"));
+    expect(loadsAfterReport.filter((e) => e.kind === "page-load")).toEqual([]);
+  }, 120_000);
+
+  it("[SR-252/AK-vfnt] a workspace file at the root, readable or not, starts no server and names the file", async () => {
+    // The e2e build takes `REQSEQ_SHELL_E2E_ROOT` for the root of the file system (or of the system drive).
+    const root = await tempFolder("root");
+    onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+    const file = path.join(root, "reqseq-workspace.yaml");
+    const pid = path.join(root, "server.pid");
+    await fs.writeFile(file, "name: at the root\n");
+    const cases = windows ? ["readable"] : ["readable", "unreadable"];
+    for (const name of cases) {
+      if (name === "unreadable") {
+        await fs.chmod(file, 0o000);
+      }
+      const shell = await startShell({
+        cli: FAKE_SERVER,
+        env: { REQSEQ_SHELL_E2E_ROOT: root, REQSEQ_FAKE: "silent", REQSEQ_FAKE_PID: pid },
+      });
+      expect((await shell.exited).code, name).not.toBe(0);
+      const reason = String(await shell.event("report"));
+      expect(reason, name).toContain(file);
+      expect(reason, name).toMatch(/^ReqSeq cannot start its UI server: /);
+      expect(shell.stderr, name).toContain(file);
+      expect(shell.all("shown"), name).toEqual([]);
+      expect(shell.all("page-load"), name).toEqual([]);
+      await expect(fs.access(pid), name).rejects.toThrow();
+    }
+  }, 60_000);
+
+  it("[SR-252/AK-m1m2] hands full http, https and mailto addresses to the system's opener and refuses the own server and the rest", async () => {
+    const ws = await workspace();
+    const open = await opener();
+    const shell = await startShell({ env: open.env });
+    const origin = await shell.shown();
+    const port = new URL(origin).port;
+    await showElement(shell, ws);
+
+    // A click on a link of the element text.
+    await shell.eval(
+      `(() => { document.querySelector('a[href=${JSON.stringify(LINK)}]').click(); return true; })()`,
+    );
+    for (const [key, address] of [
+      ["mail", "MAILTO:someone@example.org"],
+      ["https", "HTTPS://Example.org/x"],
+      ["loopback other port", `http://127.0.0.1:${String(Number(port) + 1)}/`],
+    ] as const) {
+      await shell.eval(askOpen(key, address));
+      expect([key, await answer(shell, key)]).toEqual([key, "opened"]);
+    }
+    for (const [key, address] of [
+      ["own", origin],
+      ["own with token", `${origin}/#token=x`],
+      ["own as localhost", `http://localhost:${port}/`],
+      ["own as 127.1", `http://127.1:${port}/`],
+      ["own as ::1", `http://[::1]:${port}/`],
+      ["no scheme", "example.org/x"],
+      ["relative", "#/e/x"],
+      ["empty", ""],
+      ["file", "file:///etc/passwd"],
+      ["javascript", "javascript:alert(1)"],
+    ] as const) {
+      await shell.eval(askOpen(key, address));
+      expect([key, String(await answer(shell, key))]).toEqual([
+        key,
+        expect.stringMatching(/^refused: Not opened: /),
+      ]);
+    }
+    const handed = await (async () => {
+      for (let i = 0; i < 50; i++) {
+        const list = await open.opened();
+        if (list.length >= 4) {
+          return list;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return open.opened();
+    })();
+    expect(handed.sort()).toEqual(
+      [
+        [LINK],
+        ["mailto:someone@example.org"],
+        ["https://example.org/x"],
+        [`http://127.0.0.1:${String(Number(port) + 1)}/`],
+      ].sort(),
+    );
+    // Nothing of it loads in the window, which still shows its server.
+    expect(await shell.eval("location.origin")).toBe(origin);
+    expect(shell.all("navigation").filter((n) => !String(n).startsWith("allowed"))).toEqual([]);
+
+    // Without an opener the shell keeps running and the page learns it.
+    const lonely = await startShell({
+      env: linux
+        ? { ...open.env, PATH: path.dirname(process.execPath) }
+        : { ...open.env, REQSEQ_SHELL_E2E_OPENER_NODE: path.join(ws.root, "no-node") },
+    });
+    await lonely.shown();
+    await lonely.eval(askOpen("none", "https://example.org/"));
+    expect(String(await answer(lonely, "none"))).toMatch(/^refused: No program could open the address/);
+    expect(await lonely.eval("1 + 1")).toBe(2);
+    expect(lonely.child.exitCode).toBeNull();
+  }, 120_000);
+
+  it("[SR-252/AK-cykp] loading pages and elements with links and raw HTML asks for no address; one click asks for exactly its own", async () => {
+    const ws = await workspace();
+    const open = await opener();
+    const shell = await startShell({ env: open.env });
+    await shell.shown();
+    await showElement(shell, ws);
+    await showRoute(shell, "#/q/overview");
+    await showRoute(shell, `#/e/${ELEMENT}`);
+    await shell.evalUntil(
+      "the link again",
+      `document.querySelector('a[href=${JSON.stringify(LINK)}]') !== null`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    expect(shell.all("open_address")).toEqual([]);
+    await shell.eval(
+      `(() => { document.querySelector('a[href=${JSON.stringify(LINK)}]').click(); return true; })()`,
+    );
+    await shell.event("open_address");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(shell.all("open_address")).toEqual([LINK]);
+  }, 90_000);
+});
+
+describe.runIf(linux)(
+  "SR-252: what the desktop shell starts, opens, writes and connects to (strace, Linux)",
+  () => {
+    it("[SR-252/AK-nhyc] the token is in no argument, no output of the shell and no file it writes", async () => {
+      const shell = await startShell({ record: true });
+      await shell.shown();
+      // The page's answer passes the shell's filter too, so the token comes back encoded.
+      const token = Buffer.from(
+        String(
+          await shell.evalUntil("the token", "btoa(sessionStorage.getItem('reqseq.token') || '') || null"),
+        ),
+        "base64",
+      ).toString("utf8");
+      expect(token).toMatch(/^[\w-]{20,}$/);
+      await shell.eval(
+        "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
+      );
+      shell.send({ close: true });
+      expect((await shell.exited).code).toBe(0);
+      expect(shell.stdout).not.toContain(token);
+      expect(shell.stderr).not.toContain(token);
+      const recorded = await readTrace(shell.trace ?? "");
+      expect(recorded.execs.length).toBeGreaterThan(1);
+      expect(recorded.execs.filter((e) => e.argv.includes(token) || e.program.includes(token))).toEqual([]);
+      const server = recorded.execs.find((e) => e.argv.includes('"ui", "--no-open"'));
+      expect(server).toBeDefined();
+      const written = [
+        ...new Set(
+          recorded.opens
+            .filter((o) => o.write && !descends(recorded, o.pid, server?.pid ?? -1))
+            .map((o) => o.path),
+        ),
+      ];
+      const holding: string[] = [];
+      for (const file of written) {
+        // The engine's data folder is the exception (SR-252 AK2); devices and the process's own files are no files
+        // the shell writes.
+        if (/^\/(?:dev|proc|sys)\//.test(file) || file.includes("io.github.thomasbirkmaier.reqseq")) {
+          continue;
+        }
+        const content = await fs.readFile(file, "utf8").catch(() => "");
+        if (content.includes(token)) {
+          holding.push(file);
+        }
+      }
+      expect(holding).toEqual([]);
+    }, 90_000);
+
+    it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file", async () => {
+      const ws = await workspace();
+      const shell = await startShell({ record: true });
+      await shell.shown();
+      await showElement(shell, ws);
+      // The change goes through the server as the page's edit does: read the element, then change it.
+      const changed = await shell.eval(`(() => {
+      window.__changed = null;
+      const call = (name, input) => fetch("api/" + name, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer " + sessionStorage.getItem("reqseq.token"), "x-reqseq-workspace": String(window.__generation) },
+        body: JSON.stringify(input),
+      });
+      call("element.get", { ref: "${ELEMENT}" })
+        .then((r) => r.json())
+        .then((got) => call("element.update", { ref: "${ELEMENT}", title: "Show wind speed and gusts", expectedFileSha256: got.fileSha256 }))
+        .then(async (r) => { window.__changed = r.status === 200 ? 200 : r.status + " " + (await r.text()); }, (e) => { window.__changed = String(e); });
+      return true;
+    })()`);
+      expect(changed).toBe(true);
+      expect(await shell.evalUntil("the change", "window.__changed")).toBe(200);
+      expect(await fs.readFile(path.join(ws.root, "requirements", "SR-6328cee88fb3.md"), "utf8")).toContain(
+        "title: Show wind speed and gusts",
+      );
+      shell.send({ close: true });
+      expect((await shell.exited).code).toBe(0);
+      const recorded = await readTrace(shell.trace ?? "");
+      const server = recorded.execs.find((e) => e.argv.includes('"ui", "--no-open"'));
+      const shellPid = recorded.execs.find((e) => e.program.endsWith("reqseq-shell"))?.pid ?? -1;
+      expect(server).toBeDefined();
+      const started = recorded.execs.filter(
+        (e) =>
+          e.pid !== shellPid &&
+          descends(recorded, e.pid, shellPid) &&
+          !descends(recorded, e.pid, server?.pid ?? -1),
+      );
+      const engine = /\/webkit2gtk-4\.1\/WebKit(?:Web|Network|GPU)Process$/;
+      expect(started.filter((e) => !engine.test(e.program))).toEqual([]);
+      const opened = recorded.opens.filter(
+        (o) => o.path.startsWith(ws.root) && !descends(recorded, o.pid, server?.pid ?? -1),
+      );
+      expect(opened).toEqual([]);
+    }, 90_000);
+
+    it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine", async () => {
+      const ws = await workspace();
+      const shell = await startShell({ record: true });
+      await shell.shown();
+      await showElement(shell, ws);
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      shell.send({ close: true });
+      expect((await shell.exited).code).toBe(0);
+      const recorded = await readTrace(shell.trace ?? "");
+      expect(recorded.connections.length).toBeGreaterThan(0);
+      expect(recorded.connections.filter((c) => !loopback(c.address)).map((c) => c.line)).toEqual([]);
+    }, 90_000);
+  },
+);

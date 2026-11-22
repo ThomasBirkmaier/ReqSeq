@@ -3,7 +3,7 @@
 // every text and attribute. Its HTML is the only markup a page inserts; every other string goes in as text.
 // - A `reqseq:` reference becomes a hash route to its element, with the way back to the element shown.
 // - Links (http, https and mailto only, as the renderer keeps them) open on a click in a new browsing context
-//   without opener.
+//   without opener, and in the desktop shell through its opener of the operating system (`shell.ts`).
 // - An image of the repository is read with `element.readImage` and shown from a `blob:` URL the page makes of its
 //   bytes (the page CSP allows `blob:` images), revoked once the image has loaded; an image that cannot be read stays
 //   its Markdown text. A diagram stays its source; a formula is set by KaTeX, whose style sheet and fonts are files
@@ -14,6 +14,7 @@ import { renderMarkdown } from "@reqseq/core/markdown";
 import { call } from "./api.js";
 import { h } from "./dom.js";
 import { hashOf } from "./router.js";
+import { opensOutside } from "./shell.js";
 import { el, refOf } from "./store.js";
 
 /** An image of the repository, as the renderer names it. */
@@ -88,6 +89,7 @@ export async function markdown(
     if (/^(?:https?|mailto):/i.test(link.getAttribute("href") ?? "")) {
       link.target = "_blank";
       link.rel = "noopener noreferrer";
+      opensOutside(link);
     }
   }
   for (const image of template.content.querySelectorAll<HTMLImageElement>("img[src^='blob:']")) {

@@ -114,6 +114,34 @@ jobs:
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
+  # Whether the steps of the desktop shell run in `checks` (ADR-0021, Lean CI): `.github/scripts/tests-needed.sh shell`,
+  # the base branch's copy, on a pull request. A job of its own, because the time bounds of `checks` grow only when
+  # those steps run, and a job's bound cannot read a step of the same job. Nightly and manual runs leave the output
+  # empty, and empty means "run". If the classifier fails, the output is `true`.
+  shell-scope:
+    name: shell scope
+    timeout-minutes: 3
+    if: ${{ github.event.action != 'closed' }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    outputs:
+      shell: ${{ steps.scope.outputs.shell }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Changed files
+        id: scope
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          shell="$(git diff --name-only --no-renames HEAD^1 HEAD | bash <(git show HEAD^1:.github/scripts/tests-needed.sh) shell)" || shell=true
+          echo "shell=$shell" >> "$GITHUB_OUTPUT"
+          echo "Desktop shell steps needed: \`$shell\`" >> "$GITHUB_STEP_SUMMARY"
+
   # Build, unit tests with coverage (ADR-0016), the spec check and the CLI e2e suite (ADR-0011), on Ubuntu in the
   # Ubuntu lane. `checks-platform` runs the same steps on macOS and Windows.
   # SR-249: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
@@ -122,8 +150,11 @@ jobs:
     # A pull request run takes about 10 minutes, but about 1 in 4 hosted runners is about 1.5 times slower in every step,
     # and there it takes 14-17 minutes (#1994); the bound of 15 cancelled green runs. The performance suite's assertions
     # on a small workspace add about 1 minute, 1.5 on a slow runner (#2037). 22 leaves about 3 minutes over the slowest
-    # healthy run and still ends a hang. The nightly gets up to 5 more for the status model step.
-    timeout-minutes: ${{ github.event_name == 'schedule' && 27 || 22 }}
+    # healthy run and still ends a hang. The nightly gets up to 5 more for the status model step. The steps of the
+    # desktop shell add 15 more when they run (ADR-0021): cold, without a build cache, clippy, the coverage build and
+    # the e2e build took about 3.5 minutes on 4 cores, plus the system packages, the cargo tools and the e2e suite (#2377).
+    timeout-minutes: ${{ github.event_name == 'schedule' && 42 || needs.shell-scope.outputs.shell != 'false' && 37 || 22 }}
+    needs: shell-scope
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
@@ -285,6 +316,96 @@ jobs:
           node scripts/package/stage.mjs --docs-site
           pnpm docs:export-theme --check
 
+      # ADR-0021: the desktop shell (packages/shell/, Rust and Tauri) when `shell-scope` asks for it. The same steps run
+      # on all three systems, with `runner.os` guards for the setup. Cargo fetches the crates once with the lockfile;
+      # every later cargo call is offline.
+      - name: Shell - system packages (Linux)
+        id: shell-packages
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && runner.os == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev xvfb xauth strace dbus
+      - name: Shell - Rust toolchain
+        id: shell-toolchain
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && steps.shell-packages.outcome != 'failure' }}
+        working-directory: packages/shell
+        shell: bash
+        # rust-toolchain.toml names the version and its components.
+        run: |
+          rustup toolchain install
+          rustc --version
+      # The crates and the two cargo tools, keyed on the lockfile and the tool versions. The build folder is not cached:
+      # it is several GB.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() && steps.shell-toolchain.outcome == 'success' }}
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/bin/cargo-llvm-cov*
+            ~/.cargo/bin/cargo-audit*
+          key: shell-cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1-audit-0.22.2
+      - name: Shell - fetch the crates
+        id: shell-fetch
+        if: ${{ !cancelled() && steps.shell-toolchain.outcome == 'success' }}
+        working-directory: packages/shell
+        run: cargo fetch --locked
+      - name: Shell - cargo tools (Linux)
+        id: shell-tools
+        if: ${{ !cancelled() && steps.shell-toolchain.outcome == 'success' && runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          command -v cargo-llvm-cov >/dev/null || cargo install --locked cargo-llvm-cov@0.9.1
+          command -v cargo-audit >/dev/null || cargo install --locked cargo-audit@0.22.2
+      - name: Shell - format
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' }}
+        working-directory: packages/shell
+        run: cargo fmt --all --check
+      # The `e2e` feature included, so that the driver is linted too (ADR-0021, Quality gates).
+      - name: Shell - lint
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' }}
+        working-directory: packages/shell
+        run: cargo clippy --locked --offline --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+      # Linux measures the coverage of the libraries at 100 % per file (ADR-0016, ADR-0021); the other systems run the
+      # same tests without it.
+      - name: Shell - unit tests
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && runner.os != 'Linux' }}
+        working-directory: packages/shell
+        run: cargo test --locked --offline --workspace
+      - name: Shell - unit tests with coverage (Linux)
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && steps.shell-tools.outcome == 'success' }}
+        working-directory: packages/shell
+        run: cargo llvm-cov --locked --offline --workspace --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100
+      # The licences of the crates the shell ships, against ADR-0015's allowlist, for the three release targets.
+      - name: Shell - crate licences (Linux)
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && runner.os == 'Linux' }}
+        run: node scripts/licenses/crates.mjs
+      # The RustSec database; an advisory that is not informational fails the step. The lockfile is the same on every
+      # system, so Linux checks it once.
+      - name: Shell - audit (Linux)
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && steps.shell-tools.outcome == 'success' }}
+        working-directory: packages/shell
+        run: cargo audit
+      - name: Shell - e2e build
+        id: shell-e2e-build
+        if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' }}
+        run: pnpm --filter @reqseq/shell build:e2e
+      # The e2e suite (packages/shell/e2e/) starts the shell with the CLI of the checkout. On Linux it runs without
+      # network, on a virtual display and with a session bus of its own, and records the shell with strace (A8).
+      - name: Shell - e2e
+        if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os != 'Linux' }}
+        timeout-minutes: 10
+        run: pnpm --filter @reqseq/shell test:e2e
+      - name: Shell - e2e without network (unshare -rn, Linux)
+        if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'Linux' }}
+        timeout-minutes: 10
+        working-directory: packages/shell
+        run: |
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'
+
       # The status model properties (epic #1389) again with a random seed and more runs, in the nightly run only; pull
       # requests keep the fixed seeds. The seed is printed first, so a red run replays with it. The dot reporter leaves
       # the JUnit file of the unit tests (the evidence) as it is. It runs last before the uploads, so a slow run never cancels
@@ -309,6 +430,7 @@ jobs:
           path: |
             test-results/
             !test-results/junit-e2e.xml
+            !test-results/junit-shell.xml
           if-no-files-found: ignore
       - name: Upload JUnit results of the e2e suite (evidence, D-050)
         if: always()
@@ -316,6 +438,13 @@ jobs:
         with:
           name: junit-e2e-${{ matrix.os || 'ubuntu-24.04' }}
           path: test-results/junit-e2e.xml
+          if-no-files-found: ignore
+      - name: Upload JUnit results of the shell's e2e suite (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-shell-${{ matrix.os || 'ubuntu-24.04' }}
+          path: test-results/junit-shell.xml
           if-no-files-found: ignore
 
   # The platform lane (#303, #412): the steps of `checks` on macOS 26 and Windows 2025, in parallel
@@ -328,7 +457,11 @@ jobs:
     # 2 workers instead of 3 (vitest.config.ts, #701): the 163 green Windows jobs of 2026-11-17 to 20 took 25.9 minutes
     # in the median and up to 34.1, their unit tests up to 26.1, and a runner 6 % slower than that hit the old bound
     # of 35 with every test green (#2039). 42 is about 20 % over the slowest green job and still ends a hang.
-    timeout-minutes: ${{ matrix.os == 'windows-2025' && 42 || 25 }}
+    # The steps of the desktop shell add 15 more when they run (ADR-0021, see `checks`).
+    timeout-minutes: >-
+      ${{ matrix.os == 'windows-2025' && (needs.shell-scope.outputs.shell != 'false' && 57 || 42) ||
+      (needs.shell-scope.outputs.shell != 'false' && 40 || 25) }}
+    needs: shell-scope
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:

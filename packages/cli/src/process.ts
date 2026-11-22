@@ -102,3 +102,28 @@ export function connectProcess(proc: ProcessLike): ProcessIo {
     },
   };
 }
+
+/** The parts of `process.stdin` that `inputEnded` uses. */
+export interface InputLike {
+  on(event: "end" | "close" | "error", listener: () => void): unknown;
+  resume(): unknown;
+  destroy(): unknown;
+}
+
+/**
+ * Standard input read and dropped until it ends (`end`, `close` or an error), for `ui` under
+ * `REQSEQ_UI_END_WITH_STDIN=1` (ADR-0021, End): the desktop shell holds its only write end, so it ends when the
+ * shell closes it or the shell dies. `release` stops reading, so the process can exit.
+ */
+export function inputEnded(input: InputLike): {
+  readonly ended: Promise<void>;
+  readonly release: () => void;
+} {
+  const ended = new Promise<void>((resolve) => {
+    for (const event of ["end", "close", "error"] as const) {
+      input.on(event, resolve);
+    }
+  });
+  input.resume();
+  return { ended, release: () => input.destroy() };
+}

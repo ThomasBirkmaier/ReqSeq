@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/shell-e2e.tsbuildinfo",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["e2e/**/*.ts", "vitest.shell.config.ts"],
+  "references": [{ "path": "../testkit" }]
+}

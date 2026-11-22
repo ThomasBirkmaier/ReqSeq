@@ -20,7 +20,13 @@
 # (fixtures/README.md is read by a testkit test), packages/ (README files included), schemas/, scripts/,
 # .github/, toolchain scripts and root configuration. Fail-safe: no paths at all, or a path Git quotes
 # (unusual characters), also prints `true`.
+#
+# With the argument `shell`, it prints `true` when the steps of the desktop shell must run (ADR-0021, Lean CI):
+# for changes to the shell itself, to what it starts or shows (the web UI, the UI server in api and cli), to the
+# release assembly, to its packaging files and to the workflows. Fail-safe as above.
 set -euo pipefail
+
+mode="${1:-tests}"
 
 # Reads all input (no early exit), so that a writer into a pipe never gets SIGPIPE.
 count=0
@@ -28,6 +34,13 @@ needed=false
 while IFS= read -r path || [ -n "$path" ]; do
   [ -z "$path" ] && continue
   count=$((count + 1))
+  if [ "$mode" = shell ]; then
+    case "$path" in
+      packages/shell/* | packages/web/* | packages/api/* | packages/cli/* | scripts/package/* | \
+        scripts/licenses/crates.mjs | toolchain/packaging/* | .github/* | \"*) needed=true ;;
+    esac
+    continue
+  fi
   # In `case`, `*` also matches `/`.
   case "$path" in
     # First: `case` takes the first arm that matches, and the next arm would take toolchain/junit/*.md.

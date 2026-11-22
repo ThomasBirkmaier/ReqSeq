@@ -14,10 +14,13 @@ try {
   // No cache folder: start without the cache.
 }
 const { EXIT, runCli } = await import("./main.js");
-const { connectProcess } = await import("./process.js");
+const { connectProcess, inputEnded } = await import("./process.js");
 const { terminalOf } = await import("./style.js");
 
 const io = connectProcess(process);
+// The desktop shell ends `reqseq ui` by closing its standard input (ADR-0021, End); only the shell sets this.
+let input: ReturnType<typeof inputEnded> | undefined;
+const endWithInput = process.env["REQSEQ_UI_END_WITH_STDIN"] === "1";
 const exitCode = await runCli({
   argv: process.argv.slice(2),
   cwd: process.cwd(),
@@ -27,5 +30,7 @@ const exitCode = await runCli({
   signal: io.signal,
   // The terminal layout on a terminal, colours unless NO_COLOR (#988); asked once here, so the renderers stay pure.
   terminal: terminalOf(process.stdout, process.env),
+  ...(endWithInput ? { inputEnded: () => (input = inputEnded(process.stdin)).ended } : {}),
 });
+input?.release();
 process.exitCode = io.writeFailed ? EXIT.internal : exitCode;

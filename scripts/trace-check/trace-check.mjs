@@ -19,7 +19,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import YAML from "yaml";
 
-const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq"]);
+const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq", "target"]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$|^test_.*\.py$|_test\.py$/;
 // The cross-access scenarios of each command, in the modules that cross-access.test.ts loads with its
 // glob `./cross-access/scenarios/*/*.ts`: exactly one folder deep (#527).

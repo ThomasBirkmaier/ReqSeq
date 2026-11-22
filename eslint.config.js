@@ -26,6 +26,9 @@ const testFiles = [
   "packages/cli/test/cross-access/**/*.ts",
   // The UI tests of the web UI and their starter (Playwright, ADR-0020).
   "packages/web/test/**/*.ts",
+  // The e2e tests of the desktop shell and their driver (ADR-0021).
+  "packages/shell/e2e/**/*.ts",
+  "packages/shell/vitest.shell.config.ts",
 ];
 // The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.
 const appPerfFiles = ["packages/app/test/perf/**/*.ts"];
@@ -51,6 +54,9 @@ export default tseslint.config(
       // The documentation site's cache and its content folder, filled by `pnpm docs:generate` (ADR-0017).
       "packages/docs/site/.astro/**",
       "packages/docs/site/src/content/docs/**",
+      // Cargo's build folder and what tauri-build writes next to the shell crate (ADR-0021).
+      "packages/shell/target/**",
+      "packages/shell/shell/gen/**",
     ],
   },
   js.configs.recommended,
