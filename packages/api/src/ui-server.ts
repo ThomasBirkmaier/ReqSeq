@@ -103,7 +103,7 @@ const COMMON_HEADERS = {
 
 /** The CSP of the pages (ADR-0020 "Response headers"). */
 export const PAGE_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; " +
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; " +
   "font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; " +
   "base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 

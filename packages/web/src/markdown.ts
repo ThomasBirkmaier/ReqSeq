@@ -4,20 +4,54 @@
 // - A `reqseq:` reference becomes a hash route to its element, with the way back to the element shown.
 // - Links (http, https and mailto only, as the renderer keeps them) open on a click in a new browsing context
 //   without opener.
-// - An image of the repository stays its Markdown text until a command reads image files; a diagram stays its
-//   source; a formula is set by KaTeX, whose style sheet and fonts are files of the build.
+// - An image of the repository is read with `element.readImage` and shown from a `blob:` URL the page makes of its
+//   bytes (the page CSP allows `blob:` images), revoked once the image has loaded; an image that cannot be read stays
+//   its Markdown text. A diagram stays its source; a formula is set by KaTeX, whose style sheet and fonts are files
+//   of the build.
 import "katex/dist/katex.min.css";
-import type { TextContext } from "@reqseq/core/markdown";
+import type { ImageOutcome, TextContext } from "@reqseq/core/markdown";
 import { renderMarkdown } from "@reqseq/core/markdown";
+import { call } from "./api.js";
 import { h } from "./dom.js";
 import { hashOf } from "./router.js";
 import { el, refOf } from "./store.js";
 
-/** The context of the texts of the element in `file`, shown on the page of `from` (an encoded route, see `fromOf`). */
-const contextOf = (file: string, from: string): TextContext => ({
-  elementFile: file,
+/** An image of the repository, as the renderer names it. */
+type ImageLink = Parameters<TextContext["image"]>[0];
+
+/** The element whose texts are shown; no `id` while it is not created yet. */
+export interface TextOwner {
+  readonly id?: string | undefined;
+  readonly repository?: string | undefined;
+  readonly file: string;
+}
+
+/** Image bytes from `element.readImage` as a `blob:` URL, or why the image is not shown. */
+async function imageOf(owner: TextOwner, link: ImageLink): Promise<ImageOutcome> {
+  const notShown = { code: "html.image-not-copied", reason: "is not shown" } as const;
+  if (owner.id === undefined || link.missing) {
+    return notShown;
+  }
+  try {
+    const { content, mediaType } = await call("element.readImage", {
+      ref: owner.id,
+      // The command decodes the destination again, so each name goes in encoded.
+      destination: link.path.split("/").map(encodeURIComponent).join("/"),
+      ...(owner.repository === undefined ? {} : { repository: owner.repository }),
+      file: owner.file,
+    });
+    const bytes = Uint8Array.from(atob(content), (c) => c.charCodeAt(0));
+    return { src: URL.createObjectURL(new Blob([bytes], { type: mediaType })) };
+  } catch {
+    return notShown;
+  }
+}
+
+/** The context of the texts of `owner`, shown on the page of `from` (an encoded route, see `fromOf`). */
+const contextOf = (owner: TextOwner, from: string): TextContext => ({
+  elementFile: owner.file,
   ignored: () => false,
-  image: (link) => Promise.resolve({ code: "html.image-not-copied", reason: `${link.path} is not shown` }),
+  image: (link) => imageOf(owner, link),
   reference: ({ id }) => {
     const target = el(id);
     return {
@@ -26,10 +60,10 @@ const contextOf = (file: string, from: string): TextContext => ({
   },
 });
 
-/** `text` rendered as Markdown into a block of class `cls`. */
+/** `text` of `owner` rendered as Markdown into a block of class `cls`. */
 export async function markdown(
   text: string | undefined,
-  file: string,
+  owner: TextOwner,
   from: string,
   cls: string,
 ): Promise<HTMLElement> {
@@ -37,7 +71,7 @@ export async function markdown(
   if (text === undefined || text.trim() === "") {
     return block;
   }
-  const { html } = await renderMarkdown(text, contextOf(file, from));
+  const { html } = await renderMarkdown(text, contextOf(owner, from));
   const template = document.createElement("template");
   template.innerHTML = html;
   for (const link of template.content.querySelectorAll<HTMLAnchorElement>("a[href]")) {
@@ -45,6 +79,13 @@ export async function markdown(
       link.target = "_blank";
       link.rel = "noopener noreferrer";
     }
+  }
+  for (const image of template.content.querySelectorAll<HTMLImageElement>("img[src^='blob:']")) {
+    const revoke = (): void => {
+      URL.revokeObjectURL(image.src);
+    };
+    image.addEventListener("load", revoke, { once: true });
+    image.addEventListener("error", revoke, { once: true });
   }
   block.append(template.content);
   return block;
