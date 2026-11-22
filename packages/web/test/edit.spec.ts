@@ -3,7 +3,7 @@
 // they run on a workspace of their own (`ui` below), never the one the other pages' tests read.
 import fs from "node:fs";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { CommandTypes } from "@reqseq/core";
 import type { Ui } from "./fixtures.js";
 import { expect, test as base } from "./fixtures.js";
@@ -314,6 +314,49 @@ test("editing sends only a changed choice and a swapped relation, and keeps line
   if (plain !== undefined) {
     expect(after.element.properties[plain.key]).toBe("Line 1\nLine 2");
   }
+});
+
+test("an open search keeps its hits when the workspace changes while it is open", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const { made, kind, second } = await byParts(ui.run);
+  const { type } = await requirementType(ui.run);
+  await open(`/edit/${refOf(made.element)}`);
+  const option = page.locator(`[role=option][data-id="${second.id}"]`).first();
+  /** The workspace changes elsewhere, and the form is drawn again around `field`. */
+  const redrawn = async (field: Locator, title: string): Promise<void> => {
+    await field.evaluate((x: HTMLElement) => {
+      x.dataset["before"] = "yes";
+    });
+    await ui.run("element.create", { type: type.key, title });
+    await expect.poll(() => field.evaluate((x: HTMLElement) => x.dataset["before"] ?? "")).toBe("");
+    await expect(field).toBeFocused();
+    await expect(option).toHaveAttribute("aria-selected", "true");
+  };
+  // A search field of its own: the query and its hits stay, and Enter picks the active hit.
+  const search = page.locator(`.ed-field[data-kind="${kind.key}"] .pick-input`);
+  await expect(async () => {
+    await search.fill("");
+    await search.fill(refOf(second));
+    await expect(option).toBeVisible({ timeout: 2000 });
+  }).toPass();
+  await redrawn(search, "Made while searching");
+  await expect(search).toHaveValue(refOf(second));
+  await search.press("Enter");
+  await expect(
+    page.locator(`.ed-field[data-kind="${kind.key}"] .ed-chip[data-id="${second.id}"]`),
+  ).toBeVisible();
+  // A link typed into a text: Enter links the element instead of breaking the line.
+  const text = page.locator("#f-text");
+  await text.fill("See ");
+  await text.press("End");
+  await text.pressSequentially(`[[${refOf(second)}`);
+  await expect(option).toBeVisible();
+  await redrawn(text, "Made while linking");
+  await text.press("Enter");
+  await expect(text).toHaveValue(new RegExp(`^See \\[.+\\]\\(reqseq:${refOf(second)}\\)$`));
 });
 
 test("typed text stays when the workspace changes, and a change of the same file elsewhere stops the save", async ({

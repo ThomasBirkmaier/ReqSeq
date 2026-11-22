@@ -65,6 +65,30 @@ async function find(query: string, types: readonly string[] | undefined): Promis
 
 let pickers = 0;
 
+/** An open list of hits: what a redraw of the form carries over to the picker drawn in its place. */
+export interface OpenPick {
+  /** What the search field holds (a field of its own), else the query typed into the text. */
+  readonly query: string;
+  /** The hits shown, with the active one; none while a search for the query is still under way. */
+  readonly hits: readonly Target[] | undefined;
+  readonly active: number;
+}
+
+/** The open list of each picker, by the field it belongs to. */
+const opened = new WeakMap<HTMLElement, () => OpenPick | undefined>();
+const reopeners = new WeakMap<HTMLElement, (open: OpenPick) => void>();
+
+/** The open list of the picker of `field`, if any. */
+export const openPickOf = (field: Element | null): OpenPick | undefined =>
+  field instanceof HTMLElement ? opened.get(field)?.() : undefined;
+
+/** Opens the picker of `field` with the list another picker had open (after a redraw), without a new search. */
+export function reopenPick(field: Element | null, open: OpenPick): void {
+  if (field instanceof HTMLElement) {
+    reopeners.get(field)?.(open);
+  }
+}
+
 export interface Picker {
   readonly root: HTMLElement;
   readonly input: HTMLInputElement;
@@ -108,6 +132,9 @@ export function picker(options: PickerOptions): Picker {
   let hits: Target[] = [];
   let active = -1;
   let asked = 0;
+  let query = "";
+  // Whether a search for `query` is still under way.
+  let pending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   // One of the two is given: the field of its own, or the text it searches in.
   const owner: HTMLElement = input ?? options.field ?? h("textarea");
@@ -115,6 +142,8 @@ export function picker(options: PickerOptions): Picker {
   const close = (): void => {
     clearTimeout(timer);
     asked += 1;
+    pending = false;
+    query = "";
     hits = [];
     active = -1;
     list.hidden = true;
@@ -137,10 +166,10 @@ export function picker(options: PickerOptions): Picker {
     close();
     options.onPick(target);
   };
-  const show = (): void => {
+  const show = (keep = -1): void => {
     const taken = new Set(options.taken?.() ?? []);
     hits = hits.filter((t) => !taken.has(t.id));
-    active = hits.length > 0 ? 0 : -1;
+    active = hits.length === 0 ? -1 : Math.min(Math.max(keep, 0), hits.length - 1);
     list.replaceChildren(
       ...hits.map((t, at) =>
         h(
@@ -169,23 +198,27 @@ export function picker(options: PickerOptions): Picker {
     status.textContent = hits.length === 0 ? "Nothing found." : "";
     mark();
   };
-  const search = (query: string): void => {
+  const search = (typed: string): void => {
     clearTimeout(timer);
     const mine = ++asked;
-    if (query.trim() === "") {
+    query = typed;
+    if (typed.trim() === "") {
       close();
       return;
     }
+    pending = true;
     timer = setTimeout(() => {
-      void find(query, options.types)
+      void find(typed, options.types)
         .then((found) => {
           if (mine === asked) {
+            pending = false;
             hits = found;
             show();
           }
         })
         .catch(() => {
           if (mine === asked) {
+            pending = false;
             hits = [];
             show();
             status.textContent = "The search did not answer. Try again.";
@@ -228,6 +261,27 @@ export function picker(options: PickerOptions): Picker {
       search(input.value);
     });
   }
+  opened.set(owner, () => {
+    const typed = input?.value ?? query;
+    if (pending) {
+      return { query: typed, hits: undefined, active: -1 };
+    }
+    return list.hidden === true && typed === ""
+      ? undefined
+      : { query: typed, hits: list.hidden === true ? [] : [...hits], active };
+  });
+  reopeners.set(owner, (open) => {
+    if (input !== null) {
+      input.value = open.query;
+    }
+    if (open.hits === undefined) {
+      search(open.query);
+    } else if (open.hits.length > 0) {
+      query = open.query;
+      hits = [...open.hits];
+      show(open.active);
+    }
+  });
   return {
     root: h("div", { class: "pick" }, input, list, status),
     input: input ?? h("input"),
