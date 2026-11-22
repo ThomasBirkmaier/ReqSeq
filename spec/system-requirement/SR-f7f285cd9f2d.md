@@ -1,7 +1,7 @@
 ---
 id: 50cc0c7e-73a4-48ce-95de-f7f285cd9f2d
 type: system-requirement
-status: approved
+status: obsolete
 title: Nachweisstatus von Kern und Varianten als Plaketten zeigen
 spec-id: SR-157
 rationale: "Der Nachweisstatus je Variante, den die Seite eines Requirements bisher als Textzeile zeigt (SR-047 AK3), soll aussehen wie die Badges einer GitHub-README, in Pillenform, mit dem Namen der Variante auf der einen und dem Status auf der anderen Hälfte. Die Farben folgen D-062: Farbe nur, wo sie Bedeutung trägt. Indirekt nachgewiesen bleibt in Graustufen wie nachgewiesen, weil es kein Problem anzeigt; die Angaben zum Status (Zahl der nachgewiesenen Akzeptanzkriterien, fehlende Children) stehen in der rechten Hälfte; ein Requirement, für das keine Variante gilt, zeigt eine Plakette für den Kern, damit die Darstellung überall gleich ist; welche Einträge es gibt, regelt SR-047 AK3, ihre Form in der App diese Anforderung. AK2 meint beide Fälle, einen Arbeitsbereich ohne Varianten und ein Kern-Requirement, das jede Variante ausschließt oder ersetzt."

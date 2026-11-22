@@ -5,7 +5,6 @@ status: accepted
 title: Ausgaben gestuft zeigen
 spec-id: D-078
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n2:91dfc3774f2974a7, title: Oberfläche als weißes Blatt }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 

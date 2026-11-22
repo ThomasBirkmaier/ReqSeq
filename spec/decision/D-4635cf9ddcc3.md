@@ -5,7 +5,6 @@ status: draft
 title: Befehle, die Befehle zusammenstellen
 spec-id: D-082
 based-on:
-  - { id: 7a120e78-ad90-4f95-b966-6017460b8538, version: n2:4713bc40e4274c0a, title: "Ein Befehl je Tätigkeit, Werte als Schritte" }
   - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:75ff2d30db7ad5dc, title: Ausgaben gestuft zeigen }
   - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }

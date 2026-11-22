@@ -20,7 +20,6 @@ packages:
 verification-method: test
 derives-from:
   - { id: 6adc531a-5adb-45d3-821a-11352a34c3b9, version: n2:bcef3dc092f1c8e8, title: Requirements einer Variante anzeigen }
-  - { id: 61d4ffa4-bfc0-42c8-a7ef-d867c0ba286c, version: n2:675fa2767fc2398d, title: Befehle finden und Kürzel lernen }
 ---
 
 Das Tool muss die Varianten und die Wahl der Ansicht in App und Kommandozeile auffindbar machen, ohne dass man ihre Namen kennt.

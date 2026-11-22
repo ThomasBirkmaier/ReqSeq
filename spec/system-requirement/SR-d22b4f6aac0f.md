@@ -1,7 +1,7 @@
 ---
 id: 4d50eec6-09b9-4659-a8c8-d22b4f6aac0f
 type: system-requirement
-status: approved
+status: obsolete
 title: Auswahlwerte per Mausklick setzen
 spec-id: SR-156
 rationale: Per Tastatur öffnet eine Box mit festen Werten die Werteauswahl in der Befehlszeile, per Maus öffnet sich nichts. Ein Klick soll dieselbe Auswahl öffnen wie die Tastatur, kein eigenes Dropdown an der Box, weil die Befehlszeile nach D-062 die einzige Bedienstelle ist und ein Klick dort als Weg zum Anfordern vorgesehen ist.

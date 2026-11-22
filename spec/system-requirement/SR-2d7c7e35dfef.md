@@ -1,7 +1,7 @@
 ---
 id: 22c19f87-f69e-40f2-a762-2d7c7e35dfef
 type: system-requirement
-status: approved
+status: obsolete
 title: Kontextmenü einer Liste
 spec-id: SR-198
 rationale: "Wer nur die Maus gewohnt ist, soll per Rechtsklick ein klassisches Kontextmenü bekommen, im Editor und in der ganzen App, als eigenes Menü im Stil der App mit einer kurzen, festen Auswahl von Befehlen je Stelle (D-075). Freie Fläche (AK1, #1183): Die freie Fläche neben und unter einer Liste behält das Menü des Buffers; nur die Liste selbst hat das Menü der Liste. Zeilen der Ausgabe (AK1, #2023): Die Zeilen der Ausgabe über den Zeilen der Elemente gehören zum Befehl und behalten das Menü des Buffers; nur die Liste selbst hat das Menü der Liste."

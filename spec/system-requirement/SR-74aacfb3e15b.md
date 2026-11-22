@@ -1,7 +1,7 @@
 ---
 id: 24249b73-ffbe-4332-bec2-74aacfb3e15b
 type: system-requirement
-status: approved
+status: obsolete
 title: Alle Buffer schließen
 spec-id: SR-123
 rationale: Es fehlt ein Befehl, der alle Buffer schließt (ThomasBirkmaier/ReqSeq-archive#411).
