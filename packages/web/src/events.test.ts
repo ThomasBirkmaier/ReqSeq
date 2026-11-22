@@ -24,6 +24,16 @@ describe("toServerEvent", () => {
     });
   });
 
+  it("reads the reason the workspace was not marked as opened, if the event names one", () => {
+    expect(
+      toServerEvent({ event: "workspace", data: '{"generation":1,"notMarked":"Not marked: locked"}' }),
+    ).toEqual({ type: "workspace", generation: 1, notMarked: "Not marked: locked" });
+    expect(toServerEvent({ event: "workspace", data: '{"generation":1,"notMarked":2}' })).toEqual({
+      type: "workspace",
+      generation: 1,
+    });
+  });
+
   it("reads the scope and the UUIDs added, changed and removed, and nothing else", () => {
     const data =
       '{"scope":"elements","elements":{"added":["a"],"changed":["b",1],"removed":["c"]},"text":"x"}';

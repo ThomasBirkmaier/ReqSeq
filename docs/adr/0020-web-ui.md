@@ -62,6 +62,7 @@ The UI server opens the workspace in its own process, as `reqseq serve api` does
   2. It aborts running reads, lets running writes finish, closes the old workspace and its watcher, and opens the new one.
   3. It calls the command of SR-250 (#2302), so the workspace is first in `workspace.recent` (SR-247 AK12).
   4. It sends a `workspace` event.
+- **A refused mark (SR-247 AK12).** When `workspace.markOpened` refuses, the workspace stays open and the start goes on. The server writes the reason the command names to its standard error on each such opening. The page gets the same reason as `notMarked`: after a switch in the answer of `POST /ui/workspace`, after the start in the first `workspace` event of the first event stream, which only the first page loaded gets. A switch drops a reason of the start no stream has taken. The page shows it as given.
 - **A generation number per open workspace.** It goes to every page with the event and in the answer of `POST /ui/workspace`. Every command request carries it in `X-ReqSeq-Workspace`; one with another number gets `409` with `workspace.changed`. So a tab that has not seen a switch never writes into the other workspace.
 - **Creating** a workspace is `workspace.init` with the folder the person names. Its places above the folder (skill files at the Git root) follow `init`'s own rules for `ctx.localPaths`, with the `ui` exception above. Nothing else is created outside the repositories.
 
@@ -72,7 +73,7 @@ The UI server opens the workspace in its own process, as `reqseq serve api` does
 | `GET`, `HEAD` of a page file | Served only from the manifest of the built files that the server reads at start, never from a join of the URL path, with a fixed `Content-Type` per extension; `/` is `index.html`. Page files hold nothing from a workspace (SR-247 AK6). | no |
 | `POST /api/<command>` | The JSON input of a catalog command, answered as the API answers (ADR-0009). | yes |
 | `POST /ui/workspace` | Open or switch the workspace (above). | yes |
-| `GET /api/events` | Server-Sent Events: `change` with the scope and UUIDs that core's `onChange` reports (no texts or values), and `workspace` with the new generation. | yes |
+| `GET /api/events` | Server-Sent Events: `change` with the scope and UUIDs that core's `onChange` reports (no texts or values), and `workspace` with the new generation (and `notMarked`, above). | yes |
 | anything else | 404, nothing run | |
 
 The page files lie in `lib/web/` of the delivery and in `packages/web/dist/` of a checkout.

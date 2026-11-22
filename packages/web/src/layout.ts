@@ -175,6 +175,32 @@ export function errorBox(error: unknown): HTMLElement {
   );
 }
 
+/**
+ * Shows, until it is closed, the reason the server gave for not marking the workspace it opened as opened
+ * (SR-247 AK12): the workspace is open, it is only not first in the recent workspaces. Outside the page's
+ * root, so a redraw keeps it. Another opening replaces it: with its reason, or without one removes it.
+ */
+export function showNotMarked(reason: string | undefined): void {
+  document.getElementById("not-marked")?.remove();
+  if (reason === undefined) {
+    return;
+  }
+  const box = h(
+    "div",
+    { id: "not-marked", class: "notice bad not-marked", role: "status" },
+    h("strong", null, "This workspace is open but not first in the recent workspaces."),
+    " ",
+    reason,
+    " ",
+  );
+  const close = h("button", { type: "button", class: "btn sm" }, "Close");
+  close.addEventListener("click", () => {
+    box.remove();
+  });
+  box.append(close);
+  document.body.append(box);
+}
+
 /** A page of its own for a message: no workspace, no token, an error. */
 export function messagePage(title: string, ...body: Child[]): HTMLElement {
   return h(

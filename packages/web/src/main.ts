@@ -11,7 +11,7 @@ import { ReqSeqError, TOKEN_REFUSED, WORKSPACE_CHANGED, setGeneration, useToken 
 import { announce, h } from "./dom.js";
 import type { ServerEvent } from "./events.js";
 import { listen } from "./events.js";
-import { VIEW_CHANGED, errorBox, messagePage, setMenu } from "./layout.js";
+import { VIEW_CHANGED, errorBox, messagePage, setMenu, showNotMarked } from "./layout.js";
 import { reveal } from "./motion.js";
 import { HOME, parseHash, renderOf } from "./router.js";
 import { load } from "./store.js";
@@ -163,6 +163,9 @@ let stale = false;
 function onEvent(event: ServerEvent): void {
   switch (event.type) {
     case "workspace": {
+      if (event.notMarked !== undefined) {
+        showNotMarked(event.notMarked);
+      }
       const changed = generation !== event.generation;
       const first = generation === undefined;
       generation = event.generation;

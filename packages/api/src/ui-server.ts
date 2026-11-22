@@ -50,7 +50,7 @@ export interface UiServerOptions {
   readonly cwd?: string;
   /**
    * Gets a problem that does not stop the server: the workspace it opened could not be marked as opened
-   * (`workspace.markOpened`). Default: none is reported.
+   * (`workspace.markOpened`), on every such opening. Default: none is reported.
    */
   readonly report?: (message: string) => void;
 }
@@ -278,15 +278,20 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
   /**
    * Marks the opened workspace first in `workspace.recent` (SR-247 AK12, SR-250). A refusal is reported and
    * leaves the workspace open: the list of recent workspaces is a convenience of the user, not of the workspace.
+   * Resolves the reason the refusal names, which the page shows, or undefined once marked.
    */
-  const markOpened = async (workspace: Workspace): Promise<void> => {
+  const markOpened = async (workspace: Workspace): Promise<string | undefined> => {
     try {
       await runner.invoke("workspace.markOpened", {}, { workspace, access: "ui" });
+      return undefined;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       options.report?.(`The workspace was not marked as opened: ${message}`);
+      return message;
     }
   };
+  // The reason a refusal at start names, until the first event stream (the first page loaded) has it.
+  let notMarkedAtStart: string | undefined;
 
   const begin = async (workspace: Workspace): Promise<Session> => {
     const watcher = watchWorkspace(workspace);
@@ -310,15 +315,21 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     await old.workspace.close();
   };
 
-  const open = async (root: string): Promise<{ readonly generation: number; readonly root: string }> => {
+  const open = async (
+    root: string,
+  ): Promise<{ readonly generation: number; readonly root: string; readonly notMarked?: string }> => {
     const workspace = await openChecked(path.resolve(cwd, root));
     const old = session;
     session = undefined;
     await end(old);
     session = await begin(workspace);
-    await markOpened(workspace);
+    // A refusal at start concerns a workspace that is no longer open.
+    notMarkedAtStart = undefined;
+    const notMarked = await markOpened(workspace);
     broadcast(eventText("workspace", { generation }));
-    return { generation, root: workspace.root };
+    return notMarked === undefined
+      ? { generation, root: workspace.root }
+      : { generation, root: workspace.root, notMarked };
   };
 
   if (options.workspace !== undefined) {
@@ -403,7 +414,12 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
       "content-type": "text/event-stream; charset=utf-8",
       "cache-control": "no-store",
     });
-    response.write(eventText("workspace", { generation }));
+    // The first stream after a refusal at start gets its reason once (SR-247 AK12).
+    const notMarked = notMarkedAtStart;
+    notMarkedAtStart = undefined;
+    response.write(
+      eventText("workspace", notMarked === undefined ? { generation } : { generation, notMarked }),
+    );
     streams.add(response);
     response.once("close", () => streams.delete(response));
   };
@@ -503,7 +519,7 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
   );
   // Marked only once the server listens: a start that fails opened nothing (SR-247 AK3).
   if (session !== undefined) {
-    await markOpened(session.workspace);
+    notMarkedAtStart = await markOpened(session.workspace);
   }
   return {
     port,

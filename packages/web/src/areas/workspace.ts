@@ -7,7 +7,7 @@ import type { OutputOf } from "../api.js";
 import { ReqSeqError, call, openWorkspace } from "../api.js";
 import type { Child } from "../dom.js";
 import { announce, h } from "../dom.js";
-import { addRailSection, errorBox, frame, prepareRail } from "../layout.js";
+import { addRailSection, errorBox, frame, prepareRail, showNotMarked } from "../layout.js";
 import { relKind, statusName, typeName } from "../meaning.js";
 import { addQueue } from "../queues.js";
 import type { QueueRow } from "../queues.js";
@@ -299,8 +299,9 @@ function problemsPage(out: OutputOf<"workspace.check">): HTMLElement {
 
 /** Opens the workspace at `root`, reads it and lets the page draw its overview. */
 async function openAt(root: string): Promise<null> {
+  let opened;
   try {
-    await openWorkspace(root);
+    opened = await openWorkspace(root);
   } catch (error) {
     if (error instanceof ReqSeqError && error.code === "workspace.not-found") {
       throw new ReqSeqError(
@@ -311,6 +312,7 @@ async function openAt(root: string): Promise<null> {
     }
     throw error;
   }
+  showNotMarked(opened.notMarked);
   await load();
   window.dispatchEvent(new Event(WORKSPACE_OPENED));
   return null;
