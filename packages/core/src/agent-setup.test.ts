@@ -209,7 +209,8 @@ describe("setupOf", () => {
       const text = setup(client.value, windows).setup.text;
       expect(text).toContain("node.exe");
       expect(text).toContain("bin.js");
-      expect(text).not.toContain("env");
+      // No `--env` option and no `env` key of a JSON entry, plain or escaped in the VS Code command.
+      expect(text).not.toMatch(/--env\b|\\?"env\\?":/);
       expect(text).toContain("station");
     }
     expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_FOLDER}.`);

@@ -12,7 +12,7 @@ scenariosOf("metamodel.mermaid", [
     name: "types with inheritance and open relation kinds",
     fixture: METAMODEL,
     input: {},
-    tag: "[SR-151/AK-c801]",
+    tag: "[SR-151/AK-c801] [SR-130/AK-s795]",
     expect: "output",
   },
   { name: "the standard model", fixture: CHAIN, input: {}, tag: "[SR-151/AK-c801]", expect: "output" },
