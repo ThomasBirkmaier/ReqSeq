@@ -319,12 +319,12 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     root: string,
   ): Promise<{ readonly generation: number; readonly root: string; readonly notMarked?: string }> => {
     const workspace = await openChecked(path.resolve(cwd, root));
+    // A refusal at start concerns a workspace that is no longer open, also for a stream that connects now.
+    notMarkedAtStart = undefined;
     const old = session;
     session = undefined;
     await end(old);
     session = await begin(workspace);
-    // A refusal at start concerns a workspace that is no longer open.
-    notMarkedAtStart = undefined;
     const notMarked = await markOpened(workspace);
     broadcast(eventText("workspace", { generation }));
     return notMarked === undefined

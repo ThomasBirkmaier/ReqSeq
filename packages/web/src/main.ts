@@ -163,10 +163,11 @@ let stale = false;
 function onEvent(event: ServerEvent): void {
   switch (event.type) {
     case "workspace": {
-      if (event.notMarked !== undefined) {
-        showNotMarked(event.notMarked);
-      }
       const changed = generation !== event.generation;
+      // A newer workspace drops the notice of an older one, in every tab (SR-247 AK12).
+      if (changed || event.notMarked !== undefined) {
+        showNotMarked(event.notMarked, event.generation);
+      }
       const first = generation === undefined;
       generation = event.generation;
       setGeneration(event.generation);

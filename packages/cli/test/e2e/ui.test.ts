@@ -273,7 +273,15 @@ const firstEvent = (server: Running): Promise<unknown> =>
         headers: { host: `127.0.0.1:${String(server.port)}`, authorization: `Bearer ${server.token}` },
       },
       (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          reject(new Error(`GET /api/events answered ${String(response.statusCode)}`));
+          return;
+        }
         let text = "";
+        response.on("end", () => {
+          reject(new Error(`The event stream ended before its first event: ${text}`));
+        });
         response.on("data", (chunk: Buffer) => {
           text += chunk.toString("utf8");
           const match = /^event: workspace\ndata: (.*)\n\n/u.exec(text);

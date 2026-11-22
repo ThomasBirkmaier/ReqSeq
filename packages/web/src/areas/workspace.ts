@@ -312,7 +312,7 @@ async function openAt(root: string): Promise<null> {
     }
     throw error;
   }
-  showNotMarked(opened.notMarked);
+  showNotMarked(opened.notMarked, opened.generation);
   await load();
   window.dispatchEvent(new Event(WORKSPACE_OPENED));
   return null;
