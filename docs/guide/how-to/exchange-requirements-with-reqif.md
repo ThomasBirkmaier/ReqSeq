@@ -289,7 +289,6 @@ files: none
 No problems.
 ```
 
-
 ## API
 
 Paths are relative to the workspace and must lie inside its repositories. With the [local API](/concepts/cli-api-and-mcp/#api) running in the workspace, and its token:

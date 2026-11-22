@@ -67,6 +67,10 @@ describe("html.export into missing folders (SR-235 AK7 to AK10)", () => {
       expect([result.folder, result.pages]).toEqual([output, 2]);
       expect(await fs.readFile(fixture.path(`${output}/index.html`), "utf8")).toContain("<!doctype html>");
     }
+    // The list of AK8 is closed: a short name that names no other folder and an invisible character are fine.
+    for (const output of ["exports/draft~1/site", "exports/a\u200bb/site"]) {
+      expect((await exported(workspace, output)).folder).toBe(output);
+    }
     // A folder the workspace file excludes is no reason to refuse: the export is no element.
     expect((await exported(workspace, "build/site/html")).folder).toBe("build/site/html");
     // An existing target folder is taken as before, and only a missing target is created as before.
@@ -95,6 +99,8 @@ describe("html.export into missing folders (SR-235 AK7 to AK10)", () => {
       "node_modules/new/site",
       "embedded/new/site",
       "vendor/sensor/html/site",
+      // The folder of the missing repository in another case: the same folder where case is ignored.
+      "Vendor/Sensor/html/site",
       "notes.txt/new/site",
       "new./site/html",
       "new /site/html",
@@ -102,6 +108,8 @@ describe("html.export into missing folders (SR-235 AK7 to AK10)", () => {
       "a\u0001b/c/site",
       "nul/c/site",
       "out/new/con",
+      // On Windows `\` separates the names.
+      ...(path.sep === "/" ? ["a\\b/c/site"] : []),
     ];
     for (const output of names) {
       const error = await refusal(exported(workspace, output));
@@ -115,6 +123,7 @@ describe("html.export into missing folders (SR-235 AK7 to AK10)", () => {
       "skipped-name",
       "git-entry",
       "repository-missing",
+      "repository-missing",
       "not-a-folder",
       "not-portable",
       "not-portable",
@@ -122,15 +131,41 @@ describe("html.export into missing folders (SR-235 AK7 to AK10)", () => {
       "not-portable",
       "not-portable",
       "not-portable",
+      ...(path.sep === "/" ? ["not-portable"] : []),
     ]);
     expect((await refusal(exported(workspace, "linked/new/site"))).message).toBe(
       "Not exported: linked/new/site in repository system: linked is a link, which ReqSeq does not follow",
+    );
+    expect((await refusal(exported(workspace, "nul/c/site"))).message).toBe(
+      'Not exported: nul/c/site in repository system: nul is a name Windows changes or refuses (a trailing dot or space, <>:"|?*\\, a control character, or a device name such as CON or NUL)',
     );
     // A name spelled otherwise than on disk, where the file system ignores case.
     if (await there(fixture.path("REQUIREMENTS"))) {
       const error = await refusal(exported(workspace, "REQUIREMENTS/new/site"));
       expect(error.details?.["rule"]).toBe("spelling");
     }
+    // A short name counts only when it names another folder on disk, where the file system has short names.
+    await fs.mkdir(fixture.path("deps/node_modules"), { recursive: true });
+    if (await there(fixture.path("deps/NODE_M~1"))) {
+      const error = await refusal(exported(workspace, "deps/NODE_M~1/new/site"));
+      expect(error.details?.["rule"]).toBe("spelling");
+    }
+    await fs.rm(fixture.path("deps"), { recursive: true });
+    // A folder that may not be looked at is named.
+    await fs.mkdir(fixture.path("locked"));
+    const lstat = fs.lstat.bind(fs);
+    vi.spyOn(fs, "lstat").mockImplementation((file, ...rest) =>
+      typeof file === "string" && file.endsWith(`${path.sep}locked`)
+        ? Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }))
+        : lstat(file, ...rest),
+    );
+    const locked = await refusal(exported(workspace, "locked/new/site"));
+    expect([locked.code, locked.message]).toEqual([
+      "input.invalid",
+      "Not exported: locked/new/site in repository system: locked cannot be opened",
+    ]);
+    vi.restoreAllMocks();
+    await fs.rmdir(fixture.path("locked"));
     expect(await paths(fixture.root)).toEqual(before);
     // Each rule holds only when a folder is missing: an existing target is taken as before.
     await fs.mkdir(fixture.path("requirements/site"));

@@ -7,9 +7,11 @@
 // - Else it is followed name by name from the root of the file system. Inside an available repository
 //   of the workspace (by the real path; the deepest wins) a link is not followed, so the rules judge it
 //   by its name; outside, a link is followed. The missing folders are created only inside a repository,
-//   after the safety rules of `refuseUnlisted` with `ignored: false` (a link, `.git`, `node_modules`, an
-//   embedded Git repository, a file on the way, a spelling other than on disk, a name Windows changes or
-//   refuses) and a check that the folder is not in the folder of a repository of the workspace that is
+//   after the closed list of SR-235 AK8 and SR-207 AK5 (`refuseUnlisted` with `ignored: false` and
+//   `exported: true`: a link, `.git`, `node_modules`, an embedded Git repository, a file on the way, a
+//   spelling other than on disk, also a short name that names another folder, a name Windows changes
+//   or refuses or that holds `\`), every name of the way judged, the target's own too, and a check,
+//   in folded spelling, that the folder is not in the folder of a repository of the workspace that is
 //   not on this machine. A folder the `ignore` globs leave out is fine: the export is no element.
 // - Outside every repository the refusal the caller gives (`file.folder-missing`), creating nothing.
 import fs from "node:fs/promises";
@@ -29,6 +31,9 @@ const repositoryOf = (layout: WorkspaceLayout, real: string): RepositoryLocation
   layout.repositories
     .filter((r) => r.available && isWithin(r.folder, real))
     .sort((a, b) => b.folder.length - a.folder.length)[0];
+
+/** `text` in NFC and lower case: a spelling that a file system ignoring case or the form takes as the same. */
+const fold = (text: string): string => text.normalize("NFC").toLowerCase();
 
 /** `absolute` with its nearest existing folder as its real path, and the rest as given. */
 const realOf = async (absolute: string): Promise<string> => {
@@ -97,7 +102,9 @@ export const foldersAbove = async (
   const existing = names.length - (parts.length - found);
   const folder = path.join(repository.folder, ...names);
   for (const missing of layout.repositories.filter((r) => !r.available)) {
-    if (isWithin(await realOf(missing.folder), folder)) {
+    // Folded, as the path rule of the accesses compares (`local-paths.ts`): on a file system that
+    // ignores case or the Unicode form, another spelling names the same folder.
+    if (isWithin(fold(await realOf(missing.folder)), fold(folder))) {
       throw new CommandError(
         "input.invalid",
         `Not exported: ${about.shown}: the folder lies in the folder of repository ${missing.name} of the workspace, which is not on this machine`,

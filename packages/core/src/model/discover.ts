@@ -456,7 +456,40 @@ const invisibleIn = (name: string): string | undefined => {
     : `U+${Number(match[0].codePointAt(0)).toString(16).toUpperCase().padStart(4, "0")}`;
 };
 
+/**
+ * The rule of a name on the way to an export (SR-235 AK8, SR-207 AK5), whose list is closed: a name
+ * Windows or macOS take for `.git` or `node_modules` is `skipped-name`; one that Windows changes or
+ * refuses, or that holds `\`, is `not-portable`. A short name such as `GIT~1` counts only when it names
+ * another folder on disk (`spelling`).
+ */
+const exportedRule = (name: string): NewFileRule | undefined => {
+  if (isSkippedOnSomeSystem(name)) {
+    return "skipped-name";
+  }
+  return windowsChanges(name) || name.includes("\\") ? "not-portable" : undefined;
+};
+
+/** How `newFileTarget` judges the names: as for a new file of the repository, or on the way to an export. */
+export interface NewFileRules {
+  /** The rules of an export's folders (`exportedRule`), without the `invisible` rule. */
+  readonly exported?: true;
+}
+
 const refused = (problem: NewFileProblem): NewFileTarget => ({ kind: "refused", problem });
+
+/**
+ * The rule of the walk that leaves out the folder `absolute` on the way to a new file, `missing` when
+ * it is not there; one that cannot be looked at (EACCES, EPERM) is `unreadable`, not an internal error.
+ */
+const existingFolderRule = async (absolute: string): Promise<NewFileRule | "missing" | undefined> => {
+  let stat: Stats | undefined;
+  try {
+    stat = await lstatIfThere(absolute);
+  } catch {
+    return "unreadable";
+  }
+  return stat === undefined ? "missing" : folderRule(absolute, stat);
+};
 
 /** `newFileTarget`; `respell` is false on the second judgement of a path respelled as on disk. */
 const judgeNewFile = async (
@@ -464,7 +497,9 @@ const judgeNewFile = async (
   ignored: (relativePath: string) => boolean,
   file: string,
   respell: boolean,
+  rules: NewFileRules = {},
 ): Promise<NewFileTarget> => {
+  const nameRuleOf = rules.exported === true ? exportedRule : portableRule;
   if (!(await canList(repository.folder))) {
     return refused({ rule: "unreadable", path: "." });
   }
@@ -474,7 +509,7 @@ const judgeNewFile = async (
   let deepest: string | undefined;
   for (const [index, name] of names.entries()) {
     relative = relative === "" ? name : `${relative}/${name}`;
-    const rule = portableRule(name) ?? nameRule(repository, ignored, relative);
+    const rule = nameRuleOf(name) ?? nameRule(repository, ignored, relative);
     if (rule !== undefined) {
       return refused({ rule, path: relative });
     }
@@ -483,10 +518,8 @@ const judgeNewFile = async (
       continue;
     }
     if (existing) {
-      const absolute = path.join(repository.folder, relative);
-      const stat = await lstatIfThere(absolute);
-      if (stat !== undefined) {
-        const problem = await folderRule(absolute, stat);
+      const problem = await existingFolderRule(path.join(repository.folder, relative));
+      if (problem !== "missing") {
         if (problem !== undefined) {
           return refused({ rule: problem, path: relative });
         }
@@ -496,22 +529,33 @@ const judgeNewFile = async (
       existing = false;
     }
     // A folder ReqSeq is to create; one that exists may keep such a name.
-    const character = invisibleIn(name);
+    const character = rules.exported === true ? undefined : invisibleIn(name);
     if (character !== undefined) {
       return refused({ rule: "invisible", path: relative, character });
     }
   }
-  if (deepest !== undefined) {
-    const spelled = await spelledOnDisk(repository, deepest);
-    if (spelled !== deepest) {
-      // Only the normal form differs (an NFD folder on macOS, NFC input): the same folder, so the
-      // file goes there under the spelling on disk, judged again by the names the walk sees.
-      return respell && spelled.normalize("NFC") === deepest.normalize("NFC")
-        ? judgeNewFile(repository, ignored, `${spelled}${file.slice(deepest.length)}`, false)
-        : refused({ rule: "spelling", path: deepest, existing: spelled });
-    }
+  return deepest === undefined
+    ? { kind: "listed", file }
+    : judgeSpelling(repository, ignored, file, deepest, { respell, rules });
+};
+
+/** The end of `judgeNewFile`: the existing folders up to `deepest` must be spelled as on disk. */
+const judgeSpelling = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  file: string,
+  deepest: string,
+  { respell, rules }: { readonly respell: boolean; readonly rules: NewFileRules },
+): Promise<NewFileTarget> => {
+  const spelled = await spelledOnDisk(repository, deepest);
+  if (spelled === deepest) {
+    return { kind: "listed", file };
   }
-  return { kind: "listed", file };
+  // Only the normal form differs (an NFD folder on macOS, NFC input): the same folder, so the
+  // file goes there under the spelling on disk, judged again by the names the walk sees.
+  return respell && spelled.normalize("NFC") === deepest.normalize("NFC")
+    ? judgeNewFile(repository, ignored, `${spelled}${file.slice(deepest.length)}`, false, rules)
+    : refused({ rule: "spelling", path: deepest, existing: spelled });
 };
 
 /**
@@ -531,10 +575,12 @@ const judgeNewFile = async (
  * `ignoreMatcher` compares both in NFC, so a glob names a folder in either normal form (ThomasBirkmaier/ReqSeq-archive#218).
  * ReqSeq checks this before it writes anything, so it never writes below `.git` (D-036) and never
  * creates an element that the walk cannot see. The order is the walk's, name by name: the name
- * rules first, then the folder on disk. Errors other than "not there" reject.
+ * rules first, then the folder on disk. A folder on the way that cannot be looked at is `unreadable`.
+ * With `rules.exported` the names follow `exportedRule`.
  */
 export const newFileTarget = (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
   file: string,
-): Promise<NewFileTarget> => judgeNewFile(repository, ignored, file, true);
+  rules: NewFileRules = {},
+): Promise<NewFileTarget> => judgeNewFile(repository, ignored, file, true, rules);

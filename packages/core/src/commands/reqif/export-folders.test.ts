@@ -71,6 +71,10 @@ describe("reqif.export into missing folders (SR-207 AK4 to AK7)", () => {
       ]);
       expect(await fs.readFile(fixture.path(output), "utf8")).toContain("<REQ-IF");
     }
+    // The list of AK5 is closed: a short name that names no other folder and an invisible character are fine.
+    for (const output of ["exports/draft~1/s.reqif", "exports/a\u200bb/s.reqif"]) {
+      expect((await exported(workspace, output, TEMPERATURE)).file).toBe(output);
+    }
     // A folder the workspace file excludes is no reason to refuse.
     expect((await exported(workspace, "build/out/s.reqif", TEMPERATURE)).file).toBe("build/out/s.reqif");
   });
@@ -87,10 +91,13 @@ describe("reqif.export into missing folders (SR-207 AK4 to AK7)", () => {
       "node_modules/new/s.reqif",
       "embedded/new/s.reqif",
       "vendor/sensor/out/s.reqif",
+      "Vendor/Sensor/out/s.reqif",
       "notes.txt/new/s.reqif",
       "new./s.reqif",
       "a?b/s.reqif",
       "aux/s.reqif",
+      // On Windows `\` separates the names.
+      ...(path.sep === "/" ? ["a\\b/s.reqif"] : []),
     ]) {
       for (const id of [WIND, TEMPERATURE]) {
         const error = await refusal(exported(workspace, output, id));
@@ -105,10 +112,12 @@ describe("reqif.export into missing folders (SR-207 AK4 to AK7)", () => {
         "skipped-name",
         "git-entry",
         "repository-missing",
+        "repository-missing",
         "not-a-folder",
         "not-portable",
         "not-portable",
         "not-portable",
+        ...(path.sep === "/" ? ["not-portable"] : []),
       ].flatMap((rule) => [rule, rule]),
     );
     expect((await refusal(exported(workspace, "vendor/sensor/out/s.reqif"))).message).toBe(

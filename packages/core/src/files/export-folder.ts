@@ -227,10 +227,10 @@ const createTarget = async (target: string, shownName: string): Promise<boolean>
 export const openExportFolder = async (
   target: string,
   spec: MarkerSpec,
-  above: readonly string[] = [],
+  above: { readonly folders: readonly string[]; readonly root: string } = { folders: [], root: target },
 ): Promise<ExportFolder> => {
   const shownName = path.basename(target);
-  const createdAbove = await createFolders(above);
+  const createdAbove = await createFolders(above.folders, above.root);
   const parentStat = await fs.stat(path.dirname(target)).catch(() => undefined);
   if (parentStat?.isDirectory() !== true) {
     // `above` names the folders up to the target's; none were created when it was missing.

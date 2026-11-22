@@ -714,7 +714,7 @@ export const writeHtmlExport = async (
   const isInvalid = (record: ElementRecord): boolean => invalid.has(String(record.data["status"]));
   // The elements that get a page; a reference to any other is its link text.
   const paged = new Set(store.elements.filter((r) => !isInvalid(r) && !shared.has(r.id)));
-  const folder = await openExportFolder(target, MARKER, above);
+  const folder = await openExportFolder(target, MARKER, { folders: above, root: layout.root });
   // The elements with an invalid status whose page the earlier export wrote get the short page (AK8).
   const stubbed = new Set(
     store.elements.filter((r) => isInvalid(r) && !shared.has(r.id) && folder.earlier.has(elementPage(r.id))),
@@ -723,7 +723,11 @@ export const writeHtmlExport = async (
   const { baselines, since, compare, rowElement } = await baselineSite(
     { layout, metamodel, store, shortIds, titleKey, withPage },
     options.baselines,
-  );
+  ).catch(async (error: unknown) => {
+    // The target is open: it is left as it was, and the folders the export created go (SR-235 AK10).
+    await folder.abort();
+    throw error;
+  });
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];
   const reference = referenceResolver(layout, store, shortIds, withPage);
   const pageContext: Omit<ElementPageContext, "members"> = {

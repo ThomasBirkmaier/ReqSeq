@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CommandError } from "../catalog.js";
 import { createFolder, createFolders, removeEmptyFolders } from "./folder.js";
 
 let root: string;
@@ -69,11 +70,19 @@ describe("createFolder", () => {
 
 describe("createFolders and removeEmptyFolders (SR-235 AK10, SR-207 AK7)", () => {
   it("creates each folder below the one before, and on a failure removes the ones it created", async () => {
-    expect(await createFolders([abs("a"), abs("a/b")])).toEqual([abs("a"), abs("a/b")]);
+    expect(await createFolders([abs("a"), abs("a/b")], root)).toEqual([abs("a"), abs("a/b")]);
     await fs.writeFile(abs("a/b/file"), "x");
     // A file took the place of the third folder: the two before it go again.
-    const error = await createFolders([abs("x"), abs("x/y"), abs("a/b/file")]).catch((e: unknown) => e);
-    expect((error as { code: string }).code).toBe("file.not-regular");
+    const error = await createFolders([abs("x"), abs("x/y"), abs("a/b/file")], root).catch((e: unknown) => e);
+    expect([
+      (error as CommandError).code,
+      (error as CommandError).message,
+      (error as CommandError).details,
+    ]).toEqual([
+      "file.not-regular",
+      "Not exported: a/b/file or a path above it is a file, not a folder",
+      { fields: ["output"] },
+    ]);
     expect(await fs.readdir(root)).toEqual(["a"]);
   });
 

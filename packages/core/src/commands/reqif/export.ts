@@ -527,7 +527,7 @@ const writeOutput = async (
       newImageFolders.push(folder);
     }
   }
-  const created = await createFolders(above);
+  const created = await createFolders(above, layout.root);
   try {
     for (const copy of copies) {
       await writeCopy(outputFolder, copy, command);
