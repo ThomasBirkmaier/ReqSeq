@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
 
 const mocks = vi.hoisted(() => {
@@ -18,12 +18,14 @@ const mocks = vi.hoisted(() => {
     }),
     runCli: vi.fn<(options: RunCliOptions) => Promise<number>>(() => Promise.resolve(1)),
     connectProcess: vi.fn(() => io),
+    release: vi.fn(),
+    inputEnded: vi.fn(() => ({ ended: Promise.resolve(), release: mocks.release })),
   };
 });
 vi.mock("node:module", () => ({ enableCompileCache: mocks.enableCompileCache }));
 vi.mock("@reqseq/core/os-cache", () => ({ compileCacheFolder: () => "/cache/reqseq/node-compile-cache" }));
 vi.mock("./main.js", () => ({ EXIT: { internal: 3 }, runCli: mocks.runCli }));
-vi.mock("./process.js", () => ({ connectProcess: mocks.connectProcess }));
+vi.mock("./process.js", () => ({ connectProcess: mocks.connectProcess, inputEnded: mocks.inputEnded }));
 
 afterEach(() => {
   process.exitCode = undefined;
@@ -56,7 +58,7 @@ describe("bin", () => {
     });
     vi.doMock("./process.js", () => {
       mocks.order.push("process.js");
-      return { connectProcess: mocks.connectProcess };
+      return { connectProcess: mocks.connectProcess, inputEnded: mocks.inputEnded };
     });
     await import("./bin.js");
     expect(mocks.order).toEqual(["cache /cache/reqseq/node-compile-cache", "main.js", "process.js"]);
@@ -71,6 +73,25 @@ describe("bin", () => {
     await import("./bin.js");
     expect(mocks.enableCompileCache).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
+  });
+
+  it("ends `reqseq ui` with its standard input only under REQSEQ_UI_END_WITH_STDIN=1, as the desktop shell starts it", async () => {
+    await import("./bin.js");
+    expect(mocks.runCli.mock.calls[0]?.[0].inputEnded).toBeUndefined();
+    vi.resetModules();
+    mocks.runCli.mockClear();
+    vi.stubEnv("REQSEQ_UI_END_WITH_STDIN", "1");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
+    mocks.runCli.mockImplementationOnce(async (options) => {
+      await options.inputEnded?.();
+      return 0;
+    });
+    await import("./bin.js");
+    expect(mocks.inputEnded).toHaveBeenCalledWith(process.stdin);
+    expect(mocks.release).toHaveBeenCalled();
+    expect(process.exitCode).toBe(0);
   });
 
   it("exits 3 when a write failed", async () => {
