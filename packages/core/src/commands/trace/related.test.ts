@@ -497,8 +497,12 @@ describe("trace.related (SR-023)", () => {
         model.replace("    meaning: validity\n", ""),
       );
       await opened.workspace.reset(metamodelState);
-      expect((await relatedError(opened, { refs: [N1], direction: "children", view: "core" })).code).toBe(
+      expect((await relatedError(opened, { refs: [N1], direction: "children", view: VARIANT })).code).toBe(
         "metamodel.meaning-unassigned",
+      );
+      // Without the meaning validity no element has one: the core is every element (#2291).
+      expect(await related(opened, { refs: [N1], direction: "children", view: "core" })).toEqual(
+        await related(opened, { refs: [N1], direction: "children" }),
       );
     });
   });

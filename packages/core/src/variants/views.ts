@@ -34,9 +34,9 @@ export type Validity = Pick<RelationKey, "label" | "many"> & { readonly key: str
 
 /**
  * The property with the meaning `validity`, when it holds relations (kind `relation`); undefined
- * otherwise. Then no element has a validity and everything applies everywhere. The stage-5 view
- * commands must not rely on this fallback: they call `requireMeaning` first and report
- * `metamodel.meaning-unassigned` (SR-013 AK3).
+ * otherwise. Then no element has a validity and everything applies everywhere. The core view relies
+ * on this; a variant view does not: `resolveView` reports `metamodel.meaning-unassigned` for it
+ * (SR-013 AK3).
  */
 export const validityOf = (metamodel: Metamodel): Validity | undefined => {
   const property = propertyWithMeaning(metamodel, "validity");
@@ -132,10 +132,10 @@ export const variantsOf = (store: ElementStore, metamodel: Metamodel): readonly 
 
 /**
  * The view a command input names (`common.schema.json#/$defs/view`): `core`, or a reference to a
- * variant (`resolveRef`: `ref.unknown`, `ref.ambiguous`). The view is decided by the validity, so
- * `command` needs the meaning `validity`, and for a variant the meaning `variant` (SR-013 AK3:
- * `metamodel.meaning-unassigned`). A reference to an element whose type has not the meaning
- * `variant` is `input.invalid`.
+ * variant (`resolveRef`: `ref.unknown`, `ref.ambiguous`). The core needs no meaning: without the
+ * meaning `validity` it holds every element. A variant view is decided by the validity, so `command`
+ * needs the meanings `validity` and `variant` for it (SR-013 AK3: `metamodel.meaning-unassigned`).
+ * A reference to an element whose type has not the meaning `variant` is `input.invalid`.
  */
 export const resolveView = (
   context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
@@ -147,11 +147,13 @@ export const resolveView = (
   takesCore = field === "view",
 ): ResolvedView => {
   const { metamodel, store, shortIds } = context;
-  requireMeaning(metamodel, "validity", command);
   // In any case, as element references are (ThomasBirkmaier/ReqSeq-archive#309, ThomasBirkmaier/ReqSeq-archive#305).
+  // Without the meaning validity no element has one, so the core is every element (`appliesIn`):
+  // its result exists without the assignment, and SR-013 AK3 reports nothing then (#2291).
   if (view.toLowerCase() === "core") {
     return { kind: "core" };
   }
+  requireMeaning(metamodel, "validity", command);
   requireMeaning(metamodel, "variant", command);
   const variant = resolveRef(store, shortIds, view);
   if (!variantTypes(metamodel).has(variant.type)) {
