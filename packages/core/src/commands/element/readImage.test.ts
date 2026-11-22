@@ -223,22 +223,30 @@ describe("element.readImage", () => {
     expect((await readError(opened, "gone.png")).message).toBe("Not read: the image gone.png does not exist");
   });
 
-  it("[SR-251/AK-y08y] refuses a `\\` by its text, before any file system call", async () => {
-    const opened = await open();
+  it("[SR-251/AK-y08y] refuses a `\\` by its text: it opens no file and lists only folders of the repository", async () => {
+    const opened = await open({ files: { "requirements/img/a.png": PNG } });
     await expect(read(opened, "x.png")).rejects.toThrow(); // loads the workspace first
-    const calls = [
-      vi.spyOn(fs, "readdir"),
-      vi.spyOn(fs, "lstat"),
-      vi.spyOn(fs, "open"),
-      vi.spyOn(fs, "stat"),
-    ];
+    const readdir = vi.spyOn(fs, "readdir");
+    const calls = [vi.spyOn(fs, "lstat"), vi.spyOn(fs, "open"), vi.spyOn(fs, "stat")];
     onTestFinished(() => {
       vi.restoreAllMocks();
     });
-    for (const destination of ["\\\\host\\share\\a.png", "%5C%5Chost%5Cshare%5Ca.png", "img\\a.png"]) {
-      expect(await refusal(opened, destination)).toBe("input.invalid image-missing");
+    const destinations = [
+      "\\\\host\\share\\a.png",
+      "%5C%5Chost%5Cshare%5Ca.png",
+      "img\\a.png",
+      "img/x%5Cy/../a.png",
+      "img/x%01/../a.png",
+    ];
+    for (const destination of destinations) {
+      expect(`${destination}: ${await refusal(opened, destination)}`).toBe(
+        `${destination}: input.invalid image-missing`,
+      );
     }
-    expect(calls.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect(calls.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0]);
+    // Only the folders before the name with the `\\` are listed, for a nested repository (AK5 first).
+    const listed = readdir.mock.calls.map(([folder]) => path.relative(opened.fixture.root, String(folder)));
+    expect([...new Set(listed)].sort()).toEqual(["", "requirements", path.join("requirements", "img")]);
   });
 
   it("[SR-251/AK-thgm] refuses a file or a folder on the way that cannot be read", async () => {
@@ -270,15 +278,50 @@ describe("element.readImage", () => {
       vi.restoreAllMocks();
     }
 
+    const real = await fs.lstat(opened.fixture.path("requirements/img/a.png"));
     const close = vi.fn(() => Promise.resolve());
     const handle = {
-      stat: () => Promise.resolve({ size: PNG.length }),
-      readFile: () => Promise.reject(errno("EIO")),
+      stat: () => Promise.resolve(real),
+      read: () => Promise.reject(errno("EIO")),
       close,
     } as unknown as FileHandle;
     mockOpen("a.png", () => Promise.resolve(handle));
     expect(await refusal(opened, "img/a.png")).toBe("file.faulty image-unreadable");
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("[SR-251/AK-y08y] refuses as missing a file other than the one looked up when it is opened", async () => {
+    const opened = await open({ files: { "requirements/img/a.png": PNG, "requirements/img/b.png": PNG } });
+    const other = await fs.stat(opened.fixture.path("requirements/img/b.png"));
+    const folder = await fs.stat(opened.fixture.path("requirements/img"));
+    for (const swapped of [other, folder]) {
+      const handle = {
+        stat: () => Promise.resolve(swapped),
+        close: () => Promise.resolve(),
+      } as unknown as FileHandle;
+      mockOpen("a.png", () => Promise.resolve(handle));
+      expect(await refusal(opened, "img/a.png")).toBe("input.invalid image-missing");
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("[SR-251/AK-zbkc] stops reading a file that grows past 20 MiB while it is read", async () => {
+    const opened = await open({ files: { "requirements/img/a.png": PNG } });
+    const real = await fs.lstat(opened.fixture.path("requirements/img/a.png"));
+    let reads = 0;
+    const handle = {
+      stat: () => Promise.resolve(real),
+      read: ({ buffer }: { buffer: Buffer }) => {
+        reads++;
+        return Promise.resolve({ bytesRead: buffer.length, buffer });
+      },
+      close: () => Promise.resolve(),
+    } as unknown as FileHandle;
+    mockOpen("a.png", () => Promise.resolve(handle));
+    expect(await readError(opened, "img/a.png")).toMatchObject({
+      details: { reason: "image-too-large", size: LIMIT + 1024 * 1024, limit: LIMIT },
+    });
+    expect(reads).toBe(21);
   });
 
   it("[SR-251/AK-thgm] refuses a file whose entry cannot be read", async () => {
@@ -407,8 +450,27 @@ describe("element.readImage", () => {
     // AK5 before AK2: a nested repository before a missing file, `..` out before a `\`.
     expect(await refusal(opened, "nested/gone.png")).toBe("input.invalid image-outside-repository");
     expect(await refusal(opened, "../../a\\b.png")).toBe("input.invalid image-outside-repository");
+    // AK5 before AK2 also for a `\\` or a control character below the nested repository.
+    expect(await refusal(opened, "nested/a\\b.png")).toBe("input.invalid image-outside-repository");
+    expect(await refusal(opened, "nested/a%01.png")).toBe("input.invalid image-outside-repository");
+    expect(await refusal(opened, "nested/sub/")).toBe("input.invalid image-outside-repository");
+    // The folder of the nested repository itself is a folder of this one, so it is missing (AK2), not inside.
+    expect(await refusal(opened, "nested")).toBe("input.invalid image-missing");
+    // A name spelled other than on disk does not lead into the nested repository: missing (AK2).
+    expect(await refusal(opened, "NESTED/a.png")).toBe("input.invalid image-missing");
     // AK2 before AK4: a skipped name before content that is no image.
     expect(await refusal(opened, "node_modules/x.png")).toBe("input.invalid image-missing");
+    // AK2 before AK3: a skipped name, or a `\\`, before a folder on the way that cannot be read.
+    const readdir = fs.readdir.bind(fs);
+    vi.spyOn(fs, "readdir").mockImplementation(((folder: string, options: never) =>
+      folder.endsWith(`requirements${path.sep}img`)
+        ? Promise.reject(errno("EACCES"))
+        : readdir(folder, options)) as typeof fs.readdir);
+    await opened.fixture.write("requirements/img/node_modules/a.png", PNG);
+    expect(await refusal(opened, "img/node_modules/a.png")).toBe("input.invalid image-missing");
+    expect(await refusal(opened, "img/a\\b.png")).toBe("input.invalid image-missing");
+    expect(await refusal(opened, "img/a.png")).toBe("file.faulty image-unreadable");
+    vi.restoreAllMocks();
     // AK6 before AK4, and AK3 before AK6.
     expect(await refusal(opened, "big.txt")).toBe("input.invalid image-too-large");
     mockOpen("big.txt", () => Promise.reject(errno("EACCES")));

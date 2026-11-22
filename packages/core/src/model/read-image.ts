@@ -4,10 +4,12 @@
 // `imageLink` with a reason for each refusal), and the file is looked up name by name as the version
 // does (`located`), so a name spelled other than on disk, a link to a folder or a nested repository
 // is found the same way. Unlike the version, which hashes a symbolic link's text, a link at the file
-// is refused as missing, so no link ever leads the read out of the repository. The refusals come in
-// the order of SR-251 AK6: outside (AK5), missing (AK2), unreadable (AK3), too large (AK6), no image
-// (AK4). Each has one code and one `details.reason`. A `\` is refused by the text, before any file
-// system call, so no UNC or SMB path is opened (SR-078). Nothing is written.
+// is refused as missing: by `lstat`, by `O_NOFOLLOW` where the system has it, and by comparing the
+// opened file with the one `lstat` saw (a link swapped in between two folder lookups is not covered).
+// The refusals come in the order of SR-251 AK6: outside (AK5), missing (AK2), unreadable (AK3), too
+// large (AK6), no image (AK4). Each has one code and one `details.reason`. A `\` is refused by the
+// text: only the names before it are looked up, from folder listings, so no UNC or SMB path is ever
+// built (SR-078). Nothing is written.
 import { constants } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import fs from "node:fs/promises";
@@ -18,6 +20,7 @@ import type { ElementReadImageInput, ElementReadImageOutput } from "../generated
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { MAX_CONTENT_BYTES } from "./attachment.js";
+import type { ImageSource } from "./images.js";
 import { imageMemo, imageTarget, located } from "./images.js";
 import { isSkippedOnSomeSystem, windowsChanges } from "./portable-names.js";
 import { resolveRef } from "./resolve.js";
@@ -39,10 +42,13 @@ const MEDIA_TYPES: ReadonlyMap<string, ElementReadImageOutput["mediaType"]> = ne
 ]);
 
 /**
- * Opened without following a link where the system can: Windows has no `O_NOFOLLOW`, and the `|`
- * takes the missing constant as 0 there. The `lstat` before the open refuses a link on every system.
+ * Opened without following a link and without waiting where the system can: Windows has neither
+ * `O_NOFOLLOW` nor `O_NONBLOCK`, and the `|` takes a missing constant as 0 there.
  */
-const READ_FLAGS = constants.O_RDONLY | constants.O_NOFOLLOW;
+const READ_FLAGS = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
+
+/** Bytes read at a time, so a file that grows while it is read is never read past the limit. */
+const CHUNK_BYTES = 1024 * 1024;
 
 /** Why the destination leads out of the repository (AK5), as `details.cause` and in words. */
 const OUTSIDE = {
@@ -82,17 +88,11 @@ const failed = (destination: string, error: unknown): CommandError => {
     : unreadable(destination, code);
 };
 
-/**
- * The names on disk of the file `names` leads to (`located`), refused by AK5, AK2 or AK3 otherwise:
- * a nested repository on the way, a name the element walk skips or the workspace file ignores, a
- * name Windows changes, or a name spelled other than on disk.
- */
-const lookedUp = async (
+/** The repository of `record` and the `ignore` globs of the workspace file. */
+const sourceOf = async (
   workspace: Workspace,
   record: { readonly repository: string },
-  names: readonly string[],
-  destination: string,
-): Promise<string> => {
+): Promise<ImageSource> => {
   const layout = await workspace.get(workspaceLayoutState);
   // The store reads only repositories of the layout, so the element's repository is there.
   const repository = layout.repositories.find((r) => r.name === record.repository);
@@ -100,49 +100,108 @@ const lookedUp = async (
   if (repository === undefined) {
     throw new CommandError("internal", `Repository ${record.repository} is not in the workspace`, {});
   }
-  const ignored = ignoredBy(layout);
+  return { repository, ignored: ignoredBy(layout) };
+};
+
+/**
+ * The refusal of a destination that is missing by its text (AK2), or that leads through the
+ * `folders` into a nested repository first (AK5). The sentinel `""` is no name in any listing, so
+ * `located` lists the last folder too, for its `.git` entry, and finds nothing in it; an error while
+ * listing is AK3, which comes after AK2.
+ */
+const missingByText = async (
+  source: ImageSource,
+  folders: readonly string[],
+  destination: string,
+): Promise<CommandError> => {
+  const nested =
+    folders.length > 0 &&
+    (await located(source, [...folders, ""], imageMemo()).catch(() => null)) === "nested";
+  return nested ? outside(destination, "nested") : missing(destination);
+};
+
+/**
+ * The absolute path of the file `names` leads to (`located`), refused by AK5, AK2 or AK3 otherwise,
+ * in that order: a nested repository on the way; a name the element walk skips or the workspace
+ * file ignores, a name Windows changes, or a name spelled other than on disk; a folder that cannot
+ * be listed.
+ */
+const lookedUp = async (
+  source: ImageSource,
+  names: readonly string[],
+  destination: string,
+): Promise<string> => {
+  const skipped = names.some(
+    (name, i) =>
+      isSkippedOnSomeSystem(name) || windowsChanges(name) || source.ignored(names.slice(0, i + 1).join("/")),
+  );
   let spelled: readonly string[] | null | "nested";
   try {
-    spelled = await located({ repository, ignored }, names, imageMemo());
+    spelled = await located(source, names, imageMemo());
   } catch (error) {
     // `located` refuses a folder it cannot list with `file.faulty`, its errno code as the reason.
-    throw unreadable(destination, String((error as CommandError).details?.["reason"]));
+    throw skipped
+      ? missing(destination)
+      : unreadable(destination, String((error as CommandError).details?.["reason"]));
   }
   if (spelled === "nested") {
     throw outside(destination, "nested");
   }
-  const skipped = names.some(
-    (name, i) =>
-      isSkippedOnSomeSystem(name) || windowsChanges(name) || ignored(names.slice(0, i + 1).join("/")),
-  );
   if (spelled === null || skipped) {
     throw missing(destination);
   }
-  return path.join(repository.folder, ...spelled);
+  return path.join(source.repository.folder, ...spelled);
+};
+
+const tooLarge = (destination: string, size: number): CommandError =>
+  new CommandError(
+    "input.invalid",
+    `Not read: the image ${destination} has ${String(size)} bytes, more than the limit of ${String(MAX_IMAGE_BYTES)} bytes (20 MiB)`,
+    { destination, reason: "image-too-large", size, limit: MAX_IMAGE_BYTES },
+  );
+
+/** The bytes of `handle` up to its end, refused as too large as soon as there are more than the limit. */
+const readAtMost = async (handle: FileHandle, destination: string): Promise<Buffer> => {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for (;;) {
+    const { bytesRead, buffer } = await handle.read({ buffer: Buffer.alloc(CHUNK_BYTES) });
+    if (bytesRead === 0) {
+      return Buffer.concat(chunks, total);
+    }
+    chunks.push(buffer.subarray(0, bytesRead));
+    total += bytesRead;
+    if (total > MAX_IMAGE_BYTES) {
+      throw tooLarge(destination, total);
+    }
+  }
 };
 
 /** The bytes of the regular file at `absolute`, refused by AK2, AK3 or AK6. */
 const readFile = async (absolute: string, destination: string): Promise<Buffer> => {
   let handle: FileHandle;
+  let seen: { readonly dev: number; readonly ino: number };
   try {
-    // A link, a folder or anything else that is not a regular file is missing (AK2); a fifo is never opened.
-    if (!(await fs.lstat(absolute)).isFile()) {
+    // A link, a folder or anything else that is not a regular file is missing (AK2); a fifo is never waited for.
+    const stat = await fs.lstat(absolute);
+    if (!stat.isFile()) {
       throw missing(destination);
     }
+    seen = stat;
     handle = await fs.open(absolute, READ_FLAGS);
   } catch (error) {
     throw error instanceof CommandError ? error : failed(destination, error);
   }
   try {
-    const { size } = await handle.stat();
-    if (size > MAX_IMAGE_BYTES) {
-      throw new CommandError(
-        "input.invalid",
-        `Not read: the image ${destination} has ${String(size)} bytes, more than the limit of ${String(MAX_IMAGE_BYTES)} bytes (20 MiB)`,
-        { destination, reason: "image-too-large", size, limit: MAX_IMAGE_BYTES },
-      );
+    const opened = await handle.stat();
+    // Another file than the one `lstat` saw (one swapped in, or a link's target where `O_NOFOLLOW` is missing).
+    if (!opened.isFile() || opened.dev !== seen.dev || opened.ino !== seen.ino) {
+      throw missing(destination);
     }
-    return await handle.readFile();
+    if (opened.size > MAX_IMAGE_BYTES) {
+      throw tooLarge(destination, opened.size);
+    }
+    return await readAtMost(handle, destination);
   } catch (error) {
     throw error instanceof CommandError ? error : unreadable(destination, errnoOf(error));
   } finally {
@@ -163,10 +222,11 @@ export const readImage = async (
   if (target.kind === "outside") {
     throw outside(destination, target.cause);
   }
+  const source = await sourceOf(workspace, record);
   if (target.kind === "missing") {
-    throw missing(destination);
+    throw await missingByText(source, target.folders, destination);
   }
-  const bytes = await readFile(await lookedUp(workspace, record, target.names, destination), destination);
+  const bytes = await readFile(await lookedUp(source, target.names, destination), destination);
   const mediaType = MEDIA_TYPES.get(imageExtension(bytes) ?? "");
   if (mediaType === undefined) {
     throw new CommandError(

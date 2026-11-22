@@ -18,6 +18,24 @@ const WITH_IMAGES: FixtureOptions = {
   git: true,
 };
 
+/** WITH_IMAGES with another repository of the workspace inside its folder (SR-251 AK5). */
+const WITH_INNER: FixtureOptions = {
+  ...WITH_IMAGES,
+  files: {
+    ...WITH_IMAGES.files,
+    "inner/a.png": PNG,
+    "reqseq-workspace.yaml": [
+      "reqseq-workspace: 1",
+      "name: Weather station",
+      "repositories:",
+      '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
+      '  - { name: inner, url: "git@git.example.com:ws/inner.git", path: inner }',
+      "metamodel: { repository: system, path: metamodel }",
+      "",
+    ].join("\n"),
+  },
+};
+
 // `destination` is no local path (SR-142): the same text through every access, read relative to the element file.
 scenariosOf("element.readImage", [
   {
@@ -39,6 +57,13 @@ scenariosOf("element.readImage", [
     tag: "[SR-251/AK-vj1m]",
     fixture: WITH_IMAGES,
     input: { ref: "SR-e88fb3", destination: "../../outside.png" },
+    expect: "error",
+  },
+  {
+    name: "a destination into another repository of the workspace inside this one",
+    tag: "[SR-251/AK-vj1m]",
+    fixture: WITH_INNER,
+    input: { ref: "SR-e88fb3", destination: "../inner/a.png" },
     expect: "error",
   },
   {
