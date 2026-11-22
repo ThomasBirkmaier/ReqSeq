@@ -730,9 +730,9 @@ const textOf = (
 
 /**
  * Reads and parses the texts of the walked files at `at` that are not parsed yet (each blob once)
- * and tracks the image paths they embed. The names of a
- * file are asked in turn, each only where no name before it held the element, so a commit where
- * the current path holds it costs one name (Git finds a path in a large folder slowly).
+ * and tracks the image paths they embed. The names of a file are asked in turn, each only where no
+ * name before it held the element, so a commit where the current path holds it costs one name (Git
+ * finds a path in a large folder slowly).
  */
 const readTexts = async (round: Round, at: readonly { walk: FileWalk; commit: string }[]): Promise<void> => {
   const { facts } = round.walks;
@@ -997,12 +997,14 @@ const fits = (walk: FileWalk): boolean => walk.evaluatedFor === walk.walked.trac
  * embeds a new image path, a commit that changed only that image is not listed yet, so nothing is
  * decided on the walk before its history is read again (#2408). A read another call runs for the
  * walk is waited for, so the walk is read once; where its tracked paths grew again meanwhile, or that
- * read failed, the history is read here.
+ * read failed, the history is read here, unless another call started a newer read meanwhile, which
+ * is waited for in turn.
  */
 const fitWalks = async (round: Round, queries: readonly Query[]): Promise<void> => {
   for (let open = unfit(queries); open.length > 0; open = unfit(queries)) {
-    await Promise.all(open.map((walk) => walk.reading));
-    const left = open.filter((walk) => !fits(walk));
+    const waited = open.map((walk) => walk.reading);
+    await Promise.all(waited);
+    const left = open.filter((walk, i) => !fits(walk) && walk.reading === waited[i]);
     if (left.length > 0) {
       await readHistory(round.walks, round.source.repository.folder, left, round.signal);
     }
