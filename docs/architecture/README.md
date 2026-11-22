@@ -18,7 +18,7 @@ ReqSeq is a local requirements tool on plain files in Git: one Markdown file per
 
 ## 2. Constraints
 
-- TypeScript and Electron (D-004); Windows 11, macOS 26, Ubuntu 24.04 (SR-076).
+- TypeScript (D-083); a web UI in the browser instead of the Electron app (D-083, ADR-0020); Windows 11, macOS 26, Ubuntu 24.04 (SR-249).
 - Git is the storage; ReqSeq reads Git and writes only files (D-024, D-036, SR-083).
 - English UI and standard model (D-019); the spec stays German.
 - No user or rights management (D-016); no deletion of elements (D-045); status set only by people (D-030).
@@ -72,7 +72,7 @@ ReqSeq talks only to the local file system and the local `git` program. Everythi
 | Detect outdated links without Git history | **Version = content hash** with a versioned normal form. | 0005 |
 | Stay out of collaboration | Git through a read-only allowlist; no commit, push or merge. | 0006 |
 | Speed at 50,000 elements | Files are the database; in-memory model and indexes, per-copy cache, debounced file watching, worker threads for cold start. | 0008 |
-| Offline and secure desktop app | Electron with sandboxed renderer, core in a utility process, all requests blocked. | 0010 |
+| Offline and secure web UI | A loopback server in the CLI process with a token per start, Host and Origin checks and a strict CSP; the pages only call catalog commands (the Electron app until #2310: ADR-0010). | 0020 |
 | Evidence from any tool | Open record format plus a JUnit property convention, enriched by the CLI. | 0012 |
 
 ## 5. Building blocks
@@ -242,7 +242,7 @@ sequenceDiagram
 
 ## 7. Deployment
 
-One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
+One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). From #2308 on it holds CLI, MCP server, web UI and a Node runtime instead of the app (SR-249, ADR-0020). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
 
 ## 8. Cross-cutting concepts
 

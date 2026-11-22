@@ -1,6 +1,6 @@
 # ADR-0011: Test tools, evidence and quality gates
 
-Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-076..SR-083
+Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-077..SR-083, SR-249
 
 ## Decision
 
@@ -8,7 +8,7 @@ Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-07
 - Unit and integration tests: **Vitest**, one root config (`vitest.config.ts`), test files `packages/*/src/**/*.test.ts` and `packages/*/test/**/*.test.ts`.
 - CLI end-to-end: Vitest tests that spawn the built `reqseq` binary on fixture workspaces (`packages/cli/test/e2e/`).
 - App: **Playwright** with its Electron support (`_electron.launch`), under `xvfb-run` on Linux (`packages/app/test/`), from stage 3.
-- Delivery (ADR-0014): Vitest tests in `packages/*/test/delivery/` (`pnpm test:delivery`, own config) unpack and inspect the built artifacts and start their launcher, MCP server and app. They run only in the release workflow, never on pull requests. On Linux they run in a network namespace with loopback only, created by root, as a non-root user with Chromium's sandbox on (never `--no-sandbox`); `unshare -rn` is not used for them, because Chromium refuses to run as the mapped root. Every release run builds and tests each system on GitHub's `macos-26`, `ubuntu-24.04` and `windows-2025`: SR-076's macOS 26 and Ubuntu 24.04 evidence, and Windows evidence from Windows Server 2025 (not Windows 11 itself).
+- Delivery (ADR-0014): Vitest tests in `packages/*/test/delivery/` (`pnpm test:delivery`, own config) unpack and inspect the built artifacts and start their launcher, MCP server and app. They run only in the release workflow, never on pull requests. On Linux they run in a network namespace with loopback only, created by root, as a non-root user with Chromium's sandbox on (never `--no-sandbox`); `unshare -rn` is not used for them, because Chromium refuses to run as the mapped root. Every release run builds and tests each system on GitHub's `macos-26`, `ubuntu-24.04` and `windows-2025`: the macOS 26 and Ubuntu 24.04 evidence of SR-249 (SR-076 until #2308), and Windows evidence from Windows Server 2025 (not Windows 11 itself).
 - Test names start with `[SR-xxx/AK-<key>]` for every acceptance criterion with method Test (`CLAUDE.md`, Traceability). JUnit XML (`test-results/junit.xml`) is the evidence record; from stage 4 ReqSeq reads it itself.
 
 **Fixtures and data**
