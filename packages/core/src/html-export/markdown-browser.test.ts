@@ -75,6 +75,7 @@ describe("@reqseq/core/markdown", () => {
       "html-export/markdown.ts",
       "html-export/math-syntax.ts",
       "html-export/render-options.ts",
+      "html-export/word-diff.ts",
       "model/image-link.ts",
       "model/portable-names.ts",
       "model/reference-query.ts",
