@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import { drawn, expect, open as openUrl, test } from "./fixtures.js";
 import { createWorkspace, runOn, startUi } from "./start-ui.js";
 
@@ -194,6 +195,174 @@ test("a ReqIF file is checked first and then imported with the delivery named", 
     }
   } finally {
     await source.cleanup();
+    await target.done();
+  }
+});
+
+/** A ReqIF file of another tool: two object types (one with an enumeration), a relation type and three objects. */
+const FOREIGN = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<REQ-IF xmlns="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd"><THE-HEADER><REQ-IF-HEADER IDENTIFIER="h"/></THE-HEADER>',
+  "<CORE-CONTENT><REQ-IF-CONTENT><DATATYPES>",
+  '<DATATYPE-DEFINITION-STRING IDENTIFIER="dt-s" MAX-LENGTH="1000"/>',
+  '<DATATYPE-DEFINITION-ENUMERATION IDENTIFIER="dt-k"><SPECIFIED-VALUES>',
+  ...["Functional", "Quality"].map(
+    (v) =>
+      `<ENUM-VALUE IDENTIFIER="k-${v}" LONG-NAME="${v}"><PROPERTIES><EMBEDDED-VALUE KEY="0" OTHER-CONTENT=""/></PROPERTIES></ENUM-VALUE>`,
+  ),
+  "</SPECIFIED-VALUES></DATATYPE-DEFINITION-ENUMERATION></DATATYPES><SPEC-TYPES>",
+  '<SPEC-OBJECT-TYPE IDENTIFIER="ot-r" LONG-NAME="Requirement"><SPEC-ATTRIBUTES>',
+  '<ATTRIBUTE-DEFINITION-STRING IDENTIFIER="a-t" LONG-NAME="Title"><TYPE><DATATYPE-DEFINITION-STRING-REF>dt-s</DATATYPE-DEFINITION-STRING-REF></TYPE></ATTRIBUTE-DEFINITION-STRING>',
+  '<ATTRIBUTE-DEFINITION-ENUMERATION IDENTIFIER="a-k" LONG-NAME="Requirement type" MULTI-VALUED="false"><TYPE><DATATYPE-DEFINITION-ENUMERATION-REF>dt-k</DATATYPE-DEFINITION-ENUMERATION-REF></TYPE></ATTRIBUTE-DEFINITION-ENUMERATION>',
+  '<ATTRIBUTE-DEFINITION-STRING IDENTIFIER="a-l" LONG-NAME="Legacy"><TYPE><DATATYPE-DEFINITION-STRING-REF>dt-s</DATATYPE-DEFINITION-STRING-REF></TYPE></ATTRIBUTE-DEFINITION-STRING>',
+  "</SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE>",
+  '<SPEC-OBJECT-TYPE IDENTIFIER="ot-h" LONG-NAME="Heading"><SPEC-ATTRIBUTES>',
+  '<ATTRIBUTE-DEFINITION-STRING IDENTIFIER="a-h" LONG-NAME="Caption"><TYPE><DATATYPE-DEFINITION-STRING-REF>dt-s</DATATYPE-DEFINITION-STRING-REF></TYPE></ATTRIBUTE-DEFINITION-STRING>',
+  "</SPEC-ATTRIBUTES></SPEC-OBJECT-TYPE>",
+  '<SPEC-RELATION-TYPE IDENTIFIER="rt" LONG-NAME="satisfies"/>',
+  "</SPEC-TYPES><SPEC-OBJECTS>",
+  ...[
+    ["R-1", "One", "Functional"],
+    ["R-2", "Two", "Quality"],
+  ].map(
+    ([id, title, kind]) =>
+      `<SPEC-OBJECT IDENTIFIER="${String(id)}"><VALUES><ATTRIBUTE-VALUE-STRING THE-VALUE="${String(title)}"><DEFINITION><ATTRIBUTE-DEFINITION-STRING-REF>a-t</ATTRIBUTE-DEFINITION-STRING-REF></DEFINITION></ATTRIBUTE-VALUE-STRING><ATTRIBUTE-VALUE-ENUMERATION><DEFINITION><ATTRIBUTE-DEFINITION-ENUMERATION-REF>a-k</ATTRIBUTE-DEFINITION-ENUMERATION-REF></DEFINITION><VALUES><ENUM-VALUE-REF>k-${String(kind)}</ENUM-VALUE-REF></VALUES></ATTRIBUTE-VALUE-ENUMERATION></VALUES><TYPE><SPEC-OBJECT-TYPE-REF>ot-r</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT>`,
+  ),
+  '<SPEC-OBJECT IDENTIFIER="H-1"><VALUES/><TYPE><SPEC-OBJECT-TYPE-REF>ot-h</SPEC-OBJECT-TYPE-REF></TYPE></SPEC-OBJECT>',
+  "</SPEC-OBJECTS><SPEC-RELATIONS>",
+  '<SPEC-RELATION IDENTIFIER="L-1"><SOURCE><SPEC-OBJECT-REF>R-1</SPEC-OBJECT-REF></SOURCE><TARGET><SPEC-OBJECT-REF>R-2</SPEC-OBJECT-REF></TARGET><TYPE><SPEC-RELATION-TYPE-REF>rt</SPEC-RELATION-TYPE-REF></TYPE></SPEC-RELATION>',
+  "</SPEC-RELATIONS></REQ-IF-CONTENT></CORE-CONTENT></REQ-IF>",
+  "",
+].join("\n");
+
+/** The keys the mapping test picks: a concrete requirement type, a choice property of it with two choices, a relation kind. */
+function targetsOf(mm: MetamodelGetOutput): {
+  readonly type: string;
+  readonly property: string;
+  readonly first: string;
+  readonly second: string;
+  readonly relation: string;
+} {
+  const type = mm.types.find((t) => t.meaning === "requirement" && !t.abstract);
+  const property = mm.properties.find(
+    (p) => p.kind === "choice" && type?.properties.includes(p.key) === true && p.meaning === undefined,
+  );
+  const [first, second] = property?.choices ?? [];
+  const relation = mm.relations[0];
+  if (
+    type === undefined ||
+    property === undefined ||
+    first === undefined ||
+    second === undefined ||
+    relation === undefined
+  ) {
+    throw new Error(
+      "the standard metamodel lacks a requirement type with a choice property, or a relation kind",
+    );
+  }
+  return {
+    type: type.key,
+    property: property.key,
+    first: first.key,
+    second: second.key,
+    relation: relation.key,
+  };
+}
+
+test("the mapping of a file of another tool is chosen on the page, saved, and the file imported with it", async ({
+  page,
+}) => {
+  const target = await scratch();
+  try {
+    const run = runOn(target.dir);
+    await run("workspace.init", { path: target.dir, name: "Target", skill: false });
+    await fs.mkdir(path.join(target.dir, "in"));
+    await fs.writeFile(path.join(target.dir, "in", "tool.reqif"), FOREIGN);
+    const to = targetsOf(await run("metamodel.get"));
+    const server = await startUi(target.dir);
+    try {
+      await openUrl(page, server.url, "/w/import");
+      await page.getByLabel("ReqIF file").fill("in/tool.reqif");
+      await page.getByRole("button", { name: "Check file" }).click();
+      const map = page.getByRole("region", { name: "Map the file" });
+      await expect(map).toBeVisible();
+      const axe = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      expect(axe.violations.map((v) => v.id)).toEqual([]);
+      await expect(map.getByLabel("Name of the source")).toHaveValue("tool");
+      await map.getByLabel("Name of the source").fill("Other tool");
+
+      const requirement = map.getByRole("group", { name: "Type Requirement" });
+      await requirement.getByLabel("Import as").selectOption(`=${to.type}`);
+      // The attribute named like the title is guessed; a property is picked by its name.
+      await expect(requirement.getByLabel("Title", { exact: true })).toHaveValue("=title");
+      await requirement.getByLabel("Requirement type").selectOption(`=${to.property}`);
+      await requirement.getByLabel("Legacy").selectOption({ label: "Leave out" });
+
+      const heading = map.getByRole("group", { name: "Type Heading" });
+      await heading.getByLabel("Import as").selectOption({ label: "Leave out" });
+      await expect(heading.getByLabel("Caption")).toBeHidden();
+      await map
+        .getByRole("group", { name: "Relation types" })
+        .getByLabel("satisfies")
+        .selectOption(`=${to.relation}`);
+      await map.getByRole("button", { name: "Save mapping" }).click();
+      await expect(page.getByRole("status").first()).toContainText("Saved the mapping in");
+      const mappingFile = await page.getByLabel("Mapping file").inputValue();
+      expect(mappingFile).toMatch(/\.yaml$/);
+
+      // The enumeration values come once the attribute goes to a choice property; each has a first guess or none.
+      const values = map.getByRole("group", { name: "Values of Requirement type (Requirement)" });
+      for (const v of ["Functional", "Quality"]) {
+        await values.getByLabel(v).selectOption(`=${v === "Functional" ? to.first : to.second}`);
+      }
+      await map.getByRole("button", { name: "Save mapping" }).click();
+      await expect(map).toHaveCount(0);
+
+      const analysis = await run("reqif.analyze", { file: "in/tool.reqif", mapping: mappingFile });
+      expect(analysis.unmapped).toEqual([]);
+      const plan = page.getByRole("region", { name: "What the import would do" });
+      await expect(plan.locator("dt", { hasText: "New elements" }).locator("+ dd")).toHaveText("2");
+      await plan.getByLabel("Name of the delivery").fill("First");
+      await plan.getByRole("button", { name: "Import" }).click();
+      await expect(plan.getByRole("status")).toContainText(/\S/);
+      const list = await run("element.list", { limit: 5 });
+      expect(list.total).toBe(2);
+      const one = list.elements?.find((e) => e.title === "One");
+      expect(one?.properties[to.property]).toBe(to.first);
+    } finally {
+      await server.close();
+    }
+  } finally {
+    await target.done();
+  }
+});
+
+test("a mapping file this page did not build is not changed here", async ({ page }) => {
+  const target = await scratch();
+  try {
+    const run = runOn(target.dir);
+    await run("workspace.init", { path: target.dir, name: "Target", skill: false });
+    await fs.mkdir(path.join(target.dir, "in"));
+    await fs.writeFile(path.join(target.dir, "in", "tool.reqif"), FOREIGN);
+    await fs.writeFile(
+      path.join(target.dir, "in", "map.yaml"),
+      "reqseq-reqif-mapping: 1\nsource: { name: Other }\ntypes: [{ source: Heading, omit: true }]\n",
+    );
+    const server = await startUi(target.dir);
+    try {
+      await openUrl(page, server.url, "/w/import");
+      await page.getByLabel("ReqIF file").fill("in/tool.reqif");
+      await page.getByLabel("Mapping file").fill("in/map.yaml");
+      await page.getByRole("button", { name: "Check file" }).click();
+      const plan = page.getByRole("region", { name: "What the import would do" });
+      await expect(plan).toContainText("check the file without a mapping file to choose them on this page");
+      await expect(page.getByRole("region", { name: "Map the file" })).toHaveCount(0);
+    } finally {
+      await server.close();
+    }
+  } finally {
     await target.done();
   }
 });
