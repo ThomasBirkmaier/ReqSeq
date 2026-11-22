@@ -11,3 +11,13 @@ export { ENDPOINT_FILE, LOOPBACK_HOSTS, checkPort, refuseRunningApi, startApiSer
 export type { ApiServer, ApiServerOptions } from "./server.js";
 export { DOCS_HOST, startDocsServer } from "./docs-server.js";
 export type { DocsServer, DocsServerOptions } from "./docs-server.js";
+export {
+  NO_WORKSPACE_COMMANDS,
+  PAGE_CSP,
+  UI_COMMANDS_PATH,
+  UI_EVENTS_PATH,
+  UI_WORKSPACE_PATH,
+  WORKSPACE_HEADER,
+  createUiServer,
+} from "./ui-server.js";
+export type { CommandRunner, UiServer, UiServerOptions } from "./ui-server.js";
