@@ -17,7 +17,7 @@ acceptance-criteria:
     text: Gegeben der Dienst für die Dokumentation läuft, von `reqseq serve docs` gestartet, wenn die Dokumentation damit gelesen und durchsucht wird, dann ist er nur auf 127.0.0.1 erreichbar, beantwortet nur Lese-Anfragen (GET, HEAD), lehnt eine Anfrage ab, deren Host nicht eine Loopback-Adresse oder `localhost` mit seinem Port nennt, schreibt nichts, lässt außer dem Port nichts wählen, und seine Seiten laden nichts aus dem Netz.
 verification-method: test
 derives-from:
-  - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n1:26036afe5f131d21, title: Das Tool ohne fremde Hilfe benutzen lernen }
+  - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n2:c5a5cdbf769e09d5, title: Das Tool ohne fremde Hilfe benutzen lernen }
   - { id: 6adc50a3-2395-4867-bc28-4ac6a3af2b01, version: n1:530a8654e612e857, title: Offline arbeiten }
   - { id: 6adc50a4-2ab6-4b5b-a5b2-48eda43df08c, version: n1:943c6e5551cb785c, title: Abgeschottete Netze }
 based-on:

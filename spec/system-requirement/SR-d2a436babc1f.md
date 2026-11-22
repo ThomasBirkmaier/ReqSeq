@@ -13,9 +13,9 @@ acceptance-criteria:
   - key: z3tv
     text: Gegeben der Link auf die Seite eines Elements, wenn derselbe Arbeitsbereich später erneut an denselben Ort exportiert wird und das Element noch gültig ist, dann öffnet der Link weiter genau dieses Element, auch wenn sich seine Kennung, sein Titel oder seine Kurz-ID geändert haben.
   - key: q64j
-    text: Gegeben die Seiten, wenn sie angezeigt werden, dann binden sie das Stylesheet der mitgelieferten Dokumentation ([SR-141](reqseq:1c987832-234f-4c88-a8bf-dd4b4f6c54d8?version=n2:68f838c8302ddece)) ein, haben einen Umschalter für hell und dunkel und zeigen unter der Breite, bei der die Dokumentation umbricht, die Navigation als Menü.
+    text: Gegeben die Seiten, wenn sie angezeigt werden, dann binden sie das Stylesheet der mitgelieferten Dokumentation ([SR-141](reqseq:1c987832-234f-4c88-a8bf-dd4b4f6c54d8?version=n2:b3de6a6b9332ffb0)) ein, haben einen Umschalter für hell und dunkel und zeigen unter der Breite, bei der die Dokumentation umbricht, die Navigation als Menü.
   - key: ycws
-    text: "Gegeben ein Text oder eine Markdown-Property mit Formeln, Mermaid-Diagrammen, Tabellen, Aufgabenlisten, Hinweisboxen ([D-074](reqseq:909e3182-bbf5-4705-b55e-4e99001a8b98?version=n2:c1a69d3f66480db9)) oder einem Bild aus dem Repository des Elements, wenn exportiert wird, dann erscheinen sie formatiert: Formeln sind beim Export gesetzt, Mermaid zeichnet eine einmal im Ordner liegende Bibliothek, und das Bild liegt als Kopie im Ordner. Ein fehlerhaftes Diagramm oder eine fehlerhafte Formel zeigt den Fehler und den Quelltext."
+    text: "Gegeben ein Text oder eine Markdown-Property mit Formeln, Mermaid-Diagrammen, Tabellen, Aufgabenlisten, Hinweisboxen ([D-074](reqseq:909e3182-bbf5-4705-b55e-4e99001a8b98?version=n2:cafceafb26d02e0a)) oder einem Bild aus dem Repository des Elements, wenn exportiert wird, dann erscheinen sie formatiert: Formeln sind beim Export gesetzt, Mermaid zeichnet eine einmal im Ordner liegende Bibliothek, und das Bild liegt als Kopie im Ordner. Ein fehlerhaftes Diagramm oder eine fehlerhafte Formel zeigt den Fehler und den Quelltext."
   - key: wkbf
     text: "Gegeben ein Verweis im Text oder in einer Markdown-Property, wenn exportiert wird, dann ist sein Linktext ein Link auf die Seite des Ziels; hat das Ziel einen ungültigen Status, steht der Linktext ohne Link, außer es gibt die Seite aus AK8, und fehlt das Ziel oder nennt der Verweis ein Repository, das die Arbeitsbereichs-Datei nicht nennt, steht der Linktext ohne Link. Liegt das Ziel in einem Repository, das lokal fehlt, steht der Linktext ohne Link, und dahinter stehen die Angaben aus [SR-006](reqseq:6adc6ac9-5d28-45d7-9c2c-18ed8887e1e1?version=n2:db49f247048c3643) AK1: „UNKNOWN-“ mit dem Ende der UUID des Ziels, der Name des Repositorys und der Vermerk, dass das Ziel nicht zugänglich ist."
   - key: c1hj
@@ -29,7 +29,7 @@ packages:
 verification-method: test
 based-on:
   - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:ea62ff545cc1d56b, title: HTML-Export erzeugt das Tool selbst }
-  - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:c1a69d3f66480db9, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
+  - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:cafceafb26d02e0a, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 derives-from:
   - { id: 39e94ec5-33f0-4745-aff7-37c82bc6cd0e, version: n2:aeeed6f1f4b3a5f4, title: Elemente ohne das Tool im Browser lesen }

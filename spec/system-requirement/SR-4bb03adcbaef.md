@@ -32,8 +32,8 @@ based-on:
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 refines:
-  - { id: 6adc6d8b-056d-4adf-9fb6-fdd42fc61300, version: n2:8165fdcf3ba80051, title: Filter als Datei speichern }
-  - { id: f31c72b6-c22c-42b4-b1b0-673badc3ba76, version: n2:9759ea361384ff76, title: Perspektive als Datei speichern und über alle Zugänge aufrufen }
+  - { id: 6adc6d8b-056d-4adf-9fb6-fdd42fc61300, version: n2:534d68b003adf3f7, title: Filter als Datei speichern }
+  - { id: f31c72b6-c22c-42b4-b1b0-673badc3ba76, version: n2:1c3b4195d112e477, title: Perspektive als Datei speichern und über alle Zugänge aufrufen }
 ---
 
-Das Tool muss [Perspektiven](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:3080b7f3f9c464c9) und gespeicherte Filter über [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:9a4f0d8d27de42ba), API und MCP-Server umbenennen und nach Bestätigung löschen lassen; benennt es einen gespeicherten Filter um, ändert es die Perspektiven mit, die ihn nennen.
+Das Tool muss [Perspektiven](reqseq:bdee772f-96c2-4c77-b180-f06f9d8c795a?version=n2:4d85ddcb346bfe06) und gespeicherte Filter über [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:2556c6eb1781011b), API und MCP-Server umbenennen und nach Bestätigung löschen lassen; benennt es einen gespeicherten Filter um, ändert es die Perspektiven mit, die ihn nennen.

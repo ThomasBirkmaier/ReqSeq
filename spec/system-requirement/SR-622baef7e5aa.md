@@ -15,7 +15,7 @@ acceptance-criteria:
     text: Gegeben eine Anleitung zu einer Aufgabe, die in Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
 verification-method: test
 derives-from:
-  - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n1:26036afe5f131d21, title: Das Tool ohne fremde Hilfe benutzen lernen }
+  - { id: 3826ab28-2019-458a-9170-f14f25591ce1, version: n2:c5a5cdbf769e09d5, title: Das Tool ohne fremde Hilfe benutzen lernen }
 based-on:
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 packages:

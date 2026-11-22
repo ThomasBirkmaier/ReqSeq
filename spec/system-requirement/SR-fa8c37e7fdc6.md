@@ -25,12 +25,12 @@ derives-from:
 refines:
   - { id: 6adc6c49-e383-41ed-ac99-941741a85262, version: n2:94718d1b8a2e216c, title: Nachweisgrad einer Auswahl berechnen }
   - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
-  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:024241ac485bc13f, title: Den nächsten Schritt nennen }
-  - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:990f6c5b33e39b59, title: Baseline anzeigen und vergleichen }
-  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:b75e257d9422d17a, title: Requirements ohne bestandenen Test finden }
+  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:d39c6427d7b05c14, title: Den nächsten Schritt nennen }
+  - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:e8660c8dd1727df7, title: Baseline anzeigen und vergleichen }
+  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:e39afa8ca29391e8, title: Requirements ohne bestandenen Test finden }
 based-on:
   - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
   - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }
 ---
 
-Das Tool muss mit einem Befehl vor dem Festhalten einer [Baseline](reqseq:6ad4f981-8c70-4568-a77a-3da4cd2f98ac?version=n2:ccd1e07d6007cfb6) die [Befunde](reqseq:7bd46b59-0bdf-45de-8e04-2ea489b9a477?version=n2:9d0ccd8bf8416a53) der [Prüfung des Bestands](reqseq:737279a5-6169-40cb-b0ca-e4a8b0898b52?version=n2:ecd68892fa34e5bf), den [Nachweisgrad](reqseq:6ad4f977-5b23-4a33-a450-d377e776a54b?version=n2:36cf695a2c408b4f) einer [Auswahl](reqseq:f0c30c41-91fa-4ac5-8e7c-9054c84ccfc8?version=n2:29932e80a50c6573), die Requirements ohne bestandenen Test und die Änderungen seit der neuesten Baseline zeigen und „Create baseline“ als nächsten Schritt nennen. Der Befehl sperrt keinen Befehl und prüft außer der Art der Auswahl nicht, ob die Baseline angelegt werden kann.
+Das Tool muss mit einem Befehl vor dem Festhalten einer [Baseline](reqseq:6ad4f981-8c70-4568-a77a-3da4cd2f98ac?version=n2:ccd1e07d6007cfb6) die [Befunde](reqseq:7bd46b59-0bdf-45de-8e04-2ea489b9a477?version=n2:9d0ccd8bf8416a53) der [Prüfung des Bestands](reqseq:737279a5-6169-40cb-b0ca-e4a8b0898b52?version=n2:effcfcd63f29bfa8), den [Nachweisgrad](reqseq:6ad4f977-5b23-4a33-a450-d377e776a54b?version=n2:36cf695a2c408b4f) einer [Auswahl](reqseq:f0c30c41-91fa-4ac5-8e7c-9054c84ccfc8?version=n2:29932e80a50c6573), die Requirements ohne bestandenen Test und die Änderungen seit der neuesten Baseline zeigen und „Create baseline“ als nächsten Schritt nennen. Der Befehl sperrt keinen Befehl und prüft außer der Art der Auswahl nicht, ob die Baseline angelegt werden kann.
