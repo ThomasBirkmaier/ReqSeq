@@ -12,4 +12,3 @@ export * from "./overview.js";
 export * from "./package.js";
 export * from "./relation-text.js";
 export * from "./verification.js";
-export { degreePercent } from "../evidence/degree-text.js";
