@@ -1,0 +1,49 @@
+[package]
+name = "shell"
+description = "The desktop shell of ReqSeq: hosts the web UI server of the same release in a window (ADR-0021)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "shell"
+path = "src/lib.rs"
+
+[[bin]]
+name = "reqseq-shell"
+path = "src/main.rs"
+
+[features]
+# The test driver of the e2e suite (ADR-0021, Test seam). Only in test builds; a release test checks the shipped
+# binary lacks it.
+e2e = ["dep:serde_json"]
+
+[lints]
+workspace = true
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", default-features = false }
+
+[dependencies]
+# `custom-protocol` is what the Tauri CLI would turn on: without it Tauri builds a development binary that looks for
+# a development server (ADR-0021, Package).
+tauri = { version = "=2.12.4", default-features = false, features = ["wry", "common-controls-v6", "dynamic-acl", "x11", "custom-protocol"] }
+tauri-plugin-dialog = "=2.8.3"
+url = "=2.5.9"
+serde_json = { version = "=1.0.154", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.190"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "=0.18.2"
+webkit2gtk = "=2.0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.5"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.39.1"
+windows = "=0.62.2"
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Pipes", "Win32_System_Com", "Win32_System_Console", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Storage_FileSystem"] }

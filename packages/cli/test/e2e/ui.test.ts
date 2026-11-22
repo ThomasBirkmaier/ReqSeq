@@ -580,6 +580,19 @@ describe("reqseq ui: stop and records (SR-247)", () => {
     }
   }, 60_000);
 
+  it("ends when its standard input ends only under REQSEQ_UI_END_WITH_STDIN=1, as the desktop shell starts it", async () => {
+    const ws = await workspace();
+    const plain = await ui(["--no-open"], ws.root);
+    plain.child.stdin.end();
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    expect(await answers(plain.port)).toBe(true);
+    const shelled = await ui(["--no-open"], ws.root, { env: { REQSEQ_UI_END_WITH_STDIN: "1" } });
+    expect(await answers(shelled.port)).toBe(true);
+    shelled.child.stdin.end();
+    expect(await exited(shelled.child)).toBe(0);
+    expect(await answers(shelled.port)).toBe(false);
+  }, 60_000);
+
   it("[SR-247/AK-c53z] leaves the last access of an agent as it was when the UI reads and changes an element", async () => {
     const ws = await workspace();
     const home = await emptyFolder();

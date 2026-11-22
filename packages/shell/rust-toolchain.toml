@@ -1,0 +1,5 @@
+# An exact stable Rust, at least two weeks old (ADR-0021, Package).
+[toolchain]
+channel = "1.97.0"
+components = ["rustfmt", "clippy", "llvm-tools"]
+profile = "minimal"

@@ -11,3 +11,7 @@ packages/core/src/generated/
 .claude/
 test-results/
 packages/core/src/html-export/*.generated.ts
+# Cargo's build folder of the desktop shell and what tauri-build writes next to its crate (ADR-0021).
+packages/shell/target/
+packages/shell/shell/gen/
+packages/shell/shell/permissions/

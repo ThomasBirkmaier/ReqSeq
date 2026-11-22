@@ -148,6 +148,11 @@ export interface RunCliOptions {
   /** Opens the address `ui` prints, without `--no-open`. Default: `openAddress` (the system's program). */
   readonly openAddress?: (url: string) => Promise<void>;
   /**
+   * Starts reading standard input and resolves when it ends; `ui` then stops as on a signal. bin.ts passes it only
+   * under `REQSEQ_UI_END_WITH_STDIN=1`, which the desktop shell sets (ADR-0021, End); other commands never call it.
+   */
+  readonly inputEnded?: () => Promise<void>;
+  /**
    * The terminal stdout is, when the output for people is styled for one (bin.ts: `terminalOf`, #988);
    * plain text without it. `--json`, `--jsonl` and `--yaml` are never styled.
    */
@@ -348,7 +353,7 @@ async function serveUi(
       options.stderr.write(`No browser was opened (${reason}). Open the address above yourself.\n`);
     });
   }
-  await stopped(signal);
+  await Promise.race([stopped(signal), ...(options.inputEnded === undefined ? [] : [options.inputEnded()])]);
   await server.close();
 }
 

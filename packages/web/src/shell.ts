@@ -1,8 +1,50 @@
-// What a desktop shell would do differently (ADR-0020, Front end): choose a folder or a file. In the browser this
-// is a path field whose completion comes from `workspace.listFolder`; a desktop shell would be a second
-// implementation of this module.
+// What the desktop shell does differently (ADR-0020, Front end; ADR-0021, Pages): open an address outside the page,
+// and choose a folder or a file. In the browser a link opens in a new browsing context and a path is typed in a
+// field whose completion comes from `workspace.listFolder`; in the window of the desktop shell (`isTauri()`) the
+// address goes to the shell's `open_address`, which hands it to the program the operating system names (SR-252
+// AK3). The pages reach the shell only through this module.
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { ReqSeqError, call } from "./api.js";
 import { h } from "./dom.js";
+
+/** Whether the page is shown in the window of the desktop shell. */
+export const inShell = (): boolean => isTauri();
+
+/**
+ * Opens `address` outside the page, on a person's input only (SR-252 AK9): in the desktop shell through
+ * `open_address`, which refuses the own server and every address that is not a full http, https or mailto address
+ * and rejects with its reason; in a browser in a new browsing context without opener.
+ */
+export async function openAddress(address: string): Promise<void> {
+  if (inShell()) {
+    await invoke("open_address", { address });
+    return;
+  }
+  window.open(address, "_blank", "noopener,noreferrer");
+}
+
+/**
+ * Makes a click on `link` open its address through `openAddress` in the desktop shell, where the window loads
+ * nothing but its server; in a browser the link keeps its `target`. A refusal or a failed opener shows as a note
+ * after the link.
+ */
+export function opensOutside(link: HTMLAnchorElement): void {
+  link.addEventListener("click", (event) => {
+    if (!inShell()) {
+      return;
+    }
+    event.preventDefault();
+    const address = link.getAttribute("href") ?? "";
+    if (link.nextElementSibling?.classList.contains("open-failed") === true) {
+      link.nextElementSibling.remove();
+    }
+    openAddress(address).catch((error: unknown) => {
+      const reason =
+        typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+      link.after(h("span", { class: "notice bad open-failed", role: "alert" }, ` ${reason}`));
+    });
+  });
+}
 
 export interface PathFieldOptions {
   /** The label of the field. */

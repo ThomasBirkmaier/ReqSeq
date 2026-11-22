@@ -1,0 +1,19 @@
+{
+  "productName": "ReqSeq",
+  "identifier": "io.github.thomasbirkmaier.reqseq",
+  "build": { "frontendDist": "blank" },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": false,
+    "security": { "csp": null, "capabilities": [] }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../../toolchain/packaging/icon/icons/32x32.png",
+      "../../../toolchain/packaging/icon/icons/128x128.png",
+      "../../../toolchain/packaging/icon/icon.icns",
+      "../../../toolchain/packaging/icon/icon.ico"
+    ]
+  }
+}
