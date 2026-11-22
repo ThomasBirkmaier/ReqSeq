@@ -23,7 +23,7 @@ based-on:
   - { id: 6ad4a03f-d7cf-4b85-98da-3f4431f33fe7, version: n2:84d08b2dbd1bf992, title: Auswertungen mit externen Werkzeugen }
   - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n2:94cfee040d7b0613, title: Kommandozeile neben der Web-Oberfläche }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
-  - { id: 12bb3e5a-c303-4774-9f3b-b61677923a73, version: n2:759700fa1ae252c7, title: Werkzeuge nur über Dateien }
+  - { id: 12bb3e5a-c303-4774-9f3b-b61677923a73, version: n2:4df637923b92d47a, title: Werkzeuge nur über Dateien }
 ---
 
 Das Tool muss die Daten eines Stands als JSON nach einem dokumentierten Schema für externe Auswertungen liefern.
