@@ -4,7 +4,7 @@
 // (`baseline.compare`, old and new wording as ReqSeq gives them, marked word by word by the HTML export's rule).
 // People set the status of one or many elements, supersede one with its successor and change a property of many
 // with ReqSeq's preview; every status is written only after a confirmation that names the elements and the status
-// (D-030). The release check (`#/r`) shows what `baseline.prepare` reports and creates a baseline.
+// (D-030). The check before a baseline (`#/r`) shows what `baseline.prepare` reports and creates a baseline.
 import "../css/changes.css";
 import type { ElementBulkUpdateInput, Problem } from "@reqseq/core";
 import { wordDiff } from "@reqseq/core/markdown";
@@ -35,7 +35,7 @@ import { PAGE, allPages } from "../pages.js";
 import type { Route } from "../router.js";
 import { addRoute, hashOf, isCurrent, parseHash, withFrom } from "../router.js";
 import type { ElementPart } from "../store.js";
-import { el, refOf, shownId, store, variantName, viewSelection } from "../store.js";
+import { el, load, refOf, shownId, store, variantName, viewSelection } from "../store.js";
 
 type Entry = OutputOf<"baseline.get">["elements"][number];
 type Changes = OutputOf<"baseline.changes">;
@@ -214,8 +214,20 @@ function written(text: string, problems: readonly Problem[] = []): void {
   writes += 1;
   flash = { route: parseHash(location.hash).hash, text, notes: problems.map((p) => p.message) };
   announce(text);
-  window.dispatchEvent(new HashChangeEvent("hashchange"));
+  // The store is read again first, so the page never shows the status from before the write.
+  void load()
+    .catch(() => undefined)
+    .then(() => {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
 }
+
+// The message of a write is shown only on the page it was made from.
+window.addEventListener("hashchange", () => {
+  if (flash !== undefined && flash.route !== parseHash(location.hash).hash) {
+    flash = undefined;
+  }
+});
 
 // ---------- Dialogs ----------
 
@@ -386,9 +398,22 @@ async function setStatuses(targets: readonly StatusTarget[]): Promise<readonly P
     by.set(t.status, [...(by.get(t.status) ?? []), t.id]);
   }
   const problems: Problem[] = [];
+  let done = 0;
   for (const [status, refs] of by) {
-    const out = await call("element.setStatus", { refs, status });
-    problems.push(...(out.problems ?? []));
+    try {
+      const out = await call("element.setStatus", { refs, status });
+      problems.push(...(out.problems ?? []));
+      done += refs.length;
+    } catch (error) {
+      // What was written before the refusal stays written: the page says so and shows it.
+      if (done > 0) {
+        written(
+          `Set ${String(done)} of ${plural(targets.length, "element", "elements")} before ReqSeq refused the rest.`,
+          problems,
+        );
+      }
+      throw error;
+    }
   }
   return problems;
 }
@@ -454,7 +479,11 @@ function statusDialog(
 
 /** "Set status": the person chooses a status that all the elements' types have; the list shows what each gets. */
 function setStatusDialog(ids: readonly string[]): void {
-  const elements = ids.map((id) => ({ id, e: el(id) }));
+  // A superseded element gets no status here: it is left out and named, as in "Approve".
+  const superseded = ids
+    .filter((id) => isInvalid(store.mm, el(id)?.status))
+    .map((id) => ({ id, why: `${statusName(store.mm, el(id)?.status)}, superseded` }));
+  const elements = ids.filter((id) => !isInvalid(store.mm, el(id)?.status)).map((id) => ({ id, e: el(id) }));
   const choices = commonStatuses(
     store.mm,
     elements.map((x) => x.e?.type),
@@ -485,9 +514,12 @@ function setStatusDialog(ids: readonly string[]): void {
     const left =
       status === ""
         ? []
-        : elements
-            .filter((x) => x.e?.status === status)
-            .map((x) => ({ id: x.id, why: `already ${statusName(store.mm, status)}` }));
+        : [
+            ...elements
+              .filter((x) => x.e?.status === status)
+              .map((x) => ({ id: x.id, why: `already ${statusName(store.mm, status)}` })),
+            ...superseded,
+          ];
     list.replaceChildren(status === "" ? "" : targetList(targets, left));
     confirm.textContent = targets.length === 0 ? "Set status" : statusSentence(targets);
     confirm.hidden = targets.length === 0;
@@ -553,9 +585,11 @@ function supersedeDialog(id: string): void {
       d.fail(error);
     }
   });
+  /** The successor typed: another element that is not superseded, as the suggestions offer. */
   const successorOf = (): ElementPart | undefined => {
     const typed = successor.value.trim();
-    return typed === "" ? undefined : el(typed);
+    const next = typed === "" ? undefined : el(typed);
+    return next === undefined || next.id === id || isInvalid(store.mm, next.status) ? undefined : next;
   };
   const summaryText = (): string => {
     const next = successorOf();
@@ -564,7 +598,7 @@ function supersedeDialog(id: string): void {
   const update = (): void => {
     const typed = successor.value.trim();
     const unknown = typed !== "" && successorOf() === undefined;
-    summary.textContent = unknown ? `There is no element ${typed}.` : `${summaryText()}.`;
+    summary.textContent = unknown ? `${typed} is no element that can follow this one.` : `${summaryText()}.`;
     summary.classList.toggle("bad", unknown);
     confirm.hidden = unknown;
     confirm.textContent = `Supersede ${e === undefined ? id : refOf(e)}`;
@@ -615,17 +649,21 @@ const bulkProps = (types: readonly (string | undefined)[]): string[] => {
 const bulkValue = (key: string, raw: string): unknown => {
   const d = propDef(store.mm, key);
   const one = (text: string): unknown => (d?.kind === "number" ? Number(text) : text);
-  if (d?.many === true) {
-    return raw
-      .split("\n")
-      .map((x) => x.trim())
-      .filter((x) => x !== "")
-      .map(one);
+  const items = raw
+    .split(d?.many === true ? "\n" : /$^/)
+    .map((x) => x.trim())
+    .filter((x) => x !== "");
+  if (items.length === 0 || (d?.kind === "number" && items.some((x) => !Number.isFinite(Number(x))))) {
+    return undefined;
   }
-  return one(raw.trim());
+  return d?.many === true ? items.map(one) : one(items[0] ?? "");
 };
 
-function bulkDialog(ids: readonly string[]): void {
+function bulkDialog(chosen: readonly string[]): void {
+  let ids = chosen;
+  // A superseded element keeps its properties here, as it gets no status.
+  const leftOut = ids.filter((id) => isInvalid(store.mm, el(id)?.status)).length;
+  ids = ids.filter((id) => !isInvalid(store.mm, el(id)?.status));
   const keys = bulkProps(ids.map((id) => el(id)?.type));
   const prop = h(
     "select",
@@ -639,8 +677,12 @@ function bulkDialog(ids: readonly string[]): void {
   let plan: string | undefined;
   const apply = actButton("Change", async () => {
     try {
+      const given = input();
+      if (given === undefined) {
+        return;
+      }
       const out = await call("element.bulkUpdate", {
-        ...input(),
+        ...given,
         confirm: true,
         ...(plan === undefined ? {} : { plan }),
       });
@@ -655,17 +697,22 @@ function bulkDialog(ids: readonly string[]): void {
     }
   });
   apply.hidden = true;
-  const input = (): Omit<ElementBulkUpdateInput, "confirm"> => {
+  /** The input of the command, or undefined while the value it needs is missing or no number. */
+  const input = (): Omit<ElementBulkUpdateInput, "confirm"> | undefined => {
     const operation = op.value as "set" | "add" | "remove";
-    const raw = value.value;
-    return {
-      selection: { ids: [...ids] },
-      property: prop.value,
-      operation,
-      ...(operation === "remove" && raw.trim() === ""
-        ? {}
-        : { value: bulkValue(prop.value, raw) as NonNullable<ElementBulkUpdateInput["value"]> }),
-    };
+    const many = propDef(store.mm, prop.value)?.many === true;
+    const typed = bulkValue(prop.value, value.value);
+    if (operation === "remove" && (!many || typed === undefined)) {
+      return { selection: { ids: [...ids] }, property: prop.value, operation };
+    }
+    return typed === undefined
+      ? undefined
+      : {
+          selection: { ids: [...ids] },
+          property: prop.value,
+          operation,
+          value: typed as NonNullable<ElementBulkUpdateInput["value"]>,
+        };
   };
   const reset = (): void => {
     plan = undefined;
@@ -676,8 +723,13 @@ function bulkDialog(ids: readonly string[]): void {
   preview.addEventListener("click", () => {
     void (async () => {
       reset();
+      const given = input();
+      if (given === undefined) {
+        result.replaceChildren(h("p", { class: "dlg-summary bad" }, "Give a value."));
+        return;
+      }
       try {
-        const out = await call("element.bulkUpdate", input());
+        const out = await call("element.bulkUpdate", given);
         plan = out.plan;
         result.replaceChildren(previewOf(out));
         apply.textContent = `Change ${plural(out.count, "element", "elements")}`;
@@ -703,6 +755,7 @@ function bulkDialog(ids: readonly string[]): void {
         ? h(
             "select",
             { id: "dlg-value" },
+            d0.many === true ? h("option", { value: "" }, "No item (remove all)") : null,
             (d0.choices ?? []).map((c) => h("option", { value: c.key }, c.name)),
           )
         : d0?.many === true
@@ -714,10 +767,15 @@ function bulkDialog(ids: readonly string[]): void {
     value.addEventListener("input", reset);
     value.addEventListener("change", reset);
     valueSlot.replaceChildren(h("label", { class: "field" }, h("span", null, "Value"), value));
+    shown();
+  };
+  /** Removing a single value needs no value: the field is hidden then. */
+  const shown = (): void => {
+    valueSlot.hidden = op.value === "remove" && propDef(store.mm, prop.value)?.many !== true;
     reset();
   };
   prop.addEventListener("change", fill);
-  op.addEventListener("change", reset);
+  op.addEventListener("change", shown);
   const d = dialog({
     title: "Change a property",
     body:
@@ -727,7 +785,7 @@ function bulkDialog(ids: readonly string[]): void {
             h(
               "p",
               null,
-              `ReqSeq first shows what the change does to the ${plural(ids.length, "chosen element", "chosen elements")}; nothing is written before you confirm.`,
+              `ReqSeq first shows what the change does to the ${plural(ids.length, "chosen element", "chosen elements")}; nothing is written before you confirm.${leftOut > 0 ? ` ${plural(leftOut, "superseded element is", "superseded elements are")} left out.` : ""}`,
             ),
             h("label", { class: "field" }, h("span", null, "Property"), prop),
             h("label", { class: "field" }, h("span", null, "Change"), op),
@@ -1019,7 +1077,7 @@ function summary(data: Since, route: Route): HTMLElement {
         ? "No open hints in the workspace."
         : `${plural(data.changes.hintTotal, "open hint", "open hints")} in the workspace.`,
       " ",
-      h("a", { class: "link", href: hashOf("r") }, "Release check and new baseline"),
+      h("a", { class: "link", href: hashOf("r") }, "Check and create a baseline"),
     ),
   );
 }
@@ -1140,11 +1198,12 @@ function linksToReview(data: Since, id: string): HTMLElement | null {
       await call("hint.confirm", { hintIds: ids, expected: ids.length });
       written(`Marked ${plural(ids.length, "link", "links")} as reviewed.`);
     } catch (error) {
-      box.append(problemBox(error));
+      failed.replaceChildren(problemBox(error));
     }
   });
   button.classList.remove("primary");
-  const box = h(
+  const failed = h("div");
+  return h(
     "section",
     { class: "dsec" },
     h("h3", null, "Links to review"),
@@ -1155,8 +1214,8 @@ function linksToReview(data: Since, id: string): HTMLElement | null {
       hints.map((x) => h("li", { class: x.severity }, x.message)),
     ),
     h("p", null, button),
+    failed,
   );
-  return box;
 }
 
 /** The difference of an entry since the baseline, as `baseline.compare` gives it. */
@@ -1255,7 +1314,7 @@ const noBaseline = (): HTMLElement =>
       null,
       "A baseline records every element as it is at one moment. Create one, and this page shows what changes after it.",
     ),
-    h("p", null, h("a", { class: "btn", href: hashOf("r") }, "Release check and new baseline")),
+    h("p", null, h("a", { class: "btn", href: hashOf("r") }, "Check and create a baseline")),
   );
 
 /** The panel beside the list: the summary, the difference of the chosen entry, or why there is none. */
@@ -1323,7 +1382,7 @@ async function renderChanges(root: HTMLElement, route: Route): Promise<void> {
   document.title = `${entry === undefined ? `Changes since ${baseline}` : label(el(entry.id), entry.id)} · ReqSeq`;
 }
 
-// ---------- Release check ----------
+// ---------- Check before a baseline ----------
 
 const SEVERITY = [
   ["error", "Errors"],
@@ -1462,7 +1521,7 @@ async function renderRelease(root: HTMLElement, route: Route): Promise<void> {
   const page = h(
     "div",
     { class: "release" },
-    h("h1", null, "Release check"),
+    h("h1", null, "Check before a baseline"),
     h(
       "p",
       { class: "sub" },
@@ -1506,7 +1565,7 @@ async function renderRelease(root: HTMLElement, route: Route): Promise<void> {
     createForm(),
   );
   await swap(root, frame(RELEASE, h("main", { class: "release-wrap" }, page), { wide: true }));
-  document.title = "Release check · ReqSeq";
+  document.title = "Check before a baseline · ReqSeq";
 }
 
 addRoute("c", renderChanges);
@@ -1538,6 +1597,6 @@ addRailSection({
       name: railCounts?.name === undefined ? "Changes since a baseline" : `Changes since ${railCounts.name}`,
       count: railCounts?.count,
     },
-    { href: hashOf("r"), key: RELEASE, name: "Release check" },
+    { href: hashOf("r"), key: RELEASE, name: "Check before a baseline" },
   ],
 });

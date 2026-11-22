@@ -1,5 +1,5 @@
 // Review since a baseline, read only: the changes since a baseline as `baseline.get` gives them, the difference of
-// one element word by word as `baseline.compare` gives it, and the release check of `baseline.prepare`. Runs on
+// one element word by word as `baseline.compare` gives it, and the check before a baseline of `baseline.prepare`. Runs on
 // each workspace: with several baselines, with a metamodel of two settled statuses, and without a baseline.
 import AxeBuilder from "@axe-core/playwright";
 import type { Run } from "./start-ui.js";
@@ -27,7 +27,7 @@ test("the list names every element that changed since the newest baseline", asyn
   await open("/c");
   if (since === undefined) {
     await expect(page.getByRole("heading", { level: 1, name: "No baseline yet" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Release check and new baseline" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Check and create a baseline" })).toBeVisible();
     return;
   }
   await expect(page.getByRole("heading", { level: 1, name: `Changes since ${since.name}` })).toBeVisible();
@@ -118,10 +118,10 @@ test("Approve is offered only where a type has one status to approve", async ({ 
   }
 });
 
-test("the release check shows what ReqSeq checks before a baseline", async ({ page, open, ui }) => {
+test("the check before a baseline shows what ReqSeq checks before a baseline", async ({ page, open, ui }) => {
   const prep = await ui.run("baseline.prepare", {});
   await open("/r");
-  await expect(page.getByRole("heading", { level: 1, name: "Release check" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Check before a baseline" })).toBeVisible();
   const errors = prep.problems.filter((p) => p.severity === "error").length;
   const counts = page.locator(".ccounts.big dt");
   await expect(counts.nth(0)).toHaveText(String(errors));

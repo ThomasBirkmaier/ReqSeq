@@ -1,5 +1,5 @@
 /* Review since a baseline: the list of changes with a box to choose each, the panel with the difference word by
-   word, the dialogs that confirm a decision, and the release check. */
+   word, the dialogs that confirm a decision, and the check before a baseline. */
 .crow {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
@@ -307,7 +307,7 @@
   margin-top: 12px;
 }
 
-/* ---------- The release check ---------- */
+/* ---------- The check before a baseline ---------- */
 .release-wrap {
   overflow-y: auto;
   min-height: 0;

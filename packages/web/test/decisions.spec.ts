@@ -194,7 +194,9 @@ test("Supersede gives the element its superseded status and points its successor
     await choose.selectOption(status);
   }
   await dialog.getByLabel("Successor").fill("NO-SUCH-ELEMENT");
-  await expect(dialog.locator("[data-summary]")).toHaveText("There is no element NO-SUCH-ELEMENT.");
+  await expect(dialog.locator("[data-summary]")).toHaveText(
+    "NO-SUCH-ELEMENT is no element that can follow this one.",
+  );
   await dialog.getByLabel("Successor").fill(successorRef);
   await expect(dialog.locator("[data-summary]")).toContainText(`as ${name}, followed by ${successorRef}`);
   await dialog.getByRole("button", { name: /^Supersede / }).click();
@@ -275,4 +277,24 @@ test("a baseline is refused in plain words while element files are not committed
     "The workspace has changes that are not committed.",
   );
   expect((await ui.run("baseline.list", {})).baselines.map((b) => b.name)).not.toContain("Review 2");
+});
+
+test("Set status leaves superseded elements out and names them", async ({ page, open, ui }) => {
+  const got = await ui.run("baseline.get", { baseline: BASELINE, limit: 5000 });
+  const superseded = got.elements.filter((e) => e.state === "superseded").map((e) => e.id);
+  const before = await statusOf(ui.run, superseded[0] ?? "");
+  await open(CHANGES);
+  await page.locator('input[data-pick-all="superseded"]').check();
+  await page.locator(".selbar").getByRole("button", { name: "Set status" }).click();
+  const dialog = page.getByRole("dialog", { name: "Set status" });
+  const choose = dialog.locator("#dlg-status");
+  if ((await choose.count()) > 0) {
+    await choose.selectOption({ index: 1 });
+    await expect(dialog.locator(`.dlg-list.left li[data-id="${superseded[0] ?? ""}"]`)).toContainText(
+      "superseded",
+    );
+    await expect(dialog.getByRole("button", { name: /^Set \d/ })).toHaveCount(0);
+  }
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  expect(await statusOf(ui.run, superseded[0] ?? "")).toBe(before);
 });
