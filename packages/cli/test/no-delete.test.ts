@@ -1,18 +1,13 @@
 // SR-099 (D-045): the command line, the local API and the MCP server offer no delete of an element. Each
 // offers exactly the catalog commands (ADR-0002 rule 3), and the catalog has none
 // (packages/core/src/commands/no-delete.test.ts). A delete that is not in the catalog is refused by each
-// adapter and leaves the element file as it was. The app offers the same through its preload bridge, which is
-// generic over the catalog (ADR-0010); the Electron tests check the bridge in the app itself.
+// adapter and leaves the element file as it was.
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import type { MessagePort } from "node:worker_threads";
-import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
-import type { IpcRendererLike } from "@reqseq/app";
-import { createBridge, createCoreHost } from "@reqseq/app";
 import { Workspace, createCommandRuntime } from "@reqseq/core";
 import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -233,82 +228,6 @@ describe("the MCP server offers no delete (SR-099)", () => {
       await served;
       await client.close();
       await workspace.close();
-    }
-    expect(await elementFile()).toBe(original);
-  });
-});
-
-describe("the app offers no delete (SR-099)", () => {
-  /** The core side of the app's IPC on one end of a Node MessageChannel (Electron's port in the app). */
-  const connect = (workspace: Workspace) => {
-    const host = createCoreHost({ runtime, workspace });
-    const { port1, port2 } = new MessageChannel();
-    const port: MessagePort = port1;
-    host.connect({
-      post: (message) => {
-        port.postMessage(message);
-      },
-      onMessage: (listener) => {
-        port.on("message", listener);
-      },
-      onClose: (listener) => {
-        port.on("close", listener);
-      },
-      close: () => {
-        port.close();
-      },
-    });
-    let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
-    const bridge = createBridge({
-      // The workspace of the window; main's requests to save (SR-131) do not come here.
-      on: (channel, listener) => {
-        if (channel === "reqseq:workspace") {
-          deliver = listener;
-        }
-      },
-      invoke: () => Promise.resolve(false),
-      send: () => undefined,
-    });
-    deliver?.({ ports: [port2] }, { open: true });
-    return { bridge, close: () => host.close() };
-  };
-
-  it("[SR-099/AK-nbg9] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
-    const app = connect(new Workspace(fixture.root));
-    try {
-      // Besides the catalog: the clipboard (SR-128), the paste into the focused field (SR-195), the recent
-      // workspaces of the window and saving before a switch (SR-131), and the folder listing of "Open
-      // workspace" (SR-143), the documentation in the browser (SR-141), and the folder dialogs of the start buffer
-      // (SR-225 AK2, AK4). None deletes anything.
-      expect(Object.keys(app.bridge).sort()).toEqual([
-        "chooseCreateFolder",
-        "commands",
-        "copyText",
-        "invoke",
-        "listFolder",
-        "on",
-        "onHelp",
-        "onSave",
-        "openDocs",
-        "openFolderDialog",
-        "openWorkspace",
-        "pasteText",
-        "recentWorkspaces",
-      ]);
-      const listed = (await app.bridge.commands()).map((c) => c.name);
-      expect(listed).toEqual(catalogNames);
-      expect(listed.filter((name) => DELETE_LIKE.test(name.slice(name.indexOf(".") + 1)))).toEqual(ALLOWED);
-      for (const name of ["element.delete", "element.remove"]) {
-        expect([name, await app.bridge.invoke(name, { ref: REF })]).toEqual([
-          name,
-          {
-            ok: false,
-            error: { code: "input.invalid", message: `Unknown command: ${name}`, details: { command: name } },
-          },
-        ]);
-      }
-    } finally {
-      await app.close();
     }
     expect(await elementFile()).toBe(original);
   });

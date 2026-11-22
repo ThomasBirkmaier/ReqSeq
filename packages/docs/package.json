@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@reqseq/api": "workspace:*",
-    "@reqseq/app": "workspace:*",
     "@reqseq/cli": "workspace:*",
     "@reqseq/core": "workspace:*",
     "@reqseq/mcp": "workspace:*",

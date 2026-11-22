@@ -111,7 +111,6 @@ export default defineConfig({
             },
             { label: "Common types", slug: "reference/common-types" },
             { label: "Standard model", slug: "reference/standard-model" },
-            { label: "Keyboard shortcuts", slug: "reference/keyboard-shortcuts" },
           ],
         },
         // ReqSeq's own spec as an HTML export, which the Pages workflow adds under /spec/ with each release (#1971).

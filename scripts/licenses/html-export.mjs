@@ -100,8 +100,19 @@ export function bundledPackages(map, mapFile, readMap) {
   return { packages: [...packages.values()], problems };
 }
 
-/** The notice entries `{ name, version, license, texts }` of `packages`, and the problems. */
-export function noticeEntries(packages, bundled) {
+/** A problem for each entry of `verified` with `htmlExport` that none of `packages` is. */
+const uncopiedVerified = (packages, verified) => {
+  const copied = new Set(packages.map((pkg) => `${pkg.name}@${pkg.version}`));
+  return Object.entries(verified)
+    .filter(([id, entry]) => entry.htmlExport === true && !copied.has(id))
+    .map(([id]) => `verified license file of ${id} is not copied by the HTML export: remove the entry`);
+};
+
+/**
+ * The notice entries `{ name, version, license, texts }` of `packages`, and the problems; an entry of `verified` with
+ * `htmlExport` that none of `packages` is, is one too.
+ */
+export function noticeEntries(packages, bundled, verified = VERIFIED_LICENSE_FILES) {
   const problems = [];
   const entries = [];
   const byKey = new Map(bundled.map((b) => [`${b.name}@${b.version}`, b]));
@@ -113,14 +124,14 @@ export function noticeEntries(packages, bundled) {
       const manifest = JSON.parse(fs.readFileSync(path.join(pkg.folder, "package.json"), "utf8"));
       texts = licenseTexts(pkg.folder);
       // A manifest without `license` whose file was checked by hand (`licenses:check`, VERIFIED_LICENSE_FILES).
-      const verified = VERIFIED_LICENSE_FILES[key];
-      const file = verified === undefined ? undefined : path.join(pkg.folder, verified.file);
+      const entry = verified[key];
+      const file = entry === undefined ? undefined : path.join(pkg.folder, entry.file);
       license =
         manifest.license === undefined &&
         file !== undefined &&
         fs.existsSync(file) &&
-        sha256(fs.readFileSync(file)) === verified.sha256
-          ? verified.license
+        sha256(fs.readFileSync(file)) === entry.sha256
+          ? entry.license
           : manifest.license;
     } else {
       const kept = byKey.get(key);
@@ -143,6 +154,7 @@ export function noticeEntries(packages, bundled) {
       entries.push({ name: pkg.name, version: pkg.version, license, texts: texts.map((t) => t.trim()) });
     }
   }
+  problems.push(...uncopiedVerified(packages, verified));
   entries.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
   return { entries, problems };
 }

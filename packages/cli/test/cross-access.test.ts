@@ -1,8 +1,6 @@
 // Cross-access test (ADR-0002 rule 8, ADR-0011, SR-080): every catalog command runs through core `invoke`,
-// the CLI, the local API, the MCP server and the app on the same fixture workspace, and all five give the
-// same result: the same output or the same error object, and the same files on disk afterwards. The app is
-// its preload bridge and the core side of its IPC over a MessageChannel, the path every call of the
-// renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
+// the CLI, the local API and the MCP server on the same fixture workspace, and all four give the same
+// result: the same output or the same error object, and the same files on disk afterwards. New catalog
 // commands join automatically with a default scenario (input `{}`); when a command is implemented, add its
 // explicit scenarios in a module of its own, cross-access/scenarios/<group>/<command>.ts (#527). Fixtures
 // that more than one command uses are in cross-access/fixtures.ts.
@@ -11,18 +9,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import type { MessagePort } from "node:worker_threads";
-import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
-import type { Channel, IpcRendererLike } from "@reqseq/app";
-import {
-  HELP_CHANNEL,
-  SAVE_CHANNEL,
-  SWIPE_CHANNEL,
-  WORKSPACE_CHANNEL,
-  createBridge,
-  createCoreHost,
-} from "@reqseq/app";
 import type { CatalogEntry, CommandName, CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
@@ -203,65 +190,6 @@ const viaMcp = async (
   }
 };
 
-/** The core side of the app's IPC on one end of a Node MessageChannel (Electron's port in the app). */
-const nodeChannel = (port: MessagePort): Channel => ({
-  post: (message) => {
-    port.postMessage(message);
-  },
-  onMessage: (listener) => {
-    port.on("message", listener);
-  },
-  onClose: (listener) => {
-    port.on("close", listener);
-  },
-  close: () => {
-    port.close();
-  },
-});
-
-/**
- * The app on `workspace` without Electron: its preload bridge, connected to the core side of its IPC as
- * the main process connects them (a port per window). `close` closes the ports and the workspace.
- */
-const connectApp = (
-  workspace: Workspace,
-  rt: CommandRuntime = runtime,
-): { bridge: ReturnType<typeof createBridge>; close: () => Promise<void> } => {
-  const host = createCoreHost({ runtime: rt, workspace });
-  const { port1, port2 } = new MessageChannel();
-  host.connect(nodeChannel(port1));
-  let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
-  const bridge = createBridge({
-    // The workspace of the window, main's requests to save before a switch (SR-131), Help in the menu
-    // (SR-141) and a macOS swipe (SR-163), which no command sends.
-    on: (channel, listener) => {
-      expect([WORKSPACE_CHANNEL, HELP_CHANNEL, SAVE_CHANNEL, SWIPE_CHANNEL]).toContain(channel);
-      if (channel === WORKSPACE_CHANNEL) {
-        deliver = listener;
-      }
-    },
-    invoke: () => Promise.resolve(false),
-    send: () => undefined,
-  });
-  deliver?.({ ports: [port2] }, { open: true });
-  return { bridge, close: () => host.close() };
-};
-
-const viaApp = async (
-  root: string,
-  entry: CatalogEntry,
-  input: object,
-  rt: CommandRuntime = runtime,
-): Promise<Outcome> => {
-  const app = connectApp(new Workspace(root), rt);
-  try {
-    const result = await app.bridge.invoke(entry.name, input);
-    return result.ok ? { output: result.output } : { error: result.error };
-  } finally {
-    await app.close();
-  }
-};
-
 /** Absolute paths in the copy of the fixture as `<copy>/...`, so results of separate copies compare equal. */
 const normalized = (value: unknown, top: string): unknown => {
   const text = JSON.stringify(value);
@@ -418,7 +346,7 @@ const foldersOf = async (top: string): Promise<string[]> =>
     .sort();
 
 /**
- * A test runs one command through all five accesses. A write command gets up to five copies. Each access may
+ * A test runs one command through all four accesses. A write command gets up to four copies. Each access may
  * read Git through a child process. On Linux and macOS a test takes well under a second. Process starts on
  * Windows runners vary from 0.1 s to more than 1 s, so the default limit of 5 s is too tight there. This
  * limit only catches a hang. On the Windows runner of CI it is 60 s, as for every other test there
@@ -426,7 +354,7 @@ const foldersOf = async (top: string): Promise<string[]> =>
  */
 const TEST_TIMEOUT = process.platform === "win32" && process.env["CI"] === "true" ? 60_000 : 30_000;
 
-const ACCESSES = ["core", "cli", "api", "mcp", "app"] as const;
+const ACCESSES = ["core", "cli", "api", "mcp"] as const;
 
 /**
  * Commands whose output has the time of the call at the top (`generated`, data-export.schema.json): it is
@@ -522,9 +450,7 @@ const via = (
       ? viaCli(root, entry, input)
       : access === "api"
         ? viaApi(root, entry, input, cache)
-        : access === "mcp"
-          ? viaMcp(root, entry, input)
-          : viaApp(root, entry, input);
+        : viaMcp(root, entry, input);
 
 /** A fresh copy of the scenario's fixture, prepared. */
 const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
@@ -534,7 +460,7 @@ const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
 };
 
 /**
- * Run a scenario through all five accesses. A write command gets a fresh copy per access, so each one starts
+ * Run a scenario through all four accesses. A write command gets a fresh copy per access, so each one starts
  * from the same files; an access that left its copy as it found it (an error, mostly) hands it to the next
  * one, when the scenario has no `prepare` (it may not be repeatable on the same copy). A read command, and a
  * command without an implementation (it cannot write), share one copy. Either way, the files of the copy
@@ -682,39 +608,35 @@ const answerOf = (outcome: Outcome | undefined): unknown =>
     ? (outcome.output as Readonly<Record<string, unknown>>)["answer"]
     : undefined;
 
-describe(
-  "cross-access: same result through core, CLI, API, MCP and the app",
-  { timeout: TEST_TIMEOUT },
-  () => {
-    for (const entry of runtime.contracts.commands) {
-      const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
-      for (const scenario of [DEFAULT, ...explicit]) {
-        // Every call but those of workspace.markOpened also shows that the list of recent workspaces stays
-        // as it is (`runAccess`, SR-250 AK4).
-        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"}${entry.name === MARK_OPENED ? "" : " [SR-250/AK-vp6h]"} ${entry.name}, ${scenario.name}`, async () => {
-          const results = await runAll(entry, scenario, ACCESSES);
-          const core = results["core"];
-          if (scenario !== DEFAULT) {
-            expect(Object.keys(core?.outcome ?? {})).toEqual([scenario.expect]);
-          }
-          expect(Object.keys(core?.files ?? {}).length).toBeGreaterThan(0);
-          expect(results).toEqual({ core, cli: core, api: core, mcp: core, app: core });
-          scenario.check?.(results);
-        });
-      }
+describe("cross-access: same result through core, CLI, API and MCP", { timeout: TEST_TIMEOUT }, () => {
+  for (const entry of runtime.contracts.commands) {
+    const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
+    for (const scenario of [DEFAULT, ...explicit]) {
+      // Every call but those of workspace.markOpened also shows that the list of recent workspaces stays
+      // as it is (`runAccess`, SR-250 AK4).
+      it(`${scenario.tag ?? "[SR-080/AK-bb1t]"}${entry.name === MARK_OPENED ? "" : " [SR-250/AK-vp6h]"} ${entry.name}, ${scenario.name}`, async () => {
+        const results = await runAll(entry, scenario, ACCESSES);
+        const core = results["core"];
+        if (scenario !== DEFAULT) {
+          expect(Object.keys(core?.outcome ?? {})).toEqual([scenario.expect]);
+        }
+        expect(Object.keys(core?.files ?? {}).length).toBeGreaterThan(0);
+        expect(results).toEqual({ core, cli: core, api: core, mcp: core });
+        scenario.check?.(results);
+      });
     }
+  }
 
-    it("has scenarios only for catalog commands", () => {
-      const names = new Set(runtime.contracts.commands.map((e) => e.name));
-      expect([...SCENARIOS.keys()].filter((name) => !names.has(name))).toEqual([]);
-      // Each module registers the command its path names, so none is loaded without scenarios.
-      const byPath = SCENARIO_MODULES.map((file) =>
-        file.replace(/^\.\/cross-access\/scenarios\/([^/]+)\/([^/]+)\.ts$/, "$1.$2"),
-      );
-      expect([...SCENARIOS.keys()].sort()).toEqual(byPath.sort());
-    });
-  },
-);
+  it("has scenarios only for catalog commands", () => {
+    const names = new Set(runtime.contracts.commands.map((e) => e.name));
+    expect([...SCENARIOS.keys()].filter((name) => !names.has(name))).toEqual([]);
+    // Each module registers the command its path names, so none is loaded without scenarios.
+    const byPath = SCENARIO_MODULES.map((file) =>
+      file.replace(/^\.\/cross-access\/scenarios\/([^/]+)\/([^/]+)\.ts$/, "$1.$2"),
+    );
+    expect([...SCENARIOS.keys()].sort()).toEqual(byPath.sort());
+  });
+});
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
   it("[SR-080/AK-wxtg] is a CLI subcommand, an API route and, once implemented, an MCP tool", async () => {
@@ -1013,7 +935,7 @@ const withNeeds = async (count: number): Promise<{ readonly root: string; readon
 };
 
 describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-166/AK-p44g] the API, the MCP server and the app keep every relation that eight relation.add calls at once report", async () => {
+  it("[SR-166/AK-p44g] the API and the MCP server keep every relation that eight relation.add calls at once report", async () => {
     // The API: eight requests at once.
     {
       const { root, needs } = await withNeeds(PARALLEL_CALLS);
@@ -1086,23 +1008,6 @@ describe("cross-access: write calls at the same time (SR-166)", { timeout: TEST_
       const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
       expect(needs.filter((id) => !file.includes(id))).toEqual([]);
     }
-    // The app: eight calls at once through its bridge.
-    {
-      const { root, needs } = await withNeeds(PARALLEL_CALLS);
-      const app = connectApp(new Workspace(root));
-      try {
-        const results = await Promise.all(
-          needs.map((target) =>
-            app.bridge.invoke("relation.add", { source: WIND, kind: "derives-from", target }),
-          ),
-        );
-        expect(results.map((result) => result.ok)).toEqual(needs.map(() => true));
-      } finally {
-        await app.close();
-      }
-      const file = await fs.readFile(path.join(root, WIND_FILE), "utf8");
-      expect(needs.filter((id) => !file.includes(id))).toEqual([]);
-    }
   });
 });
 
@@ -1156,7 +1061,7 @@ const crashing = createCommandRuntime({
 });
 
 describe("cross-access: the cause of an internal error (#1794)", { timeout: TEST_TIMEOUT }, () => {
-  it("is the same error object through core, CLI, API, MCP and the app, without absolute paths", async () => {
+  it("is the same error object through core, CLI, API and MCP, without absolute paths", async () => {
     const { root } = await copy(DEFAULT);
     const [entry] = crashing.contracts.commands;
     if (entry === undefined) {
@@ -1167,7 +1072,6 @@ describe("cross-access: the cause of an internal error (#1794)", { timeout: TEST
       cli: await viaCli(root, entry, {}, crashing),
       api: await viaApi(root, entry, {}, cache, crashing),
       mcp: await viaMcp(root, entry, {}, crashing),
-      app: await viaApp(root, entry, {}, crashing),
     };
     const error = {
       code: "internal",
@@ -1186,7 +1090,6 @@ describe("cross-access: the cause of an internal error (#1794)", { timeout: TEST
       cli: { error },
       api: { error },
       mcp: { error },
-      app: { error },
     });
   });
 });

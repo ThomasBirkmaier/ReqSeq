@@ -9,11 +9,22 @@ const ways = sections(ACCESSES);
 const roundTrip = (page: string): string => withoutAccessTabs(String(accessTabs(page)));
 
 describe("accessTabs", () => {
-  it("leaves a page without the four sections in order, and ignores headings in code blocks", () => {
+  it("leaves a page without the sections in order, and ignores headings in code blocks", () => {
     expect(accessTabs("---\ntitle: A\n---\n\n## Overview\n\nText.\n")).toBeUndefined();
     expect(accessTabs(sections(["App", "CLI", "MCP", "API"]))).toBeUndefined();
     expect(accessTabs(sections(["App", "CLI", "API"]))).toBeUndefined();
-    expect(accessTabs(`\`\`\`md\n## App\n\`\`\`\n\n${sections(["CLI", "API", "MCP"])}`)).toBeUndefined();
+    expect(accessTabs(sections(["CLI", "API"]))).toBeUndefined();
+    expect(accessTabs(`\`\`\`md\n## CLI\n\`\`\`\n\n${sections(["API", "MCP"])}`)).toBeUndefined();
+  });
+
+  it("makes the sections tabs without the one on the app as well", () => {
+    const page = sections(["CLI", "API", "MCP"]);
+    expect(accessTabs(page)?.match(/<TabItem label="(\w+)">/g)).toEqual([
+      '<TabItem label="CLI">',
+      '<TabItem label="API">',
+      '<TabItem label="MCP">',
+    ]);
+    expect(roundTrip(page)).toBe(page);
   });
 
   it("makes the four sections tabs with one sync key and a print label each, up to the next section", () => {

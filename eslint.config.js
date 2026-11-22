@@ -30,8 +30,6 @@ const testFiles = [
   "packages/shell/e2e/**/*.ts",
   "packages/shell/vitest.shell.config.ts",
 ];
-// The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.
-const appPerfFiles = ["packages/app/test/perf/**/*.ts"];
 
 // ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(
@@ -112,7 +110,7 @@ export default tseslint.config(
   {
     // Adapters: only the public API of core, never the testkit.
     files: productFiles,
-    ignores: [...testFiles, ...appPerfFiles, "packages/core/**", "packages/testkit/**"],
+    ignores: [...testFiles, "packages/core/**", "packages/testkit/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -129,7 +127,7 @@ export default tseslint.config(
     },
   },
   {
-    // ADR-0019 point 3: the display models run in the app's sandboxed renderer, so they import only types, each
+    // ADR-0019 point 3: the display models run in the browser (the web UI, ADR-0020), so they import only types, each
     // other and the import-free modules of core. This block replaces the options of the core block, so it repeats
     // its patterns.
     files: ["packages/core/src/displays/**/*.ts"],
@@ -189,7 +187,7 @@ export default tseslint.config(
   },
   {
     // Tests outside core and the testkit itself: the testkit is fine, core internals are not.
-    files: [...testFiles, ...appPerfFiles, "packages/testkit/**/*.ts", "packages/testkit/**/*.tsx"],
+    files: [...testFiles, "packages/testkit/**/*.ts", "packages/testkit/**/*.tsx"],
     ignores: ["packages/core/**"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [coreInternals] }],

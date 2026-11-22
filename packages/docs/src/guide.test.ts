@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { checkExamples, pageSteps, readGuidePages, runReqseq, runSteps } from "./examples.js";
-import { ACCESSES, accessNames, checkHowTos, howToProblems } from "./how-to.js";
+import { REQUIRED_ACCESSES, accessNames, checkHowTos, howToProblems } from "./how-to.js";
 import { readGeneratedContracts } from "./reference.js";
 
 const guideDir = fileURLToPath(new URL("../../../docs/guide/", import.meta.url));
@@ -52,7 +52,7 @@ describe("guide", () => {
     await expect(checkExamples([changed], runReqseq)).rejects.toThrow("the output differs from the page");
   });
 
-  it("[SR-140/AK-v5p1] the build checks that the app entries, API paths and MCP tools a how-to names exist in this version", async () => {
+  it("[SR-140/AK-v5p1] the build checks that the API paths and MCP tools a how-to names exist in this version", async () => {
     const pages = await readGuidePages(guideDir);
     const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
     expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);
@@ -61,12 +61,10 @@ describe("guide", () => {
     const renamed = {
       path: howTo?.path ?? "",
       text: text
-        .replace("**Show trace chain**", "**Show trace tree**")
         .replace("POST /v1/commands/trace.chain", "POST /v1/commands/trace.tree")
         .replace('"name": "trace_chain"', '"name": "trace_tree"'),
     };
     expect(howToProblems(renamed, names)).toEqual([
-      'how-to/trace-a-requirement.md: ## App: the command prompt has no entry "Show trace tree"',
       "how-to/trace-a-requirement.md: ## API: no command trace.tree in the API and MCP",
       'how-to/trace-a-requirement.md: ## MCP: no MCP tool "trace_tree"',
     ]);
@@ -74,14 +72,14 @@ describe("guide", () => {
     expect(() => checkHowTos([renamed], names)).toThrow("docs: how-to pages");
   });
 
-  it("[SR-140/AK-d28g] every how-to shows its task in the app, the CLI, the API and MCP", async () => {
+  it("[SR-140/AK-d28g] every how-to shows its task in the CLI, the API and MCP", async () => {
     const pages = await readGuidePages(guideDir);
     const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
     expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);
     const howTo = pages.find((page) => page.path === "how-to/trace-a-requirement.md");
     expect(howTo).toBeDefined();
     const text = howTo?.text ?? "";
-    for (const access of ACCESSES) {
+    for (const access of REQUIRED_ACCESSES) {
       const without = { path: howTo?.path ?? "", text: text.replace(`\n## ${access}\n`, "\n## Other\n") };
       expect(howToProblems(without, names)).toEqual([
         `how-to/trace-a-requirement.md: no section "## ${access}" with its steps, or why it is not possible there`,

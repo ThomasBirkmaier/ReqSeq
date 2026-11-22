@@ -15,16 +15,18 @@ export { ALLOWED };
  * ship is one of the allowlist (ADR-0015). Each is pinned by exact name and version and by the sha256 of
  * that file as it was read and checked by hand: another version, another text or a missing file fails
  * again, and an entry no installed package uses fails too (no stale exceptions). This is no ignore: the
- * license is read from the package itself, only from its file instead of its manifest.
+ * license is read from the package itself, only from its file instead of its manifest. An entry with `htmlExport`
+ * is for a package that only the Mermaid bundle of the HTML export copies: `html-export.mjs` checks that it is used.
  *
- * - khroma 2.1.0 (Mermaid, SR-096 diagrams): `license` is the standard MIT text (2019-present Fabio
- *   Spampinato, Andrew Maney); its `package.json` has no `license` field.
+ * - khroma 2.1.0 (Mermaid, bundled by the HTML export, SR-231): `license` is the standard MIT text (2019-present
+ *   Fabio Spampinato, Andrew Maney); its `package.json` has no `license` field.
  */
 export const VERIFIED_LICENSE_FILES = {
   "khroma@2.1.0": {
     license: "MIT",
     file: "license",
     sha256: "66b333b0f66759a0b710459e03f7029abe17f4358114a128d2c972e642961b49",
+    htmlExport: true,
   },
 };
 
@@ -182,8 +184,8 @@ export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
       }
     }
   }
-  for (const id of Object.keys(verified)) {
-    if (!used.has(id)) {
+  for (const [id, entry] of Object.entries(verified)) {
+    if (!used.has(id) && entry.htmlExport !== true) {
       problems.push(`verified license file of ${id} is not used by any production package: remove the entry`);
     }
   }
