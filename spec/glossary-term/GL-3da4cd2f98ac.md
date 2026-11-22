@@ -8,4 +8,4 @@ broader-term:
 english-term: baseline
 ---
 
-Benannter Stand, der sich nicht mehr ändert. Die Baseline einer Auswahl hält die Fassung jedes ihrer Elemente in diesem Stand fest, dazu den Commit jedes beteiligten Repositories ([SR-050](reqseq:6adc6c99-2467-4946-b797-59d3c80b7a8c?version=n2:e8966fe9ea086fba)). Die Baseline einer Variante ist eine Baseline, deren Auswahl nur die Sicht dieser Variante ist ([SR-103](reqseq:6adc7b15-79d2-4271-82c8-bc6b138c3884?version=n2:6f68955bf7b6a502)). Wann und warum eine Baseline gezogen wird, entscheidet sich außerhalb des Tools.
+Benannter Stand, der sich nicht mehr ändert. Die Baseline einer Auswahl hält die Fassung jedes ihrer Elemente in diesem Stand fest, dazu den Commit jedes beteiligten Repositories ([SR-050](reqseq:6adc6c99-2467-4946-b797-59d3c80b7a8c?version=n2:8bcb6b99d62d5f36)). Die Baseline einer Variante ist eine Baseline, deren Auswahl nur die Sicht dieser Variante ist ([SR-103](reqseq:6adc7b15-79d2-4271-82c8-bc6b138c3884?version=n2:4a4ae4f46c4a6eff)). Wann und warum eine Baseline gezogen wird, entscheidet sich außerhalb des Tools.

@@ -7,7 +7,7 @@ spec-id: "SR-041"
 requirement-type: functional
 acceptance-criteria:
   - key: xqgg
-    text: "Gegeben das Kern-Requirement SR-K „Antwortzeit höchstens 10 ms“ und das Requirement SR-A „Antwortzeit höchstens 20 ms“ mit Gültigkeit [A] und der Beziehung ersetzt auf SR-K, wenn die Sicht von A berechnet wird (App, CLI, API, MCP: `selection.view` A, zum Beispiel mit `element.list`), dann erscheint SR-A statt SR-K."
+    text: "Gegeben das Kern-Requirement SR-K „Antwortzeit höchstens 10 ms“ und das Requirement SR-A „Antwortzeit höchstens 20 ms“ mit Gültigkeit [A] und der Beziehung ersetzt auf SR-K, wenn die Sicht von A berechnet wird (CLI, API, MCP: `selection.view` A, zum Beispiel mit `element.list`), dann erscheint SR-A statt SR-K."
   - key: c2jz
     text: Gegeben die Beziehung ersetzt, wenn sie gespeichert wird, dann enthält sie die Fassung des ersetzten Kern-Requirements.
   - key: bs7h

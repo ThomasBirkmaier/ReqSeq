@@ -7,7 +7,7 @@ spec-id: SR-234
 requirement-type: functional
 acceptance-criteria:
   - key: vjfq
-    text: Gegeben eine Baseline, wenn ihre Seite angezeigt wird, dann nennt sie Name, Datum und den Commit je Repository und listet ihre Elemente getrennt nach geändert, hinzugefügt, entfernt und unverändert ([SR-051](reqseq:6adc6c9a-01d7-43bd-9e05-4dd4c430de10?version=n2:990f6c5b33e39b59) AK2, AK3); abgelöste Elemente stehen in einer eigenen Gruppe mit Kennung, Titel und Status ohne Link; ohne gespeicherte Auswahl gibt es kein „hinzugefügt“ und kein „entfernt“, und die Seite sagt das.
+    text: Gegeben eine Baseline, wenn ihre Seite angezeigt wird, dann nennt sie Name, Datum und den Commit je Repository und listet ihre Elemente getrennt nach geändert, hinzugefügt, entfernt und unverändert ([SR-051](reqseq:6adc6c9a-01d7-43bd-9e05-4dd4c430de10?version=n2:e8660c8dd1727df7) AK2, AK3); abgelöste Elemente stehen in einer eigenen Gruppe mit Kennung, Titel und Status ohne Link; ohne gespeicherte Auswahl gibt es kein „hinzugefügt“ und kein „entfernt“, und die Seite sagt das.
   - key: swvj
     text: Gegeben die Baselines eines Arbeitsbereichs, wenn die Seite aller Baselines angezeigt wird, dann steht jede mit Name, Datum, Zahl ihrer Elemente und Zahl der geänderten Elemente da, neueste zuerst.
   - key: k5g4

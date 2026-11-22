@@ -7,7 +7,7 @@ spec-id: "SR-044"
 requirement-type: functional
 acceptance-criteria:
   - key: nxhm
-    text: "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (App, CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements. Ergänzt sind die Requirements, deren Gültigkeit die Variante nennt und die kein Kern-Requirement ersetzen, das in der Variante nicht ausgeschlossen ist."
+    text: "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements. Ergänzt sind die Requirements, deren Gültigkeit die Variante nennt und die kein Kern-Requirement ersetzen, das in der Variante nicht ausgeschlossen ist."
   - key: d2rh
     text: Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander im geteilten Fenster (D-062), je in einem Buffer, nur lesend, mit Text und Akzeptanzkriterien beider.
   - key: dc1n
@@ -21,4 +21,4 @@ based-on:
   - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:613f0cb9c096a2ac, title: Unterschiede zeigt die Versionsverwaltung }
 ---
 
-Das Tool muss für jede Variante zeigen, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.
+Das Tool muss für jede Variante liefern, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.

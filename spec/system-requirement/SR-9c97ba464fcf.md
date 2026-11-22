@@ -4,7 +4,7 @@ type: system-requirement
 status: draft
 title: Folgende Kennung beim Anlegen vergeben
 spec-id: SR-245
-rationale: "Wer ein Element anlegt, soll die nächste Nummer im Schema des Projekts nicht nachschlagen müssen. Die ID bleibt die UUID (D-017). Das Tool sieht dabei nur die Elemente der lokalen Kopie: Kennungen in anderen Kopien, in Branches oder aus einem gleichzeitigen Aufruf in einem anderen Prozess sieht es nicht; im selben Prozess gilt SR-166 AK1. Eine so entstandene Doppelung meldet die Prüfung des Bestands als Warnung (SR-088 AK4). Lücken füllt das Tool nicht, und es rät keine Schreibweise: Die erste Kennung eines Kennungspräfixes mit einer gewünschten Stellenzahl, etwa SR-001, setzt man von Hand; mit einem angegebenen Kennungspräfix beginnt das Tool bei 1. Eine Kennung, die nicht auf eine Ziffer endet, etwa wegen Leerraum am Ende, zählt nicht. Ein Kennungspräfix mit `/`, `[` oder `]` ergibt eine Kennung, die sich aus einem Testnamen nicht zurücklesen lässt (SR-205 AK1). Die Kriterien nennen Kommandozeile, API und MCP-Server; die App bietet die Angabe noch nicht an (Abweichung von SR-080 AK1), ihre Kriterien kommen mit einer eigenen Änderung der Spec dazu."
+rationale: "Wer ein Element anlegt, soll die nächste Nummer im Schema des Projekts nicht nachschlagen müssen. Die ID bleibt die UUID (D-017). Das Tool sieht dabei nur die Elemente der lokalen Kopie: Kennungen in anderen Kopien, in Branches oder aus einem gleichzeitigen Aufruf in einem anderen Prozess sieht es nicht; im selben Prozess gilt SR-166 AK1. Eine so entstandene Doppelung meldet die Prüfung des Bestands als Warnung (SR-088 AK4). Lücken füllt das Tool nicht, und es rät keine Schreibweise: Die erste Kennung eines Kennungspräfixes mit einer gewünschten Stellenzahl, etwa SR-001, setzt man von Hand; mit einem angegebenen Kennungspräfix beginnt das Tool bei 1. Eine Kennung, die nicht auf eine Ziffer endet, etwa wegen Leerraum am Ende, zählt nicht. Ein Kennungspräfix mit `/`, `[` oder `]` ergibt eine Kennung, die sich aus einem Testnamen nicht zurücklesen lässt (SR-205 AK1)."
 requirement-type: functional
 acceptance-criteria:
   - key: tskf
@@ -33,7 +33,7 @@ verification-method: test
 derives-from:
   - { id: 09ea0170-ab5d-4115-9a55-7ea1f0b05e5f, version: n2:a28b5ef4c4351daa, title: Nächste Kennung ohne Nachschlagen }
 refines:
-  - { id: 6adc6d84-e8f4-48bc-adcc-71a839d13a4d, version: n2:368153fb5dd17acc, title: Element mit Pflicht-Properties zuerst anlegen }
+  - { id: 6adc6d84-e8f4-48bc-adcc-71a839d13a4d, version: n2:bba082390368e25a, title: Element mit Pflicht-Properties zuerst anlegen }
 based-on:
   - { id: 6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2, version: n2:806684a4b1a7fb22, title: "Automatisch erzeugte, zufällige IDs" }
 ---
