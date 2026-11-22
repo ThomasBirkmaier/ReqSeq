@@ -29,7 +29,7 @@ acceptance-criteria:
   - key: c53z
     text: Gegeben die Web-Oberfläche liest oder ändert ein Element, wenn danach der letzte Zugriff eines Agents abgefragt wird (`workspace.activity`, SR-117), dann nennt die Ausgabe denselben Zugriff wie davor, ohne früheren Zugriff keinen.
   - key: dfqv
-    text: Gegeben die Web-Oberfläche öffnet einen Arbeitsbereich, beim Start oder danach, wenn danach die zuletzt geöffneten Arbeitsbereiche abgefragt werden (`workspace.recent`), dann steht er dort zuerst (SR-250).
+    text: "Gegeben die Web-Oberfläche öffnet einen Arbeitsbereich, beim Start oder danach, wenn danach die zuletzt geöffneten Arbeitsbereiche abgefragt werden (`workspace.recent`), dann steht er dort zuerst (SR-250). Lehnt der Befehl aus SR-250 (`workspace.markOpened`) das Vermerken ab, startet der Server beim Start trotzdem, und der Arbeitsbereich ist in beiden Fällen geöffnet: Ein Befehl, der einen Arbeitsbereich braucht, läuft auf ihm. Der Server schreibt bei jedem solchen Öffnen den Grund, den der Befehl nennt, auf seine Fehlerausgabe, und die Web-Oberfläche zeigt denselben Grund, nach einer Ablehnung beim Start auf der ersten Seite, die danach geladen wird. Die Liste bleibt dabei unverändert (SR-250 AK3)."
 packages:
   - { id: d3daa1a2-adb1-4941-8c51-1fc9cb0bfb1d, version: n2:3cd7fefae7f4386e, title: Betrieb und Sicherheit }
 verification-method: test
@@ -39,6 +39,7 @@ derives-from:
 based-on:
   - { id: 3fcc9c21-164a-4fa1-9d69-2ff8e055c094, version: n2:ab1a775d09c8134c, title: Web-Oberfläche statt Desktop-App }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
+rationale: "Vermerk abgelehnt (AK12, #2358): Die Liste der zuletzt geöffneten Arbeitsbereiche erleichtert nur das Wiederfinden; ein Vermerk, der sich nicht schreiben lässt, soll niemanden vom Arbeiten abhalten. Die Web-Oberfläche zeigt den Grund, weil die Fehlerausgabe des Servers im laufenden Betrieb nicht immer zu sehen ist; die Desktop-Hülle zeigt sie nur, wenn der Server sich nicht starten lässt oder endet (SR-252 AK5)."
 ---
 
 Die [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:9a4f0d8d27de42ba) muss mit `reqseq ui` die [Web-Oberfläche](reqseq:c89b295d-c3d5-49af-b6fd-c7444cdbb5ec?version=n2:8dfd92227dd91b55) als Server starten, der nur von Programmen auf demselben Rechner erreichbar ist, Befehle nur auf Anfragen mit seinem Token ausführt und den [Arbeitsbereich](reqseq:6adc68be-cdfe-4197-a3a9-4c86ffa232a7?version=n2:1fbe0ef1dbe8ddc1), den er öffnet, als zuletzt geöffneten vermerkt.
