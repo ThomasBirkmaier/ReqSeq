@@ -22,7 +22,7 @@ import type { Route } from "../router.js";
 import { HOME, addRoute, hashOf, isCurrent, parseHash } from "../router.js";
 import { refOf, store } from "../store.js";
 import type { Target } from "./edit-pick.js";
-import { picker, targetOf } from "./edit-pick.js";
+import { picker, reopenPick, takeOpenPick, targetOf } from "./edit-pick.js";
 
 type Kind = RelationOptionsOutput["kinds"][number];
 type Property = Metamodel["properties"][number];
@@ -764,32 +764,35 @@ function markdownField(
     get(),
   );
   field.value = get();
-  let start = -1;
+  // The `[[` and the query typed after it, before the caret.
+  const typedLink = (): RegExpExecArray | null =>
+    /\[\[([^\]\n]{0,60})$/.exec(field.value.slice(0, field.selectionStart));
   const linking = picker({
     label: `Link an element in ${name}`,
     taken: () => (d.id === undefined ? [] : [d.id]),
     field,
     onPick: (t) => {
       const at = field.selectionStart;
-      insertAt(field, start, at, `[${linkText(t.title)}](reqseq:${t.ref})`);
-      start = -1;
-    },
-    onClose: () => {
-      start = -1;
+      insertAt(field, typedLink()?.index ?? at, at, `[${linkText(t.title)}](reqseq:${t.ref})`);
     },
   });
   field.setAttribute("aria-controls", linking.root.querySelector("[role=listbox]")?.id ?? "");
+  // The caret left the `[[` and its query (a click, Home, an arrow key): the list closes.
+  const recheck = (): void => {
+    if (typedLink() === null) {
+      linking.close();
+    }
+  };
+  field.addEventListener("keyup", recheck);
+  field.addEventListener("click", recheck);
   field.addEventListener("input", () => {
     set(field.value);
     touch();
-    const before = field.value.slice(0, field.selectionStart);
-    const typed = /\[\[([^\]\n]{0,60})$/.exec(before);
+    const typed = typedLink();
     if (typed === null) {
-      start = -1;
       linking.close();
       return;
     }
-    start = typed.index;
     linking.search(typed[1] ?? "");
   });
   const linkButton = h("button", { class: "btn sm", type: "button" }, "Link element");
@@ -1560,6 +1563,8 @@ function redraw({ focus }: { focus?: string } = {}): void {
     return;
   }
   const kept = focusOf(focus);
+  // An open list of hits stays open, with its search, when the form is drawn again around it.
+  const open = focus === undefined ? takeOpenPick(document.activeElement) : undefined;
   const scroll = window.scrollY;
   host.replaceChildren(form(d));
   window.scrollTo({ top: scroll });
@@ -1568,8 +1573,13 @@ function redraw({ focus }: { focus?: string } = {}): void {
   }
   const next = host.querySelector<HTMLElement>(`#${CSS.escape(kept.id)}`);
   next?.focus({ preventScroll: true });
+  // The picker first: it puts the query back into its field, then the caret goes where it was.
+  if (open !== undefined) {
+    reopenPick(next, open);
+  }
   const typed =
-    next instanceof HTMLTextAreaElement || (next instanceof HTMLInputElement && next.type === "text");
+    next instanceof HTMLTextAreaElement ||
+    (next instanceof HTMLInputElement && (next.type === "text" || next.type === "search"));
   if (typed && kept.start !== null && kept.end !== null) {
     next.setSelectionRange(kept.start, kept.end);
   }
