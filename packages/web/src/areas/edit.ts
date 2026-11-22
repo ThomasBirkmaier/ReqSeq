@@ -847,11 +847,13 @@ function markdownField(
   const preview = h("div", { class: "ed-preview", hidden: !previewing, "aria-live": "polite" });
   if (previewing) {
     field.hidden = true;
-    void markdown(get(), d.file ?? "", d.route, "prose").then((block) => {
-      preview.replaceChildren(
-        get().trim() === "" ? h("p", { class: "ed-help" }, "Nothing written yet.") : block,
-      );
-    });
+    void markdown(get(), { id: d.id, repository: d.repository, file: d.file ?? "" }, d.route, "prose").then(
+      (block) => {
+        preview.replaceChildren(
+          get().trim() === "" ? h("p", { class: "ed-help" }, "Nothing written yet.") : block,
+        );
+      },
+    );
   }
   return h(
     "div",

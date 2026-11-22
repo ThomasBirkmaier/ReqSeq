@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
@@ -292,7 +293,12 @@ describe("element.readImage", () => {
 
   it("[SR-251/AK-y08y] refuses as missing a file other than the one looked up when it is opened", async () => {
     const opened = await open({ files: { "requirements/img/a.png": PNG, "requirements/img/b.png": PNG } });
-    const other = await fs.stat(opened.fixture.path("requirements/img/b.png"));
+    // Another regular file, told apart by its inode: Windows runners can give two files the same `dev`
+    // and `ino` (#2364), so the test sets one that no file has instead of relying on the file system.
+    const real = await fs.stat(opened.fixture.path("requirements/img/b.png"));
+    const other = Object.assign(Object.create(Object.getPrototypeOf(real) as object) as Stats, real, {
+      ino: -1,
+    });
     const folder = await fs.stat(opened.fixture.path("requirements/img"));
     for (const swapped of [other, folder]) {
       const handle = {

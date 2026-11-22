@@ -305,7 +305,7 @@ const textBlock = (
   cls: string,
 ): Promise<HTMLElement> =>
   key === undefined || propDef(store.mm, key)?.markdown === true
-    ? markdown(text, e.file, fromOf("e", refOf(e)), cls)
+    ? markdown(text, e, fromOf("e", refOf(e)), cls)
     : Promise.resolve(h("div", { class: `${cls} plain` }, paragraphs(text)));
 
 /** A numbered list under its heading: the acceptance criteria, or a text list of the type. */
@@ -391,10 +391,7 @@ function meta(e: DataExportElement): HTMLElement {
 async function card(got: ElementGetOutput): Promise<HTMLElement> {
   const e = got.element;
   const entries = propEntries(store.mm, e);
-  const [prose, more] = await Promise.all([
-    markdown(e.text, e.file, fromOf("e", refOf(e)), "prose"),
-    texts(e),
-  ]);
+  const [prose, more] = await Promise.all([markdown(e.text, e, fromOf("e", refOf(e)), "prose"), texts(e)]);
   return h(
     "article",
     { class: "card", id: "card", "aria-labelledby": "el-title", "data-id": e.id },
