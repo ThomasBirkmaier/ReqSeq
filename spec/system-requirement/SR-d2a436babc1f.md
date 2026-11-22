@@ -9,7 +9,7 @@ acceptance-criteria:
   - key: vm0n
     text: Gegeben ein Arbeitsbereich, wenn der HTML-Export über App, Kommandozeile, API oder MCP-Server in einen Zielordner geschrieben wird, dann liegen dort eine Startseite `index.html` und je Element ohne ungültigen Status ([D-044](reqseq:6adc6922-e6d1-4d0a-9617-83d65c71cf7f?version=n2:ce205554ccf5d3d5)) eine Seite; Elemente mit ungültigem Status haben keine eigene Seite und stehen in keiner Liste eines Typs.
   - key: f39g
-    text: Gegeben der exportierte Ordner, wenn seine Seiten per `file://` oder unter einem Unterpfad eines Webservers geöffnet werden, dann führt jeder Link zwischen den Seiten auf eine Datei des Ordners, und keine Seite fragt eine Adresse außerhalb des Ordners an ([SR-078](reqseq:6adc6d93-4684-4379-941d-21bd583ceb09?version=n2:038acf989df4ad8f)).
+    text: Gegeben der exportierte Ordner, wenn seine Seiten per `file://` oder unter einem Unterpfad eines Webservers geöffnet werden, dann führt jeder Link zwischen den Seiten auf eine Datei des Ordners, und keine Seite fragt eine Adresse außerhalb des Ordners an ([SR-078](reqseq:6adc6d93-4684-4379-941d-21bd583ceb09?version=n2:bbef4dd74b316b9b)).
   - key: z3tv
     text: Gegeben der Link auf die Seite eines Elements, wenn derselbe Arbeitsbereich später erneut an denselben Ort exportiert wird und das Element noch gültig ist, dann öffnet der Link weiter genau dieses Element, auch wenn sich seine Kennung, sein Titel oder seine Kurz-ID geändert haben.
   - key: q64j
@@ -25,10 +25,10 @@ acceptance-criteria:
   - key: hmbc
     text: Gegeben eine Seite des Exports, wenn sie angezeigt wird, dann nennt ihr Fuß den Commit des Haupt-Repositorys (mit `-dirty` wie in [SR-062](reqseq:6adc6d29-4864-49d6-b572-71dc22568f15?version=n2:c4ca26206483b9f4) AK1, ohne Git „no commit“) und das Datum des Exports, und die Seite bittet Suchmaschinen mit `noindex`, sie nicht aufzunehmen.
 packages:
-  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 verification-method: test
 based-on:
-  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:a14b879b0af2da59, title: HTML-Export erzeugt das Tool selbst }
+  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:ea62ff545cc1d56b, title: HTML-Export erzeugt das Tool selbst }
   - { id: 909e3182-bbf5-4705-b55e-4e99001a8b98, version: n2:c1a69d3f66480db9, title: Markdown nach CommonMark mit GitHub-Erweiterungen }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
 derives-from:

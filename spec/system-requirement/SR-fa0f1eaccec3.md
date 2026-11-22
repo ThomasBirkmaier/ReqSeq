@@ -38,7 +38,7 @@ derives-from:
 based-on:
   - { id: a98dc54b-cbb6-4723-8fc3-0c17e8f20342, version: n2:a400ed35f11c4313, title: Metamodell über Befehle ändern }
   - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n2:5fa2f004bf0408a2, title: Das Metamodell gehört zum Stand }
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
   - { id: 6adc691d-c3f6-4d51-a053-72a341032941, version: n2:c433f023b7b96248, title: Das Tool liest Git nur }
   - { id: 6adc6922-7314-49bd-bfed-ff5f8a7211b4, version: n2:d496a4c7295aafde, title: Feste Schlüssel im Metamodell }
   - { id: 6adc6923-8957-4ae9-8e6c-dc5cd1d097c8, version: n2:04e934b66316908b, title: Ablösen statt löschen }

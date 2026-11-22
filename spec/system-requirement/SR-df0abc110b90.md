@@ -19,7 +19,7 @@ verification-method: test
 derives-from:
   - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n2:20d807fdfaa9cb3b, title: Mehrere Agenten parallel }
 based-on:
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 
 Das Tool muss gleichzeitige Schreibaufrufe auf dieselbe lokale Kopie innerhalb eines Prozesses so ausführen, als liefen sie nacheinander, sodass keine Änderung eines Aufrufs verloren geht, der Erfolg meldet. Hat ein anderer Prozess eine Datei geändert, seit ein Schreibbefehl sie gelesen hat, schreibt das Tool sie nicht.
