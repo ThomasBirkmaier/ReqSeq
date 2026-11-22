@@ -1,9 +1,9 @@
 import { realpathSync } from "node:fs";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
+import { systemForm } from "./system-form.js";
 
-/** `name` as Windows and macOS compare it: lower case, trailing dots and spaces dropped. */
-export const systemForm = (name: string): string => name.toLowerCase().replace(/[. ]+$/, "");
+export { systemForm } from "./system-form.js";
 
 /**
  * Whether some system takes `name` for `.git` (D-036): as `isSkippedOnSomeSystem` of the walk does

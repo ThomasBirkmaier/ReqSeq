@@ -69,6 +69,10 @@
       "types": "./dist/docs-site/site.d.ts",
       "default": "./dist/docs-site/site.js"
     },
+    "./markdown": {
+      "types": "./dist/html-export/markdown.d.ts",
+      "default": "./dist/html-export/markdown.js"
+    },
     "./render-options": {
       "types": "./dist/html-export/render-options.d.ts",
       "default": "./dist/html-export/render-options.js"
