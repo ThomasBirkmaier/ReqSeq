@@ -455,7 +455,7 @@ describe("element.addAttachment", () => {
     expect(await fs.readFile(fixture.path(`system/${original.file}`))).toEqual(PNG);
   });
 
-  it("[SR-190/AK-k05n] copies an image given as bytes, named after its name, like one from a file", async () => {
+  it("[SR-097/AK-zh1k] copies an image given as bytes, named after its name, like one from a file", async () => {
     const opened = await open();
     const output = await add(opened, { ref: WIND.id, content: PNG.toString("base64"), name: "Bild 1.PNG" });
     expect(output).toEqual({
@@ -492,5 +492,39 @@ describe("element.addAttachment", () => {
     expect(await reason({ content: "AA=A", name: "a.png" })).toBe("content-not-base64");
     const large = Buffer.alloc(20 * 1024 * 1024 + 1).toString("base64");
     expect(await reason({ content: large, name: "a.png" })).toBe("content-too-large");
+  });
+
+  it("[SR-097/AK-zh1k] refuses content over 20 MiB and a name without an image extension with a message, and writes nothing", async () => {
+    const opened = await open();
+    const before = await filesBelow(opened.fixture.root);
+    const exact = Buffer.alloc(20 * 1024 * 1024).toString("base64");
+    const large = Buffer.alloc(20 * 1024 * 1024 + 1).toString("base64");
+    const tooLarge = await addError(opened, { ref: WIND.id, content: large, name: "big.png" });
+    expect([tooLarge.code, tooLarge.details?.["reason"]]).toEqual(["input.invalid", "content-too-large"]);
+    expect(tooLarge.message).not.toBe("");
+    for (const name of ["notes.txt", "layout", "layout.png.txt", ".png"]) {
+      const error = await addError(opened, { ref: WIND.id, content: PNG.toString("base64"), name });
+      expect([name, error.code, error.details?.["reason"]]).toEqual([name, "input.invalid", "not-an-image"]);
+      expect(error.message).toContain("is no image ReqSeq embeds");
+    }
+    expect(await filesBelow(opened.fixture.root)).toEqual(before);
+    // Exactly 20 MiB is taken.
+    expect((await add(opened, { ref: WIND.id, content: exact, name: "big.png" })).file).toBe(
+      "requirements/SR-6328cee88fb3/big.png",
+    );
+  });
+
+  it("[SR-097/AK-zh1k] never replaces an existing file with content: a name in use gets -2, the file there keeps its bytes", async () => {
+    const opened = await open({ files: { "requirements/SR-6328cee88fb3/Bild-1.png": OTHER_PNG } });
+    const output = await add(opened, { ref: WIND.id, content: PNG.toString("base64"), name: "Bild 1.png" });
+    expect(output).toEqual({
+      answer: "Copied the image to requirements/SR-6328cee88fb3/Bild-1-2.png.",
+      file: "requirements/SR-6328cee88fb3/Bild-1-2.png",
+      markdown: "![Bild-1](SR-6328cee88fb3/Bild-1-2.png)",
+    });
+    expect(await fs.readFile(opened.fixture.path("requirements/SR-6328cee88fb3/Bild-1.png"))).toEqual(
+      OTHER_PNG,
+    );
+    expect(await fs.readFile(opened.fixture.path(output.file))).toEqual(PNG);
   });
 });
