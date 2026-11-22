@@ -19,7 +19,7 @@ import { createCommandRuntime } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { gitProgram } from "../git/program.js";
 import { commands } from "./index.js";
-import { FILES, GUSTS, SCENARIOS, WIND } from "./scenarios.test-helper.js";
+import { FILES, GUSTS, SCENARIOS, WIND, isolateOsCache } from "./scenarios.test-helper.js";
 
 /** Program and arguments of every process started through node:child_process, while recording. */
 const started = vi.hoisted(() => ({ on: false, calls: [] as (readonly string[])[] }));
@@ -124,6 +124,8 @@ const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): P
   onTestFinished(() => created.cleanup());
   return created;
 };
+
+isolateOsCache();
 
 describe("Git only read (SR-083, D-036)", () => {
   for (const [name, scenarios] of Object.entries(CALLS)) {

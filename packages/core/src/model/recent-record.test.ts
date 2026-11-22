@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { CacheEnvironment } from "../workspace/cache.js";
 import { readRecentWorkspaces, recentWorkspacesFolder } from "../workspace/recent.js";
-import { recordOpenedWorkspace } from "./recent-record.js";
+import { markOpenedWorkspace, recordOpenedWorkspace } from "./recent-record.js";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -48,5 +48,21 @@ describe("recordOpenedWorkspace", () => {
     expect(await recordOpenedWorkspace(new Workspace(ws.root), { environment })).toBe(false);
     expect(await fs.readdir(ws.root)).toEqual(before);
     await expect(fs.stat(recentWorkspacesFolder(environment))).rejects.toThrow();
+  });
+
+  it("markOpenedWorkspace refuses a root the list cannot hold, naming why, and writes nothing", async () => {
+    const ws = await fixture();
+    const cache = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-cache-")));
+    cleanups.push(() => fs.rm(cache, { recursive: true, force: true }));
+    const environment = cacheIn(cache);
+    await expect(markOpenedWorkspace(new Workspace(ws.root), { environment, key: "" })).rejects.toMatchObject(
+      {
+        code: "file.read-only",
+        message:
+          "Not marked: the list of recent workspaces cannot hold the root of this workspace: it is not absolute, or longer than 4096 characters with links resolved",
+        details: { reason: "root-not-held" },
+      },
+    );
+    expect(await readRecentWorkspaces(environment)).toEqual([]);
   });
 });

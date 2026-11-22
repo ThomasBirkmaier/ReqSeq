@@ -175,11 +175,13 @@ describe("read-only workspace", () => {
     expect(await exists(faulty.path("written-by-test.create.txt"))).toBe(true);
   });
 
-  it("allows only workspace.init and tool.guide while read-only in the product catalog, until an SR decides otherwise", () => {
+  it("allows only workspace.init, workspace.markOpened and tool.guide while read-only in the product catalog, until an SR decides otherwise", () => {
     const writes = loadContracts().commands.filter((c) => c.effect === "write-files");
     // tool.guide writes only the skill file, which the tool writes also while it refuses write commands (SR-229 AK8).
+    // workspace.markOpened writes only the user's list of recent workspaces, no file of the workspace (SR-250).
     expect(writes.filter((c) => c.whileReadOnly === "allow").map((c) => c.name)).toEqual([
       "workspace.init",
+      "workspace.markOpened",
       "tool.guide",
     ]);
   });

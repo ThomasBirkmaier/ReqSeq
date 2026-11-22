@@ -331,6 +331,7 @@ export {
   portableName,
   sourceLocation,
 } from "./attachment.js";
+export { readImage } from "./read-image.js";
 export { createElementFiles, plannedVersions } from "./new-files.js";
 export type { NewElementFile, NewImageFile } from "./new-files.js";
 export type { NewElementBase } from "./write.js";

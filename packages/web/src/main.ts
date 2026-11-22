@@ -19,6 +19,7 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 // The areas.
 import "./areas/overview.js";
 import "./areas/element.js";
+import "./areas/changes.js";
 import "./areas/lists.js";
 import "./areas/palette.js";
 
