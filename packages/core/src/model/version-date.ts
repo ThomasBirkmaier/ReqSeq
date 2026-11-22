@@ -200,7 +200,7 @@ interface VersionDateCache {
   /** The HEAD move each repository folder is carrying its walks over, so concurrent calls share it. */
   readonly moving: Map<
     string,
-    { readonly from: string; readonly to: string; readonly walks: Promise<RepositoryWalks | typeof LATE> }
+    { readonly from: string; readonly to: string; readonly walks: Promise<RepositoryWalks> }
   >;
   /** Stops the git processes of running walks when the state goes (`close`, `reset`). */
   readonly stop: AbortController;
@@ -319,6 +319,16 @@ const parentsFirst = (commits: readonly HistoryCommit[]): HistoryCommit[] => {
 };
 
 /**
+ * `list` newest first. Commits of one second are ordered by their ID, so the start found never
+ * depends on the order git listed them in, which follows the other paths of a call (D-029).
+ */
+const newestFirst = (list: Evaluated[]): Evaluated[] => {
+  const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
+    a.date === b.date ? a.commit < b.commit : a.date < b.date;
+  return list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit)));
+};
+
+/**
  * The commits of `commits` (parents first, every merge listed) where the file is evaluated, newest
  * first, each with the evaluated commits whose versions its parents have. A commit is evaluated
  * where it is in `changing` (it changed a tracked path) or its parents do not all lead to the same
@@ -329,15 +339,6 @@ const parentsFirst = (commits: readonly HistoryCommit[]): HistoryCommit[] => {
  * `commits` (the one commit no other one names as a parent: every merge is listed, so the commits
  * left out between it and HEAD have one parent each), whatever the committer dates say.
  */
-/**
- * `list` newest first. Commits of one second are ordered by their ID, so the start found never
- * depends on the order git listed them in, which follows the other paths of a call (D-029).
- */
-const newestFirst = (list: Evaluated[]): Evaluated[] => {
-  const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
-    a.date === b.date ? a.commit < b.commit : a.date < b.date;
-  return list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit)));
-};
 
 const evaluatedList = (
   commits: readonly HistoryCommit[],
@@ -582,13 +583,18 @@ const ask = async (round: Round, names: Iterable<string>): Promise<void> => {
     }
     const paths = listed.map((name) => name.slice(commit.length + 1));
     const blobs = await commitBlobs(round.source.repository.folder, commit, paths, { signal: round.signal });
-    if (!blobs.known) {
+    if (!blobs.known && blobs.reason === "timeout") {
       throw new Unknown(blobs);
     }
-    // What the listing has not is no blob there: no entry, a folder or a submodule (`blobAt`).
+    // What the listing has not (no entry, a folder, a submodule), and every name where Git refuses
+    // the listing (a partial clone without trees), the reader answers as for few names.
     for (const [i, name] of listed.entries()) {
-      const id = blobs.ids.get(String(paths[i]));
-      infos.set(name, id === undefined ? null : { id, type: "blob" });
+      const id = blobs.known ? blobs.ids.get(String(paths[i])) : undefined;
+      if (id === undefined) {
+        single.push(name);
+      } else {
+        infos.set(name, { id, type: "blob" });
+      }
     }
   }
   const read = await round.reader.info(single);
@@ -962,19 +968,19 @@ const movedWalks = async (
   folder: string,
   known: RepositoryWalks,
   current: RepositoryWalks,
-): Promise<RepositoryWalks | typeof LATE> => {
+): Promise<RepositoryWalks> => {
   // One move per folder at a time: calls that see the same move wait for the same walks.
   const pending = cache.moving.get(folder);
   if (pending?.from === known.head && pending.to === current.head) {
     return pending.walks;
   }
   const walks = carryWalks(folder, known, current, cache.stop.signal)
-    .then((carried) => {
-      // Git that did not answer in time leaves the old walks, so the next call carries them again.
-      if (carried !== LATE) {
+    .then(() => {
+      // A later move of the folder, taking the place meanwhile, keeps its own walks.
+      if (cache.moving.get(folder)?.walks === walks) {
         cache.repositories.set(folder, current);
       }
-      return carried === LATE ? LATE : current;
+      return current;
     })
     .finally(() => {
       // A later move of the folder may have taken the place meanwhile.
@@ -1001,7 +1007,7 @@ const copyWalk = (walk: FileWalk): FileWalk => ({
 /** Where a HEAD move leaves the old history: what `carryWalk` needs of it. */
 interface Move {
   readonly to: string;
-  /** The commits of `to ^<old HEAD>`, parents first, with their real parents. */
+  /** The commits of `to ^<old HEAD>`, parents first, with their real parents and their paths in NFC. */
   readonly range: readonly HistoryCommit[];
   /** The parents of the range outside it (all reachable from the old HEAD), or `to` for an empty range. */
   readonly boundary: readonly string[];
@@ -1037,7 +1043,7 @@ const rangeEvaluated = (
   for (const commit of move.range) {
     const parents = commit.parents.map((p) => sources.get(p) ?? null);
     const first = parents[0] ?? null;
-    if (commit.paths.some((p) => tracked.has(p.normalize("NFC"))) || parents.some((p) => p !== first)) {
+    if (commit.paths.some((p) => tracked.has(p)) || parents.some((p) => p !== first)) {
       sources.set(commit.commit, commit);
       added.push({ commit, parents });
     } else {
@@ -1048,7 +1054,9 @@ const rangeEvaluated = (
 };
 
 /**
- * `walk` (a copy, `copyWalk`) at the HEAD `move.to`, from what it found at the old HEAD. Of the commits `from` reaches, an evaluated one is reachable from a boundary commit
+ * `walk` (a copy, `copyWalk`) at the HEAD `move.to`, from what it found at the old HEAD; undefined
+ * where it has an old name and HEAD no longer reaches some of its evaluated commits (the move that
+ * gave the name may be one of them). Of the commits `from` reaches, an evaluated one is reachable from a boundary commit
  * X exactly when it is not in `between` of X; one no boundary commit reaches is not reachable from
  * `to`, and leaves the list. Whether a commit is evaluated depends only on its ancestors, so the
  * others stay as they are. The source of X (the evaluated commit whose version X has) is the one
@@ -1057,7 +1065,7 @@ const rangeEvaluated = (
  * ones is evaluated itself), so there is exactly one, or none where X has no version. Then the range is evaluated as
  * `evaluatedList` does, from the sources of its parents.
  */
-const carryWalk = (walk: FileWalk, move: Move): FileWalk => {
+const carryWalk = (walk: FileWalk, move: Move): FileWalk | undefined => {
   const none: ReadonlySet<string> = new Set();
   const outside = (commit: string): boolean =>
     move.boundary.every((x) => (move.between.get(x) ?? none).has(commit));
@@ -1065,6 +1073,10 @@ const carryWalk = (walk: FileWalk, move: Move): FileWalk => {
   const added = rangeEvaluated(walk, move, sources);
   const kept = walk.evaluated.filter((e) => !outside(e.commit.commit));
   const head = sources.get(move.to)?.commit ?? "";
+  if (walk.walked.names.length > 1 && kept.length < walk.evaluated.length) {
+    // An old name may come from a move HEAD no longer reaches: the history tells again.
+    return undefined;
+  }
   if (added.length > 0 || kept.length < walk.evaluated.length || head !== walk.head) {
     walk.evaluated = newestFirst([...added, ...kept]);
     walk.head = head;
@@ -1083,16 +1095,17 @@ const carryWalk = (walk: FileWalk, move: Move): FileWalk => {
 /**
  * Carries the settled walks of `known` to `current` after HEAD moved (SR-082 AK4), with one range
  * `log` for their folders and one list per boundary commit other than the old HEAD. A walk still
- * read or answered, one Git refused, one whose names a move in the range adds to, and every walk
- * where the range or a list has more than `RANGE_LIMIT` commits or Git refuses is walked again.
- * `LATE` where git did not answer in time.
+ * read or answered, one Git refused, one whose names a move in the range adds to or that has an
+ * old name and lost evaluated commits, and every walk where the range or a list has more than
+ * `RANGE_LIMIT` commits or Git cannot tell now (it refuses, did not answer in time or is missing)
+ * is walked again.
  */
 const carryWalks = async (
   folder: string,
   known: RepositoryWalks,
   current: RepositoryWalks,
   signal: AbortSignal,
-): Promise<undefined | typeof LATE> => {
+): Promise<void> => {
   // A copy now, before any await: the old walks may change meanwhile.
   const settled = [...known.walked.values()]
     .filter((w) => w.busy === 0 && !w.failed && known.files.has(w.walked.key))
@@ -1105,19 +1118,17 @@ const carryWalks = async (
         .map(pathspecOf),
     ),
   ];
-  if (paths.length === 0) {
-    return undefined;
+  const range =
+    paths.length === 0 ? undefined : await historyRange(folder, known.head, current.head, paths, { signal });
+  if (range === undefined || !range.known || range.more) {
+    return;
   }
-  const late = (unknown: GitUnknown): undefined | typeof LATE =>
-    unknown.reason === "timeout" ? LATE : undefined;
-  const range = await historyRange(folder, known.head, current.head, paths, { signal });
-  if (!range.known) {
-    return late(range);
-  }
-  if (range.more) {
-    return undefined;
-  }
-  const commits = parentsFirst(range.commits);
+  // In NFC once, as the tracked paths are, not once per walk.
+  const commits = parentsFirst(range.commits).map((c) => ({
+    ...c,
+    paths: c.paths.map((p) => p.normalize("NFC")),
+  }));
+  const changing = commits.filter((c) => c.paths.length > 0);
   const listed = new Set(commits.map((c) => c.commit));
   const boundary =
     commits.length === 0
@@ -1126,22 +1137,22 @@ const carryWalks = async (
   const between = new Map<string, ReadonlySet<string>>();
   for (const x of boundary.filter((b) => b !== known.head)) {
     const list = await commitsBetween(folder, known.head, x, { signal });
-    if (!list.known) {
-      return late(list);
-    }
-    if (list.more) {
-      return undefined;
+    if (!list.known || list.more) {
+      return;
     }
     between.set(x, new Set(list.commits));
   }
   const move: Move = { to: current.head, range: commits, boundary, between };
-  const carried = settled.map((walk) => carryWalk(walk, move));
+  const carried = settled.flatMap((walk) => {
+    const copy = carryWalk(walk, move);
+    return copy === undefined ? [] : [copy];
+  });
   // A move in the range to a name of a file adds the old path: that walk reads its history again.
   const renamed = (walk: FileWalk): HistoryCommit[] => {
     const names = new Set(walk.walked.names.map((n) => n.normalize("NFC")));
-    return commits.filter((c) => c.paths.some((p) => names.has(p.normalize("NFC"))));
+    return changing.filter((c) => c.paths.some((p) => names.has(p)));
   };
-  // Git that may answer later: late, or no git (nothing is carried); anything else is a programming error.
+  // Git that cannot tell now (late, or missing): nothing is carried; anything else is a programming error.
   try {
     await lookUpMoves(
       current.facts,
@@ -1151,7 +1162,7 @@ const carryWalks = async (
     );
   } catch (error) {
     if (error instanceof Unknown) {
-      return error.late ? LATE : undefined;
+      return;
     }
     throw error;
   }
@@ -1423,11 +1434,6 @@ const repositoryDates = async <T extends VersionDateRequest>(
       walk.busy += 1;
     }
     await answer(round, queries)
-      .finally(() => {
-        for (const walk of held) {
-          walk.busy -= 1;
-        }
-      })
       .catch((error: unknown) => {
         // Git could not tell, or a folder of the working copy could not be listed (`file.faulty`).
         if (error instanceof Unknown && !error.transient) {
@@ -1442,7 +1448,17 @@ const repositoryDates = async <T extends VersionDateRequest>(
             walks.files.delete(walk.walked.key);
           }
         } else {
+          // A programming error: the walks it held may be half updated, so none is kept.
+          for (const { walk } of queries) {
+            walks.files.delete(walk.walked.key);
+          }
           throw error;
+        }
+      })
+      // Only once the walks are marked or dropped: a carry may copy a walk no round holds.
+      .finally(() => {
+        for (const walk of held) {
+          walk.busy -= 1;
         }
       });
     return requests.map((r, i): readonly [T, Found] => {

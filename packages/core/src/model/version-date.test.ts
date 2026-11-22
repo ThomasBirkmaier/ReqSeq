@@ -1244,7 +1244,7 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     await repo.fixture.git(["update-ref", "refs/heads/main", commit]);
   };
 
-  it("[SR-082/AK-h27y] reads one range for a commit on top and walks nothing again", async () => {
+  it("reads one range for a commit on top and walks nothing again", async () => {
     const repo = await walked();
     const head = await repo.fixture.head();
     const ids = await made(repo, [{ name: "top", parents: [head], files: { "notes.md": "m\n" } }]);
@@ -1347,54 +1347,53 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     expect(await dates(repo.workspace, [{ file: FILE2, id: OTHER, version }])).not.toEqual([null]);
   });
 
-  it("is late where git does not give the range or a list in time, and walks again where it refuses or has too many", async () => {
+  it("walks again where git does not give the range or a list in time, refuses or has too many commits", async () => {
     const repo = await walked();
     const head = await repo.fixture.head();
     const ids = await made(repo, [
       { name: "old", parents: [String(repo.made["one"]?.id)], files: { [FILE2]: b2 } },
       { name: "merge", parents: [head, "old"], files: { [FILE2]: b2 } },
     ]);
-    await moveTo(repo, String(ids["merge"]));
-    const late = async (): Promise<string[]> =>
-      (await versionTimes(await context(repo.workspace), await requests(repo.workspace))).map((t) => t.kind);
-    vi.mocked(historyRange).mockResolvedValueOnce(TIMEOUT);
-    expect(new Set(await late())).toEqual(new Set(["late"]));
-    vi.mocked(commitsBetween).mockResolvedValueOnce(TIMEOUT);
-    expect(new Set(await late())).toEqual(new Set(["late"]));
-    expect(walksAgain).toBe(0);
-    // The old walks were kept: asked again, they are carried.
-    await sameAsFresh(repo);
-    expect(walksAgain).toBe(0);
     for (const [mocked, answer] of [
+      [historyRange, TIMEOUT],
       [historyRange, BROKEN],
       [historyRange, { known: true, commits: [], more: true }],
+      [commitsBetween, TIMEOUT],
       [commitsBetween, BROKEN],
       [commitsBetween, { known: true, commits: [], more: true }],
     ] as const) {
       await moveTo(repo, head);
       await answers(repo.workspace);
       vi.clearAllMocks();
+      walksAgain = 0;
       await moveTo(repo, String(ids["merge"]));
       vi.mocked(mocked).mockResolvedValueOnce(answer);
+      // A full walk of both files, with answers, never late for good.
       await sameAsFresh(repo);
-      // A full walk of both files.
       expect(walksAgain).toBeGreaterThan(0);
-      walksAgain = 0;
     }
   });
 
-  it("is late where git does not give the moves of the range in time, and carries none where it refuses", async () => {
+  it("walks again where git does not give the moves of the range in time, or is missing", async () => {
     const repo = await walked();
     const head = await repo.fixture.head();
-    const ids = await made(repo, [{ name: "three", parents: [head], files: { [FILE]: three } }]);
-    await moveTo(repo, String(ids["three"]));
-    vi.mocked(fileMoves).mockResolvedValueOnce(TIMEOUT);
-    const times = await versionTimes(await context(repo.workspace), await requests(repo.workspace));
-    expect(new Set(times.map((t) => t.kind))).toEqual(new Set(["late"]));
-    // No git for the moves: nothing is carried, the files are walked again.
-    vi.mocked(fileMoves).mockResolvedValueOnce({ known: false, reason: "no-git", detail: "gone" });
-    await sameAsFresh(repo);
-    expect(walksAgain).toBeGreaterThan(0);
+    // One commit per case: the moves of a commit are looked up once.
+    const ids = await made(repo, [
+      { name: "late", parents: [head], files: { [FILE]: three } },
+      { name: "gone", parents: [head], files: { [FILE]: three, "x.md": "x\n" } },
+    ]);
+    for (const [target, answer] of [
+      ["late", TIMEOUT],
+      ["gone", { known: false, reason: "no-git", detail: "gone" }],
+    ] as const) {
+      await moveTo(repo, head);
+      await answers(repo.workspace);
+      walksAgain = 0;
+      await moveTo(repo, String(ids[target]));
+      vi.mocked(fileMoves).mockResolvedValueOnce(answer);
+      await sameAsFresh(repo);
+      expect(walksAgain).toBeGreaterThan(0);
+    }
   });
 
   it("fails the call on a programming error while it carries, and carries on the next one", async () => {
@@ -1435,6 +1434,8 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     release();
     await first;
     expect(await sameAsFresh(repo)).toEqual(second);
+    // The first carry, done last, did not replace the walks of the later HEAD.
+    expect(historyRange).toHaveBeenCalledTimes(2);
   });
 
   it("forgets what Git could not tell at a commit HEAD no longer reaches", async () => {
@@ -1567,5 +1568,66 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     ).toEqual(new Set(["late", "uncommitted"]));
     expect(await dates(repo.workspace, asked)).toEqual([...ids.map(() => at(repo, "all")), null]);
     expect(commitBlobs).toHaveBeenCalledTimes(2);
+  });
+
+  it("walks a file again whose old name came from a commit HEAD no longer reaches", async () => {
+    const before = "requirements/before.md";
+    const repo = await repository([
+      { name: "one", files: { [before]: two } },
+      // A rename of `before` to the file: its old name is followed.
+      { name: "renamed", deleted: [before], files: { [FILE]: two } },
+    ]);
+    await answers(repo.workspace);
+    walksAgain = 0;
+    // The rename amended into a copy: `before` stays, the file is new.
+    const ids = await made(repo, [
+      { name: "copied", parents: [String(repo.made["one"]?.id)], files: { [FILE]: two } },
+    ]);
+    await moveTo(repo, String(ids["copied"]));
+    await sameAsFresh(repo);
+    expect(await dates(repo.workspace, [{ version: await versionOf(repo.workspace, two) }])).not.toEqual([
+      at(repo, "one"),
+    ]);
+  });
+
+  it("answers names at one commit alike whether it lists the tree or asks each, also where Git refuses the listing", async () => {
+    const ids = Array.from(
+      { length: 500 },
+      (_, i) => `55555555-5555-4555-8555-${i.toString(16).padStart(12, "0")}`,
+    );
+    const file = (id: string): string => `requirements/SR-${id.slice(-12)}.md`;
+    // The file as spelled (NFC) is a folder; only its NFD form holds the element.
+    const spelled = "requirements/Bild-\u00e4.md";
+    const repo = await repository([
+      {
+        name: "all",
+        files: {
+          ...Object.fromEntries(ids.map((id) => [file(id), element("Many.", "", id)])),
+          [`${spelled}/inside.txt`]: "x",
+          [spelled.normalize("NFD")]: two,
+        },
+      },
+    ]);
+    const version = await versionOf(repo.workspace, two);
+    const alone = await dates(repo.workspace, [{ file: spelled, version }]);
+    const fresh = new Workspace(repo.fixture.root);
+    onTestFinished(() => fresh.close());
+    const versionMany = await versionOf(repo.workspace, element("Many."));
+    const many = [
+      { file: spelled, version },
+      ...ids.map((id) => ({ file: file(id), id, version: versionMany })),
+    ];
+    expect((await dates(fresh, many))[0]).toEqual(alone[0]);
+    expect(commitBlobs).toHaveBeenCalledTimes(1);
+    // Git refuses the listing (a partial clone without trees): each name is asked instead.
+    const refused = new Workspace(repo.fixture.root);
+    onTestFinished(() => refused.close());
+    vi.mocked(commitBlobs).mockResolvedValueOnce(BROKEN);
+    expect(
+      await dates(
+        refused,
+        ids.map((id) => ({ file: file(id), id, version: versionMany })),
+      ),
+    ).toEqual(ids.map(() => at(repo, "all")));
   });
 });

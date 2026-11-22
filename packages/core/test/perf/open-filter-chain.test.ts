@@ -425,14 +425,17 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-082 AK4 (recorded: element.get waits for the walks to be carried)" },
     );
     expect(reopened.versionDate).toBe(dated.versionDate);
-    // Far moves are recorded: 600 commits back (carried), and to the first commit, more than 1,000
+    // Far moves are recorded: 600 commits back (carried), and to the root commit, more than 1,000
     // commits back, where the whole history is walked again. The order then follows the old texts.
     const last = await git(["rev-parse", "HEAD"]);
     for (const [name, target] of [
-      ["after a reset 600 commits back", "HEAD~600"],
-      [`after a reset to the first commit (${String(HISTORY + 1)} commits back: walked again)`, "HEAD~1001"],
+      ["after a reset 600 commits back", await git(["rev-parse", "HEAD~600"])],
+      [
+        "after a reset to the first commit (more than 1,000 commits back: walked again)",
+        await git(["rev-list", "--max-parents=0", "HEAD"]),
+      ],
     ] as const) {
-      await moveTo(await git(["rev-parse", target]));
+      await moveTo(target);
       const { result: far } = await measure(
         `sort: all elements by versionDate, first page, ${name}`,
         sortedList,
