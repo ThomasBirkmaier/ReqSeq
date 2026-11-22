@@ -123,14 +123,25 @@ interface FileWalk {
    */
   evaluated: readonly Evaluated[];
   /**
+   * The evaluated commit whose version HEAD has (the source of the commit git lists last, which no
+   * other one names as a parent), by the parents, not by date: its object name, "" where no commit
+   * has the file. Replaced with `evaluated`.
+   */
+  head: string;
+  /**
    * The version at each evaluated commit computed so far, in both normal forms; undefined where it
    * held no element or has none.
    */
   readonly versions: Map<string, AtCommit | undefined>;
-  /** The answers so far, by version; null where no commit started it. */
+  /** The answers so far, by version; null where no commit started it. Emptied with `evaluated`. */
   readonly dates: Map<string, Started | null>;
   /** Set when Git failed for a reason that does not pass: no more answers at this HEAD. */
   failed: boolean;
+  /**
+   * The evaluated commits whose version Git could not tell (`versionAt` gave `UNKNOWN`: a text or
+   * image blob Git does not have, an image path it cannot take); `versions` holds undefined there.
+   */
+  readonly unknown: Set<string>;
 }
 
 /** The element at one text blob: its type, values and text, and the image links of that text. */
@@ -140,7 +151,7 @@ interface Held {
   readonly links: readonly ImageLink[];
 }
 
-/** What a repository's objects are: true at any HEAD, kept with its walks. */
+/** What a repository's objects are: true at any HEAD, kept with its walks and carried to a new HEAD. */
 interface Facts {
   /** Info by object name (`<commit>:<path>`); null where Git has no such object. */
   readonly infos: Map<string, ObjectInfo | null>;
@@ -152,6 +163,8 @@ interface Facts {
   readonly versions: Map<string, VersionForms | undefined>;
   /** The commits whose moves were looked up. */
   readonly movesAsked: Set<string>;
+  /** The keys of `held` (`heldKey`) whose text blob Git did not have (a partial clone). */
+  readonly unreadable: Set<string>;
   /** The old paths of the files each of them moved, by NFC of the new path; where it moved any. */
   readonly moves: Map<string, Map<string, string[]>>;
 }
@@ -162,8 +175,9 @@ interface RepositoryWalks {
   readonly stamp: string | undefined;
   readonly head: string;
   readonly shallow: boolean;
-  /** Undefined where Git cannot tell. */
-  readonly files: Map<string, Promise<FileWalk | undefined>>;
+  /** Undefined where Git cannot tell; `LATE` where git did not answer in time (the key is then removed). */
+  readonly files: Map<string, Promise<FileWalk | typeof LATE | undefined>>;
+  /** True at any HEAD: kept when HEAD moves, so a new HEAD reads only the objects it adds. */
   readonly facts: Facts;
 }
 
@@ -187,6 +201,9 @@ const versionDateState = defineWorkspaceState(
 );
 
 const walkKey = (file: string, id: string): string => `${file}\n${id}`;
+
+/** A walk or an answer that git did not give in time: asked again by the next call. */
+const LATE = "late";
 
 /** Adds `value` to the list of `key`. */
 const pushTo = <K, V>(map: Map<K, V[]>, key: K, value: V): void => {
@@ -220,10 +237,13 @@ const objectName = (commit: string, file: string): string => `${commit}:${file}`
 class Unknown extends Error {
   /** Whether asking again may help: git was stopped, timed out or is missing. */
   readonly transient: boolean;
+  /** Whether git did not answer in time (or was stopped), rather than being missing. */
+  readonly late: boolean;
 
   constructor(unknown: GitUnknown) {
     super(unknown.detail);
-    this.transient = unknown.reason === "timeout" || unknown.reason === "no-git";
+    this.late = unknown.reason === "timeout";
+    this.transient = this.late || unknown.reason === "no-git";
   }
 }
 
@@ -287,12 +307,14 @@ const parentsFirst = (commits: readonly HistoryCommit[]): HistoryCommit[] => {
  * evaluated commit (a merge that may join the text of one side with an image of the other). Any
  * other commit has the tracked paths of the evaluated commit its parents lead to, so it is
  * skipped: a commit that changed only other paths, and a merge whose sides all lead to the same
- * evaluated commit.
+ * evaluated commit. `head` is the evaluated commit HEAD's file comes from: the source of the tip of
+ * `commits` (the one commit no other one names as a parent: every merge is listed, so the commits
+ * left out between it and HEAD have one parent each), whatever the committer dates say.
  */
 const evaluatedList = (
   commits: readonly HistoryCommit[],
   changing: ReadonlySet<HistoryCommit>,
-): Evaluated[] => {
+): { readonly list: Evaluated[]; readonly head: string } => {
   const source = new Map<string, HistoryCommit | null>();
   const sourceOf = (commit: string): HistoryCommit | null => source.get(commit) ?? null;
   const list: Evaluated[] = [];
@@ -310,7 +332,12 @@ const evaluatedList = (
   // git listed them in, which follows the other paths of a call (D-029).
   const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
     a.date === b.date ? a.commit < b.commit : a.date < b.date;
-  return list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit)));
+  const named = new Set(commits.flatMap((c) => c.parents));
+  const tip = commits.find((c) => !named.has(c.commit));
+  return {
+    list: list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit))),
+    head: tip === undefined ? "" : (sourceOf(tip.commit)?.commit ?? ""),
+  };
 };
 
 /**
@@ -414,7 +441,11 @@ const readHistory = async (
       ...new Set([...paths].flatMap((t) => byPath.get(t) ?? [])),
     ];
     const named = open.map((walk) => {
-      walk.evaluated = evaluatedList(commits, new Set(changing(walk.walked.tracked)));
+      const { list, head } = evaluatedList(commits, new Set(changing(walk.walked.tracked)));
+      walk.evaluated = list;
+      walk.head = head;
+      // The answers so far were found on the commits before; they are found again on these.
+      walk.dates.clear();
       return { walk, commits: changing(walk.walked.names.map((n) => n.normalize("NFC"))) };
     });
     await lookUpMoves(
@@ -441,14 +472,15 @@ const withVersion = (walk: FileWalk, commit: string, version: string): AtCommit 
 /**
  * The answer for `version` from the versions computed so far: the start of the newest evaluated
  * commit that has it while none of its parents has, null when no commit has it; or, while that is
- * not certain, the commits whose versions it needs (newest first, about `chunk` of them).
+ * not certain, the commits whose versions it needs (newest first, about `chunk` of them). The version
+ * HEAD's file has (`FileWalk.head`) is needed first, so every answer can say whether HEAD has it.
  */
 const decide = (
   walk: FileWalk,
   version: string,
   chunk: number,
 ): { readonly start: Started | null } | { readonly need: readonly string[] } => {
-  const need: string[] = [];
+  const need: string[] = walk.head === "" || walk.versions.has(walk.head) ? [] : [walk.head];
   // The values of the newest commit with the version: every newer one is computed once a start counts.
   let newest: AtCommit | undefined;
   for (const { commit, parents } of walk.evaluated) {
@@ -456,7 +488,10 @@ const decide = (
       break;
     }
     if (!walk.versions.has(commit.commit)) {
-      need.push(commit.commit);
+      // HEAD's commit, while not computed, is in `need` already.
+      if (commit.commit !== walk.head) {
+        need.push(commit.commit);
+      }
       continue;
     }
     const at = withVersion(walk, commit.commit, version);
@@ -610,20 +645,31 @@ const readTexts = async (
     const unread = new Map<string, Map<string, { walk: FileWalk; name: string }>>();
     for (const text of open) {
       const found = textOf(facts, text);
+      // A text parsed at an earlier HEAD (facts are kept) still tracks its images in this walk.
+      if (
+        found !== undefined &&
+        facts.held.has(found.key) &&
+        trackImages(text.walk, facts.held.get(found.key))
+      ) {
+        grown.add(text.walk);
+      }
       if (found !== undefined && !facts.held.has(found.key)) {
         const holders = unread.get(found.blob.id) ?? new Map<string, { walk: FileWalk; name: string }>();
         unread.set(found.blob.id, holders.set(found.key, { walk: text.walk, name: found.name }));
       }
     }
     const texts = [...unread].map(([id, holders]) => ({ id, holders, chunks: [] as Buffer[] }));
-    await readAll(
+    const objects = await readAll(
       round,
       texts.map((t) => t.id),
       texts.map((t) => (chunk) => t.chunks.push(chunk)),
     );
-    for (const { holders, chunks } of texts) {
+    for (const [index, { holders, chunks }] of texts.entries()) {
       const bytes = Buffer.concat(chunks);
       for (const [key, { walk, name }] of holders) {
+        if (objects[index] === null) {
+          facts.unreadable.add(key);
+        }
         const held = heldElement(name, walk.walked.id, bytes, round.source.ignored);
         facts.held.set(key, held);
         if (trackImages(walk, held)) {
@@ -697,21 +743,29 @@ const readImages = async (
   return images;
 };
 
+/** A version Git could not tell (`versionAt`). */
+const UNKNOWN = "unknown";
+
 /**
  * The version of `walk` at `commit`: of the element its text held there, with the images as that
- * commit had them; undefined where it held no element, an image is unknown or the version cannot
- * be computed.
+ * commit had them; undefined where it held no element or the version cannot be computed (`.inf`);
+ * `UNKNOWN` where Git could not tell: a text blob it does not have and no other name holds the
+ * element, or an image that is unknown.
  */
 const versionAt = (
   round: Round,
   images: ReadonlyMap<string, ImageAt>,
   walk: FileWalk,
   commit: string,
-): AtCommit | undefined => {
+): AtCommit | typeof UNKNOWN | undefined => {
   const { facts } = round.walks;
   const found = heldAt(facts, walk, commit);
   if (found === undefined) {
-    return undefined;
+    return textsAt(facts, walk, commit).some(({ name, blob }) =>
+      facts.unreadable.has(heldKey(walk, name, blob)),
+    )
+      ? UNKNOWN
+      : undefined;
   }
   const { name, blob, held } = found;
   const files: VersionFile[] = [];
@@ -722,7 +776,7 @@ const versionAt = (
     }
     const hash = typeof state === "object" ? facts.hashes.get(state.id) : undefined;
     if (state !== "missing" && (hash === undefined || hash === null)) {
-      return undefined;
+      return UNKNOWN;
     }
     files.push({ path: link.path, sha256: hash ?? null });
   }
@@ -763,7 +817,11 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
     const grown = await readTexts(round, at);
     const images = await readImages(round, at);
     for (const { walk, commit } of at) {
-      walk.versions.set(commit, versionAt(round, images, walk, commit));
+      const at = versionAt(round, images, walk, commit);
+      if (at === UNKNOWN) {
+        walk.unknown.add(commit);
+      }
+      walk.versions.set(commit, at === UNKNOWN ? undefined : at);
     }
     if (grown.length > 0) {
       await readHistory(round.walks, round.source.repository.folder, grown, round.signal);
@@ -773,20 +831,21 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
 
 /**
  * The walks of `folder` at its HEAD, or undefined when Git cannot tell (not a repository, no
- * commit, git missing) or the repository is a shallow clone. HEAD is what `headFiles` names, and
- * what `rev-parse` says where they cannot tell; the walks stay while the stamp of `headFiles` does.
+ * commit, git missing) or the repository is a shallow clone; `LATE` when `rev-parse` did not answer
+ * in time. HEAD is what `headFiles` names, and what `rev-parse` says where they cannot tell; the
+ * walks stay while the stamp of `headFiles` does.
  */
 const currentWalks = async (
   cache: VersionDateCache,
   folder: string,
-): Promise<RepositoryWalks | undefined> => {
+): Promise<RepositoryWalks | typeof LATE | undefined> => {
   const files = await headFiles(folder);
   const known = cache.repositories.get(folder);
   const current =
     known !== undefined && files !== undefined && known.stamp === files.stamp
       ? known
       : await headWalks(cache, folder, files, known);
-  return current === undefined || current.shallow ? undefined : current;
+  return current === undefined || current === LATE || !current.shallow ? current : undefined;
 };
 
 /**
@@ -798,13 +857,13 @@ const headWalks = async (
   folder: string,
   files: HeadFiles | undefined,
   known: RepositoryWalks | undefined,
-): Promise<RepositoryWalks | undefined> => {
+): Promise<RepositoryWalks | typeof LATE | undefined> => {
   const head =
     files?.commit === undefined
       ? await headCommit(folder, { signal: cache.stop.signal })
-      : { known: true, commit: files.commit, shallow: files.shallow };
+      : ({ known: true, commit: files.commit, shallow: files.shallow } as const);
   if (!head.known) {
-    return undefined;
+    return head.reason === "timeout" ? LATE : undefined;
   }
   const current: RepositoryWalks =
     known?.head === head.commit
@@ -814,12 +873,14 @@ const headWalks = async (
           head: head.commit,
           shallow: head.shallow,
           files: new Map(),
-          facts: {
+          // What objects are is true at any HEAD: a new HEAD reads only what it adds (SR-082 AK4).
+          facts: known?.facts ?? {
             infos: new Map(),
             held: new Map(),
             hashes: new Map(),
             versions: new Map(),
             movesAsked: new Set(),
+            unreadable: new Set(),
             moves: new Map(),
           },
         };
@@ -838,12 +899,15 @@ const byRepository = <T extends { readonly repository: string }>(
   return grouped;
 };
 
-/** The repository `name` of the workspace with its walks at HEAD; undefined where Git cannot tell. */
+/**
+ * The repository `name` of the workspace with its walks at HEAD; undefined where Git cannot tell,
+ * `LATE` where it did not answer in time.
+ */
 const repositoryWalks = async (
   context: VersionDateContext,
   cache: VersionDateCache,
   name: string,
-): Promise<{ readonly source: ImageSource; readonly walks: RepositoryWalks } | undefined> => {
+): Promise<{ readonly source: ImageSource; readonly walks: RepositoryWalks } | typeof LATE | undefined> => {
   const repository = context.layout.repositories.find((r) => r.name === name);
   // Without a `.git` entry in the folder or above it, the folder is in no repository and no git starts.
   if (
@@ -854,8 +918,8 @@ const repositoryWalks = async (
     return undefined;
   }
   const walks = await currentWalks(cache, repository.folder);
-  return walks === undefined
-    ? undefined
+  return walks === undefined || walks === LATE
+    ? walks
     : { source: { repository, ignored: ignoredBy(context.layout) }, walks };
 };
 
@@ -956,16 +1020,18 @@ const startWalks = (
     fresh.set(key, {
       walked: { key, file, id, names: [file], tracked: new Set([file.normalize("NFC"), ...seeds]) },
       evaluated: [],
+      head: "",
       versions: new Map(),
       dates: new Map(),
       failed: false,
+      unknown: new Set(),
     });
   }
   if (fresh.size === 0) {
     return;
   }
   const running = readHistory(walks, source.repository.folder, [...fresh.values()], signal).then(
-    () => true,
+    () => undefined,
     (error: unknown) => {
       // What Git could not tell for a reason that may pass (a timeout, no git) is asked again next time.
       if (!(error instanceof Unknown) || error.transient) {
@@ -974,13 +1040,13 @@ const startWalks = (
         }
       }
       if (error instanceof Unknown) {
-        return false;
+        return error;
       }
       throw error;
     },
   );
   for (const [key, walk] of fresh) {
-    const found = running.then((known) => (known ? walk : undefined));
+    const found = running.then((unknown) => (unknown === undefined ? walk : unknown.late ? LATE : undefined));
     // A programming error reaches the call that awaits the walk; it never goes unhandled meanwhile.
     found.catch(() => undefined);
     walks.files.set(key, found);
@@ -999,22 +1065,51 @@ export const prepareVersionDates = async (
   const cache = context.workspace.get(versionDateState);
   for (const [name, list] of byRepository(requests)) {
     const found = await repositoryWalks(context, cache, name);
-    if (found !== undefined) {
+    if (found !== undefined && found !== LATE) {
       startWalks(found, cache.stop.signal, list);
     }
   }
 };
 
-/** The dates of `requests` in the repository `name`, by request; none where Git cannot tell. */
-const repositoryDates = async (
+/** What a lookup found for one request. */
+type Found =
+  /** The start of the version; `atHead` when the newest commit that changed the file has that version. */
+  | { readonly start: Started; readonly atHead: boolean }
+  /** Git answered: no commit has the version. */
+  | "none"
+  /** Git cannot tell (see `versionStarts`). */
+  | "undated"
+  /** Git did not answer in time; the next call asks again. */
+  | typeof LATE;
+
+/** What `walk` found for `version` once answered (see `Found`). */
+const foundOf = (walk: FileWalk, version: string): Found => {
+  const start = walk.dates.get(version);
+  if (start === undefined) {
+    return "undated";
+  }
+  // Where Git could not tell a version, no commit having it says nothing (SR-075 AK6: no time).
+  if (start === null) {
+    return walk.unknown.size > 0 ? "undated" : "none";
+  }
+  // The version of HEAD's file is computed before any answer counts (`decide`).
+  if (walk.unknown.has(walk.head)) {
+    return "undated";
+  }
+  return { start, atHead: withVersion(walk, walk.head, version) !== undefined };
+};
+
+/** What was found for each of `requests` in the repository `name`, with the request. */
+const repositoryDates = async <T extends VersionDateRequest>(
   context: VersionDateContext,
   cache: VersionDateCache,
   name: string,
-  requests: readonly VersionDateRequest[],
-): Promise<Map<VersionDateRequest, Started | null>> => {
+  requests: readonly T[],
+): Promise<(readonly [T, Found])[]> => {
   const found = await repositoryWalks(context, cache, name);
-  if (found === undefined) {
-    return new Map();
+  if (found === undefined || found === LATE) {
+    const all: Found = found ?? "undated";
+    return requests.map((r) => [r, all]);
   }
   const { source, walks } = found;
   const signal = cache.stop.signal;
@@ -1031,10 +1126,15 @@ const repositoryDates = async (
     const files = await Promise.all(requests.map(async (r) => walks.files.get(walkKey(r.file, r.id))));
     const queries = requests.flatMap((r, i): Query[] => {
       const walk = files[i];
-      return walk === undefined || walk.failed || !isKnownVersion(r.version) || walk.dates.has(r.version)
+      return walk === undefined ||
+        walk === LATE ||
+        walk.failed ||
+        !isKnownVersion(r.version) ||
+        walk.dates.has(r.version)
         ? []
         : [{ walk, version: r.version }];
     });
+    let late = false;
     await answer(round, queries).catch((error: unknown) => {
       // Git could not tell, or a folder of the working copy could not be listed (`file.faulty`).
       if (error instanceof Unknown && !error.transient) {
@@ -1044,6 +1144,7 @@ const repositoryDates = async (
       } else if (error instanceof Unknown || error instanceof CommandError) {
         // What may pass is asked again by the next call, from a new walk: this one may hold a
         // tracked path whose history was not read (ADR-0005 "No date").
+        late = error instanceof Unknown && error.late;
         for (const { walk } of queries) {
           walks.files.delete(walk.walked.key);
         }
@@ -1051,27 +1152,46 @@ const repositoryDates = async (
         throw error;
       }
     });
-    return new Map(requests.map((r, i) => [r, files[i]?.dates.get(r.version) ?? null]));
+    return requests.map((r, i): readonly [T, Found] => {
+      const walk = files[i];
+      if (walk === LATE) {
+        return [r, LATE];
+      }
+      if (walk === undefined || walk.failed || !isKnownVersion(r.version)) {
+        return [r, "undated"];
+      }
+      // A walk whose answer was cut short has no date for the version.
+      return [r, late && !walk.dates.has(r.version) ? LATE : foundOf(walk, r.version)];
+    });
   } finally {
     round.reader.close();
   }
+};
+
+/** What was found for each request, in the order of `requests`. */
+const foundFor = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<Found[]> => {
+  const cache = context.workspace.get(versionDateState);
+  const found: Found[] = [];
+  const indexed = requests.map((request, index) => ({ ...request, index }));
+  await Promise.all(
+    [...byRepository(indexed)].map(async ([name, list]) => {
+      for (const [request, answer] of await repositoryDates(context, cache, name, list)) {
+        found[request.index] = answer;
+      }
+    }),
+  );
+  return found;
 };
 
 /** `versionStarts` with the values at each start. */
 const startsWithValues = async (
   context: VersionDateContext,
   requests: readonly VersionDateRequest[],
-): Promise<(Started | null)[]> => {
-  const cache = context.workspace.get(versionDateState);
-  const dates = new Map(
-    await Promise.all(
-      [...byRepository(requests)].map(
-        async ([name, list]) => [name, await repositoryDates(context, cache, name, list)] as const,
-      ),
-    ),
-  );
-  return requests.map((r) => dates.get(r.repository)?.get(r) ?? null);
-};
+): Promise<(Started | null)[]> =>
+  (await foundFor(context, requests)).map((found) => (typeof found === "object" ? found.start : null));
 
 /**
  * The start of each requested version (ADR-0005 "Version date"), in the order of `requests`: the
@@ -1124,3 +1244,25 @@ export const versionDates = async (
   context: VersionDateContext,
   requests: readonly VersionDateRequest[],
 ): Promise<(string | null)[]> => (await versionStarts(context, requests)).map((start) => start?.date ?? null);
+
+/**
+ * The time of each requested version as a sort by the version date reads it (SR-075 AK6), in the
+ * order of `requests`: `dated` with the date of its start (`versionStarts`) when the newest commit
+ * that changed the file has that version; `uncommitted` when it does not (the content differs from
+ * the last commit, also when an older commit had it) or no commit has it (the file is in no commit);
+ * `late` when git did not answer in time (asked again by the next call); `undated` for every other
+ * version without date (no Git, a shallow clone, a version of no normal form, a failed git call).
+ */
+export type VersionTime =
+  { readonly kind: "dated"; readonly date: string } | { readonly kind: "uncommitted" | "undated" | "late" };
+
+export const versionTimes = async (
+  context: VersionDateContext,
+  requests: readonly VersionDateRequest[],
+): Promise<VersionTime[]> =>
+  (await foundFor(context, requests)).map((found): VersionTime => {
+    if (typeof found === "object") {
+      return found.atHead ? { kind: "dated", date: found.start.date } : { kind: "uncommitted" };
+    }
+    return { kind: found === "none" ? "uncommitted" : found };
+  });

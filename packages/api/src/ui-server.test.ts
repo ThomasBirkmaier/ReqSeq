@@ -23,10 +23,18 @@ interface Call {
 /** What each command of the runner does; default: answers with its name. */
 let behaviour: (name: string, input: unknown, ctx: InvokeContext) => Promise<unknown>;
 const calls: Call[] = [];
+/** The workspaces the server marked as opened (`workspace.markOpened`), apart from the other calls. */
+const marked: { readonly root: string; readonly access: InvokeContext["access"] }[] = [];
+/** What `workspace.markOpened` does; default: succeeds. */
+let marking: () => Promise<unknown>;
 
 const runner = {
   contracts: getCommandRuntime().contracts,
   invoke: (name: string, input: unknown, ctx: InvokeContext): Promise<unknown> => {
+    if (name === "workspace.markOpened") {
+      marked.push({ root: ctx.workspace.root, access: ctx.access });
+      return marking();
+    }
     calls.push({
       name,
       input,
@@ -42,7 +50,9 @@ let pages: string;
 
 beforeEach(async () => {
   calls.length = 0;
+  marked.length = 0;
   behaviour = (name) => Promise.resolve({ ran: name });
+  marking = () => Promise.resolve({ root: "marked" });
   pages = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-pages-"));
   await fs.mkdir(path.join(pages, "assets"));
   await fs.writeFile(path.join(pages, "index.html"), "<!doctype html><title>ReqSeq</title>");
@@ -388,6 +398,23 @@ describe("UI server: commands and workspaces", () => {
     expect((await command(server, "element.get", {}, 1)).status).toBe(409);
     expect((await command(server, "element.get", {}, 2)).status).toBe(200);
     expect(calls.map((c) => c.root)).toEqual([first.root, second.root]);
+    expect(marked).toEqual([
+      { root: first.root, access: "ui" },
+      { root: second.root, access: "ui" },
+    ]);
+  });
+
+  it("reports a workspace it could not mark as opened and keeps it open", async () => {
+    const first = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    onTestFinished(() => first.cleanup());
+    marking = () => Promise.reject(new CommandError("input.invalid", "Another process writes the list"));
+    const reports: string[] = [];
+    const server = await start({ workspace: first.root, report: (message) => reports.push(message) });
+    expect(reports).toEqual(["The workspace was not marked as opened: Another process writes the list"]);
+    expect((await command(server, "element.get", {}, 1)).status).toBe(200);
+    // Without `report` the refusal changes nothing either.
+    const quiet = await start({ workspace: first.root });
+    expect((await command(quiet, "element.get", {}, 1)).status).toBe(200);
   });
 
   it("keeps the open workspace when the folder to open has no workspace, and refuses a body without a path", async () => {
@@ -569,5 +596,12 @@ describe("UI server: commands and workspaces", () => {
     await expect(createUiServer({ pages, runner, port: -1 })).rejects.toMatchObject({
       code: "input.invalid",
     });
+    // A start that fails marks nothing as opened (SR-247 AK3).
+    const ws = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    onTestFinished(() => ws.cleanup());
+    await expect(
+      createUiServer({ pages, runner, port: first.port, workspace: ws.root }),
+    ).rejects.toMatchObject({ code: "input.invalid" });
+    expect(marked).toEqual([]);
   });
 });

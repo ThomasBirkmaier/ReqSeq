@@ -48,6 +48,11 @@ export interface UiServerOptions {
   readonly port?: number;
   /** The folder a relative path of `POST /ui/workspace` and the commands without a workspace start from. */
   readonly cwd?: string;
+  /**
+   * Gets a problem that does not stop the server: the workspace it opened could not be marked as opened
+   * (`workspace.markOpened`). Default: none is reported.
+   */
+  readonly report?: (message: string) => void;
 }
 
 export interface UiServer {
@@ -103,7 +108,7 @@ const COMMON_HEADERS = {
 
 /** The CSP of the pages (ADR-0020 "Response headers"). */
 export const PAGE_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; " +
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; " +
   "font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; " +
   "base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
@@ -271,6 +276,19 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     }
   };
 
+  /**
+   * Marks the opened workspace first in `workspace.recent` (SR-247 AK12, SR-250). A refusal is reported and
+   * leaves the workspace open: the list of recent workspaces is a convenience of the user, not of the workspace.
+   */
+  const markOpened = async (workspace: Workspace): Promise<void> => {
+    try {
+      await runner.invoke("workspace.markOpened", {}, { workspace, access: "ui" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      options.report?.(`The workspace was not marked as opened: ${message}`);
+    }
+  };
+
   const begin = async (workspace: Workspace): Promise<Session> => {
     const watcher = watchWorkspace(workspace);
     await watcher.ready;
@@ -299,6 +317,7 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     session = undefined;
     await end(old);
     session = await begin(workspace);
+    await markOpened(workspace);
     broadcast(eventText("workspace", { generation }));
     return { generation, root: workspace.root };
   };
@@ -483,6 +502,10 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
       throw error;
     },
   );
+  // Marked only once the server listens: a start that fails opened nothing (SR-247 AK3).
+  if (session !== undefined) {
+    await markOpened(session.workspace);
+  }
   return {
     port,
     token,

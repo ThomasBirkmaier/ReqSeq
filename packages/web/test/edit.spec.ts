@@ -471,6 +471,30 @@ test("typing [[ in a text links an element, and an added image goes into the tex
   });
 });
 
+test("an added image shows in the preview and on the element page", async ({ page, open, ui }) => {
+  await withRequirement(ui.run, async (ref) => {
+    await open(`/edit/${ref}`);
+    const text = page.locator("#f-text");
+    await text.fill("A picture: ");
+    await text.press("End");
+    await page.locator(".ed-md input[type=file]").first().setInputFiles({
+      name: "seen.png",
+      mimeType: "image/png",
+      buffer: PNG,
+    });
+    await expect(text).toHaveValue(/seen\.png\)/);
+    const loaded = async (image: Locator): Promise<void> => {
+      await expect(image).toHaveAttribute("src", /^blob:/);
+      await expect.poll(() => image.evaluate((x: HTMLImageElement) => x.complete && x.naturalWidth)).toBe(1);
+    };
+    await page.locator("#f-text-preview").click();
+    await loaded(page.locator(".ed-preview img"));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.locator("#card")).toBeVisible();
+    await loaded(page.locator("#card .prose img"));
+  });
+});
+
 test("criteria without a key get their keys from the form", async ({ page, open, ui }) => {
   const { mm, type } = await requirementType(ui.run);
   const criteria = mm.properties.find(

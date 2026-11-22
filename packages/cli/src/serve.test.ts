@@ -21,7 +21,7 @@ import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
-import { DOCS_FOLDER, EXIT, runCli } from "./main.js";
+import { DOCS_FOLDER, EXIT, runCli, webFolder } from "./main.js";
 
 const entry = (name: string) => ({
   name,
@@ -400,6 +400,142 @@ describe("reqseq mcp", () => {
     );
     expect(stderr.text).not.toContain("secret");
     await client.close();
+  });
+});
+
+describe("reqseq ui", () => {
+  /** A folder of page files: the UI server needs an index.html. */
+  const pages = async (): Promise<string> => {
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-pages-"));
+    onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
+    await fs.writeFile(path.join(folder, "index.html"), "<!doctype html><title>ReqSeq</title>");
+    return folder;
+  };
+
+  /** A workspace the product's runtime reads. */
+  const station = async (): Promise<string> => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    onTestFinished(() => ws.cleanup());
+    return ws.root;
+  };
+
+  /** Waits until `sink` holds `text`. */
+  const until = async (sink: Sink, text: string): Promise<void> => {
+    for (let waited = 0; !sink.text.includes(text); waited += 10) {
+      if (waited > 15_000) {
+        throw new Error(`Not seen: ${text}; seen: ${sink.text}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  };
+
+  const get = (url: string): Promise<number | undefined> =>
+    new Promise((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        })
+        .on("error", reject);
+    });
+
+  it("serves the workspace it finds, prints the address, opens it and stops at the signal", async () => {
+    const controller = new AbortController();
+    const opened: string[] = [];
+    const opts = options(["ui"], {
+      cwd: await station(),
+      runtime: getCommandRuntime(),
+      webFolder: await pages(),
+      signal: controller.signal,
+      openAddress: (url) => {
+        opened.push(url);
+        return Promise.resolve();
+      },
+    });
+    const exit = runCli(opts);
+    await until(opts.out, "Stop with Ctrl-C.\n");
+    const url = /^ReqSeq UI on (\S+)$/m.exec(opts.out.text)?.[1] ?? "";
+    expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#token=[\w-]{43}$/);
+    expect(opened).toEqual([url]);
+    expect(await get(url)).toBe(200);
+    controller.abort();
+    expect(await exit).toBe(EXIT.ok);
+    expect(opts.err.text).toBe("");
+    await expect(get(url)).rejects.toThrow();
+  });
+
+  it("starts without a workspace where none is found, opens nothing with --no-open, and says when the opener fails", async () => {
+    const empty = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-empty-"));
+    onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
+    const controller = new AbortController();
+    const opened: string[] = [];
+    const quiet = options(["ui", "--no-open"], {
+      cwd: empty,
+      runtime: getCommandRuntime(),
+      webFolder: await pages(),
+      signal: controller.signal,
+      openAddress: (url) => {
+        opened.push(url);
+        return Promise.resolve();
+      },
+    });
+    const exit = runCli(quiet);
+    await until(quiet.out, "Stop with Ctrl-C.\n");
+    expect(quiet.err.text).toBe("No workspace found here: open or create one in the UI.\n");
+    controller.abort();
+    expect(await exit).toBe(EXIT.ok);
+    expect(opened).toEqual([]);
+    for (const failure of [new Error("xdg-open could not be started: ENOENT"), "gone"]) {
+      const stop = new AbortController();
+      const failing = options(["ui", "--workspace", await station()], {
+        runtime: getCommandRuntime(),
+        cwd: empty,
+        webFolder: await pages(),
+        signal: stop.signal,
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- a reason that is no Error is named too
+        openAddress: () => Promise.reject(failure),
+      });
+      const running = runCli(failing);
+      await until(failing.err, "Open the address above yourself.\n");
+      expect(failing.err.text).toContain(
+        `No browser was opened (${failure instanceof Error ? failure.message : failure}). Open the address above yourself.\n`,
+      );
+      stop.abort();
+      expect(await running).toBe(EXIT.ok);
+    }
+  });
+
+  it("does not start on an invalid port or a workspace that is missing", async () => {
+    for (const argv of [
+      ["ui", "--no-open", "--port", "x"],
+      ["ui", "--no-open", "--port", "0"],
+      ["ui", "--no-open", "--workspace", "gone"],
+    ]) {
+      const opts = options(argv, { webFolder: await pages() });
+      expect([argv, await runCli(opts)]).toEqual([argv, EXIT.usage]);
+      expect(opts.out.text).toBe("");
+      expect(opts.err.text).toMatch(/^error (input\.invalid|workspace\.not-found)/);
+    }
+  });
+
+  it("takes the pages of the delivery, else those of the checkout", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-layout-"));
+    onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+    const dist = path.join(root, "cli", "dist");
+    const delivery = path.join(root, "cli", "web");
+    const checkout = path.join(root, "web", "dist");
+    expect(webFolder(dist)).toBe(delivery);
+    await fs.mkdir(checkout, { recursive: true });
+    await fs.writeFile(path.join(checkout, "index.html"), "");
+    expect(webFolder(dist)).toBe(checkout);
+    await fs.mkdir(delivery, { recursive: true });
+    await fs.writeFile(path.join(delivery, "index.html"), "");
+    expect(webFolder(dist)).toBe(delivery);
+    // This checkout: its pages after `pnpm build`, else the delivery's folder, which is missing then.
+    expect([
+      path.join(import.meta.dirname, "..", "..", "web", "dist"),
+      path.join(import.meta.dirname, "..", "web"),
+    ]).toContain(webFolder());
   });
 });
 
