@@ -223,6 +223,27 @@ test("a new requirement gets a value in every property its type has, its relatio
   );
 });
 
+test("an element created in the form is known to the other pages at once", async ({ page, open, ui }) => {
+  const { type } = await requirementType(ui.run);
+  const changes = await ui.run("baseline.changes", { limit: 1 });
+  test.skip(
+    changes.baseline === undefined,
+    "The workspace has no baseline, so the changes page lists nothing",
+  );
+  await open(`/new?type=${type.key}`);
+  await page.locator("#f-title").fill("Made in the form, then reviewed");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator("#card h1")).toHaveText("Made in the form, then reviewed");
+  const id = await page.locator("#card").getAttribute("data-id");
+  // The changes page lists it with its title, without a reload of the page.
+  await page.evaluate(() => {
+    location.hash = "#/c";
+  });
+  await expect(page.locator(`.crow a[data-id="${id ?? ""}"]`)).toContainText(
+    "Made in the form, then reviewed",
+  );
+});
+
 /** A requirement to edit, which the test gives back as it was. */
 async function withRequirement(run: Run, body: (ref: string, id: string) => Promise<void>): Promise<void> {
   const { type } = await requirementType(run);

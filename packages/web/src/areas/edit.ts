@@ -20,7 +20,7 @@ import { propDef, propKey, propOfType, relKind, sentence, typeDef, typeName, typ
 import { markdown } from "../markdown.js";
 import type { Route } from "../router.js";
 import { HOME, addRoute, hashOf, isCurrent, parseHash } from "../router.js";
-import { refOf, store } from "../store.js";
+import { load, refOf, store } from "../store.js";
 import type { Target } from "./edit-pick.js";
 import { picker, targetOf } from "./edit-pick.js";
 
@@ -488,6 +488,16 @@ async function check(d: Draft): Promise<void> {
 }
 
 /** Saves the form and opens the element. */
+/**
+ * The store read again after a write of the form. No change event follows a write the server made itself (its
+ * watcher finds the element store already current), so the page reads again before it shows the element.
+ */
+const reread = (): Promise<void> =>
+  load().then(
+    () => undefined,
+    () => undefined,
+  );
+
 async function save(d: Draft): Promise<void> {
   d.busy = true;
   redraw();
@@ -496,11 +506,13 @@ async function save(d: Draft): Promise<void> {
       const out = await call("element.create", createInput(d, false));
       draft = undefined;
       announce(out.answer);
+      await reread();
       location.hash = hashOf("e", refOf(out.element));
     } else {
       const out = await call("element.update", updateInput(d, false));
       draft = undefined;
       announce(out.answer);
+      await reread();
       location.hash = d.back;
     }
   } catch (error) {
