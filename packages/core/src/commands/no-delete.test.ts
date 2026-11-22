@@ -12,6 +12,7 @@ import { createCommandRuntime } from "../runtime/invoke.js";
 import { readFirstFor } from "../runtime/read-first.test-helper.js";
 import { Workspace } from "../runtime/workspace.js";
 import { commands } from "./index.js";
+import { isolateOsCache } from "./scenarios.test-helper.js";
 
 /** Words of an action that would delete something. */
 const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard|clear|wipe/i;
@@ -288,6 +289,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
   ],
+  "workspace.markOpened": [{}, { extra: true }],
 };
 
 /** Every file below `root` (relative, with `/`), except Git's own. */
@@ -298,6 +300,8 @@ const filesBelow = (root: string): string[] =>
     .map((e) => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
     .filter((file) => !file.split("/").includes(".git"))
     .sort();
+
+isolateOsCache();
 
 describe("no delete of an element (SR-099, D-045)", () => {
   it("[SR-099/AK-nbg9] the catalog offers no command that deletes an element", () => {
@@ -393,7 +397,14 @@ describe("no delete of an element (SR-099, D-045)", () => {
     const src = path.resolve(import.meta.dirname, "..");
     const sources = fs
       .readdirSync(src, { recursive: true, withFileTypes: true })
-      .filter((e) => e.isFile() && e.name.endsWith(".ts") && !e.name.endsWith(".test.ts"))
+      // Test helpers (`*.test-helper.ts`) are no product source: the package leaves them out of dist.
+      .filter(
+        (e) =>
+          e.isFile() &&
+          e.name.endsWith(".ts") &&
+          !e.name.endsWith(".test.ts") &&
+          !e.name.endsWith(".test-helper.ts"),
+      )
       .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"));
     const read = (file: string): string => fs.readFileSync(path.join(src, file), "utf8");
     const removing = sources

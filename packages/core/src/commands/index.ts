@@ -79,6 +79,7 @@ import workspaceCheck from "./workspace/check.js";
 import workspaceConnectAgent from "./workspace/connectAgent.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceListFolder from "./workspace/listFolder.js";
+import workspaceMarkOpened from "./workspace/markOpened.js";
 import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
@@ -160,6 +161,7 @@ export const commands: readonly AnyCommand[] = [
   workspaceConnectAgent,
   workspaceInit,
   workspaceListFolder,
+  workspaceMarkOpened,
   workspaceRecent,
   workspaceStatus,
 ];

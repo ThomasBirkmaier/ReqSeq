@@ -33,6 +33,7 @@ import {
   SCENARIOS,
   VARIANT_FILE,
   WIND,
+  isolateOsCache,
 } from "./scenarios.test-helper.js";
 import { readFirst } from "../runtime/read-first.test-helper.js";
 
@@ -96,6 +97,8 @@ const open = async (git = false): Promise<{ fixture: FixtureWorkspace; workspace
   });
   return { fixture, workspace };
 };
+
+isolateOsCache();
 
 describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
   it("[SR-087/AK-pjbh] has a scenario for every implemented command except element.setStatus and element.supersede", () => {

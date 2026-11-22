@@ -16,6 +16,7 @@ import {
   createExistenceChecker,
   createWorkspaceChecks,
   findTypedWorkspace,
+  markWorkspace,
   parseRecentWorkspaces,
   readRecentWorkspaces,
   recentWorkspaceStates,
@@ -263,6 +264,88 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
     spy.mockRestore();
     await fs.rm(lockFile);
     expect(await rememberWorkspace(a, { environment })).toBe(true);
+  });
+});
+
+describe("markWorkspace, the strict record of workspace.markOpened (SR-250)", () => {
+  const write = async (text: string): Promise<void> => {
+    await fs.mkdir(path.dirname(listFile()), { recursive: true });
+    await fs.writeFile(listFile(), text);
+  };
+
+  it("creates a missing list, puts the root first once per key, and keeps the entries of a valid list", async () => {
+    const a = await folder("a");
+    const b = await folder("b");
+    expect(await markWorkspace(a, { environment, now: at(1) })).toEqual({
+      marked: { root: a, key: workspaceKey(a), opened: at(1).toISOString() },
+    });
+    await markWorkspace(b, { environment, now: at(2) });
+    await markWorkspace(a, { environment, now: at(3), key: workspaceKey(a) });
+    expect(await roots()).toEqual([a, b]);
+    // A key listed twice in a valid list counts once.
+    const entry = { root: b, key: "k", opened: at(4).toISOString() };
+    await write(JSON.stringify({ format: 1, workspaces: [entry, { ...entry, root: a }] }));
+    await markWorkspace(a, { environment, now: at(5), key: "other" });
+    expect(await roots()).toEqual([a, b]);
+  });
+
+  it("refuses, changing nothing, a list it cannot read: foreign or oversized content, a folder, a read error", async () => {
+    const a = await folder("a");
+    for (const text of [
+      "not json",
+      JSON.stringify({ format: 2, workspaces: [] }),
+      `{"format":1,"workspaces":[],"pad":"${"x".repeat(RECENT_WORKSPACES_MAX_BYTES)}"}`,
+    ]) {
+      await write(text);
+      expect(await markWorkspace(a, { environment }), text.slice(0, 40)).toMatchObject({
+        refused: "unreadable",
+      });
+      expect(await fs.readFile(listFile(), "utf8")).toBe(text);
+    }
+    await fs.rm(listFile());
+    await fs.mkdir(listFile());
+    expect(await markWorkspace(a, { environment })).toMatchObject({
+      refused: "unreadable",
+      cause: expect.anything() as unknown,
+    });
+    expect((await fs.stat(listFile())).isDirectory()).toBe(true);
+    await fs.rm(listFile(), { recursive: true });
+    // No text and a path that cannot be looked at (EACCES): refused as well.
+    const lstat = fs.lstat.bind(fs);
+    const spy = vi
+      .spyOn(fs, "lstat")
+      .mockImplementation(async (...args: Parameters<typeof fs.lstat>) =>
+        String(args[0]) === listFile()
+          ? Promise.reject(Object.assign(new Error("EACCES"), { code: "EACCES" }))
+          : lstat(...args),
+      );
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    expect(await markWorkspace(a, { environment })).toMatchObject({ refused: "unreadable" });
+    spy.mockRestore();
+    await expect(fs.stat(listFile())).rejects.toThrow();
+  });
+
+  it("refuses when the lock is held, the folder cannot be made, or the root cannot be held", async () => {
+    const a = await folder("a");
+    const lock = await lockCacheFile(recentWorkspacesFolder(environment), RECENT_WORKSPACES_FILE);
+    expect(await markWorkspace(a, { environment })).toEqual({ refused: "locked" });
+    await lock?.release();
+    expect(await roots()).toEqual([]);
+    // A file where the folder of the list should be: the lock cannot be written.
+    await fs.rm(recentWorkspacesFolder(environment), { recursive: true });
+    await fs.writeFile(recentWorkspacesFolder(environment), "");
+    expect(await markWorkspace(a, { environment })).toMatchObject({
+      refused: "unwritable",
+      cause: expect.anything() as unknown,
+    });
+    await fs.rm(recentWorkspacesFolder(environment));
+    for (const root of ["relative", `/${"x".repeat(MAX_ROOT_LENGTH)}`]) {
+      expect(await markWorkspace(root, { environment })).toEqual({ refused: "unwritable" });
+    }
+    expect(await markWorkspace(a, { environment, key: "" })).toEqual({ refused: "unwritable" });
+    await expect(fs.stat(listFile())).rejects.toThrow();
   });
 });
 

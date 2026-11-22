@@ -6346,7 +6346,7 @@
       {
         "name": "workspace.recent",
         "title": "List recent workspaces",
-        "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+        "summary": "The workspaces opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -6374,12 +6374,12 @@
                   "root": {
                     "title": "Workspace root",
                     "$ref": "../common.schema.json#/$defs/outputPath",
-                    "description": "The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml)."
+                    "description": "The absolute path of the workspace root as it was opened last (the folder that holds reqseq-workspace.yaml)."
                   },
                   "opened": {
                     "title": "Opened",
                     "$ref": "../common.schema.json#/$defs/dateTime",
-                    "description": "When the app opened it last."
+                    "description": "When it was opened last."
                   },
                   "exists": {
                     "title": "Exists",
@@ -6395,7 +6395,7 @@
                   "exists"
                 ]
               },
-              "description": "The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json`. Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+              "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them: the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on. Empty when none is recorded or the list cannot be read. No other command changes the list."
             }
           },
           "additionalProperties": false,
@@ -6426,6 +6426,64 @@
             "path": "workspaces[].exists",
             "title": "Exists",
             "normal": true
+          }
+        ]
+      },
+      {
+        "name": "workspace.markOpened",
+        "title": "Mark workspace as opened",
+        "summary": "Marks the workspace the command runs on as opened now: the absolute path of its main repository goes first in the list of recent workspaces that `workspace.recent` gives. The list keeps the 20 workspaces marked last and belongs to the user, not to a workspace.",
+        "details": "Two spellings of the same folder (another case on Windows, a symbolic link) are one entry: the entry of that folder goes, and the path as marked now stands first. With 20 entries, the entry marked longest ago goes. A missing list is created with this one entry. When the list cannot be read, holds no list of ReqSeq, cannot be written, or another process is writing it, the command refuses, names the reason and changes nothing; it also refuses when the list would lie inside a repository of the workspace. No other command changes the list.",
+        "effect": "write-files",
+        "whileReadOnly": "allow",
+        "whileReadOnlyReason": "It writes only the user's list of recent workspaces, no file of the workspace, and a read-only workspace can be opened too.",
+        "stage": 6,
+        "implements": [
+          "SR-250"
+        ],
+        "arguments": [],
+        "input": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "root": {
+              "title": "Workspace root",
+              "$ref": "../common.schema.json#/$defs/outputPath",
+              "description": "The absolute path of the main repository of the workspace (the folder that holds reqseq-workspace.yaml), as the list holds it now, first."
+            },
+            "opened": {
+              "title": "Opened",
+              "$ref": "../common.schema.json#/$defs/dateTime",
+              "description": "When it was marked, as `workspace.recent` gives it."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "root",
+            "opened"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "root",
+            "title": "Workspace root",
+            "technical": true
+          },
+          {
+            "path": "opened",
+            "title": "Opened"
           }
         ]
       },

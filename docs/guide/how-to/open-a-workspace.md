@@ -45,7 +45,7 @@ No problems.
 
 Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
 
-`workspace recent` lists the workspaces the app opened last; the CLI only reads that list:
+`workspace recent` lists the workspaces opened last, and `workspace mark-opened` puts its own workspace first:
 
 ```sh
 reqseq workspace recent
@@ -85,4 +85,4 @@ An MCP client starts `reqseq mcp` with `--workspace` and the absolute path of th
 
 The path works as in the API.
 
-The reference has the details of [workspace.init](/reference/commands/workspace-init/), [workspace.status](/reference/commands/workspace-status/) and [workspace.recent](/reference/commands/workspace-recent/).
+The reference has the details of [workspace.init](/reference/commands/workspace-init/), [workspace.status](/reference/commands/workspace-status/), [workspace.recent](/reference/commands/workspace-recent/) and [workspace.markOpened](/reference/commands/workspace-mark-opened/).
