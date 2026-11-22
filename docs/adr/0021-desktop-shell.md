@@ -21,9 +21,9 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
 - **`packages/shell/`** is a Cargo workspace with its own `Cargo.toml`, `Cargo.lock` and `rust-toolchain.toml`. The toolchain file pins an exact stable Rust version that is at least two weeks old. The workspace has two crates:
   - `shell`: the Tauri program `reqseq-shell`. It is a library of rules behind a `Host` trait (start, end, open, dialogs, window), plus a thin `main.rs` that wires the real host.
   - `launcher`: the Linux program `ReqSeq` (below). It depends on `libc` only and links neither GTK nor WebKit.
-- **No Tauri CLI and no Tauri bundler.** They make installers and download their tools. Cargo builds the binaries, and `scripts/package/` assembles `ReqSeq.app`, `ReqSeq.exe` and `ReqSeq` (#2379).
+- **No Tauri CLI and no Tauri bundler.** They make installers and download their tools. Cargo builds the binaries with the feature `tauri/custom-protocol`, which the Tauri CLI would otherwise turn on; without it Tauri builds a development binary that looks for a development server. A release test checks that it is on. Then `scripts/package/` assembles `ReqSeq.app`, `ReqSeq.exe` and `ReqSeq` (#2379).
 - **Tests and checks.** `packages/shell/package.json` (`@reqseq/shell`, private) holds the e2e tests in `packages/shell/e2e/` with their own `vitest.shell.config.ts`. The root globs (`packages/*/test/**`, `packages/*/test/e2e/**`) do not reach them. `pnpm typecheck` covers them. `pnpm build` and `pnpm test` do not touch Rust.
-- **Pages.** The pages reach the shell only through ADR-0020's `shell` module in `packages/web/src/shell.ts`. It gets a second implementation, chosen at run time with `isTauri()`, that calls `invoke` of `@tauri-apps/api/core`, pinned to the minor version of the `tauri` crate. Links in element text open through this module too (#2377).
+- **Pages.** The pages reach the shell only through ADR-0020's `shell` module in `packages/web/src/shell.ts`. It gets a second implementation, chosen at run time with `isTauri()`, that calls `invoke` of `@tauri-apps/api/core`, pinned exactly to the release that matches the `tauri` crate. Links in element text open through this module too (#2377).
 
 ### Start (SR-252 AK1, AK2)
 
@@ -34,7 +34,7 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
    - Standard input is a pipe whose write end only the shell holds. Standard output and error are pipes.
    - On Windows the server starts with `CREATE_NO_WINDOW`, so no console window opens. `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` limits the inherited handles to these three pipes. On Unix the server starts in its own process group, so a Ctrl-C in the shell's terminal reaches only the shell.
 3. **Where.** The server's current folder is the root of the file system: `/`, or `%SystemDrive%\` on Windows. The CLI looks for `reqseq-workspace.yaml` from the current folder upwards (ADR-0009), and the root is the only folder with no folder above it.
-   - If the root holds that file, the shell checks only that the file exists. It starts no server and ends as AK5 says, naming that file as the reason.
+   - If the root holds that file, the shell tests it as the CLI does (`isFile`: links followed, a regular file only) and reads nothing. It starts no server and ends as AK5 says, naming that file as the reason.
    - This case is the question #2386. Its answer may change this.
 4. **The address.** The shell reads standard output line by line until a line `ReqSeq UI on <address>` (the CLI's line, ADR-0020). The address must be `http://` with a loopback host and a port, and must carry `#token=`. Anything else is AK5.
    - Afterwards the shell keeps reading both pipes, so the server never blocks on a full pipe.
@@ -43,7 +43,8 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
 6. **Where the token can appear.** It is in no argument and in no file the shell writes. The engine's data folder is the exception that AK2 allows.
    - The shell writes nothing it reads from the server to its own output, except the AK5 reason.
    - The engine's processes inherit the shell's standard output and error, and may print the page's address there. So at its start the shell replaces its own standard output and error with pipes. A thread copies them line by line to the original ones and replaces the token once it is known. Every later process inherits the filtered pipes (A1).
-   - The panic hook prints no payload. With `panic = "abort"`, the filter thread can lose the last lines, but it never passes on a token.
+   - Before the replacement the shell keeps a duplicate of the original standard error. The panic hook writes to it a fixed English line and no payload: "the window could not open" before the server started, else "ended unexpectedly". So a panic cannot pass on a token.
+   - On every exit path that is not a crash, the shell closes the write ends of the filter pipes and waits for the filter thread before it exits, so the AK5 and AK8 messages reach the original standard error.
 
 ### End (SR-252 AK4)
 
@@ -74,14 +75,18 @@ Facts about Tauri 2 and the three engines that cannot be checked without them ar
 - **Missing engine on Linux (AK8).** `ReqSeq` is the launcher. It calls `dlopen("libwebkit2gtk-4.1.so.0", RTLD_LAZY)`, the lookup the dynamic loader would do.
   - If the call fails, the launcher prints on standard error an English message that names the package `libwebkit2gtk-4.1-0` and the loader's reason, and exits with 1.
   - Otherwise it replaces itself with `reqseq-shell` (`exec`), so no further process runs.
-- **No window.** The window cannot open, for example with no display or no WebView2 runtime. `reqseq-shell` then prints the reason in English on standard error and exits with a code other than 0, before any server starts (Start, step 1). A Windows GUI program writes to a standard error that its starter redirected (A3).
+- **No window.** The window cannot open, for example with no display or no WebView2 runtime. On Linux `main` calls `gtk::init` itself before the Tauri builder, because a failed GTK start inside Tauri panics. `reqseq-shell` then prints the reason in English on standard error and exits with a code other than 0, before any server starts (Start, step 1). A panic before the server starts gives the fixed line of the panic hook. `ReqSeq.exe`, a GUI program, writes to a standard error that its starter redirected (A3).
 
 ### Opening an address (SR-252 AK3)
 
-- **Input.** One string of at most 8 KiB, without ASCII control characters or spaces. The `url` crate parses it by the WHATWG rules. The address must be absolute: http and https with a host, or mailto. The scheme is compared after parsing, which lowercases it.
+- **Input.** One string. The `url` crate parses it by the WHATWG rules; a string it cannot parse is refused. The address must be absolute: http and https with a host, or mailto. The scheme is compared after parsing, which lowercases it.
 - **Own server.** An address is the own server when the scheme is http or https, the host is in 127.0.0.0/8, `::1` (IPv4-mapped 127.0.0.0/8 included) or `localhost`, and the port is the server's. A missing port counts as the scheme's default port. Parsing turns `127.1`, `0x7f.0.0.1` and decimal forms into `127.0.0.1` first.
 - **Refused.** The own server, another scheme, an address without a scheme, or an empty one: the shell starts nothing and answers that it refused.
-- **Handed on.** Every other address goes, in its parsed form, to the opener of the operating system through the Rust API of `tauri-plugin-opener` (ShellExecute, Launch Services, `xdg-open`).
+- **Handed on.** Every other address goes, in its parsed form, to the opener of the operating system. The shell's own platform code calls it, not `tauri-plugin-opener`, whose `open` crate tries several programs in turn on Linux:
+  - Windows: `ShellExecuteW` with `open`; the shell itself starts no program.
+  - macOS: `/usr/bin/open` with the address as its one argument.
+  - Linux: `xdg-open` from `PATH` with the address as its one argument.
+  - That one program, with the processes it starts, is the program from AK3 that SR-252 AK6 allows.
   - If no program can start, the page gets an error, and the shell keeps running.
   - A loopback address on another port and a `*.localhost` host are not the own server, as the wording of AK3 says, so they are handed on.
 - **Only on a person's input (AK9).** The page calls the opener only from a person's input, through `shell.ts`.
@@ -149,7 +154,7 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 | SR-252 AK5 | unit: reasons and the tail; e2e: a server that fails, one that prints nothing, one that ends while the shell runs | all three |
 | SR-252 AK6 | e2e with process-level recording while elements are read and changed | all three |
 | SR-252 AK7 | e2e with recorded connections, an element with a remote image and raw HTML | all three |
-| SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display | Ubuntu 24.04 |
+| SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display; e2e on Windows: no usable WebView2 runtime (A3) | Ubuntu 24.04, Windows |
 | SR-252 AK9 | e2e: the pages' calls recorded while elements with links and raw HTML load; then one click | all three |
 | SR-253 AK1 | e2e: each of the four commands, a plugin command and an unknown name refused; unit: dialog inputs | all three |
 | SR-253 AK2 | e2e: a chosen path outside the repositories is refused by the command | all three |
@@ -177,10 +182,10 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 
 ### Quality gates (changes ADR-0016)
 
-- **Lint.** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings -W clippy::pedantic`. A warning fails as in ESLint, and an `#[allow(clippy::…)]` needs a written reason, as `eslint-disable` does.
+- **Lint.** `cargo fmt --check` and `cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic`, so the `e2e` driver is linted too. A warning fails as in ESLint, and an `#[allow(clippy::…)]` needs a written reason, as `eslint-disable` does.
 - **Unsafe code.** `#![deny(unsafe_code)]` at each crate root, and `#[allow(unsafe_code)]` only on the platform modules (Job Object, process creation, `dlopen`, `exec`). Every `unsafe` block there has a `SAFETY:` comment.
-- **Coverage.** The library of `shell` and the `launcher` crate are new packages, so the threshold of 100 % per file applies. `cargo llvm-cov` measures lines and functions on Linux (A9).
-  - Not measured that way: Rust branch coverage, which needs a nightly compiler; `main.rs`, the Tauri wiring that only the e2e and release tests run; and the Windows-only and macOS-only modules.
+- **Coverage.** The library of `shell` and the `launcher` crate are new packages, so the threshold of 100 % per file applies. `cargo llvm-cov` measures lines, functions and regions on Linux (`--fail-under-lines 100`, `--fail-under-functions 100`, `--fail-under-regions 100`), the regions standing in for branches and statements (A9).
+  - Not measured that way: Rust branch coverage as such, which needs a nightly compiler; `main.rs`, the Tauri wiring that only the e2e and release tests run; and the Windows-only and macOS-only modules.
   - Before #2377 leaves any of these out, it opens the `task` issue ADR-0016 requires, and the product owner decides there. Until then the threshold is not lowered.
 
 ### Crates and licences (changes ADR-0015)
@@ -208,13 +213,13 @@ Each assumption is checked in #2377, except A10, which #2379 checks. If one fail
 | --- | --- | --- |
 | A1 | Replacing the shell's standard output and error before the engine starts reaches the engine's processes on Windows, macOS and Linux. | Start the engine's processes with null output where the engine allows it. |
 | A2 | `PROC_THREAD_ATTRIBUTE_JOB_LIST` and `HANDLE_LIST` work together, and WebView2 runs normally beside a job that holds only the server. | Assign the server to the job right after it is created, before it is resumed (`CREATE_SUSPENDED`). |
-| A3 | A GUI-subsystem `reqseq-shell.exe` writes to a standard error that its starter redirected. | Attach to the console of the starting process (`AttachConsole`) for the AK8 message. |
+| A3 | `ReqSeq.exe`, a GUI-subsystem program, writes to a standard error that its starter redirected; an e2e start with `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` set to an empty folder makes the window fail as without a runtime. | Attach to the console of the starting process (`AttachConsole`) for the AK8 message; another way to make the runtime unusable in the test. |
 | A4 | The pinned Tauri 2 has navigation, new-window and download hooks for a remote URL, on all three engines. | Refuse the load in the engine's own navigation callback through Tauri's platform webview access. |
 | A5 | Remote-URL capabilities can be added at run time for an exact origin with a port, and every call without a permission is refused before any code runs. | Fix the capability at build time to `http://127.0.0.1:*` and check the port in each command. |
 | A6 | Tauri's IPC works under the unchanged CSP through the `postMessage` fallback. | A `question` issue on SR-247 AK9. |
 | A7 | The engine switches above exist, and with them no connection to another machine is recorded. | Further switches, or a `bug` issue against the engine setup. |
 | A8 | The recording tools run on the hosted runners: `strace`, `eslogger` or `fs_usage` with sudo, `logman`, firewall logging, pf. | The e2e build's host records what the shell starts; the engine's processes are then not covered on that operating system, and the gap becomes a `question` issue. |
-| A9 | `cargo llvm-cov` and `llvm-tools` can be installed with network and cached. | Run the coverage in the nightly run only. |
+| A9 | `cargo llvm-cov` and `llvm-tools` can be installed with network and cached. | The coverage step stays in the pull request checks and installs them each run; any other change goes into the ADR-0016 `task` issue. |
 | A10 | An ad hoc signed `ReqSeq.app` with its quarantine removed starts on macOS 26 on Apple Silicon. | Decide in #2379. |
 
 ## Consequences
