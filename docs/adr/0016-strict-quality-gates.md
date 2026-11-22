@@ -16,6 +16,7 @@ Agents write almost all of the code and merge on their own (D-051). Gates that a
 - Mutation samples are an occasional local check on changed core files when a change is risky, never part of CI (ThomasBirkmaier/ReqSeq-archive#753).
 - Coverage ignore comments (`/* v8 ignore ... */`) are allowed only for code that cannot run on the current platform (for example a Windows-only branch on Linux) and only with a reason in the comment. The code review rejects any other use.
 - Electron code (`packages/app`) counts too. Logic lives in testable modules (`.ts`, 80 % for the package, logic that belongs to core moves there); Playwright tests cover the UI flows. If a part cannot be measured, a `task` issue without SR documents it before it is excluded, and the product owner decides on it there.
+- `packages/web`, the pages of the web UI (ADR-0020), is measured and reported but has no threshold, like the `.tsx` components below; Playwright tests per area of the UI are its evidence, and logic it would need belongs in core.
 - React components (`.tsx`) are measured and reported, but have no threshold (ThomasBirkmaier/ReqSeq-archive#537). Playwright and the `[SR-xxx/AK-<key>]` tests are the evidence for them; a component test is written where it checks behaviour, never only to reach a coverage number. Logic that a component needs goes into a `.ts` module, which is under the threshold of its package.
 - Repository scripts under `scripts/` (export, trace check, contracts) are tooling, not product code. They are linted and tested but not under the 100 % threshold.
 
