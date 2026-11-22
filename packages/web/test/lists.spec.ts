@@ -212,6 +212,41 @@ test("a perspective keeps the grouping, and its changes are saved into it", asyn
   expect((await ui.run("perspective.list", {})).perspectives.map((p) => p.name)).not.toContain("By status");
 });
 
+test("a perspective lists in its own sort, over the sort of its filter", async ({ page, open, ui }) => {
+  await ui.run("filter.save", {
+    name: "Sorted filter",
+    where: { all: [] },
+    sort: [{ by: "title", order: "asc" }],
+  });
+  await ui.run("perspective.save", {
+    name: "Own sort",
+    filter: "Sorted filter",
+    where: { all: [] },
+    sort: [{ by: "title", order: "desc" }],
+  });
+  const expected = await ui.run("element.list", {
+    selection: await viewOf(ui.run),
+    perspective: "Own sort",
+    limit: 1,
+    fields: ["title"],
+  });
+  await open("/l/perspective/Own%20sort");
+  await expect(rows(page).first().locator(".t")).toHaveText(expected.partial?.[0]?.title ?? "");
+  await expect(
+    page.getByRole("navigation", { name: "Workspace" }).locator('[aria-current="page"]'),
+  ).toHaveText("Own sort");
+  await ui.run("perspective.delete", { name: "Own sort", confirm: true });
+  await ui.run("filter.delete", { name: "Sorted filter", confirm: true });
+});
+
+test("an unknown list goes to all elements", async ({ page, open }) => {
+  await open("/q/overview");
+  await page.evaluate(() => {
+    location.hash = "#/l/nothing";
+  });
+  await expect(page.getByRole("heading", { level: 1, name: "All elements" })).toBeVisible();
+});
+
 test("the search finds elements by their words, and a row leads back to the search", async ({
   page,
   open,

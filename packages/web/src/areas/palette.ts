@@ -131,11 +131,12 @@ function openFinder(): void {
     active = 0;
     draw();
     clearTimeout(timer);
+    // A search still on its way no longer counts.
+    const mine = ++asked;
     if (query.length < 2) {
       status.textContent = "";
       return;
     }
-    const mine = ++asked;
     timer = setTimeout(() => {
       void call("element.search", { query, limit: MOST, selection: viewSelection() }).then(
         (out) => {
@@ -195,11 +196,12 @@ function openFinder(): void {
   void listEntries().then(
     (got) => {
       lists = got;
-      update();
+      // Typed already: the lists count from the next key, so the entries and the choice stay.
+      if (input.value.trim() === "") {
+        update();
+      }
     },
-    () => {
-      update();
-    },
+    () => undefined,
   );
 }
 

@@ -72,10 +72,13 @@ interface Saved {
   readonly filters: readonly SavedFilter[];
   readonly perspectives: readonly Perspective[];
   readonly facets: Facets;
+  readonly generation: number;
 }
 
 let saved: Saved | undefined;
 let reading: { readonly key: string; readonly data: Promise<Saved> } | undefined;
+/** Grows when the page wrote: a read that started before keeps out of `saved`. */
+let written = 0;
 
 /** The saved filters, perspectives and facets of the workspace, read once per load of the store and view. */
 export async function savedData(): Promise<Saved> {
@@ -86,11 +89,19 @@ export async function savedData(): Promise<Saved> {
   if (reading?.key !== key) {
     const epoch = store.epoch;
     const view = store.view;
+    const generation = written;
     const read = Promise.all([
       call("filter.list"),
       call("perspective.list"),
       call("element.facets", { selection: viewSelection() }),
-    ]).then(([f, p, facets]) => ({ epoch, view, filters: f.filters, perspectives: p.perspectives, facets }));
+    ]).then(([f, p, facets]) => ({
+      epoch,
+      view,
+      generation,
+      filters: f.filters,
+      perspectives: p.perspectives,
+      facets,
+    }));
     reading = { key, data: read };
     void read
       .catch(() => undefined)
@@ -101,7 +112,7 @@ export async function savedData(): Promise<Saved> {
       });
   }
   const read = await reading.data;
-  if (read.epoch === store.epoch && read.view === store.view) {
+  if (read.epoch === store.epoch && read.view === store.view && read.generation === written) {
     saved = read;
   }
   return read;
@@ -109,6 +120,7 @@ export async function savedData(): Promise<Saved> {
 
 /** After the page saved, renamed or deleted something: read again. */
 function forgetSaved(): void {
+  written += 1;
   saved = undefined;
   reading = undefined;
 }
@@ -182,7 +194,8 @@ const BASES: Readonly<Record<BaseKind, (plain: Plain, data: Saved, state: ListSt
     if (typeDef(store.mm, plain.arg) === undefined) {
       return `The metamodel has no type ${plain.arg}.`;
     }
-    const where: Condition = { type: [plain.arg] };
+    // As the rail and the type facet count it: the elements of exactly this type.
+    const where: Condition = { type: [plain.arg], subtypes: false };
     return { ...plain, selection: { where }, where: [where], perspectiveWhere: [where] };
   },
   package: (plain) => {
@@ -300,7 +313,12 @@ async function readList(base: Base, state: ListState): Promise<Rows> {
     async (offset) =>
       byRows(
         await call("element.list", {
-          selection: selectionOf(base, state),
+          // A perspective brings its own filter and conditions; given again in the selection, the stored sort
+          // of its filter would win over the perspective's (element.list `sort`).
+          selection:
+            base.perspective === undefined
+              ? selectionOf(base, state)
+              : selectionOf({ ...base, selection: {} }, state),
           ...(base.perspective === undefined ? {} : { perspective: base.perspective }),
           ...sort,
           ...group,
@@ -358,7 +376,14 @@ async function readSearch(base: Base, state: ListState, query: string): Promise<
       ...(hit.snippet === undefined ? {} : { snippet: hit.snippet }),
     })),
     total: first.total,
-    ...(first.groups === undefined ? {} : { groups: first.groups }),
+    // Past the cut, a group shows the rows that are there.
+    ...(first.groups === undefined
+      ? {}
+      : {
+          groups: first.groups
+            .filter((g) => g.offset < hits.length)
+            .map((g) => ({ ...g, count: Math.min(g.count, hits.length - g.offset) })),
+        }),
     cut: rowsTotal > hits.length,
   };
 }
@@ -1008,7 +1033,10 @@ function actions(route: Route, base: Base, state: ListState, data: Saved): HTMLE
   return h(
     "div",
     { class: "acts" },
-    own && changesList(state) ? button("Save changes", "save", () => saveChanges(route, base, data)) : null,
+    own &&
+      (base.kind === "perspective" ? changesList(state) : state.picks.size > 0 || state.sort !== undefined)
+      ? button("Save changes", "save", () => saveChanges(route, base, data))
+      : null,
     empty
       ? null
       : button("Save as filter", "save-filter", () => {
@@ -1043,7 +1071,7 @@ function emptyText(base: Base, state: ListState): string {
 }
 
 /** A list page that has no list: a type, package, filter or perspective that does not exist. */
-const noList = (route: Route, why: string): HTMLElement =>
+const noList = (route: Route, why: string | HTMLElement): HTMLElement =>
   frame(
     railKey(route),
     h(
@@ -1140,11 +1168,19 @@ function restoreFocus(root: HTMLElement): void {
 
 async function render(root: HTMLElement, route: Route): Promise<void> {
   if (!isKind(route.parts[1])) {
-    location.replace(`#${hashOf("l", "all")}`);
+    location.replace(hashOf("l", "all"));
     return;
   }
   await prepareRail();
-  const data = await savedData();
+  let data: Saved;
+  try {
+    data = await savedData();
+  } catch (error) {
+    if (isCurrent(route)) {
+      await swap(root, noList(route, errorBox(error)));
+    }
+    return;
+  }
   const state = parseState(route.params);
   const base = baseOf(route, data, state);
   if (typeof base === "string") {
@@ -1162,7 +1198,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   await swap(
     root,
     frame(
-      railKey(route),
+      base.kind === "filter" || base.kind === "perspective" ? `l:${base.kind}/${base.title}` : railKey(route),
       h(
         "div",
         { class: "lv" },
@@ -1184,8 +1220,9 @@ addTitle("l", titleOfList);
 addRailSection({
   order: 20,
   title: "Browse",
+  // A refused read leaves these sections empty; the list pages show the refusal.
   prepare: async () => {
-    await savedData();
+    await savedData().catch(() => undefined);
   },
   links: () => {
     const facets = saved?.facets;
