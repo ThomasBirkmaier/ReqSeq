@@ -317,6 +317,10 @@ test("the mapping of a file of another tool is chosen on the page, saved, and th
       for (const v of ["Functional", "Quality"]) {
         await values.getByLabel(v).selectOption(`=${v === "Functional" ? to.first : to.second}`);
       }
+      const axe2 = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      expect(axe2.violations.map((v) => v.id)).toEqual([]);
       await map.getByRole("button", { name: "Save mapping" }).click();
       await expect(map).toHaveCount(0);
 
@@ -331,6 +335,53 @@ test("the mapping of a file of another tool is chosen on the page, saved, and th
       expect(list.total).toBe(2);
       const one = list.elements?.find((e) => e.title === "One");
       expect(one?.properties[to.property]).toBe(to.first);
+    } finally {
+      await server.close();
+    }
+  } finally {
+    await target.done();
+  }
+});
+
+test("a saved mapping that ReqSeq refuses keeps its choices on the page to change the refused one", async ({
+  page,
+}) => {
+  const target = await scratch();
+  try {
+    const run = runOn(target.dir);
+    await run("workspace.init", { path: target.dir, name: "Target", skill: false });
+    await fs.mkdir(path.join(target.dir, "in"));
+    await fs.writeFile(path.join(target.dir, "in", "tool.reqif"), FOREIGN);
+    const to = targetsOf(await run("metamodel.get"));
+    const server = await startUi(target.dir);
+    try {
+      await openUrl(page, server.url, "/w/import");
+      await page.getByLabel("ReqIF file").fill("in/tool.reqif");
+      await page.getByRole("button", { name: "Check file" }).click();
+      const map = page.getByRole("region", { name: "Map the file" });
+      const requirement = map.getByRole("group", { name: "Type Requirement" });
+      await requirement.getByLabel("Import as").selectOption(`=${to.type}`);
+      // A text attribute into a choice property: ReqSeq refuses it when it checks the file with the mapping.
+      await requirement.getByLabel("Legacy").selectOption(`=${to.property}`);
+      await requirement.getByLabel("Requirement type").selectOption({ label: "Leave out" });
+      await map
+        .getByRole("group", { name: "Type Heading" })
+        .getByLabel("Import as")
+        .selectOption({ label: "Leave out" });
+      await map
+        .getByRole("group", { name: "Relation types" })
+        .getByLabel("satisfies")
+        .selectOption({ label: "Leave out" });
+      await map.getByRole("button", { name: "Save mapping" }).click();
+      await expect(page.getByRole("alert")).toContainText("Legacy");
+      await expect(requirement.getByLabel("Legacy")).toHaveValue(`=${to.property}`);
+      await expect(requirement.getByLabel("Import as")).toHaveValue(`=${to.type}`);
+
+      await requirement.getByLabel("Legacy").selectOption({ label: "Leave out" });
+      await map.getByRole("button", { name: "Save mapping" }).click();
+      await expect(map).toHaveCount(0);
+      const plan = page.getByRole("region", { name: "What the import would do" });
+      await expect(plan.locator("dt", { hasText: "New elements" }).locator("+ dd")).toHaveText("2");
     } finally {
       await server.close();
     }
@@ -357,7 +408,7 @@ test("a mapping file this page did not build is not changed here", async ({ page
       await page.getByLabel("Mapping file").fill("in/map.yaml");
       await page.getByRole("button", { name: "Check file" }).click();
       const plan = page.getByRole("region", { name: "What the import would do" });
-      await expect(plan).toContainText("check the file without a mapping file to choose them on this page");
+      await expect(plan).toContainText("this page chooses only for a mapping it builds itself");
       await expect(page.getByRole("region", { name: "Map the file" })).toHaveCount(0);
     } finally {
       await server.close();

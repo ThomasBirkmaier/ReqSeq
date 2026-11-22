@@ -11,6 +11,7 @@ import {
   attributeId,
   attributeOptions,
   choiceOf,
+  chosenIn,
   groupsOf,
   guess,
   mappedProperty,
@@ -24,16 +25,27 @@ import {
 
 let selects = 0;
 
-/** A select labelled `label` with no choice, `options` and leave out; the guess for `source` is chosen. */
+/**
+ * A select labelled `label` with no choice, `options` and leave out; `before` (what the mapping says already) is
+ * chosen, else the guess for `source`.
+ */
 function select(
   label: string,
   options: readonly Option[],
   source: string,
+  before?: Choice,
 ): { readonly box: HTMLElement; readonly input: HTMLSelectElement } {
   selects += 1;
   const id = `rm-${String(selects)}`;
   const input = h("select", { id, name: id });
-  fill(input, options, guess(options, source)?.key);
+  fill(
+    input,
+    options,
+    before === undefined ? guess(options, source)?.key : "to" in before ? before.to : undefined,
+  );
+  if (before !== undefined && "omit" in before) {
+    input.value = OMIT;
+  }
   return {
     input,
     box: h("div", { class: "rmrow" }, h("label", { for: id }, label), input),
@@ -62,6 +74,7 @@ export function mappingFields(
   built: Mapping | undefined,
 ): { readonly fields: HTMLElement[]; readonly choices: () => Choices } {
   const groups = groupsOf(unmapped);
+  const chosen = chosenIn(built);
   const types = new Map<string, HTMLSelectElement>();
   const attributes = new Map<string, HTMLSelectElement>();
   const relations = new Map<string, HTMLSelectElement>();
@@ -69,7 +82,9 @@ export function mappingFields(
   const fields: HTMLElement[] = [];
 
   for (const t of groups.types) {
-    const typeSelect = t.unmapped ? select("Import as", typeOptions(mm), t.source) : undefined;
+    const typeSelect = t.unmapped
+      ? select("Import as", typeOptions(mm), t.source, chosen.type(t.source))
+      : undefined;
     const mapped = built === undefined ? undefined : mappedType(built, t.source);
     const targetOf = (): string | undefined => {
       const value = typeSelect?.input.value;
@@ -78,7 +93,12 @@ export function mappingFields(
     };
     const rows = t.attributes.map((a) => {
       const target = targetOf();
-      const row = select(a, target === undefined ? [] : attributeOptions(mm, target), a);
+      const row = select(
+        a,
+        target === undefined ? [] : attributeOptions(mm, target),
+        a,
+        chosen.attribute(t.source, a),
+      );
       attributes.set(attributeId(t.source, a), row.input);
       return row;
     });
@@ -118,7 +138,7 @@ export function mappingFields(
       group(
         "Relation types",
         groups.relations.map((r) => {
-          const row = select(r, relationOptions(mm), r);
+          const row = select(r, relationOptions(mm), r, chosen.relation(r));
           relations.set(r, row.input);
           return row.box;
         }),
@@ -133,7 +153,7 @@ export function mappingFields(
       group(
         `Values of ${v.attribute} (${v.sourceType})`,
         v.values.map((value) => {
-          const row = select(value, options, value);
+          const row = select(value, options, value, chosen.value(v.sourceType, v.attribute, value));
           values.set(valueId(v.sourceType, v.attribute, value), row.input);
           return row.box;
         }),
@@ -141,7 +161,7 @@ export function mappingFields(
     );
   }
 
-  const chosen = (from: ReadonlyMap<string, HTMLSelectElement>): Map<string, Choice> =>
+  const picked = (from: ReadonlyMap<string, HTMLSelectElement>): Map<string, Choice> =>
     new Map(
       [...from].flatMap(([id, input]): [string, Choice][] => {
         const c = choiceOf(input.value);
@@ -151,10 +171,10 @@ export function mappingFields(
   return {
     fields,
     choices: () => ({
-      types: chosen(types),
-      attributes: chosen(attributes),
-      relations: chosen(relations),
-      values: chosen(values),
+      types: picked(types),
+      attributes: picked(attributes),
+      relations: picked(relations),
+      values: picked(values),
     }),
   };
 }

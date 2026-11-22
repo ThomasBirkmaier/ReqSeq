@@ -6,6 +6,7 @@ import {
   attributeId,
   attributeOptions,
   choiceOf,
+  chosenIn,
   emptyMapping,
   groupsOf,
   guess,
@@ -18,6 +19,8 @@ import {
   valueOptions,
   withChoices,
 } from "./reqif-mapping.js";
+
+const ORIGIN = ["source", "source-identifier", "import-date", "delivery", "import-version"];
 
 const mm = {
   types: [
@@ -32,12 +35,22 @@ const mm = {
       statuses: [],
     },
     {
+      key: "loose",
+      name: "Loose",
+      prefix: "L",
+      abstract: false,
+      ancestors: [],
+      properties: ["name"],
+      required: [],
+      statuses: [],
+    },
+    {
       key: "req",
       name: "System Requirement",
       prefix: "R",
       abstract: false,
       ancestors: [],
-      properties: ["name", "kind", "rationale", "links", "origin"],
+      properties: ["name", "kind", "rationale", "links", "ref", ...ORIGIN],
       required: [],
       statuses: [],
     },
@@ -47,7 +60,8 @@ const mm = {
     { key: "kind", name: "Requirement Type", kind: "choice", choices: [{ key: "func", name: "Functional" }] },
     { key: "rationale", name: "Rationale", kind: "text" },
     { key: "links", name: "Links", kind: "relation" },
-    { key: "origin", name: "Origin", kind: "text", meaning: "source" },
+    { key: "ref", name: "Ref", kind: "text", meaning: "identifier" },
+    ...ORIGIN.map((key) => ({ key, name: key, kind: "text", meaning: key })),
   ],
   relations: [{ key: "refines", name: "Refines" }],
   statuses: [],
@@ -63,7 +77,7 @@ describe("the choices of a select", () => {
     expect(choiceOf("")).toBeUndefined();
   });
 
-  it("offer the concrete types, the relation kinds and the choices of a property", () => {
+  it("offer the concrete types that hold the origin, the relation kinds and the choices of a property", () => {
     expect(typeOptions(mm)).toEqual([{ key: "req", name: "System requirement" }]);
     expect(relationOptions(mm)).toEqual([{ key: "refines", name: "Refines" }]);
     expect(valueOptions(mm, "kind")).toEqual([{ key: "func", name: "Functional" }]);
@@ -71,7 +85,13 @@ describe("the choices of a select", () => {
   });
 
   it("offer title, text and the properties the import does not write itself", () => {
-    expect(attributeOptions(mm, "req").map((o) => o.key)).toEqual(["title", "text", "kind", "rationale"]);
+    expect(attributeOptions(mm, "req").map((o) => o.key)).toEqual([
+      "title",
+      "text",
+      "kind",
+      "rationale",
+      "ref",
+    ]);
   });
 
   it("guess the option of the same name or key, ignoring case", () => {
@@ -201,5 +221,42 @@ describe("withChoices", () => {
 
   it("writes only the source when nothing is chosen", () => {
     expect(withChoices(emptyMapping("Tool"), "Tool", none)).toEqual(emptyMapping("Tool"));
+  });
+});
+
+describe("chosenIn", () => {
+  it("reads what a mapping says for each part, and nothing without a mapping", () => {
+    const mapping: Mapping = {
+      "reqseq-reqif-mapping": 1,
+      source: { name: "Tool" },
+      types: [
+        { source: "Item", type: "req" },
+        { source: "Skip", omit: true },
+      ],
+      attributes: [
+        {
+          "source-type": "Item",
+          source: "Level",
+          property: "kind",
+          values: { Low: "func" },
+          "omit-values": ["Old"],
+        },
+        { "source-type": "Item", source: "Note", omit: true },
+      ],
+      relations: [{ source: "trace", kind: "refines" }],
+    };
+    const chosen = chosenIn(mapping);
+    expect(chosen.type("Item")).toEqual({ to: "req" });
+    expect(chosen.type("Skip")).toEqual({ omit: true });
+    expect(chosen.type("Other")).toBeUndefined();
+    expect(chosen.attribute("Item", "Level")).toEqual({ to: "kind" });
+    expect(chosen.attribute("Item", "Note")).toEqual({ omit: true });
+    expect(chosen.attribute("", "Note")).toBeUndefined();
+    expect(chosen.relation("trace")).toEqual({ to: "refines" });
+    expect(chosen.relation("skip")).toBeUndefined();
+    expect(chosen.value("Item", "Level", "Low")).toEqual({ to: "func" });
+    expect(chosen.value("Item", "Level", "Old")).toEqual({ omit: true });
+    expect(chosen.value("Item", "Level", "High")).toBeUndefined();
+    expect(chosenIn(undefined).type("Item")).toBeUndefined();
   });
 });

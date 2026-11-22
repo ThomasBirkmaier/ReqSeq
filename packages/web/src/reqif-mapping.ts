@@ -3,7 +3,7 @@
 // functions over the outputs; ReqSeq checks the mapping when it saves it and again when it reads the file with it.
 import type { ReqifAnalyzeOutput, ReqifSaveMappingInput } from "@reqseq/core";
 import type { Metamodel } from "./meaning.js";
-import { propsOf, propDef, sentence, typeName } from "./meaning.js";
+import { propOfType, propsOf, propDef, sentence, typeName } from "./meaning.js";
 
 export type Mapping = ReqifSaveMappingInput["mapping"];
 export type Unmapped = ReqifAnalyzeOutput["unmapped"][number];
@@ -71,20 +71,17 @@ export function groupsOf(unmapped: readonly Unmapped[]): Groups {
   return { types: [...types.values()], relations, values: [...values.values()] };
 }
 
+/** The meanings of the properties that hold the origin of an imported element, which its type must have. */
+const ORIGIN = ["source", "source-identifier", "import-date", "delivery", "import-version"] as const;
+
 /** The types an object type can become: those that can have elements, in metamodel order. */
 export const typeOptions = (mm: Metamodel): Option[] =>
-  mm.types.filter((t) => !t.abstract).map((t) => ({ key: t.key, name: typeName(mm, t.key) }));
+  mm.types
+    .filter((t) => !t.abstract && ORIGIN.every((meaning) => propOfType(mm, t.key, meaning) !== undefined))
+    .map((t) => ({ key: t.key, name: typeName(mm, t.key) }));
 
 /** The meanings of properties that ReqSeq writes itself on an import: the title has its own choice. */
-const OWN = new Set([
-  "title",
-  "identifier",
-  "source",
-  "source-identifier",
-  "import-date",
-  "delivery",
-  "import-version",
-]);
+const OWN: ReadonlySet<string> = new Set(["title", ...ORIGIN]);
 
 /**
  * Where an attribute can go in elements of `type`: the title, the text, or a property of the type that is no
@@ -232,3 +229,33 @@ export function withChoices(mapping: Mapping, name: string, choices: Choices): M
     ...(relations.length === 0 ? {} : { relations }),
   };
 }
+
+/** What `mapping` already says for a part of the file: its choice, or none. */
+export interface Chosen {
+  readonly type: (source: string) => Choice | undefined;
+  readonly attribute: (sourceType: string, source: string) => Choice | undefined;
+  readonly relation: (source: string) => Choice | undefined;
+  readonly value: (sourceType: string, attribute: string, value: string) => Choice | undefined;
+}
+
+const entryChoice = (to: string | undefined, omit: true | undefined): Choice | undefined =>
+  to !== undefined ? { to } : omit === true ? { omit: true } : undefined;
+
+export const chosenIn = (mapping: Mapping | undefined): Chosen => ({
+  type: (source) => {
+    const e = mapping?.types?.find((x) => x.source === source);
+    return entryChoice(e?.type, e?.omit);
+  },
+  attribute: (sourceType, source) => {
+    const e = mapping?.attributes?.find((x) => sameAttribute(x, sourceType, source));
+    return entryChoice(e?.property, e?.omit);
+  },
+  relation: (source) => {
+    const e = mapping?.relations?.find((x) => x.source === source);
+    return entryChoice(e?.kind, e?.omit);
+  },
+  value: (sourceType, attribute, value) => {
+    const e = mapping?.attributes?.find((x) => sameAttribute(x, sourceType, attribute));
+    return entryChoice(e?.values?.[value], e?.["omit-values"]?.includes(value) === true ? true : undefined);
+  },
+});

@@ -555,6 +555,8 @@ interface Built {
   readonly file: string;
   readonly path: string;
   readonly mapping: Mapping;
+  /** The parts the choices were offered for: offered again when ReqSeq refuses the saved mapping. */
+  readonly unmapped: Analysis["unmapped"];
 }
 
 /** The name of a file without folder and extension: the first guess for the name of its source. */
@@ -582,7 +584,6 @@ function importPage(): HTMLElement {
   const check = async (): Promise<Analysis> => {
     plan.replaceChildren();
     const input = inputOf();
-    const analysis = await call("reqif.analyze", input);
     // The page holds the whole mapping only when it built it, and saving replaces the whole file.
     const own =
       input.mapping === undefined
@@ -590,24 +591,38 @@ function importPage(): HTMLElement {
         : built?.file === input.file && built.path === input.mapping
           ? built
           : null;
+    let analysis: Analysis;
+    try {
+      analysis = await call("reqif.analyze", input);
+    } catch (error) {
+      // A mapping this page saved that ReqSeq refuses: its choices again, to change the refused one.
+      if (own !== undefined && own !== null) {
+        plan.replaceChildren(mappingCard(input.file, own.unmapped, own));
+      }
+      throw error;
+    }
     const form = importForm(input, analysis, own !== null);
     plan.replaceChildren(
       ...(own === null || analysis.unmapped.length === 0
         ? [form]
-        : [mappingCard(input.file, analysis, own), form]),
+        : [mappingCard(input.file, analysis.unmapped, own), form]),
     );
     return analysis;
   };
 
-  /** The choices of the mapping for what `analysis` lists as unmapped, and saving them. */
-  const mappingCard = (reqif: string, analysis: Analysis, own: Built | undefined): HTMLElement => {
+  /** The choices of the mapping for the `unmapped` parts of the file, and saving them. */
+  const mappingCard = (
+    reqif: string,
+    unmapped: Analysis["unmapped"],
+    own: Built | undefined,
+  ): HTMLElement => {
     const source = textField(
       "Name of the source",
       "reqif-source",
       own?.mapping.source.name ?? stem(reqif),
       "The tool or project the file comes from. Each imported element keeps it as its source.",
     );
-    const { fields, choices } = mappingFields(store.mm, analysis.unmapped, own?.mapping);
+    const { fields, choices } = mappingFields(store.mm, unmapped, own?.mapping);
     const saveButton = button("Save mapping");
     onPress(saveButton, out, async () => {
       const name = source.input.value.trim();
@@ -617,7 +632,7 @@ function importPage(): HTMLElement {
       if (written === undefined) {
         return result(saved.answer, problemList(saved.problems));
       }
-      built = { file: reqif, path: written, mapping: next };
+      built = { file: reqif, path: written, mapping: next, unmapped };
       mapping.input.value = written;
       const again = await check();
       return result(saved.answer, h("p", null, again.answer), problemList(saved.problems));
@@ -627,7 +642,12 @@ function importPage(): HTMLElement {
       h(
         "p",
         { class: "note" },
-        "Choose for each part of the file what it becomes in this workspace, or leave it out. Saving writes a mapping file into the mapping folder of the workspace, replacing one of the same source, and checks the file again with it. A part without a choice stays unmapped.",
+        "Choose for each part of the file what it becomes in this workspace, or leave it out; a part without a choice stays unmapped. Saving writes the mapping into the mapping folder of the workspace and checks the file again with it.",
+      ),
+      h(
+        "p",
+        { class: "note" },
+        "A mapping file of the same source in that folder is replaced as a whole. To keep one, give it as the mapping file instead.",
       ),
       source.box,
       fields,
@@ -747,7 +767,7 @@ function importForm(
             { class: "note" },
             chosenHere
               ? "The mapping neither maps nor leaves out these, so the import does not take them. Choose them above."
-              : "The mapping file neither maps nor leaves out these, so the import does not take them. Map them in the file, or check the file without a mapping file to choose them on this page.",
+              : "The mapping file neither maps nor leaves out these, so the import does not take them. Map them in that file: this page chooses only for a mapping it builds itself.",
           ),
           h(
             "ul",
