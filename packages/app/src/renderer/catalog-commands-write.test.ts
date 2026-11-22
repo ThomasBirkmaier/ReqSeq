@@ -59,13 +59,13 @@ describe("write commands in the command prompt (SR-073 AK2, ThomasBirkmaier/ReqS
     }
   });
 
-  it("asks every offered write command but hint.confirm and tool.guide for a required argument", () => {
+  it("asks every offered write command but hint.confirm, tool.guide and workspace.markOpened for a required argument", () => {
     expect(
       writes
         .filter((entry) => entry.name !== "element.update")
         .filter((entry) => (entry.input as { required?: unknown }).required === undefined)
         .map((entry) => entry.name),
-    ).toEqual(["tool.guide", "hint.confirm"]);
+    ).toEqual(["workspace.markOpened", "tool.guide", "hint.confirm"]);
   });
 
   it("[SR-229/AK-nsmz] runs Agent guide at once without asking an argument, and shows the guide text", async () => {
