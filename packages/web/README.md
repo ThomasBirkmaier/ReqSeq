@@ -23,12 +23,12 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
 | `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, read only |
-| `workspace.ts` | `#/w/open`, `#/w/problems`, `#/w/export`, `#/w/import`, `#/w/settings`: open, create and switch workspaces (the only page while none is open), the problems of `workspace.check` and the queue `problems`, exports into the repositories (`exports/` proposed), the ReqIF import, and the settings |
 | `evidence.ts` | `#/evidence/<ref>`: an element's evidence per criterion, test case and view, and a form to record a check |
 | `trace.ts` | `#/graph/<ref>[?depth=&chain=&evidence=]`: the trace graph over several levels; `#/impact/<ref>`: what a change can affect |
 | `matrix.ts` | `#/matrix[?type=&package=&offset=]`: the trace matrix of one type |
 | `variants.ts` | `#/variant/<ref>`: a variant compared with the core, with exclude and include again |
 | `changes.ts` | `#/c[?b=<baseline>]`, `#/c/<identifier or short ID>[?b=<baseline>]`: the changes since a baseline and the difference of one element word by word, with the decisions on them (status after a confirmation, supersede, a property of many after ReqSeq's preview); `#/r`: the check before a baseline and a new baseline |
+| `workspace.ts` | `#/w/open`, `#/w/problems`, `#/w/export`, `#/w/import`, `#/w/settings`: open, create and switch workspaces (the only page while none is open), the problems of `workspace.check` and the queue `problems`, exports into the repositories (`exports/` proposed), the ReqIF import, and the settings |
 
 ## Rules
 
