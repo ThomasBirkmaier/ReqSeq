@@ -45,10 +45,17 @@ export interface Invocation {
 export type ServeRequest =
   | { readonly server: "api"; readonly port: string | undefined; readonly workspace: string | undefined }
   | { readonly server: "mcp"; readonly workspace: string | undefined }
-  | { readonly server: "docs"; readonly port: string | undefined };
+  | { readonly server: "docs"; readonly port: string | undefined }
+  | {
+      readonly server: "ui";
+      readonly port: string | undefined;
+      readonly workspace: string | undefined;
+      /** `--no-open`: start no program to open the address. */
+      readonly open: boolean;
+    };
 
 /** Top-level commands of the CLI itself; no catalog group may take these names. */
-export const SERVER_COMMANDS: readonly string[] = ["serve", "mcp"];
+export const SERVER_COMMANDS: readonly string[] = ["serve", "mcp", "ui"];
 
 export interface ProgramOptions {
   readonly runtime: CommandRuntime;
@@ -71,7 +78,7 @@ const WORKSPACE_OPTION = [
 ] as const;
 
 /**
- * `reqseq serve api`, `reqseq serve docs` and `reqseq mcp` (ADR-0009, ADR-0017). There is no option for the
+ * `reqseq serve api`, `reqseq serve docs`, `reqseq mcp` and `reqseq ui` (ADR-0009, ADR-0017, ADR-0020). There is no option for the
  * address (SR-079 AK3), nor one for another documentation folder.
  */
 const addServers = (program: Command, options: ProgramOptions): void => {
@@ -111,6 +118,24 @@ const addServers = (program: Command, options: ProgramOptions): void => {
     .option(...WORKSPACE_OPTION);
   mcp.action(async () => {
     await options.serve({ server: "mcp", workspace: text(mcp.opts<Record<string, unknown>>()["workspace"]) });
+  });
+  const ui = program
+    .command("ui")
+    .description(
+      "The web UI on 127.0.0.1 and ::1 only. Prints its address with a token that is new on every start and " +
+        "opens it in the browser. Without a workspace found or named it starts without one. Runs until Ctrl-C.",
+    )
+    .option("--port <number>", "TCP port from 1 to 65535 (default: any free port)")
+    .option(...WORKSPACE_OPTION)
+    .option("--no-open", "print the address only; open no browser");
+  ui.action(async () => {
+    const opts = ui.opts<Record<string, unknown>>();
+    await options.serve({
+      server: "ui",
+      port: text(opts["port"]),
+      workspace: text(opts["workspace"]),
+      open: opts["open"] !== false,
+    });
   });
 };
 
