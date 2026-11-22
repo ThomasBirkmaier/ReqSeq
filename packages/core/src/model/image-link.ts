@@ -81,3 +81,47 @@ export const imageLink = (
     missing: slash || decoded.includes("\\") || names.some(windowsChanges),
   };
 };
+
+/** Why a destination names no file to read: outside the repository (SR-251 AK5) or missing whatever is on disk (AK2). */
+export type ImageTarget =
+  | { readonly kind: "outside"; readonly cause: "scheme" | "absolute" | "parent" }
+  | { readonly kind: "missing"; readonly cause: "empty" | "backslash" | "control" | "folder" }
+  /** The names from the repository folder down to the file, as written; not looked up yet. */
+  | { readonly kind: "path"; readonly names: readonly string[] };
+
+/**
+ * The file a destination names for reading it (`element.readImage`, SR-251), by its text alone,
+ * before any file system call. As `imageLink`, but with a reason for each refusal: a scheme or a
+ * leading `/` after the escapes are removed, or a `..` that leaves the repository after decoding, is
+ * outside (AK5); an empty one, one with `\` or a control character after decoding, or one that names
+ * a folder by a trailing `/` or the repository folder itself is missing (AK2). The element's own file
+ * and folder are not refused here: they are a file that is no image and a folder on disk.
+ */
+export const imageTarget = (elementFile: string, destination: string): ImageTarget => {
+  const unescaped = destination.replace(ESCAPE, "$1");
+  if (SCHEME.test(unescaped)) {
+    return { kind: "outside", cause: "scheme" };
+  }
+  if (unescaped.startsWith("/")) {
+    return { kind: "outside", cause: "absolute" };
+  }
+  const link = unescaped.replace(/[?#][\s\S]*$/, "");
+  if (link === "") {
+    return { kind: "missing", cause: "empty" };
+  }
+  const decoded = percentDecoded(link);
+  const resolved = posix.normalize(posix.join(posix.dirname(elementFile), decoded));
+  if (resolved === ".." || resolved.startsWith("../")) {
+    return { kind: "outside", cause: "parent" };
+  }
+  if (decoded.includes("\\")) {
+    return { kind: "missing", cause: "backslash" };
+  }
+  if (hasControl(decoded)) {
+    return { kind: "missing", cause: "control" };
+  }
+  if (resolved === "." || resolved === "./" || resolved.endsWith("/")) {
+    return { kind: "missing", cause: "folder" };
+  }
+  return { kind: "path", names: resolved.split("/") };
+};

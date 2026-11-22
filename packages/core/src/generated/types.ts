@@ -3788,6 +3788,42 @@ export interface ElementAddAttachmentOutput {
 }
 
 /**
+ * Input of `element.readImage` as `run` gets it: validated, properties with a `default` filled in. Return an image file from the repository of an element, named by the destination of a Markdown image relative to the element file, with its bytes, media type and size, so an agent or the web UI can show an image the text embeds.
+ * Schema: `schemas/commands/element.readImage.json input`.
+ */
+export interface ElementReadImageInput {
+  /** The element whose text would embed the image; the destination is relative to the folder of its file. */
+  readonly ref: ElementRef;
+  /** The destination as a Markdown image of the element's text has it, without <...> and without a title, e.g. SR-825b7146fb54/layout.png or ../images/Wind%20map.svg. The element's text need not embed it. */
+  readonly destination: string;
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (SR-088). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  readonly repository?: string;
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  readonly file?: RelativePath;
+}
+
+/**
+ * Output of `element.readImage`. Return an image file from the repository of an element, named by the destination of a Markdown image relative to the element file, with its bytes, media type and size, so an agent or the web UI can show an image the text embeds.
+ * Schema: `schemas/commands/element.readImage.json output`.
+ */
+export interface ElementReadImageOutput {
+  readonly answer: Answer;
+  /** The bytes of the file, byte for byte, as base64 (RFC 4648, with padding). */
+  readonly content: string;
+  /** The media type by the content of the file, not by its extension. */
+  readonly mediaType:
+    | "image/avif"
+    | "image/bmp"
+    | "image/gif"
+    | "image/jpeg"
+    | "image/png"
+    | "image/svg+xml"
+    | "image/webp";
+  /** The size of the file in bytes. */
+  readonly size: number;
+}
+
+/**
  * Input of `relation.options` as `run` gets it: validated, properties with a `default` filled in. Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.
  * Schema: `schemas/commands/relation.options.json input`.
  */
@@ -5841,6 +5877,7 @@ export interface CommandTypes {
   readonly "element.bulkUpdate": { readonly input: ElementBulkUpdateInput; readonly output: ElementBulkUpdateOutput };
   readonly "element.assignCriterionKeys": { readonly input: ElementAssignCriterionKeysInput; readonly output: ElementAssignCriterionKeysOutput };
   readonly "element.addAttachment": { readonly input: ElementAddAttachmentInput; readonly output: ElementAddAttachmentOutput };
+  readonly "element.readImage": { readonly input: ElementReadImageInput; readonly output: ElementReadImageOutput };
   readonly "relation.options": { readonly input: RelationOptionsInput; readonly output: RelationOptionsOutput };
   readonly "relation.add": { readonly input: RelationAddInput; readonly output: RelationAddOutput };
   readonly "relation.remove": { readonly input: RelationRemoveInput; readonly output: RelationRemoveOutput };
