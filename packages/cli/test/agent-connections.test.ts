@@ -1,5 +1,6 @@
 // SR-228 on the command line, the local API and the MCP server: a connection counts 1 s after
-// `initialize` was answered, with its client cut to 40 grapheme clusters (AK1), and 5 s after it ended,
+// `initialize` was answered, or after the first request of a revision without it arrived, with its client
+// cut to 40 grapheme clusters (AK1), and 5 s after it ended,
 // also by a crash, only as the one connected last (AK2); an MCP server process records its connection in
 // the cache folder of the copy only (AK5), only MCP servers of this copy count (AK6), and
 // `workspace.agents` gives the same connections on every access (AK7, SR-080 AK2).
@@ -215,6 +216,63 @@ describe("workspace.agents after a connection began or ended (SR-228 AK1, AK2)",
     } finally {
       await unnamed.close();
       await long.close();
+    }
+  });
+
+  it("[SR-228/AK-zn8v] names a connection of a revision without initialize 1 s after its first request arrived, with its client cut to 40 grapheme clusters and its start", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    const family = "\u{1f468}\u200d\u{1f469}\u200d\u{1f467}";
+    const name = `${"a".repeat(38)}e\u0301${family}cut off`;
+    /** A raw MCP server on the fixture, as `reqseq mcp` serves it, and a way to write one request line. */
+    const rawSession = (): { send: (message: object) => void; close: () => Promise<void> } => {
+      const workspace = new Workspace(fixture.root, { cacheFolder: cacheFolder(fixture.root) });
+      const toServer = new PassThrough();
+      const served = serveMcp({ runtime, workspace, input: toServer, output: { write: () => true } });
+      return {
+        send: (message) => toServer.write(`${JSON.stringify(message)}\n`),
+        close: async () => {
+          toServer.end();
+          await served;
+          await workspace.close();
+        },
+      };
+    };
+    const meta = (client?: object): object => ({
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      ...(client === undefined ? {} : { "io.modelcontextprotocol/clientInfo": client }),
+    });
+    const named = rawSession();
+    const unnamed = rawSession();
+    try {
+      // A ping names no revision and connects nothing.
+      named.send({ jsonrpc: "2.0", id: 1, method: "ping", params: {} });
+      const before = Date.now();
+      named.send({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/list",
+        params: { _meta: meta({ name, version: "1" }) },
+      });
+      // `subscriptions/listen` gets no answer: its arrival connects, without a name.
+      unnamed.send({ jsonrpc: "2.0", id: 1, method: "subscriptions/listen", params: { _meta: meta() } });
+      const sent = Date.now();
+      await until(sent, 1000);
+      const output = (await agentsViaCli()) as {
+        connected: { client: string | null; since: string }[];
+      };
+      // Both arrived within a few milliseconds, so either may be first.
+      expect(output.connected.map((c) => c.client)).toHaveLength(2);
+      expect(output.connected.map((c) => c.client)).toEqual(
+        expect.arrayContaining([`${"a".repeat(38)}e\u0301${family}`, null]),
+      );
+      for (const connection of output.connected) {
+        const since = Date.parse(connection.since);
+        expect(since).toBeGreaterThanOrEqual(before - 1);
+        expect(since).toBeLessThanOrEqual(sent + 1000);
+      }
+    } finally {
+      await unnamed.close();
+      await named.close();
     }
   });
 
