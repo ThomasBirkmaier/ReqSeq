@@ -14,10 +14,12 @@ import type { ObjectInfos, ObjectReader } from "./reader.js";
 import {
   changedPaths,
   commitBlobs,
+  commitsBetween,
   fileHistory,
   fileMoves,
   headCommit,
   headFiles,
+  historyRange,
   openObjectReader,
   resolveCommit,
   trackedFile,
@@ -202,10 +204,12 @@ describe("git reader", () => {
     expect(Object.keys(reader).sort()).toEqual([
       "changedPaths",
       "commitBlobs",
+      "commitsBetween",
       "fileHistory",
       "fileMoves",
       "headCommit",
       "headFiles",
+      "historyRange",
       "isGitPath",
       "isRevision",
       "openObjectReader",
@@ -1442,6 +1446,121 @@ describe("a repository folder below the top level of its work tree (ThomasBirkma
     // merge from the top level, and the prefix would be taken off twice.
     await ws.git(["config", "diff.relative", "true"]);
     expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"])).toEqual(before);
+  });
+
+  it("lists a range with the real parents and paths relative to the folder, also with diff.relative=true and log.showRoot=false", async () => {
+    const { ws, folder, made } = await nested();
+    const commit = (name: string, parents: readonly string[], paths: readonly string[]): unknown => ({
+      commit: commitOf(made, name),
+      date: String(made[name]?.date.toISOString().replace(".000Z", "Z")),
+      parents: parents.map((p) => commitOf(made, p)),
+      paths,
+    });
+    const range = await historyRange(folder, commitOf(made, "first"), commitOf(made, "outside"), ["a.md"]);
+    // `outside` changed only files outside the folder and is listed anyway, with its real parent.
+    expect(range).toEqual({
+      known: true,
+      commits: [
+        commit("outside", ["merge"], []),
+        commit("merge", ["second", "side"], ["a.md"]),
+        commit("side", ["first"], ["a.md"]),
+        commit("second", ["first"], ["a.md"]),
+      ],
+      more: false,
+    });
+    await ws.git(["config", "diff.relative", "true"]);
+    await ws.git(["config", "log.showRoot", "false"]);
+    expect(await historyRange(folder, commitOf(made, "first"), commitOf(made, "outside"), ["a.md"])).toEqual(
+      range,
+    );
+    // The revisions and paths on standard input, after a fixed command line.
+    const logs = mock.calls.filter((c) => c.args.includes("log"));
+    expect(logs.map((c) => [c.args.slice(FIXED.length), (c.options as ExecFileOptions).timeout])).toEqual(
+      Array.from({ length: 2 }, () => [
+        [
+          "-c",
+          "diff.relative=false",
+          "log",
+          "--no-show-signature",
+          "--no-follow",
+          "--no-renames",
+          "--root",
+          "--full-history",
+          "--sparse",
+          "--cc",
+          "--name-only",
+          "-z",
+          "--parents",
+          "--format=%H %cI %P%x00",
+          "--max-count=1001",
+          "--stdin",
+        ],
+        60_000,
+      ]),
+    );
+  });
+
+  it("lists the commits one commit reaches and another does not, without diffs", async () => {
+    const { folder, made } = await nested();
+    expect(await commitsBetween(folder, commitOf(made, "outside"), commitOf(made, "second"))).toEqual({
+      known: true,
+      commits: ["outside", "merge", "side"].map((n) => commitOf(made, n)),
+      more: false,
+    });
+    expect(mock.calls.map((c) => c.args.slice(FIXED.length))).toEqual([
+      ["log", "--no-show-signature", "--format=%H", "--max-count=1001", "--stdin"],
+    ]);
+    expect(await commitsBetween(folder, commitOf(made, "first"), commitOf(made, "outside"))).toEqual({
+      known: true,
+      commits: [],
+      more: false,
+    });
+  });
+
+  it("says when a range or a list has more than 1,000 commits, and gives 1,000", async () => {
+    const { folder, made } = await nested();
+    const line = (i: number): string => `${i.toString(16).padStart(40, "0")} 2026-01-01T00:00:00Z \0\0`;
+    mock.fake = (args) =>
+      args.includes("--parents")
+        ? { stdout: Array.from({ length: 1001 }, (_, i) => line(i)).join("") }
+        : args.includes("log")
+          ? { stdout: Array.from({ length: 1001 }, (_, i) => i.toString(16).padStart(40, "0")).join("\n") }
+          : undefined;
+    const range = await historyRange(folder, commitOf(made, "first"), commitOf(made, "outside"), ["a.md"]);
+    expect(range).toMatchObject({ known: true, more: true });
+    expect(range.known && range.commits.length).toBe(1000);
+    const list = await commitsBetween(folder, commitOf(made, "outside"), commitOf(made, "first"));
+    expect(list).toMatchObject({ known: true, more: true });
+    expect(list.known && list.commits.length).toBe(1000);
+  });
+
+  it("is unknown when git cannot give a range or a list, and refuses what it cannot pass", async () => {
+    const { folder, made } = await nested();
+    const [first, outside] = [commitOf(made, "first"), commitOf(made, "outside")];
+    mock.fake = (args) => (args.includes("--show-prefix") ? TIMEOUT : undefined);
+    expect(await historyRange(folder, first, outside, ["a.md"])).toMatchObject({
+      known: false,
+      reason: "timeout",
+    });
+    mock.fake = (args) => (args.includes("log") ? TIMEOUT : undefined);
+    expect(await historyRange(folder, first, outside, ["a.md"])).toMatchObject({
+      known: false,
+      reason: "timeout",
+    });
+    expect(await commitsBetween(folder, outside, first)).toMatchObject({ known: false, reason: "timeout" });
+    mock.fake = (args) => (args.includes("log") ? { stdout: "a.md\0" } : undefined);
+    expect(await historyRange(folder, first, outside, ["a.md"])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "unexpected output of git log: a.md",
+    });
+    mock.fake = undefined;
+    await expect(historyRange(folder, "HEAD", outside, ["a.md"])).rejects.toThrow(/commit IDs/);
+    await expect(historyRange(folder, first, "HEAD", ["a.md"])).rejects.toThrow(/commit IDs/);
+    await expect(historyRange(folder, first, outside, [])).rejects.toThrow(/cannot pass/);
+    await expect(historyRange(folder, first, outside, ["../a.md"])).rejects.toThrow(/cannot pass/);
+    await expect(commitsBetween(folder, "HEAD", first)).rejects.toThrow(/commit IDs/);
+    await expect(commitsBetween(folder, first, "x")).rejects.toThrow(/commit IDs/);
   });
 
   it("takes the prefix from git where the folder holds a .git entry that git skips", async () => {

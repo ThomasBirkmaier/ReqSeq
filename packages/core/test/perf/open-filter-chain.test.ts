@@ -8,7 +8,12 @@
 // over, ThomasBirkmaier/ReqSeq-archive#267). The whole chain is recorded without a threshold. The filter is a saved filter
 // (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, ThomasBirkmaier/ReqSeq-archive#228). The
 // tests are tagged, so they assert their thresholds (ADR-0011, ThomasBirkmaier/ReqSeq-archive#215) after `measure` recorded the times.
-import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@reqseq/testkit";
+import type {
+  GeneratedWorkspace,
+  HistoryCommitSpec,
+  LargeFixtureWorkspace,
+  PerfMeasurement,
+} from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   malformedNoParentHints,
@@ -338,21 +343,109 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const newest = sorted.elements[0];
     const dated = await openElement(opened(), newest?.id ?? "", true);
     expect(dated.versionDate).toBe([...generatedDates.values()].sort().at(-1));
-    // A new commit moves HEAD of one repository; it changes no element, so the order stays.
+    // HEAD of one repository moves; no move changes an element, so the order stays. The walks are
+    // carried over each move (one range `log`, one list per parent outside it, #2346).
     const folder = tree.repositories.find((r) => r.name === newest?.repository)?.folder ?? "";
-    await fixture?.write(`${folder}/notes.txt`, "A commit after the sort.\n");
-    await fixture?.commit(folder, "notes");
-    const { result: moved, measurement: afterCommit } = await measure(
-      "sort: all elements by versionDate, first page, after a new commit (HEAD moved)",
-      sortedList,
+    const git = async (args: readonly string[]): Promise<string> =>
+      String(await fixture?.git([...args], folder)).trim();
+    const moveTo = async (commit: string): Promise<void> => {
+      await git(["update-ref", "refs/heads/main", commit]);
+    };
+    // Only the commit on top meets the limit so far. A merge or an amend make a new evaluated commit
+    // for most files (about 0.7 s at this size), and they are recorded until the follow-up issue
+    // makes them fast; so are the far moves.
+    const moves: { readonly name: string; readonly limit: boolean; readonly move: () => Promise<void> }[] = [
       {
-        basis:
-          "SR-082 AK4 (element.list sorted by versionDate, once applied since the start, after HEAD moved)",
+        name: "after a new commit (HEAD moved)",
+        limit: true,
+        move: async () => {
+          await fixture?.write(`${folder}/notes.txt`, "A commit after the sort.\n");
+          await fixture?.commit(folder, "notes");
+        },
       },
+      {
+        name: "after a merge (--no-ff) of a branch from 5 commits back",
+        limit: false,
+        move: async () => {
+          const made = await fixture?.commitHistory(
+            [
+              { name: "side", parents: [await git(["rev-parse", "HEAD~5"])], files: { "side.txt": "s\n" } },
+              {
+                name: "merge",
+                parents: [await git(["rev-parse", "HEAD"]), "side"],
+                files: { "side.txt": "s\n" },
+              },
+            ],
+            { repository: folder },
+          );
+          await moveTo(String(made?.["merge"]?.id));
+        },
+      },
+      {
+        name: "after an amend of the last commit",
+        limit: false,
+        move: async () => {
+          const parents = (await git(["rev-parse", "HEAD^1", "HEAD^2"])).split("\n");
+          const made = await fixture?.commitHistory(
+            [{ name: "amended", parents, files: { "side.txt": "amended\n" } }],
+            { repository: folder },
+          );
+          await moveTo(String(made?.["amended"]?.id));
+        },
+      },
+    ];
+    const after: PerfMeasurement[] = [];
+    for (const { name, limit, move } of moves) {
+      await move();
+      const { result: moved, measurement: afterMove } = await measure(
+        `sort: all elements by versionDate, first page, ${name}`,
+        sortedList,
+        limit
+          ? {
+              basis:
+                "SR-082 AK4 (element.list sorted by versionDate, once applied since the start, after HEAD moved)",
+              thresholdMs: RESULT_MS,
+            }
+          : {
+              basis:
+                "SR-082 AK4 (recorded until the follow-up issue: a move that adds an evaluated commit to most files)",
+            },
+      );
+      expect(moved.elements.map((e) => e.id)).toEqual(sorted.elements.map((e) => e.id));
+      if (limit) {
+        after.push(afterMove);
+      }
+    }
+    // Opening one element with its version date after a move waits for the carry of every walk.
+    await fixture?.write(`${folder}/notes.txt`, "One more commit.\n");
+    await fixture?.commit(folder, "notes again");
+    const { result: reopened } = await measure(
+      "open one element with its version date (versionDate: true) after a new commit (HEAD moved)",
+      () => openElement(opened(), newest?.id ?? "", true),
+      { basis: "SR-082 AK4 (recorded: element.get waits for the walks to be carried)" },
     );
-    expect(moved.elements.map((e) => e.id)).toEqual(sorted.elements.map((e) => e.id));
-    expect(afterCommit.ms).toBeGreaterThan(0);
-    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    expect(reopened.versionDate).toBe(dated.versionDate);
+    // Far moves are recorded: 600 commits back (carried), and to the first commit, more than 1,000
+    // commits back, where the whole history is walked again. The order then follows the old texts.
+    const last = await git(["rev-parse", "HEAD"]);
+    for (const [name, target] of [
+      ["after a reset 600 commits back", "HEAD~600"],
+      [`after a reset to the first commit (${String(HISTORY + 1)} commits back: walked again)`, "HEAD~1001"],
+    ] as const) {
+      await moveTo(await git(["rev-parse", target]));
+      const { result: far } = await measure(
+        `sort: all elements by versionDate, first page, ${name}`,
+        sortedList,
+        {
+          basis: "SR-082 AK4 (recorded: a move this far is no AK4 case of its own)",
+        },
+      );
+      expect(far.total).toBe(ELEMENTS);
+      await moveTo(last);
+    }
+    for (const afterMove of [measurement, ...after]) {
+      expect(afterMove.ms, thresholdMessage(afterMove)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+    }
   });
 
   type Chain = CommandOutput<"trace.chain">;
