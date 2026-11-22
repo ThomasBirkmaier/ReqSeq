@@ -357,6 +357,18 @@ test("an open search keeps its hits when the workspace changes while it is open"
   await redrawn(text, "Made while linking");
   await text.press("Enter");
   await expect(text).toHaveValue(new RegExp(`^See \\[.+\\]\\(reqseq:${refOf(second)}\\)$`));
+  // The form is drawn again while the search is still under way: the new list searches again and links.
+  await page.route("**/api/element.search", async (route) => {
+    await new Promise((done) => setTimeout(done, 2500));
+    await route.continue();
+  });
+  await text.fill("Also ");
+  await text.press("End");
+  await text.pressSequentially(`[[${refOf(second)}`);
+  await redrawn(text, "Made while the search runs");
+  await page.unroute("**/api/element.search");
+  await text.press("Enter");
+  await expect(text).toHaveValue(new RegExp(`^Also \\[.+\\]\\(reqseq:${refOf(second)}\\)$`));
 });
 
 test("typed text stays when the workspace changes, and a change of the same file elsewhere stops the save", async ({

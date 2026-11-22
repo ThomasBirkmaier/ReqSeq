@@ -69,20 +69,26 @@ let pickers = 0;
 export interface OpenPick {
   /** What the search field holds (a field of its own), else the query typed into the text. */
   readonly query: string;
-  /** The hits shown, with the active one; none while a search for the query is still under way. */
+  /** The hits shown; undefined while the first search for the query is still under way. */
   readonly hits: readonly Target[] | undefined;
-  readonly active: number;
+  /** The active hit. */
+  readonly activeId: string | undefined;
+  /** The status line ("Nothing found." and the like). */
+  readonly status: string;
 }
 
-/** The open list of each picker, by the field it belongs to. */
+/** Each picker by the field it belongs to: hand over its open list and close it. */
 const opened = new WeakMap<HTMLElement, () => OpenPick | undefined>();
 const reopeners = new WeakMap<HTMLElement, (open: OpenPick) => void>();
 
-/** The open list of the picker of `field`, if any. */
-export const openPickOf = (field: Element | null): OpenPick | undefined =>
+/** The open list of the picker of `field`, if any; the picker is closed, since a redraw drops it. */
+export const takeOpenPick = (field: Element | null): OpenPick | undefined =>
   field instanceof HTMLElement ? opened.get(field)?.() : undefined;
 
-/** Opens the picker of `field` with the list another picker had open (after a redraw), without a new search. */
+/**
+ * Opens the picker of `field` with the list another picker had open (after a redraw) and searches again, so the
+ * hits follow the workspace while Enter still picks the active one.
+ */
 export function reopenPick(field: Element | null, open: OpenPick): void {
   if (field instanceof HTMLElement) {
     reopeners.get(field)?.(open);
@@ -107,7 +113,6 @@ export interface PickerOptions {
   readonly onPick: (target: Target) => void;
   /** The search field is the text itself (a link typed into a text): no field of its own. */
   readonly field?: HTMLTextAreaElement;
-  readonly onClose?: () => void;
 }
 
 /** A search field with its listbox of hits. */
@@ -166,10 +171,11 @@ export function picker(options: PickerOptions): Picker {
     close();
     options.onPick(target);
   };
-  const show = (keep = -1): void => {
+  const show = (keepId?: string): void => {
     const taken = new Set(options.taken?.() ?? []);
     hits = hits.filter((t) => !taken.has(t.id));
-    active = hits.length === 0 ? -1 : Math.min(Math.max(keep, 0), hits.length - 1);
+    const kept = hits.findIndex((t) => t.id === keepId);
+    active = kept >= 0 ? kept : hits.length > 0 ? 0 : -1;
     list.replaceChildren(
       ...hits.map((t, at) =>
         h(
@@ -198,7 +204,8 @@ export function picker(options: PickerOptions): Picker {
     status.textContent = hits.length === 0 ? "Nothing found." : "";
     mark();
   };
-  const search = (typed: string): void => {
+  /** Searches for `typed`; `quietly` keeps the hits shown and the active one until the answer replaces them. */
+  const search = (typed: string, quietly = false): void => {
     clearTimeout(timer);
     const mine = ++asked;
     query = typed;
@@ -212,12 +219,15 @@ export function picker(options: PickerOptions): Picker {
         .then((found) => {
           if (mine === asked) {
             pending = false;
+            const keepId = quietly ? hits[active]?.id : undefined;
             hits = found;
-            show();
+            show(keepId);
           }
         })
         .catch(() => {
-          if (mine === asked) {
+          if (mine === asked && quietly) {
+            pending = false;
+          } else if (mine === asked) {
             pending = false;
             hits = [];
             show();
@@ -250,7 +260,6 @@ export function picker(options: PickerOptions): Picker {
       event.preventDefault();
       event.stopPropagation();
       close();
-      options.onClose?.();
     }
   });
   owner.addEventListener("blur", () => {
@@ -263,23 +272,32 @@ export function picker(options: PickerOptions): Picker {
   }
   opened.set(owner, () => {
     const typed = input?.value ?? query;
-    if (pending) {
-      return { query: typed, hits: undefined, active: -1 };
-    }
-    return list.hidden === true && typed === ""
-      ? undefined
-      : { query: typed, hits: list.hidden === true ? [] : [...hits], active };
+    const shown = list.hidden !== true;
+    const open: OpenPick | undefined =
+      !shown && !pending && typed === ""
+        ? undefined
+        : {
+            query: typed,
+            hits: shown ? [...hits] : pending ? undefined : [],
+            activeId: hits[active]?.id,
+            status: status.textContent,
+          };
+    close();
+    return open;
   });
   reopeners.set(owner, (open) => {
     if (input !== null) {
       input.value = open.query;
     }
+    query = open.query;
     if (open.hits === undefined) {
       search(open.query);
     } else if (open.hits.length > 0) {
-      query = open.query;
       hits = [...open.hits];
-      show(open.active);
+      show(open.activeId);
+      search(open.query, true);
+    } else {
+      status.textContent = open.status;
     }
   });
   return {
