@@ -8,7 +8,7 @@ rationale: Tests nennen einzelne Akzeptanzkriterien. Eine Nummer würde nach dem
 requirement-type: interface
 acceptance-criteria:
   - key: npsp
-    text: Gegeben ein Requirement mit Akzeptanzkriterien, wenn es abgefragt wird (App, Kommandozeile, API, MCP), dann liefert das Tool zu jedem Akzeptanzkriterium Kriterienschlüssel, Nummer, Text und den Bezug für einen Testnamen, etwa `[SR-036/AK-k7f3]`, mit der Kennung des Requirements oder, ohne Kennung, seiner Kurz-ID. Ein Akzeptanzkriterium ohne Kriterienschlüssel oder mit einem Kriterienschlüssel, den ein anderes Akzeptanzkriterium des Requirements auch trägt, hat keinen Bezug; die Meldung aus SR-204 AK10 nennt die Abhilfe. Lässt sich die Kennung aus einem Testnamen nicht zurücklesen (sie enthält `/`, `[` oder `]`, ist leer oder ist bei zwei Typen von Elementen vergeben), steht im Bezug statt ihrer die Kurz-ID. Die Kurz-ID bleibt auch, wenn sie der Kennung eines anderen Elements gleicht; der Bezug wird dann als mehrdeutig aufgelöst (`ref.ambiguous`).
+    text: Gegeben ein Requirement mit Akzeptanzkriterien, wenn es abgefragt wird (Kommandozeile, API, MCP), dann liefert das Tool zu jedem Akzeptanzkriterium Kriterienschlüssel, Nummer, Text und den Bezug für einen Testnamen, etwa `[SR-036/AK-k7f3]`, mit der Kennung des Requirements oder, ohne Kennung, seiner Kurz-ID. Ein Akzeptanzkriterium ohne Kriterienschlüssel oder mit einem Kriterienschlüssel, den ein anderes Akzeptanzkriterium des Requirements auch trägt, hat keinen Bezug; die Meldung aus SR-204 AK10 nennt die Abhilfe. Lässt sich die Kennung aus einem Testnamen nicht zurücklesen (sie enthält `/`, `[` oder `]`, ist leer oder ist bei zwei Typen von Elementen vergeben), steht im Bezug statt ihrer die Kurz-ID. Die Kurz-ID bleibt auch, wenn sie der Kennung eines anderen Elements gleicht; der Bezug wird dann als mehrdeutig aufgelöst (`ref.ambiguous`).
   - key: m2vv
     text: Gegeben eine Ausgabe nennt ein Akzeptanzkriterium, etwa im Nachweisstatus, in den Datensätzen, in einer Baseline oder im Datenexport, wenn sie erzeugt wird, dann nennt sie Kriterienschlüssel, Nummer und Text; die Nummer ist die Position in der Fassung, deren Akzeptanzkriterien gezählt werden, ein Kriterienschlüssel, den diese Fassung nicht hat, erscheint ohne Nummer mit dem Text aus der Fassung, die der Datensatz nennt, und ein Akzeptanzkriterium, das ein Datensatz über seine Nummer nennt und das in der genannten Fassung keinen Kriterienschlüssel hat, erscheint mit dieser Nummer und dem Text aus dieser Fassung, ohne Kriterienschlüssel.
   - key: wyyz
@@ -16,7 +16,7 @@ acceptance-criteria:
   - key: zvtb
     text: Gegeben ein Akzeptanzkriterium in der App, wenn „Copy criterion reference“ gewählt wird (Kontextmenü des Akzeptanzkriteriums und Befehlszeile), dann steht der Bezug für einen Testnamen in der Zwischenablage.
   - key: ndnj
-    text: Gegeben ein Bezug mit Kriterienschlüssel, etwa `[SR-036/AK-k7f3]` aus einem fehlgeschlagenen Test, wenn er aufgelöst wird (App, Kommandozeile, API, MCP), dann nennt das Tool Requirement, Nummer und Text des Akzeptanzkriteriums.
+    text: Gegeben ein Bezug mit Kriterienschlüssel, etwa `[SR-036/AK-k7f3]` aus einem fehlgeschlagenen Test, wenn er aufgelöst wird (Kommandozeile, API, MCP), dann nennt das Tool Requirement, Nummer und Text des Akzeptanzkriteriums.
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }
 verification-method: test

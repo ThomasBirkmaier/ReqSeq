@@ -2,14 +2,16 @@
 id: 6adc7b0b-4466-475b-a48d-d636f9f1f4ee
 type: system-requirement
 status: approved
-title: "Bilder einfügen"
+title: Bilder anhängen
 spec-id: "SR-097"
 requirement-type: functional
 acceptance-criteria:
   - key: zs31
-    text: Gegeben ein Bild wird eingefügt, wenn gespeichert wird, dann liegt die Bilddatei in einem Ordner neben der Element-Datei, der wie die Element-Datei ohne Endung heißt, und der Text verweist relativ darauf.
+    text: "Gegeben ein Bild wird angehängt (CLI, API, MCP: `element.addAttachment`), wenn gespeichert wird, dann liegt die Bilddatei in einem Ordner neben der Element-Datei, der wie die Element-Datei ohne Endung heißt, und der Text verweist relativ darauf."
   - key: hp47
-    text: Gegeben ein eingefügtes Bild, wenn gespeichert wird, dann ist der Verweis ein relativer Pfad, der von der Element-Datei aus auf die Bilddatei führt, auf der Platte und im selben Commit.
+    text: Gegeben ein angehängtes Bild, wenn gespeichert wird, dann ist der Verweis ein relativer Pfad, der von der Element-Datei aus auf die Bilddatei führt, auf der Platte und im selben Commit.
+  - key: zh1k
+    text: Gegeben ein Bild wird als Inhalt mit Dateinamen statt als Datei übergeben, wenn es angehängt wird, dann legt das Tool es wie in AK1 ab und liefert den Verweis; ein Inhalt über 20 MiB oder ein Dateiname ohne die Endung eines Bildes wird mit einer Meldung abgelehnt, und eine vorhandene Datei wird nicht ersetzt.
 verification-method: test
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
@@ -20,4 +22,4 @@ based-on:
   - { id: 6adc4ee9-4ac6-485f-a1c3-43352a58580f, version: n2:47d7dc2726d0c379, title: Jedes Element ist eine eigene Markdown-Datei }
 ---
 
-Der Editor muss Bilder einfügen lassen und die Bilddatei in einem Ordner neben der Element-Datei ablegen, der wie die Element-Datei ohne Endung heißt.
+Das Tool muss Bilder an ein Element anhängen lassen und die Bilddatei in einem Ordner neben der Element-Datei ablegen, der wie die Element-Datei ohne Endung heißt.

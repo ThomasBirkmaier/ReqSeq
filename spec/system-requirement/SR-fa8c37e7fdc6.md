@@ -7,7 +7,7 @@ spec-id: SR-242
 requirement-type: functional
 acceptance-criteria:
   - key: cq4q
-    text: "Gegeben ein Arbeitsbereich mit Warnungen und ohne Fehler, wenn „Prepare baseline“ aufgerufen wird (App: Befehl; CLI, API, MCP: `baseline.prepare`), dann nennt der [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) die Zahl der Fehler und Warnungen der Prüfung des Bestands und den Nachweisgrad der Auswahl (SR-037), und die Ausgabe führt in allen Zugängen die Befunde wie `workspace.check`. Erhielt „Prepare baseline“ eine Auswahl, sagt die Ausgabe, dass die Befunde für den ganzen Arbeitsbereich gelten. Zählt die Auswahl kein gültiges Requirement, sagt der Antwortsatz das statt eines Nachweisgrads."
+    text: "Gegeben ein Arbeitsbereich mit Warnungen und ohne Fehler, wenn „Prepare baseline“ aufgerufen wird (CLI, API, MCP: `baseline.prepare`), dann nennt der [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) die Zahl der Fehler und Warnungen der Prüfung des Bestands und den Nachweisgrad der Auswahl (SR-037), und die Ausgabe führt in allen Zugängen die Befunde wie `workspace.check`. Erhielt „Prepare baseline“ eine Auswahl, sagt die Ausgabe, dass die Befunde für den ganzen Arbeitsbereich gelten. Zählt die Auswahl kein gültiges Requirement, sagt der Antwortsatz das statt eines Nachweisgrads."
   - key: fncy
     text: Gegeben eine Auswahl mit 10 gültigen Requirements, davon 6 nachgewiesen, 1 nicht bestanden, 1 veraltet und 2 offen, und 3 Requirements ihrer Sicht ohne bestandenen Test, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen dieselben Zahlen je Nachweisstatus wie `evidence.degree` (SR-037) und die Zahl ohne bestandenen Test wie `evidence.withoutPassedTest` für diese Sicht (SR-120) mit dem Namen der Sicht, jede als Zahl von Elementen gekennzeichnet (SR-224 AK4).
   - key: hss7
@@ -27,7 +27,7 @@ refines:
   - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
   - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:024241ac485bc13f, title: Den nächsten Schritt nennen }
   - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:990f6c5b33e39b59, title: Baseline anzeigen und vergleichen }
-  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:b75e257d9422d17a, title: Requirements ohne bestandenen Test schnell finden }
+  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:b75e257d9422d17a, title: Requirements ohne bestandenen Test finden }
 based-on:
   - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
   - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }

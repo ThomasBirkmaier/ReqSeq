@@ -17,7 +17,7 @@ acceptance-criteria:
   - key: v2bx
     text: Gegeben ein Befehl, dessen Antwort Elemente sind, wenn `element.list` mit der Auswahl „Ausgabe dieses Befehls mit dieser Eingabe“ aufgerufen wird, dann liefert es genau diese Elemente, unabhängig von Seiten der Ausgabe. Enthält die Antwort Elemente, die der Arbeitsbereich nicht enthält, liefert `element.list` die übrigen und kennzeichnet das Ergebnis als unvollständig.
   - key: rxbd
-    text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den Referenz und App zeigen.
+    text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den die Referenz und die Ausgabe nennen.
   - key: zk0v
     text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau die Schreibbefehle als „zeigt seine Ausgabe“ gekennzeichnet, deren Ausgabe die Vorschau oder das Ergebnis einer Mehrfachänderung (SR-071 AK2), eines ReqIF-Imports, eines ReqIF-Exports oder einer Anreicherung ist, und der Schreibbefehl, dessen Ausgabe die Agent-Anleitung oder die Skill-Datei ist (SR-229 AK1, AK7): `element.bulkUpdate`, `reqif.import`, `reqif.export`, `evidence.enrichJunit` und `tool.guide`; jeder andere Schreibbefehl ist es nicht."
   - key: nhzq
@@ -31,9 +31,9 @@ derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n2:2a7f8dc7cc5cd0bf, title: Nur Aussagekräftiges sehen }
   - { id: 6adc5c63-608a-4196-b8c0-3037e8876029, version: n2:341a607c926aaf31, title: Alles ohne Oberfläche bedienbar }
 based-on:
-  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:75ff2d30db7ad5dc, title: Ausgaben gestuft zeigen }
+  - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:75ff2d30db7ad5dc, title: Antwortsatz und Angaben aus dem Befehlskatalog }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 ---
 
-Das Tool muss in der [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:164509d02ae16783) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel und den Kennzeichen versehen, die ein Zugang braucht, um sie gestuft zu zeigen.
+Das Tool muss in der [Ausgabe](reqseq:840d00df-60ed-4742-9b82-9e712f270449?version=n2:164509d02ae16783) jedes Befehls einen [Antwortsatz](reqseq:d249a00b-83d2-4c62-b42a-f2c929b5ce27?version=n2:9e00b6ad928fc47b) liefern und im Befehlskatalog jede Angabe der Ausgabe mit einem Titel, den Kennzeichen „technisch“ und „Zahl von Elementen“ und, wo sie einen hat, ihrem Normalwert versehen.
