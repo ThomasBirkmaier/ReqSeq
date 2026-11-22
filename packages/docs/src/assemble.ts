@@ -1,5 +1,6 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, sep } from "node:path";
+import { COMMANDS_FOLDER } from "@reqseq/core/docs-site";
 import { accessTabs } from "./access-tabs.js";
 import type { Page } from "./reference.js";
 
@@ -55,7 +56,7 @@ export function withBase(text: string, base: string): string {
  * Replaces the content folder of the site with a copy of the hand-written pages (their site links with `base`) plus
  * the generated `pages`, and returns its files, relative and with `/`, sorted. A copy, not a symbolic link, so the
  * build reads the same files on every system. A generated page never replaces a hand-written one. A page with the
- * sections of the four ways in becomes `.mdx` with them as tabs (`accessTabs`).
+ * sections of the ways in becomes `.mdx` with them as tabs (`accessTabs`), a command page also without `## App`.
  */
 export async function assembleContent(
   paths: ContentPaths,
@@ -99,7 +100,7 @@ export async function assembleContent(
   }
   for (const file of (await files(paths.contentDir)).filter((name) => name.endsWith(".md"))) {
     const path = join(paths.contentDir, ...file.split("/"));
-    const tabbed = accessTabs(await readFile(path, "utf8"), file);
+    const tabbed = accessTabs(await readFile(path, "utf8"), file, file.startsWith(`${COMMANDS_FOLDER}/`));
     if (tabbed !== undefined) {
       await writeFile(`${path}x`, tabbed, { flag: "wx" });
       await rm(path);

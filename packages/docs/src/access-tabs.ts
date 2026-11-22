@@ -1,10 +1,12 @@
-// The four ways in as tabs (#2192): a page whose level-2 sections `## App`, `## CLI`, `## API` and `## MCP` follow
-// each other, a how-to (SR-140 AK3) or a command page (SR-139 AK1), reaches the site as MDX with one Starlight
-// `TabItem` per section in a `Tabs` with a `syncKey`, so the reader's choice holds on every page. Every tab stays in
-// the page, each with a label that only print shows (site/src/styles/theme.css prints every tab), and
-// `llms-full.txt` turns the tabs back into the four sections. The sources stay plain Markdown.
+// The ways in as tabs (#2192): a page whose level-2 sections `## App`, `## CLI`, `## API` and `## MCP` follow each
+// other, a how-to (SR-140 AK3), reaches the site as MDX with one Starlight `TabItem` per section in a `Tabs` with a
+// `syncKey`, so the reader's choice holds on every page; so does a command page (SR-139 AK1), whose run starts at
+// `## CLI` (#2399; #2309 rewrites the how-to pages). Other pages with `## CLI`, `## API` and `## MCP` alone, such as
+// the concept page of the three, keep them as headings. Every tab stays in the page, each with a label that only
+// print shows (site/src/styles/theme.css prints every tab), and `llms-full.txt` turns the tabs back into the
+// sections. The sources stay plain Markdown.
 
-/** The section headings of the four ways in, in this order. */
+/** The section headings of the ways in, in this order; a command page has them without the first one. */
 export const ACCESSES: readonly string[] = ["App", "CLI", "API", "MCP"];
 
 /** The key under which Starlight keeps the chosen tab for every page (`localStorage`). */
@@ -89,11 +91,12 @@ function mdxProse(line: string, where: string): string {
 }
 
 /**
- * The MDX page with the sections of the four ways in as tabs, or undefined when `text` has no `## App` followed by
- * `## CLI`, `## API` and `## MCP` as its next level-2 sections. The tabs end at the next level-2 heading. `path`
- * names the page in an error.
+ * The MDX page with the sections of the ways in as tabs, or undefined when `text` has no `## App` followed by
+ * `## CLI`, `## API` and `## MCP` as its next level-2 sections; with `withoutApp` (a command page), the run of
+ * `## CLI`, `## API` and `## MCP` counts as well. The tabs end at the next level-2 heading. `path` names the page in an
+ * error.
  */
-export function accessTabs(text: string, path = "page"): string | undefined {
+export function accessTabs(text: string, path = "page", withoutApp = false): string | undefined {
   const front = FRONT_MATTER.exec(text)?.[0] ?? "";
   const lines = text.slice(front.length).split("\n");
   const outside = prose(lines);
@@ -101,16 +104,18 @@ export function accessTabs(text: string, path = "page"): string | undefined {
     const heading = outside[index] === true ? /^## (.+?)\s*$/.exec(line)?.[1] : undefined;
     return heading === undefined ? [] : [{ heading, index }];
   });
-  const start = headings.findIndex(({ heading }) => heading === ACCESSES[0]);
-  const run = headings.slice(start, start + ACCESSES.length);
+  const allowed = withoutApp ? ACCESSES : ACCESSES.slice(0, 1);
+  const first = headings.findIndex(({ heading }) => allowed.includes(heading));
+  const ways = headings[first]?.heading === ACCESSES[0] ? ACCESSES : ACCESSES.slice(1);
+  const run = headings.slice(first, first + ways.length);
   if (
-    start < 0 ||
-    run.length < ACCESSES.length ||
-    run.some(({ heading }, position) => heading !== ACCESSES[position])
+    first < 0 ||
+    run.length < ways.length ||
+    run.some(({ heading }, position) => heading !== ways[position])
   ) {
     return undefined;
   }
-  const end = headings[start + ACCESSES.length]?.index ?? lines.length;
+  const end = headings[first + ways.length]?.index ?? lines.length;
   // Each tag has a blank line on both sides, so that MDX reads the Markdown between them as blocks.
   const close = ["", "</TabItem>", "", "</Tabs>", ""];
   const frontLines = front.split("\n").length - 1;
@@ -129,7 +134,7 @@ export function accessTabs(text: string, path = "page"): string | undefined {
 }
 
 /**
- * The Markdown of a page that `accessTabs` wrote: the tabs back as the four sections, its comments as HTML comments
+ * The Markdown of a page that `accessTabs` wrote: the tabs back as the sections, its comments as HTML comments
  * and its braces without the escape. A brace escaped in the source loses its escape too, which Markdown reads alike.
  */
 export function withoutAccessTabs(text: string): string {

@@ -41,7 +41,6 @@ export const LLMS_SECTIONS: readonly (readonly [string, string])[] = [
   ["reference/formats/", "File formats"],
   ["reference/common-types", "Common types"],
   ["reference/standard-model", "Standard model"],
-  ["reference/keyboard-shortcuts", "Keyboard shortcuts"],
 ];
 
 const FRONT_MATTER = /^---\r?\n([^]*?)\r?\n---\r?\n/;

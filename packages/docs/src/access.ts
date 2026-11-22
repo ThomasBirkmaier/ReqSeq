@@ -1,9 +1,7 @@
-// How a command is called in each access (SR-139 AK1), taken from the adapters themselves: the app's command
-// prompt, the CLI's own `--help`, the API path and the MCP tool of the generated contracts.
+// How a command is called in each access (SR-139 AK1), taken from the adapters themselves: the CLI's own
+// `--help`, the API path and the MCP tool of the generated contracts.
 import { Readable } from "node:stream";
 import { COMMANDS_PATH } from "@reqseq/api";
-import { appCommandEntry, commandPromptKey } from "@reqseq/app";
-import type { AppCommandEntry } from "@reqseq/app";
 import { argvFor, runCli } from "@reqseq/cli";
 import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
 import { toolName } from "@reqseq/mcp";
@@ -20,12 +18,8 @@ export interface GeneratedContracts {
 }
 
 export interface CommandAccess {
-  /** False while this version does not implement the command (the app and the MCP server do not offer it). */
+  /** False while this version does not implement the command (the MCP server does not offer it). */
   readonly implemented: boolean;
-  readonly app: AppCommandEntry;
-  readonly appMac: AppCommandEntry;
-  readonly promptKey: string;
-  readonly promptKeyMac: string;
   /** `reqseq <group> <action>`, and the exact text of its `--help`. */
   readonly cliCall: string;
   readonly cliHelp: string;
@@ -53,7 +47,7 @@ export async function cliOutput(args: readonly string[], runtime: CommandRuntime
   return text;
 }
 
-/** How `entry` is called in the app, the CLI, the API and MCP. Fails when a generated contract lacks it. */
+/** How `entry` is called in the CLI, the API and MCP. Fails when a generated contract lacks it. */
 export async function commandAccess(
   entry: CatalogEntry,
   runtime: CommandRuntime,
@@ -68,10 +62,6 @@ export async function commandAccess(
   const args = argvFor(entry, {}, runtime.contracts.schemas);
   return {
     implemented: runtime.commands.has(entry.name),
-    app: appCommandEntry(entry, false),
-    appMac: appCommandEntry(entry, true),
-    promptKey: commandPromptKey(false),
-    promptKeyMac: commandPromptKey(true),
     cliCall: ["reqseq", ...args].join(" "),
     cliHelp: await cliOutput([...args, "--help"], runtime),
     apiCall: `${methods.map((method) => method.toUpperCase()).join(", ")} ${path}`,

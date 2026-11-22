@@ -19,8 +19,8 @@ runs:
         if ! unshare -r true 2>/dev/null; then
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
         fi
-    # The app's screenshots and the README animation are frozen while the Electron app is paused (#2295): the site
-    # takes the committed copies in docs/guide/images/ as they are, and they may show an older state of the app.
+    # The app's screenshots and the README animation are frozen since the Electron app is removed (#2399), until #2309
+    # makes them for the web UI: the site takes the committed copies in docs/guide/images/ as they are.
     # The audit sees only the site's lockfile; `pnpm audit --prod` and `licenses:check` of the workspace do not.
     # The page "What's new" needs the release tags (#1259): the callers check out the whole history, and
     # REQSEQ_DOCS_RELEASES=1 stops a build in a shallow clone or without a release tag.

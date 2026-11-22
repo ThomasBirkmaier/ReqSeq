@@ -7,7 +7,6 @@ updates:
     directories:
       - "/"
       - "/packages/docs/site"
-      - "/toolchain/packaging"
     schedule:
       interval: monthly
     open-pull-requests-limit: 0

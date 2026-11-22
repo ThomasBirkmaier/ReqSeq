@@ -1,10 +1,8 @@
-// How-to pages (SR-140 AK3): each shows its task in the app, the CLI, the API and MCP, in a section `## App`,
-// `## CLI`, `## API` and `## MCP`; where the task is not possible in an access, its section says so. The names a
-// section uses must exist in this build: command prompt entries (bold in `## App`), API paths with their body
-// fields (`http` blocks in `## API`) and MCP tools with their arguments (`json` blocks with a `name` in `## MCP`).
+// How-to pages (SR-140 AK3): each shows its task in the CLI, the API and MCP, in a section `## CLI`, `## API` and
+// `## MCP`; where the task is not possible in an access, its section says so. A page may have a section `## App`
+// before them (#2309 rewrites those pages). The names a section uses must exist in this build: API paths with their
+// body fields (`http` blocks in `## API`) and MCP tools with their arguments (`json` blocks with a `name` in `## MCP`).
 import { COMMANDS_PATH } from "@reqseq/api";
-import type { ShortcutSection } from "@reqseq/app";
-import { SHORTCUT_TABLES, appCommandEntry } from "@reqseq/app";
 import type { CatalogEntry } from "@reqseq/core";
 import { toolName } from "@reqseq/mcp";
 import type { GeneratedContracts } from "./access.js";
@@ -14,17 +12,19 @@ import type { GuidePage } from "./examples.js";
 /** The folder of the how-to pages below docs/guide/. */
 export const HOW_TO_FOLDER = "how-to";
 
-/** The section headings every how-to page has, in this order. */
+/** The section headings of the accesses, in this order. */
 export { ACCESSES };
 
-/** What the accesses of this build offer: command prompt entries, and the input fields of each command. */
+/** The sections every how-to page has: those of the accesses but the app. */
+export const REQUIRED_ACCESSES: readonly string[] = ACCESSES.filter((access) => access !== "App");
+
+/** What the accesses of this build offer: the input fields of each command. */
 export interface AccessNames {
-  readonly appEntries: ReadonlySet<string>;
   /** Command name to the fields of its input (the MCP tool's input schema). */
   readonly inputs: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-/** The names of the accesses: entries of the app for `commands`, and commands with an API path and an MCP tool. */
+/** The names of the accesses: the commands with an API path and an MCP tool. */
 export function accessNames(commands: readonly CatalogEntry[], generated: GeneratedContracts): AccessNames {
   const inputs = new Map<string, ReadonlySet<string>>();
   for (const { name } of commands) {
@@ -33,17 +33,7 @@ export function accessNames(commands: readonly CatalogEntry[], generated: Genera
       inputs.set(name, new Set(Object.keys(tool.inputSchema?.properties ?? {})));
     }
   }
-  return {
-    // The entries of the catalog's commands, and the actions of the app by their titles ("Write skill file").
-    appEntries: new Set([
-      ...commands.flatMap((entry) => {
-        const app = appCommandEntry(entry, false);
-        return app.shownIn === undefined ? [app.name] : [];
-      }),
-      ...SHORTCUT_TABLES.actions.map((action) => action.title),
-    ]),
-    inputs,
-  };
+  return { inputs };
 }
 
 /** The level-2 sections of a page by heading, each with its lines (fenced blocks included). */
@@ -151,17 +141,12 @@ function toolCallProblems(where: string, block: string, names: AccessNames): str
 export function howToProblems(page: GuidePage, names: AccessNames): string[] {
   const found = sections(page.text);
   const problems: string[] = [];
-  for (const access of ACCESSES) {
+  for (const access of REQUIRED_ACCESSES) {
     const lines = found.get(access);
     if (lines === undefined || lines.every((line) => line.trim() === "")) {
       problems.push(
         `${page.path}: no section "## ${access}" with its steps, or why it is not possible there`,
       );
-    }
-  }
-  for (const [, entry = ""] of (found.get("App") ?? []).join("\n").matchAll(/\*\*([^*]+)\*\*/g)) {
-    if (!names.appEntries.has(entry)) {
-      problems.push(`${page.path}: ## App: the command prompt has no entry "${entry}"`);
     }
   }
   for (const block of fenced(found.get("API") ?? [], "http")) {
@@ -181,101 +166,4 @@ export function checkHowTos(pages: readonly GuidePage[], names: AccessNames): nu
     throw new Error(`docs: how-to pages\n${problems.join("\n")}`);
   }
   return howTos.length;
-}
-
-/**
- * The keys of the app as the keyboard reference writes them (`shortcutReference`): each label on Windows and Linux
- * with the labels on macOS it stands beside in a row, and the labels that exist on one system only.
- */
-export interface KeyPairs {
-  readonly pairs: ReadonlyMap<string, ReadonlySet<string>>;
-  readonly plainOnly: ReadonlySet<string>;
-  readonly macOnly: ReadonlySet<string>;
-}
-
-/** The pairs of the rows of `sections`: the n-th key of a row on Windows and Linux with its n-th key on macOS. */
-export function keyPairs(sections: readonly ShortcutSection[]): KeyPairs {
-  const pairs = new Map<string, Set<string>>();
-  const plainOnly = new Set<string>();
-  const macOnly = new Set<string>();
-  for (const { keys, mac } of sections.flatMap((section) => section.rows)) {
-    keys.forEach((key, index) => {
-      const partner = mac[index];
-      if (partner === undefined) {
-        plainOnly.add(key);
-      } else {
-        pairs.set(key, new Set([...(pairs.get(key) ?? []), partner]));
-      }
-    });
-    for (const key of mac.slice(keys.length)) {
-      macOnly.add(key);
-    }
-  }
-  return { pairs, plainOnly, macOnly };
-}
-
-/** A key name after the modifiers, longest first; a letter not followed by another one. */
-const KEY_NAME =
-  "(?:Page Up|Page Down|Backspace|Escape|Enter|Space|Click|click|Home|Tab|Up|Down|Left|Right|End|F\\d{1,2}|[A-Za-z])(?![A-Za-z])";
-/** A key with Ctrl, Alt or Shift, as Windows and Linux write it ("Ctrl+Shift+P"), or the prefix key with its letter. */
-const PLAIN_KEY = `Ctrl\\+K [A-Z](?!\\w)|(?:Ctrl|Alt|Shift)(?:\\+(?:Ctrl|Alt|Shift))*\\+${KEY_NAME}`;
-/** A key as macOS writes it ("⌘⇧P", "⌥⌘A", "⌘↩"), or the prefix key with its letter. */
-const MAC_KEY = `⌘K [A-Z](?!\\w)|[⌃⌥⌘⇧]+(?:↩|${KEY_NAME})`;
-
-/** The text of a page outside fenced blocks and code spans, where keys are named in prose. */
-const prose = (text: string): string => {
-  let fence: string | undefined;
-  const kept: string[] = [];
-  for (const line of text.split(/\r?\n/)) {
-    const mark = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
-    if (mark !== undefined && (fence === undefined || line.trim() === fence)) {
-      fence = fence === undefined ? mark : undefined;
-    } else if (fence === undefined) {
-      kept.push(line.replace(/`[^`]*`/g, ""));
-    }
-  }
-  return kept.join("\n");
-};
-
-/**
- * The keys a page names wrongly: each key with Ctrl, Alt or Shift comes with its macOS key as the app shows it, after
- * a comma or in parentheses ("Ctrl+K E, ⌘K E", "Ctrl+Enter (⌘↩)"), and each macOS key after its key on Windows and
- * Linux, unless the key exists on one system only. Keys without a modifier (Enter, Escape) are named once. A key that
- * means different things (Ctrl+P is ⌘P for "Go to" and ⌃P in a list) passes with either macOS key: the sentence
- * around it is not read.
- */
-export function shortcutProblems(page: GuidePage, keys: KeyPairs): string[] {
-  const text = prose(page.text);
-  const problems: string[] = [];
-  const partnered = new Set<number>();
-  for (const match of text.matchAll(new RegExp(PLAIN_KEY, "g"))) {
-    const [key] = match;
-    const after = match.index + key.length;
-    const mac = new RegExp(`(?:, | \\()(${MAC_KEY})`, "y");
-    mac.lastIndex = after;
-    const macKey = mac.exec(text)?.[1];
-    if (macKey !== undefined) {
-      // Both separators are two characters long.
-      partnered.add(after + 2);
-    }
-    const expected = keys.pairs.get(key);
-    const named = [...(expected ?? [])].map((label) => `"${label}"`).join(" or ");
-    if (expected === undefined && !keys.plainOnly.has(key)) {
-      problems.push(`${page.path}: "${key}" is no key of the app`);
-    } else if (expected === undefined) {
-      if (macKey !== undefined) {
-        problems.push(`${page.path}: "${key}" has no macOS key, not "${macKey}"`);
-      }
-    } else if (macKey === undefined) {
-      problems.push(`${page.path}: "${key}" without its macOS key ${named}`);
-    } else if (!expected.has(macKey)) {
-      problems.push(`${page.path}: "${key}" is ${named} on macOS, not "${macKey}"`);
-    }
-  }
-  for (const match of text.matchAll(new RegExp(MAC_KEY, "g"))) {
-    if (!partnered.has(match.index) && !keys.macOnly.has(match[0])) {
-      problems.push(`${page.path}: "${match[0]}" without its key on Windows and Linux before it`);
-    }
-  }
-  return problems;
 }

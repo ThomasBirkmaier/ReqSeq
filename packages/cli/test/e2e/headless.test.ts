@@ -1,5 +1,5 @@
 // The command line without a graphical interface (SR-080 AK3): the built binary with no display set
-// reads, writes and checks a fixture workspace, and nothing it loads depends on the app's interface.
+// reads, writes and checks a fixture workspace, and nothing it loads is a graphical interface.
 // Every catalog command runs through the CLI in the cross-access suite, which needs no display either; the API and
 // the MCP server run with no display in servers.test.ts.
 // Run after `pnpm build` with `pnpm test:e2e`.
@@ -17,7 +17,7 @@ const packagesDir = fileURLToPath(new URL("../../../", import.meta.url));
 const HEADLESS = { DISPLAY: "", WAYLAND_DISPLAY: "" };
 
 /** The interface packages; none may be among what the CLI loads. */
-const INTERFACE = ["@reqseq/app", "electron", "react", "react-dom"];
+const INTERFACE = ["electron", "react", "react-dom"];
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -45,7 +45,7 @@ const dependenciesOf = (name: string, seen = new Set<string>()): Set<string> => 
 };
 
 describe("the command line without a graphical interface", () => {
-  it("[SR-080/AK-txbq] reads, writes and checks a workspace with no display, and loads nothing of the app", async () => {
+  it("[SR-080/AK-txbq] reads, writes and checks a workspace with no display, and loads no graphical interface", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-069/filter" });
     fixtures.push(ws);
     const run = (args: readonly string[]) => reqseq(args, { cwd: ws.root, env: HEADLESS });

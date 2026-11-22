@@ -3,7 +3,7 @@ title: Write the text of an element
 description: Write an element's text in the app - the slash menu, references to other elements, images, lists, tasks, tables and folded sections - and what each does to the file and the version.
 ---
 
-The text of an element is Markdown (CommonMark with the GitHub extensions) in its file, below the properties. The app shows it formatted, with the source of the cursor's line. It writes nothing but plain Markdown, so the file reads the same in any editor and on the Git server. The text counts to the version of the element: a relation to it is marked outdated when the text changes. The keys are in [In the text editor](/reference/keyboard-shortcuts/#in-the-text-editor).
+The text of an element is Markdown (CommonMark with the GitHub extensions) in its file, below the properties. The app shows it formatted, with the source of the cursor's line. It writes nothing but plain Markdown, so the file reads the same in any editor and on the Git server. The text counts to the version of the element: a relation to it is marked outdated when the text changes.
 
 ## App
 

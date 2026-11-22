@@ -35,7 +35,6 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.3.1",
-    "@reqseq/app": "workspace:*",
     "@reqseq/testkit": "workspace:*",
     "minisearch": "7.2.0"
   }

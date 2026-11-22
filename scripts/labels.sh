@@ -16,7 +16,6 @@ label core          1d76db "Area: packages/core"
 label cli           1d76db "Area: packages/cli"
 label api           1d76db "Area: packages/api"
 label mcp           1d76db "Area: packages/mcp"
-label app           1d76db "Area: packages/app"
 label spec          1d76db "Area: spec/, the specification"
 label dev           1d76db "Area: CI, scripts, agent rules, skills and docs"
 # Priority: exactly one per issue.

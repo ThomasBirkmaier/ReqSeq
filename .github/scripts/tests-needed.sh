@@ -9,14 +9,13 @@
 #                     documentation, built by `checks`, ADR-0017), and not the generated pictures of
 #                     docs/architecture/ with the README that embeds them (packages/docs/src/diagrams.test.ts).
 # - .claude/**       agent rules and skills.
-# - verification/**  records: read by trace-check only (the Electron screenshots go to test-results/).
+# - verification/**  records: read by trace-check only.
 # - spec/evidence/** enriched JUnit files of evidence.yml, which runs `workspace check` on them before its pull
-#                     request (#946); the Electron tests that open spec/ read them but
-#                     assert nothing about them, and every code PR still runs those tests.
+#                     request (#946).
 # - toolchain/**/*.md, except anything below toolchain/junit/ (read by the e2e test
 #   packages/cli/test/e2e/toolchain-junit.test.ts: the guide and the element files of the example workspace,
 #   SR-063), and *.md at the root (README.md, CLAUDE.md).
-# Everything else needs the tests: spec/ (Electron graph tests, screenshots, spec:check), fixtures/
+# Everything else needs the tests: spec/ (spec:check), fixtures/
 # (fixtures/README.md is read by a testkit test), packages/ (README files included), schemas/, scripts/,
 # .github/, toolchain scripts and root configuration. Fail-safe: no paths at all, or a path Git quotes
 # (unusual characters), also prints `true`.

@@ -2,8 +2,8 @@
 //
 // Typed linting (ADR-0016) builds one TypeScript program per tsconfig, and one ESLint process keeps every program it
 // built until it ends. Over the whole repository that held about 3.5 GB of live heap, near the 4 GB limit, and the
-// `static` job ran out of memory now and then. core and app hold most of it (about 1.2 GB each when linted alone), so
-// each gets a process of its own and the rest a third; the three run at once. Every file is still linted with the same
+// `static` job ran out of memory now and then. core holds most of it (about 1.2 GB when linted alone), so it gets a
+// process of its own and the rest a second; the two run at once. Every file is still linted with the same
 // configuration, and a file's result does not depend on the other files of its process.
 //
 // Usage: node scripts/lint/lint.mjs [extra ESLint arguments, e.g. --fix]
@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /** The packages linted in a process of their own; the last group lints everything else. */
-export const OWN_PROCESS = ["packages/core", "packages/app"];
+export const OWN_PROCESS = ["packages/core"];
 
 /** The ESLint arguments of each process: one per package of OWN_PROCESS, then the rest of the repository. */
 export function lintGroups(extra = []) {

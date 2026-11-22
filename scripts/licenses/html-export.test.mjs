@@ -111,6 +111,7 @@ describe("noticeEntries", () => {
         { name: "lost", version: "1.0.0" },
       ],
       kept,
+      {},
     );
     expect(entries.map((e) => [e.name, e.license, e.texts.length])).toEqual([
       ["a", "MIT", 0],
@@ -126,6 +127,25 @@ describe("noticeEntries", () => {
     expect(noticesModule(entries)).toContain(
       "export const VENDOR_NOTICES: readonly { readonly name: string;",
     );
+  });
+
+  it("takes a verified licence file for a manifest without a licence, and reports a verified entry it does not copy", () => {
+    const text = "MIT text\n";
+    const sha256 = createHash("sha256").update(text).digest("hex");
+    const verified = {
+      "k@1.0.0": { license: "MIT", file: "license", sha256, htmlExport: true },
+      "gone@1.0.0": { license: "MIT", file: "license", sha256, htmlExport: true },
+      "elsewhere@1.0.0": { license: "MIT", file: "license", sha256 },
+    };
+    const { entries, problems } = noticeEntries(
+      [{ name: "k", version: "1.0.0", folder: folder({}, { license: text }) }],
+      [],
+      verified,
+    );
+    expect(entries.map((e) => [e.name, e.license])).toEqual([["k", "MIT"]]);
+    expect(problems).toEqual([
+      "verified license file of gone@1.0.0 is not copied by the HTML export: remove the entry",
+    ]);
   });
 });
 

@@ -53,4 +53,3 @@ The app follows your system; **Toggle dark mode** switches until it quits, **Fol
 
 While an agent works through MCP or the API, **Follow agent** (Ctrl+Shift+O, ⌘⇧O) shows the element it read or changed last, in one buffer that shows its next step too (never one you typed in); in a split window, in the inactive pane. Unsaved input holds it back. The modeline says `following agent`, and the same key stops it.
 
-All keys: [keyboard shortcuts](/reference/keyboard-shortcuts/).
