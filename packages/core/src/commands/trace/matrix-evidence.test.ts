@@ -342,6 +342,23 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
   });
 });
 
+describe("trace.matrix without a chosen variant (SR-126 AK5)", () => {
+  it("[SR-126/AK-mmsy] gives the test cases, the status and the degree of the core, not those of a variant's records", async () => {
+    const workspace = await open({ ...MATRIX, files: COAST_FILES });
+    const output = await matrix(workspace, { selection: SR });
+    // B06 has a passed record only for the variant Coast: in the core it has no test case and is open.
+    expect([testCasesOf(output, "B06"), statusOf(output, "B06")]).toEqual([[], ["core open"]]);
+    expect(testCasesOf(output, "B06").flat()).not.toContain("coast check");
+    expect(output.rows.every((r) => (r.verification ?? []).every((v) => v.view === "core"))).toBe(true);
+    expect([output.evidence, output.names]).toEqual([{ view: "core", degree: ALL_SR_DEGREE }, undefined]);
+    // The same as the matrix of a workspace without the variant and its record.
+    const plain = await matrix(await open(), { selection: SR });
+    expect(output.rows.map((r) => [r.id, r.testCases, r.verification])).toEqual(
+      plain.rows.map((r) => [r.id, r.testCases, r.verification]),
+    );
+  });
+});
+
 describe("trace.matrix marks (SR-126 AK2)", () => {
   it("[SR-126/AK-mp13] leaves the test case cell of a requirement without test case empty", async () => {
     const output = await matrix(await open(), { selection: SR });

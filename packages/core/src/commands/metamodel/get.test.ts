@@ -74,7 +74,7 @@ describe("metamodel.get", () => {
     expect(out.meanings["requirement"]).toEqual(["requirement"]);
   });
 
-  it("gives the whole metamodel of the fixture", async () => {
+  it("[SR-130/AK-y6rs] gives the whole metamodel of the fixture, the initial status and the invalid ones marked", async () => {
     const out = await get("SR-013/own-meanings");
     expect(out).toMatchObject({
       statuses: [
@@ -83,6 +83,11 @@ describe("metamodel.get", () => {
       ],
       problems: [],
     });
+    // Each mark only where it holds.
+    expect(out.statuses.map((status) => [status.key, status.initial, status.invalid])).toEqual([
+      ["open", true, undefined],
+      ["withdrawn", undefined, true],
+    ]);
     expect(out.types.map((t) => [t.key, t.meaning])).toEqual([
       ["wish", "need"],
       ["spec-item", "requirement"],

@@ -1,5 +1,5 @@
-// The entries of the folder of a typed path (`list-folder.ts`, SR-143). Not tagged with SR-143 AKs: they
-// describe the app's command prompt, whose tests show them.
+// The entries of the folder of a typed path (`list-folder.ts`, SR-143). Not tagged with SR-143 AKs: the
+// tests of `workspace.listFolder` (commands/workspace/listFolder.test.ts) show them through the command.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

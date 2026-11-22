@@ -1,7 +1,9 @@
-// SR-228 on the command line, the local API and the MCP server: an MCP server process records its
-// connection in the cache folder of the copy only (AK5), only MCP servers of this copy count (AK6),
-// and `workspace.agents` gives the same connections on every access (AK7, SR-080 AK2). The app's
-// status line follows with its own tests (#1894).
+// SR-228 on the command line, the local API and the MCP server: a connection counts 1 s after
+// `initialize` was answered, or after the first request of a revision without it arrived, with its client
+// cut to 40 grapheme clusters (AK1), and 5 s after it ended,
+// also by a crash, only as the one connected last (AK2); an MCP server process records its connection in
+// the cache folder of the copy only (AK5), only MCP servers of this copy count (AK6), and
+// `workspace.agents` gives the same connections on every access (AK7, SR-080 AK2).
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -179,6 +181,143 @@ describe("recording a connection (SR-228 AK5, AK6)", () => {
     } finally {
       await elsewhere.close();
     }
+  });
+});
+
+/** Waits until `ms` milliseconds have passed since `from` (Date.now()). */
+const until = async (from: number, ms: number): Promise<void> => {
+  const left = from + ms - Date.now();
+  if (left > 0) {
+    await new Promise((resolve) => setTimeout(resolve, left));
+  }
+};
+
+describe("workspace.agents after a connection began or ended (SR-228 AK1, AK2)", () => {
+  it("[SR-228/AK-zn8v] names a connection 1 s after initialize was answered, with its client cut to 40 grapheme clusters and its start", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    // 38 letters, a letter with a combining accent and a family emoji: 40 grapheme clusters, then more.
+    const family = "\u{1f468}\u200d\u{1f469}\u200d\u{1f467}";
+    const name = `${"a".repeat(38)}e\u0301${family}cut off`;
+    const before = Date.now();
+    const long = await mcpSession(name);
+    // `connect` resolves once the answer to `initialize` has arrived.
+    const answered = Date.now();
+    const unnamed = await mcpSession("\u200b\u0007");
+    try {
+      await until(Date.now(), 1000);
+      const output = (await agentsViaCli()) as {
+        connected: { client: string | null; since: string }[];
+      };
+      expect(output.connected.map((c) => c.client)).toEqual([`${"a".repeat(38)}e\u0301${family}`, null]);
+      const since = Date.parse(output.connected[0]?.since ?? "");
+      // Whole milliseconds of the clock, so at most one before the first look at it.
+      expect(since).toBeGreaterThanOrEqual(before - 1);
+      expect(since).toBeLessThanOrEqual(answered + 1);
+    } finally {
+      await unnamed.close();
+      await long.close();
+    }
+  });
+
+  it("[SR-228/AK-zn8v] names a connection of a revision without initialize 1 s after its first request arrived, with its client cut to 40 grapheme clusters and its start", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    const family = "\u{1f468}\u200d\u{1f469}\u200d\u{1f467}";
+    const name = `${"a".repeat(38)}e\u0301${family}cut off`;
+    /** A raw MCP server on the fixture, as `reqseq mcp` serves it, and a way to write one request line. */
+    const rawSession = (): { send: (message: object) => void; close: () => Promise<void> } => {
+      const workspace = new Workspace(fixture.root, { cacheFolder: cacheFolder(fixture.root) });
+      const toServer = new PassThrough();
+      const served = serveMcp({ runtime, workspace, input: toServer, output: { write: () => true } });
+      return {
+        send: (message) => toServer.write(`${JSON.stringify(message)}\n`),
+        close: async () => {
+          toServer.end();
+          await served;
+          await workspace.close();
+        },
+      };
+    };
+    const meta = (client?: object): object => ({
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      ...(client === undefined ? {} : { "io.modelcontextprotocol/clientInfo": client }),
+    });
+    const named = rawSession();
+    const unnamed = rawSession();
+    try {
+      // A ping names no revision and connects nothing.
+      named.send({ jsonrpc: "2.0", id: 1, method: "ping", params: {} });
+      const before = Date.now();
+      named.send({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/list",
+        params: { _meta: meta({ name, version: "1" }) },
+      });
+      // `subscriptions/listen` gets no answer: its arrival connects, without a name.
+      unnamed.send({ jsonrpc: "2.0", id: 1, method: "subscriptions/listen", params: { _meta: meta() } });
+      // The server reads a request only after its instructions are ready, then records the connection: the
+      // arrival is no later than the moment both connection files are there.
+      await vi.waitFor(
+        async () => {
+          expect(await agentFiles(cacheFolder(fixture.root))).toHaveLength(2);
+        },
+        { timeout: 10_000, interval: 5 },
+      );
+      const arrived = Date.now();
+      await until(arrived, 1000);
+      const output = (await agentsViaCli()) as {
+        connected: { client: string | null; since: string }[];
+      };
+      // Both arrived within a few milliseconds, so either may be first.
+      expect(output.connected.map((c) => c.client)).toHaveLength(2);
+      expect(output.connected.map((c) => c.client)).toEqual(
+        expect.arrayContaining([`${"a".repeat(38)}e\u0301${family}`, null]),
+      );
+      for (const connection of output.connected) {
+        const since = Date.parse(connection.since);
+        expect(since).toBeGreaterThanOrEqual(before - 1);
+        expect(since).toBeLessThanOrEqual(arrived + 1);
+      }
+    } finally {
+      await unnamed.close();
+      await named.close();
+    }
+  });
+
+  it("[SR-228/AK-v1gc] 5 s after the last connection ended names no connection, but the client connected last and when", async () => {
+    await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
+    const session = await mcpSession("leaving agent");
+    await vi.waitFor(async () => {
+      expect(await agentsViaCli()).toMatchObject({ connected: [{ client: "leaving agent" }] });
+    });
+    await session.close();
+    const ended = Date.now();
+    await until(ended, 5000);
+    const output = (await agentsViaCli()) as { connected: unknown[]; last: { client: string; at: string } };
+    expect([output.connected, output.last.client]).toEqual([[], "leaving agent"]);
+    expect(Math.abs(Date.parse(output.last.at) - ended)).toBeLessThan(2000);
+  });
+
+  it("[SR-228/AK-v1gc] 5 s after a crash, whose process wrote no end, names no connection, but the crashed client and its last beat", async () => {
+    const cache = cacheFolder(fixture.root);
+    await fs.rm(cache, { recursive: true, force: true });
+    await fs.mkdir(cache, { recursive: true });
+    const file = path.join(cache, "agent-4343-0a1b2c3d.json");
+    const since = new Date(Date.now() - 60_000).toISOString();
+    await fs.writeFile(
+      file,
+      JSON.stringify({ version: 1, process: "4343-0a1b2c3d", client: "crashing", since, ended: null }),
+    );
+    // The last beat, in whole seconds as every file system keeps them; then the process is gone.
+    const beat = new Date(Math.floor(Date.now() / 1000) * 1000);
+    await fs.utimes(file, beat, beat);
+    await until(beat.getTime(), 5000);
+    expect(await agentsViaCli()).toEqual({
+      answer: "0 agents connected to this copy; the connection that ended last was crashing.",
+      recorded: true,
+      connected: [],
+      last: { client: "crashing", at: beat.toISOString() },
+    });
   });
 });
 
