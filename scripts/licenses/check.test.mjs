@@ -91,6 +91,38 @@ describe("licenses:check (ADR-0015)", () => {
       "verified license file of gone@1.0.0 is not used by any production package: remove the entry",
     ]);
   });
+
+  /** A package folder with `files` (relative path to content). */
+  const folderWith = (files) => {
+    const root = pkg();
+    for (const [file, content] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), content);
+    }
+    return root;
+  };
+  const font = {
+    LICENSE: "SIL OPEN FONT LICENSE Version 1.1",
+    "package.json": "{}",
+    "400.css": "@font-face {}",
+    "index.d.css.ts": "declare const css: string;",
+    "files/plex-latin-400-normal.woff2": "font",
+  };
+  const ofl = (folder) => ({
+    "OFL-1.1": [{ name: "@fontsource/plex", versions: ["5.3.0"], paths: [folder] }],
+  });
+
+  it("accepts the font licence for a package of fonts without code", () => {
+    expect(licenseProblems(ofl(folderWith(font)), {})).toEqual([]);
+  });
+
+  it("rejects the font licence for a package with code or without fonts", () => {
+    const message =
+      "license OFL-1.1 is allowed only for a package of fonts without code (ADR-0015): @fontsource/plex@5.3.0";
+    expect(licenseProblems(ofl(folderWith({ ...font, "index.js": "export {}" })), {})).toEqual([message]);
+    expect(licenseProblems(ofl(folderWith({ LICENSE: "OFL", "style.css": "" })), {})).toEqual([message]);
+    expect(licenseProblems(ofl("/no/such/folder/@fontsource+plex@4.0.0"), {})).toEqual([message]);
+  });
 });
 
 const LOCK = `---

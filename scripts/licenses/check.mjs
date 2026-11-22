@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import YAML from "yaml";
-import { ALLOWED, licenseAllowed } from "./policy.mjs";
+import { ALLOWED, FONT_LICENSES, fontOnly, licenseAllowed } from "./policy.mjs";
 
 export { ALLOWED };
 
@@ -129,6 +129,28 @@ export function packagePath(p, version) {
   return found ?? (!inStore && p.versions.length === 1 && p.paths.length === 1 ? p.paths[0] : undefined);
 }
 
+/** A font licence (OFL-1.1) is allowed only for a package that ships fonts and no code (ADR-0015). */
+const fontProblems = (p, version, license) => {
+  const folder = packagePath(p, version);
+  return folder !== undefined && fontOnly(folder)
+    ? []
+    : [
+        `license ${license} is allowed only for a package of fonts without code (ADR-0015): ${p.name}@${version}`,
+      ];
+};
+
+/** The license file of a verified entry must be the verified text of an allowed license. */
+const verifiedProblems = (p, version, entry) => {
+  const folder = packagePath(p, version);
+  const file = folder === undefined ? undefined : path.join(folder, entry.file);
+  const actual = file !== undefined && fs.existsSync(file) ? sha256(file) : "missing";
+  return actual === entry.sha256 && ALLOWED.has(entry.license)
+    ? []
+    : [
+        `license file of ${p.name}@${version} is not the verified ${entry.license} text (ADR-0015): ${entry.file} sha256 ${actual}`,
+      ];
+};
+
 /**
  * The problems of the production dependencies `byLicense` (see `productionListing`) against the allowlist and
  * the verified license files; empty when all are allowed.
@@ -141,6 +163,12 @@ export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
     if (licenseAllowed(license)) {
       continue;
     }
+    if (licenseAllowed(license, FONT_LICENSES)) {
+      problems.push(
+        ...pkgs.flatMap((p) => p.versions.flatMap((version) => fontProblems(p, version, license))),
+      );
+      continue;
+    }
     for (const p of pkgs) {
       for (const version of p.versions) {
         const id = `${p.name}@${version}`;
@@ -150,14 +178,7 @@ export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
           continue;
         }
         used.add(id);
-        const folder = packagePath(p, version);
-        const file = folder === undefined ? undefined : path.join(folder, entry.file);
-        const actual = file !== undefined && fs.existsSync(file) ? sha256(file) : "missing";
-        if (actual !== entry.sha256 || !ALLOWED.has(entry.license)) {
-          problems.push(
-            `license file of ${id} is not the verified ${entry.license} text (ADR-0015): ${entry.file} sha256 ${actual}`,
-          );
-        }
+        problems.push(...verifiedProblems(p, version, entry));
       }
     }
   }

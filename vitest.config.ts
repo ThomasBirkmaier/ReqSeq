@@ -75,18 +75,20 @@ export default defineConfig({
       // mcp) and the `.ts` modules of the app need 80 %, aggregated per package: there 100 % mostly produced tests
       // for the number (ThomasBirkmaier/ReqSeq-archive#752). React components (`.tsx`) are reported, but
       // have no threshold: Playwright and the [SR-xxx/AK-<key>] tests are their evidence
-      // (ThomasBirkmaier/ReqSeq-archive#537). Vitest checks each glob on its own files and skips a file that no glob matches, so the
-      // globs together match every `.ts` file of `include` once. picomatch reads `!(cli|api|mcp|app)` as "does not
-      // start with", so the second 100 % glob takes the names that only start with an adapter name (`apps`).
+      // (ThomasBirkmaier/ReqSeq-archive#537). The pages of the web UI (`packages/web`, ADR-0020) are reported
+      // without a threshold too: their Playwright tests per area are the evidence. Vitest checks each glob on its own
+      // files and skips a file that no glob matches, so the globs together match every `.ts` file of `include` but
+      // those of `web` once. picomatch reads `!(cli|api|mcp|app|web)` as "does not start with", so the second 100 %
+      // glob takes the names that only start with an adapter name or `web` (`apps`, `website`).
       thresholds: {
-        "packages/!(cli|api|mcp|app)/src/**/*.ts": {
+        "packages/!(cli|api|mcp|app|web)/src/**/*.ts": {
           lines: 100,
           branches: 100,
           functions: 100,
           statements: 100,
           perFile: true,
         },
-        "packages/{cli,api,mcp,app}?*/src/**/*.ts": {
+        "packages/{cli,api,mcp,app,web}?*/src/**/*.ts": {
           lines: 100,
           branches: 100,
           functions: 100,

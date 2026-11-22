@@ -338,6 +338,83 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps: *checks-steps
 
+  # The UI tests of the web UI (ADR-0020, Tests): Playwright drives Chromium against the UI server, which the tests
+  # start on generated workspaces (packages/web/test/). Ubuntu only, in the Ubuntu lane, without network. The tests
+  # carry no AK tags yet, so their results are no evidence: the artifact is not named junit-* (evidence.yml).
+  web:
+    name: web (ubuntu-24.04)
+    # A run takes about 4 minutes, most of it the install and the build; the bound ends a hang.
+    timeout-minutes: 15
+    if: ${{ github.event.action != 'closed' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+          persist-credentials: false
+      # As in `checks`: a pull request that changes only docs skips the rest of this job.
+      - name: Changed files
+        id: changes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          tests="$(git diff --name-only --no-renames HEAD^1 HEAD | bash <(git show HEAD^1:.github/scripts/tests-needed.sh))"
+          echo "tests=$tests" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: steps.changes.outputs.tests != 'false'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.changes.outputs.tests != 'false'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.changes.outputs.tests != 'false'
+        run: pnpm install --frozen-lockfile
+      # Chromium's headless shell (about 100 MB) is downloaded once per Playwright version, not on every run.
+      - name: Playwright version
+        id: playwright
+        if: steps.changes.outputs.tests != 'false'
+        shell: bash
+        run: |
+          echo "version=$(node -p "require('./packages/web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browser-cache
+        if: steps.changes.outputs.tests != 'false'
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-chromium-shell-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: Chromium
+        if: steps.changes.outputs.tests != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @reqseq/web exec playwright install chromium --only-shell
+      # Saved right after the download, so that a red test run still fills the cache.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.changes.outputs.tests != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: ${{ steps.browser-cache.outputs.cache-primary-key }}
+      # Core, the API (the UI server) and the test kit for the test starter, and the pages (vite build).
+      - name: Build
+        if: steps.changes.outputs.tests != 'false'
+        run: pnpm build
+      # Inside a user and network namespace (`unshare -rn`) with loopback only, as the CLI e2e suite: no network at all.
+      - name: UI tests without network (unshare -rn)
+        if: steps.changes.outputs.tests != 'false'
+        working-directory: packages/web
+        run: |
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/playwright test --config test/playwright.config.ts'
+      - name: Upload the results of the UI tests
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-ui-results
+          path: |
+            test-results/junit-web.xml
+            test-results/web/
+          if-no-files-found: ignore
+
   # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) runs in no job here, and its evidence
   # in spec/evidence/ci/electron-* stays at the last run before the pause. The app's code stays in the repository
   # until the web UI replaces it. release.yml still builds and tests the delivery with the app.

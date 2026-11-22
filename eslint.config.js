@@ -24,6 +24,8 @@ const testFiles = [
   "**/*.test.tsx",
   "**/*.test-helper.ts",
   "packages/cli/test/cross-access/**/*.ts",
+  // The UI tests of the web UI and their starter (Playwright, ADR-0020).
+  "packages/web/test/**/*.ts",
 ];
 // The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.
 const appPerfFiles = ["packages/app/test/perf/**/*.ts"];
@@ -78,6 +80,7 @@ export default tseslint.config(
             "vitest.e2e.config.ts",
             "vitest.perf.config.ts",
             "vitest.delivery.config.ts",
+            "packages/web/vite.config.ts",
           ],
         },
         tsconfigRootDir: import.meta.dirname,
@@ -138,6 +141,32 @@ export default tseslint.config(
               allowTypeImports: true,
               message:
                 "A display model imports only types, other displays modules and import-free modules (ADR-0019).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // ADR-0020: the pages of the web UI hold no program logic and run in the browser. They import the command types
+    // of core and its browser-safe subpaths `displays` and `markdown`, nothing of Node and no other package's code.
+    // This block replaces the options of the adapter block, so it repeats its patterns.
+    files: ["packages/web/src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            coreInternals,
+            testkitInProduct,
+            {
+              regex: String.raw`^@reqseq/core$`,
+              allowTypeImports: true,
+              message: "The web UI imports only types from @reqseq/core (ADR-0020).",
+            },
+            {
+              regex: String.raw`^@reqseq/(?!core(?:$|/(?:displays|markdown)$))|^node:`,
+              message: "The web UI imports only @reqseq/core types, displays and markdown (ADR-0020).",
             },
           ],
         },
