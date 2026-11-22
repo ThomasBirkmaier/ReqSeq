@@ -251,7 +251,7 @@ pub fn no_core_dump() {
     unsafe {
         libc::setrlimit(libc::RLIMIT_CORE, &raw const none);
         #[cfg(target_os = "linux")]
-        libc::prctl(libc::PR_SET_DUMPABLE, 0);
+        libc::prctl(libc::PR_SET_DUMPABLE, libc::c_ulong::from(0u8));
     }
 }
 
