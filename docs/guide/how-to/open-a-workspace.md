@@ -21,11 +21,7 @@ From the command prompt, **Create workspace** asks for the path too.
 
 One level above a workspace, the bottom line names it: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
 
-To open a workspace when the app starts, give its folder with `--workspace`:
-
-- Windows: `C:\Tools\ReqSeq\ReqSeq.exe --workspace C:\weather\spec`
-- Linux: `~/ReqSeq/ReqSeq --workspace ~/weather/spec`
-- macOS: `/Applications/ReqSeq.app/Contents/MacOS/ReqSeq --workspace ~/weather/spec`
+The [desktop shell](/concepts/the-desktop-shell/) starts without a workspace, whatever its arguments: open one in its window. `reqseq ui --workspace <folder>` starts the web UI with one.
 
 ## CLI
 

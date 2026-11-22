@@ -38,7 +38,7 @@ The release is not signed with a developer certificate. Once after unpacking:
 
 - macOS: remove the download mark, `xattr -dr com.apple.quarantine /Applications/ReqSeq.app`.
 - Windows: unblock the zip before unpacking it, `Unblock-File .\ReqSeq-<version>-win-x64.zip`. Otherwise Windows warns that `ReqSeq.exe` is an unrecognized app; **More info**, then **Run anyway** starts it.
-- Linux: nothing to do. The desktop shell alone needs the system's web engine, on Ubuntu 24.04 the package `libwebkit2gtk-4.1-0` (`sudo apt install libwebkit2gtk-4.1-0`). It is no step of the installation: without it, `reqseq ui` runs in your browser, and `ReqSeq` ends with a message that names the package.
+- Linux: nothing to do.
 
 ## CLI
 
@@ -59,6 +59,8 @@ In a pipeline with Node 22, install the tarball instead, without network: `npm i
 ## App
 
 Start `ReqSeq.app`, `ReqSeq.exe` or `ReqSeq` for the web UI in a window of its own, the [desktop shell](/concepts/the-desktop-shell/). `reqseq ui` in a workspace opens it in your browser instead; `--no-open` only prints its address, whose token is new on every start. It runs until Ctrl-C.
+
+On Linux the desktop shell alone needs the system's web engine, on Ubuntu 24.04 the package `libwebkit2gtk-4.1-0`, a prerequisite and no step of the installation: without it, `reqseq ui` runs in your browser, and `ReqSeq` ends with a message that names the package.
 
 ## API
 

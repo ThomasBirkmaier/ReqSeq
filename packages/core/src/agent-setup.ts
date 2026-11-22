@@ -268,10 +268,11 @@ const skillSentence = (client: Client, facts: SetupFacts): string => {
 const movedFolder = (folder: string, platform: string): string => {
   const p = path.posix;
   const contents = p.dirname(folder);
+  // macOS compares names without case, as `sameFolder` does.
   return platform === "darwin" &&
-    p.basename(folder) === "Resources" &&
-    p.basename(contents) === "Contents" &&
-    p.dirname(contents).endsWith(".app")
+    p.basename(folder).toLowerCase() === "resources" &&
+    p.basename(contents).toLowerCase() === "contents" &&
+    p.dirname(contents).toLowerCase().endsWith(".app")
     ? p.dirname(contents)
     : folder;
 };

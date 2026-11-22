@@ -361,6 +361,12 @@ describe("folders and environment", () => {
       runtime: "/applications/reqseq.app/contents/resources/runtime/node",
     };
     expect(serverOf({ ...mac, installation: macUpper }).command).toBe(`${MAC_FOLDER}/bin/reqseq`);
+    // The bundle is named in any case of its names.
+    const lower = "/applications/reqseq.app/contents/resources";
+    const macLower = { runtime: `${lower}/runtime/node`, entry: `${lower}/lib/dist/bin.js`, electron: false };
+    expect(setup("other", { ...mac, installation: macLower }).valid).toBe(
+      "The setup holds as long as ReqSeq stays in /applications/reqseq.app.",
+    );
     const linuxUpper = { ...linux.installation, runtime: "/home/ann/REQSEQ/runtime/node" };
     expect(serverOf({ ...linux, installation: linuxUpper }).command).toBe("/home/ann/REQSEQ/runtime/node");
   });

@@ -151,8 +151,15 @@ describe("SR-252: the desktop shell of the delivery", () => {
     await waitFor(stream, 60_000, "a connection of the window to the server");
     await new Promise((resolve) => setTimeout(resolve, 10_000));
     expect(stream(), "a connection of the window stays open after 10 s").toBeDefined();
-    // Nothing else started below the server: no browser, no opener.
-    expect(descendants(processes(), server.pid).map((p) => p.args.join(" "))).toEqual([]);
+    // Nothing else started below the server: no browser, no opener. Windows gives a console program its console host
+    // even without a window (CREATE_NO_WINDOW), as a child of its own.
+    const host = (p: Process): boolean =>
+      process.platform === "win32" && /(?:^|[\\/])conhost\.exe$/i.test(p.args[0] ?? "");
+    expect(
+      descendants(processes(), server.pid)
+        .filter((p) => !host(p))
+        .map((p) => p.args.join(" ")),
+    ).toEqual([]);
     // The end: the server goes with the shell.
     shell.kill();
     await exit;

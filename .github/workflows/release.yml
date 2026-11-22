@@ -259,6 +259,9 @@ jobs:
           name: delivery
           path: delivery
       - name: Delivery tests
+        env:
+          # Linux: the runner is thrown away, so the last test may remove the web engine (SR-252 AK8).
+          REQSEQ_DELIVERY_REMOVE_ENGINE: "1"
         run: scripts/package/delivery-tests.sh
       - name: Upload JUnit results (evidence, D-050)
         if: always()
