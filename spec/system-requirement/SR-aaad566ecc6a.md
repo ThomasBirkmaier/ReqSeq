@@ -1,7 +1,7 @@
 ---
 id: 4a6851b2-8c80-43c1-ac81-aaad566ecc6a
 type: system-requirement
-status: approved
+status: obsolete
 title: Hell und dunkel darstellen
 spec-id: SR-113
 requirement-type: quality

@@ -1,7 +1,7 @@
 ---
 id: 7bdef2ad-06d9-4f28-b7cf-6e6f7f2bdd8c
 type: system-requirement
-status: approved
+status: obsolete
 title: Schnell zu Requirements gelangen
 spec-id: SR-119
 rationale: Gefragt ist der schnellste Weg zu einem bestimmten Requirement und zu allen Requirements eines Needs. Zielwege nach [ThomasBirkmaier/ReqSeq-archive#422, Kommentar](https://github.com/ThomasBirkmaier/ReqSeq-archive/issues/422#issuecomment-6425565888), Tastendrücke ohne den getippten Suchtext gezählt.
