@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createFolder } from "./folder.js";
+import type { CommandError } from "../catalog.js";
+import { createFolder, createFolders, removeEmptyFolders } from "./folder.js";
 
 let root: string;
 
@@ -64,5 +65,33 @@ describe("createFolder", () => {
     await expect(createFolder(root, "a")).rejects.toMatchObject({ code: "internal" });
     vi.spyOn(fs, "lstat").mockRejectedValueOnce(errno("EACCES"));
     await expect(createFolder(root, "a")).rejects.toMatchObject({ code: "file.read-only" });
+  });
+});
+
+describe("createFolders and removeEmptyFolders (SR-235 AK10, SR-207 AK7)", () => {
+  it("creates each folder below the one before, and on a failure removes the ones it created", async () => {
+    expect(await createFolders([abs("a"), abs("a/b")], root)).toEqual([abs("a"), abs("a/b")]);
+    await fs.writeFile(abs("a/b/file"), "x");
+    // A file took the place of the third folder: the two before it go again.
+    const error = await createFolders([abs("x"), abs("x/y"), abs("a/b/file")], root).catch((e: unknown) => e);
+    expect([
+      (error as CommandError).code,
+      (error as CommandError).message,
+      (error as CommandError).details,
+    ]).toEqual([
+      "file.not-regular",
+      "Not exported: a/b/file or a path above it is a file, not a folder",
+      { fields: ["output"] },
+    ]);
+    expect(await fs.readdir(root)).toEqual(["a"]);
+  });
+
+  it("removes each folder that is empty, the deepest first, and keeps one that holds anything", async () => {
+    await fs.mkdir(abs("a/b/c"), { recursive: true });
+    await fs.mkdir(abs("k/l"), { recursive: true });
+    await fs.writeFile(abs("k/mine"), "x");
+    await removeEmptyFolders([abs("a"), abs("a/b"), abs("a/b/c"), abs("k"), abs("k/l"), abs("gone")]);
+    expect((await fs.readdir(root)).sort()).toEqual(["k"]);
+    expect(await fs.readdir(abs("k"))).toEqual(["mine"]);
   });
 });

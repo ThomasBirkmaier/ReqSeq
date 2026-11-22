@@ -418,33 +418,17 @@ const fileName = (name: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || "workspace";
 
-/** An export's answer; a missing folder above the place to write is said in plain words. */
-async function exporting<T>(running: Promise<T>): Promise<T> {
-  try {
-    return await running;
-  } catch (error) {
-    if (error instanceof ReqSeqError && error.code === "file.folder-missing") {
-      throw new ReqSeqError(
-        error.status,
-        { code: "ui.export-folder-missing", message: error.message, details: error.details },
-        error.command,
-      );
-    }
-    throw error;
-  }
-}
-
 function exportPage(): HTMLElement {
   const html = pathField({
     label: "Folder",
     name: "html-out",
     value: `${EXPORTS}/html`,
-    help: "A new or empty folder, or one of an earlier HTML export. The folder above it must exist.",
+    help: "A new or empty folder, or one of an earlier HTML export. Missing folders above it are created.",
   });
   const htmlButton = button("Export HTML");
   const htmlOut = h("div", { "aria-live": "polite" });
   onPress(htmlButton, htmlOut, async () => {
-    const out = await exporting(call("html.export", { output: html.input.value.trim() }));
+    const out = await call("html.export", { output: html.input.value.trim() });
     return result(
       out.answer,
       h("p", null, "Written to ", path(out.folder)),
@@ -460,12 +444,12 @@ function exportPage(): HTMLElement {
     name: "reqif-out",
     value: `${EXPORTS}/${fileName(store.workspaceName)}.reqif`,
     files: true,
-    help: "The folder of the file must exist.",
+    help: "Missing folders above the file are created.",
   });
   const reqifButton = button("Export ReqIF");
   const reqifOut = h("div", { "aria-live": "polite" });
   onPress(reqifButton, reqifOut, async () => {
-    const out = await exporting(call("reqif.export", { output: reqif.input.value.trim() }));
+    const out = await call("reqif.export", { output: reqif.input.value.trim() });
     return result(out.answer, h("p", null, "Written to ", path(out.file)), problemList(out.problems));
   });
 

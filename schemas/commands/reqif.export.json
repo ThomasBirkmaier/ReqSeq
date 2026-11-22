@@ -21,7 +21,7 @@
     "type": "object",
     "properties": {
       "output": {
-        "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced.",
+        "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced. In a repository of the workspace, missing folders above it are created; outside the repositories, its folder must exist.",
         "$ref": "../common.schema.json#/$defs/localPath"
       },
       "selection": {

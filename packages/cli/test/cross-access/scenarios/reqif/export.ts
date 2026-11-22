@@ -1,4 +1,6 @@
 // Cross-access scenarios of reqif.export, in addition to the default one (cross-access.test.ts).
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
@@ -97,6 +99,39 @@ scenariosOf("reqif.export", [
       expect([error.code, error.message]).toEqual([
         "file.faulty",
         "Not exported: results.xml is no ReqIF file (its root element is <testsuites>, not <REQ-IF>); ReqSeq replaces only a ReqIF file",
+      ]);
+    },
+  },
+  {
+    tag: "[SR-207/AK-b0rs]",
+    name: "missing folders above the file in the repository are created, and the file is written",
+    fixture: REQIF_EXPORT,
+    input: { output: "exports/reqif/s6.reqif", selection: { ids: [WIND_S6] } },
+    expect: "output",
+    masks: EXPORT_MASKS,
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files["exports/reqif/s6.reqif"]).toContain("<REQ-IF");
+      }
+    },
+  },
+  {
+    tag: "[SR-207/AK-d980]",
+    name: "missing folders through node_modules are refused with the reason, and no folder is created",
+    fixture: REQIF_EXPORT,
+    input: { output: "node_modules/reqif/s6.reqif", selection: { ids: [WIND_S6] } },
+    expect: "error",
+    after: async ({ root }) => {
+      await expect(fs.lstat(path.join(root, "node_modules"))).rejects.toThrow();
+    },
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        expect(result.changed).toEqual([]);
+      }
+      const { error } = results["core"]?.outcome as { error: { code: string; message: string } };
+      expect([error.code, error.message]).toEqual([
+        "input.invalid",
+        "Not exported: node_modules/reqif/s6.reqif in repository system: node_modules is named .git or node_modules (or a spelling Windows or macOS take for it), which ReqSeq never reads or writes",
       ]);
     },
   },

@@ -21071,7 +21071,7 @@
                 "type": "object",
                 "properties": {
                   "output": {
-                    "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced.",
+                    "description": "The ReqIF file to write: a new file, or a ReqIF file that is replaced. In a repository of the workspace, missing folders above it are created; outside the repositories, its folder must exist.",
                     "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "selection": {
@@ -21323,7 +21323,7 @@
                 "type": "object",
                 "properties": {
                   "output": {
-                    "description": "The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export.",
+                    "description": "The folder to write: a new folder, an empty folder, or the folder of an earlier HTML export. In a repository of the workspace, missing folders above it are created; outside the repositories, the folder above it must exist.",
                     "$ref": "#/components/schemas/common/$defs/localPath"
                   }
                 },

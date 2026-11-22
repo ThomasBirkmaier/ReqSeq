@@ -10,6 +10,7 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { elementStoreState } from "../model/index.js";
+import type { ExportBaseline } from "./baselines.js";
 import { writeHtmlExport } from "./export.js";
 import { contentOf, expectSafe } from "./safe-html.test-helper.js";
 
@@ -177,5 +178,18 @@ describe("html.export with images and Markdown properties", () => {
     vi.restoreAllMocks();
     expect((error as CommandError).code).toBe("internal");
     await expect(fs.stat(fixture.path("site"))).rejects.toThrow();
+  });
+});
+
+describe("writeHtmlExport after the target is open", () => {
+  it("[SR-235/AK-gpr1] removes the folders it created when reading the baselines fails", async () => {
+    const { fixture, workspace } = await open({});
+    // A baseline without rows breaks the baseline pages after the folders were created.
+    const broken = [{ name: "broken" }] as unknown as readonly ExportBaseline[];
+    const error = await writeHtmlExport(workspace, fixture.path("exports/new/site"), {
+      baselines: broken,
+    }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    await expect(fs.stat(fixture.path("exports"))).rejects.toThrow();
   });
 });

@@ -24,7 +24,10 @@
 // - Refused before anything is written (`input.invalid`): a target in a `.git` folder, also through
 //   links (D-036, SR-083 AK4), and a folder ReqSeq reads YAML files from (metamodel, filters,
 //   perspectives, baselines, mappings), where the marker file would be read as one of them.
-// - An error while writing leaves the target as it was (SR-235 AK6, `ExportFolder.abort`).
+// - Missing folders above the target (`foldersAbove`, SR-235 AK7 to AK9): judged after these
+//   refusals and before anything else is read, created when the export folder is opened.
+// - An error while writing leaves the target as it was (SR-235 AK6, `ExportFolder.abort`) and removes
+//   each folder the export created that is empty again (SR-235 AK10).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
@@ -49,6 +52,7 @@ import type {
 import {
   fieldDifference,
   filesAtCommit,
+  foldersAbove,
   UNKNOWN_TYPE_PREFIX,
   currentFormsOf,
   currentVersions,
@@ -686,6 +690,16 @@ export const writeHtmlExport = async (
   ]);
   await refuseGitAt(target, target);
   await refuseDataFolder(layout, target);
+  // SR-235 AK7 to AK9: judged now, created by `openExportFolder`.
+  const above = await foldersAbove(layout, target, {
+    shown: path.basename(target),
+    outside: () =>
+      new CommandError(
+        "file.folder-missing",
+        `Not exported: the folder above ${path.basename(target)} does not exist; outside the repositories of the workspace ReqSeq creates only the export folder itself`,
+        { fields: ["output"] },
+      ),
+  });
   const vendor = await readVendor(options.vendor);
   const made = await footerOf(workspace, layout, store, options);
   const footer = `<span class="rq-footer">${escapeHtml(made)}</span>`;
@@ -700,7 +714,7 @@ export const writeHtmlExport = async (
   const isInvalid = (record: ElementRecord): boolean => invalid.has(String(record.data["status"]));
   // The elements that get a page; a reference to any other is its link text.
   const paged = new Set(store.elements.filter((r) => !isInvalid(r) && !shared.has(r.id)));
-  const folder = await openExportFolder(target, MARKER);
+  const folder = await openExportFolder(target, MARKER, { folders: above, root: layout.root });
   // The elements with an invalid status whose page the earlier export wrote get the short page (AK8).
   const stubbed = new Set(
     store.elements.filter((r) => isInvalid(r) && !shared.has(r.id) && folder.earlier.has(elementPage(r.id))),
@@ -709,7 +723,11 @@ export const writeHtmlExport = async (
   const { baselines, since, compare, rowElement } = await baselineSite(
     { layout, metamodel, store, shortIds, titleKey, withPage },
     options.baselines,
-  );
+  ).catch(async (error: unknown) => {
+    // The target is open: it is left as it was, and the folders the export created go (SR-235 AK10).
+    await folder.abort();
+    throw error;
+  });
   const problems: Problem[] = [...store.problems.filter((p) => p.severity === "error")];
   const reference = referenceResolver(layout, store, shortIds, withPage);
   const pageContext: Omit<ElementPageContext, "members"> = {

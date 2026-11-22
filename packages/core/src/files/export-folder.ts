@@ -2,9 +2,12 @@
 // packages/core/docs/html-export.md). Its marker file names the files the last export wrote; only
 // those are ever replaced or removed, and every other file stays as it is (SR-235 AK2).
 //
-// - Opening refuses, changing nothing: a target that is no folder (`file.not-regular`), a folder
-//   above it that is missing (`file.folder-missing`), a non-empty folder without a readable marker
-//   (`file.faulty`, SR-235 AK1), and another export running into it (`file.faulty`).
+// - Opening first creates the missing folders above the target that the caller judged
+//   (`foldersAbove` of the model, SR-235 AK7), then refuses, changing nothing else: a target that is no
+//   folder (`file.not-regular`), a folder above it that is missing (`file.folder-missing`), a non-empty
+//   folder without a readable marker (`file.faulty`, SR-235 AK1), and another export running into it
+//   (`file.faulty`). On a refusal or an error, and when the export is given up, the target it created
+//   and each folder above that is empty again are removed (SR-235 AK10).
 // - The folder is walked without following links. A folder named `.git` or holding a `.git` entry, a
 //   link and anything that is not a file or folder are opaque: nothing in them counts as the
 //   export's. A marker entry counts only as a relative path in NFC without `.`, `..`, empty names,
@@ -24,6 +27,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { CommandError } from "../catalog.js";
+import { createFolders, removeEmptyFolders } from "./folder.js";
 import { processRuns } from "./lock.js";
 import { errorCode, isTakenForGit } from "./paths.js";
 import { readFileSnapshot } from "./read.js";
@@ -196,11 +200,40 @@ const readMarker = async (
   return { snapshot: read.snapshot, text, entries: marker["files"] as unknown[] };
 };
 
+/** Creates the target when it is missing and says whether it did; refuses one that is no folder. */
+const createTarget = async (target: string, shownName: string): Promise<boolean> => {
+  const notFolder = (): CommandError =>
+    new CommandError("file.not-regular", `Not exported: ${shownName} is no folder`, { fields: ["output"] });
+  const stat = await fs.stat(target).catch((error: unknown) => {
+    if (errorCode(error) === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  });
+  if (stat !== undefined) {
+    if (!stat.isDirectory()) {
+      throw notFolder();
+    }
+    return false;
+  }
+  await fs.mkdir(target).catch((error: unknown) => {
+    // Taken since the check, or a link that leads nowhere.
+    throw errorCode(error) === "EEXIST" ? notFolder() : error;
+  });
+  return true;
+};
+
 /** Opens the target `target` (absolute) for a new export (see the file comment). */
-export const openExportFolder = async (target: string, spec: MarkerSpec): Promise<ExportFolder> => {
+export const openExportFolder = async (
+  target: string,
+  spec: MarkerSpec,
+  above: { readonly folders: readonly string[]; readonly root: string } = { folders: [], root: target },
+): Promise<ExportFolder> => {
   const shownName = path.basename(target);
+  const createdAbove = await createFolders(above.folders, above.root);
   const parentStat = await fs.stat(path.dirname(target)).catch(() => undefined);
   if (parentStat?.isDirectory() !== true) {
+    // `above` names the folders up to the target's; none were created when it was missing.
     throw new CommandError(
       "file.folder-missing",
       `Not exported: the folder above ${shownName} does not exist`,
@@ -209,35 +242,22 @@ export const openExportFolder = async (target: string, spec: MarkerSpec): Promis
       },
     );
   }
-  const stat = await fs.stat(target).catch((error: unknown) => {
-    if (errorCode(error) === "ENOENT") {
-      return undefined;
-    }
-    throw error;
-  });
-  if (stat !== undefined && !stat.isDirectory()) {
-    throw new CommandError("file.not-regular", `Not exported: ${shownName} is no folder`, {
-      fields: ["output"],
-    });
-  }
-  const created = stat === undefined;
-  if (created) {
-    await fs.mkdir(target).catch((error: unknown) => {
-      // Taken since the check, or a link that leads nowhere.
-      throw errorCode(error) === "EEXIST"
-        ? new CommandError("file.not-regular", `Not exported: ${shownName} is no folder`, {
-            fields: ["output"],
-          })
-        : error;
-    });
-  }
-  const folder = await fs.realpath(target);
-  const staging = path.join(folder, STAGING_FOLDER);
+  let created = false;
+  let folder = target;
   const undoCreate = async (): Promise<void> => {
     if (created) {
       await fs.rmdir(folder).catch(() => undefined);
     }
+    await removeEmptyFolders(createdAbove);
   };
+  try {
+    created = await createTarget(target, shownName);
+    folder = await fs.realpath(target);
+  } catch (error) {
+    await undoCreate();
+    throw error;
+  }
+  const staging = path.join(folder, STAGING_FOLDER);
   try {
     const marker = await readMarker(folder, spec);
     const kinds = await walk(folder);
@@ -266,7 +286,7 @@ export const openExportFolder = async (target: string, spec: MarkerSpec): Promis
         path.join(staging, OWNER_FILE),
         JSON.stringify({ pid: process.pid, started: Date.now(), run }),
       );
-      const opening = await opened(folder, spec, kinds, marker, created);
+      const opening = await opened(folder, spec, kinds, marker, undoCreate);
       const ending =
         <T>(end: () => Promise<T>) =>
         async (): Promise<T> => {
@@ -357,7 +377,7 @@ const opened = async (
   spec: MarkerSpec,
   kinds: Map<string, Kind>,
   marker: { snapshot: FileSnapshot; text: string; entries: unknown[] } | undefined,
-  created: boolean,
+  undoCreate: () => Promise<void>,
 ): Promise<ExportFolder> => {
   const staging = path.join(folder, STAGING_FOLDER);
   const { old, ignored, oldUnder } = oldFiles(marker?.entries ?? [], spec, kinds);
@@ -395,9 +415,7 @@ const opened = async (
   const giveUp = async (): Promise<void> => {
     await restoreMarker();
     await removeTree(staging);
-    if (created) {
-      await fs.rmdir(folder).catch(() => undefined);
-    }
+    await undoCreate();
   };
   try {
     await writeMarker(markerFile(old, true));
