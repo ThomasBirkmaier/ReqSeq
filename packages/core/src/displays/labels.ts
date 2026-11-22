@@ -58,4 +58,4 @@ export const emptyValueLabel = (value: string | undefined): string =>
 export const boundNote = (bound: number): string => `Only the nearest ${String(bound)} are shown.`;
 
 /** The ID of an element as every display shows it (SR-084 AK4), the rule of the graph words. */
-export { shownId } from "../graph/words.js";
+export { degreePercent, shownId } from "../graph/words.js";

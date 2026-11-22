@@ -36,9 +36,9 @@ import {
 import { markdown } from "../markdown.js";
 import { swap } from "../motion.js";
 import type { Route } from "../router.js";
-import { HOME, addRoute, fromOf, hashOf, isCurrent, parseHash, titleOf, withFrom } from "../router.js";
+import { addRoute, fromOf, hashOf, isCurrent, withFrom } from "../router.js";
 import { el, refOf, shownId, store, verificationOf, viewSelection } from "../store.js";
-import { queueOf } from "../queues.js";
+import { backOf, elementTabs } from "../element-tabs.js";
 
 type Neighbourhood = Pick<TraceNeighbourhoodOutput, "nodes" | "edges" | "total">;
 
@@ -66,22 +66,6 @@ const incomingOf = (id: string): Promise<Neighbourhood> => {
     ...viewSelection(),
   });
 };
-
-/** The words of the way back: the queue or element the page was opened from, else the overview. */
-function backTarget(from: string | null): { readonly href: string; readonly title: string } {
-  const route = parseHash(from ?? HOME);
-  const [area, part] = route.parts;
-  if (area === "e" && part !== undefined) {
-    const e = el(part);
-    return { href: `#${route.hash}`, title: e === undefined ? part : (e.identifier ?? e.title ?? part) };
-  }
-  const named = titleOf(route);
-  if (area !== "q" && named !== undefined) {
-    return { href: `#${route.hash}`, title: named };
-  }
-  const queue = area === "q" && part !== undefined ? queueOf(part) : undefined;
-  return { href: `#${route.hash}`, title: queue === undefined ? "Overview" : queue.title() };
-}
 
 /** The kind label of an element: its type, then the values of the choices its type requires. */
 const kindLabel = (mm: Metamodel, e: DataExportElement): string =>
@@ -476,13 +460,14 @@ let observer: ResizeObserver | undefined;
 
 async function render(root: HTMLElement, route: Route): Promise<void> {
   const ref = route.parts[1] ?? "";
-  const back = backTarget(route.params.get("from"));
-  const topbar = (crumb: Child): HTMLElement =>
+  const back = backOf(route.params.get("from"));
+  const topbar = (crumb: Child, tabs: Child = null): HTMLElement =>
     h(
       "header",
       { class: "topbar" },
       h("a", { class: "back", href: back.href }, icon.back(), h("span", null, `Back to ${back.title}`)),
       crumb,
+      tabs,
     );
   let got: ElementGetOutput;
   let nb: Neighbourhood | undefined;
@@ -534,6 +519,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
         firstPackage === undefined
           ? null
           : h("span", { class: "crumb" }, el(firstPackage.id)?.title ?? firstPackage.title ?? ""),
+        elementTabs(e, "e", route.params.get("from")),
       ),
       h("main", { id: "main", class: "trace-wrap", tabindex: -1 }, trace),
     ),

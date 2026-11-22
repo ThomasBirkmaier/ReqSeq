@@ -1,0 +1,140 @@
+/* The trace matrix: one row per element, one column per relation kind and direction, sticky head and first
+   column; gaps, outdated links and missing targets are marked. */
+.mpage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100vh;
+}
+.mpage .lh {
+  flex: none;
+}
+.mpage > .lead,
+.mpage > .pager,
+.mpage > .note,
+.mpage > .notice,
+.mpage > .empty {
+  padding: 0 28px;
+}
+.mpage > .lead {
+  padding-bottom: 10px;
+}
+.mctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 12px;
+}
+.mscroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+.matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  min-width: 100%;
+}
+.matrix th,
+.matrix td {
+  border-bottom: 1px solid var(--line-soft);
+  border-right: 1px solid var(--line-soft);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  background: var(--pane);
+}
+.matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sunk);
+  font-weight: 500;
+  min-width: 150px;
+}
+.matrix .rowh {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 260px;
+  max-width: 340px;
+}
+.matrix thead .rowh {
+  z-index: 3;
+}
+.matrix .cn {
+  display: block;
+}
+.matrix .cs {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.matrix tbody .rowh a {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  font-weight: 400;
+}
+.matrix.noid tbody .rowh a {
+  grid-template-columns: minmax(0, 1fr);
+}
+.matrix .id {
+  color: var(--faint);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.matrix tr.obs .t {
+  text-decoration: line-through;
+  color: var(--faint);
+}
+.chip {
+  display: inline-block;
+  margin: 0 6px 4px 0;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+a.chip:hover {
+  border-color: var(--line-strong);
+}
+.chip.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
+}
+.chip.bad {
+  background: var(--bad-soft);
+  border-color: var(--bad-border);
+}
+.chip .why {
+  margin-left: 6px;
+  font-size: 11.5px;
+  color: var(--warn);
+}
+.matrix td.gap {
+  background: var(--warn-soft);
+}
+.gapw {
+  display: block;
+  font-size: 12px;
+  color: var(--warn);
+}
+.tcs {
+  display: grid;
+  gap: 2px;
+  min-width: 160px;
+}
+.tc {
+  font-size: 12px;
+  color: var(--warn);
+}
+.tc.not-executed {
+  color: var(--faint);
+}

@@ -38,7 +38,8 @@ import {
 import { swap } from "../motion.js";
 import { PAGE, allPages } from "../pages.js";
 import type { Route } from "../router.js";
-import { addRoute, addTitle, hashOf, isCurrent } from "../router.js";
+import { addRoute, hashOf, isCurrent } from "../router.js";
+import { addPlace } from "../element-tabs.js";
 import {
   el,
   hasVariants,
@@ -1213,13 +1214,13 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
 }
 
 addRoute("l", render);
-addTitle("l", titleOfList);
+addPlace("l", titleOfList);
 
 // ---------- The rail ----------
 
 addRailSection({
   order: 20,
-  title: "Browse",
+  title: "Lists",
   // A refused read leaves these sections empty; the list pages show the refusal.
   prepare: async () => {
     await savedData().catch(() => undefined);

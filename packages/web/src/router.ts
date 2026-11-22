@@ -62,13 +62,3 @@ export function addRoute(first: string, render: Render): void {
 
 /** The render of `route`, or undefined when no area has it. */
 export const renderOf = (route: Route): Render | undefined => routes.get(route.parts[0] ?? "");
-
-const titles = new Map<string, (route: Route) => string | undefined>();
-
-/** Registers what a way back to the routes whose first part is `first` calls them ("Back to …"). */
-export function addTitle(first: string, title: (route: Route) => string | undefined): void {
-  titles.set(first, title);
-}
-
-/** What a way back calls `route`, when its area named it. */
-export const titleOf = (route: Route): string | undefined => titles.get(route.parts[0] ?? "")?.(route);

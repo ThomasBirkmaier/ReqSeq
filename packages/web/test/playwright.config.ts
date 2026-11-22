@@ -25,12 +25,12 @@ export default defineConfig<Options>({
     {
       name: "orbit",
       use: { kind: "orbit" },
-      testMatch: /(overview|element|routes|changes|lists)\.spec\.ts$/,
+      testMatch: /(overview|element|routes|changes|evidence|trace|lists)\.spec\.ts$/,
     },
     {
       name: "no-identifier",
       use: { kind: "no-identifier" },
-      testMatch: /(overview|element|routes|changes|lists)\.spec\.ts$/,
+      testMatch: /(overview|element|routes|changes|evidence|trace|lists)\.spec\.ts$/,
     },
   ],
 });
