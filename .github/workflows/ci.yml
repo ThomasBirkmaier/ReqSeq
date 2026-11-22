@@ -30,10 +30,10 @@ concurrency:
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
 # run code from pull requests on a machine of its own).
-# Two lanes (#303, #412): every push starts the Ubuntu lane (`static`, `checks` and `electron` on ubuntu-24.04). A draft
+# Two lanes (#303, #412): every push starts the Ubuntu lane (`static` and `checks` on ubuntu-24.04). A draft
 # pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
-# `checks` and `electron` on macos-26 and windows-2025, Electron in three shards on each (#1311, #1650).
+# `checks` on macos-26 and windows-2025. The Electron tests are paused (#2295).
 # The lanes ran one after the other while runner minutes cost money; in a public repository they are free, and in
 # sequence a full run took about 24 minutes instead of about 15 (#412). So every pull request is checked on all
 # three systems before its merge (merge skill), but not every push.
@@ -143,7 +143,7 @@ jobs:
 
       # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
       # Markdown at the root; .github/scripts/tests-needed.sh) skip the build, the unit tests, the spec check and
-      # e2e, and Electron skips its tests, to save runner time (ThomasBirkmaier/ReqSeq-archive#520). Nightly and manual runs always run
+      # e2e, to save runner time (ThomasBirkmaier/ReqSeq-archive#520). Nightly and manual runs always run
       # everything. If this step fails, `tests` stays empty and everything runs (and the job is red).
       - name: Changed files
         id: changes
@@ -156,7 +156,7 @@ jobs:
           tests="$(bash <(git show HEAD^1:.github/scripts/tests-needed.sh) <<< "$files")"
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
           {
-            echo "Build, tests, spec check, e2e and Electron needed: \`$tests\` for $(printf '%s\n' "$files" | grep -c .) changed files:"
+            echo "Build, tests, spec check and e2e needed: \`$tests\` for $(printf '%s\n' "$files" | grep -c .) changed files:"
             echo '```'
             printf '%s\n' "$files"
             echo '```'
@@ -318,178 +318,7 @@ jobs:
           path: test-results/junit-e2e.xml
           if-no-files-found: ignore
 
-  # ADR-0010, ADR-0011: the Electron tests (packages/app/test/) start the built app with Playwright
-  # (`_electron.launch`): it shows the status of a fixture workspace, an invoke gives what the CLI gives
-  # (SR-080), the session cancels every request that is not local (SR-078), the renderer is sandboxed.
-  # On Linux under xvfb with Chromium's sandbox on (no --no-sandbox; the runner user is not root).
-  # In parallel to `checks`: it is the longest job, so on Ubuntu it runs in two shards on two runners (#303), each
-  # with one app at a time (two workers on one runner made apps fail to start under load). `electron (ubuntu-24.04)`
-  # below is green when both shards are. `electron-macos-shard` and `electron-windows-shard` run the same steps on macOS and Windows.
-  electron-shard:
-    name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
-    # Before the files were dealt out by their number of tests (#1650), a run took 9-12 minutes (median 9.1 for shard 1
-    # and 11.4 for shard 2, up to 14.7, 95 green shard jobs, 2026-11-13/14), and a runner about 35 % slower hit the old
-    # bound of 15 with every test green (#1711); 35 % over the slowest test step (13.4) plus setup is about 19. The
-    # bound ends a hang.
-    timeout-minutes: 20
-    if: ${{ github.event.action != 'closed' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-        shards: [2]
-    runs-on: ubuntu-24.04
-    steps: &electron-steps
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
-          persist-credentials: false
-      # As in `checks` (ThomasBirkmaier/ReqSeq-archive#520): a pull request that changes only docs skips the rest of this job within seconds
-      # (the job then shows as passed, its steps as skipped). If this step fails, the job is red.
-      - name: Changed files
-        id: changes
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          tests="$(git diff --name-only --no-renames HEAD^1 HEAD | bash <(git show HEAD^1:.github/scripts/tests-needed.sh))"
-          echo "tests=$tests" >> "$GITHUB_OUTPUT"
-          echo "Electron tests needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: steps.changes.outputs.tests != 'false'
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: steps.changes.outputs.tests != 'false'
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - if: steps.changes.outputs.tests != 'false'
-        run: pnpm install --frozen-lockfile
-      # The Electron binary (about 100 MB) is downloaded once per version and system, not on every run (#303):
-      # @electron/get keeps its downloads in `electron_config_cache`.
-      - name: Electron version
-        id: electron
-        if: steps.changes.outputs.tests != 'false'
-        shell: bash
-        run: |
-          version="$(node -p "require('./packages/app/node_modules/electron/package.json').version")"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "electron_config_cache=$RUNNER_TEMP/electron-cache" >> "$GITHUB_ENV"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: electron-cache
-        if: steps.changes.outputs.tests != 'false'
-        with:
-          path: ${{ runner.temp }}/electron-cache
-          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron.outputs.version }}
-      # Saved right after the download, so that a red test run still fills the cache.
-      - name: Electron binary
-        if: steps.changes.outputs.tests != 'false'
-        run: pnpm --filter @reqseq/app electron:install
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        # One shard saves; all would try the same key.
-        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && (matrix.shard || 1) == 1
-        with:
-          path: ${{ runner.temp }}/electron-cache
-          key: ${{ steps.electron-cache.outputs.cache-primary-key }}
-      # Core (the app loads it in its core process) and the CLI (the tests compare with it).
-      - if: steps.changes.outputs.tests != 'false'
-        run: pnpm build
-      - name: Display server and libraries for Electron (Linux)
-        if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
-        run: |
-          # GitHub's image has most of these; install whatever is missing.
-          packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
-          if ! dpkg -s $packages >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
-          fi
-          # Chromium's sandbox needs unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
-          # If they are still blocked, the app does not start and the step after fails: never skipped silently.
-          if ! unshare -r true 2>/dev/null; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      # The guide's screenshots of main's last nightly or manual run (saved below), the reference of the step "Guide
-      # screenshots" (#1258). Restored to the folder they were saved from, then moved aside before the tests write
-      # the new ones there.
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: main-screenshots
-        if: runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false'
-        with:
-          path: test-results/electron/guide-images
-          key: guide-images-main-none
-          restore-keys: guide-images-main-
-      - name: Screenshots of main aside
-        if: runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false'
-        run: |
-          if [ -d test-results/electron/guide-images ]; then
-            mkdir -p build && mv test-results/electron/guide-images build/guide-images-main
-          fi
-      # `test:electron` downloads the Electron binary unless it is cached (pnpm runs no install scripts), builds the
-      # app with electron-vite and runs Playwright.
-      - name: Electron tests (xvfb)
-        if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
-        # Shard n of k runs every k-th file (test/playwright.config.ts); without a shard, all of them.
-        env:
-          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/{1}', matrix.shard, matrix.shards) || '' }}
-        run: xvfb-run -a pnpm --filter @reqseq/app test:electron
-      - name: Electron tests
-        if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
-        env:
-          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/{1}', matrix.shard, matrix.shards) || '' }}
-        run: pnpm --filter @reqseq/app test:electron
-      # The guide's screenshots (ADR-0017): the Linux shard that runs guide-screenshots.spec.ts has just made them
-      # (test-results/electron/guide-images/). A nightly or manual run on main keeps them as the reference of later
-      # pull requests (a few hundred KB; each run saves a new entry, the restore takes the newest, and GitHub evicts an
-      # entry unused for 7 days).
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: runner.os == 'Linux' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && hashFiles('test-results/electron/guide-images/*.png') != ''
-        with:
-          path: test-results/electron/guide-images
-          key: guide-images-main-${{ github.run_id }}-${{ github.run_attempt }}
-      # On a pull request this compares them with main's and writes a warning and the step summary for each one that
-      # differs in more than 0.05 % of its pixels, unless the pull request changed its copy in docs/guide/images/,
-      # so the author runs `pnpm docs:screenshots` (#1258). Main's come from the same runner image; the committed
-      # copies would not do, since another machine's fonts move more pixels than a changed layout. A pull request
-      # merged after main's last run shows as a difference until the next nightly run. A second or two, on the build
-      # above; it never fails the job, since a rendering detail is no error. The other Linux shard makes none and says
-      # so; macOS and Windows skip the step.
-      - name: Guide screenshots changed
-        if: ${{ !cancelled() && runner.os == 'Linux' && github.event_name == 'pull_request' && steps.changes.outputs.tests != 'false' }}
-        continue-on-error: true
-        env:
-          GUIDE_IMAGES_MAIN_KEY: ${{ steps.main-screenshots.outputs.cache-matched-key }}
-        run: |
-          # HEAD is the merge commit of the pull request and HEAD^1 its base (checkout with fetch-depth 2).
-          GUIDE_IMAGES_UPDATED="$(git diff --name-only HEAD^1 HEAD -- docs/guide/images/)" \
-            node packages/docs/dist/guide-images-bin.js
-      - name: Upload JUnit results (evidence, D-050)
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: junit-electron-${{ matrix.os || 'ubuntu-24.04' }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
-          path: |
-            test-results/junit-electron.xml
-            test-results/electron/
-          if-no-files-found: ignore
-
-  # The one Ubuntu Electron result that the merge skill and the ruleset read: green when both shards are. A matrix of one
-  # (#412): a job with `needs` gets its check run only when it starts, and until then GitHub would read an older
-  # skipped run of the same name on the head commit (from a `closed` or a cancelled run) as passed. A skipped matrix
-  # job shows its name without the system instead.
-  electron:
-    name: electron (${{ matrix.os }})
-    needs: electron-shard
-    timeout-minutes: 2
-    if: ${{ !cancelled() && github.event.action != 'closed' }}
-    strategy:
-      matrix:
-        os: [ubuntu-24.04]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Both shards passed
-        env:
-          RESULT: ${{ needs.electron-shard.result }}
-        run: test "$RESULT" = success
-
-  # The platform lane (#303, #412): the steps of `checks` and `electron-shard` on macOS 26 and Windows 2025, in parallel
+  # The platform lane (#303, #412): the steps of `checks` on macOS 26 and Windows 2025, in parallel
   # to the Ubuntu lane. A pull request runs it only when it is not a draft. A skipped platform job shows its name
   # without the system (`checks (${{ matrix.os }})`), so a draft never shows the required names, and the merge skill asks
   # for the jobs of all three systems to be present and green.
@@ -509,82 +338,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps: *checks-steps
 
-  # macOS in shards like Ubuntu and Windows (#1229): in one job the suite of 455 tests took 18 to 28.5 minutes,
-  # depending on the runner (the same tests ran 1.5 times as long on a slow one), and hit the bound of 30. With two
-  # shards, the tests of one took about 15 minutes and up to 23 on a slow runner, and the bound of 25 cancelled green
-  # jobs (#1650); even balanced, two shards would come close to it there. A macOS test takes about 1.4 s longer than
-  # on Ubuntu. A third shard adds only its
-  # setup (about 2 minutes) to the macOS minutes of a run, and the macOS jobs of a run end sooner, so the 5 macOS
-  # runners are free as early as before. `electron (macos-26)` below is green when all three are.
-  electron-macos-shard:
-    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/3)
-    # About 195 tests per shard: 10-11 minutes of tests on a normal runner, about 16 on a slow one; the bound ends
-    # a hang.
-    timeout-minutes: 25
-    if: >-
-      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-26]
-        shard: [1, 2, 3]
-        shards: [3]
-    runs-on: ${{ matrix.os }}
-    steps: *electron-steps
-
-  electron-macos:
-    # A matrix of one, like `electron (ubuntu-24.04)`: a skipped job shows its name without the system.
-    name: electron (${{ matrix.os }})
-    needs: electron-macos-shard
-    timeout-minutes: 2
-    if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.action != 'closed' &&
-      !github.event.pull_request.draft)) }}
-    strategy:
-      matrix:
-        os: [macos-26]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: All shards passed
-        env:
-          RESULT: ${{ needs.electron-macos-shard.result }}
-        run: test "$RESULT" = success
-
-  # Windows runs Electron slowest, so in shards (#412). With two, a shard job took 17 minutes in the median and up to
-  # 18.4 (58 runs, 2026-11-09/10; 15 of them tests, the rest setup and build), and a slow runner hit the bound of 20
-  # (#1311). `electron (windows-2025)` below is green when all three are.
-  electron-windows-shard:
-    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/3)
-    # A normal run takes about 12 minutes; the bound ends a hang.
-    timeout-minutes: 20
-    if: >-
-      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2025]
-        shard: [1, 2, 3]
-        shards: [3]
-    runs-on: ${{ matrix.os }}
-    steps: *electron-steps
-
-  electron-windows:
-    # A matrix of one, like `electron (ubuntu-24.04)`: a skipped job shows its name without the system.
-    name: electron (${{ matrix.os }})
-    needs: electron-windows-shard
-    timeout-minutes: 2
-    if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.action != 'closed' &&
-      !github.event.pull_request.draft)) }}
-    strategy:
-      matrix:
-        os: [windows-2025]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: All three shards passed
-        env:
-          RESULT: ${{ needs.electron-windows-shard.result }}
-        run: test "$RESULT" = success
+  # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) runs in no job here, and its evidence
+  # in spec/evidence/ci/electron-* stays at the last run before the pause. The app's code stays in the repository
+  # until the web UI replaces it. release.yml still builds and tests the delivery with the app.
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs

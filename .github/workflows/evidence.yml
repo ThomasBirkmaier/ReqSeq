@@ -156,8 +156,8 @@ jobs:
         run: pnpm install --frozen-lockfile && pnpm --filter "@reqseq/cli..." build
 
       # ci: one artifact per suite and system (ci.yml): junit-<os>/junit.xml, junit-e2e-<os>/junit-e2e.xml,
-      # junit-electron-<os>[-<shard>]/junit-electron.xml (the Electron artifacts also hold screenshots, never read).
-      # perf: perf-results/test-results/junit-perf.xml and junit-perf-electron.xml (perf.yml, Ubuntu only).
+      # junit-electron-<os>[-<shard>]/junit-electron.xml (none while the Electron suite is paused).
+      # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only; the app's suite is paused).
       # delivery: junit-delivery-<os>/junit-delivery.xml (release.yml).
       - name: JUnit files of the run
         if: steps.skip.outputs.skip == 'false'
@@ -208,10 +208,10 @@ jobs:
           # The artifacts a full run of the kind uploads. The workflows upload with `if-no-files-found: ignore`, so
           # a suite that wrote no file has no artifact at all; it is listed, and main keeps its last file.
           case "$KIND" in
+            # The Electron suite is paused (ci.yml, #2295): no junit-electron-* artifact, and main keeps its last
+            # electron-* files.
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
-              junit-e2e-windows-2025 junit-electron-ubuntu-24.04-1 junit-electron-ubuntu-24.04-2 junit-electron-macos-26-1
-              junit-electron-macos-26-2 junit-electron-windows-2025-1 junit-electron-windows-2025-2
-              junit-electron-windows-2025-3" ;;
+              junit-e2e-windows-2025" ;;
             perf) expected="perf-results" ;;
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac
@@ -227,8 +227,7 @@ jobs:
               ci:junit-delivery-*) ;;
               ci:junit-*) echo "$artifact $dir/junit.xml unit-${artifact#junit-} ${artifact#junit-}" ;;
               perf:perf-results)
-                echo "$artifact $dir/test-results/junit-perf.xml perf-ubuntu-24.04 ubuntu-24.04"
-                echo "$artifact $dir/test-results/junit-perf-electron.xml perf-electron-ubuntu-24.04 ubuntu-24.04" ;;
+                echo "$artifact $dir/test-results/junit-perf.xml perf-ubuntu-24.04 ubuntu-24.04" ;;
               delivery:junit-delivery-*) echo "$artifact $dir/junit-delivery.xml delivery-${artifact#junit-delivery-} ${artifact#junit-delivery-}" ;;
             esac
           done > "$RUNNER_TEMP/files.txt"

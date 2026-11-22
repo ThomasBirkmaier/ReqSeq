@@ -23,7 +23,7 @@ acceptance-criteria:
   - key: zp1s
     text: Gegeben der Server läuft, wenn eine Seite abgerufen wird, dann enthält sie das Token nur, wenn die Adresse des Abrufs das Token trägt.
   - key: rq0f
-    text: Gegeben der Server läuft, wenn er eine Anfrage beantwortet, dann gibt keine Antwort einer anderen Herkunft den Zugriff frei, jede Antwort mit einer Seite untersagt dem Browser, sie in eine Seite anderer Herkunft einzubetten, und erlaubt ihm nur Quellen des eigenen Servers.
+    text: Gegeben der Server läuft, wenn er eine Anfrage beantwortet, dann gibt keine Antwort einer anderen Herkunft den Zugriff frei, jede Antwort mit einer Seite untersagt dem Browser, sie in eine Seite anderer Herkunft einzubetten, und erlaubt ihm nur Quellen des eigenen Servers und Bilder, die die Seite selbst aus einer Antwort des eigenen Servers bildet (`blob:`).
   - key: jv9g
     text: Gegeben der Server läuft, wenn er mit Ctrl-C oder, wo das System es kennt, mit SIGTERM beendet wird oder sein Terminal geschlossen wird, dann antwortet danach seine Adresse nicht mehr.
   - key: c53z
