@@ -19,5 +19,14 @@ export default defineConfig<Options>({
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
   },
-  projects: [{ name: "spec", use: { kind: "spec" } }],
+  // Every page runs on each workspace; the tests of the page's foundation and build on the spec copy only.
+  projects: [
+    { name: "spec", use: { kind: "spec" } },
+    { name: "orbit", use: { kind: "orbit" }, testMatch: /(overview|element|routes)\.spec\.ts$/ },
+    {
+      name: "no-identifier",
+      use: { kind: "no-identifier" },
+      testMatch: /(overview|element|routes)\.spec\.ts$/,
+    },
+  ],
 });

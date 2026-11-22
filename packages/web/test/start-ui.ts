@@ -6,20 +6,32 @@ import type { UiServer } from "@reqseq/api";
 import { createUiServer } from "@reqseq/api";
 import type { CommandTypes } from "@reqseq/core";
 import { Workspace, invoke } from "@reqseq/core";
-import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace, RunCommand } from "@reqseq/testkit";
+import {
+  createNoIdentifierWorkspace,
+  createOrbitLabWorkspace,
+  createSpecCopyWorkspace,
+} from "@reqseq/testkit";
 
 /** The built pages. */
 export const PAGES = path.join(import.meta.dirname, "..", "dist");
 
-/** The workspaces the tests run on; each Playwright project takes one. */
-export type WorkspaceKind = "spec";
+/**
+ * The workspaces the tests run on, each written by the test kit; each Playwright project takes one: a copy of the
+ * specification with a generated Git history (`spec`), a workspace with an unusual metamodel (`orbit`), and one
+ * without identifiers (`no-identifier`).
+ */
+export type WorkspaceKind = "spec" | "orbit" | "no-identifier";
 
-/** A copy of `spec/` of this repository: a large workspace with every type of the standard model. */
-const createSpecCopy = (): Promise<FixtureWorkspace> =>
-  createFixtureWorkspace({ fixturesDir: path.join(import.meta.dirname, "..", "..", ".."), fixture: "spec" });
+/** Runs a catalog command in the workspace at `root`, as the test kit writes its workspaces. */
+const runCommand: RunCommand = (root, command, input) =>
+  runOn(root)(command as keyof CommandTypes, input as never);
 
-const CREATE: Readonly<Record<WorkspaceKind, () => Promise<FixtureWorkspace>>> = { spec: createSpecCopy };
+const CREATE: Readonly<Record<WorkspaceKind, () => Promise<FixtureWorkspace>>> = {
+  spec: () => createSpecCopyWorkspace({ run: runCommand }),
+  orbit: () => createOrbitLabWorkspace({ run: runCommand }),
+  "no-identifier": () => createNoIdentifierWorkspace({ run: runCommand }),
+};
 
 export const createWorkspace = (kind: WorkspaceKind): Promise<FixtureWorkspace> => CREATE[kind]();
 

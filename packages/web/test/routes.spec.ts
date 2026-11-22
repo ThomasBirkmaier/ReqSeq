@@ -42,8 +42,14 @@ test("every page opens without errors", async ({ page, open, ui }) => {
     seen = [];
     await open(route);
     const boxes = await page.locator(".notice.bad:visible").count();
-    if (seen.length > 0 || boxes > 0) {
-      problems.push(`${route}: ${seen.join(", ")}${boxes > 0 ? " error box" : ""}`);
+    // A title squeezed into a column of its own breaks after every letter.
+    const squeezed = await page
+      .locator(".it .t")
+      .evaluateAll((titles) => titles.filter((t) => t.getBoundingClientRect().width < 80).length);
+    if (seen.length > 0 || boxes > 0 || squeezed > 0) {
+      problems.push(
+        `${route}: ${seen.join(", ")}${boxes > 0 ? " error box" : ""}${squeezed > 0 ? " squeezed titles" : ""}`,
+      );
     }
   }
   expect(problems, problems.join("\n")).toEqual([]);
