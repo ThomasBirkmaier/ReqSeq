@@ -101,6 +101,8 @@ Texts and Markdown properties are rendered at export time in core (ADR-0002): `m
 
 An image of the repository is read with `readFileSnapshot`, which follows no link. A missing file, a link or bytes that are no image are not copied: the place is text and the problem is `html.image-not-copied`.
 
+`markdown.ts` is also the subpath `@reqseq/core/markdown`, with which the web UI renders texts as the export does (ADR-0020). It and every module it imports load no `node:*` module: besides the Markdown packages and KaTeX it imports only import-free modules (`formula.ts`, `math-syntax.ts`, `render-options.ts`, `model/image-link.ts`, `model/reference-query.ts`, `model/uuid.ts`, `model/portable-names.ts`, `files/system-form.ts`, and `files/posix-path.ts`, which gives the results of `node:path`'s `posix` functions). `markdown-browser.test.ts` fails when that graph grows, and when a bundle for the browser reaches a Node module or renders differently from Node. The caller's `TextContext` decides what an image and a reference become.
+
 ## Target folder (`files/export-folder.ts`)
 
 Refused before anything changes: a target in a `.git` folder (also through links, SR-083 AK4), a folder ReqSeq reads YAML files from (metamodel, filters, perspectives, baselines, mappings), a target that is no folder, a missing folder above it, a non-empty folder without a readable marker (SR-235 AK1), another export running into it, and a path the new export writes that a file of another origin holds. Over API and MCP, `invoke` refuses a target outside the repositories (SR-142, SR-235 AK3).
