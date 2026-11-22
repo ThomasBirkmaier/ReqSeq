@@ -453,3 +453,194 @@ describe.runIf(linux)(
     }, 90_000);
   },
 );
+
+/** A page script that calls the shell's `command` with `args` and keeps the answer in `window.__call[key]`. */
+const askShell = (key: string, command: string, args: Record<string, unknown>): string => `(() => {
+  window.__call = window.__call || {};
+  window.__TAURI_INTERNALS__.invoke(${JSON.stringify(command)}, ${JSON.stringify(args)})
+    .then((value) => { window.__call[${JSON.stringify(key)}] = { value: value === undefined ? null : value }; },
+      (e) => { window.__call[${JSON.stringify(key)}] = { refused: String(e) }; });
+  return true;
+})()`;
+
+/** Calls the shell's `command` from the page and waits for its answer. */
+async function callShell(
+  shell: Shell,
+  key: string,
+  command: string,
+  args: Record<string, unknown> = {},
+): Promise<{ value?: unknown; refused?: string }> {
+  await shell.eval(askShell(key, command, args));
+  return (await shell.evalUntil(
+    `the answer for ${key}`,
+    `(window.__call || {})[${JSON.stringify(key)}] || null`,
+  )) as { value?: unknown; refused?: string };
+}
+
+/** Clicks the element `selector` names in the page. */
+async function click(shell: Shell, selector: string): Promise<void> {
+  await shell.evalUntil(
+    `a click on ${selector}`,
+    `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (e === null || e.disabled) return false; e.click(); return true; })()`,
+  );
+}
+
+describe("SR-253: the desktop shell offers the operating system's dialogs", () => {
+  it("[SR-253/AK-hyw0] offers the three dialogs and the opener, refuses every other call, and a dialog gives one absolute path or none", async () => {
+    const folder = await tempFolder("pick");
+    onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
+    const chosen = path.join(folder, "chosen.reqif");
+    const shell = await startShell({ record: linux });
+    const origin = await shell.shown();
+    await shell.loaded();
+
+    // Each dialog gives the path chosen there; the page's inputs set only where it opens and the proposed name.
+    shell.send({ dialog: folder });
+    expect(await callShell(shell, "folder", "pick_folder", { start: folder })).toEqual({ value: folder });
+    shell.send({ dialog: chosen });
+    expect(await callShell(shell, "file", "pick_file", { start: folder, name: "x.reqif" })).toEqual({
+      value: chosen,
+    });
+    shell.send({ dialog: chosen });
+    expect(await callShell(shell, "target", "pick_save_target", { start: folder, name: "ws.reqif" })).toEqual(
+      { value: chosen },
+    );
+    shell.send({ dialog: chosen });
+    expect(
+      await callShell(shell, "inputs", "pick_save_target", {
+        start: "relative/folder",
+        name: "../../etc/passwd",
+        path: "/etc/passwd",
+        write: "x",
+      }),
+    ).toEqual({ value: chosen });
+    // Cancelled, a dialog that cannot open, and an answer that is not an absolute path: no path.
+    shell.send({ dialog: null });
+    expect(await callShell(shell, "cancel", "pick_folder")).toEqual({ value: null });
+    expect(await callShell(shell, "no dialog", "pick_file")).toEqual({ value: null });
+    shell.send({ dialog: "relative/chosen.reqif" });
+    expect(await callShell(shell, "relative", "pick_save_target")).toEqual({ value: null });
+    expect(shell.all("dialog")).toEqual([
+      { command: "pick_folder", folder, name: null },
+      { command: "pick_file", folder, name: null },
+      { command: "pick_save_target", folder, name: "ws.reqif" },
+      { command: "pick_save_target", folder: null, name: null },
+      { command: "pick_folder", folder: null, name: null },
+      { command: "pick_file", folder: null, name: null },
+      { command: "pick_save_target", folder: null, name: null },
+    ]);
+
+    // The fourth function: opening an address (SR-252 AK3), which refuses the own server.
+    expect(String((await callShell(shell, "open", "open_address", { address: origin })).refused)).toMatch(
+      /Not opened: /,
+    );
+    // Every other call is refused and runs nothing.
+    for (const command of [
+      "plugin:dialog|open",
+      "plugin:dialog|save",
+      "plugin:dialog|message",
+      "plugin:opener|open_url",
+      "plugin:fs|read_file",
+      "plugin:window|close",
+      "plugin:webview|create_webview_window",
+      "plugin:event|listen",
+      "pick_folders",
+      "read_file",
+    ]) {
+      const answer = await callShell(shell, `other ${command}`, command, {
+        path: folder,
+        url: "https://example.org/",
+        options: {},
+      });
+      // Tauri's access control answers before any code runs.
+      expect([command, answer.refused]).toEqual([command, expect.stringMatching(/ not allowed\. /)]);
+    }
+    expect(shell.all("dialog")).toHaveLength(7);
+    expect(await shell.eval("location.origin")).toBe(origin);
+
+    shell.send({ close: true });
+    expect((await shell.exited).code).toBe(0);
+    if (linux) {
+      // The shell itself read, wrote and created no file in the folder of the dialogs.
+      const recorded = await readTrace(shell.trace ?? "");
+      expect(recorded.opens.filter((o) => o.path.startsWith(folder))).toEqual([]);
+      expect(await fs.readdir(folder)).toEqual([]);
+    }
+  }, 90_000);
+
+  it("[SR-253/AK-d2n7] a chosen target outside the repositories is refused as a typed one, a chosen workspace folder opens, and the command decides on an existing target", async () => {
+    const ws = await workspace();
+    const outside = await tempFolder("outside");
+    onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
+    const shell = await startShell();
+    await shell.shown();
+    await shell.evalUntil("the token", "sessionStorage.getItem('reqseq.token') !== null");
+
+    // The folder of a workspace to open is the exception of SR-248 AK4: chosen in the dialog, it opens.
+    await showRoute(shell, "#/w/open");
+    shell.send({ dialog: ws.root });
+    await click(shell, 'button[aria-label="Choose… Folder of the workspace"]');
+    await shell.evalUntil(
+      "the chosen folder in the field",
+      `document.querySelector('input[name="open-path"]').value === ${JSON.stringify(ws.root)}`,
+    );
+    await click(shell, '.frow:has(input[name="open-path"]) > .btn');
+    // The page goes to the overview once the workspace is open.
+    await shell.evalUntil("the opened workspace", `location.hash === "#/q/overview"`);
+    await showRoute(shell, "#/w/export");
+    await shell.evalUntil("the export page", `document.querySelector('input[name="reqif-out"]') !== null`);
+
+    /** Exports ReqIF to the path in the field and gives the page's answer. */
+    const exportTo = async (how: "chosen" | "typed", target: string): Promise<string> => {
+      if (how === "chosen") {
+        shell.send({ dialog: target });
+        await click(shell, 'button[aria-label="Choose… File"]');
+      } else {
+        await shell.eval(`(() => {
+          const input = document.querySelector('input[name="reqif-out"]');
+          input.value = ${JSON.stringify(target)};
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          return true;
+        })()`);
+      }
+      await shell.evalUntil(
+        `the ${how} target in the field`,
+        `document.querySelector('input[name="reqif-out"]').value === ${JSON.stringify(target)}`,
+      );
+      const out = `.frow:has(input[name="reqif-out"]) + div`;
+      await shell.eval(
+        `(() => { document.querySelector(${JSON.stringify(out)}).replaceChildren(); return true; })()`,
+      );
+      await click(shell, `.frow:has(input[name="reqif-out"]) > .btn.primary`);
+      return String(
+        await shell.evalUntil(
+          `the answer for the ${how} target`,
+          `document.querySelector(${JSON.stringify(out)}).textContent || null`,
+        ),
+      );
+    };
+
+    const away = path.join(outside, "ws.reqif");
+    const chosenAway = await exportTo("chosen", away);
+    expect(chosenAway).toBe(await exportTo("typed", away));
+    expect(chosenAway).toContain('"reason": "outside-repositories"');
+    expect(await fs.readdir(outside)).toEqual([]);
+
+    // Inside the repositories, an existing target: replaced or not as the command decides for a typed path.
+    const inside = path.join(ws.root, "exports", "chosen.reqif");
+    const first = await exportTo("typed", inside);
+    const written = await fs.stat(inside);
+    const chosenAgain = await exportTo("chosen", inside);
+    expect(chosenAgain).toBe(await exportTo("typed", inside));
+    expect([first, chosenAgain]).toEqual([
+      expect.stringMatching(/^Exported .*chosen\.reqif/),
+      expect.stringMatching(/^Exported .*chosen\.reqif/),
+    ]);
+    expect(written.isFile()).toBe(true);
+    expect(shell.all("dialog").map((d) => (d as { command: string }).command)).toEqual([
+      "pick_folder",
+      "pick_save_target",
+      "pick_save_target",
+    ]);
+  }, 120_000);
+});

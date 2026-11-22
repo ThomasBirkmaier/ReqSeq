@@ -359,6 +359,7 @@ async function workspacesPage(route: Route): Promise<HTMLElement | undefined> {
   const openField = pathField({
     label: "Folder of the workspace",
     name: "open-path",
+    kind: "folder",
     absolute: true,
     help: "The full path of the folder that holds reqseq-workspace.yaml. ~ stands for your home folder.",
   });
@@ -368,6 +369,7 @@ async function workspacesPage(route: Route): Promise<HTMLElement | undefined> {
   const newField = pathField({
     label: "Folder",
     name: "init-path",
+    kind: "folder",
     absolute: true,
     help: "The full path of a new folder, or of one without a workspace yet. It is created when it is missing.",
   });
@@ -427,6 +429,7 @@ function exportPage(): HTMLElement {
   const html = pathField({
     label: "Folder",
     name: "html-out",
+    kind: "folder",
     value: `${EXPORTS}/html`,
     help: "A new or empty folder, or one of an earlier HTML export. Missing folders above it are created.",
   });
@@ -448,7 +451,7 @@ function exportPage(): HTMLElement {
     label: "File",
     name: "reqif-out",
     value: `${EXPORTS}/${fileName(store.workspaceName)}.reqif`,
-    files: true,
+    kind: "target",
     help: "Missing folders above the file are created.",
   });
   const reqifButton = button("Export ReqIF");
@@ -458,7 +461,12 @@ function exportPage(): HTMLElement {
     return result(out.answer, h("p", null, "Written to ", path(out.file)), problemList(out.problems));
   });
 
-  const json = pathField({ label: "Folder", name: "json-out", value: `${EXPORTS}/json` });
+  const json = pathField({
+    label: "Folder",
+    name: "json-out",
+    kind: "folder",
+    value: `${EXPORTS}/json`,
+  });
   const jsonButton = button("Export JSON");
   const jsonOut = h("div", { "aria-live": "polite" });
   onPress(jsonButton, jsonOut, async () => {
@@ -549,11 +557,11 @@ interface Built {
 const stem = (file: string): string => (file.split(/[\\/]/).pop() ?? file).replace(/\.[^.]*$/, "");
 
 function importPage(): HTMLElement {
-  const file = pathField({ label: "ReqIF file", name: "reqif-in", files: true });
+  const file = pathField({ label: "ReqIF file", name: "reqif-in", kind: "file" });
   const mapping = pathField({
     label: "Mapping file",
     name: "reqif-map",
-    files: true,
+    kind: "file",
     help: "Needed for a file of another tool: it maps its types and attributes to the metamodel. Leave it empty for a file of ReqSeq, or to choose the mapping on this page.",
   });
   const checkButton = button("Check file");
