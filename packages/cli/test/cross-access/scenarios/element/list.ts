@@ -534,6 +534,24 @@ scenariosOf("element.list", [
     expect: "output",
   },
   {
+    tag: "[SR-075/AK-c3cc]",
+    name: "sorted by the verification status descending, then by short ID: verified and indirect first, elements without one last",
+    fixture: { fixture: "SR-136/graph", git: true },
+    input: { sort: [{ by: "verification", order: "desc" }, { by: "id" }], fields: ["status"], limit: 100 },
+    expect: "output",
+    check: (results) => {
+      const { partial } = (
+        results["core"]?.outcome as { output: { partial: readonly { shortId: string }[] } }
+      ).output;
+      const order = partial.map((e) => e.shortId);
+      // Failed (b007) after outdated (b008) and open (b009); the need and the packages last.
+      expect(order.indexOf("SR-00b008")).toBeLessThan(order.indexOf("SR-00b009"));
+      expect(order.indexOf("SR-00b009")).toBeLessThan(order.indexOf("SR-00b007"));
+      expect(order.slice(0, 2)).toEqual(["SR-00b001", "SR-00b002"]);
+      expect(order.slice(-5)).toEqual(["N-00a001", "N-00a002", "PKG-00d001", "PKG-00d002", "PKG-00d003"]);
+    },
+  },
+  {
     name: "the derivation tree with its places, siblings by title, one page (SR-075 AK2)",
     fixture: SORT,
     input: { sort: [{ by: "hierarchy" }, { by: "title" }], offset: 2, limit: 5 },

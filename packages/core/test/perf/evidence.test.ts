@@ -242,6 +242,32 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     );
   });
 
+  it("[SR-082/AK-h27y] sorts all elements by the verification status within 500 ms once its state is built (SR-075 AK5)", async () => {
+    const sort = [{ by: "verification" }, { by: "identifier" }];
+    const { result: first } = await measure(
+      "list: first page (200) of all elements sorted by verification status, then identifier: first such sort",
+      () => run("element.list", { sort }),
+      { basis: `SR-082 AK4, SR-075 AK5 (first sort; ${COMPARE_AK4})`, ...COMPARED },
+    );
+    const { result: again, measurement } = await measure(
+      "list: first page (200) of all elements sorted by verification status, then identifier: again (status state kept)",
+      () => run("element.list", { sort }),
+      { basis: "SR-082 AK4 (element.list sorted by the verification status, warm)", thresholdMs: RESULT_MS },
+    );
+    expect(again).toEqual(first);
+    expect(again.elements).toHaveLength(200);
+    expect(again.total).toBe(ELEMENTS);
+    // The first page holds the requirements whose verification failed.
+    const statuses = await run("element.list", {
+      sort,
+      withVerification: true,
+      fields: ["type"],
+      limit: 1,
+    });
+    expect(statuses.rowVerification?.[0]?.verification?.[0]?.status).toBe("failed");
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+  });
+
   it("records the filter without evidence as the first filter after the start: no current version read (SR-069 AK3, #439)", async () => {
     await reopen();
     await readEvidence(ws());

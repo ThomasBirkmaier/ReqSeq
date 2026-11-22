@@ -124,6 +124,7 @@ describe("the catalog entries the windows get (SR-108)", () => {
       "type",
       "status",
       "title",
+      "verification",
     ]);
     expect(sortKey.properties["order"]?.["enum"]).toEqual(["asc", "desc"]);
     expect(refsIn(fields["group"])).toEqual([]);

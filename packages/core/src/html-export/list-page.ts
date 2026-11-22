@@ -16,7 +16,8 @@
 //   table and not the page (#2138); on wide screens it fits beside the column "On this page" (#2181).
 // - `data-q` holds the search text, `data-f` the facets and `data-s` the ranks of the model; `data-rq-list` its
 //   columns and filters. The order of SR-075 AK1 that ranks them is `listOrderOf` (`sortValueOf`: the metamodel's
-//   order for statuses and choices, then numbers, then text ignoring case).
+//   order for statuses and choices, then numbers, then text ignoring case); the verification status is in the
+//   order of SR-075 AK5 (`VERIFICATION_RANKS`: not verified, open, outdated, verified, indirect as verified).
 // - Change since a baseline (SR-233 AK2), when the workspace has one: the baselines newest first in `data-rq-list`
 //   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
 //   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column
@@ -28,7 +29,14 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import type { SortValue } from "../query/index.js";
-import { NO_RANKS, compareSortValues, ranksOf, sortElements, sortValueOf } from "../query/index.js";
+import {
+  NO_RANKS,
+  VERIFICATION_RANKS,
+  compareSortValues,
+  ranksOf,
+  sortElements,
+  sortValueOf,
+} from "../query/index.js";
 import { zip } from "../files/index.js";
 import { inTypeOrder } from "../type-order.js";
 import { elementPage } from "./links.js";
@@ -112,7 +120,7 @@ export const listMetamodelOf = (metamodel: Metamodel): ListMetamodel => ({
   statuses: metamodel.statuses,
 });
 
-/** The order of SR-075 AK1 for the values of a list (`sortValueOf`: the metamodel's order of statuses and choices). */
+/** The order of SR-075 AK1 for the values of a list (`sortValueOf`: the metamodel's order of statuses and choices), AK5 for the verification status. */
 export const listOrderOf = (metamodel: Metamodel): ListOrder<SortValue> => {
   const statuses = ranksOf(metamodel.statuses);
   return {
@@ -124,9 +132,10 @@ export const listOrderOf = (metamodel: Metamodel): ListOrder<SortValue> => {
           return sortValueOf(value, ranksOf(field.choices));
         case "hints":
           return sortValueOf(Number(value), NO_RANKS);
+        case "verification":
+          return sortValueOf(value, VERIFICATION_RANKS);
         case "packages":
         case "title":
-        case "verification":
           return sortValueOf(value, NO_RANKS);
       }
     },

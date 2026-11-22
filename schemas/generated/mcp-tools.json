@@ -3385,7 +3385,7 @@
           "additionalProperties": false
         },
         "sortKey": {
-          "description": "Sort by a property, the short ID, or the derivation hierarchy. Nothing about order is ever stored in element files.",
+          "description": "Sort by a property, the short ID, the verification status or the derivation hierarchy; no order is stored in element files.",
           "type": "object",
           "required": [
             "by"
@@ -3393,7 +3393,7 @@
           "properties": {
             "by": {
               "title": "Sort by",
-              "description": "`id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders.",
+              "description": "`id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans. No value last in both orders.",
               "anyOf": [
                 {
                   "enum": [
@@ -3402,7 +3402,8 @@
                     "hierarchy",
                     "type",
                     "status",
-                    "title"
+                    "title",
+                    "verification"
                   ]
                 },
                 {
@@ -8378,7 +8379,7 @@
           },
           "sort": {
             "type": "array",
-            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
+            "description": "Keys in order; ties go to the next key, then to the workspace order. `hierarchy` only first: the list is then the derivation tree (`tree`). Without sort, the first stored sort of: the saved filter in `selection.filter`, the perspective, the perspective's saved filter, also a stored `sort: []`. An explicit sort, also `[]`, wins over them.",
             "items": {
               "$ref": "#/$defs/filter/$defs/sortKey"
             }

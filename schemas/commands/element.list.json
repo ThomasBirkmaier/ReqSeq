@@ -40,7 +40,7 @@
       },
       "sort": {
         "type": "array",
-        "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the first stored sort of: the saved filter in `selection.filter` (above the perspective's), the perspective, the saved filter of the perspective; a stored `sort: []` counts too. An explicit sort, also `[]`, wins over all of them.",
+        "description": "Keys in order; ties go to the next key, then to the workspace order. `hierarchy` only first: the list is then the derivation tree (`tree`). Without sort, the first stored sort of: the saved filter in `selection.filter`, the perspective, the perspective's saved filter, also a stored `sort: []`. An explicit sort, also `[]`, wins over them.",
         "items": {
           "$ref": "../filter.schema.json#/$defs/sortKey"
         }
