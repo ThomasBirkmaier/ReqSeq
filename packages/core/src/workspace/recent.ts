@@ -1,7 +1,9 @@
-// The workspaces the app opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
+// The workspaces opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
 // (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
-// one per folder. The app's core process records the root it opened (`model/recent-record.ts`); the
-// app's main process reads the list and checks which roots still hold a workspace.
+// one per folder. Two writers: the app's core process records the root it opened (`rememberWorkspace`
+// through `model/recent-record.ts`), and `workspace.markOpened` marks the root it runs on
+// (`markWorkspace`, SR-250); the app's main process reads the list and checks which roots still hold a
+// workspace.
 //
 // "Open workspace" also takes a typed folder path (AK5): `typedWorkspaceFolder` checks it by its text
 // alone, before any file-system call, and `findTypedWorkspace` finds the workspace from it upwards.
@@ -255,10 +257,10 @@ export async function rememberWorkspace(root: string, options: RememberOptions =
 /**
  * Why `markWorkspace` changed nothing: `locked` (another process held the lock after the one wait),
  * `unreadable` (the file cannot be read, is larger than RECENT_WORKSPACES_MAX_BYTES, is not a file, or
- * holds no list of this format) or `unwritable` (the lock or the file cannot be written, or the list
- * cannot hold the root or its key, see `rememberWorkspace`); with the Node error, if any.
+ * holds no list of this format), `unwritable` (the lock or the file cannot be written) or `root-not-held`
+ * (a root or key the list cannot hold, see `rememberWorkspace`); with the Node error, if any.
  */
-export type MarkRefusal = "locked" | "unreadable" | "unwritable";
+export type MarkRefusal = "locked" | "unreadable" | "unwritable" | "root-not-held";
 
 export type MarkOutcome =
   { readonly marked: RecentWorkspace } | { readonly refused: MarkRefusal; readonly cause?: unknown };
@@ -298,7 +300,7 @@ export async function markWorkspace(root: string, options: RememberOptions = {})
   const platform = platformOf(environment);
   const key = keyOf(root, platform, options.key);
   if (key === undefined) {
-    return { refused: "unwritable" };
+    return { refused: "root-not-held" };
   }
   const folder = recentWorkspacesFolder(environment);
   let lock: PrivateLock | undefined;

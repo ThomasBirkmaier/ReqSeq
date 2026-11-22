@@ -397,15 +397,11 @@ describe("no delete of an element (SR-099, D-045)", () => {
     const src = path.resolve(import.meta.dirname, "..");
     const sources = fs
       .readdirSync(src, { recursive: true, withFileTypes: true })
-      // Test helpers (`*.test-helper.ts`) are no product source: the package leaves them out of dist.
-      .filter(
-        (e) =>
-          e.isFile() &&
-          e.name.endsWith(".ts") &&
-          !e.name.endsWith(".test.ts") &&
-          !e.name.endsWith(".test-helper.ts"),
-      )
-      .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"));
+      .filter((e) => e.isFile() && e.name.endsWith(".ts") && !e.name.endsWith(".test.ts"))
+      .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
+      // The shared scenarios of the tests remove the temporary OS cache folder they set up
+      // (`isolateOsCache`); a test helper, which the package leaves out of dist, removes no user file.
+      .filter((file) => file !== "commands/scenarios.test-helper.ts");
     const read = (file: string): string => fs.readFileSync(path.join(src, file), "utf8");
     const removing = sources
       .filter((file) =>

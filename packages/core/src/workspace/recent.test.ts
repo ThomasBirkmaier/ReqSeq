@@ -342,9 +342,9 @@ describe("markWorkspace, the strict record of workspace.markOpened (SR-250)", ()
     });
     await fs.rm(recentWorkspacesFolder(environment));
     for (const root of ["relative", `/${"x".repeat(MAX_ROOT_LENGTH)}`]) {
-      expect(await markWorkspace(root, { environment })).toEqual({ refused: "unwritable" });
+      expect(await markWorkspace(root, { environment })).toEqual({ refused: "root-not-held" });
     }
-    expect(await markWorkspace(a, { environment, key: "" })).toEqual({ refused: "unwritable" });
+    expect(await markWorkspace(a, { environment, key: "" })).toEqual({ refused: "root-not-held" });
     await expect(fs.stat(listFile())).rejects.toThrow();
   });
 });

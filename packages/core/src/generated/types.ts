@@ -1774,7 +1774,7 @@ export interface PerspectiveFile {
 export type PerspectiveName = string;
 
 /**
- * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces opened last (SR-131), the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens, and `workspace.markOpened` the root of the workspace it runs on (SR-250); the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {

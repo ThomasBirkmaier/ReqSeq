@@ -13,7 +13,7 @@ Without a workspace the app shows three start commands, and the modeline says "N
 - **Create workspace** opens the folder dialog, or takes the folder open without a workspace; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. A workspace folder opens as it is.
 - **Connect AI agent** asks for the workspace first, as [Connect an AI agent](/how-to/connect-an-ai-agent/) shows.
 
-Ctrl+Shift+P (⌘⇧P) opens the command prompt. Its entry "Open workspace" lists the workspaces you opened last, the most recent first, and narrows them as you type; one that no longer holds its workspace file is marked "not found". Or type an absolute path, starting with `/`, `~` or, on Windows, a drive letter such as `C:\`. Enter on the first line, "Open" with your path, opens the workspace of that folder or a folder above it. Below it the prompt suggests the folders that match the name after the last separator; Down and Enter put one into the path.
+Ctrl+Shift+P (⌘⇧P) opens the command prompt. Its entry "Open workspace" lists the recent workspaces, the most recent first, and narrows them as you type; one that no longer holds its workspace file is marked "not found". Or type an absolute path, starting with `/`, `~` or, on Windows, a drive letter such as `C:\`. Enter on the first line, "Open" with your path, opens the workspace of that folder or a folder above it. Below it the prompt suggests the folders that match the name after the last separator; Down and Enter put one into the path.
 
 The chosen workspace replaces the open one, after your unsaved input is saved.
 
@@ -45,7 +45,7 @@ No problems.
 
 Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
 
-`workspace recent` lists the workspaces opened last, and `workspace mark-opened` puts its own workspace first:
+`workspace recent` lists the recent workspaces, and `workspace mark-opened` puts the workspace it runs on first:
 
 ```sh
 reqseq workspace recent

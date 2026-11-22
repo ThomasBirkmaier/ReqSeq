@@ -33,6 +33,13 @@ export async function recordOpenedWorkspace(
  * the message names no absolute path (ADR-0009).
  */
 const REFUSALS: Readonly<Record<MarkRefusal, (cause: unknown) => CommandError>> = {
+  "root-not-held": (cause) =>
+    new CommandError(
+      "file.read-only",
+      "Not marked: the list of recent workspaces cannot hold the root of this workspace: it is not absolute, or longer than 4096 characters with links resolved",
+      { reason: "root-not-held" },
+      { cause },
+    ),
   locked: (cause) =>
     new CommandError(
       "file.changed-on-disk",

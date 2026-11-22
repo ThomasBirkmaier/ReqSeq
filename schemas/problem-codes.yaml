@@ -439,8 +439,8 @@ errors:
     cause: A file the command needs cannot be read correctly, for example a faulty `reqseq-workspace.yaml`, an image to attach or a folder that cannot be read, a file to be replaced, the list of recent workspaces, or the file of an element selected for a baseline, which then has no version.
     remedy: Fix the file or its permissions as the message says, or move it away, and run the command again.
   file.read-only:
-    cause: The folder of the file is not writable.
-    remedy: Check the permissions of the folder.
+    cause: The folder of the file is not writable. `workspace.markOpened` also gives it when the list of recent workspaces would lie inside a repository of the workspace, which ReqSeq never writes into, or when the list cannot hold the root of the workspace (longer than 4096 characters).
+    remedy: Check the permissions of the folder; for `workspace.markOpened` inside a repository, point XDG_CACHE_HOME (LOCALAPPDATA on Windows) to a folder outside the repository.
   file.not-regular:
     cause: The path is a symbolic link or not a regular file, or a path above a folder to create is a file.
     remedy: Use a path to a regular file or folder.

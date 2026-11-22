@@ -689,7 +689,9 @@ describe(
     for (const entry of runtime.contracts.commands) {
       const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
       for (const scenario of [DEFAULT, ...explicit]) {
-        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"} ${entry.name}, ${scenario.name}`, async () => {
+        // Every call but those of workspace.markOpened also shows that the list of recent workspaces stays
+        // as it is (`runAccess`, SR-250 AK4).
+        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"}${entry.name === MARK_OPENED ? "" : " [SR-250/AK-vp6h]"} ${entry.name}, ${scenario.name}`, async () => {
           const results = await runAll(entry, scenario, ACCESSES);
           const core = results["core"];
           if (scenario !== DEFAULT) {
@@ -713,24 +715,6 @@ describe(
     });
   },
 );
-
-// Every other command, with the first scenario that gives an output (or its default one), leaves the list
-// of recent workspaces as it is through the command line, the API and the MCP server: `runAccess` compares
-// the list before and after each call of every command but workspace.markOpened (SR-250 AK4).
-describe("the list of recent workspaces", { timeout: TEST_TIMEOUT }, () => {
-  // The scenarios of workspace.markOpened leave a list of their own, or a broken one: one entry again.
-  beforeAll(async () => {
-    await rememberWorkspace(path.join(cacheHome, "opened-before"), {
-      now: new Date(Date.UTC(2026, 9, 27, 9)),
-    });
-  });
-  for (const entry of runtime.contracts.commands.filter((e) => e.name !== MARK_OPENED)) {
-    it(`[SR-250/AK-vp6h] ${entry.name} through the CLI, the API and the MCP server leaves it as it is`, async () => {
-      expect(await listText()).toBeDefined();
-      await runAll(entry, answerScenario(entry.name), ["cli", "api", "mcp"]);
-    });
-  }
-});
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
   it("[SR-080/AK-wxtg] is a CLI subcommand, an API route, once implemented an MCP tool, and listed by the app", async () => {
