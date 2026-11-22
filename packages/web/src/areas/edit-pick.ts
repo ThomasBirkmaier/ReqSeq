@@ -195,6 +195,11 @@ export function picker(options: PickerOptions): Picker {
   };
 
   owner.addEventListener("keydown", (event) => {
+    // Enter in a search field of its own picks a hit or does nothing; it never submits the form.
+    if (event.key === "Enter" && input !== null && (list.hidden === true || active < 0)) {
+      event.preventDefault();
+      return;
+    }
     if (list.hidden === true) {
       return;
     }

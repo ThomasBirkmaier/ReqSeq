@@ -64,10 +64,18 @@ async function elementOf(run: Run, types: readonly string[], not?: string) {
   return partial.find((e) => e.id !== not);
 }
 
-/** Picks the element `ref` in the search field `field`. */
+/**
+ * Picks the element `ref` in the search field `field`. The UI server learns of an element written just before
+ * through its watcher, so the search is typed again until the element is found.
+ */
 async function pick(page: Page, field: ReturnType<Page["locator"]>, ref: string, id: string): Promise<void> {
-  await field.fill(ref);
-  await page.locator(`[role=option][data-id="${id}"]`).first().click();
+  const option = page.locator(`[role=option][data-id="${id}"]`).first();
+  await expect(async () => {
+    await field.fill("");
+    await field.fill(ref);
+    await expect(option).toBeVisible({ timeout: 2000 });
+  }).toPass();
+  await option.click();
 }
 
 /** The value the test types into a property, and what ReqSeq stores for it. */
@@ -244,6 +252,70 @@ test("editing saves only what changed, on the file it was opened on, and never t
   });
 });
 
+/** A requirement with a choice, a plain text with a line break (where the type has one) and one relation. */
+async function byParts(run: Run) {
+  const { mm, type } = await requirementType(run);
+  const ofType = mm.properties.filter((p) => type.properties.includes(p.key));
+  const choice = ofType.find((p) => p.kind === "choice" && p.many !== true && (p.choices?.length ?? 0) >= 2);
+  const plain = ofType.find(
+    (p) =>
+      p.kind === "text" &&
+      p.many !== true &&
+      p.markdown !== true &&
+      !["title", "identifier", ...ORIGIN].includes(p.meaning ?? ""),
+  );
+  const options = mm.relations.filter(
+    (r) => r.meaning !== "succession" && allowed(mm, r["source-types"]).includes(type.key),
+  );
+  const kind = options.find((r) => allowed(mm, r["target-types"]).includes(type.key));
+  const first = (await run("element.create", { type: type.key, title: "First target" })).element;
+  if (choice === undefined || kind === undefined) {
+    throw new Error("The requirement type has no choice or relation kind to test");
+  }
+  const made = await run("element.create", {
+    type: type.key,
+    title: "Edited by parts",
+    properties: {
+      [choice.key]: choice.choices?.[0]?.key ?? "",
+      ...(plain === undefined ? {} : { [plain.key]: "Line 1\nLine 2" }),
+    },
+    relations: { [kind.key]: [first.id] },
+  });
+  const second = (await run("element.create", { type: type.key, title: "Second target" })).element;
+  return { made, choice, plain, kind, second };
+}
+
+test("editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const { made, choice, plain, kind, second } = await byParts(ui.run);
+  await open(`/edit/${refOf(made.element)}`);
+  await page
+    .locator(`.ed-field[data-key="${choice.key}"] select`)
+    .selectOption(choice.choices?.[1]?.key ?? "");
+  const field = page.locator(`.ed-field[data-kind="${kind.key}"]`);
+  await field.getByRole("button", { name: new RegExp(`^Remove `) }).click();
+  // Enter in a search field before its hits came neither saves nor leaves.
+  const search = field.locator(".pick-input");
+  await search.fill(refOf(second));
+  await search.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`#/edit/`));
+  await pick(page, search, refOf(second), second.id);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator("#card h1")).toHaveText("Edited by parts");
+  const after = await ui.run("element.get", { ref: made.element.id });
+  expect(after.element.properties[choice.key]).toBe(choice.choices?.[1]?.key);
+  const related = after.element.relations
+    .filter((r) => r.kind === kind.key && r.direction === "out")
+    .map((r) => r.id);
+  expect(related).toEqual([second.id]);
+  if (plain !== undefined) {
+    expect(after.element.properties[plain.key]).toBe("Line 1\nLine 2");
+  }
+});
+
 test("typed text stays when the workspace changes, and a change of the same file elsewhere stops the save", async ({
   page,
   open,
@@ -286,10 +358,15 @@ test("leaving a form with typed text asks first", async ({ page, open, ui }) => 
     await expect(page.locator("#f-title")).toHaveValue("Not saved");
     expect(page.url()).toContain(`#/edit/${ref}`);
     // The browser's own way back asks too.
-    await page.goBack();
+    await page.evaluate(() => {
+      history.back();
+    });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Leave without saving" }).click();
     await expect(page).not.toHaveURL(new RegExp(`#/edit/`));
+    // The history is as it was: the form is still the entry ahead.
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`#/edit/${ref}$`));
     // Opened again, the form shows the element as saved.
     await open(`/edit/${ref}`);
     await expect(page.locator("#f-title")).toHaveValue("To be edited");

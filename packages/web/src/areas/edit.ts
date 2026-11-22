@@ -484,7 +484,7 @@ async function check(d: Draft): Promise<void> {
     d.note = failed(error);
   }
   d.busy = false;
-  redraw();
+  redraw({ focus: "ed-check" });
 }
 
 /** Saves the form and opens the element. */
@@ -509,7 +509,7 @@ async function save(d: Draft): Promise<void> {
     if (error instanceof Error && (error as { code?: unknown }).code === "file.changed-on-disk") {
       d.elsewhere = true;
     }
-    redraw();
+    redraw({ focus: "ed-save" });
   }
 }
 
@@ -550,8 +550,8 @@ function askLeave(): Promise<boolean> {
 
 let asking = false;
 
-/** Asks once whether to leave the form for `target` (a hash), and goes there on yes. */
-function leaveTo(target: string): void {
+/** Asks once whether to leave the form, and runs `go` on yes. */
+function leaveWith(go: () => void): void {
   if (asking) {
     return;
   }
@@ -560,18 +560,26 @@ function leaveTo(target: string): void {
     asking = false;
     if (leave) {
       draft = undefined;
-      location.hash = target;
+      go();
     }
   });
 }
 
-// A link out of a form with typed text asks before the address changes, so the history stays as it was.
+const leaveTo = (target: string): void => {
+  leaveWith(() => {
+    location.hash = target;
+  });
+};
+
+// A link out of a form with typed text asks before the address changes, so the history stays as it was. A click
+// that opens another tab or window leaves the form alone.
 document.addEventListener(
   "click",
   (event) => {
     const d = draft;
     const link = event.target instanceof Element ? event.target.closest("a[href^='#']") : null;
-    if (d === undefined || !(link instanceof HTMLAnchorElement) || link.closest(".skip") !== null) {
+    const other = event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey;
+    if (d === undefined || other || !(link instanceof HTMLAnchorElement) || link.closest(".skip") !== null) {
       return;
     }
     const href = link.getAttribute("href") ?? "";
@@ -584,8 +592,28 @@ document.addEventListener(
   { capture: true },
 );
 
-// The browser's way back and forward: registered when the module loads, before the router's own listener, a form
-// with typed text puts its address back before the router reads it, so the page stays, and asks.
+// The browser's way back and forward, where it asks the page first (the Navigation API): the move is cancelled,
+// so the history stays as it was, and made after a yes.
+const navigation = (window as { navigation?: Navigation }).navigation;
+navigation?.addEventListener("navigate", (event) => {
+  const d = draft;
+  if (d === undefined || event.navigationType !== "traverse" || !event.cancelable || !isDirty(d)) {
+    return;
+  }
+  if (parseHash(new URL(event.destination.url).hash).hash === d.route) {
+    return;
+  }
+  event.preventDefault();
+  const key = event.destination.key;
+  const nav = event.currentTarget as Navigation;
+  leaveWith(() => {
+    void nav.traverseTo(key).finished?.catch(() => undefined);
+  });
+});
+
+// Any other change of the address, and back and forward where the browser does not ask first: registered when the
+// module loads, before the router's own listener, a form with typed text puts its address back before the router
+// reads it, so the page stays, and asks. The entry left keeps the form's address then.
 window.addEventListener("hashchange", () => {
   const d = draft;
   if (d === undefined) {
@@ -627,6 +655,11 @@ function touch(): void {
   if (saveButton !== null) {
     saveButton.disabled = d.busy || (d.mode === "edit" && !dirty);
   }
+  const give = host.querySelector<HTMLButtonElement>("#ed-give-keys");
+  if (give !== null) {
+    give.disabled = d.busy || dirty;
+  }
+  host.querySelector(".ed-keys-wait")?.toggleAttribute("hidden", !dirty);
 }
 
 const label = (text: string, forId: string, required: boolean): HTMLElement =>
@@ -672,11 +705,13 @@ const base64Of = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
+/** Whether `file` is an image the workspace takes, by its type or name. */
+const isImage = (file: File): boolean =>
+  file.type.startsWith("image/") || /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name);
+
 /** Copies `files` into the workspace for the element and puts their Markdown into `field` at the caret. */
 async function addImages(d: Draft, field: HTMLTextAreaElement, files: readonly File[]): Promise<void> {
-  const images = files.filter(
-    (f) => f.type.startsWith("image/") || /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(f.name),
-  );
+  const images = files.filter(isImage);
   if (images.length === 0 || d.id === undefined) {
     return;
   }
@@ -782,14 +817,14 @@ function markdownField(
   if (d.mode === "edit") {
     field.addEventListener("paste", (event) => {
       const pasted = [...(event.clipboardData?.files ?? [])];
-      if (pasted.length > 0) {
+      if (pasted.some(isImage)) {
         event.preventDefault();
         void addImages(d, field, pasted);
       }
     });
     field.addEventListener("drop", (event) => {
       const dropped = [...(event.dataTransfer?.files ?? [])];
-      if (dropped.length > 0) {
+      if (dropped.some(isImage)) {
         event.preventDefault();
         void addImages(d, field, dropped);
       }
@@ -798,7 +833,7 @@ function markdownField(
   const previewing = d.preview.has(id);
   const previewButton = h(
     "button",
-    { class: "btn sm", type: "button", "aria-pressed": String(previewing) },
+    { class: "btn sm", type: "button", id: `${id}-preview`, "aria-pressed": String(previewing) },
     "Preview",
   );
   previewButton.addEventListener("click", () => {
@@ -1076,7 +1111,11 @@ function choiceField(f: Field): HTMLElement {
 
 /** The note on acceptance criteria without a criterion key, with the button that gives them keys. */
 function keylessNote(d: Draft): HTMLElement {
-  const give = h("button", { class: "btn sm", type: "button", disabled: isDirty(d) || d.busy }, "Give keys");
+  const give = h(
+    "button",
+    { class: "btn sm", type: "button", id: "ed-give-keys", disabled: isDirty(d) || d.busy },
+    "Give keys",
+  );
   give.addEventListener("click", () => {
     void giveKeys(d);
   });
@@ -1084,7 +1123,7 @@ function keylessNote(d: Draft): HTMLElement {
     "div",
     { class: "notice ed-keys" },
     `${String(d.keyless)} ${d.keyless === 1 ? "criterion has" : "criteria have"} no criterion key yet; tests name a criterion by its key. `,
-    isDirty(d) ? "Save or leave your changes first. " : null,
+    h("span", { class: "ed-keys-wait", hidden: !isDirty(d) }, "Save or leave your changes first. "),
     give,
   );
 }
@@ -1147,15 +1186,7 @@ function singleField(f: Field): HTMLElement {
   if (f.p?.kind === "text" && f.p.markdown === true) {
     return f.wrap(markdownField(d, id, f.name, () => d.values[key] as string, set, f.help, 4));
   }
-  if (f.p?.kind === "text") {
-    const input = h("input", { id, class: "ed-input", type: "text", "aria-describedby": f.help });
-    input.value = d.values[key] as string;
-    input.addEventListener("input", () => {
-      set(input.value);
-      touch();
-    });
-    return f.wrap(input);
-  }
+  // A text that is not Markdown is a text box too: an imported text can hold line breaks, which a line field drops.
   return f.wrap(scalarInput(f.p?.kind ?? "text", id, d.values[key] as string, set, f.help));
 }
 
@@ -1218,6 +1249,8 @@ function propertyField(d: Draft, key: string): HTMLElement {
 }
 
 let idAsked = 0;
+/** The pending ask of the identifier preview; a redraw replaces it. */
+let idTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** The identifier of a new element: the next one of its type (shown by a dry run), or one typed. */
 function identifierField(d: Draft, key: string, name: string, required: boolean): HTMLElement {
@@ -1250,8 +1283,8 @@ function identifierField(d: Draft, key: string, name: string, required: boolean)
     d.values[key] = typed.value;
     touch();
   });
-  let timer: ReturnType<typeof setTimeout> | undefined;
   const ask = (): void => {
+    clearTimeout(idTimer);
     const mine = ++idAsked;
     preview.textContent = "…";
     void call("element.create", {
@@ -1275,8 +1308,8 @@ function identifierField(d: Draft, key: string, name: string, required: boolean)
   prefix.addEventListener("input", () => {
     d.prefix = prefix.value;
     touch();
-    clearTimeout(timer);
-    timer = setTimeout(ask, 300);
+    clearTimeout(idTimer);
+    idTimer = setTimeout(ask, 300);
   });
   if (d.nextId) {
     ask();
@@ -1407,13 +1440,18 @@ function form(d: Draft): HTMLElement {
     "button",
     {
       class: "btn ed-primary",
+      id: "ed-save",
       type: "submit",
       "data-save": true,
       disabled: d.busy || (d.mode === "edit" && !isDirty(d)),
     },
     d.mode === "create" ? "Create" : "Save",
   );
-  const checkButton = h("button", { class: "btn", type: "button", disabled: d.busy }, "Check");
+  const checkButton = h(
+    "button",
+    { class: "btn", type: "button", id: "ed-check", disabled: d.busy },
+    "Check",
+  );
   checkButton.addEventListener("click", () => {
     void check(d);
   });
