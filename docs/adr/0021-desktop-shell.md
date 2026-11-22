@@ -146,14 +146,14 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 
 | Criterion | Evidence | Operating systems |
 | --- | --- | --- |
-| SR-252 AK1 | release test: started from a folder with a workspace and with arguments; the recorded server arguments and folder; the server's answer to a page request and to a request with the token | Windows, macOS, Linux |
+| SR-252 AK1 | release test: started from a folder with a workspace and with arguments; the recorded server arguments and folder; the server's answer to a page request and to a request with the token. On Windows the release test records no folder; there the folder rule is shown by the unit test `the_root_is_slash_or_the_system_drive` in `start.rs`, which runs on all three, and by the AK10 e2e | Windows, macOS, Linux |
 | SR-252 AK2 | e2e: recorded arguments, the shell's standard output and error, the files the shell writes; unit: redaction | all three |
 | SR-252 AK3 | unit: the address rule; e2e: a click in the page, the recorded handover, refusals, a failing opener | all three |
 | SR-252 AK4 | e2e: window closed, crash; e2e and release test: SIGTERM, SIGKILL or `TerminateProcess`; the address stops answering within 5 s | all three |
 | SR-252 AK5 | unit: reasons and the tail; e2e: a server that fails, one that prints nothing, one that ends while the shell runs | all three |
 | SR-252 AK6 | e2e with process-level recording while elements are read and changed | all three |
 | SR-252 AK7 | e2e with recorded connections, an element with a remote image and raw HTML | all three |
-| SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display; e2e on Windows: no usable WebView2 runtime (A3) | Ubuntu 24.04, Windows |
+| SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display; on Windows a start of the release `ReqSeq.exe` with `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` set to an empty folder, so no WebView2 runtime is usable (A3) | Ubuntu 24.04, Windows |
 | SR-252 AK9 | e2e: the pages' calls recorded while elements with links and raw HTML load; then one click | all three |
 | SR-252 AK10 | unit: the rule; e2e: a readable and an unreadable workspace file in the folder the e2e build takes for the root (`REQSEQ_SHELL_E2E_ROOT`), no server started, the reason names the file | all three (unreadable: where the test cannot read it, not as root or in `unshare -r`) |
 | SR-253 AK1 | e2e: each of the four commands, a plugin command and an unknown name refused; unit: dialog inputs | all three |
@@ -198,7 +198,7 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 
 ### Signing
 
-- **macOS.** After assembly, the release script signs `ReqSeq.app` ad hoc (`codesign --sign -`): first the shell's executables, then the bundle, so the seal covers `Info.plist` and the resources. Node keeps its own signature. Removing quarantine stays a step of the install guide (ADR-0020) (A10).
+- **macOS.** After assembly, the release job `seal` on macOS signs `ReqSeq.app` ad hoc (`codesign --sign -`): first the shell's executables, then the bundle, so the seal covers `Info.plist` and the resources. Node keeps its own signature. `ditto` packs the archive again and keeps the seal, and the macOS release test checks it with `codesign --verify --deep --strict`. Removing quarantine stays a step of the install guide (ADR-0020) (A10).
 - **Windows.** `ReqSeq.exe` is not signed. The install guide names the warning that Windows shows for it (#2379).
 
 ### Host code and the catalog (changes ADR-0002)

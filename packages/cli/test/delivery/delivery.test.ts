@@ -320,6 +320,16 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
+    // macOS: the downloaded bundle carries a valid ad hoc seal (ADR-0021, Signing; A10).
+    if (system === "mac") {
+      const app = path.join(installed, "ReqSeq.app");
+      const verify = spawnSync("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app], {
+        encoding: "utf8",
+      });
+      expect(verify.status, verify.stderr).toBe(0);
+      const details = spawnSync("codesign", ["-dv", app], { encoding: "utf8" });
+      expect(details.stderr).toMatch(/^Signature=adhoc$/m);
+    }
     // No runtime on the PATH: only `dirname`, which the POSIX launcher calls; the Windows launcher needs none.
     const bin = await tempFolder();
     if (process.platform !== "win32") {

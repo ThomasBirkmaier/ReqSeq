@@ -33,7 +33,8 @@ the folder itself on Windows and Linux, `ReqSeq.app/Contents/Resources/` on macO
 Every path is relative, so the folder, or `ReqSeq.app`, can be moved as a whole. The shell finds `runtime/` and `lib/`
 in its home (`packages/shell/shell/src/start.rs`). The release job `shell` builds it on each system with Cargo
 (`cargo build --release`, no Tauri CLI) and writes the notices of its crates (`scripts/licenses/crates.mjs --notices`);
-neither the archives nor the shell are signed by us (signing and notarizing on macOS is SR-146).
+the release job `seal` signs `ReqSeq.app` ad hoc (ADR-0021, Signing). Nothing else is signed by us, and there is no
+Developer ID signature or notarization (SR-146).
 
 ## Build a delivery by hand
 

@@ -188,6 +188,7 @@ jobs:
           key: ${{ steps.node-cache.outputs.cache-primary-key }}
       - name: Pack the command line (CLI tarball)
         run: node scripts/package/stage.mjs --pack
+      # The macOS archive goes to the job `seal` first; `delivery` and `delivery-mac` together are the delivery.
       - name: Upload the delivery
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -196,6 +197,46 @@ jobs:
             delivery/*.zip
             delivery/*.tar.gz
             delivery/*.tgz
+            !delivery/*-mac-*.zip
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload the macOS archive to seal
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsealed-mac
+          path: delivery/*-mac-*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # ADR-0021, Signing: `ReqSeq.app` sealed ad hoc on macOS, the shell's executable first, then the bundle, so the seal
+  # covers Info.plist and the resources; Node in Resources keeps its own signature. This is no Developer ID signature
+  # and no notarization (SR-146). The archive is packed again with ditto, which keeps the seal.
+  seal:
+    name: seal (macos-26)
+    needs: build
+    timeout-minutes: 15
+    runs-on: macos-26
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsealed-mac
+          path: unsealed
+      - name: Seal ReqSeq.app ad hoc
+        run: |
+          archive="$(ls unsealed/*-mac-*.zip)"
+          name="$(basename "$archive")"
+          mkdir -p work sealed
+          ditto -x -k "$archive" work
+          folder="work/${name%.zip}"
+          app="$(ls -d "$folder"/*.app)"
+          codesign --sign - --force "$app/Contents/MacOS/"*
+          codesign --sign - --force "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --norsrc --keepParent "$folder" "sealed/$name"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: delivery-mac
+          path: sealed/*.zip
           if-no-files-found: error
           retention-days: 1
 
@@ -203,7 +244,7 @@ jobs:
   # Chromium, Firefox and WebKit (SR-249 AK1); the inspection of all archives runs on every system.
   test:
     name: test (${{ matrix.os }})
-    needs: build
+    needs: seal
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -256,7 +297,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 xvfb xauth dbus
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: delivery
+          pattern: delivery*
+          merge-multiple: true
           path: delivery
       - name: Delivery tests
         env:
@@ -278,7 +320,7 @@ jobs:
   # summary of the version in docs/releases/ must be there, or the run fails.
   release:
     name: release
-    needs: [build, test]
+    needs: [build, seal, test]
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     timeout-minutes: 20
     permissions:
@@ -335,7 +377,8 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: steps.tag.outputs.publish == 'true'
         with:
-          name: delivery
+          pattern: delivery*
+          merge-multiple: true
           path: release-assets
       - name: Checksums
         if: steps.tag.outputs.publish == 'true'
