@@ -155,7 +155,7 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"trace.matrix">> => {
     const command = "trace.matrix";
     const { selected, context } = await matrixOf(ctx, input);
-    const sorted = orderedSelection(selected, command, input.sort);
+    const sorted = await orderedSelection(ctx.workspace, selected, command, input.sort);
     const total = selected.elements.length;
     const columns = matrixColumns(context, selected.elements);
     const evidence = await evidenceOf(ctx.workspace, selected);

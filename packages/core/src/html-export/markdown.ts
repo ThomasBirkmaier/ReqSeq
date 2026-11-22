@@ -627,3 +627,7 @@ const rendered = async (text: string, context: TextContext): Promise<RenderedTex
   const hast = toHast(tree, { unknownHandler: madeToHast(nodes, trusted) }) as HastRoot;
   return { html: writeHast(hast, made, trusted), findings, ...features };
 };
+
+// The word-level difference of two wordings, for the web UI through this subpath (ADR-0020). It uses `escapeHtml`
+// only when called, so the cycle with `word-diff.ts` is safe.
+export { wordDiff } from "./word-diff.js";

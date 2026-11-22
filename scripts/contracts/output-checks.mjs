@@ -104,6 +104,7 @@ export const NOT_ELEMENT_COUNTS = new Map([
   ["workspace.check durationMs", "a duration"],
   ["element.list tree[].depth", POSITION],
   ["element.list offset", POSITION],
+  ["element.readImage size", "the size of an image file in bytes"],
   ["element.list rows", "counts rows, and an element is a row in each group it is in"],
   ["element.search offset", POSITION],
   ["element.search rows", "counts rows, and a hit is a row in each group it is in"],

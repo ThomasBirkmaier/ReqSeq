@@ -15,6 +15,13 @@
 // - `id`: the short ID (SR-084). `type`: the order of the types in the metamodel, a type it does not
 //   know after them by its key. `status`: the order of the statuses in the metamodel. `title`: the
 //   property with the meaning `title` (`metamodel.meaning-unassigned` without one, SR-013 AK3).
+// - `verification` (SR-075 AK5): the verification status in the view of the list, the core without
+//   one (`sortValuesFor`, as the rows show it, SR-137), ranked by `VERIFICATION_RANKS`: failed,
+//   open, outdated, verified, `indirect` as verified. An element without one (no requirement, or a
+//   requirement outside the view, SR-137 AK4) has no value, so it is last in both orders; equal ones
+//   go to the next key, then the workspace order (AK1). The status is not in the files: the caller
+//   reads it before the sort (`SortContext.values`), which stays synchronous; the keys `planOf`
+//   only checks (filter.save, perspective.save) need no value.
 //   Any other key (AK1 "nach einer Property") that the metamodel knows or that an element of the
 //   store holds (an unknown property is kept, SR-016): its first value (`valuesOf`: a list by its
 //   first item). A key that holds relations (a relation kind, `validity`, `packages`) has element
@@ -49,7 +56,7 @@
 //   store and linear passes over the selection that link the elements by array positions: looking
 //   up the 128,000 parents of N-036 as records on every call cost several times as much.
 import type { CommandName } from "../catalog.js";
-import type { FilterSortKeyWithDefaults } from "../generated/types.js";
+import type { FilterSortKeyWithDefaults, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { keyDefinition, meaningUnassigned } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
@@ -70,7 +77,31 @@ export interface SortContext {
    * SR-213 AK7). Without it such a key is `input.invalid`.
    */
   readonly storedSort?: boolean;
+  /** What the keys that read more than the files read (`sortValuesFor`, ordered.ts); only they need it. */
+  readonly values?: SortValues;
 }
+
+/**
+ * The values of the keys that read more than the element files, read by the caller before the sort,
+ * which is synchronous: one entry per such key, given only when the keys hold it (`sortValuesFor`).
+ */
+export interface SortValues {
+  /** `verification`: the verification status of an element in the view of the list; undefined without one. */
+  readonly verification?: (element: ElementRecord) => VerificationStatus | undefined;
+}
+
+/**
+ * The ranks of the verification statuses (SR-075 AK5): failed, open, outdated, verified;
+ * `indirect` (SR-034) counts as verified. A sort by them and the lists of the HTML export (SR-233 AK1)
+ * share it.
+ */
+export const VERIFICATION_RANKS: ReadonlyMap<VerificationStatus, number> = new Map([
+  ["failed", 0],
+  ["open", 1],
+  ["outdated", 2],
+  ["verified", 3],
+  ["indirect", 3],
+]);
 
 /** The place of an element in the derivation tree (`hierarchy`). */
 export interface TreePlace {
@@ -159,7 +190,14 @@ export const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<
 /** A key that ends in the order (`title-desc`, `title-asc`): the key and the order it seems to mean. */
 const ORDER_SUFFIX = /^(?<key>.+)-(?<order>asc|desc)$/u;
 
-const BUILT_IN: ReadonlySet<string> = new Set(["id", "identifier", "type", "status", "title"]);
+const BUILT_IN: ReadonlySet<string> = new Set([
+  "id",
+  "identifier",
+  "type",
+  "status",
+  "title",
+  "verification",
+]);
 
 /** Whether an element of the store holds a value under `by` (an own key, not `null` or `[]`). */
 const heldInStore = (store: ElementStore, by: string): boolean =>
@@ -190,12 +228,12 @@ const unknownKey = (context: SortContext, by: string): string => {
       : "";
   return (
     `${by} is no sort key and no property of the metamodel or of an element: sort by id, identifier, ` +
-    `type, status, title, hierarchy or a property key; the order is given separately (asc or desc)${hint}`
+    `type, status, title, verification, hierarchy or a property key; the order is given separately (asc or desc)${hint}`
   );
 };
 
-/** How one key reads the sort value of an element (see the file comment). */
-const columnOf = (context: SortContext, by: string, at: string): Column => {
+/** How a built-in key (`BUILT_IN`) reads the sort value of an element; undefined for any other key. */
+const builtInColumn = (context: SortContext, by: string): Column | undefined => {
   const { metamodel, shortIds } = context;
   switch (by) {
     case "id":
@@ -222,7 +260,28 @@ const columnOf = (context: SortContext, by: string, at: string): Column => {
       }
       return (element, sign, next) => cellOf(valuesOf(element.data[key])[0], NO_RANKS, sign, next);
     }
+    case "verification": {
+      const of = context.values?.verification;
+      return (element, sign, next) => {
+        if (of === undefined) {
+          throw new Error(
+            "sortElements: a sort by verification needs context.values.verification (sortValuesFor)",
+          );
+        }
+        return cellOf(of(element), VERIFICATION_RANKS, sign, next);
+      };
+    }
   }
+  return undefined;
+};
+
+/** How one key reads the sort value of an element (see the file comment). */
+const columnOf = (context: SortContext, by: string, at: string): Column => {
+  const builtIn = builtInColumn(context, by);
+  if (builtIn !== undefined) {
+    return builtIn;
+  }
+  const { metamodel } = context;
   const relation = relationKey(metamodel, by);
   if (relation !== undefined) {
     throw invalidAt(

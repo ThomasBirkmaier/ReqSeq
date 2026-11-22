@@ -264,7 +264,7 @@ const sourceRecords = async (
   const sourceKey = originKey("source", metamodel);
   const identifierKey = originKey("source-identifier", metamodel);
   const source = mapping.source.name;
-  const records = orderedSelection(selected, command, undefined).elements.filter(
+  const records = (await orderedSelection(ctx.workspace, selected, command, undefined)).elements.filter(
     (record) => record.data[sourceKey] === source,
   );
   const without = records.filter((record) => typeof record.data[identifierKey] !== "string");
@@ -565,7 +565,7 @@ export default defineCommand({
       };
     }
     const selected = await resolveSelection(ctx, input.selection ?? {}, command);
-    const { elements } = orderedSelection(selected, command, undefined);
+    const { elements } = await orderedSelection(workspace, selected, command, undefined);
     const omissions = await exportOmissions(
       layout,
       selected.metamodel,

@@ -20,6 +20,7 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 import "./areas/overview.js";
 import "./areas/element.js";
 import "./areas/edit.js";
+import "./areas/changes.js";
 
 applyTheme();
 

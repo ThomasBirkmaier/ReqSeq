@@ -1,7 +1,9 @@
-// The workspaces the app opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
+// The workspaces opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
 // (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
-// one per folder. The app's core process records the root it opened (`model/recent-record.ts`); the
-// app's main process reads the list and checks which roots still hold a workspace.
+// one per folder. Two writers: the app's core process records the root it opened (`rememberWorkspace`
+// through `model/recent-record.ts`), and `workspace.markOpened` marks the root it runs on
+// (`markWorkspace`, SR-250); the app's main process reads the list and checks which roots still hold a
+// workspace.
 //
 // "Open workspace" also takes a typed folder path (AK5): `typedWorkspaceFolder` checks it by its text
 // alone, before any file-system call, and `findTypedWorkspace` finds the workspace from it upwards.
@@ -15,7 +17,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { RecentWorkspacesFile } from "../generated/types.js";
-import type { CacheEnvironment } from "./cache.js";
+import type { CacheEnvironment, PrivateLock } from "./cache.js";
 import { canonicalRoot, lockCacheFile, osCacheFolder, readCacheFile, writeCacheFile } from "./cache.js";
 import { MAX_PATH_LENGTH, isPathText, localFolder, pathsOf } from "./path-text.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
@@ -106,28 +108,26 @@ const isEntry = (value: unknown, platform: NodeJS.Platform): value is RecentWork
   typeof value["opened"] === "string" &&
   DATE_TIME.test(value["opened"]);
 
-/**
- * The entries of the text of the file: none for no file, and for content that is not JSON, of another
- * format or with an entry of the wrong shape (the next record overwrites it). A key listed twice counts
- * once (the first), and at most RECENT_WORKSPACES_KEEP are kept.
- */
-export function parseRecentWorkspaces(
-  text: string | undefined,
-  platform: NodeJS.Platform = process.platform,
-): readonly RecentWorkspace[] {
+/** The entries of the text of the file as they stand; undefined for content that is not such a list. */
+const entriesOf = (text: string, platform: NodeJS.Platform): readonly RecentWorkspace[] | undefined => {
   let data: unknown;
   try {
-    data = JSON.parse(text ?? "null");
+    data = JSON.parse(text);
   } catch {
-    return [];
+    return undefined;
   }
   if (!isRecord(data) || data["format"] !== FORMAT || !Array.isArray(data["workspaces"])) {
-    return [];
+    return undefined;
   }
   const entries: readonly unknown[] = data["workspaces"];
   if (!entries.every((entry) => isEntry(entry, platform))) {
-    return [];
+    return undefined;
   }
+  return entries;
+};
+
+/** The entries with a key listed twice once (the first), at most RECENT_WORKSPACES_KEEP. */
+const distinct = (entries: readonly RecentWorkspace[]): readonly RecentWorkspace[] => {
   const seen = new Set<string>();
   const list: RecentWorkspace[] = [];
   for (const { root, key, opened } of entries) {
@@ -137,6 +137,18 @@ export function parseRecentWorkspaces(
     }
   }
   return list.slice(0, RECENT_WORKSPACES_KEEP);
+};
+
+/**
+ * The entries of the text of the file: none for no file, and for content that is not JSON, of another
+ * format or with an entry of the wrong shape (the next record overwrites it). A key listed twice counts
+ * once (the first), and at most RECENT_WORKSPACES_KEEP are kept.
+ */
+export function parseRecentWorkspaces(
+  text: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): readonly RecentWorkspace[] {
+  return distinct((text === undefined ? undefined : entriesOf(text, platform)) ?? []);
 }
 
 /** The text of the file for `workspaces`; the oldest are left out while it would be too large. */
@@ -177,6 +189,30 @@ export interface RememberOptions {
   readonly key?: string;
 }
 
+/** The key of `root`, or undefined for a root or key the list cannot hold (see `rememberWorkspace`). */
+const keyOf = (root: string, platform: NodeJS.Platform, given: string | undefined): string | undefined => {
+  if (!isRoot(root, platform)) {
+    return undefined;
+  }
+  const key = given ?? workspaceKey(root, platform);
+  // Links resolved, the key can be longer than the root; a list with it would not read.
+  return isPathText(key) && key !== "" ? key : undefined;
+};
+
+/** The lock of the list; while another process holds it, it waits once (LOCK_RETRY_MS). */
+const lockList = async (folder: string): Promise<PrivateLock | undefined> => {
+  const lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
+  if (lock !== undefined) {
+    return lock;
+  }
+  await sleep(LOCK_RETRY_MS);
+  return lockCacheFile(folder, RECENT_WORKSPACES_FILE);
+};
+
+/** The text of the list with `entry` first: the entry with the same key goes, RECENT_WORKSPACES_KEEP stay. */
+const withFirst = (entry: RecentWorkspace, entries: readonly RecentWorkspace[]): string =>
+  serialize([entry, ...entries.filter(({ key }) => key !== entry.key)]);
+
 /**
  * Puts `root` (absolute) first in the list, as opened now: the entry with the same key goes, and the
  * list keeps RECENT_WORKSPACES_KEEP. Read, change and write run under the lock of the file; while
@@ -188,20 +224,12 @@ export interface RememberOptions {
 export async function rememberWorkspace(root: string, options: RememberOptions = {}): Promise<boolean> {
   const { environment } = options;
   const platform = platformOf(environment);
-  if (!isRoot(root, platform)) {
-    return false;
-  }
-  const key = options.key ?? workspaceKey(root, platform);
-  // Links resolved, the key can be longer than the root; a list with it would not read.
-  if (!isPathText(key) || key === "") {
+  const key = keyOf(root, platform, options.key);
+  if (key === undefined) {
     return false;
   }
   const folder = recentWorkspacesFolder(environment);
-  let lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
-  if (lock === undefined) {
-    await sleep(LOCK_RETRY_MS);
-    lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
-  }
+  const lock = await lockList(folder);
   if (lock === undefined) {
     return false;
   }
@@ -214,9 +242,94 @@ export async function rememberWorkspace(root: string, options: RememberOptions =
       text = undefined;
     }
     const opened = (options.now ?? new Date()).toISOString();
-    const rest = parseRecentWorkspaces(text, platform).filter((entry) => entry.key !== key);
-    await writeCacheFile(folder, RECENT_WORKSPACES_FILE, serialize([{ root, key, opened }, ...rest]));
+    const entry = { root, key, opened };
+    await writeCacheFile(
+      folder,
+      RECENT_WORKSPACES_FILE,
+      withFirst(entry, parseRecentWorkspaces(text, platform)),
+    );
     return true;
+  } finally {
+    await lock.release();
+  }
+}
+
+/**
+ * Why `markWorkspace` changed nothing: `locked` (another process held the lock after the one wait),
+ * `unreadable` (the file cannot be read, is larger than RECENT_WORKSPACES_MAX_BYTES, is not a file, or
+ * holds no list of this format), `unwritable` (the lock or the file cannot be written) or `root-not-held`
+ * (a root or key the list cannot hold, see `rememberWorkspace`); with the Node error, if any.
+ */
+export type MarkRefusal = "locked" | "unreadable" | "unwritable" | "root-not-held";
+
+export type MarkOutcome =
+  { readonly marked: RecentWorkspace } | { readonly refused: MarkRefusal; readonly cause?: unknown };
+
+/** Read errors that mean "there is no list yet" (also a file on the path of its folder). */
+const NO_LIST: readonly string[] = ["ENOENT", "ENOTDIR"];
+
+/**
+ * The text of the list, undefined when there is none; rejects when it cannot be read, and when something
+ * other than a file of at most RECENT_WORKSPACES_MAX_BYTES bytes is at its path (for which `readCacheFile`
+ * gives undefined, as for no file).
+ */
+const readListStrictly = async (folder: string): Promise<string | undefined> => {
+  const text = await readCacheFile(folder, RECENT_WORKSPACES_FILE, RECENT_WORKSPACES_MAX_BYTES);
+  if (text !== undefined) {
+    return text;
+  }
+  try {
+    await fs.lstat(path.join(folder, RECENT_WORKSPACES_FILE));
+  } catch (error) {
+    if (NO_LIST.includes(String((error as NodeJS.ErrnoException).code))) {
+      return undefined;
+    }
+    throw error;
+  }
+  throw new Error("not a file of at most RECENT_WORKSPACES_MAX_BYTES bytes");
+};
+
+/**
+ * Puts `root` (absolute) first in the list as opened now, as `rememberWorkspace` does, but strictly
+ * (SR-250): it never skips quietly and never replaces a list it cannot read. A missing list is created
+ * with this one entry. Under the lock of the file, read, change and write; any refusal (`MarkRefusal`)
+ * leaves the list as it was, since the file is replaced in one rename (`writeCacheFile`). Never rejects.
+ */
+export async function markWorkspace(root: string, options: RememberOptions = {}): Promise<MarkOutcome> {
+  const { environment } = options;
+  const platform = platformOf(environment);
+  const key = keyOf(root, platform, options.key);
+  if (key === undefined) {
+    return { refused: "root-not-held" };
+  }
+  const folder = recentWorkspacesFolder(environment);
+  let lock: PrivateLock | undefined;
+  try {
+    lock = await lockList(folder);
+  } catch (cause) {
+    return { refused: "unwritable", cause };
+  }
+  if (lock === undefined) {
+    return { refused: "locked" };
+  }
+  try {
+    let text: string | undefined;
+    try {
+      text = await readListStrictly(folder);
+    } catch (cause) {
+      return { refused: "unreadable", cause };
+    }
+    const entries = text === undefined ? [] : entriesOf(text, platform);
+    if (entries === undefined) {
+      return { refused: "unreadable" };
+    }
+    const entry = { root, key, opened: (options.now ?? new Date()).toISOString() };
+    try {
+      await writeCacheFile(folder, RECENT_WORKSPACES_FILE, withFirst(entry, distinct(entries)));
+    } catch (cause) {
+      return { refused: "unwritable", cause };
+    }
+    return { marked: entry };
   } finally {
     await lock.release();
   }

@@ -4,7 +4,7 @@ import { rememberWorkspace } from "@reqseq/core";
 import { scenariosOf } from "../../scenario.js";
 
 // The list belongs to the user (`<OS cache>/reqseq/recent-workspaces.json`), not to the workspace: the
-// app records it, every access reads the same list (SR-131, SR-080 AK4).
+// app and workspace.markOpened (SR-250) record it, every access reads the same list (SR-131).
 scenariosOf("workspace.recent", [
   {
     name: "the recent workspaces, the last opened first, one gone and one without a workspace file",

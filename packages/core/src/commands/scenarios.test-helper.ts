@@ -2,6 +2,27 @@
 // change, no-status-change.test.ts) and SR-083 (Git only read, git-read-only.test.ts). The fixture is
 // SR-001/two-elements with FILES on top; GIT_COMMANDS need it as a Git repository.
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, beforeAll, vi } from "vitest";
+
+/**
+ * Puts the OS cache folder of this test file into a temporary folder (on every OS), so the scenarios
+ * of workspace.markOpened never write the list of recent workspaces of the person running the tests.
+ */
+export const isolateOsCache = (): void => {
+  let home = "";
+  beforeAll(() => {
+    home = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-scenarios-home-"));
+    for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+      vi.stubEnv(name, home);
+    }
+  });
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    fs.rmSync(home, { recursive: true, force: true, maxRetries: 3 });
+  });
+};
 
 export const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 export const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
@@ -67,6 +88,8 @@ export const FILES: Readonly<Record<string, string>> = {
     "reqseq-metamodel: 1\ntypes:\n  - { key: scratch, name: Scratch, prefix: SC }\n" +
     "relations:\n  - { key: scratch-link, name: Scratch link }\n",
   "new/layout.png": "an image",
+  // An SVG, the one image that is text, so element.readImage gives one (SR-251).
+  "new/logo.svg": '<svg xmlns="http://www.w3.org/2000/svg"/>',
   "filters/wind.yaml": "reqseq-filter: 1\nname: Wind\nwhere: { status: [draft] }\n",
   "filters/gusts.yaml": "reqseq-filter: 1\nname: Gusts\nwhere: { status: [approved] }\n",
   "perspectives/wind.yaml": "reqseq-perspective: 1\nname: Wind\nfilter: Wind\nwhere: { all: [] }\n",
@@ -155,6 +178,11 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: ["SR-ffffff"] } },
   ],
   "element.get": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
+  "element.readImage": [
+    { ref: WIND, destination: "../new/logo.svg" },
+    { ref: WIND, destination: "../new/layout.png" },
+    { ref: "SR-ffffff", destination: "../new/logo.svg" },
+  ],
   "element.list": [
     {},
     { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] } }, withText: true },
@@ -415,6 +443,7 @@ export const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   "tool.guide": [{}, { names: "mcp" }, { extra: true }],
   "tool.info": [{}, { extra: true }],
   "workspace.recent": [{}, { extra: true }],
+  "workspace.markOpened": [{}, { extra: true }],
   "workspace.connectAgent": [{}, { client: "other" }, { client: "claude-code" }, { extra: true }],
   "workspace.listFolder": [{ path: "" }, { path: "needs/", files: true }, { extra: true }],
   "workspace.status": [{}, { extra: true }],
