@@ -1,0 +1,80 @@
+// The element page: any element with what it points to, what points to it, its text and its criteria, as
+// `element.get` and `trace.neighbourhood` give them.
+import type { Run } from "./start-ui.js";
+import { expect, test } from "./fixtures.js";
+
+/** The route name of an element: its identifier, else its short ID. */
+const refOf = (e: { identifier?: string; shortId: string }): string => e.identifier ?? e.shortId;
+
+/** A requirement with acceptance criteria and an outgoing relation that is not a property. */
+async function requirementWithTrace(run: Run): Promise<string> {
+  const mm = await run("metamodel.get", {});
+  const types = mm.types.filter((t) => t.meaning === "requirement" && !t.abstract).map((t) => t.key);
+  const { partial = [] } = await run("element.list", {
+    limit: 200,
+    fields: ["identifier", "relations", "properties", "type"],
+    selection: { where: { type: types } },
+  });
+  const criteria = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
+  const found = partial.find(
+    (e) =>
+      Array.isArray(e.properties?.[criteria]) &&
+      (e.relations ?? []).some((r) => r.direction === "out" && r.property !== true),
+  );
+  if (found === undefined) {
+    throw new Error("The workspace has no requirement with criteria and a relation");
+  }
+  return refOf(found);
+}
+
+test("a requirement shows its trace, text and criteria", async ({ page, open, ui }) => {
+  const ref = await requirementWithTrace(ui.run);
+  const { element } = await ui.run("element.get", { ref });
+  const mm = await ui.run("metamodel.get", {});
+  await open(`/e/${ref}`);
+  await expect(page.getByRole("heading", { level: 1, name: element.title })).toBeVisible();
+  // What it points to, by the name of each relation kind.
+  const out = element.relations.filter((r) => r.direction === "out" && r.property !== true);
+  const left = page.locator(".col-left");
+  for (const r of out) {
+    await expect(
+      left.getByRole("heading", { name: mm.relations.find((k) => k.key === r.kind)?.name ?? r.kind }),
+    ).toBeVisible();
+    await expect(left.locator(`[data-link="${r.id}"]`)).toHaveCount(1);
+  }
+  // An outdated link is marked as such.
+  for (const r of out.filter((x) => x.outdated === true)) {
+    await expect(left.locator(`.node.warn[data-link="${r.id}"]`)).toContainText("changed since linked");
+  }
+  // As many criteria as ReqSeq has.
+  const criteria = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
+  await expect(page.locator(".card .crit")).toHaveCount((element.properties[criteria] as unknown[]).length);
+  // The text, as text.
+  const firstParagraph = (element.text ?? "").split(/\n\s*\n/)[0]?.trim() ?? "";
+  if (firstParagraph !== "") {
+    await expect(page.locator(".card .prose p").first()).toHaveText(firstParagraph);
+  }
+});
+
+test("following a relation opens the related element, which lists the first one as pointing to it", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const ref = await requirementWithTrace(ui.run);
+  const { element } = await ui.run("element.get", { ref });
+  await open(`/e/${ref}`);
+  await page.locator(".col-left a.node").first().click();
+  await expect(page).not.toHaveURL(new RegExp(`#/e/${ref}$`));
+  await expect(page.locator(".col-right")).toContainText(element.identifier ?? element.title);
+  await expect(
+    page.getByRole("link", { name: `Back to ${element.identifier ?? element.title}` }),
+  ).toBeVisible();
+});
+
+test("an unknown element says so in plain words", async ({ page, open }) => {
+  await open("/e/NO-SUCH-ELEMENT");
+  await expect(page.getByRole("alert")).toContainText("There is no element with that ID.");
+  await page.getByRole("link", { name: "Back to Overview" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+});

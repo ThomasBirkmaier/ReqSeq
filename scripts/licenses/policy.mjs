@@ -18,6 +18,30 @@ export const ALLOWED = new Set([
   "MPL-2.0",
 ]);
 
+/**
+ * Licences allowed only for a package that ships fonts and no code (ADR-0015, ADR-0020): IBM Plex Sans and Mono of
+ * the web UI, from `@fontsource`. Such a package is accepted when `fontOnly` holds for its folder.
+ */
+export const FONT_LICENSES = new Set(["OFL-1.1"]);
+
+/** Files a font package may hold: fonts, their style sheets, metadata, type declarations and texts. */
+const FONT_PACKAGE_FILE = /\.(?:woff2?|ttf|otf|css|scss|json|md|txt)$|\.d(?:\.[a-z]+)?\.ts$/i;
+
+/**
+ * Whether the package in `folder` ships fonts and no code: at least one font file, and every file below it either a
+ * licence text or of FONT_PACKAGE_FILE. A script, a binary or a link of any kind fails it.
+ */
+export function fontOnly(folder) {
+  const entries = fs.readdirSync(folder, { recursive: true, withFileTypes: true });
+  const files = entries.filter((entry) => !entry.isDirectory());
+  return (
+    files.some((entry) => /\.(?:woff2?|ttf|otf)$/i.test(entry.name)) &&
+    files.every(
+      (entry) => entry.isFile() && (LICENSE_FILE.test(entry.name) || FONT_PACKAGE_FILE.test(entry.name)),
+    )
+  );
+}
+
 /** The tokens of an SPDX expression, or undefined for a character no expression of ours has. */
 const tokens = (expression) => {
   const out = [];
