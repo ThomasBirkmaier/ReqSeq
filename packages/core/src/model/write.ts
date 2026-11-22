@@ -709,6 +709,10 @@ const NOT_LISTED: Readonly<Record<NewFileRule, string>> = {
     "holds an invisible format character (such as a zero-width or direction mark), which ReqSeq does not put into the name of a new folder",
 };
 
+/** What `not-portable` names for the folders of an export, whose list is closed (SR-235 AK8, SR-207 AK5). */
+const EXPORT_NOT_PORTABLE =
+  'is a name Windows changes or refuses (a trailing dot or space, <>:"|?*\\, a control character, or a device name such as CON or NUL)';
+
 /** Rules for a name that is refused wherever the repository is checked out (`reason: "not-portable"`). */
 const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisible"]);
 
@@ -721,18 +725,21 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
  * (`newFileTarget`, ThomasBirkmaier/ReqSeq-archive#194). With `ignored: false` the `ignore` globs do not count, only the safety
  * rules: for a file the walk never reads, such as the data file of `data.store` (SR-062), which may
- * go into an ignored build folder.
+ * go into an ignored build folder. With `exported: true` the names are judged by the closed list of an
+ * export's folders (`NewFileRules`) and the refusal is the one of an export's `output` (`Not exported:`,
+ * `fields`), for the folders an export creates (`foldersAbove`).
  */
 export const refuseUnlisted = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   file: string,
-  options: { readonly ignored?: false } = {},
+  options: { readonly ignored?: false; readonly exported?: true } = {},
 ): Promise<string> => {
   const target = await newFileTarget(
     repository,
     options.ignored === false ? () => false : ignoredBy(layout),
     file,
+    options.exported === true ? { exported: true } : {},
   );
   if (target.kind === "listed") {
     return target.file;
@@ -741,8 +748,9 @@ export const refuseUnlisted = async (
   const spelled = existing === undefined ? "" : ` (on disk: ${existing})`;
   const shown = character === undefined ? "" : ` (${character})`;
   throw invalid(
-    `Not created: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}${shown}`,
+    `${options.exported === true ? "Not exported" : "Not created"}: ${file} in repository ${repository.name}: ${part} ${options.exported === true && rule === "not-portable" ? EXPORT_NOT_PORTABLE : NOT_LISTED[rule]}${spelled}${shown}`,
     {
+      ...(options.exported === true ? { fields: ["output"] } : {}),
       repository: repository.name,
       file,
       reason: NOT_PORTABLE.has(rule) ? "not-portable" : "not-listed",

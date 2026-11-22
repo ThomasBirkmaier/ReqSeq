@@ -137,6 +137,38 @@ scenariosOf("html.export", [
     },
   },
   {
+    tag: "[SR-235/AK-hpjh]",
+    name: "missing folders above the target in the repository are created, and the export is written",
+    fixture: ONE_REPOSITORY,
+    input: { output: "exports/html/site" },
+    expect: "output",
+    check: (results) => {
+      for (const { files } of Object.values(results)) {
+        expect(files["exports/html/site/index.html"]).toContain("<!doctype html>");
+      }
+    },
+  },
+  {
+    tag: "[SR-235/AK-kj5b]",
+    name: "missing folders through node_modules are refused with the reason, and no folder is created",
+    fixture: ONE_REPOSITORY,
+    input: { output: "node_modules/html/site" },
+    expect: "error",
+    after: async ({ root }) => {
+      await expect(fs.lstat(path.join(root, "node_modules"))).rejects.toThrow();
+    },
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        expect(result.changed).toEqual([]);
+      }
+      const { error } = results["core"]?.outcome as { error: { code: string; message: string } };
+      expect([error.code, error.message]).toEqual([
+        "input.invalid",
+        "Not exported: node_modules/html/site in repository system: node_modules is named .git or node_modules (or a spelling Windows or macOS take for it), which ReqSeq never reads or writes",
+      ]);
+    },
+  },
+  {
     tag: "[SR-231/AK-z3tv]",
     name: "each page is named by the UUID of its element",
     fixture: IDENTIFIERS,

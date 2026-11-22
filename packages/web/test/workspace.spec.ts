@@ -118,8 +118,8 @@ test("the problems page lists what the check of the workspace finds", async ({ p
 });
 
 test("each export writes into the folder named and shows the path written", async ({ page, open, ui }) => {
-  // The folders above the HTML pages and the ReqIF file must exist; the JSON export creates its own.
-  await fs.mkdir(path.join(ui.root, "exports"), { recursive: true });
+  // Each export creates the missing folder exports/ itself.
+  await expect(fs.stat(path.join(ui.root, "exports"))).rejects.toThrow();
   try {
     await open("/w/export");
     const html = page.getByRole("region", { name: "HTML pages" });
@@ -143,17 +143,19 @@ test("each export writes into the folder named and shows the path written", asyn
   }
 });
 
-test("an export to a folder whose parent is missing says so and writes nothing", async ({
-  page,
-  open,
-  ui,
-}) => {
-  await open("/w/export");
-  const html = page.getByRole("region", { name: "HTML pages" });
-  await html.getByLabel("Folder").fill("nowhere/html");
-  await html.getByRole("button", { name: "Export HTML" }).click();
-  await expect(html.getByRole("alert")).toContainText("The folder to write into does not exist.");
-  await expect(fs.stat(path.join(ui.root, "nowhere"))).rejects.toThrow();
+test("an export into missing folders of the repository creates them", async ({ page, open, ui }) => {
+  try {
+    await open("/w/export");
+    const html = page.getByRole("region", { name: "HTML pages" });
+    await html.getByLabel("Folder").fill("nowhere/deeper/html");
+    await html.getByRole("button", { name: "Export HTML" }).click();
+    await expect(html.getByRole("status")).toContainText("Written to nowhere/deeper/html");
+    await expect(
+      fs.stat(path.join(ui.root, "nowhere", "deeper", "html", "index.html")),
+    ).resolves.toBeTruthy();
+  } finally {
+    await fs.rm(path.join(ui.root, "nowhere"), { recursive: true, force: true });
+  }
 });
 
 test("a ReqIF file is checked first and then imported with the delivery named", async ({ page }) => {

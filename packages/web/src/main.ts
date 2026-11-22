@@ -26,6 +26,8 @@ import "./areas/matrix.js";
 import "./areas/variants.js";
 import "./areas/changes.js";
 import { WORKSPACES, WORKSPACE_OPENED, isWorkspaceOpen, setWorkspaceOpen } from "./areas/workspace.js";
+import "./areas/lists.js";
+import "./areas/palette.js";
 
 applyTheme();
 

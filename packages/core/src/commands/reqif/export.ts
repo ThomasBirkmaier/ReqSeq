@@ -14,8 +14,12 @@
 //   SR-088: the file would name one IDENTIFIER twice, ReqIF 1.2 §10.8.32), a content the writer
 //   refuses (`reqif.invalid` naming each problem), an element or image file changed since it was
 //   read (`file.changed-on-disk`), an output in a `.git` folder, in any case and through links
-//   (`input.invalid`, D-036), an output that is no ReqIF file (`file.faulty` naming why), an output
-//   folder that does not exist (`file.folder-missing`, checked before any image is copied).
+//   (`input.invalid`, D-036), an output that is no ReqIF file (`file.faulty` naming why), and
+//   missing folders above the output that the model's `foldersAbove` refuses (SR-207 AK5, AK6):
+//   outside the repositories of the workspace a missing folder (`file.folder-missing`).
+// - Missing folders above the output in a repository (SR-207 AK4) are created after every refusal,
+//   before the first image copy; an error after that removes each of them that is empty (AK7), and
+//   each folder of the image copies that it created and left empty.
 // - Statements (SR-058): with `statements` and `mapping`, the elements whose `source` is the
 //   mapping's source, narrowed by `selection`, in the order of the list, each by its source
 //   IDENTIFIER (`source-identifier`) with only its statement (reqif/statements.ts) as text
@@ -33,14 +37,16 @@
 // - Not yet: `profile` (SR-101 profiles of a mapping); `omitProperties` with `statements`, which carry
 //   no properties. Each refuses with `input.invalid` naming itself.
 import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
-import type { CommandInput, CommandOutput } from "../../catalog.js";
+import type { CommandInput, CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import {
   createFolder,
-  listFolderFiles,
+  createFolders,
   readElementText,
   readFileSnapshot,
+  removeEmptyFolders,
   replaceRefusal,
   sha256,
   writeFileAtomic,
@@ -48,10 +54,15 @@ import {
 import type { CountedElement, MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, ShortIds, TargetItem } from "../../model/index.js";
-import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
+import { foldersAbove, ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
 import type { SelectionContext } from "../../query/index.js";
-import { orderedSelection, resolveSelection } from "../../query/index.js";
+import {
+  orderedSelection,
+  resolveSelection,
+  sortProblems as sortProblemsOf,
+  sortValuesFor,
+} from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
 import {
@@ -244,6 +255,8 @@ interface SourceRecords {
   readonly selected: Awaited<ReturnType<typeof resolveSelection>>;
   readonly mapping: ReqifMappingFile;
   readonly records: readonly ElementRecord[];
+  /** The warnings of the order (`sort.incomplete`, a stored sort by `versionDate`). */
+  readonly sortProblems: readonly Problem[];
   readonly identifierKey: string;
 }
 
@@ -264,9 +277,10 @@ const sourceRecords = async (
   const sourceKey = originKey("source", metamodel);
   const identifierKey = originKey("source-identifier", metamodel);
   const source = mapping.source.name;
-  const records = (await orderedSelection(ctx.workspace, selected, command, undefined)).elements.filter(
-    (record) => record.data[sourceKey] === source,
-  );
+  const values = await sortValuesFor(ctx.workspace, selected, undefined);
+  const records = (
+    await orderedSelection(ctx.workspace, selected, command, undefined, values)
+  ).elements.filter((record) => record.data[sourceKey] === source);
   const without = records.filter((record) => typeof record.data[identifierKey] !== "string");
   if (without.length > 0) {
     throw new CommandError(
@@ -288,7 +302,7 @@ const sourceRecords = async (
     }
     byIdentifier.set(identifier, record);
   }
-  return { selected, mapping, records, identifierKey };
+  return { selected, mapping, records, identifierKey, sortProblems: sortProblemsOf(values) };
 };
 
 /** Refuses two `records` with one UUID (`ref.ambiguous`, SR-088): the file would name one IDENTIFIER twice. */
@@ -312,6 +326,7 @@ interface PlannedStatements {
   readonly exported: readonly ElementRecord[];
   readonly without: readonly ElementRecord[];
   readonly shortIds: ShortIds;
+  readonly sortProblems: readonly Problem[];
 }
 
 /** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
@@ -321,7 +336,12 @@ const statementsOf = async (
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<PlannedStatements> => {
-  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const { selected, mapping, records, identifierKey, sortProblems } = await sourceRecords(
+    ctx,
+    layout,
+    input,
+    mappingPath,
+  );
   const statement = statementOf(mapping, mappingPath, selected.metamodel);
   const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
   const elements = records.map((record) => ({
@@ -343,6 +363,7 @@ const statementsOf = async (
     exported: records,
     without: records.filter((_, index) => elements[index]?.statement === undefined),
     shortIds: selected.shortIds,
+    sortProblems,
   };
 };
 
@@ -384,7 +405,12 @@ const sourceModelExport = async (
   absolute: string,
 ): Promise<CommandOutput<"reqif.export">> => {
   const command = "reqif.export";
-  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const { selected, mapping, records, identifierKey, sortProblems } = await sourceRecords(
+    ctx,
+    layout,
+    input,
+    mappingPath,
+  );
   const model = mapping["source-model"];
   if (model === undefined) {
     throw new CommandError(
@@ -430,7 +456,7 @@ const sourceModelExport = async (
     statement,
   });
   await checkOmissions(omissions, command);
-  await writeOutput(absolute, plan.file, [], command);
+  await writeOutput(layout, absolute, plan.file, [], command);
   const saved = await saveOmissions(layout, omissions);
   return {
     file: shown(ctx.workspace.root, absolute),
@@ -443,7 +469,7 @@ const sourceModelExport = async (
     ),
     elementsWithoutStatement: listedElements(selected.shortIds, plan.withoutStatement),
     files: saved,
-    problems: [...plan.problems],
+    problems: [...plan.problems, ...sortProblems],
   };
 };
 
@@ -454,6 +480,7 @@ const sourceModelExport = async (
  * (`file.faulty`, SR-207 AK1).
  */
 const writeOutput = async (
+  layout: WorkspaceLayout,
   absolute: string,
   file: ReqifWritable,
   copies: readonly ImageCopy[],
@@ -493,21 +520,47 @@ const writeOutput = async (
       fields: ["output"],
     });
   }
-  // Checked before any image copy, whose folders would be created below a folder that is not there.
-  if ((await listFolderFiles(outputFolder)).kind === "missing") {
-    throw new CommandError("file.folder-missing", `Not exported: the folder of ${name} does not exist`, {
-      command,
-      fields: ["output"],
-    });
-  }
-  await refuseCopyTargets(outputFolder, copies, command);
-  for (const copy of copies) {
-    await writeCopy(outputFolder, copy, command);
-  }
-  const { chunks } = written;
-  await writeFileAtomic(outputFolder, name, () => chunks, before.kind === "read" ? before.snapshot : null, {
-    kind: "reqif",
+  // SR-207 AK4 to AK6: the missing folders above the file, judged before any image copy, whose
+  // folders are created below the output folder.
+  const above = await foldersAbove(layout, absolute, {
+    shown: name,
+    outside: () =>
+      new CommandError(
+        "file.folder-missing",
+        `Not exported: the folder of ${name} does not exist; outside the repositories of the workspace ReqSeq creates no folder`,
+        { command, fields: ["output"] },
+      ),
   });
+  await refuseCopyTargets(outputFolder, copies, command);
+  // The folders of the image copies that are not there yet, topmost first: they go on a failure too.
+  const imageFolders = [
+    ...new Set(
+      copies.flatMap((copy) => {
+        const names = path.posix.dirname(copy.target).split("/");
+        return names.map((_, i) => path.join(outputFolder, ...names.slice(0, i + 1)));
+      }),
+    ),
+  ].sort((a, b) => a.length - b.length);
+  const newImageFolders: string[] = [];
+  for (const folder of imageFolders) {
+    if ((await fs.lstat(folder).catch(() => undefined)) === undefined) {
+      newImageFolders.push(folder);
+    }
+  }
+  const created = await createFolders(above, layout.root);
+  try {
+    for (const copy of copies) {
+      await writeCopy(outputFolder, copy, command);
+    }
+    const { chunks } = written;
+    await writeFileAtomic(outputFolder, name, () => chunks, before.kind === "read" ? before.snapshot : null, {
+      kind: "reqif",
+    });
+  } catch (error) {
+    // SR-207 AK7: what the export created and left empty goes again.
+    await removeEmptyFolders([...created, ...newImageFolders]);
+    throw error;
+  }
 };
 
 export default defineCommand({
@@ -551,8 +604,13 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const { plan, exported, without, shortIds } = await statementsOf(ctx, layout, input, input.mapping);
-      await writeOutput(absolute, plan.file, [], command);
+      const { plan, exported, without, shortIds, sortProblems } = await statementsOf(
+        ctx,
+        layout,
+        input,
+        input.mapping,
+      );
+      await writeOutput(layout, absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
         elements: plan.file.specObjects.length,
@@ -561,11 +619,12 @@ export default defineCommand({
         exportedElements: listedElements(shortIds, exported),
         elementsWithoutStatement: listedElements(shortIds, without),
         files: [],
-        problems: [],
+        problems: [...sortProblems],
       };
     }
     const selected = await resolveSelection(ctx, input.selection ?? {}, command);
-    const { elements } = await orderedSelection(workspace, selected, command, undefined);
+    const values = await sortValuesFor(workspace, selected, undefined);
+    const { elements } = await orderedSelection(workspace, selected, command, undefined, values);
     const omissions = await exportOmissions(
       layout,
       selected.metamodel,
@@ -609,7 +668,7 @@ export default defineCommand({
       omit: omissions.keys,
     });
     await checkOmissions(omissions, command);
-    await writeOutput(absolute, plan.file, copies, command);
+    await writeOutput(layout, absolute, plan.file, copies, command);
     const saved = await saveOmissions(layout, omissions);
     return {
       file: shown(workspace.root, absolute),
@@ -621,7 +680,7 @@ export default defineCommand({
       ),
       elementsWithoutStatement: [],
       files: [...copies.map((copy) => shown(workspace.root, path.join(outputFolder, copy.target))), ...saved],
-      problems: [],
+      problems: [...sortProblemsOf(values)],
     };
   },
 });

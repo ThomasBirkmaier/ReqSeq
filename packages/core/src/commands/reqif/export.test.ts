@@ -400,16 +400,6 @@ describe("reqif.export (SR-052)", () => {
     ).toBe(outside);
   });
 
-  it("refuses an output folder that does not exist with file.folder-missing, with images and without, and writes nothing (#694)", async () => {
-    const { fixture, workspace } = await open();
-    // WIND embeds an image, TEMPERATURE none.
-    for (const ids of [[WIND], [TEMPERATURE]]) {
-      const refused = await failure(workspace, { output: "gone/x.reqif", selection: { ids } });
-      expect([refused.code, refused.details?.["fields"]]).toEqual(["file.folder-missing", ["output"]]);
-    }
-    await expect(fs.access(fixture.path("gone"))).rejects.toThrow();
-  });
-
   it("[SR-083/AK-zp6z] [SR-083/AK-s4q9] never writes the file or an image copy into a .git folder, in any case and through a linked folder (#1449)", async () => {
     const { fixture, workspace } = await open(undefined, { ".git/hooks/keep": "", ".GIT/x/keep": "" });
     await fs.symlink(fixture.path(".git"), fixture.path("linked"), "junction");

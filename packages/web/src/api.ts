@@ -150,10 +150,6 @@ const PLAIN: Readonly<Record<string, readonly [string, string]>> = {
     "There is no workspace in this folder.",
     "Name the folder that holds reqseq-workspace.yaml, or create a workspace there.",
   ],
-  "ui.export-folder-missing": [
-    "The folder to write into does not exist.",
-    "Create it, or name a folder that exists.",
-  ],
   "ui.delivery-missing": ["The delivery has no name.", "Name it, such as the date or version of the file."],
   "ui.path-not-absolute": [
     "This needs the full path of the folder.",
