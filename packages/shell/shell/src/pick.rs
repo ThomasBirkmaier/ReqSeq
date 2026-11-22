@@ -54,16 +54,18 @@ pub struct Shown {
 }
 
 impl Shown {
-    /// What the dialog shows first, from the page's inputs. A folder counts only when it is absolute and local: on
-    /// Windows a drive letter with its root, no UNC or device path, since opening one could connect to another
-    /// machine (SR-078). A name counts only for a target, and only as a plain file name. Anything else is left out,
-    /// so the dialog opens where the operating system chooses.
+    /// What the dialog shows first, from the page's inputs. A folder counts only when it is absolute: on Windows a
+    /// drive letter with its root, no UNC or device path, since a page could otherwise make the dialog connect to
+    /// another machine (SR-078). A folder the operating system mounts from another machine under a local path (a
+    /// mapped drive, `/net`, `/Volumes`) is one the person set up, and counts. A name counts only for a target, and
+    /// only as a plain file name: no separator, and on Windows no drive (`C:x`) or reserved character. Anything else
+    /// is left out, so the dialog opens where the operating system chooses.
     #[must_use]
     pub fn of(pick: Pick, folder: Option<&str>, name: Option<&str>, windows: bool) -> Self {
         Self {
             folder: folder.filter(|f| local_absolute(f, windows)).map(PathBuf::from),
             name: name
-                .filter(|n| pick == Pick::Target && plain_name(n))
+                .filter(|n| pick == Pick::Target && plain_name(n, windows))
                 .map(str::to_owned),
         }
     }
@@ -84,12 +86,13 @@ fn local_absolute(text: &str, windows: bool) -> bool {
     }
 }
 
-fn plain_name(text: &str) -> bool {
+fn plain_name(text: &str, windows: bool) -> bool {
     !text.is_empty()
         && text.len() <= MAX_NAME
         && text != "."
         && text != ".."
         && !text.contains(['/', '\\'])
+        && !(windows && text.contains([':', '<', '>', '"', '|', '?', '*']))
         && !text.chars().any(char::is_control)
 }
 
@@ -137,9 +140,19 @@ impl<D: Dialog> Dialogs<D> {
         if self.open.swap(true, Ordering::SeqCst) {
             return None;
         }
+        // Closed again also when the dialog panics, so a later request can open one.
+        let _closed = Closed(&self.open);
         let chosen = self.dialog.show(pick, &Shown::of(pick, folder, name, windows));
-        self.open.store(false, Ordering::SeqCst);
         answer(chosen.as_deref())
+    }
+}
+
+/// Marks the dialog as closed when dropped.
+struct Closed<'a>(&'a AtomicBool);
+
+impl Drop for Closed<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
     }
 }
 
@@ -211,6 +224,12 @@ mod tests {
     #[test]
     fn a_name_counts_only_for_a_target_and_only_as_a_plain_file_name() {
         let name = |pick: Pick, text: &str| Shown::of(pick, None, Some(text), false).name;
+        let on_windows = |text: &str| Shown::of(Pick::Target, None, Some(text), true).name;
+        assert_eq!(name(Pick::Target, "a:b"), Some("a:b".to_owned()));
+        assert_eq!(on_windows("ws.reqif"), Some("ws.reqif".to_owned()));
+        for text in ["C:ws.reqif", "a<b", "a>b", "a\"b", "a|b", "a?b", "a*b"] {
+            assert_eq!(on_windows(text), None, "{text:?}");
+        }
         assert_eq!(name(Pick::Target, "ws.reqif"), Some("ws.reqif".to_owned()));
         assert_eq!(
             name(Pick::Target, &"a".repeat(MAX_NAME)),
@@ -268,6 +287,24 @@ mod tests {
         );
         let cancelled = Dialogs::new(Fake::default());
         assert_eq!(cancelled.choose(Pick::File, None, None, false), None);
+    }
+
+    struct Panics;
+
+    impl Dialog for Panics {
+        fn show(&self, _: Pick, _: &Shown) -> Option<PathBuf> {
+            panic!("the dialog failed");
+        }
+    }
+
+    #[test]
+    fn a_dialog_that_panics_is_closed_again() {
+        let dialogs = Dialogs::new(Panics);
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            dialogs.choose(Pick::Folder, None, None, false)
+        }));
+        assert!(caught.is_err());
+        assert!(!dialogs.open.load(Ordering::SeqCst));
     }
 
     #[test]

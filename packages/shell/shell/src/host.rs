@@ -332,6 +332,12 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
             filter,
         );
     }
+    // The GTK file dialog runs in this process; without its list of recent files it writes no file (SR-253 AK1).
+    #[cfg(target_os = "linux")]
+    if let Some(settings) = gtk::Settings::default() {
+        use gtk::prelude::GtkSettingsExt as _;
+        settings.set_gtk_recent_files_enabled(false);
+    }
     let (tx, rx) = mpsc::channel::<Input>();
     let root: PathBuf = root_folder(cfg!(windows), std::env::var("SystemDrive").ok().as_deref());
     #[cfg(feature = "e2e")]

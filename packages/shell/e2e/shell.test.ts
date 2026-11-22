@@ -552,7 +552,8 @@ describe("SR-253: the desktop shell offers the operating system's dialogs", () =
         url: "https://example.org/",
         options: {},
       });
-      expect([command, answer.refused]).toEqual([command, expect.any(String)]);
+      // Tauri's access control answers before any code runs.
+      expect([command, answer.refused]).toEqual([command, expect.stringMatching(/ not allowed\. /)]);
     }
     expect(shell.all("dialog")).toHaveLength(7);
     expect(await shell.eval("location.origin")).toBe(origin);
@@ -584,6 +585,8 @@ describe("SR-253: the desktop shell offers the operating system's dialogs", () =
       `document.querySelector('input[name="open-path"]').value === ${JSON.stringify(ws.root)}`,
     );
     await click(shell, '.frow:has(input[name="open-path"]) > .btn');
+    // The page goes to the overview once the workspace is open.
+    await shell.evalUntil("the opened workspace", `location.hash === "#/q/overview"`);
     await showRoute(shell, "#/w/export");
     await shell.evalUntil("the export page", `document.querySelector('input[name="reqif-out"]') !== null`);
 
