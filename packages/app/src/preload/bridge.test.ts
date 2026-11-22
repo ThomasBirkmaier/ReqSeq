@@ -591,7 +591,7 @@ describe("a swipe macOS reports to the window (SR-163 AK4)", () => {
 });
 
 describe("what the renderer can reach", () => {
-  it("[SR-080/AK-dq1w] gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
+  it("gets the values of the workspace only from catalog commands; the rest is the window's own state", () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
     // `invoke` and `commands` go to the core process, which runs the catalog as CLI, API and MCP do.
