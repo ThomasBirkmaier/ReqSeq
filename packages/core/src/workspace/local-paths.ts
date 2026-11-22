@@ -55,6 +55,8 @@ interface Refused extends LocalPathUse {
 }
 
 export interface LocalPathOptions {
+  /** The call comes through the web UI (access `ui`): the refusal names it. Default: the API and MCP. */
+  readonly webUi?: boolean;
   /** Whose file name rules apply; default `process.platform` (tests). */
   readonly platform?: NodeJS.Platform;
 }
@@ -191,14 +193,20 @@ const PART: Readonly<Record<LocalPathReason, string>> = {
   "invalid-path": "not a valid local path",
 };
 
-const messageOf = (refused: readonly Refused[]): string => {
+/** How a refusal ends for each confined access: what it names, and what the person can do instead. */
+const confinedBy = (webUi: boolean): string =>
+  webUi
+    ? "Through the web UI ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository"
+    : "Through the API and the MCP server ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository, or use the command line";
+
+const messageOf = (refused: readonly Refused[], webUi: boolean): string => {
   const parts = refused.map(
     (r) =>
       `${r.field} (${shownName(r.path)}): ${
         r.tilde ? "~ is not expanded; give the path from the workspace root" : PART[r.reason]
       }`,
   );
-  return `${parts.join("; ")}. Through the API and the MCP server ReqSeq accepts only local paths inside the repositories of the workspace; copy the file into a repository, or use the command line`;
+  return `${parts.join("; ")}. ${confinedBy(webUi)}`;
 };
 
 /**
@@ -227,7 +235,7 @@ export const assertInsideRepositories = async (
   }
   const [first] = refused;
   if (first !== undefined) {
-    throw new CommandError("input.invalid", messageOf(refused), {
+    throw new CommandError("input.invalid", messageOf(refused, options.webUi === true), {
       command,
       reason: first.reason,
       fields: refused.map((r) => r.field),

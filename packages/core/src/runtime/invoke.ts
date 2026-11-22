@@ -389,7 +389,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   } => {
     const { access } = ctx;
     const confined = confines(access, name);
-    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
+    const localPaths = confined
+      ? confinedLocalPaths(ctx.workspace, name, { webUi: access === "ui" })
+      : unconfinedLocalPaths(access);
     const fields = pathFields.get(name);
     const input = withHome(checked, fields, localPaths.home);
     return {

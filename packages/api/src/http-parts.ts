@@ -149,11 +149,12 @@ export const sendError = (
   error: unknown,
   workspace: Workspace,
   headers: Readonly<Record<string, string>> = {},
+  server = "the local API",
 ): Promise<void> => {
   const commandError =
     error instanceof CommandError
       ? error
-      : internalError("Internal error in the local API", error, { workspace });
+      : internalError(`Internal error in ${server}`, error, { workspace });
   return send(response, HTTP_STATUS_BY_CLASS[errorClass(commandError.code)], commandError.toJSON(), headers);
 };
 

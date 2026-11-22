@@ -114,6 +114,15 @@ const PAGE_HEADERS = {
   "referrer-policy": "no-referrer",
 } as const;
 
+/** The answer to a request of another workspace than the open one, or a read a switch stopped. */
+const CHANGED = {
+  code: "workspace.changed",
+  message: "The workspace was switched; read the open workspace again",
+} as const;
+
+/** The answer to a read the closing server stopped. */
+const STOPPING = { code: "server.stopping", message: "The UI server is stopping" } as const;
+
 interface PageFile {
   readonly type: string;
   readonly body: Buffer;
@@ -124,32 +133,47 @@ interface PageFile {
  * path, read once at start. Links are not followed. Rejects with `file.folder-missing` without `index.html`.
  */
 const readManifest = async (folder: string): Promise<ReadonlyMap<string, PageFile>> => {
+  const missing = (): CommandError =>
+    new CommandError(
+      "file.folder-missing",
+      `No web UI in ${folder}: the folder or its index.html is missing`,
+      {
+        folder,
+      },
+    );
+  const unreadable = (file: string, error: unknown): CommandError =>
+    new CommandError("internal", `Cannot read the web UI file ${file}`, { file }, { cause: error });
   const manifest = new Map<string, PageFile>();
-  const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true }).catch(() => []);
+  let entries;
+  try {
+    entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
+  } catch (error) {
+    throw ["ENOENT", "ENOTDIR"].includes(String((error as NodeJS.ErrnoException).code))
+      ? missing()
+      : unreadable(folder, error);
+  }
   for (const entry of entries) {
     const type = PAGE_TYPES[path.extname(entry.name).toLowerCase()];
     if (entry.isFile() && type !== undefined) {
       const file = path.join(entry.parentPath, entry.name);
       const url = `/${path.relative(folder, file).split(path.sep).join("/")}`;
-      manifest.set(url, { type, body: await fs.readFile(file) });
+      const body = await fs.readFile(file).catch((error: unknown) => {
+        throw unreadable(file, error);
+      });
+      manifest.set(url, { type, body });
     }
   }
   if (!manifest.has("/index.html")) {
-    throw new CommandError(
-      "file.folder-missing",
-      `No web UI in ${folder}: the folder or its index.html is missing`,
-      { folder },
-    );
+    throw missing();
   }
   return manifest;
 };
 
-/** One open workspace: its generation, what aborts its reads, its running writes and its watcher. */
+/** One open workspace: its generation, what aborts its reads, and its watcher. */
 interface Session {
   readonly workspace: Workspace;
   readonly generation: number;
   readonly reads: AbortController;
-  readonly writes: Set<Promise<unknown>>;
   readonly unsubscribe: () => void;
 }
 
@@ -160,6 +184,8 @@ interface Session {
 const openChecked = async (root: string): Promise<Workspace> => {
   const workspace = new Workspace(root, { cacheFolder: cacheFolder(root) });
   try {
+    // The watcher starts before the load, so a change during the load is seen (ADR-0008); `close` stops it.
+    await watchWorkspace(workspace).ready;
     await workspace.get(workspaceLayoutState);
   } catch (error) {
     await workspace.close();
@@ -174,6 +200,15 @@ const pathOf = (url: string | undefined): string | undefined => {
   const end = target.search(/[?#]/u);
   const pathname = end < 0 ? target : target.slice(0, end);
   return pathname.startsWith("/") ? pathname : undefined;
+};
+
+/** The page path of the request target, percent-decoded; undefined for a broken escape. */
+const pagePathOf = (pathname: string | undefined): string | undefined => {
+  try {
+    return pathname === undefined ? undefined : decodeURIComponent(pathname);
+  } catch {
+    return undefined;
+  }
 };
 
 /** One server-sent event. */
@@ -220,13 +255,15 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
   const token = randomBytes(32).toString("base64url");
   const secret = Buffer.from(token, "utf8");
   const closing = new AbortController();
-  // Where the commands without a workspace run: they use its root only for a relative path.
-  const placeholder = new Workspace(cwd);
   const streams = new Set<ServerResponse>();
   let generation = 0;
   let session: Session | undefined;
   // Switches run one after the other; a command waits for the one that runs.
   let switching: Promise<unknown> = Promise.resolve();
+  // The running writes, with or without a workspace: a switch and `close` wait for them.
+  const writes = new Set<Promise<unknown>>();
+  // The command requests being answered: `close` lets them answer before it closes the connections.
+  const answering = new Set<Promise<void>>();
 
   const broadcast = (text: string): void => {
     for (const stream of streams) {
@@ -242,16 +279,17 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     });
     void warmWorkspace(workspace);
     generation += 1;
-    return { workspace, generation, reads: new AbortController(), writes: new Set(), unsubscribe };
+    return { workspace, generation, reads: new AbortController(), unsubscribe };
   };
 
   const end = async (old: Session | undefined): Promise<void> => {
     if (old === undefined) {
+      await Promise.allSettled(writes);
       return;
     }
     old.reads.abort();
     old.unsubscribe();
-    await Promise.allSettled(old.writes);
+    await Promise.allSettled(writes);
     await old.workspace.close();
   };
 
@@ -268,6 +306,8 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
   if (options.workspace !== undefined) {
     session = await begin(await openChecked(path.resolve(cwd, options.workspace)));
   }
+  // Where the commands without a workspace run: they use its root only for a relative path.
+  const placeholder = new Workspace(cwd);
 
   const runCommand = async (
     name: string,
@@ -275,15 +315,17 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     text: string,
     response: ServerResponse,
   ): Promise<void> => {
+    // Listened for first: a client that goes away while a switch runs aborts its read too.
+    const gone = new AbortController();
+    response.once("close", () => {
+      if (!response.writableFinished) {
+        gone.abort();
+      }
+    });
     await switching.catch(() => undefined);
     const current = session;
     if (request.headers[WORKSPACE_HEADER] !== String(generation)) {
-      await send(
-        response,
-        409,
-        { code: "workspace.changed", message: "The workspace was switched; read the open workspace again" },
-        COMMON_HEADERS,
-      );
+      await send(response, 409, CHANGED, COMMON_HEADERS);
       return;
     }
     if (current === undefined && !NO_WORKSPACE_COMMANDS.includes(name)) {
@@ -296,12 +338,6 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     const write = runner.contracts.entry(name)?.effect === "write-files";
     // A write runs to its end (ADR-0020: a switch lets running writes finish); a read stops when its client
     // goes away, the workspace is switched or the server closes.
-    const gone = new AbortController();
-    response.once("close", () => {
-      if (!response.writableFinished) {
-        gone.abort();
-      }
-    });
     const context: InvokeContext = write
       ? { workspace, access: "ui" }
       : {
@@ -310,11 +346,26 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
           signal: AbortSignal.any([gone.signal, closing.signal, ...(current ? [current.reads.signal] : [])]),
         };
     const running = runner.invoke(name, input, context);
-    if (write && current !== undefined) {
-      current.writes.add(running);
-      void running.finally(() => current.writes.delete(running)).catch(() => undefined);
+    if (write) {
+      writes.add(running);
+      void running.finally(() => writes.delete(running)).catch(() => undefined);
     }
-    await send(response, 200, (await running) ?? null, COMMON_HEADERS);
+    let output: unknown;
+    try {
+      output = await running;
+    } catch (error) {
+      // A read the server stopped: the answer says why, not `internal` (aborted).
+      if (closing.signal.aborted) {
+        await send(response, 503, STOPPING, COMMON_HEADERS);
+        return;
+      }
+      if (current?.reads.signal.aborted === true) {
+        await send(response, 409, CHANGED, COMMON_HEADERS);
+        return;
+      }
+      throw error;
+    }
+    await send(response, 200, output ?? null, COMMON_HEADERS);
   };
 
   const switchWorkspace = async (text: string, response: ServerResponse): Promise<void> => {
@@ -340,10 +391,12 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
   };
 
   /** The page file a request gets, or undefined when it asks for none. */
-  const pageOf = (request: IncomingMessage, pathname: string | undefined): PageFile | undefined =>
-    (request.method === "GET" || request.method === "HEAD") && pathname !== undefined
-      ? manifest.get(pathname === "/" ? "/index.html" : pathname)
+  const pageOf = (request: IncomingMessage, pathname: string | undefined): PageFile | undefined => {
+    const page = pagePathOf(pathname);
+    return (request.method === "GET" || request.method === "HEAD") && page !== undefined
+      ? manifest.get(page === "/" ? "/index.html" : page)
       : undefined;
+  };
 
   /** The refusal of a request, or its page file, or what it asks to run. */
   const target = (request: IncomingMessage): Answer | PageFile | Goal => {
@@ -404,14 +457,22 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
       streamEvents(response);
       return;
     }
-    await (goal.kind === "workspace"
-      ? switchWorkspace(text, response)
-      : runCommand(goal.name, request, text, response));
+    if (goal.kind === "workspace") {
+      await switchWorkspace(text, response);
+      return;
+    }
+    const answer = runCommand(goal.name, request, text, response);
+    answering.add(answer);
+    try {
+      await answer;
+    } finally {
+      answering.delete(answer);
+    }
   };
 
   const handler = (request: IncomingMessage, response: ServerResponse): void => {
     route(request, response).catch((error: unknown) =>
-      sendError(response, error, session?.workspace ?? placeholder, COMMON_HEADERS),
+      sendError(response, error, session?.workspace ?? placeholder, COMMON_HEADERS, "the UI server"),
     );
   };
 
@@ -429,6 +490,8 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     urls: servers.map((server) => urlOf(server.address() as AddressInfo)),
     close: async () => {
       closing.abort();
+      // Stopped reads answer 503 and writes run to their end before the connections close.
+      await Promise.allSettled(answering);
       await Promise.all(servers.map(closeServer));
       await switching.catch(() => undefined);
       const last = session;

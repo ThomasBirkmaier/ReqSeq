@@ -47,6 +47,7 @@ beforeEach(async () => {
   await fs.mkdir(path.join(pages, "assets"));
   await fs.writeFile(path.join(pages, "index.html"), "<!doctype html><title>ReqSeq</title>");
   await fs.writeFile(path.join(pages, "assets", "app.js"), "console.log(1);");
+  await fs.writeFile(path.join(pages, "assets", "KaTeX Main.woff2"), "font");
   await fs.writeFile(path.join(pages, "notes.txt"), "not a page file");
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-outside-"));
   onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
@@ -190,6 +191,8 @@ describe("UI server: page files", () => {
       "",
       "text/javascript; charset=utf-8",
     ]);
+    const font = await request(server, "GET", "/assets/KaTeX%20Main.woff2");
+    expect([font.status, font.text, font.headers["content-type"]]).toEqual([200, "font", "font/woff2"]);
     // A file written after the start, a link, an unknown type and a path that leaves the folder are no page files.
     await fs.writeFile(path.join(pages, "later.js"), "x");
     for (const target of [
@@ -199,11 +202,24 @@ describe("UI server: page files", () => {
       "/notes.txt",
       "/assets/../index.html",
       "/%2e%2e/x.js",
+      "/assets/%E0%A4%A.js",
     ]) {
       expect([target, (await request(server, "GET", target)).status]).toEqual([target, 401]);
     }
     expect(calls).toEqual([]);
   });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "does not start when a page file cannot be read, and names it",
+    async () => {
+      const file = path.join(pages, "assets", "app.js");
+      await fs.chmod(file, 0o000);
+      await expect(createUiServer({ pages, runner })).rejects.toMatchObject({
+        code: "internal",
+        details: { file },
+      });
+    },
+  );
 
   it("does not start without index.html", async () => {
     await fs.rm(path.join(pages, "index.html"));
@@ -330,7 +346,11 @@ describe("UI server: commands and workspaces", () => {
       { code: "ref.unknown", message: "No such element" },
     ]);
     behaviour = () => Promise.reject(new Error("crash"));
-    expect((await command(server, "tool.info")).status).toBe(500);
+    const crashed = await command(server, "tool.info");
+    expect([crashed.status, crashed.json()]).toMatchObject([
+      500,
+      { message: "Internal error in the UI server" },
+    ]);
     behaviour = () => Promise.resolve(undefined);
     expect((await command(server, "tool.info")).text).toBe("null\n");
     const broken = await request(server, "POST", "/api/tool.info", auth(server), "{");
@@ -445,11 +465,47 @@ describe("UI server: commands and workspaces", () => {
       auth(server, 1),
       JSON.stringify({ path: second.root }),
     );
-    expect((await read).status).toBe(500);
+    const stopped = await read;
+    expect([stopped.status, stopped.json()]).toMatchObject([409, { code: "workspace.changed" }]);
     finishWrite?.();
     expect((await write).json()).toEqual({ written: true });
     expect((await switched).json()).toEqual({ generation: 2, root: second.root });
     expect(order).toEqual(["read aborted", "write done"]);
+  });
+
+  it("lets a write without a workspace finish before a switch opens the next one", async () => {
+    const next = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    onTestFinished(() => next.cleanup());
+    const server = await start();
+    const order: string[] = [];
+    let finish: (() => void) | undefined;
+    const running = new Promise<void>((resolve) => {
+      behaviour = () =>
+        new Promise((done) => {
+          finish = () => {
+            order.push("init done");
+            done({ created: true });
+          };
+          resolve();
+        });
+    });
+    const init = command(server, "workspace.init", { path: "x", name: "X" });
+    await running;
+    const switched = request(
+      server,
+      "POST",
+      "/ui/workspace",
+      auth(server),
+      JSON.stringify({ path: next.root }),
+    ).then((reply) => {
+      order.push("switched");
+      return reply;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    finish?.();
+    expect((await init).json()).toEqual({ created: true });
+    expect((await switched).status).toBe(200);
+    expect(order).toEqual(["init done", "switched"]);
   });
 
   it("sends a change event with the scope and UUIDs the watcher reports", async () => {
@@ -460,14 +516,24 @@ describe("UI server: commands and workspaces", () => {
     await stream.until(1);
     const file = first.path("requirements/SR-88cc6ebc472a.md");
     const original = await fs.readFile(file, "utf8");
-    // Changes until the watcher, which starts with the load in the background, reports one.
-    for (let n = 1; stream.seen.length < 2; n++) {
-      await fs.writeFile(file, original.replace(/^title: .*$/mu, `title: Changed ${String(n)}`));
-      await Promise.race([stream.until(2), new Promise((resolve) => setTimeout(resolve, 500))]);
+    interface Change {
+      readonly elements: { readonly changed: readonly string[] };
     }
-    expect(stream.seen[1]).toMatchObject({ event: "change", data: { scope: "elements" } });
-    const data = stream.seen[1]?.data as { elements: { changed: string[] } };
-    expect(data.elements.changed).toHaveLength(1);
+    const changed = (): Change | undefined =>
+      stream.seen
+        .filter((e) => e.event === "change")
+        .map((e) => e.data as Change)
+        .find((d) => d.elements.changed.length > 0);
+    // Changes until the watcher, which starts with the load in the background, reports one.
+    for (let n = 1; changed() === undefined; n++) {
+      await fs.writeFile(file, original.replace(/^title: .*$/mu, `title: Changed ${String(n)}`));
+      await Promise.race([
+        stream.until(stream.seen.length + 1),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+    }
+    const data = changed();
+    expect(data).toMatchObject({ scope: "elements", elements: { changed: [expect.any(String) as unknown] } });
     expect(JSON.stringify(data)).not.toContain("Changed");
   }, 20_000);
 
@@ -484,12 +550,13 @@ describe("UI server: commands and workspaces", () => {
           fail(new Error("aborted"));
         });
       });
-    const read = command(server, "element.get", {}, 1).catch(() => undefined);
+    const read = command(server, "element.get", {}, 1);
     while (calls.length === 0) {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     await server.close();
-    await read;
+    const stopped = await read;
+    expect([stopped.status, stopped.json()]).toMatchObject([503, { code: "server.stopping" }]);
     expect(aborted).toBe(true);
     await expect(request(server, "GET", "/")).rejects.toThrow();
   });

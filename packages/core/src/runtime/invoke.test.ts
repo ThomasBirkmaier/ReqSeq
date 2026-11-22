@@ -453,6 +453,8 @@ describe("local paths by access (SR-142)", () => {
       runtime({ commands: [paths] }).invoke("test.paths", outside, { workspace: root, access: "ui" }),
     );
     expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "outside-repositories"]);
+    expect(error.message).toContain("Through the web UI ReqSeq accepts only local paths");
+    expect(error.message).not.toMatch(/API|MCP|command line/u);
     const product = createCommandRuntime({ commands: productCommands });
     const created = ws.path("created");
     for (const access of ["api", "ui"] as const) {
