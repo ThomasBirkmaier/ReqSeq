@@ -1,6 +1,6 @@
 ---
 name: verify
-description: How to check a ReqSeq change locally - the commands for typecheck, lint, tests, trace-check, spec and contract checks, and Electron in a cloud container. Use before a push or when CI is red.
+description: How to check a ReqSeq change locally - the commands for typecheck, lint, tests, trace-check, spec and contract checks, and heavy runs in a cloud container. Use before a push or when CI is red.
 ---
 
 # Checking a change
@@ -44,17 +44,13 @@ Optional, for a risky change to core: a local mutation run of the changed source
 pnpm mutate packages/core/src/baselines/counting.ts [more files] [--tests '<glob>'] [--concurrency <n>]
 ```
 
-It runs the unit tests of the files' packages in a Stryker sandbox (`.stryker-tmp/`), without the tests that fail under instrumentation although the code is right (listed with their reason in `scripts/mutate/mutate.mjs`); files of `cli`, `api`, `mcp` or `app` need `pnpm build` first. The dry run alone takes minutes (7 min for core on 4 cores), and each mutant about 5 s, so keep a run under about 1,500 mutants; `--tests` narrows the tests (`'packages/core/src/baselines/**/*.test.ts'`), at the price of mutants that only other tests kill. Run it under `flock /home/user/wt/.gates.lock` in a cloud session (create the folder once with `mkdir -p /home/user/wt`). For each survivor, ask: would a wrong result fail a test?
+It runs the unit tests of the files' packages in a Stryker sandbox (`.stryker-tmp/`), without the tests that fail under instrumentation although the code is right (listed with their reason in `scripts/mutate/mutate.mjs`); files of `cli`, `api` or `mcp` need `pnpm build` first. The dry run alone takes minutes (7 min for core on 4 cores), and each mutant about 5 s, so keep a run under about 1,500 mutants; `--tests` narrows the tests (`'packages/core/src/baselines/**/*.test.ts'`), at the price of mutants that only other tests kill. Run it under `flock /home/user/wt/.gates.lock` in a cloud session (create the folder once with `mkdir -p /home/user/wt`). For each survivor, ask: would a wrong result fail a test?
 
-Also run `pnpm schemas:check && pnpm contracts:check` when schemas or the catalog changed, `pnpm spec:check` and the flow "Check before finishing" of the skill `managing-requirements` (with `--workspace spec`) when `spec/` changed, and, while the Electron app is paused and CI no longer runs its suite (#2295), the Electron specs a change in `packages/app` touches or could break. If a check is red for a reason outside your change, say so in the PR. Merging still needs green CI.
+Also run `pnpm schemas:check && pnpm contracts:check` when schemas or the catalog changed, `pnpm spec:check` and the flow "Check before finishing" of the skill `managing-requirements` (with `--workspace spec`) when `spec/` changed. If a check is red for a reason outside your change, say so in the PR. Merging still needs green CI.
 
 ## Heavy runs in a cloud session
 
-Run coverage, build, e2e and Electron only under `flock /home/user/wt/.gates.lock <command>` (create the folder once with `mkdir -p /home/user/wt`), with at most two agents running Electron at the same time, because the container restarted under more. Electron does not start as root, and the CA warning on stderr breaks the SR-080/AK2 JSON compare. From `packages/app`, after `pnpm --filter @reqseq/app build:electron` and `chmod 777 test-results/`:
-
-```sh
-sudo -u ubuntu env -u NODE_EXTRA_CA_CERTS -u NODE_OPTIONS xvfb-run -a ./node_modules/.bin/playwright test --config test/playwright.config.ts <specs>
-```
+Run coverage, build and e2e only under `flock /home/user/wt/.gates.lock <command>` (create the folder once with `mkdir -p /home/user/wt`), because the container restarted under several heavy runs at once.
 
 ## trace-check
 

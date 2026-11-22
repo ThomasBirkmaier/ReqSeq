@@ -10,7 +10,7 @@
 //
 // Usage: node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
 //        [--commit <sha>] [--run-url <url>] [--summary <file>] [--github-output <file>]
-//        [--junit test-results/junit-perf.xml [--junit test-results/junit-perf-electron.xml]]
+//        [--junit test-results/junit-perf.xml [--junit <another JUnit file>]]
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

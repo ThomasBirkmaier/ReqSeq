@@ -22,21 +22,6 @@ const behaviour = (entry: CatalogEntry): string => {
   return `Writes files in the working tree, never to Git. ${readOnly}${reason}`;
 };
 
-const withKey = (key: string | undefined, keyMac: string | undefined): string =>
-  key === undefined || keyMac === undefined ? "" : ` Key: ${key} (macOS ${keyMac}).`;
-
-const appSection = (access: CommandAccess): string => {
-  if (!access.implemented) {
-    return "Not offered by the app yet: this ReqSeq version does not implement the command.";
-  }
-  if (access.app.shownIn !== undefined) {
-    return `Not in the command prompt: the app shows its output in ${inline(access.app.shownIn)}.`;
-  }
-  const prompt = `In the command prompt (${access.promptKey}, macOS ${access.promptKeyMac})`;
-  const what = access.app.action ? "the action" : "the command";
-  return `${prompt}: ${what} **${inline(access.app.name)}**.${withKey(access.app.key, access.appMac.key)}`;
-};
-
 /** Outputs longer than this many lines are folded, so the call sections stay close. */
 export const FOLDED_OUTPUT_LINES = 40;
 
@@ -99,10 +84,6 @@ export function commandPage(
     "",
     exampleSection(example),
     "",
-    "## App",
-    "",
-    appSection(access),
-    "",
     "## CLI",
     "",
     `\`${access.cliCall}\`, with \`--json\` for the output as JSON. Its help:`,
@@ -131,12 +112,12 @@ export function commandIndex(entries: readonly CatalogEntry[], base: string): st
   return [
     "---",
     "title: Commands",
-    "description: Every command of ReqSeq with its call in the app, the command line, the API and MCP.",
+    "description: Every command of ReqSeq with its call on the command line, in the API and in MCP.",
     "sidebar:",
     "  order: 0",
     "---",
     "",
-    "Every command of ReqSeq, grouped as in its catalog. Each page shows the input, the output and the call in the app, the command line, the API and MCP.",
+    "Every command of ReqSeq, grouped as in its catalog. Each page shows the input, the output and the call on the command line, in the API and in MCP.",
     "",
     `What the codes of problems and errors mean, and what to do about them: [Problem and error codes](${base.replace(/\/$/, "")}/reference/problem-codes/).`,
     ...[...groups].flatMap(([group, members]) => [

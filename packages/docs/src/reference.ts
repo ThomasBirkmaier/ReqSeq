@@ -1,7 +1,6 @@
 // The generated reference (SR-139): the pages written next to the hand-written ones in the content folder.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { shortcutReference } from "@reqseq/app";
 import type { CommandRuntime, JsonSchema } from "@reqseq/core";
 import { COMMANDS_FOLDER, commandSlug } from "@reqseq/core/docs-site";
 import type { GeneratedContracts } from "./access.js";
@@ -17,7 +16,6 @@ import type { Schema, SchemaContext } from "./schema-fields.js";
 import { forms, undescribedFields } from "./schema-fields.js";
 import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
 import { SERVERS_PAGE, serversPage } from "./servers.js";
-import { SHORTCUTS_PAGE, shortcutsPage } from "./shortcuts.js";
 import {
   COMMON_TYPES_PAGE,
   FORMATS,
@@ -118,7 +116,7 @@ function formatPages(
 
 /**
  * The command index and pages (catalog order), the page of the server commands after them, the codes page, the format
- * pages, the standard model page and the page of the app's keyboard shortcuts. Throws naming every page and field
+ * pages and the standard model page. Throws naming every page and field
  * without a description, by its table (`input.`, `output.`, `fields.` or the definition), the way a failing example
  * stops the build.
  */
@@ -134,7 +132,6 @@ export async function referencePages(
     { path: CODES_PAGE, text: codesPage(codes) },
     ...formatPages(schemas, examples, base, failures),
     { path: STANDARD_MODEL_PAGE, text: standardModelPage(standardModel) },
-    { path: SHORTCUTS_PAGE, text: shortcutsPage(shortcutReference(entries)) },
   ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);

@@ -68,12 +68,20 @@ describe("assembleContent", () => {
 
   it("turns a hand-written or generated page with the four ways in into MDX with tabs, after the base links", async () => {
     const ways = "## App\n\nA.\n\n## CLI\n\n[B](/b/)\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
+    const three = "## CLI\n\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
     await writeFile(join(paths.guideDir, "start", "first.md"), ways);
-    const pages = [{ path: "reference/commands/x.md", text: ways }];
+    // A page with the three sections alone, such as a concept page, keeps them as headings; a command page has tabs.
+    await writeFile(join(paths.guideDir, "start", "three.md"), three);
+    const pages = [
+      { path: "reference/commands/x.md", text: ways },
+      { path: "reference/commands/y.md", text: three },
+    ];
     expect(await assembleContent(paths, pages, "/ReqSeq")).toEqual([
       "index.md",
       "reference/commands/x.mdx",
+      "reference/commands/y.mdx",
       "start/first.mdx",
+      "start/three.md",
     ]);
     const page = await readFile(join(paths.contentDir, "start", "first.mdx"), "utf8");
     expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="App">\n');

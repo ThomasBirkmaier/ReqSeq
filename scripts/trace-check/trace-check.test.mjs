@@ -294,7 +294,7 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
         `const re = /^.*\\//; const t = \`\${"x".replace(re, "")}\`;`,
         "",
       ].join("\n"),
-      "packages/app/test/x.spec.ts": `test.describe.skip("x", () => { test("${tag("SR-001", 2)} a", () => {}); });\n`,
+      "packages/web/test/x.spec.ts": `test.describe.skip("x", () => { test("${tag("SR-001", 2)} a", () => {}); });\n`,
       "packages/x/tags.test.ts": `const scenario = { tag: "${tag("SR-001", 2)}" };\n`,
     });
     expect(traceCheck(root, ["--require", "SR-001"]).errors).toEqual([

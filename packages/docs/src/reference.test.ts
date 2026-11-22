@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import { appCommandEntry } from "@reqseq/app";
 import { contractsBundle, createCommandRuntime, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { commandSlug } from "@reqseq/core/docs-site";
@@ -42,53 +41,32 @@ const codesOf = (pages: readonly { path: string; text: string }[]): string =>
   pages.find((page) => page.path === "reference/problem-codes.md")?.text ?? "";
 
 describe("reference", () => {
-  it("[SR-139/AK-t2cv] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
+  it("[SR-139/AK-t2cv] gives every command a page with title, summary, input, output and its call in CLI, API and MCP", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
-    expect(pages).toHaveLength(runtime.contracts.commands.length + 3 + FORMATS.length + 4);
+    expect(pages).toHaveLength(runtime.contracts.commands.length + 3 + FORMATS.length + 3);
     expect(runtime.contracts.commands.length).toBeGreaterThanOrEqual(49);
-    const shown: string[] = [];
     for (const entry of runtime.contracts.commands) {
       const page = pageOf(pages, entry.name);
       expect(page).toContain(`title: ${JSON.stringify(entry.title)}`);
       expect(page).toContain(`\n${inline(entry.summary)}\n`);
-      for (const heading of ["Input", "Output", "App", "CLI", "API", "MCP"]) {
+      for (const heading of ["Input", "Output", "CLI", "API", "MCP"]) {
         expect(section(page, heading), `${entry.name}: ${heading}`).not.toBe("");
       }
+      expect(page, entry.name).not.toContain("\n## App\n");
       expect(section(page, "CLI")).toMatch(/^`reqseq \S+ \S+`[^]*```text\nUsage: reqseq \S+ \S+/);
-      if (runtime.commands.has(entry.name)) {
-        const app = appCommandEntry(entry, false);
-        if (app.shownIn === undefined) {
-          expect(section(page, "App"), entry.name).toMatch(
-            new RegExp(
-              `^In the command prompt \\(Ctrl\\+Shift\\+P, macOS .+\\): the ${app.action ? "action" : "command"} \\*\\*`,
-            ),
-          );
-          expect(section(page, "App"), entry.name).toContain(`**${inline(app.name)}**`);
-        } else {
-          shown.push(entry.name);
-          expect(section(page, "App"), entry.name).toBe(
-            `Not in the command prompt: the app shows its output in ${inline(app.shownIn)}.`,
-          );
-        }
-      }
       expect(section(page, "API")).toContain(`POST /v1/commands/${entry.name}`);
       expect(section(page, "MCP")).toContain(`\`${entry.name.replace(".", "_")}\``);
     }
-    // The commands whose output the app shows in other commands (SR-133 AK4) name that place.
-    expect(shown).toHaveLength(7);
-    expect(section(pageOf(pages, "workspace.recent"), "App")).toBe(
-      'Not in the command prompt: the app shows its output in "Open workspace".',
-    );
     const index = pages[0]?.text ?? "";
     expect(index).toContain("](/ReqSeq/reference/commands/element-get/): ");
   });
 
-  it("places the example of a command between its output and its app call", async () => {
+  it("places the example of a command between its output and its call on the command line", async () => {
     const pages = await referencePages(await sources(getCommandRuntime()), "/ReqSeq");
     const info = pageOf(pages, "tool.info");
     expect(info.indexOf("\n## Output\n")).toBeLessThan(info.indexOf("\n## Example\n"));
-    expect(info.indexOf("\n## Example\n")).toBeLessThan(info.indexOf("\n## App\n"));
+    expect(info.indexOf("\n## Example\n")).toBeLessThan(info.indexOf("\n## CLI\n"));
     expect(section(info, "Example")).toContain("```sh\nreqseq tool info --json\n```");
     expect(section(pageOf(pages, "element.get"), "Example")).toBe("No example.");
   });

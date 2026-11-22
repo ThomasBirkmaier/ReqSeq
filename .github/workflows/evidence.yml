@@ -130,7 +130,9 @@ jobs:
             exit 0
           fi
           case "$KIND" in
-            ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*" "spec/evidence/ci/electron-*") ;;
+            ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*") ;;
+            # perf-electron-* is the last record of the removed Electron suite (#2399), not of this workflow.
+            perf) files=("spec/evidence/ci/perf-*" ":(exclude)spec/evidence/ci/perf-electron-*") ;;
             *) files=("spec/evidence/ci/$KIND-*") ;;
           esac
           # -a: .gitattributes marks the files -diff, which git grep would treat as binary.
@@ -157,9 +159,8 @@ jobs:
 
       # ci: one artifact per suite and system (ci.yml): junit-<os>/junit.xml, junit-e2e-<os>/junit-e2e.xml,
       # junit-shell-<os>/junit-shell.xml (the desktop shell's e2e suite, ADR-0021),
-      # junit-electron-<os>[-<shard>]/junit-electron.xml (none while the Electron suite is paused),
       # junit-web-ubuntu-24.04/junit-web.xml (the web UI, Ubuntu only).
-      # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only; the app's suite is paused).
+      # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only).
       # delivery: junit-delivery-<os>/junit-delivery.xml (release.yml).
       - name: JUnit files of the run
         if: steps.skip.outputs.skip == 'false'
@@ -210,8 +211,8 @@ jobs:
           # The artifacts a full run of the kind uploads. The workflows upload with `if-no-files-found: ignore`, so
           # a suite that wrote no file has no artifact at all; it is listed, and main keeps its last file.
           case "$KIND" in
-            # The Electron suite is paused (ci.yml, #2295): no junit-electron-* artifact, and main keeps its last
-            # electron-* files.
+            # The Electron app and its suite are removed (#2399): no junit-electron-* artifact, and main keeps its
+            # last electron-* files as they are.
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
               junit-e2e-windows-2025 junit-web-ubuntu-24.04 junit-shell-ubuntu-24.04 junit-shell-macos-26
               junit-shell-windows-2025" ;;
@@ -227,7 +228,6 @@ jobs:
             case "$KIND:$artifact" in
               ci:junit-e2e-*) echo "$artifact $dir/junit-e2e.xml e2e-${artifact#junit-e2e-} ${artifact#junit-e2e-}" ;;
               ci:junit-shell-*) echo "$artifact $dir/junit-shell.xml shell-${artifact#junit-shell-} ${artifact#junit-shell-}" ;;
-              ci:junit-electron-*) os="${artifact#junit-electron-}"; echo "$artifact $dir/junit-electron.xml electron-$os ${os%-[0-9]}" ;;
               ci:junit-web-*) echo "$artifact $dir/junit-web.xml web-${artifact#junit-web-} ${artifact#junit-web-}" ;;
               ci:junit-delivery-*) ;;
               ci:junit-*) echo "$artifact $dir/junit.xml unit-${artifact#junit-} ${artifact#junit-}" ;;
@@ -266,8 +266,6 @@ jobs:
             ' "$RUNNER_TEMP/$name.json" "$name" >> "$RUNNER_TEMP/summary.md" || echo "| \`$name.xml\` | error $code | | | |" >> "$RUNNER_TEMP/summary.md"
           done < "$RUNNER_TEMP/files.txt"
           if compgen -G "$new/*.xml" > /dev/null; then cp "$new"/*.xml "$out/"; fi
-          # A suite split into shards (macOS Electron, #1229): its shard files replace the one file of before.
-          for file in "$new"/*-1.xml; do [ -e "$file" ] && rm -f "$out/$(basename "${file%-1.xml}").xml"; done
           # The records as ReqSeq reads them: the workspace check reads every evidence file (codes evidence.*).
           node packages/cli/dist/bin.js workspace check --workspace spec > "$RUNNER_TEMP/check.txt" || status=1
           # One degree per view, and its share before and after this run for the job `report` (#1305).
@@ -432,11 +430,6 @@ jobs:
           # Over main's files: the other kinds, and a suite without an artifact in this run, keep their last file.
           mkdir -p spec/evidence/ci
           cp "$SOURCE"/ci/*.xml spec/evidence/ci/
-          # A suite split into shards (macOS Electron, #1229): its shard files replace the one file of before.
-          for file in "$SOURCE"/ci/*-1.xml; do
-            old="spec/evidence/ci/$(basename "${file%-1.xml}").xml"
-            if [ -e "$file" ] && [ -e "$old" ]; then git rm -q "$old"; fi
-          done
           if git diff --quiet && [ -z "$(git status --porcelain spec/evidence)" ]; then
             echo "Nothing changed." >> "$GITHUB_STEP_SUMMARY"
             exit 0

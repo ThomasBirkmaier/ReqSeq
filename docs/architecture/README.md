@@ -4,7 +4,7 @@ Status: written before the first implementation; §5 updated to the code on 2026
 
 ## 1. Goals
 
-ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a web UI in the browser (the desktop app until #2310), a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
+ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a web UI in the browser, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
 
 ### Quality goals
 
@@ -72,7 +72,7 @@ ReqSeq talks only to the local file system and the local `git` program. Everythi
 | Detect outdated links without Git history | **Version = content hash** with a versioned normal form. | 0005 |
 | Stay out of collaboration | Git through a read-only allowlist; no commit, push or merge. | 0006 |
 | Speed at 50,000 elements | Files are the database; in-memory model and indexes, per-copy cache, debounced file watching, worker threads for cold start. | 0008 |
-| Offline and secure web UI | A loopback server in the CLI process with a token per start, Host and Origin checks and a strict CSP; the pages only call catalog commands (the Electron app until #2310: ADR-0010). | 0020 |
+| Offline and secure web UI | A loopback server in the CLI process with a token per start, Host and Origin checks and a strict CSP; the pages only call catalog commands. | 0020 |
 | Evidence from any tool | Open record format plus a JUnit property convention, enriched by the CLI. | 0012 |
 
 ## 5. Building blocks
@@ -89,7 +89,6 @@ flowchart TB
     cli[packages/cli<br/>commander]
     api[packages/api<br/>node:http, loopback]
     mcp[packages/mcp<br/>MCP SDK, stdio]
-    app[packages/app<br/>Electron + React, until #2310]
     web[packages/web<br/>pages of the web UI]
   end
   subgraph core[packages/core/src]
@@ -121,7 +120,7 @@ flowchart TB
       catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, type-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
-  cli & api & mcp & app & web --> index
+  cli & api & mcp & web --> index
   index --> entry
   entry --> commands & mm & model & query
   commands -->|every block except git| blocks
@@ -189,7 +188,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `displays` | The display models the app and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
 | `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts, which the web UI loads as the subpath `markdown` (it and the core modules it imports load no `node:*` module and import only each other, the Markdown packages and KaTeX, ADR-0020); the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
 
-Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), the CLI starts the UI server of `@reqseq/api` (`reqseq ui`, ADR-0020), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
+Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with one exception that reuses a server instead of a second one: the CLI starts the API, the docs server and the UI server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`, `reqseq ui`, ADR-0020). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 
@@ -274,7 +273,6 @@ See [docs/adr](../adr/README.md).
 
 | Risk or open point | Handling |
 |---|---|
-| Electron performance with large lists | Virtualised lists in the app, with perf tests (`packages/app/test/perf/`). |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
 

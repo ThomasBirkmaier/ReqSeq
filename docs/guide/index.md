@@ -29,6 +29,6 @@ The app, CLI, API and MCP run the same commands with the same result, so you can
 
 ## Where to read on
 
-New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call in each of the four ways in. [The app](/concepts/the-app/) explains the command prompt, buffers and the other parts of the desktop app, with its [keyboard shortcuts](/reference/keyboard-shortcuts/). The how-to guides in the menu each show one task in all four, such as [connecting an AI agent](/how-to/connect-an-ai-agent/) or [publishing the workspace as HTML](/how-to/publish-the-workspace-as-html/).
+New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call on the command line, in the API and in MCP. [The app](/concepts/the-app/) explains the command prompt, buffers and the other parts of the desktop app. The how-to guides in the menu each show one task in every way in, such as [connecting an AI agent](/how-to/connect-an-ai-agent/) or [publishing the workspace as HTML](/how-to/publish-the-workspace-as-html/).
 
 The source code, the releases and the issues are on [GitHub](https://github.com/ThomasBirkmaier/ReqSeq).

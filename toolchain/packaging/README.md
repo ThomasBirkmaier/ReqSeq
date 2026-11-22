@@ -9,7 +9,6 @@ builds it; pull requests never do.
 | `node.json` | The Node runtime the archives ship: its exact version (of the major version in `.nvmrc`), the download address and, per system, the file name and SHA-256 of Node's archive, taken from the `SHASUMS256.txt` of that version on nodejs.org. Only `bin/node` (`node.exe`) and `LICENSE` are taken from it: no npm, npx or corepack. |
 | `launchers/` | The command line launcher `bin/<launcher>` (POSIX shell) and `bin\<launcher>.cmd` (Windows): they run `lib/dist/bin.js` on `runtime/node` and unset `NODE_OPTIONS`. |
 | `icon/` | The icon (#410): the master `icon.svg` and what `scripts/icon/generate.mjs` renders from it (`icon.icns`, `icon.ico`, `icons/<size>x<size>.png`; also the window icon of the app and the docs favicons). After changing the master, run `node scripts/icon/generate.mjs` and commit its output. |
-| `package.json`, `pnpm-lock.yaml`, `electron-builder.config.mjs` | electron-builder for the delivery of ADR-0014 with the Electron app. The release no longer uses it; it goes with the app (#2310). |
 
 ## An archive
 

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "tsc -b packages/testkit packages/core packages/core/test packages/cli packages/cli/test packages/api packages/mcp packages/app packages/app/test packages/web packages/web/test packages/docs packages/shell",
+    "typecheck": "tsc -b packages/testkit packages/core packages/core/test packages/cli packages/cli/test packages/api packages/mcp packages/web packages/web/test packages/docs packages/shell",
     "lint": "node scripts/lint/lint.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -35,8 +35,7 @@
     "docs:diagrams": "pnpm --filter @reqseq/docs build && node packages/docs/dist/diagrams-bin.js",
     "docs:install": "pnpm install --dir packages/docs/site --ignore-workspace --frozen-lockfile --ignore-scripts",
     "docs:build": "pnpm docs:generate && pnpm docs:install && node packages/docs/site/run.mjs build",
-    "docs:dev": "pnpm docs:generate && node packages/docs/site/run.mjs dev",
-    "docs:screenshots": "pnpm --filter @reqseq/app build:electron && REQSEQ_GUIDE_IMAGES=1 pnpm --filter @reqseq/app exec playwright test --config test/playwright.config.ts guide-screenshots guide-animation"
+    "docs:dev": "pnpm docs:generate && node packages/docs/site/run.mjs dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

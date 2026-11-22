@@ -92,6 +92,11 @@ describe("licenses:check (ADR-0015)", () => {
     ]);
   });
 
+  it("leaves a verified entry of the HTML export to html-export.mjs", () => {
+    const entry = { license: "MIT", file: "license", sha256: ANY_SHA, htmlExport: true };
+    expect(licenseProblems({}, { "bundled@1.0.0": entry })).toEqual([]);
+  });
+
   /** A package folder with `files` (relative path to content). */
   const folderWith = (files) => {
     const root = pkg();
@@ -155,7 +160,7 @@ importers:
         specifier: 5.0.5
         version: 5.0.5
 
-  packages/app:
+  packages/web:
     dependencies:
       '@reqseq/core':
         specifier: workspace:*
