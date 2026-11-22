@@ -1,0 +1,154 @@
+/* The evidence of an element: one block per acceptance criterion with its test cases and their records, the older
+   runs, and the form that records a check. */
+.shared {
+  font-size: 13px;
+  color: var(--dim);
+}
+.erow {
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+.erow.failed,
+.erow.outdated {
+  border-color: var(--warn-border);
+  background: var(--node-warn-bg);
+}
+.eh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+}
+.eh h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.eh .cr,
+.case .cr {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.et {
+  font-size: 13.5px;
+  color: var(--dim);
+  max-width: 80ch;
+}
+.eviews {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.eviews li {
+  display: inline-flex;
+  gap: 8px;
+}
+.case {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+.case summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.case .cn {
+  font-weight: 500;
+}
+.case .cc,
+.case .cv {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.res {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ok);
+}
+.res.failed {
+  color: var(--bad);
+}
+.res.inconclusive {
+  color: var(--warn);
+}
+.recs {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12.5px;
+}
+.recs th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--faint);
+  padding: 4px 8px 4px 0;
+}
+.recs td {
+  padding: 5px 8px 5px 0;
+  border-top: 1px solid var(--line-soft);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.recs .why,
+.recs .bl {
+  display: block;
+  color: var(--faint);
+}
+.older {
+  display: grid;
+  gap: 6px;
+}
+.rec {
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+.rec .sect {
+  margin-top: 0;
+}
+.rec .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 18px;
+}
+.rec .fld.wide {
+  grid-column: 1 / -1;
+}
+.rec fieldset {
+  border: 0;
+  display: grid;
+  gap: 6px;
+}
+.rec legend {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.rec .crits .check b {
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5em;
+}
+.rec [hidden] {
+  display: none;
+}
+.empty p {
+  font-size: 13px;
+  color: var(--dim);
+  margin-top: 4px;
+}

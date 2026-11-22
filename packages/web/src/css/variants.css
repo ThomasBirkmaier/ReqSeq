@@ -1,0 +1,64 @@
+/* A variant compared with the core: what it adds, replaces and excludes, and the form that excludes a core
+   requirement. */
+.vpage .lscroll {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding-bottom: 40px;
+}
+.vpage .notice {
+  margin: 16px 22px 0;
+}
+.vgroup .gsub {
+  padding: 0 22px 6px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.vgroup .none {
+  padding: 0 22px;
+  font-size: 13px;
+  color: var(--faint);
+}
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vrow .it {
+  flex: 1;
+  min-width: 0;
+}
+.vrow .btn {
+  margin-right: 22px;
+}
+.pair {
+  border-bottom: 1px solid var(--line-soft);
+}
+.pair .arrow {
+  display: block;
+  padding: 0 22px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.exform {
+  margin: 0 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--pane);
+  display: grid;
+  gap: 10px;
+  max-width: 640px;
+}
+.exform .sect {
+  font-size: 15px;
+  font-weight: 600;
+}
+.exform .row {
+  display: flex;
+  gap: 10px;
+}
+.vpage > [role="status"],
+.vpage .lscroll > [role="status"] {
+  margin: 0 22px;
+}

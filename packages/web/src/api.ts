@@ -95,6 +95,41 @@ export async function call<K extends CommandName>(name: K, input: InputOf<K> = {
   return body as OutputOf<K>;
 }
 
+/** Opens or switches the workspace of the server (`POST ui/workspace`); the answer gives its generation. */
+export async function openWorkspace(
+  path: string,
+): Promise<{ readonly generation: number; readonly root: string }> {
+  await known;
+  let response: Response;
+  try {
+    response = await fetch("ui/workspace", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ path }),
+      cache: "no-store",
+    });
+  } catch {
+    throw new ReqSeqError(
+      0,
+      { code: "ui.offline", message: "The server of this page does not answer." },
+      "open",
+    );
+  }
+  const body = parse(await response.text());
+  if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event(TOKEN_REFUSED));
+    }
+    throw new ReqSeqError(response.status, body, "open");
+  }
+  const opened = body as { generation: number; root: string };
+  // A later switch (another tab) may have told a newer generation already: it is never lowered.
+  if (generation === undefined || opened.generation > generation) {
+    setGeneration(opened.generation);
+  }
+  return opened;
+}
+
 /** Plain words for the errors people meet, and ReqSeq's own text under "Details". */
 export interface Explained {
   readonly what: string;
@@ -109,8 +144,21 @@ const PLAIN: Readonly<Record<string, readonly [string, string]>> = {
     "The server of this page does not answer.",
     "Start reqseq ui again and open the address it prints.",
   ],
-  "workspace.not-found": ["No workspace is open.", "Start reqseq ui in the folder of a workspace."],
+  "workspace.not-found": ["No workspace is open.", "Open or create one under Workspaces."],
   "workspace.changed": ["Another workspace was opened.", "The page now shows the workspace that is open."],
+  "ui.no-workspace-here": [
+    "There is no workspace in this folder.",
+    "Name the folder that holds reqseq-workspace.yaml, or create a workspace there.",
+  ],
+  "ui.export-folder-missing": [
+    "The folder to write into does not exist.",
+    "Create it, or name a folder that exists.",
+  ],
+  "ui.delivery-missing": ["The delivery has no name.", "Name it, such as the date or version of the file."],
+  "ui.path-not-absolute": [
+    "This needs the full path of the folder.",
+    "Start it at the root of the drive, or with ~ for your home folder.",
+  ],
   "server.stopping": ["reqseq ui is stopping.", "Start it again and open the address it prints."],
 };
 
