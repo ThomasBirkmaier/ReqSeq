@@ -583,7 +583,7 @@ describe("element.list refuses sort keys it cannot apply", () => {
 
   it("refuses a key that is no sort key, no property of the metamodel and held by no element (#1829)", async () => {
     const { workspace } = await open();
-    const keys = "sort by id, identifier, type, status, title, hierarchy or a property key";
+    const keys = "sort by id, identifier, type, status, title, verification, hierarchy or a property key";
     const separately = "the order is given separately (asc or desc)";
     expect(await refused(workspace, [{ by: "title" }, { by: "foo" }])).toEqual([
       "input.invalid",

@@ -126,7 +126,7 @@ const grouped = async (
 ): Promise<CommandOutput<"element.list">> => {
   const command = "element.list";
   const { heads, groupsOf } = grouping;
-  const sorted = orderedGroups(selected, command, input.sort, groupsOf, heads.length);
+  const sorted = await orderedGroups(workspace, selected, command, input.sort, groupsOf, heads.length);
   const rows: ElementRecord[] = [];
   // Under `hierarchy` every group has its tree, so `places` runs parallel to `rows`.
   const places: TreePlace[] = [];
@@ -244,7 +244,7 @@ export default defineCommand({
     if (grouping !== undefined) {
       return grouped(ctx.workspace, selected, input, grouping, withProblems);
     }
-    const sorted = orderedSelection(selected, command, input.sort);
+    const sorted = await orderedSelection(ctx.workspace, selected, command, input.sort);
     const end = input.offset + input.limit;
     const page = sorted.elements.slice(input.offset, end);
     const { options, page: pageWith } = pageOf(input);

@@ -98,4 +98,27 @@ describe("lists (SR-233 AK1)", () => {
     // The table scrolls in its own container.
     expect(page.body).toContain('<div class="rq-list-table"><table>');
   });
+  it("[SR-233/AK-pmt8] ranks the verification status column in the order of SR-075 AK5: failed, open, outdated, verified with indirect, none last", () => {
+    const context = { metamodel, store: {} as ElementStore, shortIds: {} as ShortIds };
+    const statuses = ["verified", "failed", "indirect", undefined, "outdated", "open"] as const;
+    const page = listPageOf(
+      context,
+      "req",
+      statuses.map((status, at) =>
+        entry("req", {
+          identifier: `REQ-${String(at + 1)}`,
+          ...(status === undefined ? {} : { verification: [{ view: "core", status }] }),
+        }),
+      ),
+    );
+    // The rank of each row in the column (`data-s`): Identifier, Title, Status, Packages, Verification, Open hints.
+    const ranks = [...page.body.matchAll(/data-s="([^"]*)"/gu)].map(
+      (match) => (JSON.parse(String(match[1]).replaceAll("&quot;", '"')) as (number | null)[])[4],
+    );
+    expect(ranks).toEqual([3, 0, 3, null, 2, 1]);
+    // The filter offers the values in that order, "–" last.
+    expect(page.body).toContain(
+      "[&quot;failed&quot;,&quot;open&quot;,&quot;outdated&quot;,&quot;verified&quot;,&quot;indirect&quot;,&quot;–&quot;]",
+    );
+  });
 });
