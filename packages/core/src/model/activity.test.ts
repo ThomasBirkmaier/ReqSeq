@@ -255,9 +255,9 @@ describe("recording the last API or MCP access (SR-117)", () => {
     });
   });
 
-  it("records nothing for the command line, the app, a call without access or without a cache folder", async () => {
+  it("records nothing for the command line, the app, the web UI, a call without access or without a cache folder", async () => {
     expect(FOLLOWED_ACCESSES).toEqual(["api", "mcp"]);
-    for (const access of ["cli", "app", undefined] as const) {
+    for (const access of ["cli", "app", "ui", undefined] as const) {
       const opened = await copy(ONE);
       await call(opened.workspace, "element.get", { ref: "SR-e88fb3" }, access);
       expect([access, await recorded(opened)]).toEqual([access, undefined]);

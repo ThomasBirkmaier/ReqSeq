@@ -22,7 +22,7 @@ import { commands as productCommands } from "../commands/index.js";
 import type { NextStep } from "../generated/types.js";
 import { assertWritable, runnableSteps } from "../metamodel/index.js";
 import type { AccessCall, AccessName, NotedAccess } from "../model/activity.js";
-import { FOLLOWED_ACCESSES, accessSubject, noteAccess, recordAccess } from "../model/activity.js";
+import { accessSubject, isFollowed, noteAccess, recordAccess } from "../model/activity.js";
 import { answerNames } from "./answer-names.js";
 import type { Contracts } from "./contracts.js";
 import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
@@ -47,7 +47,8 @@ export interface InvokeContext {
   /**
    * The access the call comes through: each adapter passes its own name (ADR-0002 rule 4). It changes
    * the result in one way only, its local path rule: outside `UNCONFINED_ACCESSES` local paths must lie
-   * inside the repositories of the workspace (SR-142, an exception to SR-080 AK2), and in the app `~` at
+   * inside the repositories of the workspace (SR-142, an exception to SR-080 AK2), except for the commands
+   * `UNCONFINED_COMMANDS` names for the access, and in the app `~` at
    * the start of a local path is the home folder (SR-143 AK2; the command line's shell expands it). Core records the element a successful call names as the last access of the
    * copy when the access is one of `FOLLOWED_ACCESSES` (API and MCP, SR-117) and the workspace has
    * a cache folder; left out, nothing is recorded and no path is confined (core tests, internal callers).
@@ -60,6 +61,21 @@ export interface InvokeContext {
  * person gives. Every other access, a future one too, takes only paths inside the repositories.
  */
 export const UNCONFINED_ACCESSES: readonly AccessName[] = ["cli", "app"];
+
+/**
+ * The commands that take every local path through an access that is otherwise confined (ADR-0020): the web
+ * UI lists folders and creates a workspace where the person names one, outside the repositories of the open
+ * workspace or with none open. Every other command of `ui` is confined like the API and MCP (SR-142).
+ */
+export const UNCONFINED_COMMANDS: Readonly<Partial<Record<AccessName, readonly string[]>>> = {
+  ui: ["workspace.listFolder", "workspace.init"],
+};
+
+/** Whether `access` confines the local paths of `name` to the repositories of the workspace (SR-142). */
+const confines = (access: AccessName | undefined, name: string): boolean =>
+  access !== undefined &&
+  !UNCONFINED_ACCESSES.includes(access) &&
+  UNCONFINED_COMMANDS[access]?.includes(name) !== true;
 
 /**
  * The local path rule of an access of `UNCONFINED_ACCESSES` (or of none): the app's takes `~` for the home
@@ -372,8 +388,10 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     readonly checkPaths: () => Promise<void>;
   } => {
     const { access } = ctx;
-    const confined = access !== undefined && !UNCONFINED_ACCESSES.includes(access);
-    const localPaths = confined ? confinedLocalPaths(ctx.workspace, name) : unconfinedLocalPaths(access);
+    const confined = confines(access, name);
+    const localPaths = confined
+      ? confinedLocalPaths(ctx.workspace, name, { webUi: access === "ui" })
+      : unconfinedLocalPaths(access);
     const fields = pathFields.get(name);
     const input = withHome(checked, fields, localPaths.home);
     return {
@@ -462,9 +480,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     const { access } = ctx;
     const known = calls.get(name);
     const call: AccessCall | undefined =
-      access !== undefined && FOLLOWED_ACCESSES.includes(access) && known !== undefined
-        ? { ...known, access }
-        : undefined;
+      isFollowed(access) && known !== undefined ? { ...known, access } : undefined;
     let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {
