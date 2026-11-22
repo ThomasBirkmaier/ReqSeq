@@ -131,6 +131,8 @@ jobs:
           fi
           case "$KIND" in
             ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*") ;;
+            # perf-electron-* is the last record of the removed Electron suite (#2399), not of this workflow.
+            perf) files=("spec/evidence/ci/perf-*" ":(exclude)spec/evidence/ci/perf-electron-*") ;;
             *) files=("spec/evidence/ci/$KIND-*") ;;
           esac
           # -a: .gitattributes marks the files -diff, which git grep would treat as binary.

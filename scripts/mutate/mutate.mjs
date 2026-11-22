@@ -116,7 +116,6 @@ export const strykerOptions = ({ files, concurrency }) => ({
     "/build",
     "/delivery",
     "packages/docs/site/node_modules",
-    "toolchain/packaging/node_modules",
   ],
 });
 

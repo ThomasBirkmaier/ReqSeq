@@ -48,7 +48,6 @@ export default tseslint.config(
       // The staged packages and the built delivery (scripts/package/stage.mjs, ADR-0014).
       "build/**",
       "delivery/**",
-      "toolchain/packaging/node_modules/**",
       // The documentation site's cache and its content folder, filled by `pnpm docs:generate` (ADR-0017).
       "packages/docs/site/.astro/**",
       "packages/docs/site/src/content/docs/**",
