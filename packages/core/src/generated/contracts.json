@@ -14195,7 +14195,7 @@
             },
             "relations": {
               "$ref": "../common.schema.json#/$defs/relationRefs",
-              "description": "Relations of the new element by kind, written in the same file, e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
+              "description": "Relations of the new element by kind, written in the same file, e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-029\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-029."
             },
             "repository": {
               "description": "Workspace name of the repository to write the element to. Default: the main repository.",
@@ -17509,7 +17509,6 @@
         "implements": [
           "SR-069",
           "SR-124",
-          "SR-118",
           "SR-216"
         ],
         "arguments": [
@@ -17931,10 +17930,9 @@
           "SR-049",
           "SR-057",
           "SR-064",
-          "SR-065",
           "SR-087",
           "SR-102",
-          "SR-106",
+          "SR-166",
           "SR-246"
         ],
         "arguments": [
@@ -20050,9 +20048,7 @@
         "whileReadOnlyReason": "Adds a file to an element, and no change can be checked against a missing or faulty metamodel.",
         "stage": 3,
         "implements": [
-          "SR-065",
-          "SR-097",
-          "SR-190"
+          "SR-097"
         ],
         "arguments": [
           {

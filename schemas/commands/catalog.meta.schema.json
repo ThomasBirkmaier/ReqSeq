@@ -34,7 +34,7 @@
             "minLength": 1,
             "maxLength": 40,
             "pattern": "^[A-Z][^.!?]*$",
-            "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045)."
+            "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045)."
           },
           "summary": {
             "type": "string",
@@ -81,7 +81,7 @@
           },
           "arguments": {
             "type": "array",
-            "description": "How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`).",
+            "description": "How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`).",
             "items": {
               "type": "object",
               "required": ["field", "complete"],
@@ -146,7 +146,7 @@
                     "path",
                     "output"
                   ],
-                  "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list (SR-215 AK2), so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name` (SR-236 AK6)."
+                  "description": "Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name` (SR-236 AK6)."
                 },
                 "replaces": {
                   "type": "array",
@@ -185,11 +185,11 @@
           },
           "showsOutput": {
             "const": true,
-            "description": "A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880)."
+            "description": "A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880)."
           },
           "staysOutputPage": {
             "const": true,
-            "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries (SR-223 AK6). Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
+            "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
           },
           "outputFields": {
             "type": "array",
@@ -205,13 +205,13 @@
                 "title": { "type": "string", "description": "The title of the field for people." },
                 "technical": {
                   "enum": [true, "with-element"],
-                  "description": "The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request (SR-223 AK2); `with-element`: only when the same problem names an element."
+                  "description": "The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request; `with-element`: only when the same problem names an element."
                 },
                 "normal": {
-                  "description": "The normal value: a shown value equal to it appears only with Show details (SR-223 AK7)."
+                  "description": "The normal value: a shown value equal to it appears only with Show details."
                 },
                 "elements": {
-                  "description": "`answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4).",
+                  "description": "`answer`: the elements that are the answer of the output. `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4).",
                   "anyOf": [
                     { "const": true },
                     { "const": "answer" },
@@ -221,7 +221,7 @@
                 },
                 "elementValue": {
                   "const": true,
-                  "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values (SR-223 AK6)."
+                  "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values."
                 },
                 "keys": {
                   "type": "array",
