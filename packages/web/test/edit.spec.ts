@@ -386,11 +386,14 @@ test("typing [[ in a text links an element, and an added image goes into the tex
     }
     await open(`/edit/${ref}`);
     const text = page.locator("#f-text");
-    await text.fill("See ");
-    await text.press("End");
-    await text.pressSequentially(`[[${refOf(other)}`);
     const option = page.locator(`[role=option][data-id="${other.id}"]`).first();
-    await expect(option).toBeVisible();
+    // The UI server learns of an element written just before through its watcher: type again until it is found.
+    await expect(async () => {
+      await text.fill("See ");
+      await text.press("End");
+      await text.pressSequentially(`[[${refOf(other)}`);
+      await expect(option).toBeVisible({ timeout: 2000 });
+    }).toPass();
     await text.press("Enter");
     await expect(text).toHaveValue(new RegExp(`^See \\[.+\\]\\(reqseq:${refOf(other)}\\)$`));
     // An image chosen with the button.
