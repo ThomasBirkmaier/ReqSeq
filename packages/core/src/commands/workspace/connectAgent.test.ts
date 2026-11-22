@@ -135,29 +135,26 @@ describe("workspace.connectAgent", () => {
   });
 
   it("[SR-227/AK-cw0k] names the launcher of an unpacked delivery when it is there", async () => {
+    // The paths are the host's, so the test takes the host's platform: on Windows the delivery starts through
+    // runtime\node.exe, because its `.cmd` launcher runs only through a shell.
+    const windows = process.platform === "win32";
     const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
     onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
-    for (const file of [
-      ["runtime", "node"],
-      ["lib", "dist", "bin.js"],
-      ["bin", "reqseq"],
-    ]) {
-      await fs.mkdir(path.join(folder, ...file.slice(0, -1)), { recursive: true });
-      await fs.writeFile(path.join(folder, ...file), "");
+    const runtime = path.join(folder, "runtime", windows ? "node.exe" : "node");
+    const entry = path.join(folder, "lib", "dist", "bin.js");
+    for (const file of [runtime, entry, path.join(folder, "bin", windows ? "reqseq.cmd" : "reqseq")]) {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, "");
     }
-    setInstallation({
-      runtime: path.join(folder, "runtime", "node"),
-      entry: path.join(folder, "lib", "dist", "bin.js"),
-      electron: false,
-    });
+    setInstallation({ runtime, entry, electron: false });
     const ws = await fixture();
-    platform("linux");
     const output = await run(ws.root, { client: "other" });
-    expect(output.server).toEqual({
-      command: path.join(folder, "bin", "reqseq"),
-      args: ["mcp", "--workspace", ws.root],
-      env: {},
-    });
+    const args = ["mcp", "--workspace", ws.root];
+    expect(output.server).toEqual(
+      windows
+        ? { command: runtime, args: [entry, ...args], env: {} }
+        : { command: path.join(folder, "bin", "reqseq"), args, env: {} },
+    );
   });
 
   it("refuses for the app macOS runs from a translocated place", async () => {
