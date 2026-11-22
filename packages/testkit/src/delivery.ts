@@ -16,6 +16,8 @@ export interface DeliveryNames {
   readonly productName: string;
   readonly appId: string;
   readonly launcher: string;
+  /** The desktop shell's own program (`reqseq-shell`); the release gives it the product's name on macOS and Windows. */
+  readonly shellProgram: string;
   readonly packageScope: string;
   /** File name of the CLI tarball with `${version}`. */
   readonly cliTarball: string;
@@ -68,8 +70,18 @@ export function cliTarballName(names: DeliveryNames, version: string): string {
   return names.cliTarball.replaceAll("${version}", version);
 }
 
-/** Where the parts lie, relative to the unpacked folder of the archive (ADR-0020). */
+/** Where the parts lie, relative to the unpacked folder of the archive (ADR-0020, ADR-0021). */
 export interface DeliveryLayout {
+  /** The desktop shell a person starts (SR-249 AK3): `<product>.app` on macOS, `<product>.exe` on Windows, `<product>` on Linux. */
+  readonly shell: string;
+  /** The program that starts the shell: the bundle's executable on macOS, else `shell`. */
+  readonly shellStart: string;
+  /** The shell's binary, which carries the build mark: `<shellProgram>` beside the Linux launcher, else `shellStart`. */
+  readonly shellBinary: string;
+  /** The bundle's `Info.plist` on macOS. */
+  readonly infoPlist?: string;
+  /** The folder of `bin/`, `runtime/` and `lib/`: `<product>.app/Contents/Resources` on macOS, else the unpacked folder. */
+  readonly root: string;
   /** The launcher `bin/<launcher>` (`.cmd` on Windows). */
   readonly launcher: string;
   /** The shipped Node, the only file of `runtime/`. */
@@ -80,6 +92,8 @@ export interface DeliveryLayout {
   readonly web: string;
   /** The documentation site of this version (SR-141), which `reqseq serve docs` serves. */
   readonly docs: string;
+  /** The example of connecting a test tool. */
+  readonly examples: string;
   readonly notices: string;
   /** Files that must keep their executable bit in the archive. */
   readonly executables: readonly string[];
@@ -87,18 +101,38 @@ export interface DeliveryLayout {
 
 export function deliveryLayout(names: DeliveryNames, system: DeliverySystem): DeliveryLayout {
   const win = system === "win";
-  const launcher = path.join("bin", win ? `${names.launcher}.cmd` : names.launcher);
-  const runtime = path.join("runtime", win ? "node.exe" : "node");
+  const app = `${names.productName}.app`;
+  const root = system === "mac" ? path.join(app, "Contents", "Resources") : "";
+  const launcher = path.join(root, "bin", win ? `${names.launcher}.cmd` : names.launcher);
+  const runtime = path.join(root, "runtime", win ? "node.exe" : "node");
+  const shell = system === "mac" ? app : win ? `${names.productName}.exe` : names.productName;
+  const shellStart = system === "mac" ? path.join(app, "Contents", "MacOS", names.productName) : shell;
+  const shellBinary = system === "linux" ? names.shellProgram : shellStart;
+  const lib = path.join(root, "lib");
   return {
+    shell,
+    shellStart,
+    shellBinary,
+    ...(system === "mac" ? { infoPlist: path.join(app, "Contents", "Info.plist") } : {}),
+    root,
     launcher,
     runtime,
-    lib: "lib",
-    web: path.join("lib", "web"),
-    docs: path.join("lib", "docs"),
-    notices: "THIRD_PARTY_NOTICES.txt",
-    executables: win ? [] : [launcher, runtime],
+    lib,
+    web: path.join(lib, "web"),
+    docs: path.join(lib, "docs"),
+    examples: path.join(root, "examples", "junit"),
+    notices: path.join(root, "THIRD_PARTY_NOTICES.txt"),
+    executables: win ? [] : [...new Set([launcher, runtime, shellStart, shellBinary])],
   };
 }
+
+/**
+ * The text a release build of the shell carries (`packages/shell/shell/src/main.rs`): built with
+ * `tauri/custom-protocol` and without the e2e driver (ADR-0021, Package).
+ */
+export const SHELL_RELEASE_MARK = "reqseq-shell build: release";
+/** A variable only the e2e driver reads: the shipped shell must not hold it (ADR-0021, Test seam). */
+export const SHELL_E2E_MARK = "REQSEQ_SHELL_E2E_NODE";
 
 /**
  * Windows' own bsdtar: it reads zip and tar.gz and takes Windows paths. A `tar` of Git Bash, which may come
@@ -189,11 +223,15 @@ async function fileFindings(
     path.join(layout.web, "index.html"),
     path.join(layout.docs, "index.html"),
     path.join(layout.docs, "search-index.json"),
-    path.join("examples", "junit", "README.md"),
+    path.join(layout.examples, "README.md"),
     layout.notices,
+    layout.shellStart,
+    layout.shellBinary,
+    ...(layout.infoPlist === undefined ? [] : [layout.infoPlist]),
   ];
   const findings: string[] = [];
-  for (const file of required) {
+  // On macOS and Windows the shell's binary is the program that starts it.
+  for (const file of new Set(required)) {
     if (!(await exists(path.join(root, file)))) {
       findings.push(`missing: ${file}`);
     }
@@ -220,6 +258,43 @@ async function fileFindings(
   return findings;
 }
 
+/** The value of `key` in an `Info.plist` (a `<string>` right after its `<key>`); undefined without it. */
+export const plistString = (plist: string, key: string): string | undefined =>
+  new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`).exec(plist)?.[1];
+
+/**
+ * The shell is the release build (SR-249 AK3, ADR-0021): its binary carries the release mark and not the e2e
+ * driver, and on macOS the bundle's `Info.plist` names its executable and the app id.
+ */
+async function shellFindings(root: string, names: DeliveryNames, layout: DeliveryLayout): Promise<string[]> {
+  const findings: string[] = [];
+  const binary = await fs.readFile(path.join(root, layout.shellBinary)).catch(() => undefined);
+  if (binary !== undefined) {
+    if (!binary.includes(SHELL_RELEASE_MARK)) {
+      findings.push(`not a release build of the shell: ${layout.shellBinary}`);
+    }
+    if (binary.includes(SHELL_E2E_MARK)) {
+      findings.push(`the shell holds the e2e driver: ${layout.shellBinary}`);
+    }
+  }
+  const plist =
+    layout.infoPlist === undefined
+      ? undefined
+      : await fs.readFile(path.join(root, layout.infoPlist), "utf8").catch(() => undefined);
+  if (plist !== undefined) {
+    const expected = {
+      CFBundleExecutable: path.basename(layout.shellStart),
+      CFBundleIdentifier: names.appId,
+    };
+    for (const [key, value] of Object.entries(expected)) {
+      if (plistString(plist, key) !== value) {
+        findings.push(`${String(layout.infoPlist)} does not give ${key} ${value}`);
+      }
+    }
+  }
+  return findings;
+}
+
 /** The notices must name `required` (ADR-0015). */
 async function noticeFindings(file: string, required: readonly string[]): Promise<string[]> {
   const notices = await fs.readFile(file, "utf8").catch(() => undefined);
@@ -235,7 +310,8 @@ async function noticeFindings(file: string, required: readonly string[]): Promis
  * command line, the MCP server and the UI server with the pages of the web UI (SR-249 AK2), the fingerprint and
  * workers of core, the example for test tools, the documentation site with its search (SR-141), the third-party
  * notices naming `requiredNotices` (ADR-0015), nothing of Electron and no npm in the runtime (SR-249 AK2,
- * ADR-0020), no build leftovers, and the executable bits (not checked on a Windows `host`).
+ * ADR-0020), no build leftovers, the executable bits (not checked on a Windows `host`), and the desktop shell at its
+ * place as a release build (SR-249 AK3).
  */
 export async function inspectDelivery(
   root: string,
@@ -247,6 +323,7 @@ export async function inspectDelivery(
   const layout = deliveryLayout(names, system);
   return [
     ...(await fileFindings(root, names, layout, host)),
+    ...(await shellFindings(root, names, layout)),
     ...(await noticeFindings(path.join(root, layout.notices), requiredNotices)),
   ];
 }

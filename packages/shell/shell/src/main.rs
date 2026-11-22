@@ -13,6 +13,17 @@ use shell::run::Event;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, mpsc};
 
+/// Which build this is, as text in the binary: the release tests find `reqseq-shell build: release` in the shipped
+/// program, which only a build with `tauri/custom-protocol` and without `e2e` carries (ADR-0021, Package).
+#[used]
+static BUILD: &str = if cfg!(feature = "e2e") {
+    "reqseq-shell build: e2e"
+} else if tauri::is_dev() {
+    "reqseq-shell build: development"
+} else {
+    "reqseq-shell build: release"
+};
+
 /// Set once the server has been asked to start, for the fixed line of the panic hook.
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 

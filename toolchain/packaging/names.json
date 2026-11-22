@@ -2,6 +2,7 @@
   "productName": "ReqSeq",
   "appId": "io.github.thomasbirkmaier.reqseq",
   "launcher": "reqseq",
+  "shellProgram": "reqseq-shell",
   "packageScope": "@reqseq/",
   "cliTarball": "reqseq-cli-${version}.tgz",
   "artifact": "${productName}-${version}-${os}-${arch}.${ext}",

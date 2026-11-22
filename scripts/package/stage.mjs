@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// Stages the delivery without Electron (ADR-0020, #2308): one archive per system with the launcher bin/<launcher>,
-// the pinned Node in runtime/ (toolchain/packaging/node.json, without npm), the command line with the MCP server and
-// the UI server in lib/ (a flat production node_modules), the pages of the web UI in lib/web/, the documentation site
-// in lib/docs/ (SR-141), the example of connecting a test tool and the third-party notices (ADR-0015); and the CLI
-// tarball. Run after `pnpm build` and `--docs-site`, with the Node archives of `--node-urls` in $REQSEQ_NODE_ARCHIVES.
+// Stages the delivery without Electron (ADR-0020, #2308): one archive per system with the desktop shell (ADR-0021,
+// #2379: ReqSeq.app, ReqSeq.exe, or ReqSeq with reqseq-shell), the launcher bin/<launcher>, the pinned Node in
+// runtime/ (toolchain/packaging/node.json, without npm), the command line with the MCP server and the UI server in
+// lib/ (a flat production node_modules), the pages of the web UI in lib/web/, the documentation site in lib/docs/
+// (SR-141), the example of connecting a test tool and the third-party notices (ADR-0015), on macOS all but the shell
+// inside ReqSeq.app/Contents/Resources/; and the CLI tarball. Run after `pnpm build` and `--docs-site`, with the Node
+// archives of `--node-urls` in $REQSEQ_NODE_ARCHIVES and each system's release build of the shell with its
+// `crates.json` (scripts/licenses/crates.mjs --notices) in $REQSEQ_SHELL_BUILDS/<mac|linux|win>/.
 //
 //   node scripts/package/stage.mjs               stage into build/package/ and write the archives into delivery/
 //   node scripts/package/stage.mjs --node-urls   print the address and file name of each pinned Node archive, one
@@ -29,6 +32,7 @@ import {
   deliveryArtifactName,
   deliveryFolderName,
   hardLinkEntries,
+  infoPlist,
   nodeArchiveMembers,
   nodeArchiveUrl,
   nodeNotice,
@@ -41,6 +45,7 @@ import {
   removeBuildLeftovers,
   renderLauncher,
   sha256Of,
+  shellLayout,
   stagedManifest,
   tagReleasesVersion,
   versionOfTag,
@@ -56,6 +61,8 @@ const delivery = path.join(root, "delivery");
 const docsSite = process.env.REQSEQ_DOCS_SITE ?? path.join(root, "build", "docs-site");
 /** Where the Node archives of node.json lie (the release workflow downloads them once and caches them). */
 const nodeArchives = process.env.REQSEQ_NODE_ARCHIVES ?? path.join(root, "build", "node-archives");
+/** Where the release builds of the shell lie, one folder per system (the release job `shell` builds them). */
+const shellBuilds = process.env.REQSEQ_SHELL_BUILDS ?? path.join(root, "build", "shell");
 /** ADR-0020: the web UI bundles KaTeX and the IBM Plex fonts, so the notices must name them. */
 const REQUIRED_NOTICES = ["katex", "@fontsource/ibm-plex-sans", "@fontsource/ibm-plex-mono"];
 
@@ -216,14 +223,23 @@ async function stage() {
     const node = await nodeRuntime(pin, system, path.join(runtimes, system));
     const folder = deliveryFolderName(names, system, version);
     const dest = path.join(out, folder);
-    await fs.cp(cli, path.join(dest, "lib"), { recursive: true });
-    // The archive has one notices file, at its top.
-    await fs.rm(path.join(dest, "lib", "THIRD_PARTY_NOTICES.txt"));
-    await fs.mkdir(path.join(dest, "runtime"));
-    await fs.copyFile(node.binary, path.join(dest, "runtime", DELIVERY_SYSTEMS[system].node));
-    await fs.chmod(path.join(dest, "runtime", DELIVERY_SYSTEMS[system].node), 0o755);
-    await fs.mkdir(path.join(dest, "bin"));
-    const launcher = path.join(dest, "bin", DELIVERY_SYSTEMS[system].launcher(names.launcher));
+    const shell = shellLayout(names, system);
+    const builds = path.join(shellBuilds, system);
+    const crates = await readJson(path.join(builds, "crates.json")).catch((error) => {
+      throw new Error(`no release build of the shell for ${system} in ${builds} (the release job shell)`, {
+        cause: error,
+      });
+    });
+    // macOS: everything but the shell's executable goes into the bundle's Resources, which the shell runs from.
+    const home = path.join(dest, shell.root);
+    await fs.cp(cli, path.join(home, "lib"), { recursive: true });
+    // The archive has one notices file, in the folder of bin/.
+    await fs.rm(path.join(home, "lib", "THIRD_PARTY_NOTICES.txt"));
+    await fs.mkdir(path.join(home, "runtime"));
+    await fs.copyFile(node.binary, path.join(home, "runtime", DELIVERY_SYSTEMS[system].node));
+    await fs.chmod(path.join(home, "runtime", DELIVERY_SYSTEMS[system].node), 0o755);
+    await fs.mkdir(path.join(home, "bin"));
+    const launcher = path.join(home, "bin", DELIVERY_SYSTEMS[system].launcher(names.launcher));
     if (system === "win") {
       const cmd = await fs.readFile(path.join(packaging, "launchers", "launcher.cmd"), "utf8");
       await fs.writeFile(launcher, renderLauncher(cmd, names, { crlf: true }));
@@ -231,16 +247,26 @@ async function stage() {
       const sh = await fs.readFile(path.join(packaging, "launchers", "launcher.sh"), "utf8");
       await fs.writeFile(launcher, renderLauncher(sh, names), { mode: 0o755 });
     }
+    // The desktop shell (SR-249 AK3), the release build of the job `shell`.
+    for (const { from, to } of shell.shell) {
+      await fs.mkdir(path.dirname(path.join(dest, to)), { recursive: true });
+      await fs.copyFile(path.join(builds, from), path.join(dest, to));
+      await fs.chmod(path.join(dest, to), 0o755);
+    }
+    if (shell.infoPlist !== undefined) {
+      await fs.writeFile(path.join(dest, shell.infoPlist), infoPlist(names, version));
+      await fs.copyFile(path.join(packaging, "icon", "icon.icns"), path.join(dest, shell.icon));
+    }
     // The example of connecting a test tool (SR-063), which the documentation names.
-    await fs.cp(path.join(root, "toolchain", "junit"), path.join(dest, "examples", "junit"), {
+    await fs.cp(path.join(root, "toolchain", "junit"), path.join(home, "examples", "junit"), {
       recursive: true,
       filter: (file) => !/(?:^|[\\/])(?:__pycache__|\.pytest_cache)(?:[\\/]|$)/.test(file),
     });
     await fs.writeFile(
-      path.join(dest, "THIRD_PARTY_NOTICES.txt"),
+      path.join(home, "THIRD_PARTY_NOTICES.txt"),
       await notices(
-        `Third-party software in ${names.productName} ${version} (command line, MCP server, web UI, documentation and Node runtime)`,
-        [nodeNotice(pin.version, node.license)],
+        `Third-party software in ${names.productName} ${version} (desktop shell, command line, MCP server, web UI, documentation and Node runtime)`,
+        [nodeNotice(pin.version, node.license), ...crates],
       ),
     );
     const artifact = path.join(delivery, deliveryArtifactName(names, system, version));

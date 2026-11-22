@@ -9,6 +9,10 @@
     "declarationMap": false,
     "sourceMap": false
   },
-  "include": ["e2e/**/*.ts", "vitest.shell.config.ts"],
-  "references": [{ "path": "../testkit" }]
+  "include": ["e2e/**/*.ts", "test/**/*.ts", "vitest.shell.config.ts"],
+  "references": [
+    {
+      "path": "../testkit"
+    }
+  ]
 }

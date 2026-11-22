@@ -28,6 +28,7 @@ const testFiles = [
   "packages/web/test/**/*.ts",
   // The e2e tests of the desktop shell and their driver (ADR-0021).
   "packages/shell/e2e/**/*.ts",
+  "packages/shell/test/**/*.ts",
   "packages/shell/vitest.shell.config.ts",
 ];
 // The app's part of the performance suite (Playwright, #147) generates its workspace with the testkit.

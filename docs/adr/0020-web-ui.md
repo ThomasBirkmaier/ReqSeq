@@ -168,6 +168,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 | What | Name |
 | --- | --- |
 | Artifacts | `ReqSeq-<version>-mac-arm64.zip`, `ReqSeq-<version>-win-x64.zip`, `ReqSeq-<version>-linux-x64.tar.gz` (one folder `ReqSeq-<version>-<system>/`), `reqseq-cli-<version>.tgz`, `SHA256SUMS.txt` |
+| Desktop shell (ADR-0021, #2379) | `ReqSeq.app` (macOS), `ReqSeq.exe` (Windows), `ReqSeq` with `reqseq-shell` (Linux); on macOS the rows below lie in `ReqSeq.app/Contents/Resources/` |
 | Launcher | `bin/reqseq` (macOS, Linux), `bin\reqseq.cmd` (Windows) |
 | Runtime | `runtime/` with Node's `node` or `node.exe`, without `npm`, `npx` and `corepack` |
 | Program | `lib/` with CLI, MCP server and UI server; `lib/web/` with the pages; `lib/docs/` with the documentation site |

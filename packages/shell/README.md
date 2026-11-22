@@ -38,4 +38,15 @@ The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. 
 | e2e: start, end, failures, opening an address (SR-252 AK3, AK4, AK5, AK9, AK10), the dialogs (SR-253) | yes, without network | yes |
 | e2e with strace: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes | no recorder yet |
 
+## The release build
+
+The release workflow builds `cargo build --release --locked --offline -p shell` (and `-p launcher` on Linux) on each
+system, without the `e2e` feature, and `scripts/package/stage.mjs` puts it into the archive: `ReqSeq.app` on macOS
+(the shell as `Contents/MacOS/ReqSeq`, the rest of the release in `Contents/Resources/`, where `start.rs` looks for
+it), `ReqSeq.exe` on Windows, `ReqSeq` and `reqseq-shell` on Linux. The binary carries the text
+`reqseq-shell build: release` only when it is built with `tauri/custom-protocol` and without `e2e` (`main.rs`), which
+the inspection of the delivery checks (`packages/testkit/src/delivery.ts`). The delivery tests in `test/delivery/`
+start that build from outside, through the process table, the open files and the connections of the system (SR-252
+AK1, AK8); only `scripts/package/delivery-tests.sh` runs them.
+
 Not measured by the coverage: `main.rs`, `host.rs`, `engine.rs` and `e2e.rs` (the Tauri wiring, which the e2e suite runs) and the Windows-only `windows.rs`.

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2030 2480" width="2030" height="2480" role="img" aria-label="ReqSeq CI workflows">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2030 2536" width="2030" height="2536" role="img" aria-label="ReqSeq CI workflows">
 <style>
 svg { --bg: #ffffff; --fg: #18202b; --muted: #5a6575; --line: #c6ced9; --u: #c4521b; --m: #5d6c84; --w: #1c6db0; --o: #7a4fb0; --req: #0d8257; --req-fg: #ffffff; }
 @media (prefers-color-scheme: dark) { svg { --bg: #0d1117; --fg: #e2e7ee; --muted: #98a3b3; --line: #344050; --u: #ee7c45; --m: #a7b4c8; --w: #5ea8e8; --o: #b79cf0; --req: #3cc68e; --req-fg: #0c1a14; } }
@@ -21,7 +21,7 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 .req { fill: var(--req); } .reqt { fill: var(--req-fg); font-size: 9.5px; font-weight: 700; }
 </style>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
-<rect class="bg" width="2030" height="2480"/>
+<rect class="bg" width="2030" height="2536"/>
 <text class="h" x="20" y="34">ReqSeq CI: workflows, triggers, jobs and required checks</text>
 <text class="s" x="20" y="52">Generated from .github/workflows/*.yml by pnpm docs:diagrams. Lanes are the runner systems.</text>
 <line class="sep" x1="20" y1="72" x2="2010" y2="72"/>
@@ -168,30 +168,39 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 <path class="arr" d="M232,2093 L256,2093"/>
 <rect class="trig" x="20" y="2126" width="212" height="28" rx="5"/><text class="n" x="30" y="2145">workflow_dispatch</text>
 <path class="arr" d="M232,2140 L256,2140"/>
-<rect class="lane u" x="286" y="2070" width="1724" height="84" rx="8"/>
+<rect class="lane u" x="286" y="2070" width="1724" height="140" rx="8"/>
 <text class="lh u" x="298" y="2087">UBUNTU-24.04</text>
 <rect class="box u" x="298" y="2096" width="295.2" height="46" rx="5"/><text class="n" x="308" y="2115">docs site</text><text class="s" x="308" y="2131">job docs-site</text>
 <path class="arr" d="M256,2119 L298,2119" marker-end="url(#ah)"/>
+<rect class="box u" x="298" y="2152" width="295.2" height="46" rx="5"/><text class="n" x="308" y="2171">shell (ubuntu-24.04)</text><text class="s" x="308" y="2187">job shell</text>
+<path class="arr" d="M256,2175 L298,2175" marker-end="url(#ah)"/>
 <rect class="box u" x="649.2" y="2096" width="295.2" height="46" rx="5"/><text class="n" x="659.2" y="2115">build</text><text class="s" x="659.2" y="2131">job build</text>
 <rect class="box u" x="1000.4" y="2096" width="295.2" height="46" rx="5"/><text class="n" x="1010.4" y="2115">test (ubuntu-24.04)</text><text class="s" x="1010.4" y="2131">job test</text>
 <rect class="box u" x="1351.6" y="2096" width="295.2" height="46" rx="5"/><text class="n" x="1361.6" y="2115">release</text><text class="s" x="1361.6" y="2131">job release</text>
-<rect class="lane m" x="286" y="2164" width="1724" height="84" rx="8"/>
-<text class="lh m" x="298" y="2181">MACOS-26</text>
-<rect class="box m" x="1000.4" y="2190" width="295.2" height="46" rx="5"/><text class="n" x="1010.4" y="2209">test (macos-26)</text><text class="s" x="1010.4" y="2225">job test</text>
-<rect class="lane w" x="286" y="2258" width="1724" height="84" rx="8"/>
-<text class="lh w" x="298" y="2275">WINDOWS-2025</text>
-<rect class="box w" x="1000.4" y="2284" width="295.2" height="46" rx="5"/><text class="n" x="1010.4" y="2303">test (windows-2025)</text><text class="s" x="1010.4" y="2319">job test</text>
-<rect class="lane o" x="286" y="2352" width="1724" height="84" rx="8"/>
-<text class="lh o" x="298" y="2369">REUSABLE WORKFLOW</text>
-<rect class="box o" x="1702.8" y="2378" width="295.2" height="46" rx="5"/><text class="n" x="1712.8" y="2397">docs</text><text class="s" x="1712.8" y="2413">calls ./.github/workflows/docs-pages.yml</text>
-<path class="arr" d="M256,2093 L256,2140"/>
+<rect class="lane m" x="286" y="2220" width="1724" height="84" rx="8"/>
+<text class="lh m" x="298" y="2237">MACOS-26</text>
+<rect class="box m" x="298" y="2246" width="295.2" height="46" rx="5"/><text class="n" x="308" y="2265">shell (macos-26)</text><text class="s" x="308" y="2281">job shell</text>
+<path class="arr" d="M256,2269 L298,2269" marker-end="url(#ah)"/>
+<rect class="box m" x="1000.4" y="2246" width="295.2" height="46" rx="5"/><text class="n" x="1010.4" y="2265">test (macos-26)</text><text class="s" x="1010.4" y="2281">job test</text>
+<rect class="lane w" x="286" y="2314" width="1724" height="84" rx="8"/>
+<text class="lh w" x="298" y="2331">WINDOWS-2025</text>
+<rect class="box w" x="298" y="2340" width="295.2" height="46" rx="5"/><text class="n" x="308" y="2359">shell (windows-2025)</text><text class="s" x="308" y="2375">job shell</text>
+<path class="arr" d="M256,2363 L298,2363" marker-end="url(#ah)"/>
+<rect class="box w" x="1000.4" y="2340" width="295.2" height="46" rx="5"/><text class="n" x="1010.4" y="2359">test (windows-2025)</text><text class="s" x="1010.4" y="2375">job test</text>
+<rect class="lane o" x="286" y="2408" width="1724" height="84" rx="8"/>
+<text class="lh o" x="298" y="2425">REUSABLE WORKFLOW</text>
+<rect class="box o" x="1702.8" y="2434" width="295.2" height="46" rx="5"/><text class="n" x="1712.8" y="2453">docs</text><text class="s" x="1712.8" y="2469">calls ./.github/workflows/docs-pages.yml</text>
+<path class="arr" d="M256,2093 L256,2363"/>
 <path class="arr" d="M593.2,2119 L621.2,2119 L621.2,2119 L649.2,2119" marker-end="url(#ah)"/>
+<path class="arr" d="M593.2,2175 L621.2,2175 L621.2,2119 L649.2,2119" marker-end="url(#ah)"/>
+<path class="arr" d="M593.2,2269 L621.2,2269 L621.2,2119 L649.2,2119" marker-end="url(#ah)"/>
+<path class="arr" d="M593.2,2363 L621.2,2363 L621.2,2119 L649.2,2119" marker-end="url(#ah)"/>
 <path class="arr" d="M944.4,2119 L972.4,2119 L972.4,2119 L1000.4,2119" marker-end="url(#ah)"/>
 <path class="arr" d="M944.4,2119 L1323.6,2119 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
 <path class="arr" d="M1295.6,2119 L1323.6,2119 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
-<path class="arr" d="M1295.6,2213 L1323.6,2213 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
-<path class="arr" d="M1295.6,2307 L1323.6,2307 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
-<path class="arr" d="M944.4,2119 L972.4,2119 L972.4,2213 L1000.4,2213" marker-end="url(#ah)"/>
-<path class="arr" d="M944.4,2119 L972.4,2119 L972.4,2307 L1000.4,2307" marker-end="url(#ah)"/>
-<path class="arr" d="M1646.8,2119 L1674.8,2119 L1674.8,2401 L1702.8,2401" marker-end="url(#ah)"/>
+<path class="arr" d="M1295.6,2269 L1323.6,2269 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
+<path class="arr" d="M1295.6,2363 L1323.6,2363 L1323.6,2119 L1351.6,2119" marker-end="url(#ah)"/>
+<path class="arr" d="M944.4,2119 L972.4,2119 L972.4,2269 L1000.4,2269" marker-end="url(#ah)"/>
+<path class="arr" d="M944.4,2119 L972.4,2119 L972.4,2363 L1000.4,2363" marker-end="url(#ah)"/>
+<path class="arr" d="M1646.8,2119 L1674.8,2119 L1674.8,2457 L1702.8,2457" marker-end="url(#ah)"/>
 </svg>
