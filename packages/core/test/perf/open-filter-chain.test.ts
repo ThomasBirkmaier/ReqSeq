@@ -338,6 +338,20 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const newest = sorted.elements[0];
     const dated = await openElement(opened(), newest?.id ?? "", true);
     expect(dated.versionDate).toBe([...generatedDates.values()].sort().at(-1));
+    // A new commit moves HEAD of one repository; it changes no element, so the order stays.
+    const folder = tree.repositories.find((r) => r.name === newest?.repository)?.folder ?? "";
+    await fixture?.write(`${folder}/notes.txt`, "A commit after the sort.\n");
+    await fixture?.commit(folder, "notes");
+    const { result: moved, measurement: afterCommit } = await measure(
+      "sort: all elements by versionDate, first page, after a new commit (HEAD moved)",
+      sortedList,
+      {
+        basis:
+          "SR-082 AK4 (element.list sorted by versionDate, once applied since the start, after HEAD moved)",
+      },
+    );
+    expect(moved.elements.map((e) => e.id)).toEqual(sorted.elements.map((e) => e.id));
+    expect(afterCommit.ms).toBeGreaterThan(0);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 

@@ -10,7 +10,7 @@
 // `versionDate` (SR-075 AK6) for the whole selection (`versionTimesOf`, version-times.ts), from the
 // walks of the version dates that the workspace keeps per HEAD (SR-082 AK4), with the warnings of the
 // order in `SortValues.problems`. `element.list` reads them itself and passes them on, to show the warnings.
-import type { CommandName } from "../catalog.js";
+import type { CommandName, Problem } from "../catalog.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
 import { evidenceStatusState } from "./evidence.js";
@@ -73,6 +73,9 @@ const versionDateOf = async (workspace: Workspace, selected: Selected): Promise<
   const { versionTimes, problems } = await versionTimesOf(workspace, selected.elements);
   return { versionDate: versionTimes, problems };
 };
+
+/** The warnings of the order in `values` (`sort.incomplete`), for the output of a command. */
+export const sortProblems = (values: SortValues): readonly Problem[] => values.problems ?? [];
 
 /** Checks the sort `orderedSelection` would use for the same input, without sorting (`checkSortKeys`). */
 export const checkedSort = (selected: Selected, command: CommandName, sort: SortKeys | undefined): void => {

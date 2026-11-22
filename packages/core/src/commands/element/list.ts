@@ -45,6 +45,7 @@ import {
   orderedGroups,
   orderedSelection,
   perspectiveFilterFor,
+  sortProblems,
   sortValuesFor,
   perspectiveFor,
   resolveSelection,
@@ -127,7 +128,7 @@ const problemsOf = (
   shown: readonly Problem[] | undefined,
   values: SortValues,
 ): Pick<ElementListOutput, "problems"> => {
-  const problems = [...(shown ?? []), ...(values.problems ?? [])];
+  const problems = [...(shown ?? []), ...sortProblems(values)];
   return shown === undefined && problems.length === 0 ? {} : { problems };
 };
 

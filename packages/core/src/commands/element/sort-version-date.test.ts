@@ -170,6 +170,22 @@ describe("element.list by the time of the version (SR-075 AK6)", () => {
     expect(again).not.toHaveProperty("problems");
   });
 
+  it("[SR-075/AK-qr2j] says so in reqif.export too when a stored sort by the version date is not completely determined", async () => {
+    const workspace = await history();
+    await invoke(
+      "filter.save",
+      { name: "Newest", where: { all: [] }, sort: [{ by: "versionDate", order: "desc" }] },
+      { workspace },
+    );
+    vi.mocked(fileHistory).mockResolvedValueOnce({ known: false, reason: "timeout", detail: "killed" });
+    const exported = (await invoke(
+      "reqif.export",
+      { output: "newest.reqif", selection: { filter: "Newest" } },
+      { workspace },
+    )) as { problems: { code: string; repository?: string }[] };
+    expect(exported.problems.map((p) => [p.code, p.repository])).toEqual([["sort.incomplete", "system"]]);
+  });
+
   it("needs the times to sort elements by them, not to check the keys", async () => {
     const { workspace } = await open({ fixture: "SR-075/sort" });
     const readOutputElements = (): Promise<never> => Promise.reject(new Error("no selection.output here"));

@@ -303,6 +303,21 @@ describe("version date", () => {
     ).toEqual([at(repo, "one"), at(repo, "image")]);
   });
 
+  it("still counts the images of a text it parsed at an earlier HEAD", async () => {
+    const text = element("See ![d](d.png).");
+    const repo = await repository([
+      { name: "one", files: { [FILE]: text, "requirements/d.png": "v1" } },
+      { name: "image", files: { "requirements/d.png": "v2" } },
+    ]);
+    const version = await versionOf(repo.workspace, text, { "d.png": "v2" });
+    expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "image")]);
+    await repo.fixture.commitHistory(
+      [{ name: "other", parents: [await repo.fixture.head()], files: { "notes.md": "x\n" } }],
+      { branch: "main" },
+    );
+    expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "image")]);
+  });
+
   it("follows an image that only an older text embeds", async () => {
     const old = element("![o](old.png)");
     const now = element("![n](new.png)");
@@ -1019,10 +1034,108 @@ describe("version date", () => {
           { version: one },
           { version: never },
           { file: FILE2, id: OTHER, version: never },
+          { file: ELSEWHERE, id: THIRD, version: never },
           { version: "x1:nope" },
           { repository: "nope", version: two },
         ]),
-      ).toEqual([at(repo, "two"), "uncommitted", "uncommitted", "uncommitted", "undated", "undated"]);
+      ).toEqual([
+        at(repo, "two"),
+        "uncommitted",
+        "uncommitted",
+        "uncommitted",
+        "uncommitted",
+        "undated",
+        "undated",
+      ]);
+      // Alone, the folder no commit changed has no history at all.
+      const alone = await repository([{ name: "one", files: { [FILE]: element("One.") } }]);
+      expect(await times(alone.workspace, [{ file: ELSEWHERE, id: THIRD, version: never }])).toEqual([
+        "uncommitted",
+      ]);
+    });
+
+    it("takes the version of HEAD's file by the parents, not by the committer dates", async () => {
+      const repo = await repository([{ name: "one", files: { [FILE]: element("One.") } }]);
+      // A child whose committer date is older than its parent's (a clock that was behind).
+      const seconds = 1_000_000_000;
+      const text = element("Two.");
+      const stream = [
+        "commit refs/heads/main",
+        `committer ReqSeq Test <test@reqseq.invalid> ${String(seconds)} +0000`,
+        "data 4",
+        "skew",
+        `from ${String(repo.made["one"]?.id)}`,
+        `M 100644 inline ${FILE}`,
+        `data ${String(Buffer.byteLength(text))}`,
+        text,
+      ].join("\n");
+      await repo.fixture.git(["fast-import", "--quiet", "--force"], ".", Buffer.from(stream));
+      await repo.fixture.git(["reset", "--hard", "--quiet"]);
+      const two = await versionOf(repo.workspace, text);
+      const one = await versionOf(repo.workspace, element("One."));
+      expect(await times(repo.workspace, [{ version: two }, { version: one }])).toEqual([
+        new Date(seconds * 1000).toISOString().replace(".000Z", "Z"),
+        "uncommitted",
+      ]);
+    });
+
+    it("has no time where Git could not tell a version: a text or an image blob it does not have", async () => {
+      const text = element("![d](d.png)");
+      const repo = await repository([{ name: "one", files: { [FILE]: text, "requirements/d.png": "1" } }]);
+      const version = await versionOf(repo.workspace, text, { "d.png": "1" });
+      // The image blob (round 4: text info, text, image info, image).
+      nextReader((round) => (round === 4 ? { known: true, objects: [null] } : undefined));
+      expect(await times(repo.workspace, [{ version }])).toEqual(["undated"]);
+      const plain = await repository([{ name: "one", files: { [FILE]: element("One.") } }]);
+      const one = await versionOf(plain.workspace, element("One."));
+      // The text blob (round 2).
+      nextReader((round) => (round === 2 ? { known: true, objects: [null] } : undefined));
+      expect(await times(plain.workspace, [{ version: one }])).toEqual(["undated"]);
+      // Only HEAD's text blob: an older commit has the version, but whether HEAD has it is unknown.
+      const two = await repository([
+        { name: "one", files: { [FILE]: element("One.") } },
+        { name: "two", files: { [FILE]: element("Two.") } },
+      ]);
+      const blob = (await two.fixture.git(["rev-parse", `HEAD:${FILE}`])).trim();
+      vi.mocked(openObjectReader).mockImplementationOnce((folder, options): ObjectReader => {
+        const real = actual.openObjectReader(folder, options);
+        return {
+          info: (names) => real.info(names),
+          read: async (names, open) => {
+            const lost = names.indexOf(blob);
+            const read = await real.read(names, (info, i) => (i === lost ? () => undefined : open(info, i)));
+            return read.known
+              ? { known: true, objects: read.objects.map((o, i) => (i === lost ? null : o)) }
+              : read;
+          },
+          close: () => {
+            real.close();
+          },
+        };
+      });
+      expect(
+        await times(two.workspace, [{ version: await versionOf(two.workspace, element("One.")) }]),
+      ).toEqual(["undated"]);
+    });
+
+    it("finds an answer again when the history grows, and is late where git then stops", async () => {
+      // The image of the oldest text is found only once that text is read: the history grows then.
+      const repo = await repository([
+        { name: "one", files: { [FILE]: element("![o](old.png)"), "requirements/old.png": "o1" } },
+        { name: "mid", files: { [FILE]: element("Mid.") } },
+        { name: "now", files: { [FILE]: element("Now.") } },
+        { name: "image", files: { "requirements/old.png": "o2" } },
+      ]);
+      const requests = [
+        { version: await versionOf(repo.workspace, element("Now.")) },
+        { version: await versionOf(repo.workspace, element("![o](old.png)"), { "old.png": "o1" }) },
+      ];
+      // Every reader round after the one that read the oldest text (round 8) times out: the answer
+      // for "Now." found before the history grew is not kept with the new HEAD source unchecked.
+      nextReader((round) => (round >= 9 ? TIMEOUT : undefined));
+      expect(await times(repo.workspace, requests)).toEqual(["late", "late"]);
+      expect(fileHistory).toHaveBeenCalledTimes(2);
+      expect(await times(repo.workspace, requests)).toEqual([at(repo, "now"), "uncommitted"]);
     });
 
     it("is late where git did not answer in time, and undated where git is missing", async () => {
