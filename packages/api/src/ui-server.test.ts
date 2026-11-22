@@ -416,9 +416,47 @@ describe("UI server: commands and workspaces", () => {
     const server = await start({ workspace: first.root, report: (message) => reports.push(message) });
     expect(reports).toEqual(["The workspace was not marked as opened: Another process writes the list"]);
     expect((await command(server, "element.get", {}, 1)).status).toBe(200);
+    // The first event stream gets the reason once; a later one does not.
+    const firstStream = await events(server);
+    await firstStream.until(1);
+    expect(firstStream.seen[0]).toEqual({
+      event: "workspace",
+      data: { generation: 1, notMarked: "Another process writes the list" },
+    });
+    const laterStream = await events(server);
+    await laterStream.until(1);
+    expect(laterStream.seen[0]).toEqual({ event: "workspace", data: { generation: 1 } });
+    // A switch answers with the reason, and the event of the switch carries none.
+    const switched = await request(
+      server,
+      "POST",
+      "/ui/workspace",
+      auth(server),
+      JSON.stringify({ path: first.root }),
+    );
+    expect([switched.status, switched.json()]).toEqual([
+      200,
+      { generation: 2, root: first.root, notMarked: "Another process writes the list" },
+    ]);
+    await laterStream.until(2);
+    expect(laterStream.seen[1]).toEqual({ event: "workspace", data: { generation: 2 } });
+    expect(reports).toHaveLength(2);
     // Without `report` the refusal changes nothing either.
     const quiet = await start({ workspace: first.root });
     expect((await command(quiet, "element.get", {}, 1)).status).toBe(200);
+    // A switch before any stream ends the reason of the start: it concerns a workspace no longer open.
+    marking = () => Promise.resolve({ root: "marked" });
+    const again = await request(
+      quiet,
+      "POST",
+      "/ui/workspace",
+      auth(quiet, 1),
+      JSON.stringify({ path: first.root }),
+    );
+    expect(again.json()).toEqual({ generation: 2, root: first.root });
+    const afterSwitch = await events(quiet);
+    await afterSwitch.until(1);
+    expect(afterSwitch.seen[0]).toEqual({ event: "workspace", data: { generation: 2 } });
   });
 
   it("keeps the open workspace when the folder to open has no workspace, and refuses a body without a path", async () => {

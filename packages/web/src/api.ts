@@ -95,10 +95,13 @@ export async function call<K extends CommandName>(name: K, input: InputOf<K> = {
   return body as OutputOf<K>;
 }
 
-/** Opens or switches the workspace of the server (`POST ui/workspace`); the answer gives its generation. */
+/**
+ * Opens or switches the workspace of the server (`POST ui/workspace`); the answer gives its generation, and
+ * `notMarked` the reason the server could not mark it as opened (SR-247 AK12).
+ */
 export async function openWorkspace(
   path: string,
-): Promise<{ readonly generation: number; readonly root: string }> {
+): Promise<{ readonly generation: number; readonly root: string; readonly notMarked?: string }> {
   await known;
   let response: Response;
   try {
@@ -122,7 +125,7 @@ export async function openWorkspace(
     }
     throw new ReqSeqError(response.status, body, "open");
   }
-  const opened = body as { generation: number; root: string };
+  const opened = body as { generation: number; root: string; notMarked?: string };
   // A later switch (another tab) may have told a newer generation already: it is never lowered.
   if (generation === undefined || opened.generation > generation) {
     setGeneration(opened.generation);

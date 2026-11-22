@@ -11,7 +11,7 @@ import { ReqSeqError, TOKEN_REFUSED, WORKSPACE_CHANGED, setGeneration, useToken 
 import { announce, h } from "./dom.js";
 import type { ServerEvent } from "./events.js";
 import { listen } from "./events.js";
-import { VIEW_CHANGED, errorBox, messagePage, setMenu } from "./layout.js";
+import { VIEW_CHANGED, errorBox, messagePage, setMenu, showNotMarked } from "./layout.js";
 import { reveal } from "./motion.js";
 import { HOME, parseHash, renderOf } from "./router.js";
 import { load } from "./store.js";
@@ -164,6 +164,10 @@ function onEvent(event: ServerEvent): void {
   switch (event.type) {
     case "workspace": {
       const changed = generation !== event.generation;
+      // A newer workspace drops the notice of an older one, in every tab (SR-247 AK12).
+      if (changed || event.notMarked !== undefined) {
+        showNotMarked(event.notMarked, event.generation);
+      }
       const first = generation === undefined;
       generation = event.generation;
       setGeneration(event.generation);

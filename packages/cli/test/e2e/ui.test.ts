@@ -9,6 +9,7 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { RECENT_WORKSPACES_FILE, recentWorkspacesFolder } from "@reqseq/core";
 import { LineTransport } from "@reqseq/mcp";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -249,8 +250,8 @@ const openFolder = (
 ): Promise<Reply> => request(server, "POST", "/ui/workspace", headers, JSON.stringify({ path: folder }));
 
 /** The folder of the workspace the UI has open (`workspace.status`). */
-const openRoot = async (server: Running): Promise<string | undefined> => {
-  const { body } = await command(server, "workspace.status");
+const openRoot = async (server: Running, generation = 1): Promise<string | undefined> => {
+  const { body } = await command(server, "workspace.status", {}, auth(server, generation));
   return (body as { repositories?: { absolutePath: string }[] }).repositories?.[0]?.absolutePath;
 };
 
@@ -258,6 +259,55 @@ const openRoot = async (server: Running): Promise<string | undefined> => {
 const recentRoots = async (server: Running, generation = 1): Promise<string[]> => {
   const { body } = await command(server, "workspace.recent", {}, auth(server, generation));
   return (body as { workspaces: { root: string }[] }).workspaces.map((entry) => entry.root);
+};
+
+/** The data of the first event of a new `GET /api/events` stream, which is the `workspace` event. */
+const firstEvent = (server: Running): Promise<unknown> =>
+  new Promise((resolve, reject) => {
+    const sent = http.get(
+      {
+        host: "127.0.0.1",
+        port: server.port,
+        path: "/api/events",
+        agent: false,
+        headers: { host: `127.0.0.1:${String(server.port)}`, authorization: `Bearer ${server.token}` },
+      },
+      (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          reject(new Error(`GET /api/events answered ${String(response.statusCode)}`));
+          return;
+        }
+        let text = "";
+        response.on("end", () => {
+          reject(new Error(`The event stream ended before its first event: ${text}`));
+        });
+        response.on("data", (chunk: Buffer) => {
+          text += chunk.toString("utf8");
+          const match = /^event: workspace\ndata: (.*)\n\n/u.exec(text);
+          if (match !== null) {
+            response.destroy();
+            resolve(JSON.parse(match[1] ?? "") as unknown);
+          }
+        });
+      },
+    );
+    sent.on("error", reject);
+  });
+
+/** Resolves once the standard error of `server` holds `count` lines that contain `text`. */
+const errorLines = async (server: Started, text: string, count: number): Promise<void> => {
+  while (
+    server
+      .err()
+      .split("\n")
+      .filter((line) => line.includes(text)).length < count
+  ) {
+    if (server.child.exitCode !== null) {
+      throw new Error(`reqseq ui ended: ${server.err()}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 };
 
 describe("reqseq ui: start (SR-247)", () => {
@@ -586,5 +636,43 @@ describe("reqseq ui: stop and records (SR-247)", () => {
     const empty = await ui(["--no-open"], outside, { home });
     expect((await openFolder(empty, ws.root, auth(empty, 0))).status).toBe(200);
     expect(await recentRoots(empty)).toEqual([ws.root, other.root]);
+  }, 60_000);
+
+  it("[SR-247/AK-dfqv] starts and keeps the workspace open when it cannot be marked, and gives the reason on its error output and to the page", async () => {
+    const ws = await workspace();
+    const other = await workspace();
+    const home = await emptyFolder();
+    // A list of another format: workspace.markOpened refuses it as unreadable and leaves it alone (SR-250 AK3).
+    const folder = recentWorkspacesFolder({
+      platform: process.platform,
+      env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home },
+      home,
+    });
+    await fs.mkdir(folder, { recursive: true });
+    const list = path.join(folder, RECENT_WORKSPACES_FILE);
+    const foreign = `${JSON.stringify({ format: 99, workspaces: [] })}\n`;
+    await fs.writeFile(list, foreign);
+    const reason =
+      "Not marked: the list of recent workspaces cannot be read, or it is no list of ReqSeq; move the file recent-workspaces.json in the folder reqseq of the OS cache folder away";
+
+    // At start: the server runs, the workspace is open, the reason is on standard error once.
+    const server = await ui(["--no-open"], ws.root, { home });
+    await errorLines(server, reason, 1);
+    expect(server.err()).toContain(`The workspace was not marked as opened: ${reason}`);
+    expect(await openRoot(server)).toBe(ws.root);
+    // The first page loaded afterwards gets the reason with the first event; a later page does not.
+    expect(await firstEvent(server)).toEqual({ generation: 1, notMarked: reason });
+    expect(await firstEvent(server)).toEqual({ generation: 1 });
+
+    // A switch: the answer of the open names the reason, the server writes it again, the workspace is open.
+    const switched = await openFolder(server, other.root);
+    expect([switched.status, JSON.parse(switched.text)]).toEqual([
+      200,
+      { generation: 2, root: other.root, notMarked: reason },
+    ]);
+    await errorLines(server, reason, 2);
+    expect(await openRoot(server, 2)).toBe(other.root);
+    // The list stays as it was.
+    expect(await fs.readFile(list, "utf8")).toBe(foreign);
   }, 60_000);
 });
