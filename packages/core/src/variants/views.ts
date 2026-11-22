@@ -134,8 +134,8 @@ export const variantsOf = (store: ElementStore, metamodel: Metamodel): readonly 
  * The view a command input names (`common.schema.json#/$defs/view`): `core`, or a reference to a
  * variant (`resolveRef`: `ref.unknown`, `ref.ambiguous`). The core needs no meaning: without the
  * meaning `validity` it holds every element. A variant view is decided by the validity, so `command`
- * needs the meanings `validity` and `variant` for it (SR-013 AK3: `metamodel.meaning-unassigned`). A reference to an element whose type has not the meaning
- * `variant` is `input.invalid`.
+ * needs the meanings `validity` and `variant` for it (SR-013 AK3: `metamodel.meaning-unassigned`).
+ * A reference to an element whose type has not the meaning `variant` is `input.invalid`.
  */
 export const resolveView = (
   context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
