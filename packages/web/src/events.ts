@@ -5,6 +5,7 @@
 
 /** An event of the server: a change of the workspace (scope and UUIDs, no texts), or the open workspace's generation. */
 export type ServerEvent =
+  /** `elements`: the UUIDs added, changed and removed, in that order. */
   | { readonly type: "change"; readonly scope: string; readonly elements: readonly string[] }
   | { readonly type: "workspace"; readonly generation: number }
   /** The stream ended; the page keeps showing what it has and reads again when the stream is back. */
@@ -62,9 +63,12 @@ export function toServerEvent(raw: RawEvent): ServerEvent | undefined {
     return { type: "workspace", generation: data["generation"] };
   }
   if (raw.event === "change") {
-    const elements = Array.isArray(data["elements"])
-      ? data["elements"].filter((id): id is string => typeof id === "string")
-      : [];
+    // `elements` is core's `ChangedElements`: the UUIDs added, changed and removed.
+    const groups = record(data["elements"]);
+    const elements = ["added", "changed", "removed"].flatMap((key) => {
+      const ids = groups[key];
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+    });
     return { type: "change", scope: typeof data["scope"] === "string" ? data["scope"] : "", elements };
   }
   return undefined;

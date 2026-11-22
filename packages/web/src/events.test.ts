@@ -24,13 +24,13 @@ describe("toServerEvent", () => {
     });
   });
 
-  it("reads the scope and UUIDs of a change, and nothing else", () => {
-    expect(
-      toServerEvent({ event: "change", data: '{"scope":"elements","elements":["a",1],"text":"x"}' }),
-    ).toEqual({
+  it("reads the scope and the UUIDs added, changed and removed, and nothing else", () => {
+    const data =
+      '{"scope":"elements","elements":{"added":["a"],"changed":["b",1],"removed":["c"]},"text":"x"}';
+    expect(toServerEvent({ event: "change", data })).toEqual({
       type: "change",
       scope: "elements",
-      elements: ["a"],
+      elements: ["a", "b", "c"],
     });
     expect(toServerEvent({ event: "change", data: "{}" })).toEqual({
       type: "change",

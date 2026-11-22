@@ -81,6 +81,8 @@ test("a change outside the page shows without a reload", async ({ page, open, ui
   await ui.run("element.update", { ref, title: changed, expectedFileSha256: before.fileSha256 });
   try {
     await expect(page.getByRole("heading", { level: 1, name: changed })).toBeVisible();
+    // The element the server named as changed lights up once.
+    await expect(page.locator("#card.fresh")).toBeAttached();
   } finally {
     const after = await ui.run("element.get", { ref });
     await ui.run("element.update", {

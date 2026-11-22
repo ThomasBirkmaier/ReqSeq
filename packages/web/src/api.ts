@@ -111,6 +111,7 @@ const PLAIN: Readonly<Record<string, readonly [string, string]>> = {
   ],
   "workspace.not-found": ["No workspace is open.", "Start reqseq ui in the folder of a workspace."],
   "workspace.changed": ["Another workspace was opened.", "The page now shows the workspace that is open."],
+  "server.stopping": ["reqseq ui is stopping.", "Start it again and open the address it prints."],
 };
 
 const detailOf = (error: ReqSeqError): string =>
