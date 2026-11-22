@@ -31,9 +31,6 @@ export default defineConfig({
       "packages/*/test/e2e/**",
       "packages/*/test/perf/**",
       "packages/*/test/delivery/**",
-      // The Electron app is paused (#2295): its own tests do not run, and its sources are not measured below. The
-      // CLI's cross-access and no-delete tests still load its bridge and core host (`@reqseq/app`).
-      "packages/app/**",
     ],
     // The vendor files of the HTML export, built when missing (scripts/test-support/html-export-vendor.mjs).
     globalSetup: ["./scripts/test-support/html-export-vendor.mjs"],
@@ -69,13 +66,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.{ts,tsx}"],
-      exclude: ["**/*.test.ts", "**/*.d.ts", "packages/app/**"],
+      exclude: ["**/*.test.ts", "**/*.d.ts"],
       // `text` with skipFull lists only the files below 100 %, so a CI log names what is uncovered (ThomasBirkmaier/ReqSeq-archive#511).
       reporter: ["text-summary", ["text", { skipFull: true }], "json-summary", "lcov"],
       reportsDirectory: "coverage",
       // ADR-0016: every package except the adapters (core with logic and risk, ADR-0002; testkit; any new
       // package) keeps 100 % for every `.ts` file; perFile, so the error names the file. The adapters (cli, api,
-      // mcp; the app too while it was not paused, #2295) need 80 %, aggregated per package: there 100 % mostly produced tests
+      // mcp) and the `.ts` modules of the app need 80 %, aggregated per package: there 100 % mostly produced tests
       // for the number (ThomasBirkmaier/ReqSeq-archive#752). React components (`.tsx`) are reported, but
       // have no threshold: Playwright and the [SR-xxx/AK-<key>] tests are their evidence
       // (ThomasBirkmaier/ReqSeq-archive#537). Vitest checks each glob on its own files and skips a file that no glob matches, so the
@@ -99,6 +96,7 @@ export default defineConfig({
         "packages/cli/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
         "packages/api/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
         "packages/mcp/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
+        "packages/app/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
       },
     },
   },
