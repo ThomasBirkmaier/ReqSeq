@@ -407,16 +407,6 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
           unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'
-      # TEMPORARY diagnostic for #2406, removed before this PR is ready.
-      - name: "Diagnostic #2406: core dumps on the runner"
-        if: ${{ always() && runner.os == 'Linux' }}
-        run: |
-          cat /proc/sys/kernel/core_pattern
-          ulimit -c
-          unshare -rn sh -c 'ulimit -c' || true
-          ls -la /var/crash /var/lib/apport/coredump 2>&1 || true
-          coredumpctl list 2>&1 | tail -n 20 || true
-          sudo grep -h -i "reqseq\|apport\|coredump" /var/log/apport.log /var/log/syslog 2>/dev/null | tail -n 40 || true
 
       # The status model properties (epic #1389) again with a random seed and more runs, in the nightly run only; pull
       # requests keep the fixed seeds. The seed is printed first, so a red run replays with it. The dot reporter leaves
