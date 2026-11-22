@@ -56,7 +56,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
-      # Screenshots, content, install, audit and the build without network, as the release job docs-site does for
+      # Content, install, audit and the build without network, as the release job docs-site does for
       # the offline build (.github/actions/docs-site). A tag from before the action cannot be rebuilt here.
       - uses: ./.github/actions/docs-site
       # ReqSeq's own spec as an HTML export (D-080) under /spec/ of the site, from the CLI of this tag and without
