@@ -49,11 +49,14 @@ test("a requirement shows its trace, text and criteria", async ({ page, open, ui
   // As many criteria as ReqSeq has.
   const criteria = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
   await expect(page.locator(".card .crit")).toHaveCount((element.properties[criteria] as unknown[]).length);
-  // The text, as text.
-  const firstParagraph = (element.text ?? "").split(/\n\s*\n/)[0]?.trim() ?? "";
-  if (firstParagraph !== "") {
-    await expect(page.locator(".card .prose p").first()).toHaveText(firstParagraph);
-  }
+  // The text, rendered as Markdown: its first words show without Markdown syntax.
+  const firstWords = (element.text ?? "")
+    .replace(/[*_`#>[\]]/g, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(" ");
+  await expect(page.locator(".card .prose")).toContainText(firstWords);
 });
 
 test("following a relation opens the related element, which lists the first one as pointing to it", async ({
@@ -77,4 +80,35 @@ test("an unknown element says so in plain words", async ({ page, open }) => {
   await expect(page.getByRole("alert")).toContainText("There is no element with that ID.");
   await page.getByRole("link", { name: "Back to Overview" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+});
+
+test("element text is Markdown: a reference to another element opens it, and no markup of the text runs", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const ref = await requirementWithTrace(ui.run);
+  const before = await ui.run("element.get", { ref });
+  const target = before.element.relations.find((r) => r.direction === "out" && r.property !== true);
+  if (target === undefined) {
+    throw new Error("The requirement has no relation");
+  }
+  const text = `**Strong** words, [the parent](reqseq:${target.id}) and <img src=x onerror="document.title='run'">.`;
+  await ui.run("element.update", { ref, text, expectedFileSha256: before.fileSha256 });
+  try {
+    await open(`/e/${ref}`);
+    const prose = page.locator(".card .prose");
+    await expect(prose.locator("strong")).toHaveText("Strong");
+    await expect(prose.locator("img")).toHaveCount(0);
+    await prose.getByRole("link", { name: "the parent" }).click();
+    await expect(page.locator(`#card[data-id="${target.id}"]`)).toBeVisible();
+    expect(await page.title()).not.toBe("run");
+  } finally {
+    const after = await ui.run("element.get", { ref });
+    await ui.run("element.update", {
+      ref,
+      text: before.element.text ?? "",
+      expectedFileSha256: after.fileSha256,
+    });
+  }
 });

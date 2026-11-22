@@ -33,6 +33,7 @@ import {
   statusName,
   typeName,
 } from "../meaning.js";
+import { markdown } from "../markdown.js";
 import { swap } from "../motion.js";
 import type { Route } from "../router.js";
 import { HOME, addRoute, hashOf, parseHash } from "../router.js";
@@ -279,42 +280,65 @@ function kick(e: DataExportElement): HTMLElement {
   );
 }
 
+const nameOfProp = (key: string): string => sentence(propDef(store.mm, key)?.name ?? key);
+
+/** A text of the element: Markdown where the metamodel marks the property so, else plain paragraphs. */
+const textBlock = (
+  e: DataExportElement,
+  text: string,
+  key: string | undefined,
+  cls: string,
+): Promise<HTMLElement> =>
+  key === undefined || propDef(store.mm, key)?.markdown === true
+    ? markdown(text, e.file, `/e/${refOf(e)}`, cls)
+    : Promise.resolve(h("div", { class: `${cls} plain` }, paragraphs(text)));
+
 /** A numbered list under its heading: the acceptance criteria, or a text list of the type. */
-const numbered = (title: string, items: readonly unknown[]): Child => [
-  h("h2", { class: "sect" }, title),
+const numbered = async (e: DataExportElement, key: string, items: readonly unknown[]): Promise<Child> => [
+  h("h2", { class: "sect" }, nameOfProp(key)),
   items.length === 0
     ? h("p", { class: "none" }, "None yet.")
-    : items.map((item, at) =>
-        h(
-          "div",
-          { class: "crit" },
-          h("span", { class: "n" }, at + 1),
-          h("div", null, paragraphs(itemText(item))),
+    : await Promise.all(
+        items.map(async (item, at) =>
+          h(
+            "div",
+            { class: "crit" },
+            h("span", { class: "n" }, at + 1),
+            await textBlock(e, itemText(item), key, "ct"),
+          ),
         ),
       ),
 ];
 
-const nameOfProp = (key: string): string => sentence(propDef(store.mm, key)?.name ?? key);
-
 /** The text properties of the card: notes, the acceptance criteria and the numbered lists. */
-function texts(e: DataExportElement): Child {
+async function texts(e: DataExportElement): Promise<Child> {
   const mm = store.mm;
   const criteriaKey = propOfType(mm, e.type, "acceptance-criteria");
   const listOf = (key: string): readonly unknown[] => {
     const value = e.properties[key];
     return Array.isArray(value) ? value : [];
   };
-  return [
-    noteProps(mm, e.type).map((key) => {
+  const notes = await Promise.all(
+    noteProps(mm, e.type).map(async (key) => {
       const value = e.properties[key];
       return typeof value === "string" && value.trim() !== ""
-        ? h("div", { class: "rationale" }, h("b", null, `${nameOfProp(key)}.`), paragraphs(value))
+        ? h(
+            "div",
+            { class: "rationale" },
+            h("b", null, `${nameOfProp(key)}.`),
+            await textBlock(e, value, key, "rt"),
+          )
         : null;
     }),
-    criteriaKey === undefined ? null : numbered(nameOfProp(criteriaKey), listOf(criteriaKey)),
-    listProps(mm, e.type)
-      .filter((key) => listOf(key).length > 0)
-      .map((key) => numbered(nameOfProp(key), listOf(key))),
+  );
+  return [
+    notes,
+    criteriaKey === undefined ? null : await numbered(e, criteriaKey, listOf(criteriaKey)),
+    await Promise.all(
+      listProps(mm, e.type)
+        .filter((key) => listOf(key).length > 0)
+        .map((key) => numbered(e, key, listOf(key))),
+    ),
   ];
 }
 
@@ -349,16 +373,17 @@ function meta(e: DataExportElement): HTMLElement {
 }
 
 /** The card: the element itself. */
-function card(got: ElementGetOutput): HTMLElement {
+async function card(got: ElementGetOutput): Promise<HTMLElement> {
   const e = got.element;
   const entries = propEntries(store.mm, e);
+  const [prose, more] = await Promise.all([markdown(e.text, e.file, `/e/${refOf(e)}`, "prose"), texts(e)]);
   return h(
     "article",
     { class: "card", id: "card", "aria-labelledby": "el-title", "data-id": e.id },
     kick(e),
     h("h1", { id: "el-title", "data-vt": refOf(e) }, e.title),
-    h("div", { class: "prose" }, paragraphs(e.text)),
-    texts(e),
+    prose,
+    more,
     entries.length === 0
       ? null
       : h(
@@ -450,6 +475,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     }
     return;
   }
+  const cardEl = await card(got);
   // A page that finishes after the person moved on must not draw over the new one.
   if (location.hash !== at) {
     return;
@@ -465,7 +491,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     { class: `trace${right === null ? " noright" : ""}${left.childElementCount === 0 ? " noleft" : ""}` },
     svg,
     left,
-    card(got),
+    cardEl,
     right,
   );
   await swap(

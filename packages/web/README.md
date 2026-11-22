@@ -25,7 +25,7 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 
 ## Rules
 
-- Every string from a command output goes into the DOM as text (`dom.ts`, `h`), never as markup.
+- Every string from a command output goes into the DOM as text (`dom.ts`, `h`), never as markup. The one exception is the element text and the properties the metamodel marks `markdown`: they go through the renderer of the HTML export, `@reqseq/core/markdown`, whose allowlist writer escapes every text and attribute (`markdown.ts`). A `reqseq:` reference becomes a route to its element; an image stays its Markdown text until a command reads image files, and a diagram its source.
 - The UI names no type, property, relation or status key: `meaning.ts` finds them by the meanings of `metamodel.get` and the status marks initial and invalid.
 - Hash routes and relative URLs only. Browser storage holds preferences only, each with a default (`preferences.ts`).
 - No Git and no file reads: what the pages show comes from catalog commands.
