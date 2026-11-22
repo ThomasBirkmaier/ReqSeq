@@ -255,8 +255,16 @@ describe("workspace.agents after a connection began or ended (SR-228 AK1, AK2)",
       });
       // `subscriptions/listen` gets no answer: its arrival connects, without a name.
       unnamed.send({ jsonrpc: "2.0", id: 1, method: "subscriptions/listen", params: { _meta: meta() } });
-      const sent = Date.now();
-      await until(sent, 1000);
+      // The server reads a request only after its instructions are ready, then records the connection: the
+      // arrival is no later than the moment both connection files are there.
+      await vi.waitFor(
+        async () => {
+          expect(await agentFiles(cacheFolder(fixture.root))).toHaveLength(2);
+        },
+        { timeout: 10_000, interval: 5 },
+      );
+      const arrived = Date.now();
+      await until(arrived, 1000);
       const output = (await agentsViaCli()) as {
         connected: { client: string | null; since: string }[];
       };
@@ -268,7 +276,7 @@ describe("workspace.agents after a connection began or ended (SR-228 AK1, AK2)",
       for (const connection of output.connected) {
         const since = Date.parse(connection.since);
         expect(since).toBeGreaterThanOrEqual(before - 1);
-        expect(since).toBeLessThanOrEqual(sent + 1000);
+        expect(since).toBeLessThanOrEqual(arrived + 1);
       }
     } finally {
       await unnamed.close();
