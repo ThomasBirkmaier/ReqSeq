@@ -248,14 +248,14 @@ describe("UI server: checks on every request", () => {
       await request(server, "GET", "/", { host: `example.com:${String(server.port)}` }),
       await request(server, "GET", "/", { origin: "http://example.com" }),
       await request(server, "GET", "/", { origin: "null" }),
-      await command(server, "tool.info").then(() =>
-        request(server, "POST", "/api/tool.info", { ...auth(server), origin: `https://${host}` }),
+      await command(server, "tool.guide").then(() =>
+        request(server, "POST", "/api/tool.guide", { ...auth(server), origin: `https://${host}` }),
       ),
-      await request(server, "POST", "/api/tool.info", { ...auth(server), "sec-fetch-site": "cross-site" }),
+      await request(server, "POST", "/api/tool.guide", { ...auth(server), "sec-fetch-site": "cross-site" }),
     ];
     expect(refused.map((r) => r.status)).toEqual([403, 403, 403, 403, 403]);
     expect(refused[0]?.json()).toMatchObject({ code: "input.invalid" });
-    expect(calls.map((c) => c.name)).toEqual(["tool.info"]);
+    expect(calls.map((c) => c.name)).toEqual(["tool.guide"]);
     // A page file is served to a cross-site fetch and with its own origin.
     expect((await request(server, "GET", "/", { "sec-fetch-site": "cross-site" })).status).toBe(200);
     expect(
@@ -277,7 +277,7 @@ describe("UI server: checks on every request", () => {
       { authorization: `Basic ${server.token}` },
       { cookie: `token=${server.token}` },
     ]) {
-      const reply = await request(server, "POST", "/api/tool.info", {
+      const reply = await request(server, "POST", "/api/tool.guide", {
         "x-reqseq-workspace": "0",
         ...headers,
       });
@@ -286,7 +286,7 @@ describe("UI server: checks on every request", () => {
     expect(calls).toEqual([]);
     expect(
       (
-        await request(server, "POST", "/api/tool.info", {
+        await request(server, "POST", "/api/tool.guide", {
           ...auth(server),
           authorization: `bearer ${server.token}`,
         })
@@ -298,7 +298,7 @@ describe("UI server: checks on every request", () => {
     const server = await start();
     const replies = [
       await request(server, "GET", "/nothing", auth(server)),
-      await request(server, "GET", "/api/tool.info", auth(server)),
+      await request(server, "GET", "/api/workspace.recent", auth(server)),
       await request(server, "POST", "/api/%E0%A4%A", auth(server)),
       await request(server, "POST", "/ui/workspace/x", auth(server)),
       await request(server, "GET", "*", auth(server)),
@@ -306,7 +306,7 @@ describe("UI server: checks on every request", () => {
       await request(server, "GET", "/ui/workspace", auth(server)),
     ];
     expect(replies.map((r) => r.status)).toEqual([404, 404, 404, 404, 404, 404, 404]);
-    const ok = await command(server, "tool.info");
+    const ok = await command(server, "workspace.recent");
     for (const reply of [...replies, ok]) {
       expect(reply.headers).toMatchObject({
         "x-content-type-options": "nosniff",
@@ -317,11 +317,11 @@ describe("UI server: checks on every request", () => {
     }
     expect([ok.status, ok.json(), ok.headers["cache-control"]]).toEqual([
       200,
-      { ran: "tool.info" },
+      { ran: "workspace.recent" },
       "no-store",
     ]);
     expect(calls).toEqual([
-      { name: "tool.info", input: {}, root: process.cwd(), access: "ui", signal: true },
+      { name: "workspace.recent", input: {}, root: process.cwd(), access: "ui", signal: true },
     ]);
   });
 });
@@ -331,17 +331,21 @@ describe("UI server: commands and workspaces", () => {
     const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-ui-cwd-"));
     onTestFinished(() => fs.rm(cwd, { recursive: true, force: true }));
     const server = await start({ cwd });
-    for (const name of [
-      "tool.info",
-      "tool.guide",
-      "workspace.recent",
-      "workspace.listFolder",
-      "workspace.init",
-    ]) {
+    for (const name of ["tool.guide", "workspace.recent", "workspace.listFolder", "workspace.init"]) {
       expect([name, (await command(server, name)).status]).toEqual([name, 200]);
     }
-    const missing = await command(server, "element.get", { ref: "SR-1" });
-    expect([missing.status, missing.json()]).toMatchObject([404, { code: "workspace.not-found" }]);
+    for (const [name, input] of [
+      ["element.get", { ref: "SR-1" }],
+      // It names the workspace in its output (#2370).
+      ["tool.info", {}],
+    ] as const) {
+      const missing = await command(server, name, input);
+      expect([name, missing.status, missing.json()]).toMatchObject([
+        name,
+        404,
+        { code: "workspace.not-found" },
+      ]);
+    }
     expect(new Set(calls.map((c) => [c.root, c.access].join()))).toEqual(new Set([`${cwd},ui`]));
     // A write gets no abort signal: it runs to its end.
     expect(calls.find((c) => c.name === "workspace.init")?.signal).toBe(false);
@@ -350,20 +354,20 @@ describe("UI server: commands and workspaces", () => {
   it("answers as the API does: the error body with the status of its class, and 400 for a body that is no JSON", async () => {
     const server = await start();
     behaviour = () => Promise.reject(new CommandError("ref.unknown", "No such element"));
-    const failed = await command(server, "tool.info");
+    const failed = await command(server, "tool.guide");
     expect([failed.status, failed.json()]).toEqual([
       404,
       { code: "ref.unknown", message: "No such element" },
     ]);
     behaviour = () => Promise.reject(new Error("crash"));
-    const crashed = await command(server, "tool.info");
+    const crashed = await command(server, "tool.guide");
     expect([crashed.status, crashed.json()]).toMatchObject([
       500,
       { message: "Internal error in the UI server" },
     ]);
     behaviour = () => Promise.resolve(undefined);
-    expect((await command(server, "tool.info")).text).toBe("null\n");
-    const broken = await request(server, "POST", "/api/tool.info", auth(server), "{");
+    expect((await command(server, "tool.guide")).text).toBe("null\n");
+    const broken = await request(server, "POST", "/api/tool.guide", auth(server), "{");
     expect([broken.status, broken.json()]).toMatchObject([400, { code: "input.invalid" }]);
   });
 
@@ -543,14 +547,19 @@ describe("UI server: commands and workspaces", () => {
     await stream.until(1);
     const file = first.path("requirements/SR-88cc6ebc472a.md");
     const original = await fs.readFile(file, "utf8");
+    const uuid = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
     interface Change {
+      readonly scope: string;
       readonly elements: { readonly changed: readonly string[] };
     }
+    // An `elements` change naming the element. A batch that also holds a path in the metamodel folder
+    // has scope `metamodel` and names the element as well (`WorkspaceChange`): on macOS, FSEvents can
+    // deliver the copy of the fixture after the watch started, in the batch of the first write (#2349).
     const changed = (): Change | undefined =>
       stream.seen
         .filter((e) => e.event === "change")
         .map((e) => e.data as Change)
-        .find((d) => d.elements.changed.length > 0);
+        .find((d) => d.scope === "elements" && d.elements.changed.includes(uuid));
     // Changes until the watcher, which starts with the load in the background, reports one.
     for (let n = 1; changed() === undefined; n++) {
       await fs.writeFile(file, original.replace(/^title: .*$/mu, `title: Changed ${String(n)}`));
@@ -560,7 +569,7 @@ describe("UI server: commands and workspaces", () => {
       ]);
     }
     const data = changed();
-    expect(data).toMatchObject({ scope: "elements", elements: { changed: [expect.any(String) as unknown] } });
+    expect(data).toMatchObject({ scope: "elements", elements: { changed: [uuid] } });
     expect(JSON.stringify(data)).not.toContain("Changed");
   }, 20_000);
 

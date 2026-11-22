@@ -5,7 +5,7 @@ import { root } from "./load.mjs";
 import { internalReferences, TEXT_KEYS, userText, userTexts } from "./user-text.mjs";
 
 /** The references that are examples of a user's own identifiers in the texts, not ReqSeq's. */
-const EXAMPLES = new Set(["SR-036", "SR-001", "N-073", "N-030", "D-062"]);
+const EXAMPLES = new Set(["SR-036", "SR-001", "N-073", "N-030", "D-029"]);
 
 /** The internal references of every string under a key of `TEXT_KEYS` in `node`. */
 const referencesIn = (node, key = "") => {

@@ -33,12 +33,12 @@ export default defineConfig<Options>({
     {
       name: "orbit",
       use: { kind: "orbit" },
-      testMatch: /(overview|element|routes|changes|evidence|trace|edit)\.spec\.ts$/,
+      testMatch: /(overview|element|routes|changes|evidence|trace|edit|lists)\.spec\.ts$/,
     },
     {
       name: "no-identifier",
       use: { kind: "no-identifier" },
-      testMatch: /(overview|element|routes|changes|evidence|trace|edit)\.spec\.ts$/,
+      testMatch: /(overview|element|routes|changes|evidence|trace|edit|lists)\.spec\.ts$/,
     },
     ...Object.entries(BROWSERS).map(([browser, device]) => ({
       name: `contract-${browser}`,

@@ -49,7 +49,7 @@
       "hintDates": {
         "type": "boolean",
         "default": false,
-        "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too."
+        "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-082 AK3). `versionDate` dates these hints too."
       },
       "repository": {
         "type": "string",
@@ -83,7 +83,7 @@
       "fileSha256": {
         "title": "File SHA-256",
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106)."
+        "description": "Of the file this answer was read from, for expectedFileSha256 of element.update (SR-166)."
       },
       "criterionReferences": {
         "title": "Acceptance criteria",

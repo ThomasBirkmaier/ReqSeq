@@ -1,5 +1,6 @@
-// Sorting a selection (SR-075, D-031): "Das Tool muss Listen nach Properties oder nach der Hierarchie
-// der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern." The order is computed for each
+// Sorting a selection (SR-075, D-031): "Das Tool muss Listen nach Properties, nach dem Nachweisstatus,
+// nach dem Zeitpunkt der Fassung oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste
+// Reihenfolge zu speichern." The order is computed for each
 // call from what the files hold; nothing about it is ever written (AK3: `element.list` only reads).
 //
 // - Keys (`filter.schema.json#/$defs/sortKey`) apply in order; elements equal under every key keep
@@ -22,6 +23,10 @@
 //   go to the next key, then the workspace order (AK1). The status is not in the files: the caller
 //   reads it before the sort (`SortContext.values`), which stays synchronous; the keys `planOf`
 //   only checks (filter.save, perspective.save) need no value.
+// - `versionDate` (SR-075 AK6 "nach dem Zeitpunkt der Fassung", D-013): read before the sort as
+//   `verification` is (`SortValues.versionDate`, version-times.ts): the time of the version as a
+//   number, `Infinity` for one newer than every commit; an element without a time has no value, so
+//   it is last in both orders; equal ones go to the next key, then the workspace order (AK1).
 //   Any other key (AK1 "nach einer Property") that the metamodel knows or that an element of the
 //   store holds (an unknown property is kept, SR-016): its first value (`valuesOf`: a list by its
 //   first item). A key that holds relations (a relation kind, `validity`, `packages`) has element
@@ -55,7 +60,7 @@
 //   `PARENTS`; a change of the files makes a new store, which gets its own), then one pass over the
 //   store and linear passes over the selection that link the elements by array positions: looking
 //   up the 128,000 parents of N-036 as records on every call cost several times as much.
-import type { CommandName } from "../catalog.js";
+import type { CommandName, Problem } from "../catalog.js";
 import type { FilterSortKeyWithDefaults, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { keyDefinition, meaningUnassigned } from "../metamodel/index.js";
@@ -88,6 +93,10 @@ export interface SortContext {
 export interface SortValues {
   /** `verification`: the verification status of an element in the view of the list; undefined without one. */
   readonly verification?: (element: ElementRecord) => VerificationStatus | undefined;
+  /** `versionDate`: the time of the version of an element (version-times.ts); undefined without one. */
+  readonly versionDate?: (element: ElementRecord) => number | undefined;
+  /** The warnings of the order (`sort.incomplete`), which `element.list` shows. */
+  readonly problems?: readonly Problem[];
 }
 
 /**
@@ -197,6 +206,7 @@ const BUILT_IN: ReadonlySet<string> = new Set([
   "status",
   "title",
   "verification",
+  "versionDate",
 ]);
 
 /** Whether an element of the store holds a value under `by` (an own key, not `null` or `[]`). */
@@ -228,7 +238,7 @@ const unknownKey = (context: SortContext, by: string): string => {
       : "";
   return (
     `${by} is no sort key and no property of the metamodel or of an element: sort by id, identifier, ` +
-    `type, status, title, verification, hierarchy or a property key; the order is given separately (asc or desc)${hint}`
+    `type, status, title, verification, versionDate, hierarchy or a property key; the order is given separately (asc or desc)${hint}`
   );
 };
 
@@ -269,6 +279,17 @@ const builtInColumn = (context: SortContext, by: string): Column | undefined => 
           );
         }
         return cellOf(of(element), VERIFICATION_RANKS, sign, next);
+      };
+    }
+    case "versionDate": {
+      const of = context.values?.versionDate;
+      return (element, sign, next) => {
+        if (of === undefined) {
+          throw new Error(
+            "sortElements: a sort by versionDate needs context.values.versionDate (sortValuesFor)",
+          );
+        }
+        return cellOf(of(element), NO_RANKS, sign, next);
       };
     }
   }

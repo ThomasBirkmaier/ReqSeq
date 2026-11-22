@@ -271,6 +271,10 @@ problems:
     title: Grouping no longer available
     cause: The perspective groups by a text, number or date property whose values can no longer be chosen, because the elements now have too many different values or none that two share. The list is shown without groups.
     remedy: Group by another key in the call, or save the perspective again with another grouping.
+  sort.incomplete:
+    title: Order not completely determined
+    cause: A list is sorted by the version date, and Git did not give the dates of some elements in time. These elements are listed last, so the order is not completely determined.
+    remedy: List again; ReqSeq asks Git again. If it happens each time, check what keeps Git busy in the repository the message names.
   metamodel.invalid:
     title: Invalid metamodel
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.

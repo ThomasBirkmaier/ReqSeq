@@ -34,7 +34,7 @@
 //   no properties. Each refuses with `input.invalid` naming itself.
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type { CommandInput, CommandOutput } from "../../catalog.js";
+import type { CommandInput, CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import {
   createFolder,
@@ -51,7 +51,12 @@ import type { ElementRecord, ShortIds, TargetItem } from "../../model/index.js";
 import { ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
 import type { SelectionContext } from "../../query/index.js";
-import { orderedSelection, resolveSelection } from "../../query/index.js";
+import {
+  orderedSelection,
+  resolveSelection,
+  sortProblems as sortProblemsOf,
+  sortValuesFor,
+} from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
 import {
@@ -244,6 +249,8 @@ interface SourceRecords {
   readonly selected: Awaited<ReturnType<typeof resolveSelection>>;
   readonly mapping: ReqifMappingFile;
   readonly records: readonly ElementRecord[];
+  /** The warnings of the order (`sort.incomplete`, a stored sort by `versionDate`). */
+  readonly sortProblems: readonly Problem[];
   readonly identifierKey: string;
 }
 
@@ -264,9 +271,10 @@ const sourceRecords = async (
   const sourceKey = originKey("source", metamodel);
   const identifierKey = originKey("source-identifier", metamodel);
   const source = mapping.source.name;
-  const records = (await orderedSelection(ctx.workspace, selected, command, undefined)).elements.filter(
-    (record) => record.data[sourceKey] === source,
-  );
+  const values = await sortValuesFor(ctx.workspace, selected, undefined);
+  const records = (
+    await orderedSelection(ctx.workspace, selected, command, undefined, values)
+  ).elements.filter((record) => record.data[sourceKey] === source);
   const without = records.filter((record) => typeof record.data[identifierKey] !== "string");
   if (without.length > 0) {
     throw new CommandError(
@@ -288,7 +296,7 @@ const sourceRecords = async (
     }
     byIdentifier.set(identifier, record);
   }
-  return { selected, mapping, records, identifierKey };
+  return { selected, mapping, records, identifierKey, sortProblems: sortProblemsOf(values) };
 };
 
 /** Refuses two `records` with one UUID (`ref.ambiguous`, SR-088): the file would name one IDENTIFIER twice. */
@@ -312,6 +320,7 @@ interface PlannedStatements {
   readonly exported: readonly ElementRecord[];
   readonly without: readonly ElementRecord[];
   readonly shortIds: ShortIds;
+  readonly sortProblems: readonly Problem[];
 }
 
 /** The statements of the elements of the source of the mapping at `mappingPath` (see the file comment), planned. */
@@ -321,7 +330,12 @@ const statementsOf = async (
   input: CommandInput<"reqif.export">,
   mappingPath: string,
 ): Promise<PlannedStatements> => {
-  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const { selected, mapping, records, identifierKey, sortProblems } = await sourceRecords(
+    ctx,
+    layout,
+    input,
+    mappingPath,
+  );
   const statement = statementOf(mapping, mappingPath, selected.metamodel);
   const definition = selected.metamodel.properties.find((p) => p.key === statement.property);
   const elements = records.map((record) => ({
@@ -343,6 +357,7 @@ const statementsOf = async (
     exported: records,
     without: records.filter((_, index) => elements[index]?.statement === undefined),
     shortIds: selected.shortIds,
+    sortProblems,
   };
 };
 
@@ -384,7 +399,12 @@ const sourceModelExport = async (
   absolute: string,
 ): Promise<CommandOutput<"reqif.export">> => {
   const command = "reqif.export";
-  const { selected, mapping, records, identifierKey } = await sourceRecords(ctx, layout, input, mappingPath);
+  const { selected, mapping, records, identifierKey, sortProblems } = await sourceRecords(
+    ctx,
+    layout,
+    input,
+    mappingPath,
+  );
   const model = mapping["source-model"];
   if (model === undefined) {
     throw new CommandError(
@@ -443,7 +463,7 @@ const sourceModelExport = async (
     ),
     elementsWithoutStatement: listedElements(selected.shortIds, plan.withoutStatement),
     files: saved,
-    problems: [...plan.problems],
+    problems: [...plan.problems, ...sortProblems],
   };
 };
 
@@ -551,7 +571,12 @@ export default defineCommand({
           { command, fields: ["mapping"] },
         );
       }
-      const { plan, exported, without, shortIds } = await statementsOf(ctx, layout, input, input.mapping);
+      const { plan, exported, without, shortIds, sortProblems } = await statementsOf(
+        ctx,
+        layout,
+        input,
+        input.mapping,
+      );
       await writeOutput(absolute, plan.file, [], command);
       return {
         file: shown(workspace.root, absolute),
@@ -561,11 +586,12 @@ export default defineCommand({
         exportedElements: listedElements(shortIds, exported),
         elementsWithoutStatement: listedElements(shortIds, without),
         files: [],
-        problems: [],
+        problems: [...sortProblems],
       };
     }
     const selected = await resolveSelection(ctx, input.selection ?? {}, command);
-    const { elements } = await orderedSelection(workspace, selected, command, undefined);
+    const values = await sortValuesFor(workspace, selected, undefined);
+    const { elements } = await orderedSelection(workspace, selected, command, undefined, values);
     const omissions = await exportOmissions(
       layout,
       selected.metamodel,
@@ -621,7 +647,7 @@ export default defineCommand({
       ),
       elementsWithoutStatement: [],
       files: [...copies.map((copy) => shown(workspace.root, path.join(outputFolder, copy.target))), ...saved],
-      problems: [],
+      problems: [...sortProblemsOf(values)],
     };
   },
 });

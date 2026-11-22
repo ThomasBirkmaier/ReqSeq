@@ -4,7 +4,7 @@
   "summary": "Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.",
   "effect": "read",
   "stage": 3,
-  "implements": ["SR-069", "SR-124", "SR-118", "SR-216"],
+  "implements": ["SR-069", "SR-124", "SR-216"],
   "arguments": [
     { "field": "selection", "complete": "selection" },
     { "field": "search", "complete": "json" },
@@ -58,7 +58,7 @@
         "x-key": ["key"],
         "title": "Types",
         "type": "array",
-        "description": "The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118).",
+        "description": "The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed.",
         "items": {
           "type": "object",
           "properties": {

@@ -37,8 +37,8 @@ derives-from:
   - { id: 6adc6939-93a9-4871-b675-ea0d9f64db7a, version: n2:6401e4834f106721, title: Zugänge und Web-Oberfläche nur lokal }
   - { id: 4e9f9a9e-3a7e-4d6b-867c-37db7e1e2253, version: n2:7c57d49e4aa70297, title: Nach dem Herunterladen ohne Vorwissen beginnen }
 based-on:
-  - { id: 3fcc9c21-164a-4fa1-9d69-2ff8e055c094, version: n2:15f6f3cce71e5686, title: Web-Oberfläche statt Desktop-App }
+  - { id: 3fcc9c21-164a-4fa1-9d69-2ff8e055c094, version: n2:ab1a775d09c8134c, title: Web-Oberfläche statt Desktop-App }
   - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
 ---
 
-Die [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:9a4f0d8d27de42ba) muss mit `reqseq ui` die [Web-Oberfläche](reqseq:c89b295d-c3d5-49af-b6fd-c7444cdbb5ec?version=n2:b382578e13f41611) als Server starten, der nur von Programmen auf demselben Rechner erreichbar ist, Befehle nur auf Anfragen mit seinem Token ausführt und den [Arbeitsbereich](reqseq:6adc68be-cdfe-4197-a3a9-4c86ffa232a7?version=n2:1fbe0ef1dbe8ddc1), den er öffnet, als zuletzt geöffneten vermerkt.
+Die [Kommandozeile](reqseq:f5c404b5-7886-4c69-af41-5ecc43b71f52?version=n2:9a4f0d8d27de42ba) muss mit `reqseq ui` die [Web-Oberfläche](reqseq:c89b295d-c3d5-49af-b6fd-c7444cdbb5ec?version=n2:8dfd92227dd91b55) als Server starten, der nur von Programmen auf demselben Rechner erreichbar ist, Befehle nur auf Anfragen mit seinem Token ausführt und den [Arbeitsbereich](reqseq:6adc68be-cdfe-4197-a3a9-4c86ffa232a7?version=n2:1fbe0ef1dbe8ddc1), den er öffnet, als zuletzt geöffneten vermerkt.

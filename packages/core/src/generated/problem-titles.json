@@ -68,6 +68,7 @@
     "perspective.invalid": "Invalid perspective",
     "perspective.duplicate-name": "Duplicate perspective name",
     "perspective.group-unavailable": "Grouping no longer available",
+    "sort.incomplete": "Order not completely determined",
     "metamodel.invalid": "Invalid metamodel",
     "metamodel.optional-status": "Optional status",
     "metamodel.meaning-unassigned": "Meaning not assigned",

@@ -78,7 +78,6 @@ export const WORKSPACE_HEADER = "x-reqseq-workspace";
 
 /** The only commands that run while no workspace is open (ADR-0020 "Workspaces"). */
 export const NO_WORKSPACE_COMMANDS: readonly string[] = [
-  "tool.info",
   "tool.guide",
   "workspace.recent",
   "workspace.listFolder",
