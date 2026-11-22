@@ -309,7 +309,7 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       ctx.skip(notRunnable);
     }
     const info = await toolInfo(path.join(installed, layout.launcher));
-    expect(info["versions"]).toEqual({ app: version, cli: version, mcp: version });
+    expect(info["versions"]).toEqual({ cli: version, mcp: version });
     expect(info["build"]?.["development"]).toBeUndefined();
     expect(info["build"]?.["commit"]).toMatch(/^[0-9a-f]{40}$/);
     if (process.env["GITHUB_SHA"] !== undefined) {

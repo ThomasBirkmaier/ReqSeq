@@ -2245,7 +2245,7 @@
                           "additionalProperties": {
                             "type": "string"
                           },
-                          "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty."
+                          "description": "Environment variables the program needs: none, so it is empty."
                         }
                       },
                       "additionalProperties": false,
@@ -2459,12 +2459,6 @@
                       "title": "Versions",
                       "type": "object",
                       "properties": {
-                        "app": {
-                          "title": "App",
-                          "description": "Version of the app.",
-                          "type": "string",
-                          "minLength": 1
-                        },
                         "cli": {
                           "title": "Command line",
                           "description": "Version of the command line.",
@@ -2480,11 +2474,10 @@
                       },
                       "additionalProperties": false,
                       "required": [
-                        "app",
                         "cli",
                         "mcp"
                       ],
-                      "description": "The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version."
+                      "description": "The versions of the command line and the MCP server. One release ships both with its ReqSeq version."
                     },
                     "build": {
                       "title": "Build",
@@ -2529,23 +2522,11 @@
                       "title": "Runtime",
                       "type": "object",
                       "properties": {
-                        "electron": {
-                          "title": "Electron",
-                          "type": "string",
-                          "minLength": 1,
-                          "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
-                        },
                         "node": {
                           "title": "Node",
                           "description": "Version of Node.",
                           "type": "string",
                           "minLength": 1
-                        },
-                        "chromium": {
-                          "title": "Chromium",
-                          "type": "string",
-                          "minLength": 1,
-                          "description": "The Chromium of the Electron ReqSeq runs on. Left out without Electron."
                         }
                       },
                       "additionalProperties": false,

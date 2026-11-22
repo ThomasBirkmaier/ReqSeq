@@ -13,27 +13,17 @@ afterEach(() => {
 });
 
 describe("installation", () => {
-  it("takes the runtime and the script of a process, and whether it runs on Electron", () => {
-    expect(
-      installationOfProcess({ execPath: "/usr/bin/node", argv: ["/usr/bin/node", "bin.js"], versions: {} }),
-    ).toEqual({
+  it("takes the runtime and the script of a process", () => {
+    expect(installationOfProcess({ execPath: "/usr/bin/node", argv: ["/usr/bin/node", "bin.js"] })).toEqual({
       runtime: "/usr/bin/node",
       entry: path.resolve("bin.js"),
-      electron: false,
     });
-    expect(
-      installationOfProcess({
-        execPath: "/x/ReqSeq",
-        argv: ["/x/ReqSeq", "/x/bin.js"],
-        versions: { electron: "38.0.0" },
-      }),
-    ).toMatchObject({ electron: true });
-    expect(installationOfProcess({ execPath: "/x", argv: ["/x"], versions: {} })).toBeUndefined();
+    expect(installationOfProcess({ execPath: "/x", argv: ["/x"] })).toBeUndefined();
   });
 
   it("stands for a set installation, else for this process", () => {
     expect(currentInstallation()).toEqual(installationOfProcess(process));
-    const given = { runtime: "/a/ReqSeq", entry: "/a/resources/cli/dist/bin.js", electron: true };
+    const given = { runtime: "/a/runtime/node", entry: "/a/lib/dist/bin.js" };
     setInstallation(given);
     expect(currentInstallation()).toBe(given);
     // Handed none: no installation, not the script of this process.
@@ -42,15 +32,11 @@ describe("installation", () => {
   });
 
   it("hands an installation over as one argument", () => {
-    const given = {
-      runtime: "C:\\a b\\ReqSeq.exe",
-      entry: "C:\\a b\\resources\\cli\\dist\\bin.js",
-      electron: true,
-    };
+    const given = { runtime: "C:\\a b\\runtime\\node.exe", entry: "C:\\a b\\lib\\dist\\bin.js" };
     expect(installationFromArgv(["x", installationArgument(given)])).toEqual(given);
     expect(installationFromArgv(["x"])).toBeUndefined();
     expect(installationFromArgv(["--reqseq-installation={"])).toBeUndefined();
     expect(installationFromArgv(["--reqseq-installation=null"])).toBeUndefined();
-    expect(installationFromArgv(['--reqseq-installation={"runtime":"a","entry":"b"}'])).toBeUndefined();
+    expect(installationFromArgv(['--reqseq-installation={"runtime":"a"}'])).toBeUndefined();
   });
 });

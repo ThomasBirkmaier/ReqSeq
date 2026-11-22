@@ -1,6 +1,4 @@
-// Cross-access scenarios of tool.info, in addition to the default one (cross-access.test.ts). The runtime
-// of the app's own process against the delivered command line and MCP server on Electron is the Electron
-// test `tool-info.spec.ts` (SR-161 AK5).
+// Cross-access scenarios of tool.info, in addition to the default one (cross-access.test.ts).
 import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("tool.info", [

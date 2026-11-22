@@ -6753,7 +6753,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty."
+                  "description": "Environment variables the program needs: none, so it is empty."
                 }
               },
               "additionalProperties": false,
@@ -6893,7 +6893,7 @@
         "name": "tool.info",
         "title": "About ReqSeq",
         "summary": "Version and build of ReqSeq and its parts, the open workspace, the licence notices and where the documentation and the releases are. Reads only and opens no network connection.",
-        "details": "The versions of the app, the command line and the MCP server, the build (commit, build date, platform, architecture), the versions of Electron, Node and Chromium, the open workspace (path, name, repositories, number of elements), and the licence notice of ReqSeq and of its third-party components.",
+        "details": "The versions of the command line and the MCP server, the build (commit, build date, platform, architecture), the version of Node, the open workspace (path, name, repositories, number of elements), and the licence notice of ReqSeq and of its third-party components.",
         "effect": "read",
         "stage": 6,
         "implements": [
@@ -6915,12 +6915,6 @@
               "title": "Versions",
               "type": "object",
               "properties": {
-                "app": {
-                  "title": "App",
-                  "description": "Version of the app.",
-                  "type": "string",
-                  "minLength": 1
-                },
                 "cli": {
                   "title": "Command line",
                   "description": "Version of the command line.",
@@ -6936,11 +6930,10 @@
               },
               "additionalProperties": false,
               "required": [
-                "app",
                 "cli",
                 "mcp"
               ],
-              "description": "The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version."
+              "description": "The versions of the command line and the MCP server. One release ships both with its ReqSeq version."
             },
             "build": {
               "title": "Build",
@@ -6985,23 +6978,11 @@
               "title": "Runtime",
               "type": "object",
               "properties": {
-                "electron": {
-                  "title": "Electron",
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "Left out when ReqSeq does not run on Electron (a command line on its own Node)."
-                },
                 "node": {
                   "title": "Node",
                   "description": "Version of Node.",
                   "type": "string",
                   "minLength": 1
-                },
-                "chromium": {
-                  "title": "Chromium",
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "The Chromium of the Electron ReqSeq runs on. Left out without Electron."
                 }
               },
               "additionalProperties": false,
@@ -7124,10 +7105,6 @@
             "title": "Versions"
           },
           {
-            "path": "versions.app",
-            "title": "App"
-          },
-          {
             "path": "versions.cli",
             "title": "Command line"
           },
@@ -7165,16 +7142,8 @@
             "title": "Runtime"
           },
           {
-            "path": "runtime.electron",
-            "title": "Electron"
-          },
-          {
             "path": "runtime.node",
             "title": "Node"
-          },
-          {
-            "path": "runtime.chromium",
-            "title": "Chromium"
           },
           {
             "path": "workspace",

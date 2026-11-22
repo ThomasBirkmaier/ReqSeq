@@ -19,7 +19,6 @@ const mac: SetupFacts = {
   installation: {
     runtime: `${MAC_FOLDER}/runtime/node`,
     entry: `${MAC_FOLDER}/lib/dist/bin.js`,
-    electron: false,
   },
   platform: "darwin",
   launcherExists: true,
@@ -32,7 +31,6 @@ const linux: SetupFacts = {
   installation: {
     runtime: "/home/ann/ReqSeq/runtime/node",
     entry: "/home/ann/ReqSeq/lib/dist/bin.js",
-    electron: false,
   },
   platform: "linux",
   launcherExists: true,
@@ -45,7 +43,6 @@ const windows: SetupFacts = {
   installation: {
     runtime: "C:\\Tools\\ReqSeq\\runtime\\node.exe",
     entry: "C:\\Tools\\ReqSeq\\lib\\dist\\bin.js",
-    electron: false,
   },
   platform: "win32",
   launcherExists: false,
@@ -54,13 +51,12 @@ const windows: SetupFacts = {
   workspace: "C:\\Work\\station",
   workspaceName: "Weather station",
 };
-/** A command line run by Electron (the paused app's checkout), which needs `ELECTRON_RUN_AS_NODE`. */
-const windowsElectron: SetupFacts = {
+/** The npm package on another Node on Windows: the runtime and the entry, no launcher. */
+const windowsNode: SetupFacts = {
   ...windows,
   installation: {
-    runtime: "C:\\Tools\\ReqSeq\\ReqSeq.exe",
-    entry: "C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js",
-    electron: true,
+    runtime: "C:\\Program Files\\nodejs\\node.exe",
+    entry: "C:\\npm\\reqseq\\dist\\bin.js",
   },
 };
 
@@ -68,7 +64,6 @@ const windowsElectron: SetupFacts = {
 const serverJson = (server: Server): Record<string, unknown> => ({
   command: server.command,
   args: server.args,
-  ...(Object.keys(server.env).length === 0 ? {} : { env: server.env }),
 });
 
 const setup = (client: Client, facts: SetupFacts): Setup => {
@@ -116,14 +111,14 @@ describe("setupOf", () => {
     expect(setup("vscode", linux).setup.text).toBe(
       `code --add-mcp '{"name":"reqseq","type":"stdio","command":"/home/ann/ReqSeq/bin/reqseq","args":["mcp","--workspace","/home/ann/station"]}'`,
     );
-    expect(setup("claude-code", windowsElectron).setup.text).toBe(
-      "claude mcp add --env ELECTRON_RUN_AS_NODE=1 --transport stdio reqseq '--' 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
+    expect(setup("claude-code", windowsNode).setup.text).toBe(
+      "claude mcp add --transport stdio reqseq '--' 'C:\\Program Files\\nodejs\\node.exe' 'C:\\npm\\reqseq\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
     );
-    expect(setup("codex-cli", windowsElectron).setup.text).toBe(
-      "codex mcp add reqseq --env ELECTRON_RUN_AS_NODE=1 '--' 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
+    expect(setup("codex-cli", windowsNode).setup.text).toBe(
+      "codex mcp add reqseq '--' 'C:\\Program Files\\nodejs\\node.exe' 'C:\\npm\\reqseq\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
     );
-    expect(setup("vscode", windowsElectron).setup.text).toBe(
-      String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Tools\\ReqSeq\\ReqSeq.exe\",\"args\":[\"C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"],\"env\":{\"ELECTRON_RUN_AS_NODE\":\"1\"}}"`,
+    expect(setup("vscode", windowsNode).setup.text).toBe(
+      String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Program Files\\nodejs\\node.exe\",\"args\":[\"C:\\npm\\reqseq\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"]}"`,
     );
     // Under the setup of every client but Claude Desktop, the call that writes the skill file, for a terminal
     // (PowerShell on Windows), started as the setup starts the server.
@@ -136,21 +131,9 @@ describe("setupOf", () => {
     expect(skillCall({ ...linux, launcherExists: false })).toBe(
       "/home/ann/ReqSeq/runtime/node /home/ann/ReqSeq/lib/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
     );
-    expect(
-      skillCall({
-        ...linux,
-        installation: { runtime: "/repo/electron", entry: "/repo/cli/dist/bin.js", electron: true },
-      }),
-    ).toBe(
-      "ELECTRON_RUN_AS_NODE=1 /repo/electron /repo/cli/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
-    );
-    expect(skillCall(windowsElectron)).toBe(
-      "$env:ELECTRON_RUN_AS_NODE='1'; & 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'; Remove-Item Env:ELECTRON_RUN_AS_NODE",
-    );
     const node = {
       runtime: "C:\\Program Files\\nodejs\\node.exe",
       entry: "C:\\npm\\reqseq\\dist\\bin.js",
-      electron: false,
     };
     expect(skillCall({ ...windows, installation: node })).toBe(
       "& 'C:\\Program Files\\nodejs\\node.exe' 'C:\\npm\\reqseq\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'",
@@ -205,7 +188,7 @@ describe("setupOf", () => {
     }
   });
 
-  // The Windows form is the assumption of #2352: the shipped node.exe and bin.js, without ELECTRON_RUN_AS_NODE.
+  // The Windows form is the assumption of #2352: the shipped node.exe and bin.js, without an environment variable.
   it("[SR-227/AK-cw0k] names the absolute launcher or runtime and the workspace, the Windows form with node.exe and bin.js, where it holds, and differs between two installations", () => {
     expect(serverOf(mac)).toEqual({
       command: `${MAC_FOLDER}/bin/reqseq`,
@@ -226,7 +209,7 @@ describe("setupOf", () => {
       const text = setup(client.value, windows).setup.text;
       expect(text).toContain("node.exe");
       expect(text).toContain("bin.js");
-      expect(text).not.toContain("ELECTRON_RUN_AS_NODE");
+      expect(text).not.toContain("env");
       expect(text).toContain("station");
     }
     expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_FOLDER}.`);
@@ -236,10 +219,10 @@ describe("setupOf", () => {
     expect(setup("claude-code", windows).valid).toBe(
       "The setup holds as long as ReqSeq stays in C:\\Tools\\ReqSeq.",
     );
-    // A checkout or the npm package on Node: the runtime and the entry, without the Electron variable.
+    // A checkout or the npm package on Node: the runtime and the entry.
     const node: SetupFacts = {
       ...linux,
-      installation: { runtime: "/usr/bin/node", entry: "/opt/reqseq/cli/dist/bin.js", electron: false },
+      installation: { runtime: "/usr/bin/node", entry: "/opt/reqseq/cli/dist/bin.js" },
     };
     expect(serverOf(node)).toEqual({
       command: "/usr/bin/node",
@@ -255,7 +238,6 @@ describe("setupOf", () => {
       installation: {
         runtime: "/opt/ReqSeq/runtime/node",
         entry: "/opt/ReqSeq/lib/dist/bin.js",
-        electron: false,
       },
     };
     expect(serverOf(moved).command).toBe("/opt/ReqSeq/bin/reqseq");
@@ -269,7 +251,6 @@ describe("setupOf", () => {
         runtime: "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/MacOS/ReqSeq",
         entry:
           "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/Resources/cli/dist/bin.js",
-        electron: true,
       },
     };
     for (const client of CLIENTS) {
@@ -286,12 +267,8 @@ describe("the launch form", () => {
   it("takes the launcher only in a delivery where it exists, and never on Windows", () => {
     expect(serverOf({ ...linux, launcherExists: false }).command).toBe(linux.installation.runtime);
     expect(deliveryLauncher(windows.installation, "win32")).toBeUndefined();
-    // A checkout run by Electron: no runtime/ and lib/ of a delivery.
-    const checkout = {
-      runtime: "/repo/node_modules/electron/dist/electron",
-      entry: "/repo/packages/cli/dist/bin.js",
-      electron: true,
-    };
+    // A checkout run by its Node: no runtime/ and lib/ of a delivery.
+    const checkout = { runtime: "/usr/local/bin/node", entry: "/repo/packages/cli/dist/bin.js" };
     expect(deliveryLauncher(checkout, "linux")).toBeUndefined();
     expect(deliveryLauncher(checkout, "darwin")).toBeUndefined();
     // Node elsewhere, or bin.js not in lib/dist/ of the folder.

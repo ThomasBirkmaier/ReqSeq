@@ -1,6 +1,5 @@
 // The graph of the metamodel (SR-130 AK2, AK3) on a small output of metamodel.get: one node per type with
-// its own and inherited properties, "Any type" only for an open side, one edge per ordered pair. The app's
-// tests of the drawing read it on fixtures/SR-130/metamodel.
+// its own and inherited properties, "Any type" only for an open side, one edge per ordered pair.
 import { describe, expect, it } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { ANY_KEY, linkLabel, metamodelGraph } from "./graph.js";
@@ -76,30 +75,6 @@ describe("metamodelGraph", () => {
     expect(orphan?.properties).toEqual([{ key: "title", name: "Title", inherited: false, owner: "orphan" }]);
   });
 
-  it("[SR-130/AK-s795] gives each node its statuses, own and inherited, the initial and the invalid ones marked", () => {
-    const out: Output = {
-      ...output({
-        types: [
-          { ...type("item", []), statuses: ["draft", "retired"] },
-          { ...type("req", [], "item"), statuses: ["draft", "retired", "gone"] },
-        ],
-        properties: [],
-        relations: [],
-      }),
-      statuses: [
-        { key: "draft", name: "Draft", initial: true },
-        { key: "retired", name: "Retired", invalid: true },
-      ],
-    };
-    const [item, req] = metamodelGraph(out).nodes;
-    expect(item?.statuses).toEqual([
-      { key: "draft", name: "Draft", initial: true, invalid: false },
-      { key: "retired", name: "Retired", initial: false, invalid: true },
-    ]);
-    // A key without a definition shows the key, neither initial nor invalid.
-    expect(req?.statuses.at(-1)).toEqual({ key: "gone", name: "gone", initial: false, invalid: false });
-  });
-
   it("stops at a cycle of extends when it looks for a property's owner", () => {
     const out = output({
       types: [
@@ -143,7 +118,6 @@ describe("metamodelGraph", () => {
       any: true,
       name: "Any type",
       properties: [],
-      statuses: [],
     });
   });
 });

@@ -2506,7 +2506,7 @@ export interface WorkspaceConnectAgentOutput {
     readonly command: string;
     /** Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace. */
     readonly args: readonly string[];
-    /** Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty. */
+    /** Environment variables the program needs: none, so it is empty. */
     readonly env: Readonly<Record<string, string>>;
   };
   /** What the user pastes. Only with a client. */
@@ -2538,10 +2538,8 @@ export type ToolInfoInput = Readonly<Record<string, never>>;
  */
 export interface ToolInfoOutput {
   readonly answer: Answer;
-  /** The versions of the app, the command line and the MCP server. One release ships all three with its ReqSeq version. */
+  /** The versions of the command line and the MCP server. One release ships both with its ReqSeq version. */
   readonly versions: {
-    /** Version of the app. */
-    readonly app: string;
     /** Version of the command line. */
     readonly cli: string;
     /** Version of the MCP server. */
@@ -2562,12 +2560,8 @@ export interface ToolInfoOutput {
   };
   /** The runtime of the process. The command line, API, MCP server and web UI of a release run on the Node it ships, so a release gives the same values in every access. */
   readonly runtime: {
-    /** Left out when ReqSeq does not run on Electron (a command line on its own Node). */
-    readonly electron?: string;
     /** Version of Node. */
     readonly node: string;
-    /** The Chromium of the Electron ReqSeq runs on. Left out without Electron. */
-    readonly chromium?: string;
   };
   /** The open workspace. */
   readonly workspace: {
