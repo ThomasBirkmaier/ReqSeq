@@ -27,7 +27,7 @@ export interface TextOwner {
 }
 
 /** Image bytes from `element.readImage` as a `blob:` URL, or why the image is not shown. */
-async function imageOf(owner: TextOwner, link: ImageLink): Promise<ImageOutcome> {
+async function imageOf(owner: TextOwner, link: ImageLink, made: Set<string>): Promise<ImageOutcome> {
   const notShown = { code: "html.image-not-copied", reason: "is not shown" } as const;
   if (owner.id === undefined || link.missing) {
     return notShown;
@@ -40,18 +40,27 @@ async function imageOf(owner: TextOwner, link: ImageLink): Promise<ImageOutcome>
       ...(owner.repository === undefined ? {} : { repository: owner.repository }),
       file: owner.file,
     });
-    const bytes = Uint8Array.from(atob(content), (c) => c.charCodeAt(0));
-    return { src: URL.createObjectURL(new Blob([bytes], { type: mediaType })) };
+    const binary = atob(content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const src = URL.createObjectURL(new Blob([bytes], { type: mediaType }));
+    made.add(src);
+    return { src };
   } catch {
     return notShown;
   }
 }
 
-/** The context of the texts of `owner`, shown on the page of `from` (an encoded route, see `fromOf`). */
-const contextOf = (owner: TextOwner, from: string): TextContext => ({
+/**
+ * The context of the texts of `owner`, shown on the page of `from` (an encoded route, see `fromOf`); `made` collects
+ * the `blob:` URLs it makes.
+ */
+const contextOf = (owner: TextOwner, from: string, made: Set<string>): TextContext => ({
   elementFile: owner.file,
   ignored: () => false,
-  image: (link) => imageOf(owner, link),
+  image: (link) => imageOf(owner, link, made),
   reference: ({ id }) => {
     const target = el(id);
     return {
@@ -71,7 +80,8 @@ export async function markdown(
   if (text === undefined || text.trim() === "") {
     return block;
   }
-  const { html } = await renderMarkdown(text, contextOf(owner, from));
+  const made = new Set<string>();
+  const { html } = await renderMarkdown(text, contextOf(owner, from, made));
   const template = document.createElement("template");
   template.innerHTML = html;
   for (const link of template.content.querySelectorAll<HTMLAnchorElement>("a[href]")) {
@@ -81,11 +91,16 @@ export async function markdown(
     }
   }
   for (const image of template.content.querySelectorAll<HTMLImageElement>("img[src^='blob:']")) {
+    made.delete(image.src);
     const revoke = (): void => {
       URL.revokeObjectURL(image.src);
     };
     image.addEventListener("load", revoke, { once: true });
     image.addEventListener("error", revoke, { once: true });
+  }
+  // An image the renderer read but left out of the page.
+  for (const src of made) {
+    URL.revokeObjectURL(src);
   }
   block.append(template.content);
   return block;
