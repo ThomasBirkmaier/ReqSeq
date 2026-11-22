@@ -191,8 +191,8 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 ### Crates and licences (changes ADR-0015)
 
 - **Pins.** Direct crates are pinned exactly (`=x.y.z`), at least two weeks old, with `Cargo.lock` committed. The `tauri` crate and `@tauri-apps/api` move together.
-- **Licences.** `scripts/licenses/crates.mjs` checks the licence of every crate in `cargo metadata --locked --offline` against ADR-0015's allowlist, and their texts go into the notices of the release.
-  - A licence outside the allowlist needs the product owner's answer first, with `needs-human` on the issue, before #2377 merges. Unicode-3.0, from the ICU4X crates behind `url`, is likely to be one. This ADR does not widen the allowlist.
+- **Licences.** `scripts/licenses/crates.mjs` checks the licence of every crate that `cargo tree` gives for the three release targets, without proc-macro and build-only crates, against ADR-0015's allowlist, and their texts go into the notices of the release.
+  - A licence outside the allowlist needs the product owner's answer first, with `needs-human` on the issue, before the change that brings it merges. Unicode-3.0, from the ICU4X crates behind `url` and `tauri-utils`, is on ADR-0015's allowlist (#2396).
 - **Audit.** `cargo audit` checks against the RustSec database, pinned and cached, in the shell steps and nightly. An advisory that is not informational blocks.
 - **Pages.** `@tauri-apps/api` is a runtime dependency of `@reqseq/web`, named with its licence in the pull request that adds it.
 

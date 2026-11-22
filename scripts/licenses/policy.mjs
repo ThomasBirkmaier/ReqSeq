@@ -16,6 +16,8 @@ export const ALLOWED = new Set([
   "Unlicense",
   "Python-2.0",
   "MPL-2.0",
+  // The ICU4X crates of the desktop shell, which Tauri and `url` bring (ADR-0015, #2396).
+  "Unicode-3.0",
 ]);
 
 /**

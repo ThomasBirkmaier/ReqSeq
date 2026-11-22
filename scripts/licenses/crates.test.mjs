@@ -25,13 +25,14 @@ describe("crates.mjs", () => {
     expect(
       crateProblems([
         { name: "a", version: "1.0.0", license: "MIT/Apache-2.0" },
-        { name: "b", version: "1.0.0", license: "Unicode-3.0" },
+        { name: "b", version: "1.0.0", license: "Zlib" },
         { name: "c", version: "1.0.0", license: null },
-        { name: "b", version: "1.0.0", license: "Unicode-3.0" },
+        { name: "b", version: "1.0.0", license: "Zlib" },
+        { name: "e", version: "1.0.0", license: "(MIT OR Apache-2.0) AND Unicode-3.0" },
         { name: "d", version: "1.0.0", license: "Apache-2.0 WITH LLVM-exception" },
       ]),
     ).toEqual([
-      "b@1.0.0: Unicode-3.0",
+      "b@1.0.0: Zlib",
       "c@1.0.0: no licence in its manifest",
       "d@1.0.0: Apache-2.0 WITH LLVM-exception",
     ]);
