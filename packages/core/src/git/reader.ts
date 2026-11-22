@@ -41,6 +41,12 @@ const movesCommand = (similarity: "50%" | "100%"): readonly string[] => [
   "--stdin",
 ];
 
+/**
+ * Most commits `historyRange` and `commitsBetween` list; one more says there are more (the version
+ * date then walks the whole history again).
+ */
+const RANGE_LIMIT = 1000;
+
 /** Every command line ReqSeq runs, after the fixed options of `run`. Read-only, no network. */
 const COMMANDS = {
   /**
@@ -77,6 +83,34 @@ const COMMANDS = {
     "--format=%H %cI %P%x00",
     "--stdin",
   ],
+  /**
+   * The same for the commits reachable from one commit and not from another (both on standard
+   * input, the second as `^<ID>`), every one of them (`--sparse`: a commit that changed none of the
+   * paths is listed without paths, so the parents are the real ones), at most `RANGE_LIMIT` + 1.
+   */
+  historyRange: [
+    "-c",
+    "diff.relative=false",
+    "log",
+    "--no-show-signature",
+    "--no-follow",
+    "--no-renames",
+    "--root",
+    "--full-history",
+    "--sparse",
+    "--cc",
+    "--name-only",
+    "-z",
+    "--parents",
+    "--format=%H %cI %P%x00",
+    `--max-count=${String(RANGE_LIMIT + 1)}`,
+    "--stdin",
+  ],
+  /**
+   * The IDs of the commits reachable from one commit and not from another (both on standard input,
+   * the second as `^<ID>`), without diffs, at most `RANGE_LIMIT` + 1.
+   */
+  between: ["log", "--no-show-signature", "--format=%H", `--max-count=${String(RANGE_LIMIT + 1)}`, "--stdin"],
   /**
    * The files that the commits on standard input moved (`--no-walk`: only these commits): each
    * commit that renamed a file within the folder git runs in (`--relative`, paths relative to it;
@@ -671,6 +705,73 @@ export const fileHistory = async (
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }
+};
+
+/** Commits of a range; `more` where git had more than `RANGE_LIMIT` (only that many are given). */
+export type HistoryRange =
+  { readonly known: true; readonly commits: readonly HistoryCommit[]; readonly more: boolean } | GitUnknown;
+
+/**
+ * The commits reachable from `to` and not from `from`, as `fileHistory` lists them for `files`,
+ * but every one of them with its real parents (a commit that changed none of `files` has no
+ * paths), newest first, at most `RANGE_LIMIT`. The version date carries its walks over a HEAD
+ * move with it (SR-082 AK4). A programming error as for `fileHistory`, and without paths.
+ */
+export const historyRange = async (
+  folder: string,
+  from: string,
+  to: string,
+  files: readonly string[],
+  options: ReadOptions = {},
+): Promise<HistoryRange> => {
+  if (!isObjectId(from) || !isObjectId(to)) {
+    throw new Error(`historyRange needs commit IDs, not ${from} and ${to}`);
+  }
+  const bad = files.find((f) => !isGitPath(f));
+  if (bad !== undefined || files.length === 0) {
+    throw new Error(`historyRange cannot pass the paths ${JSON.stringify(files)}`);
+  }
+  const [prefix, result] = await Promise.all([
+    prefixDepth(folder, options),
+    run(folder, "historyRange", { ...options, input: `${to}\n^${from}\n--\n${files.join("\n")}\n` }),
+  ]);
+  if (!prefix.ok) {
+    return unknown(prefix);
+  }
+  if (!result.ok) {
+    return unknown(result);
+  }
+  try {
+    const commits = parseHistory(result.stdout.toString("utf8"), prefix.depth);
+    return { known: true, commits: commits.slice(0, RANGE_LIMIT), more: commits.length > RANGE_LIMIT };
+  } catch (error) {
+    return { known: false, reason: "not-a-repository", detail: (error as Error).message };
+  }
+};
+
+/** Commit IDs; `more` where git had more than `RANGE_LIMIT` (only that many are given). */
+export type CommitList =
+  { readonly known: true; readonly commits: readonly string[]; readonly more: boolean } | GitUnknown;
+
+/**
+ * The IDs of the commits reachable from `from` and not from `not`, newest first, at most
+ * `RANGE_LIMIT`. A programming error when either is not an object ID.
+ */
+export const commitsBetween = async (
+  folder: string,
+  from: string,
+  not: string,
+  options: ReadOptions = {},
+): Promise<CommitList> => {
+  if (!isObjectId(from) || !isObjectId(not)) {
+    throw new Error(`commitsBetween needs commit IDs, not ${from} and ${not}`);
+  }
+  const result = await run(folder, "between", { ...options, input: `${from}\n^${not}\n` });
+  if (!result.ok) {
+    return unknown(result);
+  }
+  const commits = result.stdout.toString("utf8").split("\n").filter(isObjectId);
+  return { known: true, commits: commits.slice(0, RANGE_LIMIT), more: commits.length > RANGE_LIMIT };
 };
 
 /** A file a commit moved: its path at the parent and in the commit, relative to the folder. */
