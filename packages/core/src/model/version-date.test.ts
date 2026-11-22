@@ -27,6 +27,7 @@ import {
   undatedCause,
   versionDates,
   versionStarts,
+  versionTimes,
 } from "./version-date.js";
 import { elementVersion, elementVersions } from "./view.js";
 
@@ -989,5 +990,60 @@ describe("version date", () => {
     ).toEqual([null, at(repo, "one")]);
     // Nothing was written.
     expect(await fs.readFile(repo.fixture.path(FILE), "utf8")).toBe(element("One."));
+  });
+
+  describe("as a sort reads it (SR-075 AK6)", () => {
+    const times = async (
+      workspace: Workspace,
+      requests: readonly Partial<VersionDateRequest>[],
+    ): Promise<string[]> =>
+      (
+        await versionTimes(
+          await context(workspace),
+          requests.map((r) => ({ repository: "system", file: FILE, id: ID, version: "", ...r })),
+        )
+      ).map((time) => (time.kind === "dated" ? time.date : time.kind));
+
+    it("dates the version of the last commit, and counts any other as uncommitted", async () => {
+      const repo = await repository([
+        { name: "one", files: { [FILE]: element("One.") } },
+        { name: "two", files: { [FILE]: element("Two.") } },
+      ]);
+      const one = await versionOf(repo.workspace, element("One."));
+      const two = await versionOf(repo.workspace, element("Two."));
+      const never = await versionOf(repo.workspace, element("Never."));
+      // An older commit has "One.", but the last one does not: newer than every commit, as a new file.
+      expect(
+        await times(repo.workspace, [
+          { version: two },
+          { version: one },
+          { version: never },
+          { file: FILE2, id: OTHER, version: never },
+          { version: "x1:nope" },
+          { repository: "nope", version: two },
+        ]),
+      ).toEqual([at(repo, "two"), "uncommitted", "uncommitted", "uncommitted", "undated", "undated"]);
+    });
+
+    it("is late where git did not answer in time, and undated where git is missing", async () => {
+      const repo = await repository([{ name: "one", files: { [FILE]: element("One.") } }]);
+      const version = await versionOf(repo.workspace, element("One."));
+      // The history, HEAD and the objects in turn.
+      vi.mocked(fileHistory).mockResolvedValueOnce(TIMEOUT);
+      expect(await times(repo.workspace, [{ version }])).toEqual(["late"]);
+      vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+      vi.mocked(headCommit).mockResolvedValueOnce(TIMEOUT);
+      expect(await times(repo.workspace, [{ version }])).toEqual(["late"]);
+      nextReader((round) => (round === 1 ? TIMEOUT : undefined));
+      expect(await times(repo.workspace, [{ version }])).toEqual(["late"]);
+      vi.mocked(fileHistory).mockResolvedValueOnce({ ...TIMEOUT, reason: "no-git" });
+      expect(await times(repo.workspace, [{ version }])).toEqual(["undated"]);
+      nextReader((round) => (round === 1 ? { ...TIMEOUT, reason: "no-git" } : undefined));
+      expect(await times(repo.workspace, [{ version }])).toEqual(["undated"]);
+      nextReader((round) => (round === 1 ? BROKEN : undefined));
+      expect(await times(repo.workspace, [{ version }])).toEqual(["undated"]);
+      // A walk that failed for good stays without a date at this HEAD.
+      expect(await times(repo.workspace, [{ version }])).toEqual(["undated"]);
+    });
   });
 });

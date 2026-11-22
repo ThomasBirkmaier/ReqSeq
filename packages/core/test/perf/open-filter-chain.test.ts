@@ -309,6 +309,38 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
+  it("[SR-082/AK-h27y] sorts every element by the time of its version within 500 ms once the sort was applied since the start (SR-075 AK6)", async () => {
+    // Newest first: the elements the history changed got their generated text back in the last commit.
+    const sortedList = async (): Promise<FullList> =>
+      (await invoke(
+        "element.list",
+        { sort: [{ by: "versionDate", order: "desc" }] },
+        { workspace: opened() },
+      )) as FullList;
+    const { result: first } = await measure(
+      `sort: all elements by versionDate, first page: first sort after the start (${String(HISTORY + 2)} commits per repository)`,
+      sortedList,
+      {
+        basis: "SR-075 AK6, SR-082 AK4 (recorded: the limit holds once the sort was applied since the start)",
+      },
+    );
+    const { result: sorted, measurement } = await measure(
+      "sort: all elements by versionDate, first page",
+      sortedList,
+      {
+        basis: "SR-082 AK4 (element.list sorted by versionDate, once applied since the start)",
+        thresholdMs: RESULT_MS,
+      },
+    );
+    expect(sorted.elements.map((e) => e.id)).toEqual(first.elements.map((e) => e.id));
+    expect(sorted).not.toHaveProperty("problems");
+    expect(sorted.total).toBe(ELEMENTS);
+    const newest = sorted.elements[0];
+    const dated = await openElement(opened(), newest?.id ?? "", true);
+    expect(dated.versionDate).toBe([...generatedDates.values()].sort().at(-1));
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
+  });
+
   type Chain = CommandOutput<"trace.chain">;
 
   /** `trace.chain` (SR-022) through the catalog, as every access calls it (SR-080). */

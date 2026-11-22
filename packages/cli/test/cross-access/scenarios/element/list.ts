@@ -1,11 +1,12 @@
 // Cross-access scenarios of element.list, in addition to the default one (cross-access.test.ts).
 import { readFileSync, readdirSync } from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Result } from "../../scenario.js";
-import { scenariosOf } from "../../scenario.js";
+import { scenariosOf, templateSetup } from "../../scenario.js";
 import {
   DESIGNATIONS,
   EMERGENT,
@@ -35,6 +36,17 @@ const TYPE_AND_ID = [
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** SORT where b2, then f1 changed in a commit each after the first (SR-075 AK6). */
+const SORT_HISTORY: FixtureOptions = { fixture: "SR-075/sort", git: true };
+templateSetup(SORT_HISTORY, async (ws) => {
+  await fs.appendFile(ws.path("requirements/SR-0000000000b2.md"), "Changed second.\n");
+  await ws.commit();
+  await fs.appendFile(ws.path("requirements/SWR-0000000000f1.md"), "Changed third.\n");
+  await ws.commit();
+});
+/** b4 of SORT changed and not committed (the same text on every call). */
+const B4_CHANGED =
+  "---\nid: 75075075-0000-4000-8000-0000000000b4\ntype: system-requirement\nstatus: draft\ntitle: Zero\n---\n\nb4: not committed.\n";
 /** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
 const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (ThomasBirkmaier/ReqSeq-archive#418). */
@@ -558,6 +570,32 @@ scenariosOf("element.list", [
     fixture: SORT,
     input: { sort: [{ by: "hierarchy" }, { by: "title" }], offset: 2, limit: 5 },
     expect: "output",
+  },
+  {
+    name: "sorted by the time of the version, newest first: uncommitted content, then by commit (SR-075 AK6)",
+    tag: "[SR-075/AK-qr2j]",
+    fixture: SORT_HISTORY,
+    prepare: async (copy) => {
+      await fs.writeFile(path.join(copy.root, "requirements/SR-0000000000b4.md"), B4_CHANGED);
+    },
+    input: { sort: [{ by: "versionDate", order: "desc" }], fields: ["title"], limit: 100 },
+    expect: "output",
+    check: (results) => {
+      for (const result of Object.values(results)) {
+        const { partial } = (result.outcome as { output: { partial: { id: string }[] } }).output;
+        expect(partial.map((e) => e.id.slice(-2))).toEqual([
+          "b4",
+          "f1",
+          "b2",
+          "a1",
+          "a2",
+          "b1",
+          "b3",
+          "f2",
+          "f3",
+        ]);
+      }
+    },
   },
   {
     name: "hierarchy after another sort key (SR-075)",

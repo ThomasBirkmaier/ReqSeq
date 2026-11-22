@@ -19,7 +19,9 @@
 // the input `group` replaces the stored one. A stored group of a property whose values can no
 // longer be chosen (`groupUnavailable`) gives the list without groups and the warning
 // `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped
-// is the error of `groupingOf`, naming the perspective and its file.
+// is the error of `groupingOf`, naming the perspective and its file. A sort by `versionDate` (SR-075
+// AK6) reads the times of the versions first (`sortValuesFor`); where Git did not give them in time,
+// `problems` holds the warning `sort.incomplete`.
 import type { CommandContext, CommandName, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { yamlPointerLine } from "../../files/index.js";
@@ -33,7 +35,7 @@ import type {
 import { rowsVerification } from "../../evidence/index.js";
 import type { ElementRecord, ListOptions } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
-import type { Grouping, Selected, StoredSelection, TreePlace } from "../../query/index.js";
+import type { Grouping, Selected, SortValues, StoredSelection, TreePlace } from "../../query/index.js";
 import {
   checkedSort,
   FACET_MAX_VALUES,
@@ -43,6 +45,7 @@ import {
   orderedGroups,
   orderedSelection,
   perspectiveFilterFor,
+  sortValuesFor,
   perspectiveFor,
   resolveSelection,
   savedProblem,
@@ -116,6 +119,18 @@ const entryOf = ({ element, depth, parent }: TreePlace): TreeEntry => ({
 
 type Group = NonNullable<ElementListOutput["groups"]>[number];
 
+/**
+ * `problems` of the output: those of the perspective (`shown`, given with a perspective, also empty)
+ * and the warnings of the sort (`sort.incomplete`), left out when there are none of either.
+ */
+const problemsOf = (
+  shown: readonly Problem[] | undefined,
+  values: SortValues,
+): Pick<ElementListOutput, "problems"> => {
+  const problems = [...(shown ?? []), ...(values.problems ?? [])];
+  return shown === undefined && problems.length === 0 ? {} : { problems };
+};
+
 /** The output of a grouped list (see the file comment). */
 const grouped = async (
   workspace: Workspace,
@@ -126,7 +141,8 @@ const grouped = async (
 ): Promise<CommandOutput<"element.list">> => {
   const command = "element.list";
   const { heads, groupsOf } = grouping;
-  const sorted = await orderedGroups(workspace, selected, command, input.sort, groupsOf, heads.length);
+  const values = await sortValuesFor(workspace, selected, input.sort);
+  const sorted = orderedGroups(selected, command, input.sort, groupsOf, heads.length, values);
   const rows: ElementRecord[] = [];
   // Under `hierarchy` every group has its tree, so `places` runs parallel to `rows`.
   const places: TreePlace[] = [];
@@ -169,7 +185,7 @@ const grouped = async (
     rows: rows.length,
     total: selected.elements.length,
     incomplete: selected.incomplete,
-    ...extra,
+    ...problemsOf(extra.problems, values),
   };
 };
 
@@ -240,11 +256,12 @@ export default defineCommand({
     const selected = await selectedOf(ctx, input);
     const { stored } = selected;
     const { grouping, problems } = groupOf(selected, command, input);
-    const withProblems = stored === undefined ? {} : { problems };
+    const withProblems: Pick<ElementListOutput, "problems"> = stored === undefined ? {} : { problems };
     if (grouping !== undefined) {
       return grouped(ctx.workspace, selected, input, grouping, withProblems);
     }
-    const sorted = await orderedSelection(ctx.workspace, selected, command, input.sort);
+    const values = await sortValuesFor(ctx.workspace, selected, input.sort);
+    const sorted = await orderedSelection(ctx.workspace, selected, command, input.sort, values);
     const end = input.offset + input.limit;
     const page = sorted.elements.slice(input.offset, end);
     const { options, page: pageWith } = pageOf(input);
@@ -254,7 +271,7 @@ export default defineCommand({
       ...(sorted.tree === undefined ? {} : { tree: sorted.tree.slice(input.offset, end).map(entryOf) }),
       total: selected.elements.length,
       incomplete: selected.incomplete,
-      ...withProblems,
+      ...problemsOf(withProblems.problems, values),
     };
   },
   // The rows of every page, each element once: grouping and sorting change neither, but a group or

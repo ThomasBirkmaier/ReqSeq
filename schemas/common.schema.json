@@ -515,6 +515,7 @@
         "perspective.invalid",
         "perspective.duplicate-name",
         "perspective.group-unavailable",
+        "sort.incomplete",
         "metamodel.invalid",
         "metamodel.optional-status",
         "metamodel.meaning-unassigned",
