@@ -56,7 +56,7 @@ The UI server opens the workspace in its own process, as `reqseq serve api` does
 
 ### Workspaces
 
-- **No workspace open.** Only commands that need no workspace run: `tool.info`, `tool.guide`, `workspace.recent`, `workspace.listFolder` and `workspace.init`. Every other command gets core's `workspace.not-found` (class `not-found`, 404).
+- **No workspace open.** Only commands that need no workspace run: `tool.guide`, `workspace.recent`, `workspace.listFolder` and `workspace.init`. Every other command gets core's `workspace.not-found` (class `not-found`, 404).
 - **Opening and switching: `POST /ui/workspace` with `{ "path" }`.**
   1. The server checks the folder as step 2 of the start does.
   2. It aborts running reads, lets running writes finish, closes the old workspace and its watcher, and opens the new one.
