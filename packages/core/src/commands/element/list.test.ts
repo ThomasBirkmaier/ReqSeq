@@ -672,11 +672,13 @@ describe("element.list refuses unknown names and wrong conditions", () => {
       "emergent",
       "element.list",
     ]);
-    expect(await meaning({ validFor: "core" })).toEqual([
+    expect(await meaning({ validFor: "VAR-0000c1" })).toEqual([
       "metamodel.meaning-unassigned",
       "validity",
       "element.list",
     ]);
+    // Without the meaning validity no element has one: the core is every element (#2291).
+    expect(await where(ws, { validFor: "core" })).toEqual(await where(ws, { all: [] }));
     expect(await meaning({ relation: { meaning: "derivation" }, exists: false })).toEqual([
       "metamodel.meaning-unassigned",
       "derivation",

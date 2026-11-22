@@ -275,7 +275,7 @@ describe("trace.chain in a view (SR-040 appliesIn)", () => {
     expect((await chainError(workspace, { ref: SEE_WIND, view: "VAR-ffffff" })).code).toBe("ref.unknown");
   });
 
-  it("[SR-013/AK-bh0d] names the meaning validity or variant that a view needs and no key has", async () => {
+  it("[SR-013/AK-bh0d] names the meaning validity or variant that a variant view needs and no key has, and the core needs neither", async () => {
     const model = (drop: string): FixtureOptions => ({
       ...CHAIN,
       files: {
@@ -283,7 +283,11 @@ describe("trace.chain in a view (SR-040 appliesIn)", () => {
       },
     });
     const noValidity = await open(model("validity"));
-    const error = await chainError(noValidity, { ref: SEE_WIND, view: "core" });
+    // No element has a validity, so the core holds every element: the same chain as without a view.
+    expect(await chain(noValidity, { ref: SEE_WIND, view: "core" })).toEqual(
+      await chain(noValidity, { ref: SEE_WIND }),
+    );
+    const error = await chainError(noValidity, { ref: SEE_WIND, view: "VAR-00d001" });
     expect([error.code, error.details]).toEqual([
       "metamodel.meaning-unassigned",
       { meaning: "validity", list: "properties", command: "trace.chain" },
