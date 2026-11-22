@@ -134,6 +134,32 @@ describe("workspace.connectAgent", () => {
     expect((await failure(run(ws.root, { client: "other" }))).code).toBe("agent.cli-missing");
   });
 
+  it("[SR-227/AK-cw0k] names the launcher of an unpacked delivery when it is there", async () => {
+    const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
+    onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
+    for (const file of [
+      ["runtime", "node"],
+      ["lib", "dist", "bin.js"],
+      ["bin", "reqseq"],
+    ]) {
+      await fs.mkdir(path.join(folder, ...file.slice(0, -1)), { recursive: true });
+      await fs.writeFile(path.join(folder, ...file), "");
+    }
+    setInstallation({
+      runtime: path.join(folder, "runtime", "node"),
+      entry: path.join(folder, "lib", "dist", "bin.js"),
+      electron: false,
+    });
+    const ws = await fixture();
+    platform("linux");
+    const output = await run(ws.root, { client: "other" });
+    expect(output.server).toEqual({
+      command: path.join(folder, "bin", "reqseq"),
+      args: ["mcp", "--workspace", ws.root],
+      env: {},
+    });
+  });
+
   it("refuses for the app macOS runs from a translocated place", async () => {
     const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
     onTestFinished(() => fs.rm(top, { recursive: true, force: true }));
