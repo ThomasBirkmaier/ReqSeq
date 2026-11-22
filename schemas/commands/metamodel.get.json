@@ -105,7 +105,7 @@
             "required": ["kind", "targetTypes"]
           }
         },
-        "description": "For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with (SR-215 AK8)."
+        "description": "For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with."
       },
       "files": {
         "title": "Metamodel files",

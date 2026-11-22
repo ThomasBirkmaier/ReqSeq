@@ -18,10 +18,9 @@
     "SR-049",
     "SR-057",
     "SR-064",
-    "SR-065",
     "SR-087",
     "SR-102",
-    "SR-106",
+    "SR-166",
     "SR-246"
   ],
   "arguments": [
@@ -115,7 +114,7 @@
       },
       "expectedFileSha256": {
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change."
+        "description": "Write precondition (SR-166): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change."
       },
       "dryRun": {
         "type": "boolean",
@@ -142,7 +141,7 @@
       "fileSha256": {
         "title": "File SHA-256",
         "$ref": "../common.schema.json#/$defs/fileSha256",
-        "description": "Of the file as written, or as read when nothing changed or in a dry run (SR-106, SR-246 AK5)."
+        "description": "Of the file as written, or as read when nothing changed or in a dry run (SR-166, SR-246 AK5)."
       },
       "files": {
         "title": "Files",

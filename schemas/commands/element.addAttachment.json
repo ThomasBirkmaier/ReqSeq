@@ -6,7 +6,7 @@
   "whileReadOnly": "refuse",
   "whileReadOnlyReason": "Adds a file to an element, and no change can be checked against a missing or faulty metamodel.",
   "stage": 3,
-  "implements": ["SR-065", "SR-097", "SR-190"],
+  "implements": ["SR-097"],
   "arguments": [
     {
       "field": "ref",
@@ -50,7 +50,7 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 27962028,
-        "description": "The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app (SR-190 AK3). Needs name; give it or sourcePath, not both."
+        "description": "The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app. Needs name; give it or sourcePath, not both."
       },
       "name": {
         "type": "string",

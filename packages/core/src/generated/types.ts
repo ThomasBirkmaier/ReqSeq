@@ -2104,7 +2104,7 @@ export interface CommandCatalog {
   readonly commands: readonly {
     /** group.action; CLI `reqseq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
     readonly name: string;
-    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045). */
+    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045). */
     readonly title: string;
     /** What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252). */
     readonly summary: string;
@@ -2123,7 +2123,7 @@ export interface CommandCatalog {
     /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
-    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
+    /** How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
@@ -2169,7 +2169,7 @@ export interface CommandCatalog {
       readonly of?: string;
       /** Only on an `element` source: the field takes an element whose type has this meaning (`variant`, D-020; `package`, D-040), and its values are those elements. A field with a meaning is never the nearest earlier field a source without `of` reads, so `evidence.record criteria` reads `ref`, not `variant`; an explicit `of` may name it (`catalog-checks.mjs`). */
       readonly meaning?: "variant" | "package";
-      /** Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list (SR-215 AK2), so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name` (SR-236 AK6). */
+      /** Required on a `text` source and only there (`catalog-checks.mjs`): what the free text is, from a closed list, so a new text argument is taken up on purpose. name, title, text, description: a name, a title, a text or a description; time: a point in time; version: a version of an element (D-013); revision: a Git revision; query: a search query or a pattern that finds text; path: a path (SR-143) or another location of a file; output: a value another command gives, such as the plan of a preview of element.bulkUpdate or the content of an attachment. Numbers are `number` sources; as JSON the command prompt asks only the mapping of reqif.saveMapping (a `json` source); keys and prefixes of new metamodel definitions are `name` (SR-236 AK6). */
       readonly class?:
         | "name"
         | "title"
@@ -2194,9 +2194,9 @@ export interface CommandCatalog {
       /** Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`). */
       readonly fields: readonly string[];
     };
-    /** A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran (SR-223 AK8). Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880). */
+    /** A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880). */
     readonly showsOutput?: true;
-    /** A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries (SR-223 AK6). Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions. */
+    /** A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions. */
     readonly staysOutputPage?: true;
     /** Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again. */
     readonly outputFields?: readonly {
@@ -2204,13 +2204,13 @@ export interface CommandCatalog {
       readonly path: string;
       /** The title of the field for people. */
       readonly title?: string;
-      /** The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request (SR-223 AK2); `with-element`: only when the same problem names an element. */
+      /** The value is technical (a UUID, path, check value, commit, kind of a problem or duration, SR-224 AK3) and shown only on request; `with-element`: only when the same problem names an element. */
       readonly technical?: true | "with-element";
-      /** The normal value: a shown value equal to it appears only with Show details (SR-223 AK7). */
+      /** The normal value: a shown value equal to it appears only with Show details. */
       readonly normal?: unknown;
-      /** `answer`: the elements that are the answer of the output (SR-223 AK6). `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4). */
+      /** `answer`: the elements that are the answer of the output. `true`: listed elements. A list of paths: the lists of the elements this number counts (SR-224 AK4). `selection`: a number of elements of a read command that only `element.list` lists, with `selection.output.count` (SR-224 AK4). */
       readonly elements?: true | "answer" | "selection" | readonly string[];
-      /** A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values (SR-223 AK6). */
+      /** A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values. */
       readonly elementValue?: true;
       /** Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object. */
       readonly keys?: readonly (readonly string[])[];
@@ -2656,7 +2656,7 @@ export interface MetamodelGetOutput {
   readonly statuses: readonly MetamodelStatus[];
   /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
   readonly meanings: Readonly<Record<string, readonly Key[]>>;
-  /** For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with (SR-215 AK8). */
+  /** For each type of `types`, by its key: the relation kinds an element of that type may get, in metamodel order, each with the types its target may have, by the rule of relation.options, so an element of the type gets the same kinds there (SR-067). A new element has no reference to ask relation.options with. */
   readonly relationKinds: Readonly<Record<string, readonly {
     readonly kind: Key;
     /** Every type of the metamodel a target may have, subtypes included, in metamodel order. */
@@ -3314,7 +3314,7 @@ export interface ElementCreateInput {
   readonly text?: string;
   /** Values of the properties of the type, by key. */
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
-  /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073", "N-030"], "based-on": "D-062"}; on the CLI --relations derives-from='["N-073","N-030"]' --relations based-on=D-062. */
+  /** Relations of the new element by kind, written in the same file (#175), e.g. {"derives-from": ["N-073", "N-030"], "based-on": "D-029"}; on the CLI --relations derives-from='["N-073","N-030"]' --relations based-on=D-029. */
   readonly relations?: RelationRefs;
   /** Workspace name of the repository to write the element to. Default: the main repository. */
   readonly repository?: string;
@@ -3359,7 +3359,7 @@ export interface ElementGetInput {
   readonly view?: View;
   /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
   readonly versionDate: boolean;
-  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
+  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-082 AK3). `versionDate` dates these hints too. */
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -3375,7 +3375,7 @@ export interface ElementGetOutput {
   readonly answer: Answer;
   /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
-  /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
+  /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-166). */
   readonly fileSha256: FileSha256;
   /** The acceptance criteria of the element as its file holds them now, each with number, criterion key, text and the reference for a test name (SR-205 AK1); left out for an element that is no requirement or has none. */
   readonly criterionReferences?: DataExportCriterionReferences;
@@ -3528,7 +3528,7 @@ export interface ElementFacetsOutput {
   readonly answer: Answer;
   /** Elements in the selection. */
   readonly total: number;
-  /** The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118). */
+  /** The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed. */
   readonly types: readonly {
     /** Key of the type as written in the files. */
     readonly key: string;
@@ -3599,7 +3599,7 @@ export interface ElementUpdateInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements ref names is meant: its repository's workspace name. ref.ambiguous and ref.unknown (none of them in it) list them in details.candidates. */
   readonly repository?: string;
-  /** Write precondition (SR-106): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change. */
+  /** Write precondition (SR-166): the fileSha256 the change was made on (element.get). Required with title, text or setItems, else input.invalid (precondition-missing); optional for set, unset and relations alone. Other bytes now: file.changed-on-disk, nothing written, even for no change. */
   readonly expectedFileSha256?: FileSha256;
   /** Dry run: checks and output, no write (SR-246). */
   readonly dryRun?: boolean;
@@ -3614,7 +3614,7 @@ export interface ElementUpdateOutput {
   readonly element: DataExportElement;
   /** The elements the element names by UUID only, each once in the order first named: the variants of `validity` and the views and missing children of `verification`, as element.get names them (#1216). Left out when it names none. */
   readonly names?: readonly ElementName[];
-  /** Of the file as written, or as read when nothing changed or in a dry run (SR-106, SR-246 AK5). */
+  /** Of the file as written, or as read when nothing changed or in a dry run (SR-166, SR-246 AK5). */
   readonly fileSha256: FileSha256;
   /** Written files, relative to the workspace root; empty in a dry run. */
   readonly files: readonly OutputPath[];
@@ -3784,7 +3784,7 @@ export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
   /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). Give it or content, not both. */
   readonly sourcePath?: LocalPath;
-  /** The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app (SR-190 AK3). Needs name; give it or sourcePath, not both. */
+  /** The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app. Needs name; give it or sourcePath, not both. */
   readonly content?: string;
   /** The file name of content, for its extension (which must be one of sourcePath's) and the name of the copy, e.g. Screenshot 2026-11-07.png. Only with content. */
   readonly name?: string;

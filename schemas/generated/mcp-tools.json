@@ -8115,7 +8115,7 @@
           },
           "relations": {
             "$ref": "#/$defs/common/$defs/relationRefs",
-            "description": "Relations of the new element by kind, written in the same file, e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-062\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-062."
+            "description": "Relations of the new element by kind, written in the same file, e.g. {\"derives-from\": [\"N-073\", \"N-030\"], \"based-on\": \"D-029\"}; on the CLI --relations derives-from='[\"N-073\",\"N-030\"]' --relations based-on=D-029."
           },
           "repository": {
             "description": "Workspace name of the repository to write the element to. Default: the main repository.",
