@@ -15,8 +15,8 @@ import type { ImageLink } from "./image-link.js";
 import { imageLink } from "./image-link.js";
 import { markdownImages } from "./markdown-links.js";
 
-export { imageLink } from "./image-link.js";
-export type { ImageLink } from "./image-link.js";
+export { imageLink, imageTarget } from "./image-link.js";
+export type { ImageLink, ImageTarget } from "./image-link.js";
 
 /** Where the images of an element are looked up: its repository and the walk's `ignore` globs. */
 export interface ImageSource {
@@ -128,9 +128,10 @@ const entryNamed = (folder: Folder, name: string): Dirent | undefined => {
  * folder above it a real folder (a link to a folder makes everything below it missing), not the
  * folder of a nested repository (one with a `.git` entry, or in `excludes`), every name spelled as
  * on disk (`entryNamed`). Gives the names as spelled on disk, `null` when it is missing, or
- * `"nested"`.
+ * `"nested"`. Errors other than "not there" reject with `file.faulty`; `element.readImage` reads
+ * an image after the same lookup (SR-251).
  */
-const located = async (
+export const located = async (
   source: ImageSource,
   names: readonly string[],
   memo: ImageMemo,

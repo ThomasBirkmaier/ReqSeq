@@ -20110,6 +20110,131 @@
         ]
       },
       {
+        "name": "element.readImage",
+        "title": "Read image",
+        "summary": "Return an image file from the repository of an element, named by the destination of a Markdown image relative to the element file, with its bytes, media type and size, so an agent or the web UI can show an image the text embeds.",
+        "details": "The destination is read as in the element's text: a backslash before ASCII punctuation is removed, a query and a fragment are dropped, and the rest is percent-decoded (an invalid encoding stays as written). It is not a local path: it never leaves the repository of the element. Refused, in this order, with details.reason: a scheme (https:, data:, file:, C:), a leading /, a .. that leads out of the repository, or a nested Git repository or another repository of the workspace inside this one (image-outside-repository, details.cause scheme, absolute, parent or nested); a file that is not there, a folder, a symbolic link on the way or at the file, a path through .git, node_modules or a folder the workspace file ignores, a name spelled other than on disk (also only in case), a name Windows changes or a \\ after decoding (image-missing); a file or folder that cannot be read (file.faulty, image-unreadable); a file over 20 MiB (image-too-large, with details.size and details.limit); and a file whose content is no AVIF, BMP, GIF, JPEG, PNG, WebP or SVG image, whatever its extension (not-an-image). An SVG is returned unchanged.",
+        "effect": "read",
+        "stage": 6,
+        "implements": [
+          "SR-251"
+        ],
+        "arguments": [
+          {
+            "field": "ref",
+            "complete": "element"
+          },
+          {
+            "field": "destination",
+            "complete": "text",
+            "class": "path"
+          },
+          {
+            "field": "repository",
+            "complete": "repository"
+          },
+          {
+            "field": "file",
+            "complete": "elementFile"
+          }
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "description": "The element whose text would embed the image; the destination is relative to the folder of its file.",
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            },
+            "destination": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "The destination as a Markdown image of the element's text has it, without <...> and without a title, e.g. SR-825b7146fb54/layout.png or ../images/Wind%20map.svg. The element's text need not embed it."
+            },
+            "repository": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it. Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+            },
+            "file": {
+              "allOf": [
+                {
+                  "$ref": "../common.schema.json#/$defs/relativePath"
+                },
+                {
+                  "minLength": 1
+                }
+              ],
+              "description": "Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "ref",
+            "destination"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "$ref": "../common.schema.json#/$defs/answer"
+            },
+            "content": {
+              "title": "Content",
+              "type": "string",
+              "maxLength": 27962028,
+              "description": "The bytes of the file, byte for byte, as base64 (RFC 4648, with padding)."
+            },
+            "mediaType": {
+              "title": "Media type",
+              "enum": [
+                "image/avif",
+                "image/bmp",
+                "image/gif",
+                "image/jpeg",
+                "image/png",
+                "image/svg+xml",
+                "image/webp"
+              ],
+              "description": "The media type by the content of the file, not by its extension."
+            },
+            "size": {
+              "title": "Size",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20971520,
+              "description": "The size of the file in bytes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "answer",
+            "content",
+            "mediaType",
+            "size"
+          ]
+        },
+        "outputFields": [
+          {
+            "path": "answer",
+            "title": "Answer"
+          },
+          {
+            "path": "content",
+            "title": "Content"
+          },
+          {
+            "path": "mediaType",
+            "title": "Media type"
+          },
+          {
+            "path": "size",
+            "title": "Size"
+          }
+        ]
+      },
+      {
         "name": "relation.options",
         "title": "Show relation options",
         "summary": "Relation kinds the metamodel allows from an element, each with the types its target may have; search a target with element.search and selection.where: { type: targetTypes }.",

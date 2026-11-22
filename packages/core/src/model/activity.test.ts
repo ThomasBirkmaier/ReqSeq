@@ -350,6 +350,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "element.bulkUpdate": "written element",
       "element.assignCriterionKeys": "written element",
       "element.addAttachment": "ref (repository), else written element",
+      "element.readImage": "ref (repository)",
       "relation.options": "ref",
       "relation.add": "source, else written element",
       "relation.remove": "source (repository), else written element",

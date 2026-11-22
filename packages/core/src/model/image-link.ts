@@ -81,3 +81,66 @@ export const imageLink = (
     missing: slash || decoded.includes("\\") || names.some(windowsChanges),
   };
 };
+
+/** What a destination names for reading it (SR-251): outside the repository (AK5), missing by its text (AK2), or a path. */
+export type ImageTarget =
+  | { readonly kind: "outside"; readonly cause: "scheme" | "absolute" | "parent" }
+  | {
+      readonly kind: "missing";
+      readonly cause: "empty" | "backslash" | "control" | "folder";
+      /**
+       * The names, from the repository folder, of the folders the destination leads through before
+       * what makes it missing: a nested repository among them still comes first (AK5 before AK2).
+       */
+      readonly folders: readonly string[];
+    }
+  /** The names from the repository folder down to the file, as written; not looked up yet. */
+  | { readonly kind: "path"; readonly names: readonly string[] };
+
+/** Whether `name` holds a `\` or a control character: missing whatever is on disk (SR-251 AK2). */
+const unusable = (name: string): boolean => name.includes("\\") || hasControl(name);
+
+/**
+ * The file a destination names for reading it (`element.readImage`, SR-251), by its text alone,
+ * before any file system call. As `imageLink`, but with a reason for each refusal: a scheme or a
+ * leading `/` after the escapes are removed, or a `..` that leaves the repository after decoding, is
+ * outside (AK5); an empty one, one with `\` or a control character after decoding, or one that names
+ * a folder by a trailing `/` or the repository folder itself is missing (AK2), with the folders before
+ * that (`folders`). The element's own file and folder are not refused here: they are a file that is
+ * no image and a folder on disk.
+ */
+export const imageTarget = (elementFile: string, destination: string): ImageTarget => {
+  const unescaped = destination.replace(ESCAPE, "$1");
+  if (SCHEME.test(unescaped)) {
+    return { kind: "outside", cause: "scheme" };
+  }
+  if (unescaped.startsWith("/")) {
+    return { kind: "outside", cause: "absolute" };
+  }
+  const link = unescaped.replace(/[?#][\s\S]*$/, "");
+  if (link === "") {
+    return { kind: "missing", cause: "empty", folders: [] };
+  }
+  const decoded = percentDecoded(link);
+  const resolved = posix.normalize(posix.join(posix.dirname(elementFile), decoded));
+  if (resolved === ".." || resolved.startsWith("../")) {
+    return { kind: "outside", cause: "parent" };
+  }
+  const names = resolved.replace(/\/$/, "").split("/");
+  if (unusable(decoded)) {
+    // The folders before the first name that holds one; those on the way when `..` resolved it away.
+    const bad = names.findIndex(unusable);
+    return {
+      kind: "missing",
+      cause: decoded.includes("\\") ? "backslash" : "control",
+      folders: names.slice(0, bad === -1 ? -1 : bad),
+    };
+  }
+  if (resolved === ".") {
+    return { kind: "missing", cause: "folder", folders: [] };
+  }
+  if (resolved.endsWith("/")) {
+    return { kind: "missing", cause: "folder", folders: names };
+  }
+  return { kind: "path", names };
+};

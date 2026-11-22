@@ -37,6 +37,7 @@
     "element.bulkUpdate",
     "element.assignCriterionKeys",
     "element.addAttachment",
+    "element.readImage",
     "relation.options",
     "relation.add",
     "relation.remove",
