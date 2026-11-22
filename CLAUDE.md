@@ -70,7 +70,7 @@ The way of working (picture in `docs/process.md`):
 
 ## Quality gates (ADR-0016)
 
-Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`, app `.ts`), React `.tsx` without threshold. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in `verify`.
+Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`); the paused app is neither tested nor measured (#2295). CLI e2e, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in `verify`.
 
 ## Traps
 
