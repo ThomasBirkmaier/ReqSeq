@@ -99,8 +99,8 @@ describe("connectProcess", () => {
     expect(io.stdout.write("dropped")).toBe(false);
   });
 
-  it("aborts on the first SIGINT or SIGTERM and exits 130 on the second", () => {
-    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  it("aborts on the first SIGINT, SIGTERM or SIGHUP and exits 130 on the second", () => {
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
       const proc = new FakeProcess();
       const io = connectProcess(proc);
       expect(io.signal.aborted).toBe(false);

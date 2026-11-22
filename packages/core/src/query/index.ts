@@ -45,7 +45,7 @@ export { deleteFilter, deletePerspective } from "./saved-delete.js";
 export type { SavedDelete, SavedDeleteExpected } from "./saved-delete.js";
 export { renameFilter, renamePerspective } from "./saved-rename.js";
 export type { SavedRename } from "./saved-rename.js";
-export { checkedSort, orderedGroups, orderedSelection, sortValuesFor } from "./ordered.js";
+export { checkedSort, orderedGroups, orderedSelection, sortProblems, sortValuesFor } from "./ordered.js";
 export type { Grouping, GroupHead } from "./group.js";
 export { checkGroupKey, groupUnavailable, groupingOf } from "./group.js";
 export { resolveSelection } from "./selection.js";

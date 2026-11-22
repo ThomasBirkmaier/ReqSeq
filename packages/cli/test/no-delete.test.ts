@@ -110,7 +110,7 @@ describe("the command line offers no delete (SR-099)", () => {
     const top = await cli(["--help"]);
     expect(top.code).toBe(EXIT.ok);
     const groups = [...new Set(catalogNames.map((name) => name.split(".")[0] ?? ""))];
-    expect(commandsOfHelp(top.stdout).sort()).toEqual([...groups, "help", "mcp", "serve"].sort());
+    expect(commandsOfHelp(top.stdout).sort()).toEqual([...groups, "help", "mcp", "serve", "ui"].sort());
     for (const group of groups) {
       const help = await cli([group, "--help"]);
       expect(help.code).toBe(EXIT.ok);

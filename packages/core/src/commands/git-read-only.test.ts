@@ -223,7 +223,11 @@ describe("Git only read (SR-083, D-036)", () => {
         }
       }
     }
-    expect(importers).toEqual(["core/src/git/reader.ts"]);
+    // The one other: `reqseq ui` hands its address to the system's opener (SR-247 AK1; SR-248 AK2 exempts it),
+    // which starts that program only, never Git.
+    expect(importers).toEqual(["cli/src/open-address.ts", "core/src/git/reader.ts"]);
+    const opener = fs.readFileSync(path.join(packages, "cli", "src", "open-address.ts"), "utf8");
+    expect(opener).not.toMatch(/["'`]git["'`\s]/);
   });
 
   it("[SR-083/AK-zp6z] offers no command that writes Git data", () => {

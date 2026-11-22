@@ -472,6 +472,7 @@ export type ProblemCode =
   | "perspective.invalid"
   | "perspective.duplicate-name"
   | "perspective.group-unavailable"
+  | "sort.incomplete"
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
@@ -1512,11 +1513,11 @@ export interface FilterRelationCondition {
 }
 
 /**
- * Sort by a property, the short ID, the verification status or the derivation hierarchy (SR-075); no order is stored in element files.
+ * A sort key (SR-075); no order is stored in element files.
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKey {
-  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
+  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `versionDate`: version time; uncommitted is newest. `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order?: "asc" | "desc";
@@ -1527,7 +1528,7 @@ export interface FilterSortKey {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKeyWithDefaults {
-  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
+  /** `id`: short ID. `identifier`: the property with the meaning `identifier`, digit runs by number (SR-9 before SR-10), else short ID after; `desc` reverses both. `type`, `status`: metamodel order. `title`: the title property. `verification`: verification status in the selection's view (else core): failed, open, outdated, verified (`indirect` too). `versionDate`: version time; uncommitted is newest. `hierarchy`: the derivation tree, ascending only. Else a property key the metamodel or an element has (no relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   /** Ascending or descending. */
   readonly order: "asc" | "desc";
@@ -3491,7 +3492,7 @@ export type ElementListOutput = {
   /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
-  /** Only with `perspective`: `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7); else empty. */
+  /** With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075 AK6). */
   readonly problems?: readonly Problem[];
 } & (
   | {
