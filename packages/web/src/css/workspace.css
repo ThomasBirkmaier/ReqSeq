@@ -1,0 +1,284 @@
+/* The workspace area: workspaces, problems, export, ReqIF import and settings. Forms and cards are its own;
+   colours, type and buttons come from base.css. */
+.wpage {
+  background: var(--pane);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.wsolo {
+  min-height: 100vh;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 40px 16px;
+}
+.wsolo .wpage {
+  width: min(760px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.wbody {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 18px 22px 48px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  max-width: 920px;
+}
+.wcard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.wcard h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.wcard h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+  margin-top: 6px;
+}
+.wpage .note {
+  font-size: 13px;
+  color: var(--dim);
+}
+.wpage .group {
+  padding: 8px 0 4px;
+  position: static;
+  background: none;
+}
+.wpage .btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-strong);
+  justify-self: start;
+}
+.wpage .btn.primary:hover {
+  background: var(--accent-ink);
+}
+.wpage .btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Fields */
+.fld {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.fld label,
+.radios legend {
+  font-size: 13px;
+  font-weight: 500;
+}
+.fld input[type="text"],
+.fld select {
+  font: 13.5px "IBM Plex Sans";
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--field);
+  border-radius: 7px;
+  background: var(--pane);
+  color: var(--ink);
+  min-width: 0;
+}
+.fld input.pathin {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.fld.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fhelp {
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.frow {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+.frow > .btn {
+  margin-top: 23px;
+}
+.radios {
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.radios legend {
+  margin-bottom: 6px;
+}
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+/* Results */
+.notice.wok {
+  display: grid;
+  gap: 8px;
+}
+.wpath {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.wpre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.wproblems {
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.wproblems .sev,
+.plist[data-severity] .pm::before {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: 8px;
+}
+.wproblems .sev-error .sev {
+  color: var(--bad);
+}
+.plist {
+  list-style: none;
+  border-top: 1px solid var(--line-soft);
+}
+.plist li {
+  display: grid;
+  gap: 2px 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13.5px;
+}
+.plist .pe,
+.plist .pw {
+  grid-column: 1;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.plist .pw {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.plist .radio {
+  grid-column: 2;
+}
+.plist[data-severity="error"] li {
+  border-left: 3px solid var(--bad);
+  padding-left: 10px;
+}
+.recent {
+  list-style: none;
+  display: grid;
+}
+.recent li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.recent .rw {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.recent .rd {
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.refs summary {
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.refs ul {
+  margin: 6px 0 0 18px;
+  font-size: 13px;
+  display: grid;
+  gap: 2px;
+}
+.facts-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 18px;
+  font-size: 13.5px;
+}
+.facts-list dt {
+  color: var(--dim);
+}
+.tscroll {
+  overflow-x: auto;
+}
+.wtable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.wtable th,
+.wtable td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.wtable th {
+  font-weight: 600;
+  color: var(--dim);
+}
+.licence {
+  font-size: 12.5px;
+  color: var(--dim);
+  display: grid;
+  gap: 2px;
+}
+
+@media (max-width: 720px) {
+  .frow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .frow > .btn {
+    margin-top: 0;
+  }
+  .wbody {
+    padding: 14px 16px 40px;
+  }
+  .plist li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plist .radio {
+    grid-column: 1;
+  }
+}

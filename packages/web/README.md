@@ -16,12 +16,13 @@ pnpm --filter @reqseq/web test:ui    # Playwright in Chromium; once: pnpm --filt
 
 ## Areas
 
-An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`) or a queue (`addQueue`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame.
+An area is one module in `src/areas/` with a style sheet of its own in `src/css/`. It registers the first part of its routes (`addRoute`), and may add a rail section (`addRailSection`) or a queue (`addQueue`). `main.ts` imports each area once. `layout.ts` holds the frame (rail, phone bar, main area), `marks.ts` the verification and status marks, `base.css` the colours, type and frame. `shell.ts` holds what a desktop shell would do differently: today a path field whose completion comes from `workspace.listFolder`.
 
 | Area | Routes |
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
 | `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, read only |
+| `workspace.ts` | `#/w/open`, `#/w/problems`, `#/w/export`, `#/w/import`, `#/w/settings`: open, create and switch workspaces (the only page while none is open), the problems of `workspace.check` and the queue `problems`, exports into the repositories (`exports/` proposed), the ReqIF import, and the settings |
 
 ## Rules
 
