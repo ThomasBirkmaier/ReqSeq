@@ -508,6 +508,7 @@ describe("reqseq ui", () => {
   it("does not start on an invalid port or a workspace that is missing", async () => {
     for (const argv of [
       ["ui", "--no-open", "--port", "x"],
+      ["ui", "--no-open", "--port", "0"],
       ["ui", "--no-open", "--workspace", "gone"],
     ]) {
       const opts = options(argv, { webFolder: await pages() });
@@ -530,7 +531,11 @@ describe("reqseq ui", () => {
     await fs.mkdir(delivery, { recursive: true });
     await fs.writeFile(path.join(delivery, "index.html"), "");
     expect(webFolder(dist)).toBe(delivery);
-    expect(webFolder()).toBe(path.join(import.meta.dirname, "..", "..", "web", "dist"));
+    // This checkout: its pages after `pnpm build`, else the delivery's folder, which is missing then.
+    expect([
+      path.join(import.meta.dirname, "..", "..", "web", "dist"),
+      path.join(import.meta.dirname, "..", "web"),
+    ]).toContain(webFolder());
   });
 });
 

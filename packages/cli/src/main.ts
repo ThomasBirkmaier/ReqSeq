@@ -323,7 +323,8 @@ async function serveUi(
 ): Promise<void> {
   // Loaded only for the server (#178), as the API server is.
   const { checkPort, createUiServer } = await import("@reqseq/api");
-  const port = checkPort(portNumber(request.port));
+  // `--port` names a port from 1 to 65535 (SR-247 AK3); without it the server takes a free one.
+  const port = checkPort(request.port === undefined ? 0 : portNumber(request.port) || Number.NaN);
   const workspace =
     request.workspace === undefined
       ? await findWorkspaceRoot(options.cwd)

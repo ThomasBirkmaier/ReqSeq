@@ -296,7 +296,6 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
       broadcast(eventText("change", { scope: change.scope, elements: change.elements }));
     });
     void warmWorkspace(workspace);
-    await markOpened(workspace);
     generation += 1;
     return { workspace, generation, reads: new AbortController(), unsubscribe };
   };
@@ -318,6 +317,7 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
     session = undefined;
     await end(old);
     session = await begin(workspace);
+    await markOpened(workspace);
     broadcast(eventText("workspace", { generation }));
     return { generation, root: workspace.root };
   };
@@ -502,6 +502,10 @@ export async function createUiServer(options: UiServerOptions): Promise<UiServer
       throw error;
     },
   );
+  // Marked only once the server listens: a start that fails opened nothing (SR-247 AK3).
+  if (session !== undefined) {
+    await markOpened(session.workspace);
+  }
   return {
     port,
     token,

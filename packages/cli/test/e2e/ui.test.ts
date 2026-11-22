@@ -203,6 +203,31 @@ const answers = (port: number): Promise<boolean> =>
     });
   });
 
+/** Whether this machine has the IPv6 loopback address: a server can listen on it. */
+const hasIpv6Loopback = (): Promise<boolean> =>
+  new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => {
+      resolve(false);
+    });
+    server.listen(0, "::1", () => {
+      server.close(() => {
+        resolve(true);
+      });
+    });
+  });
+
+/** The status of a GET of `url`, with the Host the URL names. */
+const statusAt = (url: string): Promise<number | undefined> =>
+  new Promise((resolve, reject) => {
+    http
+      .get(url, { agent: false }, (response) => {
+        response.resume();
+        resolve(response.statusCode);
+      })
+      .on("error", reject);
+  });
+
 /** A TCP port that was free a moment ago. */
 const freePort = (): Promise<number> =>
   new Promise((resolve, reject) => {
@@ -239,6 +264,7 @@ describe("reqseq ui: start (SR-247)", () => {
   it("[SR-247/AK-d8zr] serves the workspace found or named on loopback, prints the address with the token and passes it to the opener, or says it could not", async () => {
     const ws = await workspace();
     const elsewhere = await emptyFolder();
+    const tokens: string[] = [];
     // Found from a folder inside the workspace, and named with --workspace from elsewhere.
     for (const [args, cwd] of [
       [["--no-open"], ws.path("requirements")],
@@ -250,25 +276,17 @@ describe("reqseq ui: start (SR-247)", () => {
       const status = await command(server, "workspace.status");
       expect([status.status, status.body]).toMatchObject([200, { name: "Weather station" }]);
       // Only loopback addresses: ::1 where the machine has it, never another one (AK4 checks other machines).
-      const v6 = await new Promise<boolean>((resolve) => {
-        const socket = net.connect({ host: "::1", port: server.port });
-        socket.once("connect", () => {
-          socket.destroy();
-          resolve(true);
-        });
-        socket.once("error", () => {
-          resolve(false);
-        });
-      });
-      if (v6) {
-        expect((await request(server, "GET", "/", { host: `[::1]:${String(server.port)}` })).status).toBe(
-          200,
-        );
+      // ::1 where the machine has it, asked there directly.
+      if (await hasIpv6Loopback()) {
+        expect(await statusAt(`http://[::1]:${String(server.port)}/`)).toBe(200);
       }
+      tokens.push(server.token);
       expect(server.err()).toBe("");
       server.child.kill();
       await exited(server.child);
     }
+    // The token is new on every start (AK6).
+    expect(new Set(tokens).size).toBe(2);
     // Without --no-open the address goes to the system's opener, which cannot start here (no program on PATH):
     // the server keeps running and says so.
     const noOpener = await emptyFolder();
@@ -334,12 +352,17 @@ describe("reqseq ui: start (SR-247)", () => {
     const wanted = await freePort();
     const named = await ui(["--no-open", "--port", String(wanted)], ws.root);
     expect(named.port).toBe(wanted);
-    for (const port of [String(wanted), "0x50", "70000", "-1", "http"]) {
-      const started = await spawnUi(["--no-open", "--port", port], ws.root);
+    const home = await emptyFolder();
+    for (const port of [String(wanted), "0", "0x50", "70000", "-1", "http"]) {
+      const started = await spawnUi(["--no-open", "--port", port], ws.root, { home });
       expect([port, await exited(started.child)]).toEqual([port, 2]);
       expect(started.out()).toBe("");
       expect(started.err()).toMatch(port === String(wanted) ? /in use|busy|EADDRINUSE/i : /port/i);
     }
+    // A start that failed marked nothing as opened.
+    const recent = await spawnUi(["--no-open"], await emptyFolder(), { home });
+    const listed = await running(recent);
+    expect(await recentRoots(listed, 0)).toEqual([]);
   }, 60_000);
 });
 
@@ -493,8 +516,8 @@ describe("reqseq ui: who reaches it (SR-247)", () => {
 describe("reqseq ui: stop and records (SR-247)", () => {
   it("[SR-247/AK-jv9g] answers no more after Ctrl-C, SIGTERM or the end of its terminal", async () => {
     const ws = await workspace();
-    // Windows has no handler for these signals: kill() ends the process at once, which is what closing the
-    // console window does there after Node's SIGHUP.
+    // On Windows kill() cannot send SIGINT or SIGHUP and ends the process at once (TerminateProcess), so there
+    // only the end of the process is shown; the handlers of all three are unit tests (process.test.ts).
     const signals =
       process.platform === "win32" ? (["SIGTERM"] as const) : (["SIGINT", "SIGTERM", "SIGHUP"] as const);
     for (const signal of signals) {

@@ -596,5 +596,12 @@ describe("UI server: commands and workspaces", () => {
     await expect(createUiServer({ pages, runner, port: -1 })).rejects.toMatchObject({
       code: "input.invalid",
     });
+    // A start that fails marks nothing as opened (SR-247 AK3).
+    const ws = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    onTestFinished(() => ws.cleanup());
+    await expect(
+      createUiServer({ pages, runner, port: first.port, workspace: ws.root }),
+    ).rejects.toMatchObject({ code: "input.invalid" });
+    expect(marked).toEqual([]);
   });
 });
