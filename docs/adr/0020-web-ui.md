@@ -103,11 +103,11 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
   - `Content-Security-Policy` with `frame-ancestors 'none'`;
   - no `Access-Control-Allow-*` (SR-247 AK9).
 - **Pages:**
-  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
   - `X-Frame-Options: DENY`;
   - `Referrer-Policy: no-referrer`.
 
-  `'unsafe-inline'` for styles is needed because KaTeX writes `style` attributes and Mermaid writes `<style>` into its SVG. Scripts stay `'self'`, and every source stays the own server. The build inlines no asset as `data:` (`build.assetsInlineLimit: 0`), and KaTeX's fonts are files.
+  `'unsafe-inline'` for styles is needed because KaTeX writes `style` attributes and Mermaid writes `<style>` into its SVG. Scripts stay `'self'`, and every source stays the own server; `blob:` for images only admits images the page builds from an answer of its server (SR-247 AK9). The build inlines no asset as `data:` (`build.assetsInlineLimit: 0`), and KaTeX's fonts are files.
 - **Command answers:** `Cache-Control: no-store`.
 
 ### Element content (SR-248 AK5)
@@ -151,7 +151,8 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
   - a copy of `spec/` with a generated Git history;
   - a workspace with an unusual metamodel;
   - a workspace without identifiers.
-- **Browsers:** all UI tests run in Chromium. The tests of SR-247, SR-248, SR-249 AK1 and SR-078 AK3 run in Firefox and WebKit too.
+- **Browsers:** all UI tests run in Chromium. The tests of SR-248, SR-249 AK1 and SR-078 AK3 run in Firefox and WebKit too.
+- **SR-247:** its tests are in the CLI e2e suite (`packages/cli/test/e2e/ui.test.ts`) on the three systems. They start the built `reqseq ui` and send raw HTTP requests, because a browser sends no forged Host, Origin or token header, and the start, the port and the signals are the process's, not the page's.
 - **SR-078 AK3:** each browser context routes every request to a non-loopback address to a recorder that refuses it. The server runs in a network namespace with loopback only (Linux), as the delivery tests do.
 - **Network:** the browsers are cached in CI, and the tests run with the network blocked.
 - **Tags:** only these contract tests carry AK tags. Appearance and operation are tested, not traced.

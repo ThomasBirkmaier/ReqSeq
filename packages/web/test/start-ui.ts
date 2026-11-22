@@ -4,8 +4,8 @@
 import path from "node:path";
 import type { UiServer } from "@reqseq/api";
 import { createUiServer } from "@reqseq/api";
-import type { CommandTypes } from "@reqseq/core";
-import { Workspace, invoke } from "@reqseq/core";
+import type { CommandTypes, InvokeContext } from "@reqseq/core";
+import { Workspace, getCommandRuntime, invoke } from "@reqseq/core";
 import type { FixtureWorkspace, RunCommand } from "@reqseq/testkit";
 import {
   createNoIdentifierWorkspace,
@@ -52,6 +52,21 @@ export const runOn =
     }
   };
 
+/**
+ * The product's runtime, except that `workspace.markOpened` writes nothing: the list of recent workspaces lies in
+ * the OS cache folder of the user who runs the tests, and the temporary workspaces would push out theirs.
+ */
+const runner = (() => {
+  const runtime = getCommandRuntime();
+  return {
+    contracts: runtime.contracts,
+    invoke: (name: string, input: unknown, ctx: InvokeContext): Promise<unknown> =>
+      name === "workspace.markOpened"
+        ? Promise.resolve({ answer: "", root: ctx.workspace.root, opened: new Date().toISOString() })
+        : runtime.invoke(name, input, ctx),
+  };
+})();
+
 /** The UI server on `workspace`, or without one. */
 export const startUi = (workspace?: string): Promise<UiServer> =>
-  createUiServer({ pages: PAGES, ...(workspace === undefined ? {} : { workspace }) });
+  createUiServer({ pages: PAGES, runner, ...(workspace === undefined ? {} : { workspace }) });

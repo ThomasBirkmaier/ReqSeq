@@ -22,11 +22,15 @@ export default defineConfig<Options>({
   // Every page runs on each workspace; the tests of the page's foundation and build on the spec copy only.
   projects: [
     { name: "spec", use: { kind: "spec" } },
-    { name: "orbit", use: { kind: "orbit" }, testMatch: /(overview|element|routes|changes)\.spec\.ts$/ },
+    {
+      name: "orbit",
+      use: { kind: "orbit" },
+      testMatch: /(overview|element|routes|changes|evidence|trace|edit)\.spec\.ts$/,
+    },
     {
       name: "no-identifier",
       use: { kind: "no-identifier" },
-      testMatch: /(overview|element|routes|changes)\.spec\.ts$/,
+      testMatch: /(overview|element|routes|changes|evidence|trace|edit)\.spec\.ts$/,
     },
   ],
 });
