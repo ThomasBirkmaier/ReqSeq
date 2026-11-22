@@ -11,7 +11,7 @@ import { addRailSection, errorBox, frame, prepareRail } from "../layout.js";
 import { namesOf, reqWords, typeName, typesWith } from "../meaning.js";
 import type { Route } from "../router.js";
 import { addRoute, fromOf, hashOf, isCurrent, parseHash } from "../router.js";
-import { el, hasVariants, refOf, shownId, store } from "../store.js";
+import { el, hasVariants, load, refOf, shownId, store } from "../store.js";
 
 const VARIANT = "variant";
 
@@ -65,7 +65,7 @@ const group = (title: string, count: number, sub: string, rows: Child): HTMLElem
     count === 0 ? h("p", { class: "none" }, "None.") : h("div", { role: "list" }, rows),
   );
 
-/** Runs `variant.exclude` and draws the page again with what it did. */
+/** Runs `variant.exclude`, draws the page again with what it did, and reads the store again. */
 async function exclude(
   variant: string,
   name: string,
@@ -90,6 +90,11 @@ async function exclude(
     };
     announce(done.text);
     redraw();
+    // The server's own write is followed by no `change` event: the store, and with it the verification in the
+    // variant's view, is read again here, then the page drawn with it.
+    void load()
+      .catch(() => undefined)
+      .then(redraw);
   } catch (error) {
     status.replaceChildren(errorBox(error));
   } finally {
