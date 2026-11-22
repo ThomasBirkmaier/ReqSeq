@@ -327,7 +327,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
 ];
 
 /**
- * The heading of the installation guide's page for the command line (SR-076 AK1) in the docs of this version,
+ * The heading of the installation guide's page for the command line (SR-249 AK1) in the docs of this version,
  * `docs/guide/how-to/install-reqseq.md`; fixed text, not read from the bundled documentation (SR-229 AK11).
  */
 export const INSTALL_PAGE_TITLE = "Install ReqSeq";

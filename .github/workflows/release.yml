@@ -1,12 +1,14 @@
 name: Release
 
-# ADR-0014 (ThomasBirkmaier/ReqSeq-archive#324): builds the portable delivery of each system with electron-builder, installs (unpacks) and tests
-# it (ADR-0011), and publishes it as a GitHub release. Only on a stage tag (`v*`) or by hand, never on pull requests
-# or pushes (the delivery must not slow down PR CI). The tag releases only when
-# it is `v<version>` of the root package.json (`v<major>.<minor>` for a patch of 0) and on `main`.
-# Each system is built and tested on GitHub's runner of SR-076's reference system (macOS 26, Ubuntu 24.04,
-# Windows), so the delivery tests of a run are the evidence for SR-076 AK1 and AK2.
-# Every product, artifact and launcher name comes from toolchain/packaging/names.json.
+# ADR-0020 (#2308): builds the portable delivery without Electron, one archive per system with the launcher, the
+# pinned Node, the command line with the MCP server and the UI server, the pages of the web UI and the documentation,
+# and the CLI tarball; installs (unpacks) and tests it on each system (ADR-0011), and publishes it as a GitHub release.
+# Only on a stage tag (`v*`) or by hand, never on pull requests or pushes (the delivery must not slow down PR CI). The
+# tag releases only when it is `v<version>` of the root package.json (`v<major>.<minor>` for a patch of 0) and on
+# `main`. Each system is tested on GitHub's runner of SR-249's reference system (macOS 26, Ubuntu 24.04, Windows), so
+# the delivery tests of a run are the evidence for SR-249 AK1 and AK2.
+# Every product, artifact and launcher name comes from toolchain/packaging/names.json, the Node version and the
+# SHA-256 of its archives from toolchain/packaging/node.json.
 on:
   push:
     tags: ["v*"]
@@ -27,7 +29,7 @@ defaults:
 jobs:
   # The documentation that every delivery ships (SR-141, ADR-0017): the offline build of the site (base `/`, the
   # version in every title), made once on Linux with the shared steps of docs-pages.yml, and the licences of what it
-  # ships checked against ADR-0015 (scripts/licenses/site.mjs). The build jobs stage it as resources/cli/docs/ and
+  # ships checked against ADR-0015 (scripts/licenses/site.mjs). The build job stages it as lib/docs/ of the archives and
   # package/docs/ of the CLI tarball.
   docs-site:
     name: docs site
@@ -64,21 +66,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The archives of all three systems and the CLI tarball, made once on Linux: the program is JavaScript without
+  # native modules, so only the Node binary differs per system.
   build:
-    name: build (${{ matrix.os }})
+    name: build
     needs: docs-site
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-26
-            target: --mac
-          - os: ubuntu-24.04
-            target: --linux
-          - os: windows-2025
-            target: --win
-    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,97 +86,98 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
-      - name: Build the app (electron-vite)
-        run: pnpm --filter "$(node -p 'require("./toolchain/packaging/names.json").packageScope')app" build:electron
-      # electron-builder has its own lockfile outside the workspace, so PR CI never installs it (ADR-0001, ADR-0014).
-      - name: Install and audit electron-builder
+      # The Node archives of node.json, downloaded once per pin and cached; stage.mjs checks each against its SHA-256
+      # on every run, a cached one too. Nothing is downloaded at install or run time (SR-078 AK2).
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: node-cache
+        with:
+          path: build/node-archives
+          key: node-archives-${{ hashFiles('toolchain/packaging/node.json') }}
+      - name: Download the Node archives
+        if: steps.node-cache.outputs.cache-hit != 'true'
         run: |
-          pnpm install --dir toolchain/packaging --frozen-lockfile --ignore-scripts
-          pnpm audit --dir toolchain/packaging --audit-level high
+          mkdir -p build/node-archives
+          node scripts/package/stage.mjs --node-urls | while read -r url file; do
+            curl -fsSL --retry 3 --max-time 600 -o "build/node-archives/$file" "$url"
+          done
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: docs-site
           path: build/docs-site
-      - name: Stage the app, the command line and the documentation
+      - name: Stage and pack the archives
         run: node scripts/package/stage.mjs
-      # What electron-builder downloads (the Electron zip, its tools such as 7-Zip and rcedit) is cached per system,
-      # electron-builder and Electron version, so a run normally fetches nothing (#1234). The zip goes to
-      # @electron/get's default cache, which electron-builder gives no setting for: env-paths("electron").cache.
-      - name: Download cache folders
-        id: download-cache
-        run: |
-          case "$RUNNER_OS" in
-            macOS) electron="$HOME/Library/Caches/electron" ;;
-            Windows) electron="$LOCALAPPDATA/electron/Cache" ;;
-            *) electron="${XDG_CACHE_HOME:-$HOME/.cache}/electron" ;;
-          esac
-          {
-            echo "electron=$electron"
-            builder="$(node -p 'require("./toolchain/packaging/package.json").devDependencies["electron-builder"]')"
-            version="$(node -p 'require("./packages/app/package.json").devDependencies.electron')"
-            echo "key=electron-builder-$RUNNER_OS-$RUNNER_ARCH-$builder-electron-$version"
-          } >> "$GITHUB_OUTPUT"
-          echo "ELECTRON_BUILDER_CACHE=$RUNNER_TEMP/electron-builder-cache" >> "$GITHUB_ENV"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: download-cache-restore
-        with:
-          path: |
-            ${{ steps.download-cache.outputs.electron }}
-            ${{ runner.temp }}/electron-builder-cache
-          key: ${{ steps.download-cache.outputs.key }}
-      # Called directly, not through pnpm, so electron-builder does not take the folders for a pnpm workspace.
-      # No certificate is ever used: ad-hoc signature on macOS (ADR-0014).
-      # A tag run reads only the caches of its tag and of main, so it misses after every change of the key until a
-      # manual run on main has saved it, and then downloads everything. One download error (an HTTP 504 in the run
-      # of v0.8.5, #1238) must not fail the release, so packaging is tried a second time after 30 seconds.
-      - name: Package
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          NO_UPDATE_NOTIFIER: "1"
-          TARGET: ${{ matrix.target }}
-        run: |
-          package() {
-            toolchain/packaging/node_modules/.bin/electron-builder --projectDir build/package/app \
-              --config "$PWD/toolchain/packaging/electron-builder.config.mjs" "$TARGET" --publish never
-          }
-          if ! package; then
-            echo "::warning::packaging failed, trying once more in 30 seconds (#1238)"
-            sleep 30
-            package
-          fi
-      # Saved right after packaging, so that a red delivery test still fills the cache.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: steps.download-cache-restore.outputs.cache-hit != 'true'
+        if: steps.node-cache.outputs.cache-hit != 'true'
         with:
-          path: |
-            ${{ steps.download-cache.outputs.electron }}
-            ${{ runner.temp }}/electron-builder-cache
-          key: ${{ steps.download-cache-restore.outputs.cache-primary-key }}
+          path: build/node-archives
+          key: ${{ steps.node-cache.outputs.cache-primary-key }}
       - name: Pack the command line (CLI tarball)
-        if: runner.os == 'Linux'
         run: node scripts/package/stage.mjs --pack
-      # The app start needs a display and Electron's libraries; GitHub's image has most of them. The AppArmor
-      # setting of the runner is left as shipped: the test takes the documented admin step for chrome-sandbox.
-      - name: Display server and libraries for Electron (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
-          if ! dpkg -s $packages >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
-          fi
-      - name: Delivery tests
-        run: scripts/package/delivery-tests.sh
       - name: Upload the delivery
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: delivery-${{ matrix.os }}
+          name: delivery
           path: |
             delivery/*.zip
             delivery/*.tar.gz
             delivery/*.tgz
           if-no-files-found: error
           retention-days: 1
+
+  # The delivery tests on each reference system: the archive of the system is unpacked and run, `reqseq ui` loaded in
+  # Chromium, Firefox and WebKit (SR-249 AK1); the inspection of all archives runs on every system.
+  test:
+    name: test (${{ matrix.os }})
+    needs: build
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      # The tests import core, the MCP client transport and the test kit.
+      - name: Build
+        run: pnpm build
+      # The three browsers of SR-249 AK1, downloaded once per Playwright version and system; their system libraries on
+      # Linux on every run.
+      - name: Playwright version
+        id: playwright
+        run: |
+          echo "version=$(node -p "require('./packages/web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browser-cache
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: Browsers
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @reqseq/web exec playwright install chromium firefox webkit
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: ${{ steps.browser-cache.outputs.cache-primary-key }}
+      - name: System libraries of the browsers (Linux)
+        if: runner.os == 'Linux'
+        run: pnpm --filter @reqseq/web exec playwright install-deps chromium firefox webkit
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: delivery
+          path: delivery
+      - name: Delivery tests
+        run: scripts/package/delivery-tests.sh
       - name: Upload JUnit results (evidence, D-050)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -198,7 +193,7 @@ jobs:
   # summary of the version in docs/releases/ must be there, or the run fails.
   release:
     name: release
-    needs: build
+    needs: [build, test]
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     timeout-minutes: 20
     permissions:
@@ -244,20 +239,19 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = push ]; then ref="$GITHUB_REF_NAME"; fi
           product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
           {
-            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Install ${product}]($INSTALL))."
+            echo "Portable delivery: unpack the archive of your system and run \`bin/reqseq\` (see [Install ${product}]($INSTALL))."
             echo
             echo "<!-- files -->"
             echo
-            echo "The builds are not signed by a vendor certificate: see [the first start of the app]($INSTALL#app)."
+            echo "The archives are not signed by a vendor certificate: see [the first start]($INSTALL#first-start)."
           } > delivery.md
           node scripts/package/stage.mjs --release-body "$ref" delivery.md > release-body.md
           cat release-body.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: steps.tag.outputs.publish == 'true'
         with:
-          pattern: delivery-*
+          name: delivery
           path: release-assets
-          merge-multiple: true
       - name: Checksums
         if: steps.tag.outputs.publish == 'true'
         working-directory: release-assets

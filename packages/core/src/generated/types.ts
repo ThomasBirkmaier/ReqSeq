@@ -2502,11 +2502,11 @@ export interface WorkspaceConnectAgentOutput {
   readonly client?: "claude-code" | "claude-desktop" | "cursor" | "vscode" | "codex-cli" | "other";
   /** The program, arguments and environment the setup gives the client. Only with a client. */
   readonly server?: {
-    /** The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node). */
+    /** The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`runtime\node.exe` of a delivery on Windows, or Node). */
     readonly command: string;
     /** Its arguments: the absolute path of the command line's `bin.js` when the program is the runtime, then `mcp`, `--workspace` and the absolute path of the workspace. */
     readonly args: readonly string[];
-    /** Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty. */
+    /** Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty. */
     readonly env: Readonly<Record<string, string>>;
   };
   /** What the user pastes. Only with a client. */
@@ -2560,7 +2560,7 @@ export interface ToolInfoOutput {
     /** The processor architecture as Node names it (`arm64`, `x64`). */
     readonly arch: string;
   };
-  /** The runtime of the process. The command line, API and MCP server of a release run on the Electron of the app, so a release gives the same values in every access. */
+  /** The runtime of the process. The command line, API, MCP server and web UI of a release run on the Node it ships, so a release gives the same values in every access. */
   readonly runtime: {
     /** Left out when ReqSeq does not run on Electron (a command line on its own Node). */
     readonly electron?: string;
@@ -2584,12 +2584,12 @@ export interface ToolInfoOutput {
   readonly license: {
     /** The licence notice of ReqSeq, one item per line. */
     readonly notice: readonly string[];
-    /** The file of the release that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout. */
+    /** The file of the release that lists the third-party components with their licences, relative to its folder. Left out in a build from a checkout. */
     readonly thirdParty?: OutputPath;
   };
   /** Where the documentation and the releases are. */
   readonly documentation: {
-    /** The folder of the release with its documentation site (SR-141), relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout. */
+    /** The folder of the release with its documentation site (SR-141), relative to its folder, with `/` between its names (`lib/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout. */
     readonly bundled?: OutputPath;
     /** The address of the online documentation, as text only: ReqSeq never opens it. */
     readonly online: string;

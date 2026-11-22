@@ -6,7 +6,7 @@
 import path from "node:path";
 
 export interface Installation {
-  /** The absolute path of the runtime binary: the Electron of a delivery (`ReqSeq`, `ReqSeq.exe`) or Node. */
+  /** The absolute path of the runtime binary: the Node of a delivery (`runtime/node`), another Node, or Electron. */
   readonly runtime: string;
   /** The absolute path of the command line's entry, `cli/dist/bin.js`. */
   readonly entry: string;

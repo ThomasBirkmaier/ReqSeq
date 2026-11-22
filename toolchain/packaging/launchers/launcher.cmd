@@ -1,7 +1,7 @@
 @echo off
-rem Command line and MCP server of the delivery (ADR-0014): the CLI on the delivery's Electron binary as plain Node.
-rem @PRODUCT@ is filled in from names.json by scripts/package/stage.mjs.
+rem Command line, MCP server and web UI of the delivery (ADR-0020): the CLI in lib\ on the delivery's own Node in
+rem runtime\. NODE_OPTIONS is unset, so options from the environment cannot change the program.
 setlocal
-set "ELECTRON_RUN_AS_NODE=1"
-"%~dp0..\@PRODUCT@.exe" "%~dp0..\resources\cli\dist\bin.js" %*
+set "NODE_OPTIONS="
+"%~dp0..\runtime\node.exe" "%~dp0..\lib\dist\bin.js" %*
 exit /b %ERRORLEVEL%

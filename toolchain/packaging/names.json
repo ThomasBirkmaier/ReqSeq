@@ -4,5 +4,6 @@
   "launcher": "reqseq",
   "packageScope": "@reqseq/",
   "cliTarball": "reqseq-cli-${version}.tgz",
-  "artifact": "${productName}-${version}-${os}-${arch}.${ext}"
+  "artifact": "${productName}-${version}-${os}-${arch}.${ext}",
+  "folder": "${productName}-${version}-${os}-${arch}"
 }

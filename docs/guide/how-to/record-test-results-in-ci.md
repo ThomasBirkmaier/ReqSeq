@@ -82,7 +82,7 @@ evidence:
       - requirements/evidence/ci/
 ```
 
-The snippets were not run on a CI server; their `reqseq` line is tested with a real Vitest run and the JUnit file of a real pytest run. A Vitest and a pytest example to try out come with the release, in `resources/docs/junit/`.
+The snippets were not run on a CI server; their `reqseq` line is tested with a real Vitest run and the JUnit file of a real pytest run. A Vitest and a pytest example to try out come with the release, in `examples/junit/`.
 
 **When something goes wrong:**
 

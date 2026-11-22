@@ -1,4 +1,4 @@
-// Delivery tests of the command line and the MCP server (ADR-0014, ADR-0011, ThomasBirkmaier/ReqSeq-archive#324): they install the built
+// Delivery tests of the command line and the MCP server (ADR-0020, ADR-0011, #2308): they install the built
 // artifacts (unpack them) and inspect and run them. Only the release workflow runs them (`pnpm test:delivery`,
 // REQSEQ_DELIVERY_DIR = the folder with the artifacts); on Linux inside a network namespace with loopback only,
 // as a non-root user. A test that cannot run here is skipped with its reason, never left out.
@@ -21,6 +21,7 @@ import {
   connectProbe,
   createFixtureWorkspace,
   deliveryArtifactName,
+  deliveryFolderName,
   deliveryLayout,
   inspectDelivery,
   installDelivery,
@@ -35,8 +36,11 @@ const names = JSON.parse(
 ) as DeliveryNames;
 const { version } = JSON.parse(readFileSync(path.join(repo, "package.json"), "utf8")) as { version: string };
 const deliveryDir = process.env["REQSEQ_DELIVERY_DIR"] ?? path.join(repo, "delivery");
-/** ADR-0015 (SR-111): the renderer bundles them, so the notices must name them. */
-const REQUIRED_NOTICES = ["@dagrejs/dagre", "@dagrejs/graphlib"];
+const node = JSON.parse(readFileSync(path.join(repo, "toolchain", "packaging", "node.json"), "utf8")) as {
+  version: string;
+};
+/** ADR-0020: the web UI bundles KaTeX and the IBM Plex fonts, and the archives ship Node, so the notices name them. */
+const REQUIRED_NOTICES = ["katex", "@fontsource/ibm-plex-sans", "@fontsource/ibm-plex-mono", "Node.js"];
 
 /**
  * The tests without network (SR-078 AK2) run on Linux, in the network namespace with loopback only that
@@ -92,6 +96,7 @@ const launch = (
   launcher: string,
   args: readonly string[],
   ws: FixtureWorkspace,
+  env: Record<string, string> = {},
 ): ChildProcessWithoutNullStreams => {
   const home = ws.path("home");
   const shell = process.platform === "win32";
@@ -100,17 +105,17 @@ const launch = (
     cwd: ws.root,
     stdio: "pipe",
     shell,
-    env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home },
+    env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home, ...env },
   });
   children.push(child);
   return child;
 };
 
-/** The command line gives the workspace status, and the MCP server answers with the catalog's tools. */
-const runCommandLineAndMcp = async (launcher: string): Promise<void> => {
+/** The command line gives the workspace status (with `env`), and the MCP server answers with the catalog's tools. */
+const runCommandLineAndMcp = async (launcher: string, env: Record<string, string> = {}): Promise<void> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
   fixtures.push(ws);
-  const status = launch(launcher, ["workspace", "status", "--json"], ws);
+  const status = launch(launcher, ["workspace", "status", "--json"], ws, env);
   let stdout = "";
   status.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
   expect(await exited(status)).toBe(0);
@@ -269,29 +274,34 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
 
   beforeAll(async () => {
     if (built) {
-      installed = await installDelivery(artifact, await tempFolder(), names);
+      installed = await installDelivery(artifact, await tempFolder());
     }
   });
 
-  it(`[SR-076/AK-z5f8] the ${system} delivery contains the app, the launcher, the command line and the MCP server`, async (ctx) => {
+  it(`[SR-249/AK-m4f9] the ${system} delivery contains the command line, the MCP server, the web UI and Node, and no Electron`, async (ctx) => {
     if (!built) {
       ctx.skip(notBuilt);
     }
+    expect(path.basename(installed)).toBe(deliveryFolderName(names, system, version));
     expect(await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).toEqual([]);
     if (system === "mac" && process.platform === "darwin") {
-      // An ad-hoc signature that does not verify makes macOS call the app damaged (ADR-0014).
-      const app = path.join(installed, `${names.productName}.app`);
-      const verify = spawnSync("codesign", ["--verify", "--deep", "--strict", app], { encoding: "utf8" });
+      // The Node binary keeps the signature of the Node project (ADR-0020).
+      const verify = spawnSync("codesign", ["--verify", "--strict", path.join(installed, layout.runtime)], {
+        encoding: "utf8",
+      });
       expect(verify.stderr).toBe("");
       expect(verify.status).toBe(0);
     }
   });
 
-  it(`[SR-076/AK-z5f8] the launcher of the ${system} delivery runs the command line and the MCP server`, async (ctx) => {
+  it(`[SR-249/AK-m4f9] the launcher of the ${system} delivery runs the command line and the MCP server on its Node`, async (ctx) => {
     if (!runnable) {
       ctx.skip(notRunnable);
     }
-    await runCommandLineAndMcp(path.join(installed, layout.launcher));
+    // An option in NODE_OPTIONS that would stop Node does not reach the program: the launcher unsets it (ADR-0020).
+    await runCommandLineAndMcp(path.join(installed, layout.launcher), {
+      NODE_OPTIONS: "--require ./no-such-module.cjs",
+    });
   });
 
   it(`[SR-161/AK-x2b3] tool info of the ${system} delivery shows the version and the commit of this delivery`, async (ctx) => {
@@ -305,8 +315,8 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     if (process.env["GITHUB_SHA"] !== undefined) {
       expect(info["build"]?.["commit"]).toBe(process.env["GITHUB_SHA"]);
     }
-    // The command line runs on the Electron of the delivery (ADR-0014), as the app does.
-    expect(info["runtime"]?.["electron"]).toBeDefined();
+    // The command line runs on the Node of the delivery (ADR-0020).
+    expect(info["runtime"]).toEqual({ node: node.version });
   });
 
   it(`[SR-227/AK-qxzf] the setup of the ${system} delivery starts its MCP server, and a second copy gives its own paths`, async (ctx) => {
@@ -316,14 +326,14 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     // A second copy in a folder with a space: two installations give different paths (AK3).
     const folder = path.join(await tempFolder(), "Re Seq");
     await fs.mkdir(folder);
-    const copy = await installDelivery(artifact, folder, names);
+    const copy = await installDelivery(artifact, folder);
     for (const root of [installed, copy]) {
       const server = await connectAndStart(path.join(root, layout.launcher));
       if (process.platform === "win32") {
-        // The Windows form (AK3): ReqSeq.exe, bin.js and ELECTRON_RUN_AS_NODE.
-        expect(server.command).toBe(path.join(root, `${names.productName}.exe`));
-        expect(server.args[0]).toBe(path.join(root, "resources", "cli", "dist", "bin.js"));
-        expect(server.env).toEqual({ ELECTRON_RUN_AS_NODE: "1" });
+        // The Windows form (AK3, as #2352 assumes): the shipped node.exe and bin.js.
+        expect(server.command).toBe(path.join(root, layout.runtime));
+        expect(server.args[0]).toBe(path.join(root, layout.lib, "dist", "bin.js"));
+        expect(server.env).toEqual({});
       } else {
         expect(server.command).toBe(await fs.realpath(path.join(root, layout.launcher)));
         expect(server.env).toEqual({});
@@ -344,7 +354,7 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     }
     await assertOffline();
     // The installation happens here, inside the namespace without network.
-    const fresh = await installDelivery(artifact, await tempFolder(), names);
+    const fresh = await installDelivery(artifact, await tempFolder());
     await runCommandLineAndMcp(path.join(fresh, layout.launcher));
   });
 

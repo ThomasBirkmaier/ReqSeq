@@ -134,6 +134,29 @@ describe("workspace.connectAgent", () => {
     expect((await failure(run(ws.root, { client: "other" }))).code).toBe("agent.cli-missing");
   });
 
+  it("[SR-227/AK-cw0k] names the launcher of an unpacked delivery when it is there", async () => {
+    // The paths are the host's, so the test takes the host's platform: on Windows the delivery starts through
+    // runtime\node.exe, because its `.cmd` launcher runs only through a shell.
+    const windows = process.platform === "win32";
+    const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
+    onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
+    const runtime = path.join(folder, "runtime", windows ? "node.exe" : "node");
+    const entry = path.join(folder, "lib", "dist", "bin.js");
+    for (const file of [runtime, entry, path.join(folder, "bin", windows ? "reqseq.cmd" : "reqseq")]) {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, "");
+    }
+    setInstallation({ runtime, entry, electron: false });
+    const ws = await fixture();
+    const output = await run(ws.root, { client: "other" });
+    const args = ["mcp", "--workspace", ws.root];
+    expect(output.server).toEqual(
+      windows
+        ? { command: runtime, args: [entry, ...args], env: {} }
+        : { command: path.join(folder, "bin", "reqseq"), args, env: {} },
+    );
+  });
+
   it("refuses for the app macOS runs from a translocated place", async () => {
     const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
     onTestFinished(() => fs.rm(top, { recursive: true, force: true }));
