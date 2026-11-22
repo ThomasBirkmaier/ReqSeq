@@ -884,18 +884,36 @@ const versionAt = (
  */
 const MERGES_FROM = 100;
 
+/** The evaluated commits of each list by object name, built once per list (lists are replaced, never changed). */
+const evaluatedIndex = new WeakMap<readonly Evaluated[], ReadonlyMap<string, Evaluated>>();
+
+/** The entry of `commit` in the evaluated commits of `walk`. */
+const evaluatedAt = (walk: FileWalk, commit: string): Evaluated | undefined => {
+  let index = evaluatedIndex.get(walk.evaluated);
+  if (index === undefined) {
+    index = new Map(walk.evaluated.map((e) => [e.commit.commit, e]));
+    evaluatedIndex.set(walk.evaluated, index);
+  }
+  return index.get(commit);
+};
+
 /**
  * The source of `walk` on the first parent's side of the merge `commit` where its version can be
- * taken (see `firstParentVersions`): null where that side has no file; undefined where it cannot.
+ * taken (see `firstParentVersions`), null where that side has no file, with the number of parents
+ * the history gave the merge; undefined where it cannot be taken.
  */
-const firstParentSource = (walk: FileWalk, commit: string): HistoryCommit | null | undefined => {
-  const entry = walk.evaluated.find((e) => e.commit.commit === commit);
-  const source = entry !== undefined && entry.parents.length > 1 ? entry.parents[0] : undefined;
-  return walk.evaluatedFor !== walk.walked.tracked.size ||
-    source === undefined ||
-    (source !== null && (!walk.versions.has(source.commit) || walk.unknown.has(source.commit)))
+const firstParentSource = (
+  walk: FileWalk,
+  commit: string,
+): { readonly source: HistoryCommit | null; readonly parents: number } | undefined => {
+  const entry = evaluatedAt(walk, commit);
+  if (entry === undefined || entry.parents.length < 2 || walk.evaluatedFor !== walk.walked.tracked.size) {
+    return undefined;
+  }
+  const source = entry.parents[0] ?? null;
+  return source !== null && (!walk.versions.has(source.commit) || walk.unknown.has(source.commit))
     ? undefined
-    : source;
+    : { source, parents: entry.parents.length };
 };
 
 /**
@@ -915,12 +933,12 @@ const firstParentVersions = async (
 ): Promise<readonly { walk: FileWalk; commit: string }[]> => {
   const open = new Map<
     string,
-    { item: { walk: FileWalk; commit: string }; source: HistoryCommit | null }[]
+    { item: { walk: FileWalk; commit: string }; source: HistoryCommit | null; parents: number }[]
   >();
   for (const item of at) {
-    const source = firstParentSource(item.walk, item.commit);
-    if (source !== undefined) {
-      pushTo(open, item.commit, { item, source });
+    const found = firstParentSource(item.walk, item.commit);
+    if (found !== undefined) {
+      pushTo(open, item.commit, { item, ...found });
     }
   }
   const merges = [...open].filter(([, items]) => items.length >= MERGES_FROM);
@@ -945,10 +963,11 @@ const firstParentVersions = async (
     if (changed === undefined) {
       continue;
     }
-    const paths = new Set(changed.map((p) => p.normalize("NFC")));
-    for (const { item, source } of items) {
+    const paths = new Set(changed.paths.map((p) => p.normalize("NFC")));
+    for (const { item, source, parents } of items) {
       const { tracked } = item.walk.walked;
-      if (![...tracked].some((p) => paths.has(p))) {
+      // Where the history dropped a parent (`--parents` rewrites them), its first may be another one.
+      if (parents === changed.parents.length && ![...tracked].some((p) => paths.has(p))) {
         item.walk.versions.set(merge, source === null ? undefined : item.walk.versions.get(source.commit));
         done.add(item);
       }
@@ -1537,9 +1556,14 @@ const answered = (walk: FileWalk, version: string, start: Started | null): Answe
  * What HEAD alone tells a sort of `version` (SR-075 AK6: content that differs from the last commit
  * counts as newer than every committed one): `newer` where HEAD's file has another version or no
  * commit has the file, whatever older commits Git could not tell; `undated` where Git could not tell
- * HEAD's version; undefined while it is not computed, or where HEAD has the version.
+ * HEAD's version; undefined while it is not computed, where HEAD has the version, or where the
+ * walk's evaluated commits do not fit its tracked paths (`evaluatedFor`).
  */
 const byHead = (walk: FileWalk, version: string): "newer" | "undated" | undefined => {
+  // A walk whose tracked paths grew without a new history read (a round cut short) tells nothing.
+  if (walk.evaluatedFor !== walk.walked.tracked.size) {
+    return undefined;
+  }
   if (walk.head === "") {
     return "newer";
   }

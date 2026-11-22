@@ -1599,18 +1599,31 @@ describe("a repository folder below the top level of its work tree (ThomasBirkma
     ];
     const expected = {
       known: true,
+      // Each with its real parents.
       changes: new Map([
         // Both paths of the move, the new file as Git stores it.
-        [commitOf(more, "merged"), [nfd, "a.md", "c.md"].sort()],
+        [
+          commitOf(more, "merged"),
+          {
+            parents: [commitOf(made, "outside"), commitOf(more, "moved")],
+            paths: [nfd, "a.md", "c.md"].sort(),
+          },
+        ],
         // Against `second`; top.md lies outside the folder.
-        [commitOf(made, "merge"), ["a.md"]],
-        [commitOf(made, "outside"), []],
-        [commitOf(more, "ours"), []],
+        [
+          commitOf(made, "merge"),
+          { parents: [commitOf(made, "second"), commitOf(made, "side")], paths: ["a.md"] },
+        ],
+        [commitOf(made, "outside"), { parents: [commitOf(made, "merge")], paths: [] }],
+        [commitOf(more, "ours"), { parents: [commitOf(more, "merged"), commitOf(made, "side")], paths: [] }],
       ]),
     };
     const sorted = (listed: Awaited<ReturnType<typeof firstParentChanges>>): unknown =>
       listed.known
-        ? { known: true, changes: new Map([...listed.changes].map(([c, p]) => [c, [...p].sort()])) }
+        ? {
+            known: true,
+            changes: new Map([...listed.changes].map(([c, p]) => [c, { ...p, paths: [...p.paths].sort() }])),
+          }
         : listed;
     expect(sorted(await firstParentChanges(folder, asked))).toEqual(expected);
     // Without the fixed options, a merge would list nothing (log.diffMerges), a move only its new

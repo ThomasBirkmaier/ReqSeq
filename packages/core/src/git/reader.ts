@@ -773,7 +773,15 @@ export const historyRange = async (
 
 /** The paths each commit changed against its first parent, by commit ID (`firstParentChanges`). */
 export type FirstParentChanges =
-  { readonly known: true; readonly changes: ReadonlyMap<string, readonly string[]> } | GitUnknown;
+  | {
+      readonly known: true;
+      /** By commit ID: its real parents and the paths it changed against the first of them. */
+      readonly changes: ReadonlyMap<
+        string,
+        { readonly parents: readonly string[]; readonly paths: readonly string[] }
+      >;
+    }
+  | GitUnknown;
 
 /**
  * The paths each of `commits` changed against its first parent (a merge against the side it was
@@ -809,7 +817,12 @@ export const firstParentChanges = async (
   try {
     const listed = parseHistory(result.stdout.toString("utf8"), prefix.depth);
     // A path with no more names than the prefix lies outside the folder and has none left.
-    return { known: true, changes: new Map(listed.map((c) => [c.commit, c.paths.filter((p) => p !== "")])) };
+    return {
+      known: true,
+      changes: new Map(
+        listed.map((c) => [c.commit, { parents: c.parents, paths: c.paths.filter((p) => p !== "") }]),
+      ),
+    };
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }

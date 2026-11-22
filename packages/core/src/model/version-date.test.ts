@@ -1504,6 +1504,28 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     expect(await kinds()).toEqual(["uncommitted"]);
   });
 
+  it("sorts as late, not as newer, where the history read for an image HEAD's text embeds did not answer in time", async () => {
+    const text = element("![i](img.png)");
+    const repo = await repository([
+      { name: "one", files: { [FILE]: text, "requirements/img.png": "1" } },
+      { name: "two", files: { "requirements/img.png": "2" } },
+    ]);
+    const asked = [
+      {
+        repository: "system",
+        file: FILE,
+        id: ID,
+        version: await versionOf(repo.workspace, text, { "img.png": "2" }),
+      },
+    ];
+    // HEAD's text is read, it embeds the image, and the history read for it times out.
+    vi.mocked(fileHistory).mockImplementationOnce(actual.fileHistory).mockResolvedValueOnce(TIMEOUT);
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual([{ kind: "late" }]);
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual([
+      { kind: "dated", date: at(repo, "two") },
+    ]);
+  });
+
   it("finds the start of a version HEAD does not have after a sort of it, and sorts it as newer after its start was found", async () => {
     const repo = await repository([
       { name: "one", files: { [FILE]: one } },
