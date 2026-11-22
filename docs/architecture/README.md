@@ -4,7 +4,7 @@ Status: written before the first implementation; §5 updated to the code on 2026
 
 ## 1. Goals
 
-ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
+ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a web UI in the browser (the desktop app until #2310), a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-024); the one document it writes itself is the HTML export of a workspace (D-080).
 
 ### Quality goals
 
@@ -89,7 +89,8 @@ flowchart TB
     cli[packages/cli<br/>commander]
     api[packages/api<br/>node:http, loopback]
     mcp[packages/mcp<br/>MCP SDK, stdio]
-    app[packages/app<br/>Electron + React]
+    app[packages/app<br/>Electron + React, until #2310]
+    web[packages/web<br/>pages of the web UI]
   end
   subgraph core[packages/core/src]
     index[index.ts<br/>public exports]
@@ -120,7 +121,7 @@ flowchart TB
       catalog[catalog.ts, product.ts, problem-titles.ts, hint-order.ts, type-order.ts, build-info.ts, installation.ts, agent-setup.ts, next-steps.ts, generated/<br/>command types, CommandError, defineCommand]
     end
   end
-  cli & api & mcp & app --> index
+  cli & api & mcp & app & web --> index
   index --> entry
   entry --> commands & mm & model & query
   commands -->|every block except git| blocks
@@ -188,7 +189,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `displays` | The display models the app and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
 | `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts; the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
 
-Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
+Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `list-folder`, `os-cache`, `recent-workspaces`, `verification-degree`, `displays`, `pasted-markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with two exceptions that reuse a server instead of a second one: the CLI starts the API and the docs server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`), the CLI starts the UI server of `@reqseq/api` (`reqseq ui`, ADR-0020), and the app's main process starts only the docs server, through the subpath `@reqseq/api/docs-server`, which loads `node:*`, core's `command-error` and `docs-site` and nothing of the catalog runtime (SR-141, ADR-0010). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 
@@ -213,7 +214,7 @@ sequenceDiagram
   C-->>C: build indexes, versions, hints
   C->>G: HEAD commit per repository
   C-->>A: status with repositories, problems
-  C->>FS: start watcher (app, API, MCP only)
+  C->>FS: start watcher (web UI, API, MCP, app only)
 ```
 
 ### 6.2 Edit an element and confirm a hint
