@@ -15,14 +15,17 @@ export interface ProcessLike {
   readonly stdout: OutputStream;
   readonly stderr: OutputStream;
   exitCode?: number | string | null | undefined;
-  on(event: "SIGINT" | "SIGTERM", listener: () => void): unknown;
+  on(event: "SIGINT" | "SIGTERM" | "SIGHUP", listener: () => void): unknown;
   exit(code: number): void;
 }
 
 export interface ProcessIo {
   readonly stdout: TextSink;
   readonly stderr: TextSink;
-  /** Aborted by the first SIGINT or SIGTERM; the second one ends the process with 130. */
+  /**
+   * Aborted by the first SIGINT, SIGTERM or SIGHUP (the terminal was closed; on Windows its console window);
+   * the second one ends the process with 130.
+   */
   readonly signal: AbortSignal;
   /** A write failed for another reason than a closed pipe: the run ends with exit code 3. */
   readonly writeFailed: boolean;
@@ -88,6 +91,8 @@ export function connectProcess(proc: ProcessLike): ProcessIo {
   };
   proc.on("SIGINT", onSignal);
   proc.on("SIGTERM", onSignal);
+  // Without a handler Node ends at once on SIGHUP; with it a server closes its workspace first (SR-247 AK10).
+  proc.on("SIGHUP", onSignal);
   return {
     stdout: sink(proc.stdout, proc.stderr),
     stderr: sink(proc.stderr),

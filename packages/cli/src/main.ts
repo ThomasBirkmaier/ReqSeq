@@ -1,5 +1,6 @@
 // `reqseq`: the command line adapter over the command catalog (ADR-0002, ADR-0009). It only translates
 // transport: argv to a command input, the output to stdout, errors to stderr and an exit code.
+import { existsSync } from "node:fs";
 import path from "node:path";
 import type { CommandErrorClass, CommandErrorCode, CommandRuntime, InvokeContext } from "@reqseq/core";
 import {
@@ -18,6 +19,7 @@ import {
 import { CommanderError } from "commander";
 import type { InputStream } from "./input.js";
 import { buildInput } from "./input.js";
+import { openAddress } from "./open-address.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
@@ -137,10 +139,14 @@ export interface RunCliOptions {
   readonly stderr: TextSink;
   /** Default: the runtime of this process (`getCommandRuntime()`). Tests pass their own. */
   readonly runtime?: CommandRuntime;
-  /** Aborts the running command and stops `serve api`, `serve docs` and `mcp` (bin.ts: Ctrl-C and SIGTERM). */
+  /** Aborts the running command and stops `serve api`, `serve docs`, `mcp` and `ui` (bin.ts: Ctrl-C, SIGTERM, SIGHUP). */
   readonly signal?: AbortSignal;
   /** The site `serve docs` serves. Default: DOCS_FOLDER. Tests pass a fixture site; the command line has no option for it. */
   readonly docsFolder?: string;
+  /** The page files `ui` serves. Default: `webFolder()`. Tests pass their own; the command line has no option for it. */
+  readonly webFolder?: string;
+  /** Opens the address `ui` prints, without `--no-open`. Default: `openAddress` (the system's program). */
+  readonly openAddress?: (url: string) => Promise<void>;
   /**
    * The terminal stdout is, when the output for people is styled for one (bin.ts: `terminalOf`, #988);
    * plain text without it. `--json`, `--jsonl` and `--yaml` are never styled.
@@ -294,9 +300,60 @@ async function serveDocs(
   await server.close();
 }
 
+/**
+ * The page files of the web UI: `web/` next to `dist/` in the delivery (ADR-0020 "Release": `lib/web/`), else
+ * `packages/web/dist` of a checkout. The first that holds `index.html`, else the delivery's, which the UI server
+ * then reports as missing (`file.folder-missing`).
+ */
+export const webFolder = (dist: string = import.meta.dirname): string => {
+  const delivery = path.join(dist, "..", "web");
+  const checkout = path.join(dist, "..", "..", "web", "dist");
+  return [delivery, checkout].find((folder) => existsSync(path.join(folder, "index.html"))) ?? delivery;
+};
+
+/**
+ * `reqseq ui` until it is stopped (SR-247, ADR-0020): the workspace named or found as for every command, or none
+ * when none is found and none named; the address with the token on stdout, and to the browser unless `--no-open`.
+ */
+async function serveUi(
+  request: Extract<ServeRequest, { readonly server: "ui" }>,
+  options: RunCliOptions,
+  runtime: CommandRuntime,
+  signal: AbortSignal,
+): Promise<void> {
+  // Loaded only for the server (#178), as the API server is.
+  const { checkPort, createUiServer } = await import("@reqseq/api");
+  const port = checkPort(portNumber(request.port));
+  const workspace =
+    request.workspace === undefined
+      ? await findWorkspaceRoot(options.cwd)
+      : path.resolve(options.cwd, request.workspace);
+  const server = await createUiServer({
+    pages: options.webFolder ?? webFolder(),
+    port,
+    cwd: options.cwd,
+    runner: runtime,
+    ...(workspace === undefined ? {} : { workspace }),
+    report: (message) => options.stderr.write(`${message}\n`),
+  });
+  options.stdout.write(`ReqSeq UI on ${server.url}\nStop with Ctrl-C.\n`);
+  if (workspace === undefined) {
+    options.stderr.write("No workspace found here: open or create one in the UI.\n");
+  }
+  if (request.open) {
+    // The server keeps running whatever the opener does (SR-247 AK1).
+    (options.openAddress ?? openAddress)(server.url).catch((error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      options.stderr.write(`No browser was opened (${reason}). Open the address above yourself.\n`);
+    });
+  }
+  await stopped(signal);
+  await server.close();
+}
+
 /** Run a server on the workspace until it is stopped; the workspace is closed afterwards. */
 async function serveUntilStopped(
-  request: Exclude<ServeRequest, { readonly server: "docs" }>,
+  request: Exclude<ServeRequest, { readonly server: "docs" | "ui" }>,
   options: RunCliOptions,
   runtime: CommandRuntime,
   signal: AbortSignal,
@@ -357,7 +414,9 @@ async function serve(
   try {
     await (request.server === "docs"
       ? serveDocs(request.port, options, signal)
-      : serveUntilStopped(request, options, runtime, signal));
+      : request.server === "ui"
+        ? serveUi(request, options, runtime, signal)
+        : serveUntilStopped(request, options, runtime, signal));
   } catch (caught) {
     const error = asCommandError(caught);
     options.stderr.write(renderError(error, false));
