@@ -6,11 +6,11 @@ description: Analyse a ReqIF file, save its mapping, import it and its next deli
 ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq reads a `.reqif` file, not a packed `.reqifz`, in this order:
 
 1. The analysis lists the types, attributes, relation types and enumeration values of the file that no mapping covers yet. It writes nothing.
-2. The mapping says what in your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source, for every later delivery; your metamodel stays unchanged. Imports of other tools' files also store the source's types there (`source-model`).
+2. The mapping says what in your metamodel each of them becomes, or that it is left out. It is a YAML file in the mapping folder (`reqif/` by default), one per source; your metamodel stays unchanged. Imports of other tools' files also store the source's types there (`source-model`).
 3. The import creates one element per object, all or nothing, turns XHTML text into Markdown, and lists as losses what it leaves out. Each element keeps its origin: source, source identifier, import date and delivery.
-4. The next delivery of the same source updates these elements in place. Its analysis first shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
+4. The next delivery of the same source updates these elements in place. Its analysis shows the new, changed and dropped requirements; dropped ones are only listed. An element changed both locally and in the delivery is a conflict: the import refuses with `reqif.conflict` until you take the delivery or keep your version of each.
 
-The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes your statements back under the source's identifiers, also in the source's model, or the requirements in that model, where a STRING attribute gets the text without formatting. A file that ReqSeq exported imports without a mapping.
+The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes your statements back under the source's identifiers, also in the source's model, or the requirements in that model, where a STRING attribute gets the text without formatting. A file that ReqSeq exported imports without a mapping. Missing folders above the file are created only in a repository (SR-207 AK4, AK6).
 
 ## App
 
@@ -289,7 +289,6 @@ files: none
 No problems.
 ```
 
-The one relation goes to the package, outside the export.
 
 ## API
 

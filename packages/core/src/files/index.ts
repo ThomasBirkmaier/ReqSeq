@@ -5,7 +5,7 @@
 export { findConflictMarker } from "./conflict-markers.js";
 export { openExportFolder, STAGING_FOLDER } from "./export-folder.js";
 export type { ExportFolder, IgnoredEntry, MarkerSpec } from "./export-folder.js";
-export { createFolder } from "./folder.js";
+export { createFolder, createFolders, removeEmptyFolders } from "./folder.js";
 export { imageExtension } from "./image-type.js";
 export { linksStayInside } from "./links.js";
 export { errorCode, isTakenForGit, resolveInRoot, systemForm } from "./paths.js";

@@ -721,13 +721,14 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
  * (`newFileTarget`, ThomasBirkmaier/ReqSeq-archive#194). With `ignored: false` the `ignore` globs do not count, only the safety
  * rules: for a file the walk never reads, such as the data file of `data.store` (SR-062), which may
- * go into an ignored build folder.
+ * go into an ignored build folder. With `exported: true` the refusal is the one of an export's
+ * `output` (`Not exported:`, `fields`), for the folders an export creates (`foldersAbove`).
  */
 export const refuseUnlisted = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   file: string,
-  options: { readonly ignored?: false } = {},
+  options: { readonly ignored?: false; readonly exported?: true } = {},
 ): Promise<string> => {
   const target = await newFileTarget(
     repository,
@@ -741,8 +742,9 @@ export const refuseUnlisted = async (
   const spelled = existing === undefined ? "" : ` (on disk: ${existing})`;
   const shown = character === undefined ? "" : ` (${character})`;
   throw invalid(
-    `Not created: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}${shown}`,
+    `${options.exported === true ? "Not exported" : "Not created"}: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}${shown}`,
     {
+      ...(options.exported === true ? { fields: ["output"] } : {}),
       repository: repository.name,
       file,
       reason: NOT_PORTABLE.has(rule) ? "not-portable" : "not-listed",

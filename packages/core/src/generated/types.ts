@@ -5792,7 +5792,7 @@ export interface ReqifSaveMappingOutput {
  * Schema: `schemas/commands/reqif.export.json input`.
  */
 export interface ReqifExportInput {
-  /** The ReqIF file to write: a new file, or a ReqIF file that is replaced. */
+  /** The ReqIF file to write: a new file, or a ReqIF file that is replaced. In a repository of the workspace, missing folders above it are created; outside the repositories, its folder must exist. */
   readonly output: LocalPath;
   /** The elements to export; without it every element. */
   readonly selection?: ElementSelection;
@@ -5835,7 +5835,7 @@ export interface ReqifExportOutput {
  * Schema: `schemas/commands/html.export.json input`.
  */
 export interface HtmlExportInput {
-  /** The folder to write: a new folder in an existing one, an empty folder, or the folder of an earlier HTML export. */
+  /** The folder to write: a new folder, an empty folder, or the folder of an earlier HTML export. In a repository of the workspace, missing folders above it are created; outside the repositories, the folder above it must exist. */
   readonly output: LocalPath;
 }
 

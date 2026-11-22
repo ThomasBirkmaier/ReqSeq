@@ -50,3 +50,32 @@ export const createFolder = async (root: string, relativePath: string): Promise<
     throw toCommandError(error, file);
   }
 };
+
+/**
+ * Removes each of the absolute `folders` (topmost first, as `createFolders` gives them) that is empty,
+ * the deepest first; a folder that holds anything, or is gone, stays as it is (SR-235 AK10, SR-207 AK7).
+ */
+export const removeEmptyFolders = async (folders: readonly string[]): Promise<void> => {
+  for (const folder of [...folders].reverse()) {
+    await fs.rmdir(folder).catch(() => undefined);
+  }
+};
+
+/**
+ * Creates the absolute `folders`, topmost first, each below the one before (`foldersAbove` of the
+ * model judged them); refuses a file or folder that took a place since (`file.not-regular`) and a
+ * folder that is not writable (`file.read-only`), after removing the folders it created. Returns them.
+ */
+export const createFolders = async (folders: readonly string[]): Promise<readonly string[]> => {
+  const created: string[] = [];
+  try {
+    for (const folder of folders) {
+      await fs.mkdir(folder);
+      created.push(folder);
+    }
+    return created;
+  } catch (error) {
+    await removeEmptyFolders(created);
+    throw toCommandError(error, String(folders[created.length]));
+  }
+};

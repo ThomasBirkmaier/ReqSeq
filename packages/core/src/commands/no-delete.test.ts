@@ -410,6 +410,8 @@ describe("no delete of an element (SR-099, D-045)", () => {
       .sort();
     expect(removing).toEqual([
       "files/export-folder.ts",
+      // `removeEmptyFolders`: only empty folders an export created (SR-235 AK10, SR-207 AK7).
+      "files/folder.ts",
       "files/lock.ts",
       "files/private.ts",
       "files/write.ts",

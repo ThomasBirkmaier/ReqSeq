@@ -105,7 +105,9 @@ An image of the repository is read with `readFileSnapshot`, which follows no lin
 
 ## Target folder (`files/export-folder.ts`)
 
-Refused before anything changes: a target in a `.git` folder (also through links, SR-083 AK4), a folder ReqSeq reads YAML files from (metamodel, filters, perspectives, baselines, mappings), a target that is no folder, a missing folder above it, a non-empty folder without a readable marker (SR-235 AK1), another export running into it, and a path the new export writes that a file of another origin holds. Over API and MCP, `invoke` refuses a target outside the repositories (SR-142, SR-235 AK3).
+Refused before anything changes: a target in a `.git` folder (also through links, SR-083 AK4), a folder ReqSeq reads YAML files from (metamodel, filters, perspectives, baselines, mappings), a target that is no folder, a missing folder above it outside the repositories (SR-235 AK9), a missing folder above it in a repository that `foldersAbove` refuses (SR-235 AK8, as `reqif.export`, `packages/core/docs/reqif.md`), a non-empty folder without a readable marker (SR-235 AK1), another export running into it, and a path the new export writes that a file of another origin holds. Over API and MCP, `invoke` refuses a target outside the repositories (SR-142, SR-235 AK3).
+
+Missing folders above the target in a repository are created when the target is opened, after every refusal (SR-235 AK7); outside the repositories only the target itself is created (SR-235 AK9). An existing folder above the target is taken as before, without the rules of AK8.
 
 The walk of the target follows no link. A `.git` entry, a folder holding one, a link and anything that is neither file nor folder are opaque. A marker entry counts when it is a relative path in NFC without `.`, `..`, empty names, `\`, `:`, control characters or a name Git takes, unique ignoring case, and the walk found it as a file; others are reported (`html.marker-entry-ignored`) and never touched. Every other file is reported once by its topmost folder of another origin (`html.foreign-file`) and stays as it is (SR-235 AK2).
 
@@ -113,7 +115,7 @@ Writing:
 
 1. `.reqseq-export-staging` is created with an exclusive `mkdir`; it holds `owner.json` with the process ID, start time and run ID and is the lock. A staging folder whose process no longer runs, of this process whose run has ended, or older than a day, is renamed aside, checked once more and removed. A path the new export writes that another spelling of a foreign name holds is refused, since a file system that ignores case takes both as one.
 2. The marker names the old files and `pending`, so a crash leaves nothing unmarked.
-3. The new files go to `staging/new`. An error here removes the staging folder, restores the marker and removes a target the export created (SR-235 AK6).
+3. The new files go to `staging/new`. An error here removes the staging folder, restores the marker and removes a target the export created (SR-235 AK6), and each folder above it the export created that is empty again (SR-235 AK10).
 4. The marker names old and new files. From the top, a name that is wholly the old export's (or missing) is moved to `staging/old` and replaced by the new one with one rename; a folder that also holds files of another origin is entered. Each folder is checked to be a real folder before a rename in it. An error moves everything back and restores the marker; if moving back fails, the error names `staging/old`.
 5. The marker names the new files; then `staging` is removed (a failure is the problem `html.cleanup-failed`).
 
