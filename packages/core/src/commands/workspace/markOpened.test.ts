@@ -122,12 +122,13 @@ describe("workspace.markOpened", () => {
 
   it("[SR-250/AK-vr1n] refuses a list it cannot read or write, names the reason and changes nothing", async () => {
     await fs.mkdir(path.dirname(listFile()), { recursive: true });
-    // Content that is no list of ReqSeq: non-JSON, an empty file, a list of this format padded past
-    // 65 536 bytes (only its size is wrong), and a list with another format number.
+    // Content that is no list of ReqSeq: non-JSON, an empty file, other JSON, a list of this format
+    // padded past 65 536 bytes (only its size is wrong), and a list with another format number.
     const emptyList = JSON.stringify({ format: 1, workspaces: [] });
     const unreadable = [
       "not a list\n",
       "",
+      "[]",
       emptyList.padEnd(65_537, " "),
       JSON.stringify({ format: 2, workspaces: [] }),
     ];
