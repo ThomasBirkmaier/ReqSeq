@@ -81,6 +81,7 @@ describe("the fixed values of SR-215 AK1 as hits (#1644)", () => {
         "element.get file elementFile",
         "element.list group group",
         "element.list sort sort",
+        "element.readImage file elementFile",
         "element.resolve file elementFile",
         "element.search fields searchField",
         "element.search group group",

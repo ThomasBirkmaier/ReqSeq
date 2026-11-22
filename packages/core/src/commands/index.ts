@@ -23,6 +23,7 @@ import elementCreate from "./element/create.js";
 import elementFacets from "./element/facets.js";
 import elementGet from "./element/get.js";
 import elementList from "./element/list.js";
+import elementReadImage from "./element/readImage.js";
 import elementResolve from "./element/resolve.js";
 import elementSearchFields from "./element/searchFields.js";
 import elementSetStatus from "./element/setStatus.js";
@@ -79,6 +80,7 @@ import workspaceCheck from "./workspace/check.js";
 import workspaceConnectAgent from "./workspace/connectAgent.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceListFolder from "./workspace/listFolder.js";
+import workspaceMarkOpened from "./workspace/markOpened.js";
 import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
@@ -98,6 +100,7 @@ export const commands: readonly AnyCommand[] = [
   elementFacets,
   elementGet,
   elementList,
+  elementReadImage,
   elementResolve,
   lazyCommand("element.search", () => import("./element/search.js")),
   elementSearchFields,
@@ -160,6 +163,7 @@ export const commands: readonly AnyCommand[] = [
   workspaceConnectAgent,
   workspaceInit,
   workspaceListFolder,
+  workspaceMarkOpened,
   workspaceRecent,
   workspaceStatus,
 ];

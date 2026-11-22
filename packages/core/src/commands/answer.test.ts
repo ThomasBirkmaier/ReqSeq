@@ -26,7 +26,16 @@ import { commands } from "./index.js";
 import traceChain from "./trace/chain.js";
 import traceGraph from "./trace/graph.js";
 import traceNeighbourhood from "./trace/neighbourhood.js";
-import { APPROVED, FILES, GUSTS, OBSOLETE, SCENARIOS, VARIANT, WIND } from "./scenarios.test-helper.js";
+import {
+  APPROVED,
+  FILES,
+  GUSTS,
+  OBSOLETE,
+  SCENARIOS,
+  VARIANT,
+  WIND,
+  isolateOsCache,
+} from "./scenarios.test-helper.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceAgents from "./workspace/agents.js";
 import workspaceConnectAgent from "./workspace/connectAgent.js";
@@ -51,6 +60,8 @@ const RELATIVE_TIME =
 /** The answer of `command` for `output` and `input`, as `invoke` builds it; types are named by their key. */
 const answerOf = (command: AnyCommand, output: unknown, input: unknown = {}): string =>
   command.answer?.(output, input as never, { type: (key) => key, element: (ref) => ref }) ?? "";
+
+isolateOsCache();
 
 describe("the answer of every command (SR-224 AK1)", () => {
   for (const [name, calls] of Object.entries(CALLS)) {

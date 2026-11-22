@@ -1,0 +1,371 @@
+/* Review since a baseline: the list of changes with a box to choose each, the panel with the difference word by
+   word, the dialogs that confirm a decision, and the check before a baseline. */
+.crow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: baseline;
+  border-bottom: 1px solid var(--line-soft);
+}
+.crow > input {
+  justify-self: end;
+  margin: 0 0 0 10px;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+.crow .it {
+  padding-left: 10px;
+  border-bottom: 0;
+}
+.crow .it[aria-current="true"] {
+  background: var(--sel);
+}
+.cgroup {
+  align-items: center;
+}
+.cgroup input {
+  width: 15px;
+  height: 15px;
+  margin: 0 0 0 2px;
+  accent-color: var(--accent);
+}
+.selbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sunk);
+  min-height: 48px;
+}
+.selcount {
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-right: auto;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-strong);
+}
+.btn.primary:hover {
+  background: var(--accent-ink);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--link-underline);
+  text-underline-offset: 2px;
+}
+
+/* ---------- The panel ---------- */
+.cpanel {
+  padding: 36px 40px 64px;
+  max-width: 860px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.cpanel h1 {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 4px 0 12px;
+}
+.cpanel > .notice {
+  margin-bottom: 18px;
+}
+.notice.done {
+  background: var(--accent-soft);
+  border-color: var(--pill-ok-border);
+}
+.notice ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.kick {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.cacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.csent {
+  font-size: 14px;
+  margin: 16px 0 10px;
+}
+.ccounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px 24px;
+  margin: 14px 0;
+}
+.ccounts dt {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.ccounts dd {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.ccounts.big dt {
+  font-size: 28px;
+}
+.ccounts .bad dt {
+  color: var(--bad);
+}
+.field {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  max-width: 460px;
+}
+.field > span {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+.field input,
+.field select,
+.field textarea {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--field);
+  border-radius: 7px;
+  background: var(--pane);
+  width: 100%;
+}
+.field textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.field.pick {
+  margin-top: 0;
+}
+.dsec {
+  margin-top: 26px;
+}
+.dsec h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+  margin-bottom: 8px;
+  display: flex;
+  gap: 8px;
+}
+.dsec h3 b {
+  font-weight: 500;
+}
+.dcrit {
+  margin: 10px 0 14px;
+}
+.dcrit h4 {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--faint);
+  margin-bottom: 4px;
+}
+.wd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14.5px;
+  line-height: 1.6;
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.wd del {
+  background: var(--bad-soft);
+  color: var(--bad);
+  text-decoration: line-through;
+}
+.wd ins {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--link-underline);
+}
+.drel,
+.problems {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.drel li {
+  display: grid;
+  gap: 1px;
+}
+.drel .dk {
+  font-size: 12px;
+  color: var(--faint);
+}
+.drel .rem a,
+.drel .rem span:last-child {
+  text-decoration: line-through;
+}
+.problems li {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--line-strong);
+  background: var(--sunk);
+  border-radius: 0 6px 6px 0;
+  overflow-wrap: anywhere;
+}
+.problems li.error {
+  border-left-color: var(--bad);
+}
+.problems li.warning {
+  border-left-color: var(--warn-line);
+}
+
+/* ---------- Dialogs ---------- */
+.dlg {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px 24px;
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  background: var(--pane);
+  color: var(--ink);
+  box-shadow: 0 18px 60px var(--shadow-strong);
+}
+.dlg::backdrop {
+  background: var(--scrim);
+}
+.dlg h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.dlg-body > p {
+  margin-bottom: 10px;
+}
+.dlg-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.dlg-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13.5px;
+}
+.dlg-list li:last-child {
+  border-bottom: 0;
+}
+.dlg-list.left li {
+  color: var(--dim);
+}
+.dl-s {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12.5px;
+}
+.dlg-summary {
+  font-weight: 500;
+}
+.dlg-summary.bad {
+  color: var(--bad);
+}
+.dlg-error:not(:empty) {
+  margin-top: 12px;
+}
+.dlg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.dlg-actions > .btn:first-child:not(:only-child):not(:nth-last-child(2)) {
+  margin-right: auto;
+}
+.dlg-preview:not(:empty) {
+  margin-top: 12px;
+}
+
+/* ---------- The check before a baseline ---------- */
+.release-wrap {
+  overflow-y: auto;
+  min-height: 0;
+  height: 100vh;
+}
+.release {
+  max-width: 860px;
+  padding: 40px 40px 72px;
+}
+.release h1 {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.release .sub {
+  color: var(--dim);
+  margin: 4px 0 18px;
+  max-width: 64ch;
+}
+.release > .notice {
+  margin-bottom: 16px;
+}
+.release .create {
+  margin-top: 36px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.release .create h2 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+@media (max-width: 1180px) {
+  .cpanel {
+    padding: 28px 24px 56px;
+  }
+}
+@media (max-width: 720px) {
+  .cpanel,
+  .release {
+    padding: 22px 16px 48px;
+  }
+  .release-wrap {
+    height: auto;
+  }
+}
+
+/* A phone shows the list or the difference, not both: the difference has a link back to the list. */
+.cback {
+  display: none;
+}
+@media (max-width: 720px) {
+  .app:has(.cdetail) .list {
+    display: none;
+  }
+  .cback {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+  }
+}

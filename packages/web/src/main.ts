@@ -23,6 +23,7 @@ import "./areas/evidence.js";
 import "./areas/trace.js";
 import "./areas/matrix.js";
 import "./areas/variants.js";
+import "./areas/changes.js";
 
 applyTheme();
 

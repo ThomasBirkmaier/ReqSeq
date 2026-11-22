@@ -1774,7 +1774,7 @@ export interface PerspectiveFile {
 export type PerspectiveName = string;
 
 /**
- * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces opened last (SR-131), the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens, and `workspace.markOpened` the root of the workspace it runs on (SR-250); the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {
@@ -2398,26 +2398,44 @@ export interface WorkspaceAgentsOutput {
 }
 
 /**
- * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
  * Schema: `schemas/commands/workspace.recent.json input`.
  */
 export type WorkspaceRecentInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `workspace.recent`. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Output of `workspace.recent`. The workspaces opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
  * Schema: `schemas/commands/workspace.recent.json output`.
  */
 export interface WorkspaceRecentOutput {
   readonly answer: Answer;
-  /** The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
+  /** The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them (ADR-0008): the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on (SR-250). Empty when none is recorded or the list cannot be read. No other command changes the list. */
   readonly workspaces: readonly {
-    /** The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml). */
+    /** The absolute path of the workspace root as it was opened last (the folder that holds reqseq-workspace.yaml). */
     readonly root: OutputPath;
-    /** When the app opened it last. */
+    /** When it was opened last. */
     readonly opened: IsoDateTime;
     /** Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
     readonly exists: boolean;
   }[];
+}
+
+/**
+ * Input of `workspace.markOpened` as `run` gets it: validated, properties with a `default` filled in. Marks the workspace the command runs on as opened now: the absolute path of its main repository goes first in the list of recent workspaces that `workspace.recent` gives. The list keeps the 20 workspaces marked last and belongs to the user, not to a workspace.
+ * Schema: `schemas/commands/workspace.markOpened.json input`.
+ */
+export type WorkspaceMarkOpenedInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `workspace.markOpened`. Marks the workspace the command runs on as opened now: the absolute path of its main repository goes first in the list of recent workspaces that `workspace.recent` gives. The list keeps the 20 workspaces marked last and belongs to the user, not to a workspace.
+ * Schema: `schemas/commands/workspace.markOpened.json output`.
+ */
+export interface WorkspaceMarkOpenedOutput {
+  readonly answer: Answer;
+  /** The absolute path of the main repository of the workspace (the folder that holds reqseq-workspace.yaml), as the list holds it now, first. */
+  readonly root: OutputPath;
+  /** When it was marked, as `workspace.recent` gives it. */
+  readonly opened: IsoDateTime;
 }
 
 /**
@@ -3785,6 +3803,42 @@ export interface ElementAddAttachmentOutput {
   readonly file: OutputPath;
   /** The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update. */
   readonly markdown: string;
+}
+
+/**
+ * Input of `element.readImage` as `run` gets it: validated, properties with a `default` filled in. Return an image file from the repository of an element, named by the destination of a Markdown image relative to the element file, with its bytes, media type and size, so an agent or the web UI can show an image the text embeds.
+ * Schema: `schemas/commands/element.readImage.json input`.
+ */
+export interface ElementReadImageInput {
+  /** The element whose text would embed the image; the destination is relative to the folder of its file. */
+  readonly ref: ElementRef;
+  /** The destination as a Markdown image of the element's text has it, without <...> and without a title, e.g. SR-825b7146fb54/layout.png or ../images/Wind%20map.svg. The element's text need not embed it. */
+  readonly destination: string;
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (SR-088). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  readonly repository?: string;
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it. Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  readonly file?: RelativePath;
+}
+
+/**
+ * Output of `element.readImage`. Return an image file from the repository of an element, named by the destination of a Markdown image relative to the element file, with its bytes, media type and size, so an agent or the web UI can show an image the text embeds.
+ * Schema: `schemas/commands/element.readImage.json output`.
+ */
+export interface ElementReadImageOutput {
+  readonly answer: Answer;
+  /** The bytes of the file, byte for byte, as base64 (RFC 4648, with padding). */
+  readonly content: string;
+  /** The media type by the content of the file, not by its extension. */
+  readonly mediaType:
+    | "image/avif"
+    | "image/bmp"
+    | "image/gif"
+    | "image/jpeg"
+    | "image/png"
+    | "image/svg+xml"
+    | "image/webp";
+  /** The size of the file in bytes. */
+  readonly size: number;
 }
 
 /**
@@ -5812,6 +5866,7 @@ export interface CommandTypes {
   readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
   readonly "workspace.agents": { readonly input: WorkspaceAgentsInput; readonly output: WorkspaceAgentsOutput };
   readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
+  readonly "workspace.markOpened": { readonly input: WorkspaceMarkOpenedInput; readonly output: WorkspaceMarkOpenedOutput };
   readonly "workspace.listFolder": { readonly input: WorkspaceListFolderInput; readonly output: WorkspaceListFolderOutput };
   readonly "workspace.connectAgent": { readonly input: WorkspaceConnectAgentInput; readonly output: WorkspaceConnectAgentOutput };
   readonly "tool.info": { readonly input: ToolInfoInput; readonly output: ToolInfoOutput };
@@ -5841,6 +5896,7 @@ export interface CommandTypes {
   readonly "element.bulkUpdate": { readonly input: ElementBulkUpdateInput; readonly output: ElementBulkUpdateOutput };
   readonly "element.assignCriterionKeys": { readonly input: ElementAssignCriterionKeysInput; readonly output: ElementAssignCriterionKeysOutput };
   readonly "element.addAttachment": { readonly input: ElementAddAttachmentInput; readonly output: ElementAddAttachmentOutput };
+  readonly "element.readImage": { readonly input: ElementReadImageInput; readonly output: ElementReadImageOutput };
   readonly "relation.options": { readonly input: RelationOptionsInput; readonly output: RelationOptionsOutput };
   readonly "relation.add": { readonly input: RelationAddInput; readonly output: RelationAddOutput };
   readonly "relation.remove": { readonly input: RelationRemoveInput; readonly output: RelationRemoveOutput };

@@ -1,5 +1,4 @@
-// workspace.recent (SR-131, SR-080 AK4): the list of the workspaces the app opened last, as a read
-// command. The cross-access test (packages/cli/test/cross-access.test.ts) runs it through every access.
+// workspace.recent (SR-131): the list of the workspaces opened last, as a read command. The cross-access test (packages/cli/test/cross-access.test.ts) runs it through every access.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -69,7 +68,7 @@ describe("workspace.recent (SR-131)", () => {
     await rememberWorkspace(wind, { now: at(4) });
 
     expect(await recent(rain)).toEqual({
-      answer: "The list of workspaces the app opened holds 3 workspaces.",
+      answer: "The list of recent workspaces holds 3 workspaces.",
       workspaces: [
         { root: wind, opened: at(4).toISOString(), exists: true },
         { root: rain, opened: at(3).toISOString(), exists: true },
@@ -84,7 +83,7 @@ describe("workspace.recent (SR-131)", () => {
     const elsewhere = await folder("elsewhere", false);
 
     const expected = {
-      answer: "The list of workspaces the app opened holds 1 workspace.",
+      answer: "The list of recent workspaces holds 1 workspace.",
       workspaces: [{ root: wind, opened: at(2).toISOString(), exists: true }],
     };
     expect(await recent(elsewhere)).toEqual(expected);
@@ -93,7 +92,7 @@ describe("workspace.recent (SR-131)", () => {
 
   it("is the empty list when the app recorded none", async () => {
     expect(await recent(await folder("wind"))).toEqual({
-      answer: "The list of workspaces the app opened holds 0 workspaces.",
+      answer: "The list of recent workspaces holds 0 workspaces.",
       workspaces: [],
     });
   });
