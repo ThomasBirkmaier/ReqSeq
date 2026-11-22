@@ -168,13 +168,15 @@ mod tests {
 
     #[test]
     fn the_server_is_node_with_the_cli_and_ui_no_open_in_the_root() {
-        let layout = Layout::of_release(Path::new("/opt/ReqSeq"), false);
+        // Built with `join`, so that the expectations hold with the separators of the system the test runs on.
+        let root = Path::new("/opt/ReqSeq");
+        let layout = Layout::of_release(root, false);
         let spec = ServerSpec::new(&layout, Path::new("/"));
-        assert_eq!(spec.program, PathBuf::from("/opt/ReqSeq/runtime/node"));
+        assert_eq!(spec.program, root.join("runtime").join("node"));
         assert_eq!(
             spec.args,
             vec![
-                OsString::from("/opt/ReqSeq/lib/dist/bin.js"),
+                root.join("lib").join("dist").join("bin.js").into_os_string(),
                 "ui".into(),
                 "--no-open".into()
             ]
@@ -183,9 +185,12 @@ mod tests {
         assert_eq!(spec.cwd, PathBuf::from("/"));
         assert_eq!(spec.remove, "NODE_OPTIONS");
         assert_eq!(spec.set, ("REQSEQ_UI_END_WITH_STDIN", "1"));
-        assert_eq!(spec.workspace_file(), PathBuf::from("/reqseq-workspace.yaml"));
-        let windows = Layout::of_release(Path::new("/opt/ReqSeq"), true);
-        assert_eq!(windows.node, PathBuf::from("/opt/ReqSeq/runtime/node.exe"));
+        assert_eq!(
+            spec.workspace_file(),
+            Path::new("/").join("reqseq-workspace.yaml")
+        );
+        let windows = Layout::of_release(root, true);
+        assert_eq!(windows.node, root.join("runtime").join("node.exe"));
     }
 
     fn wide(text: &str) -> Vec<u16> {

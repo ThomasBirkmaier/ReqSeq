@@ -228,6 +228,11 @@ impl Shell {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The log line of the start, with the separators of the system the test runs on.
+    fn started() -> String {
+        format!("start {}", Path::new("/r").join("runtime").join("node").display())
+    }
     use crate::start::Layout;
     use std::path::PathBuf;
 
@@ -318,7 +323,7 @@ mod tests {
         assert_eq!(
             host.log,
             [
-                "start /r/runtime/node",
+                started().as_str(),
                 "after 30s Address",
                 "token TOK",
                 "show http://127.0.0.1:43123"
@@ -364,7 +369,7 @@ mod tests {
         assert_eq!(
             host.log,
             [
-                "start /r/runtime/node",
+                started().as_str(),
                 "kill",
                 "destroy",
                 "report The ReqSeq UI server could not start: No such file or directory.",
