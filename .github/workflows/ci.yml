@@ -33,7 +33,7 @@ concurrency:
 # Two lanes (#303, #412): every push starts the Ubuntu lane (`static` and `checks` on ubuntu-24.04). A draft
 # pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
-# `checks` on macos-26 and windows-2025. The Electron tests are paused (`electron-paused` below).
+# `checks` on macos-26 and windows-2025. The Electron tests are paused (#2295).
 # The lanes ran one after the other while runner minutes cost money; in a public repository they are free, and in
 # sequence a full run took about 24 minutes instead of about 15 (#412). So every pull request is checked on all
 # three systems before its merge (merge skill), but not every push.
@@ -415,22 +415,9 @@ jobs:
             test-results/web/
           if-no-files-found: ignore
 
-  # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) no longer runs on pull requests, at
-  # night or by hand, and its evidence in spec/evidence/ci/electron-* stays at the last run before the pause. The app's
-  # code stays in the repository until the web UI replaces it. The three jobs below only keep the names the ruleset of
-  # `main` requires; they test nothing and go once the ruleset no longer names them. release.yml still builds and tests
-  # the delivery with the app.
-  electron-paused:
-    name: electron (${{ matrix.os }})
-    timeout-minutes: 2
-    if: ${{ github.event.action != 'closed' }}
-    strategy:
-      matrix:
-        os: [ubuntu-24.04, macos-26, windows-2025]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Electron tests paused
-        run: echo "::notice::The Electron app is paused (#2295); its tests do not run in CI."
+  # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) runs in no job here, and its evidence
+  # in spec/evidence/ci/electron-* stays at the last run before the pause. The app's code stays in the repository
+  # until the web UI replaces it. release.yml still builds and tests the delivery with the app.
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs

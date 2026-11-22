@@ -6,6 +6,7 @@ export * from "./runtime/invoke.js";
 export * from "./runtime/internal-cause.js";
 export * from "./runtime/workspace.js";
 export { WORKSPACE_FILE, findWorkspaceRoot } from "./workspace/root.js";
+export { workspaceLayoutState } from "./workspace/layout.js";
 export {
   cacheFolder,
   LOCK_STALE_MS,

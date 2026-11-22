@@ -38,15 +38,25 @@ import { normalizeRef } from "./uuid.js";
 import { watchWorkspace } from "./watch.js";
 import { workspacePath } from "./write.js";
 
-/** The access a call comes through (`InvokeContext.access`, ADR-0002 rule 4). */
-export type AccessName = ActivityAccess["access"];
+/** The accesses `activity.json` can name: the values of its `access` field. */
+export type RecordedAccess = ActivityAccess["access"];
+
+/**
+ * The access a call comes through (`InvokeContext.access`, ADR-0002 rule 4). `ui`, the web UI server
+ * (ADR-0020), is an access name but never a value of `activity.json`, because it is not followed.
+ */
+export type AccessName = RecordedAccess | "ui";
 
 /**
  * The accesses whose calls are recorded (SR-117: „das zuletzt über API oder MCP gelesen oder geändert
  * wurde“). Calls of the command line and of the app are not (spec question ThomasBirkmaier/ReqSeq-archive#481, assumption (a)); the
  * answer changes this one constant.
  */
-export const FOLLOWED_ACCESSES: readonly AccessName[] = ["api", "mcp"];
+export const FOLLOWED_ACCESSES: readonly RecordedAccess[] = ["api", "mcp"];
+
+/** Whether calls through `access` are recorded (`FOLLOWED_ACCESSES`). */
+export const isFollowed = (access: AccessName | undefined): access is RecordedAccess =>
+  (FOLLOWED_ACCESSES as readonly string[]).includes(access ?? "");
 
 /** The file in the cache folder of the copy. */
 export const ACTIVITY_FILE = "activity.json";
@@ -117,7 +127,7 @@ export const accessSubject = (entry: CatalogEntry): AccessSubject => {
 export interface AccessCall {
   readonly command: string;
   readonly effect: ActivityAccess["effect"];
-  readonly access: AccessName;
+  readonly access: RecordedAccess;
   readonly subject: AccessSubject;
 }
 

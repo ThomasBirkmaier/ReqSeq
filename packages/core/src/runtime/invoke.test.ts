@@ -443,6 +443,37 @@ describe("local paths by access (SR-142)", () => {
     expect(pathRuns.slice(2)).toEqual([{ open: true }, { open: true }, { open: true }]);
   });
 
+  it("confines the web UI like the API, except for listing folders and creating a workspace (ADR-0020)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/three-repositories" });
+    onTestFinished(() => ws.cleanup());
+    const root = new Workspace(ws.path("system"));
+    onTestFinished(() => root.close());
+    const outside = { file: "requirements", files: [ws.path("outside.xml")] };
+    const error = await rejection(
+      runtime({ commands: [paths] }).invoke("test.paths", outside, { workspace: root, access: "ui" }),
+    );
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "outside-repositories"]);
+    expect(error.message).toContain("Through the web UI ReqSeq accepts only local paths");
+    expect(error.message).not.toMatch(/API|MCP|command line/u);
+    const product = createCommandRuntime({ commands: productCommands });
+    const created = ws.path("created");
+    for (const access of ["api", "ui"] as const) {
+      const call = product.invoke(
+        "workspace.init",
+        { path: created, name: "Created" },
+        { workspace: root, access },
+      );
+      if (access === "api") {
+        expect((await rejection(call)).details?.["reason"]).toBe("outside-repositories");
+      } else {
+        expect(await call).toMatchObject({
+          answer: expect.stringMatching(/^Created workspace Created/) as unknown,
+        });
+      }
+    }
+    expect(fs.existsSync(path.join(created, "reqseq-workspace.yaml"))).toBe(true);
+  });
+
   it("takes ~ at the start of a local path for the home folder only in the app (SR-143)", async () => {
     vi.stubEnv("HOME", "/home/someone");
     vi.stubEnv("USERPROFILE", "/home/someone");

@@ -94,6 +94,12 @@ describe("workspace.listFolder", () => {
     ]);
   });
 
+  it("through the web UI takes any folder, as its folder field names places outside the workspace (ADR-0020)", async () => {
+    expect((await list({ path: "~/", absolute: true }, "ui")).entries).toEqual([
+      { name: "projects", kind: "folder" },
+    ]);
+  });
+
   it("in the app takes ~ for home in every path, as the app's path arguments, and the command line does not", async () => {
     expect(await list({ path: "~/pro" }, "app")).toMatchObject({
       folder: path.join(top, "home"),
