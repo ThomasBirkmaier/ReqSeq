@@ -4,9 +4,11 @@
 // command in a workspace (core's `invoke`, or the CLI). Elements, baselines and evidence records are
 // made through those commands, so their versions are the ones ReqSeq computes. Git is written here
 // only, in the test kit; ReqSeq itself never writes Git (D-036).
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import type { FileContent, FixtureWorkspace } from "./fixture-workspace.js";
 import { createFixtureWorkspace, initRepository } from "./fixture-workspace.js";
 
@@ -49,25 +51,38 @@ export interface SpecCopyWorkspace extends FixtureWorkspace {
 
 const WORKSPACE_FILE = "reqseq-workspace.yaml";
 
+const execFileAsync = promisify(execFile);
+
 /** The spec ID the frontmatter of an element file gives, if any. */
-const specIdOf = (content: string): string | undefined => /^spec-id: "?([A-Z]+-\d+)"?$/m.exec(content)?.[1];
+const specIdOf = (content: string): string | undefined =>
+  /^spec-id: "?([A-Z]+-\d+)"?\r?$/m.exec(content)?.[1];
 
 /** The UUID the frontmatter of an element file gives (every element file has one). */
-const uuidOf = (content: string): string => String(/^id: (\S+)$/m.exec(content)?.[1]);
+const uuidOf = (content: string): string => String(/^id: (\S+)\r?$/m.exec(content)?.[1]);
 
-/** Every file below `dir`, by path relative to it with forward slashes. */
+/**
+ * Every file Git tracks below `dir`, by path relative to it with forward slashes, as it is in the
+ * working tree: untracked and ignored files (`.DS_Store`, editor backups) are left out. Inherited
+ * GIT_* variables (for example GIT_DIR inside a Git hook) would redirect the command.
+ */
 const readTree = async (dir: string): Promise<Map<string, Buffer>> => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith("GIT_")),
+  );
+  const { stdout } = await execFileAsync("git", ["ls-files", "-z", "--cached", "--", "."], {
+    cwd: dir,
+    env,
+    maxBuffer: 64 * 1024 * 1024,
+  });
   const files = new Map<string, Buffer>();
-  const entries = await fs.readdir(dir, { recursive: true, withFileTypes: true });
-  for (const entry of entries.filter((e) => e.isFile())) {
-    const file = path.join(entry.parentPath, entry.name);
-    files.set(path.relative(dir, file).split(path.sep).join("/"), await fs.readFile(file));
+  for (const file of stdout.split("\0").filter((f) => f !== "")) {
+    files.set(file, await fs.readFile(path.join(dir, ...file.split("/"))));
   }
   return files;
 };
 
 /** A catalog command run in the workspace being generated. */
-type BoundCommand = (command: string, input: Readonly<Record<string, unknown>>) => Promise<unknown>;
+export type BoundCommand = (command: string, input: Readonly<Record<string, unknown>>) => Promise<unknown>;
 
 /** Makes a fixture workspace with `files`, builds it with `build`, and removes it again when that fails. */
 const generate = async <T>(
@@ -100,7 +115,7 @@ export async function createSpecCopyWorkspace(options: SpecCopyOptions): Promise
   const elements = [...files]
     .filter(([file]) => file.endsWith(".md") && !file.startsWith("evidence/"))
     .map(([file, bytes]) => ({ file, content: bytes.toString("utf8") }))
-    .filter(({ content }) => content.startsWith("---\n"));
+    .filter(({ content }) => /^---\r?\n/.test(content));
   const fileOf = (specId: string): string => {
     const element = elements.find(({ content }) => specIdOf(content) === specId);
     if (element === undefined) {
@@ -167,10 +182,30 @@ const workspaceFile = (name: string, repository: string): string =>
     "",
   ].join("\n");
 
-/** Creates elements through `run` and keeps their UUIDs by a local key. */
-const seeder = (run: BoundCommand) => {
+export interface Seeder {
+  /** The UUID of the element created under `key`. */
+  readonly id: (key: string) => string;
+  /** Creates an element with relations to the elements of the given keys and returns its file. */
+  readonly create: (
+    key: string,
+    type: string,
+    title: string,
+    text: string,
+    properties?: Readonly<Record<string, unknown>>,
+    relations?: Readonly<Record<string, string>>,
+  ) => Promise<string>;
+}
+
+/** Creates elements through `run` and keeps their UUIDs by a local key, which `id` gives back. */
+export const createSeeder = (run: BoundCommand): Seeder => {
   const ids = new Map<string, string>();
-  const id = (key: string): string => String(ids.get(key));
+  const id = (key: string): string => {
+    const value = ids.get(key);
+    if (value === undefined) {
+      throw new Error(`unknown seed key ${key}`);
+    }
+    return value;
+  };
   const create = async (
     key: string,
     type: string,
@@ -241,7 +276,7 @@ export const ORBIT_BASELINE = "Beta 1";
 
 /**
  * The Orbit Lab workspace: a workspace with the unusual metamodel `ORBIT_MODEL`, two editions (one
- * excludes a capability, one capability of it overrides one of the core), statuses set, evidence
+ * excludes a capability, the constraint CON-3 of one overrides the capability CAP-100 of the core), statuses set, evidence
  * records, and the constraint CON-2 with acceptance criteria without keys, as a hand-written or
  * imported file has them. Its Git history has three commits: the first state, the baseline
  * `ORBIT_BASELINE`, and a change of CAP-101 and the new constraint CON-4 after it.
@@ -255,7 +290,7 @@ export async function createOrbitLabWorkspace(options: UiWorkspaceOptions): Prom
     },
     async (workspace, run) => {
       await fs.mkdir(workspace.path("evidence"));
-      const { id, create } = seeder(run);
+      const { id, create } = createSeeder(run);
       const areas = (key: string): Readonly<Record<string, unknown>> => ({ "belongs-to": [id(key)] });
       await create("core", "area", "Mission planning", "", { "ref-code": "AR-1" });
       await create("ops", "area", "Ground operations", "", { "ref-code": "AR-2" });
@@ -468,7 +503,7 @@ export async function createOrbitLabWorkspace(options: UiWorkspaceOptions): Prom
       const file = workspace.path(keyless);
       await fs.writeFile(
         file,
-        (await fs.readFile(file, "utf8")).replace(/ {2}- key: [a-z0-9]+\n {4}text: /g, "  - "),
+        (await fs.readFile(file, "utf8")).replace(/ {2}- key: [a-z0-9]+\r?\n {4}text: /g, "  - "),
       );
 
       await initRepository(workspace);
@@ -542,7 +577,7 @@ export async function createNoIdentifierWorkspace(options: UiWorkspaceOptions): 
     },
     async (workspace, run) => {
       await fs.mkdir(workspace.path("evidence"));
-      const { id, create } = seeder(run);
+      const { id, create } = createSeeder(run);
       const pkg = (key: string): Readonly<Record<string, unknown>> => ({ packages: [id(key)] });
       await create("flight", "package", "Flight", "");
       await create("cargo", "package", "Cargo handling", "");

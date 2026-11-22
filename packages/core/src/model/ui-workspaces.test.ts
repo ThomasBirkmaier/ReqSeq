@@ -7,6 +7,7 @@ import {
   SPEC_COPY_BASELINE,
   SPEC_COPY_CHANGED,
   createFixtureWorkspace,
+  createSeeder,
   createNoIdentifierWorkspace,
   createOrbitLabWorkspace,
   createSpecCopyWorkspace,
@@ -42,15 +43,18 @@ const CHANGED = "SR-036";
 /** Copying the 20 MB of `spec/` and reading it twice: a bound only a hang reaches. */
 const TIMEOUT_MS = 120_000;
 
-/** A folder of its own for a generator, removed after the test. */
-const emptyFolder = async (): Promise<string> => {
-  const folder = await createFixtureWorkspace();
+/** A folder of its own, removed after the test; with `git`, an empty Git repository. */
+const emptyFolder = async (git = false): Promise<string> => {
+  const folder = await createFixtureWorkspace(git ? { git: true } : {});
   onTestFinished(() => folder.cleanup());
   return folder.root;
 };
 
-/** A specification folder with element files that name each other, so none can be the added one. */
-const linkedSpec = async (): Promise<string> => {
+/**
+ * A small specification in a Git repository with N-001, SR-001 and SR-036 (SR-001 and SR-036 name
+ * each other) and, with `free`, SR-002, which no other file names; an untracked file besides.
+ */
+const smallSpec = async (free: boolean): Promise<string> => {
   const element = (id: string, specId: string, names: string): string =>
     `---\nid: ${id}\ntype: system-requirement\nspec-id: "${specId}"\n---\n\nNames ${names}.\n`;
   const spec = await createFixtureWorkspace({
@@ -59,8 +63,11 @@ const linkedSpec = async (): Promise<string> => {
       "need/N-1.md": element("n-uuid", "N-001", "sr1-uuid"),
       "system-requirement/SR-1.md": element("sr1-uuid", "SR-001", "sr36-uuid"),
       "system-requirement/SR-36.md": element("sr36-uuid", "SR-036", "sr1-uuid"),
+      ...(free ? { "system-requirement/SR-2.md": element("sr2-uuid", "SR-002", "nothing") } : {}),
     },
+    git: true,
   });
+  await spec.write("system-requirement/.DS_Store", "untracked");
   onTestFinished(() => spec.cleanup());
   return spec.root;
 };
@@ -102,10 +109,10 @@ describe("workspaces for the web UI tests (ADR-0020, #2316)", () => {
   );
 
   it("refuses a specification without the elements the history changes or adds", async () => {
-    await expect(createSpecCopyWorkspace({ run, specDir: await emptyFolder() })).rejects.toThrow(
+    await expect(createSpecCopyWorkspace({ run, specDir: await emptyFolder(true) })).rejects.toThrow(
       "has no element N-001",
     );
-    await expect(createSpecCopyWorkspace({ run, specDir: await linkedSpec() })).rejects.toThrow(
+    await expect(createSpecCopyWorkspace({ run, specDir: await smallSpec(false) })).rejects.toThrow(
       "no system requirement that no other file names",
     );
   });
@@ -173,9 +180,34 @@ describe("workspaces for the web UI tests (ADR-0020, #2316)", () => {
   it("removes its temporary folder in tempDir again when a command fails", async () => {
     const tempDir = await emptyFolder();
     const failing: RunCommand = () => Promise.reject(new Error("command failed"));
+    const specDir = await smallSpec(true);
     for (const generate of [createSpecCopyWorkspace, createOrbitLabWorkspace, createNoIdentifierWorkspace]) {
-      await expect(generate({ run: failing, tempDir })).rejects.toThrow("command failed");
+      await expect(generate({ run: failing, tempDir, specDir })).rejects.toThrow("command failed");
       expect(await fs.readdir(tempDir)).toEqual([]);
     }
+  });
+
+  it("copies only the files Git tracks, CRLF files included", async () => {
+    const specDir = await smallSpec(true);
+    for (const file of ["need/N-1.md", "system-requirement/SR-2.md"]) {
+      const content = await fs.readFile(`${specDir}/${file}`, "utf8");
+      await fs.writeFile(`${specDir}/${file}`, content.replaceAll("\n", "\r\n"));
+    }
+    let copied: readonly string[] = [];
+    const ws = await createSpecCopyWorkspace({
+      specDir,
+      run: async (root) => {
+        copied = (await fs.readdir(root, { recursive: true })).map(String);
+        return {};
+      },
+    });
+    onTestFinished(() => ws.cleanup());
+    expect(ws.added).toBe("SR-002");
+    expect(copied.some((file) => file.endsWith(".DS_Store"))).toBe(false);
+    expect(copied.some((file) => file.endsWith("SR-2.md"))).toBe(false);
+  });
+
+  it("names a seed key it does not know", () => {
+    expect(() => createSeeder(() => Promise.resolve({})).id("nobody")).toThrow("unknown seed key nobody");
   });
 });
