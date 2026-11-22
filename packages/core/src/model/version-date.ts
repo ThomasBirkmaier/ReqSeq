@@ -26,10 +26,13 @@ import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
 import {
+  commitBlobs,
+  commitsBetween,
   fileHistory,
   fileMoves,
   headCommit,
   headFiles,
+  historyRange,
   isGitPath,
   openObjectReader,
   workTreeOf,
@@ -142,6 +145,11 @@ interface FileWalk {
    * image blob Git does not have, an image path it cannot take); `versions` holds undefined there.
    */
   readonly unknown: Set<string>;
+  /**
+   * The history reads and answer rounds that hold the walk: while one runs, `evaluated` may not fit
+   * `walked` yet, so the walk is not carried to a new HEAD (`carryWalks`).
+   */
+  busy: number;
 }
 
 /** The element at one text blob: its type, values and text, and the image links of that text. */
@@ -151,10 +159,13 @@ interface Held {
   readonly links: readonly ImageLink[];
 }
 
+/** An object a commit has at a path: its ID and type (`blob` for a file or a link). */
+type Entry = Pick<ObjectInfo, "id" | "type">;
+
 /** What a repository's objects are: true at any HEAD, kept with its walks and carried to a new HEAD. */
 interface Facts {
   /** Info by object name (`<commit>:<path>`); null where Git has no such object. */
-  readonly infos: Map<string, ObjectInfo | null>;
+  readonly infos: Map<string, Entry | null>;
   /** The element a walked file held at a blob of its text, by `<walk key>\n<path>\n<blob ID>`. */
   readonly held: Map<string, Held | undefined>;
   /** SHA-256 by blob ID; null for a blob Git did not have. */
@@ -177,6 +188,8 @@ interface RepositoryWalks {
   readonly shallow: boolean;
   /** Undefined where Git cannot tell; `LATE` where git did not answer in time (the key is then removed). */
   readonly files: Map<string, Promise<FileWalk | typeof LATE | undefined>>;
+  /** The walks of `files` as they are now, without waiting: what a new HEAD may carry. */
+  readonly walked: Map<string, FileWalk>;
   /** True at any HEAD: kept when HEAD moves, so a new HEAD reads only the objects it adds. */
   readonly facts: Facts;
 }
@@ -184,13 +197,18 @@ interface RepositoryWalks {
 interface VersionDateCache {
   /** By repository folder; a new HEAD replaces the walks of the old one. */
   readonly repositories: Map<string, RepositoryWalks>;
+  /** The HEAD move each repository folder is carrying its walks over, so concurrent calls share it. */
+  readonly moving: Map<
+    string,
+    { readonly from: string; readonly to: string; readonly walks: Promise<RepositoryWalks> }
+  >;
   /** Stops the git processes of running walks when the state goes (`close`, `reset`). */
   readonly stop: AbortController;
 }
 
 const versionDateState = defineWorkspaceState(
   "version-dates",
-  (): VersionDateCache => ({ repositories: new Map(), stop: new AbortController() }),
+  (): VersionDateCache => ({ repositories: new Map(), moving: new Map(), stop: new AbortController() }),
   {
     // The version at a commit depends on the metamodel (content flags) and the `ignore` globs.
     dependsOn: [metamodelState, workspaceLayoutState],
@@ -301,6 +319,16 @@ const parentsFirst = (commits: readonly HistoryCommit[]): HistoryCommit[] => {
 };
 
 /**
+ * `list` newest first. Commits of one second are ordered by their ID, so the start found never
+ * depends on the order git listed them in, which follows the other paths of a call (D-029).
+ */
+const newestFirst = (list: Evaluated[]): Evaluated[] => {
+  const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
+    a.date === b.date ? a.commit < b.commit : a.date < b.date;
+  return list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit)));
+};
+
+/**
  * The commits of `commits` (parents first, every merge listed) where the file is evaluated, newest
  * first, each with the evaluated commits whose versions its parents have. A commit is evaluated
  * where it is in `changing` (it changed a tracked path) or its parents do not all lead to the same
@@ -311,6 +339,7 @@ const parentsFirst = (commits: readonly HistoryCommit[]): HistoryCommit[] => {
  * `commits` (the one commit no other one names as a parent: every merge is listed, so the commits
  * left out between it and HEAD have one parent each), whatever the committer dates say.
  */
+
 const evaluatedList = (
   commits: readonly HistoryCommit[],
   changing: ReadonlySet<HistoryCommit>,
@@ -328,14 +357,10 @@ const evaluatedList = (
       source.set(commit.commit, first);
     }
   }
-  // Commits of one second are ordered by their ID, so the start found never depends on the order
-  // git listed them in, which follows the other paths of a call (D-029).
-  const before = (a: HistoryCommit, b: HistoryCommit): boolean =>
-    a.date === b.date ? a.commit < b.commit : a.date < b.date;
   const named = new Set(commits.flatMap((c) => c.parents));
   const tip = commits.find((c) => !named.has(c.commit));
   return {
-    list: list.sort((a, b) => Number(before(a.commit, b.commit)) - Number(before(b.commit, a.commit))),
+    list: newestFirst(list),
     head: tip === undefined ? "" : (sourceOf(tip.commit)?.commit ?? ""),
   };
 };
@@ -499,14 +524,21 @@ const decide = (
       continue;
     }
     newest ??= at;
+    // A parent known to have the version is enough to tell this commit started none: the other
+    // parents' versions are not needed for it (a merge from an older commit, SR-082 AK4).
+    if (parents.some((p) => p !== null && withVersion(walk, p.commit, version) !== undefined)) {
+      continue;
+    }
     const unknown = parents.filter((p): p is HistoryCommit => p !== null && !walk.versions.has(p.commit));
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
-    if (
-      need.length === 0 &&
-      !parents.some((p) => p !== null && withVersion(walk, p.commit, version) !== undefined)
-    ) {
+    if (need.length === 0) {
       return { start: { date: commit.date, commit: commit.commit, values: newest.values } };
+    }
+    // It is the start unless a newer open commit is: no older commit is needed for that (a merge or
+    // an amend on top, whose own version is open, SR-082 AK4).
+    if (unknown.length === 0) {
+      break;
     }
   }
   return need.length === 0 ? { start: null } : { need };
@@ -528,15 +560,48 @@ interface Round {
   readonly nested: Map<string, boolean>;
 }
 
-/** Asks the reader for the info of the names not known yet. */
+/**
+ * From this many names at one commit, one tree listing of the commit (`commitBlobs`, #439) answers
+ * them instead of the reader: a name costs `cat-file` about 0.08 ms, a listing of 50,000 files
+ * about 30 ms (HEAD's commit after a merge or an amend, SR-082 AK4).
+ */
+const LISTED_FROM = 500;
+
+/** Asks Git for the info of the names not known yet. */
 const ask = async (round: Round, names: Iterable<string>): Promise<void> => {
   const { infos } = round.walks.facts;
   const unasked = [...new Set(names)].filter((n) => !infos.has(n));
-  const read = await round.reader.info(unasked);
+  const byCommit = new Map<string, string[]>();
+  for (const name of unasked) {
+    pushTo(byCommit, name.slice(0, name.indexOf(":")), name);
+  }
+  const single: string[] = [];
+  for (const [commit, listed] of byCommit) {
+    if (listed.length < LISTED_FROM) {
+      single.push(...listed);
+      continue;
+    }
+    const paths = listed.map((name) => name.slice(commit.length + 1));
+    const blobs = await commitBlobs(round.source.repository.folder, commit, paths, { signal: round.signal });
+    if (!blobs.known && blobs.reason === "timeout") {
+      throw new Unknown(blobs);
+    }
+    // What the listing has not (no entry, a folder, a submodule), and every name where Git refuses
+    // the listing (a partial clone without trees), the reader answers as for few names.
+    for (const [i, name] of listed.entries()) {
+      const id = blobs.known ? blobs.ids.get(String(paths[i])) : undefined;
+      if (id === undefined) {
+        single.push(name);
+      } else {
+        infos.set(name, { id, type: "blob" });
+      }
+    }
+  }
+  const read = await round.reader.info(single);
   if (!read.known) {
     throw new Unknown(read);
   }
-  for (const [i, name] of unasked.entries()) {
+  for (const [i, name] of single.entries()) {
     infos.set(name, read.objects[i] ?? null);
   }
 };
@@ -546,20 +611,20 @@ const ask = async (round: Round, names: Iterable<string>): Promise<void> => {
  * the only other form the tree has. A blob counts (a file or a symbolic link); anything else, or
  * no entry, is undefined.
  */
-const blobAt = (facts: Facts, spellings: readonly string[], commit: string): ObjectInfo | undefined => {
+const blobAt = (facts: Facts, spellings: readonly string[], commit: string): Entry | undefined => {
   const [spelled = "", ...others] = spellings;
-  const found = (form: string): ObjectInfo | null => facts.infos.get(objectName(commit, form)) ?? null;
+  const found = (form: string): Entry | null => facts.infos.get(objectName(commit, form)) ?? null;
   const alternatives = others.map(found).filter((info) => info !== null);
   const entry = found(spelled) ?? (alternatives.length === 1 ? alternatives[0] : undefined);
   return entry?.type === "blob" ? entry : undefined;
 };
 
 /** The key of what a walked file held at `name` in the blob `blob`. */
-const heldKey = (walk: FileWalk, name: string, blob: ObjectInfo): string =>
+const heldKey = (walk: FileWalk, name: string, blob: Entry): string =>
   `${walk.walked.key}\n${name}\n${blob.id}`;
 
 /** The text blobs of `walk` at `commit`: one for each of its names the commit has. */
-const textsAt = (facts: Facts, walk: FileWalk, commit: string): { name: string; blob: ObjectInfo }[] =>
+const textsAt = (facts: Facts, walk: FileWalk, commit: string): { name: string; blob: Entry }[] =>
   walk.walked.names.flatMap((name) => {
     const blob = blobAt(facts, forms(name), commit);
     return blob === undefined ? [] : [{ name, blob }];
@@ -570,7 +635,7 @@ const heldAt = (
   facts: Facts,
   walk: FileWalk,
   commit: string,
-): { name: string; blob: ObjectInfo; held: Held } | undefined => {
+): { name: string; blob: Entry; held: Held } | undefined => {
   for (const { name, blob } of textsAt(facts, walk, commit)) {
     const held = facts.held.get(heldKey(walk, name, blob));
     if (held !== undefined) {
@@ -616,7 +681,7 @@ interface TextAt {
 const textOf = (
   facts: Facts,
   { walk, commit, index }: TextAt,
-): { blob: ObjectInfo; key: string; name: string } | undefined => {
+): { blob: Entry; key: string; name: string } | undefined => {
   const name = String(walk.walked.names[index]);
   const blob = blobAt(facts, forms(name), commit);
   return blob === undefined ? undefined : { blob, key: heldKey(walk, name, blob), name };
@@ -691,7 +756,7 @@ const readTexts = async (
 };
 
 /** What an image is at a commit: its blob, missing, not counted (nested), or not readable. */
-type ImageAt = ObjectInfo | "missing" | "nested" | "unknown";
+type ImageAt = Entry | "missing" | "nested" | "unknown";
 
 /**
  * The images of the texts at `at` (ADR-0005 "Version date"), by `<path>\n<commit>`, with the
@@ -865,27 +930,249 @@ const headWalks = async (
   if (!head.known) {
     return head.reason === "timeout" ? LATE : undefined;
   }
-  const current: RepositoryWalks =
-    known?.head === head.commit
-      ? { ...known, stamp: files?.stamp, shallow: head.shallow }
-      : {
-          stamp: files?.stamp,
-          head: head.commit,
-          shallow: head.shallow,
-          files: new Map(),
-          // What objects are is true at any HEAD: a new HEAD reads only what it adds (SR-082 AK4).
-          facts: known?.facts ?? {
-            infos: new Map(),
-            held: new Map(),
-            hashes: new Map(),
-            versions: new Map(),
-            movesAsked: new Set(),
-            unreadable: new Set(),
-            moves: new Map(),
-          },
-        };
-  cache.repositories.set(folder, current);
-  return current;
+  if (known?.head === head.commit) {
+    const current = { ...known, stamp: files?.stamp, shallow: head.shallow };
+    cache.repositories.set(folder, current);
+    return current;
+  }
+  const current: RepositoryWalks = {
+    stamp: files?.stamp,
+    head: head.commit,
+    shallow: head.shallow,
+    files: new Map(),
+    walked: new Map(),
+    // What objects are is true at any HEAD: a new HEAD reads only what it adds (SR-082 AK4).
+    facts: known?.facts ?? noFacts(),
+  };
+  if (known === undefined || known.shallow || head.shallow) {
+    cache.repositories.set(folder, current);
+    return current;
+  }
+  return movedWalks(cache, folder, known, current);
+};
+
+/** Nothing known yet of a repository's objects. */
+const noFacts = (): Facts => ({
+  infos: new Map(),
+  held: new Map(),
+  hashes: new Map(),
+  versions: new Map(),
+  movesAsked: new Set(),
+  unreadable: new Set(),
+  moves: new Map(),
+});
+
+/** `current` once the walks of `known` are carried to it; one carry per folder and move. */
+const movedWalks = async (
+  cache: VersionDateCache,
+  folder: string,
+  known: RepositoryWalks,
+  current: RepositoryWalks,
+): Promise<RepositoryWalks> => {
+  // One move per folder at a time: calls that see the same move wait for the same walks.
+  const pending = cache.moving.get(folder);
+  if (pending?.from === known.head && pending.to === current.head) {
+    return pending.walks;
+  }
+  const walks = carryWalks(folder, known, current, cache.stop.signal)
+    .then(() => {
+      // A later move of the folder, taking the place meanwhile, keeps its own walks.
+      if (cache.moving.get(folder)?.walks === walks) {
+        cache.repositories.set(folder, current);
+      }
+      return current;
+    })
+    .finally(() => {
+      // A later move of the folder may have taken the place meanwhile.
+      if (cache.moving.get(folder)?.walks === walks) {
+        cache.moving.delete(folder);
+      }
+    });
+  cache.moving.set(folder, { from: known.head, to: current.head, walks });
+  return walks;
+};
+
+/** A copy of `walk` that shares nothing it can change (a call at the old HEAD may still run). */
+const copyWalk = (walk: FileWalk): FileWalk => ({
+  walked: { ...walk.walked, names: [...walk.walked.names], tracked: new Set(walk.walked.tracked) },
+  evaluated: walk.evaluated,
+  head: walk.head,
+  versions: new Map(walk.versions),
+  dates: new Map(walk.dates),
+  failed: false,
+  unknown: new Set(walk.unknown),
+  busy: 0,
+});
+
+/** Where a HEAD move leaves the old history: what `carryWalk` needs of it. */
+interface Move {
+  readonly to: string;
+  /** The commits of `to ^<old HEAD>`, parents first, with their real parents and their paths in NFC. */
+  readonly range: readonly HistoryCommit[];
+  /** The parents of the range outside it (all reachable from the old HEAD), or `to` for an empty range. */
+  readonly boundary: readonly string[];
+  /** For each boundary commit, the commits the old HEAD reaches and it does not (none for the old HEAD). */
+  readonly between: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+/** The source of each boundary commit of `move` for `walk` (see `carryWalk`). */
+const boundarySources = (walk: FileWalk, move: Move): Map<string, HistoryCommit | null> => {
+  const sources = new Map<string, HistoryCommit | null>();
+  for (const x of move.boundary) {
+    const not = move.between.get(x);
+    if (not === undefined) {
+      // The old HEAD reaches every evaluated commit: its source is HEAD's.
+      sources.set(x, walk.evaluated.find((e) => e.commit.commit === walk.head)?.commit ?? null);
+      continue;
+    }
+    const reached = walk.evaluated.filter((e) => !not.has(e.commit.commit));
+    const named = new Set(reached.flatMap((e) => e.parents.flatMap((p) => (p === null ? [] : [p.commit]))));
+    sources.set(x, reached.find((e) => !named.has(e.commit.commit))?.commit ?? null);
+  }
+  return sources;
+};
+
+/** The commits of the range where `walk` is evaluated, as `evaluatedList` finds them, with `sources` filled in. */
+const rangeEvaluated = (
+  walk: FileWalk,
+  move: Move,
+  sources: Map<string, HistoryCommit | null>,
+): Evaluated[] => {
+  const tracked = walk.walked.tracked;
+  const added: Evaluated[] = [];
+  for (const commit of move.range) {
+    const parents = commit.parents.map((p) => sources.get(p) ?? null);
+    const first = parents[0] ?? null;
+    if (commit.paths.some((p) => tracked.has(p)) || parents.some((p) => p !== first)) {
+      sources.set(commit.commit, commit);
+      added.push({ commit, parents });
+    } else {
+      sources.set(commit.commit, first);
+    }
+  }
+  return added;
+};
+
+/**
+ * `walk` (a copy, `copyWalk`) at the HEAD `move.to`, from what it found at the old HEAD; undefined
+ * where it has an old name and HEAD no longer reaches some of its evaluated commits (the move that
+ * gave the name may be one of them). Of the commits `from` reaches, an evaluated one is reachable from a boundary commit
+ * X exactly when it is not in `between` of X; one no boundary commit reaches is not reachable from
+ * `to`, and leaves the list. Whether a commit is evaluated depends only on its ancestors, so the
+ * others stay as they are. The source of X (the evaluated commit whose version X has) is the one
+ * evaluated commit X reaches that no other one it reaches has as a parent source: every evaluated
+ * commit a commit reaches is reached through its source (a merge whose sides lead to different
+ * ones is evaluated itself), so there is exactly one, or none where X has no version. Then the range is evaluated as
+ * `evaluatedList` does, from the sources of its parents.
+ */
+const carryWalk = (walk: FileWalk, move: Move): FileWalk | undefined => {
+  const none: ReadonlySet<string> = new Set();
+  const outside = (commit: string): boolean =>
+    move.boundary.every((x) => (move.between.get(x) ?? none).has(commit));
+  const sources = boundarySources(walk, move);
+  const added = rangeEvaluated(walk, move, sources);
+  const kept = walk.evaluated.filter((e) => !outside(e.commit.commit));
+  const head = sources.get(move.to)?.commit ?? "";
+  if (walk.walked.names.length > 1 && kept.length < walk.evaluated.length) {
+    // An old name may come from a move HEAD no longer reaches: the history tells again.
+    return undefined;
+  }
+  if (added.length > 0 || kept.length < walk.evaluated.length || head !== walk.head) {
+    walk.evaluated = newestFirst([...added, ...kept]);
+    walk.head = head;
+    // The answers were found on the commits before; they are found again on these. Where no
+    // commit came or went, HEAD's source stays too, and so do they.
+    walk.dates.clear();
+    for (const commit of walk.unknown) {
+      if (outside(commit)) {
+        walk.unknown.delete(commit);
+      }
+    }
+  }
+  return walk;
+};
+
+/**
+ * Carries the settled walks of `known` to `current` after HEAD moved (SR-082 AK4), with one range
+ * `log` for their folders and one list per boundary commit other than the old HEAD. A walk still
+ * read or answered, one Git refused, one whose names a move in the range adds to or that has an
+ * old name and lost evaluated commits, and every walk where the range or a list has more than
+ * `RANGE_LIMIT` commits or Git cannot tell now (it refuses, did not answer in time or is missing)
+ * is walked again.
+ */
+const carryWalks = async (
+  folder: string,
+  known: RepositoryWalks,
+  current: RepositoryWalks,
+  signal: AbortSignal,
+): Promise<void> => {
+  // A copy now, before any await: the old walks may change meanwhile.
+  const settled = [...known.walked.values()]
+    .filter((w) => w.busy === 0 && !w.failed && known.files.has(w.walked.key))
+    .map(copyWalk);
+  const paths = [
+    ...new Set(
+      settled
+        .flatMap((w) => [...w.walked.tracked].flatMap(forms))
+        .filter(isGitPath)
+        .map(pathspecOf),
+    ),
+  ];
+  const range =
+    paths.length === 0 ? undefined : await historyRange(folder, known.head, current.head, paths, { signal });
+  if (range === undefined || !range.known || range.more) {
+    return;
+  }
+  // In NFC once, as the tracked paths are, not once per walk.
+  const commits = parentsFirst(range.commits).map((c) => ({
+    ...c,
+    paths: c.paths.map((p) => p.normalize("NFC")),
+  }));
+  const changing = commits.filter((c) => c.paths.length > 0);
+  const listed = new Set(commits.map((c) => c.commit));
+  const boundary =
+    commits.length === 0
+      ? [current.head]
+      : [...new Set(commits.flatMap((c) => c.parents.filter((p) => !listed.has(p))))];
+  const between = new Map<string, ReadonlySet<string>>();
+  for (const x of boundary.filter((b) => b !== known.head)) {
+    const list = await commitsBetween(folder, known.head, x, { signal });
+    if (!list.known || list.more) {
+      return;
+    }
+    between.set(x, new Set(list.commits));
+  }
+  const move: Move = { to: current.head, range: commits, boundary, between };
+  const carried = settled.flatMap((walk) => {
+    const copy = carryWalk(walk, move);
+    return copy === undefined ? [] : [copy];
+  });
+  // A move in the range to a name of a file adds the old path: that walk reads its history again.
+  const renamed = (walk: FileWalk): HistoryCommit[] => {
+    const names = new Set(walk.walked.names.map((n) => n.normalize("NFC")));
+    return changing.filter((c) => c.paths.some((p) => names.has(p)));
+  };
+  // Git that cannot tell now (late, or missing): nothing is carried; anything else is a programming error.
+  try {
+    await lookUpMoves(
+      current.facts,
+      folder,
+      carried.flatMap((w) => renamed(w).map((c) => c.commit)),
+      signal,
+    );
+  } catch (error) {
+    if (error instanceof Unknown) {
+      return;
+    }
+    throw error;
+  }
+  for (const walk of carried) {
+    if (!addOldNames(walk, renamed(walk), current.facts)) {
+      current.files.set(walk.walked.key, Promise.resolve(walk));
+      current.walked.set(walk.walked.key, walk);
+    }
+  }
+  return undefined;
 };
 
 /** The requests of each repository, by workspace name. */
@@ -1025,13 +1312,19 @@ const startWalks = (
       dates: new Map(),
       failed: false,
       unknown: new Set(),
+      busy: 1,
     });
   }
   if (fresh.size === 0) {
     return;
   }
   const running = readHistory(walks, source.repository.folder, [...fresh.values()], signal).then(
-    () => undefined,
+    () => {
+      for (const walk of fresh.values()) {
+        walk.busy -= 1;
+      }
+      return undefined;
+    },
     (error: unknown) => {
       // What Git could not tell for a reason that may pass (a timeout, no git) is asked again next time.
       if (!(error instanceof Unknown) || error.transient) {
@@ -1050,6 +1343,7 @@ const startWalks = (
     // A programming error reaches the call that awaits the walk; it never goes unhandled meanwhile.
     found.catch(() => undefined);
     walks.files.set(key, found);
+    walks.walked.set(key, walk);
   }
 };
 
@@ -1135,23 +1429,38 @@ const repositoryDates = async <T extends VersionDateRequest>(
         : [{ walk, version: r.version }];
     });
     let late = false;
-    await answer(round, queries).catch((error: unknown) => {
-      // Git could not tell, or a folder of the working copy could not be listed (`file.faulty`).
-      if (error instanceof Unknown && !error.transient) {
-        for (const { walk } of queries) {
-          walk.failed = true;
+    const held = new Set(queries.map((q) => q.walk));
+    for (const walk of held) {
+      walk.busy += 1;
+    }
+    await answer(round, queries)
+      .catch((error: unknown) => {
+        // Git could not tell, or a folder of the working copy could not be listed (`file.faulty`).
+        if (error instanceof Unknown && !error.transient) {
+          for (const { walk } of queries) {
+            walk.failed = true;
+          }
+        } else if (error instanceof Unknown || error instanceof CommandError) {
+          // What may pass is asked again by the next call, from a new walk: this one may hold a
+          // tracked path whose history was not read (ADR-0005 "No date").
+          late = error instanceof Unknown && error.late;
+          for (const { walk } of queries) {
+            walks.files.delete(walk.walked.key);
+          }
+        } else {
+          // A programming error: the walks it held may be half updated, so none is kept.
+          for (const { walk } of queries) {
+            walks.files.delete(walk.walked.key);
+          }
+          throw error;
         }
-      } else if (error instanceof Unknown || error instanceof CommandError) {
-        // What may pass is asked again by the next call, from a new walk: this one may hold a
-        // tracked path whose history was not read (ADR-0005 "No date").
-        late = error instanceof Unknown && error.late;
-        for (const { walk } of queries) {
-          walks.files.delete(walk.walked.key);
+      })
+      // Only once the walks are marked or dropped: a carry may copy a walk no round holds.
+      .finally(() => {
+        for (const walk of held) {
+          walk.busy -= 1;
         }
-      } else {
-        throw error;
-      }
-    });
+      });
     return requests.map((r, i): readonly [T, Found] => {
       const walk = files[i];
       if (walk === LATE) {

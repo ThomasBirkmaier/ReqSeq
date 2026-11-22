@@ -180,6 +180,29 @@ describe("Git only read (SR-083, D-036)", () => {
     ).resolves.toBeDefined();
   });
 
+  it("[SR-083/AK-fsx5] carries the version dates over a HEAD move with git commands that read, without writing to the Git folder (#2346)", async () => {
+    const repository = await fixture({ fixture: "SR-001/two-elements", files: FILES, git: true });
+    await repository.write("notes.txt", "n\n");
+    await repository.commit();
+    const workspace = open(repository.root);
+    const sorted = async (): Promise<unknown> =>
+      runtime.invoke("element.list", { sort: [{ by: "versionDate" }] }, { workspace });
+    const before = await sorted();
+    // An amend of the last commit: one range, and one list for the parent outside it.
+    const parent = (await repository.git(["rev-parse", "HEAD^"])).trim();
+    const made = await repository.commitHistory([
+      { name: "amended", parents: [parent], files: { "notes.txt": "m\n" } },
+    ]);
+    await repository.git(["update-ref", "refs/heads/main", String(made["amended"]?.id)]);
+    const folder = gitFolder(repository.root);
+    recordProcesses();
+    expect(await sorted()).toEqual(before);
+    expect(gitFolder(repository.root)).toEqual(folder);
+    expect(started.calls.filter((args) => args.includes("--sparse"))).toHaveLength(1);
+    expect(started.calls.filter((args) => args.includes("--format=%H"))).toHaveLength(1);
+    expect(processes().filter(([, sub]) => !READ_ONLY.has(sub))).toEqual([]);
+  });
+
   it("[SR-083/AK-fsx5] asks the index whether a local file is tracked without writing to the Git folder (#1456)", async () => {
     const local = "reqseq-local: 1\n";
     const repository = await fixture({
