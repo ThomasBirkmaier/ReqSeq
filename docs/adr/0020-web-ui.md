@@ -43,7 +43,7 @@ The Electron app (ADR-0010) and its delivery (ADR-0014) stay until the web UI sh
 
 The UI server opens the workspace in its own process, as `reqseq serve api` does: model cache, and core's watcher started before the load (ADR-0008).
 
-**What it starts.** No program except the opener of step 6. Git is read only by core's `git` module, inside catalog commands and the workspace load (D-036). Whether such Git counts as a process of the tool in SR-248 AK2 is the question #2312; this ADR assumes yes.
+**What it starts.** No program except the opener of step 6. Git is read only by core's `git` module, inside catalog commands and the workspace load (D-036). SR-248 AK2 allows a program, Git included, or a workspace file only in a catalog command, the open of the workspace and the watcher (SR-007); the tool's own non-Git processes and the opener are exempt (#2312, #2329).
 
 **Access name `ui` (ADR-0009).**
 - `ui` is not in `FOLLOWED_ACCESSES`, so reads and writes of the UI are not an agent's access (SR-247 AK11).
@@ -129,7 +129,8 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 ### Test seam (SR-248 AK1, AK2)
 
 - `createUiServer` takes the command runner as an option. Tests pass one with given outputs (AK1).
-- Programs and files are recorded at process level: the test starts `reqseq ui` with a `node --import` preload of the test kit that wraps `child_process` and `fs` (AK2). The product has no switch for it.
+- Programs and files are recorded at process level: the test starts `reqseq ui` with a `node --import` preload of the test kit (`packages/testkit/preload/record-access.mjs`) that wraps `child_process`, `fs`, `fs/promises` and `worker_threads` (AK2). The product has no switch for it.
+- Each record carries the step that started the program or opened the file: the innermost frame that names one, in the stack of the call or of the asynchronous resource it descends from. The frames are core's `commands/` and `runtime/invoke.js` (a catalog command), `openChecked` of the UI server and core's `runtime/warm.js` (the open of the workspace), and core's `model/watch*.js` (the watcher). The stack of the call alone is not enough: the model load, the search index and Git for version dates run from memoised promises and timers whose stacks hold only core's own frames. So the preload carries the step along the asynchronous resources (`async_hooks`), as `AsyncLocalStorage` does, and a call in a worker thread has the step of the creation of its worker. A program the server starts from its own handler or timer has no step, also while a command runs (#2312).
 
 ### Front end
 
@@ -155,7 +156,8 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 - **SR-247:** its tests are in the CLI e2e suite (`packages/cli/test/e2e/ui.test.ts`) on the three systems. They start the built `reqseq ui` and send raw HTTP requests, because a browser sends no forged Host, Origin or token header, and the start, the port and the signals are the process's, not the page's.
 - **SR-078 AK3:** each browser context routes every request to a non-loopback address to a recorder that refuses it. The server runs in a network namespace with loopback only (Linux), as the delivery tests do.
 - **Network:** the browsers are cached in CI, and the tests run with the network blocked.
-- **Tags:** only these contract tests carry AK tags. Appearance and operation are tested, not traced.
+- **Tags:** only these contract tests carry AK tags (`packages/web/test/contract-*.spec.ts`). Appearance and operation are tested, not traced.
+- **Evidence:** the JUnit file of the UI tests is the artifact `junit-web-ubuntu-24.04` (`junit-web.xml`), which `evidence.yml` enriches like the other suites (D-050).
 
 ### Release (supersedes ADR-0014 from #2308 on)
 

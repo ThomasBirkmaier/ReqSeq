@@ -339,8 +339,9 @@ jobs:
     steps: *checks-steps
 
   # The UI tests of the web UI (ADR-0020, Tests): Playwright drives Chromium against the UI server, which the tests
-  # start on generated workspaces (packages/web/test/). Ubuntu only, in the Ubuntu lane, without network. The tests
-  # carry no AK tags yet, so their results are no evidence: the artifact is not named junit-* (evidence.yml).
+  # start on generated workspaces (packages/web/test/); the contract tests (SR-248, SR-078 AK3) run in Firefox and
+  # WebKit too. Ubuntu only, in the Ubuntu lane, without network. Their JUnit file is evidence (D-050): the artifact
+  # junit-web-ubuntu-24.04 (evidence.yml).
   web:
     name: web (ubuntu-24.04)
     # A run takes about 4 minutes, most of it the install and the build; the bound ends a hang.
@@ -369,7 +370,8 @@ jobs:
           cache: pnpm
       - if: steps.changes.outputs.tests != 'false'
         run: pnpm install --frozen-lockfile
-      # Chromium's headless shell (about 100 MB) is downloaded once per Playwright version, not on every run.
+      # The browsers (Chromium's headless shell, Firefox and WebKit) are downloaded once per Playwright version, not on
+      # every run.
       - name: Playwright version
         id: playwright
         if: steps.changes.outputs.tests != 'false'
@@ -382,17 +384,22 @@ jobs:
         if: steps.changes.outputs.tests != 'false'
         with:
           path: ${{ runner.temp }}/ms-playwright
-          key: playwright-chromium-shell-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
-      - name: Chromium
+          key: playwright-chromium-shell-firefox-webkit-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: Browsers
         if: steps.changes.outputs.tests != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @reqseq/web exec playwright install chromium --only-shell
+        run: pnpm --filter @reqseq/web exec playwright install --only-shell chromium firefox webkit
       # Saved right after the download, so that a red test run still fills the cache.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.changes.outputs.tests != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ runner.temp }}/ms-playwright
           key: ${{ steps.browser-cache.outputs.cache-primary-key }}
-      # Core, the API (the UI server) and the test kit for the test starter, and the pages (vite build).
+      # The system libraries Firefox and WebKit need (apt), on every run: the cache holds only the browsers.
+      - name: System libraries of the browsers
+        if: steps.changes.outputs.tests != 'false'
+        run: pnpm --filter @reqseq/web exec playwright install-deps firefox webkit
+      # Core, the API (the UI server), the CLI the contract tests start, the test kit for the test starter, and the
+      # pages (vite build).
       - name: Build
         if: steps.changes.outputs.tests != 'false'
         run: pnpm build
@@ -405,14 +412,19 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/playwright test --config test/playwright.config.ts'
-      - name: Upload the results of the UI tests
+      - name: Upload JUnit results of the UI tests (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-web-ubuntu-24.04
+          path: test-results/junit-web.xml
+          if-no-files-found: ignore
+      - name: Upload the traces of failed UI tests
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-ui-results
-          path: |
-            test-results/junit-web.xml
-            test-results/web/
+          path: test-results/web/
           if-no-files-found: ignore
 
   # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) runs in no job here, and its evidence
