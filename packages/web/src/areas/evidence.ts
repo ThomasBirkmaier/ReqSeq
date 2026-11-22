@@ -16,7 +16,7 @@ import { errorBox } from "../layout.js";
 import { statusPill, verificationMark } from "../marks.js";
 import { cap, isNeed, isReq, propOfType, typeName } from "../meaning.js";
 import type { Route } from "../router.js";
-import { addRoute, isCurrent } from "../router.js";
+import { addRoute, isCurrent, parseHash } from "../router.js";
 import { el, hasVariants, shownId, store, variantName } from "../store.js";
 
 const ROUTE = "evidence";
@@ -221,7 +221,7 @@ function evidenceSection(list: EvidenceListOutput): Child {
 /** What the person typed into the form, kept across a redraw of the page (another change of the workspace). */
 let draft: { readonly id: string; readonly values: Readonly<Record<string, string>> } | undefined;
 /** What the last record wrote, shown once on the page of its element. */
-let recorded: { readonly id: string; readonly text: string } | undefined;
+let recorded: { readonly hash: string; readonly text: string } | undefined;
 
 const field = (label: string, control: HTMLElement, hint?: string, cls = ""): HTMLElement =>
   h(
@@ -302,7 +302,17 @@ function verificationOf(data: FormData): Pick<EvidenceRecordInput, "method" | "v
 function syncForm(form: HTMLFormElement): Record<string, string> {
   const data = new FormData(form);
   const verification = (data.get("kind") ?? "verification") === "verification";
-  const inconclusive = data.get("result") === "inconclusive";
+  // Inconclusive is a result of a validation only (SR-172); a verification offers passed and failed.
+  const result = form.querySelector<HTMLSelectElement>("select[name=result]");
+  const option = result?.querySelector<HTMLOptionElement>("option[value=inconclusive]");
+  if (option !== null && option !== undefined) {
+    option.hidden = verification;
+    option.disabled = verification;
+    if (verification && result?.value === "inconclusive") {
+      result.value = "passed";
+    }
+  }
+  const inconclusive = !verification && result?.value === "inconclusive";
   form.querySelectorAll<HTMLElement>(".v-only").forEach((x) => {
     x.hidden = !verification;
   });
@@ -467,11 +477,12 @@ function recordForm(got: ElementGetOutput, rerender: () => void): HTMLElement {
     const button = form.querySelector("button[type=submit]");
     button?.setAttribute("disabled", "");
     status.replaceChildren();
-    void call("evidence.record", inputOf(form, e.id))
+    void Promise.resolve()
+      .then(() => call("evidence.record", inputOf(form, e.id)))
       .then((out) => {
         draft = undefined;
         recorded = {
-          id: e.id,
+          hash: parseHash(location.hash).hash,
           text: `Recorded. ReqSeq wrote ${out.files.join(", ")}.`,
         };
         announce(recorded.text);
@@ -531,8 +542,11 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     return;
   }
   const e = got.element;
-  const note = recorded?.id === e.id ? recorded.text : undefined;
-  recorded = undefined;
+  // The notice stays while the page shows the same route; the redraw after the record file appeared keeps it.
+  if (recorded !== undefined && recorded.hash !== route.hash) {
+    recorded = undefined;
+  }
+  const note = recorded?.text;
   const rerender = (): void => {
     if (isCurrent(route)) {
       void render(root, route);

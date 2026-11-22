@@ -5,7 +5,7 @@
 // link is ReqSeq's.
 import "../css/trace.css";
 import type { TraceAffectedOutput, TraceGraphOutput } from "@reqseq/core";
-import { boundNote } from "@reqseq/core/displays";
+import { boundNote, degreePercent } from "@reqseq/core/displays";
 import { call } from "../api.js";
 import type { Child } from "../dom.js";
 import { h, s } from "../dom.js";
@@ -215,7 +215,7 @@ const nodeKick = (node: Node): HTMLElement => {
         ),
     node.degree?.share === undefined
       ? null
-      : h("span", { class: "deg" }, `${String(Math.round(node.degree.share * 100))} % verified`),
+      : h("span", { class: "deg" }, `${degreePercent(node.degree.share)} verified`),
   );
 };
 
@@ -229,9 +229,7 @@ function nodeBox(
   summary: string | undefined,
 ): HTMLElement {
   const from = route.params.get("from");
-  const href = root
-    ? tabHref("e", node, from)
-    : tabHref(GRAPH, node, fromOf(...route.parts), paramsOf(options));
+  const href = root ? tabHref("e", node, from) : tabHref(GRAPH, node, route.hash, paramsOf(options));
   const marks = node.marks;
   const box = h(
     "a",
@@ -391,7 +389,13 @@ async function page<T>(
   } catch (error) {
     if (isCurrent(route)) {
       root.replaceChildren(
-        elementPage(el(ref), current, route, h("h1", { class: "sr" }, current), errorBox(error)),
+        elementPage(
+          el(ref),
+          current,
+          route,
+          h("h1", { class: "sr" }, current === GRAPH ? "Trace graph" : "Impact of a change"),
+          errorBox(error),
+        ),
       );
     }
     return;
@@ -456,7 +460,7 @@ const nameOfId = (id: string): string => {
 };
 
 async function renderImpact(root: HTMLElement, route: Route): Promise<void> {
-  const offset = Math.max(0, Number(route.params.get("offset") ?? "0") || 0);
+  const offset = Math.max(0, Math.floor(Number(route.params.get("offset") ?? "0")) || 0);
   const ref = route.parts[1] ?? "";
   const target = el(ref);
   await page(

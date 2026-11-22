@@ -51,7 +51,7 @@ const choiceOf = (route: Route): Choice => {
   return {
     type: types.includes(type) ? type : (types[0] ?? ""),
     pkg: route.params.get("package") ?? "",
-    offset: Math.max(0, Number(route.params.get("offset") ?? "0") || 0),
+    offset: Math.max(0, Math.floor(Number(route.params.get("offset") ?? "0")) || 0),
   };
 };
 
@@ -66,6 +66,14 @@ const hrefOf = (c: Choice): string => {
   return `${hashOf(MATRIX)}?${query.toString()}`;
 };
 
+/** Where the other end of a relation is, when it is not available here. */
+const TARGET_WORDS: Readonly<Record<string, string>> = {
+  missing: "not found",
+  inaccessible: "not on this machine",
+  ambiguous: "more than one match",
+  "unknown-repository": "unknown repository",
+};
+
 /** How a relation's other end is named in a cell. */
 const labelOf = (relation: Relation): string =>
   el(relation.id)?.identifier ?? relation.identifier ?? relation.title ?? relation.shortId ?? relation.id;
@@ -76,7 +84,8 @@ function chip(relation: Relation, from: string): HTMLElement {
   const missing = relation.targetState !== "available";
   const title = target?.title ?? relation.title ?? "";
   const cls = `chip${relation.outdated === true ? " warn" : ""}${missing ? " bad" : ""}`;
-  const extra = relation.outdated === true ? "changed since linked" : missing ? "not found" : null;
+  const extra =
+    relation.outdated === true ? "changed since linked" : missing ? TARGET_WORDS[relation.targetState] : null;
   const why = extra === null ? null : h("span", { class: "why" }, extra);
   return missing || target === undefined
     ? h("span", { class: cls, title }, labelOf(relation), why)

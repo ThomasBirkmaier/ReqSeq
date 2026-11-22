@@ -8,16 +8,15 @@ import type { Child } from "../dom.js";
 import { announce, h } from "../dom.js";
 import { addPlace } from "../element-tabs.js";
 import { addRailSection, errorBox, frame, prepareRail } from "../layout.js";
-import { verificationMark } from "../marks.js";
 import { namesOf, reqWords, typeName, typesWith } from "../meaning.js";
 import type { Route } from "../router.js";
-import { addRoute, fromOf, hashOf, isCurrent } from "../router.js";
-import { el, hasVariants, refOf, shownId, store, verificationOf } from "../store.js";
+import { addRoute, fromOf, hashOf, isCurrent, parseHash } from "../router.js";
+import { el, hasVariants, refOf, shownId, store } from "../store.js";
 
 const VARIANT = "variant";
 
 /** What the last exclusion or inclusion did, shown once on the page of its variant. */
-let done: { readonly variant: string; readonly text: string } | undefined;
+let done: { readonly hash: string; readonly text: string } | undefined;
 
 interface Named {
   readonly id: string;
@@ -29,7 +28,7 @@ interface Named {
 const nameOf = (names: ReadonlyMap<string, Named>, id: string): Named =>
   el(id) ?? names.get(id) ?? { id, shortId: id, title: id };
 
-/** A row: the element, its type and its verification in this variant. */
+/** A row: the element and its type. */
 const row = (
   names: ReadonlyMap<string, Named>,
   id: string,
@@ -51,13 +50,7 @@ const row = (
       h("span", { class: "id" }, shownId(e)),
       h("span", { class: "t" }, e.title === undefined || e.title === "" ? e.shortId : e.title),
       h("span", null),
-      h(
-        "span",
-        { class: "m" },
-        typeName(store.mm, stored?.type),
-        " ",
-        verificationMark(verificationOf(id)?.status),
-      ),
+      h("span", { class: "m" }, typeName(store.mm, stored?.type)),
     ),
     extra,
   );
@@ -80,14 +73,17 @@ async function exclude(
   undo: boolean,
   status: HTMLElement,
   redraw: () => void,
+  button: Element | null,
 ): Promise<void> {
   status.replaceChildren();
+  // One call at a time: a second click while it runs would send the command again.
+  button?.setAttribute("disabled", "");
   try {
     const out = await call("variant.exclude", { variant, refs: [...refs], ...(undo ? { undo: true } : {}) });
     const notes = (out.problems ?? []).map((p) => p.message);
     const what = refs.map((r) => el(r)?.identifier ?? el(r)?.title ?? r).join(", ");
     done = {
-      variant,
+      hash: parseHash(location.hash).hash,
       text: [undo ? `${what} applies in ${name} again.` : `${what} is excluded from ${name}.`, ...notes].join(
         " ",
       ),
@@ -96,6 +92,8 @@ async function exclude(
     redraw();
   } catch (error) {
     status.replaceChildren(errorBox(error));
+  } finally {
+    button?.removeAttribute("disabled");
   }
 }
 
@@ -139,7 +137,7 @@ function excludeForm(variant: string, name: string, redraw: () => void): HTMLEle
     event.preventDefault();
     const ref = input.value.trim();
     if (ref !== "") {
-      void exclude(variant, name, [ref], false, status, redraw);
+      void exclude(variant, name, [ref], false, status, redraw, form.querySelector("button[type=submit]"));
     }
   });
   return form;
@@ -184,7 +182,7 @@ function diffView(
       diff.excluded.map((id) => {
         const button = h("button", { class: "btn sm", type: "button" }, "Include again");
         button.addEventListener("click", () => {
-          void exclude(variant, name, [id], true, status, redraw);
+          void exclude(variant, name, [id], true, status, redraw, button);
         });
         return row(names, id, from, button);
       }),
@@ -220,8 +218,11 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   if (!isCurrent(route)) {
     return;
   }
-  const note = v !== undefined && done?.variant === v.id ? done.text : undefined;
-  done = undefined;
+  // The notice stays while the page shows the same route; a redraw after the written file changed keeps it.
+  if (done !== undefined && done.hash !== route.hash) {
+    done = undefined;
+  }
+  const note = done?.text;
   root.replaceChildren(
     frame(
       `${VARIANT}:${id}`,
