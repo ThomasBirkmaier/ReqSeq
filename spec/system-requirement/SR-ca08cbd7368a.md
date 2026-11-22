@@ -15,10 +15,10 @@ acceptance-criteria:
   - key: gzpr
     text: Gegeben eine Variante, wenn ihre Seite angezeigt wird, dann zeigt sie, was sie gegenüber dem Kern hinzufügt, ersetzt und ausschließt, wie `variant.diff` es liefert ([D-033](reqseq:6adc615d-b1c4-489a-8843-ecc4593d0bf6?version=n2:613f0cb9c096a2ac), Ausnahme für den Kern), und ihren Nachweisgrad. Ein Vergleich mit anderen Varianten entfällt, weil eine Variante nur auf dem Kern aufbaut ([D-020](reqseq:6adc5316-641d-4817-964e-8803a78ac710?version=n2:0cd25f27b89543f2)).
 packages:
-  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 verification-method: test
 based-on:
-  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:a14b879b0af2da59, title: HTML-Export erzeugt das Tool selbst }
+  - { id: b413f77d-743e-4abe-8b79-bceb24c4b7ca, version: n2:ea62ff545cc1d56b, title: HTML-Export erzeugt das Tool selbst }
   - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n2:613f0cb9c096a2ac, title: Unterschiede zeigt die Versionsverwaltung }
   - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n2:0cd25f27b89543f2, title: Varianten über eine Gültigkeitsliste }
   - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n2:310c324700784a6f, title: Baseline als Datei }

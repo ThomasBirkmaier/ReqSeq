@@ -1,7 +1,7 @@
 ---
 id: 6ad39066-51e1-4f3a-8e17-b36e2db4dd01
 type: decision
-status: accepted
+status: superseded
 title: "Desktop-App für Windows, macOS und Linux"
 spec-id: "D-003"
 ---

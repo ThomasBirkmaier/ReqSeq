@@ -6,4 +6,4 @@ title: Zugänge und Anbindung
 spec-id: Zugänge
 ---
 
-Thema „Zugänge und Anbindung“: Dieselben Funktionen über App, Kommandozeile, API und MCP-Server und die Anbindung anderer Werkzeuge über Dateien. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.
+Thema „Zugänge und Anbindung“: Dieselben Funktionen über Kommandozeile, API und MCP-Server, die Web-Oberfläche über die Befehle des Tools, und die Anbindung anderer Werkzeuge über Dateien. Pakete geben die Struktur der Spec nach Themen wieder, nicht den Zeitplan.

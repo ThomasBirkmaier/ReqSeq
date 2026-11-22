@@ -25,14 +25,14 @@ acceptance-criteria:
   - key: cwyt
     text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind an einem Eintrag der Antwort von `evidence.status` genau diese Angaben des Eintrags als Angabe des Elements gekennzeichnet: Typ, Fassung, Repository, Datei, Properties und Beziehungen. Jede andere Angabe des Eintrags ist es nicht, auch seine UUID, die Kennzeichnung als emergentes Verhalten, der Nachweisstatus je Sicht, der Validierungsstatus, dessen Begründung und die Befunde des Eintrags nicht. An einem Eintrag der Antwort von `baseline.get` ist keine Angabe so gekennzeichnet, und an der Ausgabe jedes anderen Befehls auch keine."
 packages:
-  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:0d0abaa40f3ba2a2, title: Zugänge und Anbindung }
+  - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 verification-method: test
 derives-from:
   - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n2:2a7f8dc7cc5cd0bf, title: Nur Aussagekräftiges sehen }
   - { id: 6adc5c63-608a-4196-b8c0-3037e8876029, version: n2:341a607c926aaf31, title: Alles ohne Oberfläche bedienbar }
 based-on:
   - { id: 177556f3-8d4f-434d-8cc8-04def92b4fa4, version: n2:75ff2d30db7ad5dc, title: Ausgaben gestuft zeigen }
-  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:3795ac071493804f, title: API und MCP-Server neben der App }
+  - { id: 6adc5c64-fe36-4191-85d8-c57756a89310, version: n2:b68c1780920b121b, title: API und MCP-Server neben Kommandozeile und Web-Oberfläche }
   - { id: cb583de8-288a-4d8a-82f0-b2be57da2cce, version: n2:973ec19c47b64747, title: Nutzerdokumentation aus den Quellen des Tools }
 ---
 

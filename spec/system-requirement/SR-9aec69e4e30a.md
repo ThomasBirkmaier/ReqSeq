@@ -14,7 +14,7 @@ acceptance-criteria:
   - key: tndr
     text: Gegeben der Arbeitsbereich aus AK1, in dem seit dem Start bereits ein Element geöffnet wurde, wenn ein Element geöffnet wird, dann ist es nach höchstens 200 ms sichtbar.
   - key: h27y
-    text: Gegeben der Arbeitsbereich aus AK1, wenn eine Liste der Elemente gefiltert, sortiert, gruppiert oder als Baum gezeigt oder eine Kette berechnet wird, auch als Nachbarschaft, Graph oder Matrix und für verwandte oder betroffene Elemente, dann liefert das Tool die erste Seite des Ergebnisses nach höchstens 500 ms; für einen Filter auf Nachweis- oder Validierungsstatus gilt das, sobald er seit dem Start einmal angewendet wurde.
+    text: Gegeben der Arbeitsbereich aus AK1, wenn eine Liste der Elemente gefiltert, sortiert, gruppiert oder als Baum gezeigt oder eine Kette berechnet wird, auch als Nachbarschaft, Graph oder Matrix und für verwandte oder betroffene Elemente, dann liefert das Tool die erste Seite des Ergebnisses nach höchstens 500 ms; für einen Filter auf Nachweis- oder Validierungsstatus, eine Sortierung nach dem Nachweisstatus und eine Sortierung nach dem Zeitpunkt der Fassung gilt das jeweils, sobald sie seit dem Start einmal angewendet wurden.
   - key: csnf
     text: Gegeben der Arbeitsbereich aus AK1, wenn nach dem Start das erste Element geöffnet wird, dann ist es nach höchstens 1 Sekunde sichtbar.
 verification-method: test
