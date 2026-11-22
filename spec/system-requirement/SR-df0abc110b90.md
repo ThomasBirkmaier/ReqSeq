@@ -8,7 +8,7 @@ rationale: Gleichzeitige Schreibaufrufe im selben Prozess (API, MCP-Server) müs
 requirement-type: functional
 acceptance-criteria:
   - key: p44g
-    text: Gegeben ein Prozess der API, des MCP-Servers oder der App erhält mehrere Schreibaufrufe gleichzeitig, auch auf dasselbe Element, wenn alle beendet sind, dann melden alle Aufrufe Erfolg, die nacheinander Erfolg gemeldet hätten, und die Dateien halten das Ergebnis, das diese Aufrufe nacheinander ausgeführt ergeben hätten.
+    text: Gegeben ein Prozess der API, des MCP-Servers oder der Web-Oberfläche erhält mehrere Schreibaufrufe gleichzeitig, auch auf dasselbe Element, wenn alle beendet sind, dann melden alle Aufrufe Erfolg, die nacheinander Erfolg gemeldet hätten, und die Dateien halten das Ergebnis, das diese Aufrufe nacheinander ausgeführt ergeben hätten.
   - key: t7wn
     text: Gegeben mehrere gleichzeitige Schreibaufrufe in einem Prozess, wenn ein Aufruf nacheinander ausgeführt abgelehnt worden wäre, zum Beispiel weil er einen älteren Inhalt der Datei erwartet (`element.update` mit dem Prüfwert der Datei aus `element.get`), dann meldet er einen Fehler und ändert keine Datei.
   - key: cwf8

@@ -7,7 +7,7 @@ spec-id: "SR-074"
 requirement-type: constraint
 acceptance-criteria:
   - key: b6yv
-    text: Gegeben App, Kommandozeile, API, MCP-Server und Dokumentation, wenn sie geprüft werden, dann sind alle Texte, Meldungen und Hilfen auf Englisch.
+    text: Gegeben Kommandozeile, API, MCP-Server, Web-Oberfläche und Dokumentation, wenn sie geprüft werden, dann sind alle Texte, Meldungen und Hilfen auf Englisch.
   - key: g5k3
     text: Gegeben Elemente mit deutschem Inhalt, wenn sie angezeigt werden, dann zeigt das Tool den Inhalt unverändert.
 verification-method: inspection

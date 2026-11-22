@@ -5,7 +5,7 @@ title: Property
 area: fachlich
 english-term: property
 distinct-from:
-  - { id: f2d8545d-fa41-4fe7-b5cd-a2c9346a67fd, version: n2:eedd2190f04dda48, title: Feld }
+  - { id: f2d8545d-fa41-4fe7-b5cd-a2c9346a67fd, version: n2:7544f579f65dc455, title: Feld }
 ---
 
 Eine Angabe an einem Element, zum Beispiel Rationale oder Validity; welche es gibt, legt das Metamodell fest. ID, Typ und Status sind feste Angaben jedes Elements, keine Property ([D-059](reqseq:6adc78d3-0812-43dc-94fe-7af63b9acd96?version=n2:1113c0f4b5aa5043)). Ein Attribut ist eine Angabe in einer Quelle, zum Beispiel in einer ReqIF-Datei.

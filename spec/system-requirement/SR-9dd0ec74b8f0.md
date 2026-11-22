@@ -8,7 +8,7 @@ rationale: "Die Angriffsflächen ohne Requirement aus der Liste zu #1429 werden 
 requirement-type: functional
 acceptance-criteria:
   - key: gbbc
-    text: Gegeben am Zielort liegt eine Datei, die keine ReqIF-Datei ist, zum Beispiel ein JUnit-Ergebnis, wenn über Kommandozeile, API, MCP-Server oder App dorthin exportiert wird, dann lehnt das Tool ab, nennt den Grund und ändert die Datei nicht.
+    text: Gegeben am Zielort liegt eine Datei, die keine ReqIF-Datei ist, zum Beispiel ein JUnit-Ergebnis, wenn über Kommandozeile, API oder MCP-Server dorthin exportiert wird, dann lehnt das Tool ab, nennt den Grund und ändert die Datei nicht.
   - key: kyqf
     text: Gegeben am Zielort liegt eine ReqIF-Datei, die unverändert ist, seit der Export sie vor dem Schreiben gelesen hat, wenn dorthin exportiert wird, dann ersetzt das Tool sie.
   - key: h192

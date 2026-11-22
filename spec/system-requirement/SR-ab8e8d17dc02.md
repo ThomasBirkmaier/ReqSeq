@@ -7,7 +7,7 @@ spec-id: "SR-045"
 requirement-type: functional
 acceptance-criteria:
   - key: yryh
-    text: "Gegeben SR-A mit Gültigkeit [A] ersetzt das Kern-Requirement SR-K, und der Inhalt von SR-K wird geändert, wenn die Hinweise abgefragt werden (CLI, API, MCP: `hint.list` oder `workspace.check`; App: Seite von SR-A und Liste der Hinweise von A), dann steht am ersetzenden Requirement SR-A ein Hinweis mit der gespeicherten und der aktuellen Fassung von SR-K, und `hint.list` mit der Variante A listet ihn. Es ist ein Hinweis, kein zweiter neben dem Hinweis auf die veraltete Beziehung."
+    text: "Gegeben SR-A mit Gültigkeit [A] ersetzt das Kern-Requirement SR-K, und der Inhalt von SR-K wird geändert, wenn die Hinweise abgefragt werden (CLI, API, MCP: `hint.list` oder `workspace.check`), dann steht am ersetzenden Requirement SR-A ein Hinweis mit der gespeicherten und der aktuellen Fassung von SR-K, und `hint.list` mit der Variante A listet ihn. Es ist ein Hinweis, kein zweiter neben dem Hinweis auf die veraltete Beziehung."
   - key: c59v
     text: Gegeben der Hinweis wird mit `hint.confirm` bestätigt, wenn die Hinweise erneut abgefragt werden, dann erscheint er nicht mehr, und die Beziehung ersetzt enthält die aktuelle Fassung und den aktuellen Titel von SR-K (D-042).
   - key: snvd

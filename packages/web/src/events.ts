@@ -10,8 +10,16 @@
 export type ServerEvent =
   /** `elements`: the UUIDs added, changed and removed, in that order. */
   | { readonly type: "change"; readonly scope: string; readonly elements: readonly string[] }
-  /** `connected`: the first event of a new connection of the stream. */
-  | { readonly type: "workspace"; readonly generation: number; readonly connected?: boolean }
+  /**
+   * `connected`: the first event of a new connection of the stream. `notMarked`: the reason the server could not
+   * mark the workspace it opened at start as opened, on the first stream after the start only (SR-247 AK12).
+   */
+  | {
+      readonly type: "workspace";
+      readonly generation: number;
+      readonly connected?: boolean;
+      readonly notMarked?: string;
+    }
   /** The stream ended; the page keeps showing what it has and reads again when the stream is back. */
   | { readonly type: "lost" }
   /** The server refused the token. */
@@ -64,7 +72,10 @@ export function toServerEvent(raw: RawEvent): ServerEvent | undefined {
     return undefined;
   }
   if (raw.event === "workspace" && typeof data["generation"] === "number") {
-    return { type: "workspace", generation: data["generation"] };
+    const notMarked = data["notMarked"];
+    return typeof notMarked === "string"
+      ? { type: "workspace", generation: data["generation"], notMarked }
+      : { type: "workspace", generation: data["generation"] };
   }
   if (raw.event === "change") {
     // `elements` is core's `ChangedElements`: the UUIDs added, changed and removed.

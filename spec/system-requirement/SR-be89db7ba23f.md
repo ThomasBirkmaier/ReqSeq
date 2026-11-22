@@ -15,7 +15,7 @@ acceptance-criteria:
   - key: vvhc
     text: Gegeben ein Zyklus in den Ableitungen, wenn die Kette angezeigt wird, dann bricht das Tool am Zyklus ab und meldet ihn als Hinweis.
   - key: s38c
-    text: "Gegeben ein Element eines Typs mit der Bedeutung Requirement, das über keine Beziehung mit der Bedeutung Ableitung einen Parent hat, wenn seine Kette angezeigt wird (App, CLI, API, MCP: `trace.chain`), dann ist der fehlende Parent als Lücke gekennzeichnet."
+    text: "Gegeben ein Element eines Typs mit der Bedeutung Requirement, das über keine Beziehung mit der Bedeutung Ableitung einen Parent hat, wenn seine Kette angezeigt wird (CLI, API, MCP: `trace.chain`), dann ist der fehlende Parent als Lücke gekennzeichnet."
   - key: bb3n
     text: "Gegeben dasselbe Element, wenn der Bestand geprüft wird (CLI, API, MCP: `workspace.check`), dann meldet das Tool es als Hinweis mit seiner ID."
 verification-method: test

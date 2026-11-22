@@ -2,7 +2,7 @@
 // phone bar with its menu, and the main area. An area adds a rail section with `addRailSection`.
 import { explain } from "./api.js";
 import type { Child } from "./dom.js";
-import { h, icon } from "./dom.js";
+import { announce, h, icon } from "./dom.js";
 import { hasVariants, setView, store, variantName } from "./store.js";
 import { namesOf, typesWith } from "./meaning.js";
 
@@ -173,6 +173,41 @@ export function errorBox(error: unknown): HTMLElement {
     x.todo,
     h("details", null, h("summary", null, "Details from ReqSeq"), h("pre", null, x.detail)),
   );
+}
+
+/** The generation of the workspace the shown notice of `showNotMarked` concerns. */
+let notMarkedGeneration = 0;
+
+/**
+ * Shows, until it is closed, the reason the server gave for not marking the workspace of `generation` as opened
+ * (SR-247 AK12), as the server's error output words it. Outside the page's root, so a redraw keeps it. Another
+ * opening replaces it: with its reason, or without one removes it; a notice of a newer generation stays.
+ */
+export function showNotMarked(reason: string | undefined, generation: number): void {
+  // The event of a switch may come after its answer: without a reason it removes only an older notice.
+  if (generation < notMarkedGeneration || (reason === undefined && generation === notMarkedGeneration)) {
+    return;
+  }
+  notMarkedGeneration = generation;
+  document.getElementById("not-marked")?.remove();
+  if (reason === undefined) {
+    return;
+  }
+  const box = h(
+    "div",
+    { id: "not-marked", class: "notice bad not-marked", role: "status" },
+    h("strong", null, "The workspace was not marked as opened:"),
+    " ",
+    reason,
+    " ",
+  );
+  const close = h("button", { type: "button", class: "btn sm" }, "Close");
+  close.addEventListener("click", () => {
+    box.remove();
+  });
+  box.append(close);
+  document.body.append(box);
+  announce(`The workspace was not marked as opened: ${reason}`);
 }
 
 /** A page of its own for a message: no workspace, no token, an error. */
