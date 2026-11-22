@@ -14,7 +14,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, mpsc};
 
 /// Which build this is, as text in the binary: the release tests find `reqseq-shell build: release` in the shipped
-/// program, which only a build with `tauri/custom-protocol` and without `e2e` carries (ADR-0021, Package).
+/// program, which only a build with `tauri/custom-protocol` and without `e2e` carries (ADR-0021, Package). `main`
+/// reads it, because `#[used]` alone does not keep it from the MSVC linker's `/OPT:REF`.
 #[used]
 static BUILD: &str = if cfg!(feature = "e2e") {
     "reqseq-shell build: e2e"
@@ -46,6 +47,8 @@ pub fn write_error(text: &str, token: &TokenSlot) {
 }
 
 fn main() {
+    // Keeps the build mark in the binary on every linker.
+    std::hint::black_box(BUILD);
     #[cfg(unix)]
     shell::unix::block_end_signals();
     let token: TokenSlot = Arc::default();

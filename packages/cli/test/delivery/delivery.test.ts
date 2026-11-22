@@ -283,7 +283,8 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       ctx.skip(notBuilt);
     }
     expect(path.basename(installed)).toBe(deliveryFolderName(names, system, version));
-    expect(await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).toEqual([]);
+    const findings = await inspectDelivery(installed, names, system, REQUIRED_NOTICES);
+    expect(findings, findings.join("\n")).toEqual([]);
     if (system === "mac" && process.platform === "darwin") {
       // The Node binary keeps the signature of the Node project (ADR-0020).
       const verify = spawnSync("codesign", ["--verify", "--strict", path.join(installed, layout.runtime)], {
@@ -312,11 +313,10 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
     }
     expect(path.join(...(places[1] ?? []))).toBe(layout.launcher);
     // The shell is the release build: no e2e driver, built for its own pages (ADR-0021).
-    expect(
-      (await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).filter((f) =>
-        f.includes(layout.shellBinary),
-      ),
-    ).toEqual([]);
+    const shellFindings = (await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).filter((f) =>
+      f.includes(layout.shellBinary),
+    );
+    expect(shellFindings, shellFindings.join("\n")).toEqual([]);
     if (!runnable) {
       ctx.skip(notRunnable);
     }
