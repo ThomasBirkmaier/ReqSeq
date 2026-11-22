@@ -19,6 +19,7 @@ import {
   fileMoves,
   headCommit,
   headFiles,
+  firstParentChanges,
   historyRange,
   openObjectReader,
   resolveCommit,
@@ -207,6 +208,7 @@ describe("git reader", () => {
       "commitsBetween",
       "fileHistory",
       "fileMoves",
+      "firstParentChanges",
       "headCommit",
       "headFiles",
       "historyRange",
@@ -1561,6 +1563,116 @@ describe("a repository folder below the top level of its work tree (ThomasBirkma
     await expect(historyRange(folder, first, outside, ["../a.md"])).rejects.toThrow(/cannot pass/);
     await expect(commitsBetween(folder, "HEAD", first)).rejects.toThrow(/commit IDs/);
     await expect(commitsBetween(folder, first, "x")).rejects.toThrow(/commit IDs/);
+  });
+
+  it("lists what commits changed against their first parent, relative to the folder, whatever the settings of the user (SR-082 AK4)", async () => {
+    const { ws, folder, made } = await nested();
+    const nfd = "Bild-\u00e4.md".normalize("NFD");
+    const more = await ws.commitHistory(
+      [
+        // The side moves a.md (a rename to Git) and adds a file in NFD.
+        {
+          name: "moved",
+          parents: [commitOf(made, "outside")],
+          deleted: ["docs/spec/a.md"],
+          files: { "docs/spec/c.md": "merged\n", [`docs/spec/${nfd}`]: "n\n" },
+        },
+        // The merge takes the side's files (a commit's tree is its first parent's with its files).
+        {
+          name: "merged",
+          parents: [commitOf(made, "outside"), "moved"],
+          deleted: ["docs/spec/a.md"],
+          files: { "docs/spec/c.md": "merged\n", [`docs/spec/${nfd}`]: "n\n" },
+        },
+        // The first parent's files kept: nothing changed against it.
+        { name: "ours", parents: ["merged", commitOf(made, "side")], files: {} },
+      ],
+      { branch: "main" },
+    );
+    await ws.git(["reset", "--hard", "--quiet"]);
+    mock.calls.length = 0;
+    const asked = [
+      commitOf(more, "merged"),
+      commitOf(made, "merge"),
+      commitOf(made, "outside"),
+      commitOf(more, "ours"),
+    ];
+    const expected = {
+      known: true,
+      changes: new Map([
+        // Both paths of the move, the new file as Git stores it.
+        [commitOf(more, "merged"), [nfd, "a.md", "c.md"].sort()],
+        // Against `second`; top.md lies outside the folder.
+        [commitOf(made, "merge"), ["a.md"]],
+        [commitOf(made, "outside"), []],
+        [commitOf(more, "ours"), []],
+      ]),
+    };
+    const sorted = (listed: Awaited<ReturnType<typeof firstParentChanges>>): unknown =>
+      listed.known
+        ? { known: true, changes: new Map([...listed.changes].map(([c, p]) => [c, [...p].sort()])) }
+        : listed;
+    expect(sorted(await firstParentChanges(folder, asked))).toEqual(expected);
+    // Without the fixed options, a merge would list nothing (log.diffMerges), a move only its new
+    // path (diff.renames), and the paths of the folder relative to it (diff.relative).
+    for (const [key, value] of [
+      ["log.diffMerges", "combined"],
+      ["log.diffMerges", "off"],
+      ["diff.renames", "true"],
+      ["diff.relative", "true"],
+    ] as const) {
+      await ws.git(["config", key, value]);
+      expect(sorted(await firstParentChanges(folder, asked))).toEqual(expected);
+      await ws.git(["config", "--unset", key]);
+    }
+    // The commits on standard input, after a fixed command line.
+    const logs = mock.calls.filter((c) => c.args.includes("log"));
+    expect(new Set(logs.map((c) => JSON.stringify(c.args.slice(FIXED.length))))).toEqual(
+      new Set([
+        JSON.stringify([
+          "-c",
+          "diff.relative=false",
+          "log",
+          "--no-show-signature",
+          "--no-follow",
+          "--no-renames",
+          "--no-walk",
+          "--diff-merges=first-parent",
+          "--name-only",
+          "-z",
+          "--format=%H %cI %P%x00",
+          "--stdin",
+        ]),
+      ]),
+    );
+  });
+
+  it("is unknown when git cannot list what commits changed against their first parent, and refuses what is no commit ID", async () => {
+    const { folder, made } = await nested();
+    const merge = commitOf(made, "merge");
+    expect(await firstParentChanges(folder, [])).toEqual({ known: true, changes: new Map() });
+    expect(mock.calls).toEqual([]);
+    mock.fake = (args) => (args.includes("--show-prefix") ? TIMEOUT : undefined);
+    expect(await firstParentChanges(folder, [merge])).toMatchObject({ known: false, reason: "timeout" });
+    mock.fake = (args) => (args.includes("log") ? TIMEOUT : undefined);
+    expect(await firstParentChanges(folder, [merge])).toMatchObject({ known: false, reason: "timeout" });
+    // git before 2.31 does not know --diff-merges.
+    mock.fake = (args) =>
+      args.includes("log")
+        ? { error: execError("fatal: unrecognized argument: --diff-merges=first-parent", { code: 128 }) }
+        : undefined;
+    expect(await firstParentChanges(folder, [merge])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+    mock.fake = (args) => (args.includes("log") ? { stdout: "a.md\0" } : undefined);
+    expect(await firstParentChanges(folder, [merge])).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "unexpected output of git log: a.md",
+    });
+    mock.fake = undefined;
+    await expect(firstParentChanges(folder, ["HEAD"])).rejects.toThrow(/commit IDs/);
   });
 
   it("takes the prefix from git where the folder holds a .git entry that git skips", async () => {
