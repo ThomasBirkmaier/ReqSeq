@@ -1568,7 +1568,7 @@
     "/v1/commands/workspace.recent": {
       "post": {
         "operationId": "workspace_recent",
-        "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+        "summary": "The workspaces opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
         "tags": [
           "workspace"
         ],
@@ -1610,12 +1610,12 @@
                           "root": {
                             "title": "Workspace root",
                             "$ref": "#/components/schemas/common/$defs/outputPath",
-                            "description": "The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml)."
+                            "description": "The absolute path of the workspace root as it was opened last (the folder that holds reqseq-workspace.yaml)."
                           },
                           "opened": {
                             "title": "Opened",
                             "$ref": "#/components/schemas/common/$defs/dateTime",
-                            "description": "When the app opened it last."
+                            "description": "When it was opened last."
                           },
                           "exists": {
                             "title": "Exists",
@@ -1631,13 +1631,172 @@
                           "exists"
                         ]
                       },
-                      "description": "The workspaces the app opened last, the most recent first, as the app's utility process that runs `@reqseq/core` recorded them in `<OS cache>/reqseq/recent-workspaces.json`. Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+                      "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them: the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on. Empty when none is recorded or the list cannot be read. No other command changes the list."
                     }
                   },
                   "additionalProperties": false,
                   "required": [
                     "answer",
                     "workspaces"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/workspace.markOpened": {
+      "post": {
+        "operationId": "workspace_markOpened",
+        "summary": "Marks the workspace the command runs on as opened now: the absolute path of its main repository goes first in the list of recent workspaces that `workspace.recent` gives. The list keeps the 20 workspaces marked last and belongs to the user, not to a workspace.",
+        "tags": [
+          "workspace"
+        ],
+        "x-reqseq-effect": "write-files",
+        "x-reqseq-stage": 6,
+        "x-reqseq-implements": [
+          "SR-250"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "$ref": "#/components/schemas/common/$defs/answer"
+                    },
+                    "root": {
+                      "title": "Workspace root",
+                      "$ref": "#/components/schemas/common/$defs/outputPath",
+                      "description": "The absolute path of the main repository of the workspace (the folder that holds reqseq-workspace.yaml), as the list holds it now, first."
+                    },
+                    "opened": {
+                      "title": "Opened",
+                      "$ref": "#/components/schemas/common/$defs/dateTime",
+                      "description": "When it was marked, as `workspace.recent` gives it."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "answer",
+                    "root",
+                    "opened"
                   ]
                 }
               }
@@ -25099,7 +25258,7 @@
       },
       "recent-workspaces": {
         "title": "Recent workspaces file",
-        "description": "`recent-workspaces.json` in `<OS cache>/reqseq/`: the workspaces the app opened last, the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
+        "description": "`recent-workspaces.json` in `<OS cache>/reqseq/`: the workspaces opened last, the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens, and `workspace.markOpened` the root of the workspace it runs on; the app's main process reads the list for \"Open workspace\". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
         "type": "object",
         "required": [
           "format",

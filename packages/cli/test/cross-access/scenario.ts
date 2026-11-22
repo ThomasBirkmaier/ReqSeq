@@ -26,6 +26,11 @@ export interface Scenario {
    * shared copy is prepared once more before its files are taken, so the preparation must be idempotent.
    */
   readonly prepare?: (copy: Copy) => Promise<void>;
+  /**
+   * Checks after each access, for state outside the copy that the access changed (the list of recent
+   * workspaces, SR-250).
+   */
+  readonly after?: (copy: Copy, access: string) => Promise<void>;
   /** Parts of the outcome and the files that differ by call (an export time, a new UUID), each replaced by `<masked>`. */
   readonly masks?: readonly RegExp[];
   /** More checks on the results of all accesses, after they compared equal. */

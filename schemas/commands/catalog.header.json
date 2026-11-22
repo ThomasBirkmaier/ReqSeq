@@ -8,6 +8,7 @@
     "workspace.activity",
     "workspace.agents",
     "workspace.recent",
+    "workspace.markOpened",
     "workspace.listFolder",
     "workspace.connectAgent",
     "tool.info",
