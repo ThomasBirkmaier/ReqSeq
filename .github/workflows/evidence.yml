@@ -156,7 +156,8 @@ jobs:
         run: pnpm install --frozen-lockfile && pnpm --filter "@reqseq/cli..." build
 
       # ci: one artifact per suite and system (ci.yml): junit-<os>/junit.xml, junit-e2e-<os>/junit-e2e.xml,
-      # junit-electron-<os>[-<shard>]/junit-electron.xml (none while the Electron suite is paused).
+      # junit-electron-<os>[-<shard>]/junit-electron.xml (none while the Electron suite is paused),
+      # junit-web-ubuntu-24.04/junit-web.xml (the web UI, Ubuntu only).
       # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only; the app's suite is paused).
       # delivery: junit-delivery-<os>/junit-delivery.xml (release.yml).
       - name: JUnit files of the run
@@ -211,7 +212,7 @@ jobs:
             # The Electron suite is paused (ci.yml, #2295): no junit-electron-* artifact, and main keeps its last
             # electron-* files.
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
-              junit-e2e-windows-2025" ;;
+              junit-e2e-windows-2025 junit-web-ubuntu-24.04" ;;
             perf) expected="perf-results" ;;
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac
@@ -224,6 +225,7 @@ jobs:
             case "$KIND:$artifact" in
               ci:junit-e2e-*) echo "$artifact $dir/junit-e2e.xml e2e-${artifact#junit-e2e-} ${artifact#junit-e2e-}" ;;
               ci:junit-electron-*) os="${artifact#junit-electron-}"; echo "$artifact $dir/junit-electron.xml electron-$os ${os%-[0-9]}" ;;
+              ci:junit-web-*) echo "$artifact $dir/junit-web.xml web-${artifact#junit-web-} ${artifact#junit-web-}" ;;
               ci:junit-delivery-*) ;;
               ci:junit-*) echo "$artifact $dir/junit.xml unit-${artifact#junit-} ${artifact#junit-}" ;;
               perf:perf-results)

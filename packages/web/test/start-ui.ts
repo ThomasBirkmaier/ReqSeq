@@ -2,7 +2,7 @@
 // the UI server of `reqseq ui` on it, with the pages of `dist/` (`pnpm --filter @reqseq/web build`). The tests
 // read what they expect through core's `invoke` on the same folder, never through the page.
 import path from "node:path";
-import type { UiServer } from "@reqseq/api";
+import type { CommandRunner, UiServer } from "@reqseq/api";
 import { createUiServer } from "@reqseq/api";
 import type { CommandTypes, InvokeContext } from "@reqseq/core";
 import { Workspace, getCommandRuntime, invoke } from "@reqseq/core";
@@ -56,7 +56,7 @@ export const runOn =
  * The product's runtime, except that `workspace.markOpened` writes nothing: the list of recent workspaces lies in
  * the OS cache folder of the user who runs the tests, and the temporary workspaces would push out theirs.
  */
-const runner = (() => {
+export const runner: CommandRunner = (() => {
   const runtime = getCommandRuntime();
   return {
     contracts: runtime.contracts,
@@ -67,6 +67,6 @@ const runner = (() => {
   };
 })();
 
-/** The UI server on `workspace`, or without one. */
-export const startUi = (workspace?: string): Promise<UiServer> =>
-  createUiServer({ pages: PAGES, runner, ...(workspace === undefined ? {} : { workspace }) });
+/** The UI server on `workspace`, or without one; `run` runs its commands (default `runner`). */
+export const startUi = (workspace?: string, run: CommandRunner = runner): Promise<UiServer> =>
+  createUiServer({ pages: PAGES, runner: run, ...(workspace === undefined ? {} : { workspace }) });
