@@ -543,14 +543,19 @@ describe("UI server: commands and workspaces", () => {
     await stream.until(1);
     const file = first.path("requirements/SR-88cc6ebc472a.md");
     const original = await fs.readFile(file, "utf8");
+    const uuid = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
     interface Change {
+      readonly scope: string;
       readonly elements: { readonly changed: readonly string[] };
     }
+    // An `elements` change naming the element. A batch that also holds a path in the metamodel folder
+    // has scope `metamodel` and names the element as well (`WorkspaceChange`): on macOS, FSEvents can
+    // deliver the copy of the fixture after the watch started, in the batch of the first write (#2349).
     const changed = (): Change | undefined =>
       stream.seen
         .filter((e) => e.event === "change")
         .map((e) => e.data as Change)
-        .find((d) => d.elements.changed.length > 0);
+        .find((d) => d.scope === "elements" && d.elements.changed.includes(uuid));
     // Changes until the watcher, which starts with the load in the background, reports one.
     for (let n = 1; changed() === undefined; n++) {
       await fs.writeFile(file, original.replace(/^title: .*$/mu, `title: Changed ${String(n)}`));
@@ -560,7 +565,7 @@ describe("UI server: commands and workspaces", () => {
       ]);
     }
     const data = changed();
-    expect(data).toMatchObject({ scope: "elements", elements: { changed: [expect.any(String) as unknown] } });
+    expect(data).toMatchObject({ scope: "elements", elements: { changed: [uuid] } });
     expect(JSON.stringify(data)).not.toContain("Changed");
   }, 20_000);
 
