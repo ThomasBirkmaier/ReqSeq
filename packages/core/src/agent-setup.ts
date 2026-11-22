@@ -20,7 +20,7 @@ export type Client = (typeof CLIENTS)[number]["value"];
 /** The name of the server in the client's configuration. */
 export const SERVER_NAME = "reqseq";
 
-/** The launcher of a delivery on macOS and Linux (ADR-0014). */
+/** The launcher of a delivery on macOS and Linux (ADR-0020). */
 const LAUNCHER = "reqseq";
 
 /** What the setup is made from. */
@@ -65,42 +65,29 @@ export interface SetupRefusal {
 
 const pathsOf = (platform: string): path.PlatformPath => (platform === "win32" ? path.win32 : path.posix);
 
-/** Whether two folders are the same; Windows and macOS compare names without case. */
+/** Whether two paths are the same; Windows and macOS compare names without case. */
 const sameFolder = (platform: string, a: string, b: string): boolean =>
   platform === "win32" || platform === "darwin" ? a.toLowerCase() === b.toLowerCase() : a === b;
 
-/** The delivery an installation belongs to: its resources folder and the folder a user moves (`ReqSeq.app`, or the unpacked folder). */
-const deliveryOf = (
-  installation: Installation,
-  platform: string,
-): { readonly resources: string; readonly folder: string } | undefined => {
-  if (!installation.electron) {
-    return undefined;
-  }
+/**
+ * The folder of the delivery an installation belongs to (ADR-0020), the one a user moves: its runtime is
+ * `<folder>/runtime/node` (`node.exe` on Windows) and its entry `<folder>/lib/dist/bin.js`.
+ */
+const deliveryOf = (installation: Installation, platform: string): string | undefined => {
   const p = pathsOf(platform);
-  // `<resources>/cli/dist/bin.js`; the runtime is in `Contents/MacOS` next to `Contents/Resources` on macOS, else next to `resources`.
-  const resources = p.dirname(p.dirname(p.dirname(installation.entry)));
-  const runtimeFolder = p.dirname(installation.runtime);
-  if (platform === "darwin") {
-    const contents = p.dirname(resources);
-    return sameFolder(platform, runtimeFolder, p.join(contents, "MacOS"))
-      ? { resources, folder: p.dirname(contents) }
-      : undefined;
-  }
-  const folder = p.dirname(resources);
-  return sameFolder(platform, runtimeFolder, folder) ? { resources, folder } : undefined;
+  const folder = p.dirname(p.dirname(p.dirname(installation.entry)));
+  const runtime = p.join(folder, "runtime", platform === "win32" ? "node.exe" : "node");
+  const entry = p.join(folder, "lib", "dist", "bin.js");
+  return sameFolder(platform, installation.runtime, runtime) &&
+    sameFolder(platform, installation.entry, entry)
+    ? folder
+    : undefined;
 };
 
 /** Where the launcher of the delivery would be; undefined on Windows (its `.cmd` starts only through a shell) and outside a delivery. */
 export const deliveryLauncher = (installation: Installation, platform: string): string | undefined => {
-  const delivery = platform === "win32" ? undefined : deliveryOf(installation, platform);
-  if (delivery === undefined) {
-    return undefined;
-  }
-  const p = pathsOf(platform);
-  return platform === "darwin"
-    ? p.join(delivery.resources, "bin", LAUNCHER)
-    : p.join(delivery.folder, "bin", LAUNCHER);
+  const folder = platform === "win32" ? undefined : deliveryOf(installation, platform);
+  return folder === undefined ? undefined : pathsOf(platform).join(folder, "bin", LAUNCHER);
 };
 
 /** The program, arguments and environment that run the command line of this installation with `words`. */
@@ -276,9 +263,9 @@ const skillSentence = (client: Client, facts: SetupFacts): string => {
 
 /** The folder whose move ends the setup, as the `valid` sentence names it (AK3). */
 const validSentence = (facts: SetupFacts): string => {
-  const delivery = deliveryOf(facts.installation, facts.platform);
-  if (delivery !== undefined) {
-    return `The setup holds as long as ReqSeq stays in ${delivery.folder}.`;
+  const folder = deliveryOf(facts.installation, facts.platform);
+  if (folder !== undefined) {
+    return `The setup holds as long as ReqSeq stays in ${folder}.`;
   }
   const p = pathsOf(facts.platform);
   return `The setup holds as long as the command line stays in ${p.dirname(p.dirname(facts.installation.entry))} and its runtime at ${facts.installation.runtime}.`;

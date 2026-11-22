@@ -60,7 +60,7 @@
             "title": "Program",
             "type": "string",
             "minLength": 1,
-            "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+            "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`runtime\\node.exe` of a delivery on Windows, or Node)."
           },
           "args": {
             "title": "Arguments",
@@ -72,7 +72,7 @@
             "title": "Environment",
             "type": "object",
             "additionalProperties": { "type": "string" },
-            "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+            "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty."
           }
         },
         "additionalProperties": false,

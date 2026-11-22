@@ -1,6 +1,6 @@
 ---
 title: Install ReqSeq
-description: Download the release for your system, unpack it, and set up the app, the command line, the API and the MCP server.
+description: Download the release for your system, unpack it, and set up the command line, the web UI, the API and the MCP server.
 ---
 
 ReqSeq comes as one portable archive per system: unpacking it is installing it. Nothing is downloaded while unpacking or running, and nothing updates itself.
@@ -16,52 +16,43 @@ Each GitHub release has these files; `<version>` is its ReqSeq version.
 | Windows 11 x64 | `ReqSeq-<version>-win-x64.zip` |
 | Pipelines with Node 22 | `reqseq-cli-<version>.tgz`, the command line and the MCP server only |
 
-Each archive holds the app, the command line `reqseq` and the MCP server, which need no Node, as well as this documentation for its ReqSeq version (`resources/cli/docs/`), an example of connecting a test tool (`resources/docs/junit/`) and the licences of the libraries inside (`resources/THIRD_PARTY_NOTICES.txt`; in `ReqSeq.app` on macOS, `resources/` is `Contents/Resources/`). Check a download against the release's `SHA256SUMS.txt`: `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on macOS, `sha256sum` with the same options on Linux, `Get-FileHash <file>` in PowerShell.
+Each archive holds one folder, `ReqSeq-<version>-<system>/`, with the command line `bin/reqseq` (`bin\reqseq.cmd` on Windows), the MCP server and the web UI, the Node runtime they run on (`runtime/`), this documentation for its ReqSeq version (`lib/docs/`), an example of connecting a test tool (`examples/junit/`) and the licences of what is inside (`THIRD_PARTY_NOTICES.txt`). It needs no Node of your own; the web UI needs a browser. Check a download against the release's `SHA256SUMS.txt`: `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on macOS, `sha256sum` with the same options on Linux, `Get-FileHash <file>` in PowerShell.
 
 ReqSeq reads Git through `git` on the path, which the release does not hold: install Git for Windows, the Command Line Tools on macOS (`xcode-select --install`), or your Linux distribution's `git`.
 
-## App
+## Unpack
 
-1. Unpack the archive: on macOS, move `ReqSeq.app` to `/Applications`; elsewhere into a folder such as `C:\Tools\ReqSeq` or `~/ReqSeq`.
-2. Start `ReqSeq.app`, `ReqSeq.exe` or `~/ReqSeq/ReqSeq`, then [open or create a workspace](/how-to/open-a-workspace/).
+Unpack the archive and move its folder to a place of your own, renamed so that the path stays the same across versions: for example `~/ReqSeq` on macOS and Linux, `C:\Tools\ReqSeq` on Windows. The examples below use these folders.
 
-The app is not signed with a developer certificate yet, so the first start asks:
+## First start
 
-- macOS refuses to open the app: click "Open Anyway" next to the message about ReqSeq in System Settings > Privacy & Security, or remove the download mark once with `xattr -dr com.apple.quarantine /Applications/ReqSeq.app`. If macOS says the app "is damaged", check the checksum; if it matches, remove the mark.
-- Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway". Unblocking the zip before unpacking it asks only once: `Unblock-File .\ReqSeq-<version>-win-x64.zip`.
-- Ubuntu 24.04 needs one admin step for the app's sandbox, which ReqSeq never turns off:
+The archives are not signed with a developer certificate. Once after unpacking:
 
-  ```sh
-  sudo chown root:root ~/ReqSeq/chrome-sandbox && sudo chmod 4755 ~/ReqSeq/chrome-sandbox
-  ```
-
-  Or allow the sandbox for this one program with an AppArmor profile, `/etc/apparmor.d/reqseq`, loaded with `sudo apparmor_parser -r /etc/apparmor.d/reqseq`:
-
-  ```text
-  abi <abi/4.0>,
-  include <tunables/global>
-
-  profile reqseq /home/*/ReqSeq/ReqSeq flags=(unconfined) {
-    userns,
-    include if exists <local/reqseq>
-  }
-  ```
+- macOS: remove the download mark from the folder, `xattr -dr com.apple.quarantine ~/ReqSeq`. Without it, macOS may refuse to run the command line.
+- Windows: unblock the zip before unpacking it, `Unblock-File .\ReqSeq-<version>-win-x64.zip`.
+- Linux: nothing to do.
 
 ## CLI
 
-The launcher `reqseq` is in the `bin` folder of the release. Add that folder to the path, then open a new terminal:
+The launcher `reqseq` is in the `bin` folder. Add that folder to the path, then open a new terminal:
 
-- macOS (zsh): `echo 'export PATH="/Applications/ReqSeq.app/Contents/Resources/bin:$PATH"' >> ~/.zprofile`
+- macOS (zsh): `echo 'export PATH="$HOME/ReqSeq/bin:$PATH"' >> ~/.zprofile`
 - Linux (bash): `echo 'export PATH="$HOME/ReqSeq/bin:$PATH"' >> ~/.bashrc`, and in `~/.profile` for login shells and scripts.
-- Windows (PowerShell): `[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\Tools\ReqSeq\bin', 'User')`. The launcher is `bin\reqseq.cmd`; in `cmd.exe` inside the install folder itself, `reqseq` still starts the app.
+- Windows (PowerShell): `[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\Tools\ReqSeq\bin', 'User')`. The launcher is `bin\reqseq.cmd`.
 
 ```sh
 reqseq --version
 ```
 
+The launcher runs ReqSeq on the Node in `runtime/` and ignores `NODE_OPTIONS`.
+
 In a pipeline with Node 22, install the tarball instead, without network: `npm install -g --offline ./reqseq-cli-<version>.tgz`.
 
 To read this documentation without network, in the ReqSeq version you installed, run `reqseq serve docs` and open the address it prints in a browser. It serves the documentation of the release on `127.0.0.1` only, with its search, until Ctrl-C; `--port <n>` picks the port.
+
+## App
+
+The release holds no desktop app; the web UI takes its place. `reqseq ui` in a workspace starts it on your own computer and opens its address in your browser; `--no-open` only prints it. The address holds a token that is new on every start. It runs until Ctrl-C.
 
 ## API
 
@@ -73,6 +64,6 @@ An agent's client starts the MCP server with `reqseq mcp` and the workspace. `re
 
 ## Update or remove
 
-A new ReqSeq version is a new download: swap it for the old folder or `ReqSeq.app`. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the Ubuntu step and the first start on macOS and Windows.
+A new ReqSeq version is a new download: swap its folder for the old one. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the first start on macOS and Windows.
 
-To remove ReqSeq, delete its folder, the folder `reqseq` in your system's cache folder (`~/Library/Caches`, `~/.cache`, `%LOCALAPPDATA%`) and the data folder (`~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq`).
+To remove ReqSeq, delete its folder and the folder `reqseq` in your system's cache folder (`~/Library/Caches`, `~/.cache`, `%LOCALAPPDATA%`). A version with the desktop app also left a data folder (`~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq`), which you can delete too.

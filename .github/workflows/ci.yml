@@ -101,7 +101,7 @@ jobs:
       - name: Audit
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
-      # The dev packages run on the build machine too (vite, electron-vite, Playwright, electron-builder's tool chain),
+      # The dev packages run on the build machine too (vite, electron-vite, Playwright),
       # so the nightly and the manual run audit them as well (#938). Pull requests keep the production audit only.
       - name: Audit, dev packages included
         if: ${{ !cancelled() && steps.install.outcome == 'success' && github.event_name != 'pull_request' }}
@@ -116,7 +116,7 @@ jobs:
 
   # Build, unit tests with coverage (ADR-0016), the spec check and the CLI e2e suite (ADR-0011), on Ubuntu in the
   # Ubuntu lane. `checks-platform` runs the same steps on macOS and Windows.
-  # SR-076: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
+  # SR-249: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
   checks:
     name: checks (ubuntu-24.04)
     # A pull request run takes about 10 minutes, but about 1 in 4 hosted runners is about 1.5 times slower in every step,
@@ -417,7 +417,7 @@ jobs:
 
   # The Electron app is paused (#2295): its Playwright suite (packages/app/test/) runs in no job here, and its evidence
   # in spec/evidence/ci/electron-* stays at the last run before the pause. The app's code stays in the repository
-  # until the web UI replaces it. release.yml still builds and tests the delivery with the app.
+  # until the web UI replaces it. release.yml builds and tests the delivery without it (#2308).
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs

@@ -165,6 +165,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 | Runtime | `runtime/` with Node's `node` or `node.exe`, without `npm`, `npx` and `corepack` |
 | Program | `lib/` with CLI, MCP server and UI server; `lib/web/` with the pages; `lib/docs/` with the documentation site |
 | Notices | `THIRD_PARTY_NOTICES.txt`, with Node's full `LICENSE` |
+| Example | `examples/junit/` with the example of connecting a test tool (`toolchain/junit/`) |
 
 - **Node binary:**
   - The exact Node version and the SHA-256 of each system's archive are pinned in `toolchain/packaging/`.

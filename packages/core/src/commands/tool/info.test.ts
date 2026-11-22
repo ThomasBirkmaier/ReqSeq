@@ -60,7 +60,7 @@ describe("tool.info", () => {
       thirdParty: "THIRD_PARTY_NOTICES.txt",
     });
     expect(delivered.documentation).toEqual({
-      bundled: "cli/docs",
+      bundled: "lib/docs",
       online: ONLINE_DOCUMENTATION,
       releases: RELEASES,
     });

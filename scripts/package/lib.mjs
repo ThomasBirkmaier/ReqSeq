@@ -1,5 +1,6 @@
 // The parts of staging the delivery that are pure or work on plain folders (ADR-0014, ThomasBirkmaier/ReqSeq-archive#324), tested in
 // lib.test.mjs. scripts/package/stage.mjs runs them on the real build.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { licenseTexts } from "../licenses/policy.mjs";
@@ -371,3 +372,90 @@ async function searchProblems(folder, index) {
   }
   return problems;
 }
+
+/**
+ * The systems with one archive each (ADR-0020): the CPU it is built for, the archive format and the launcher and
+ * runtime binary in the archive.
+ */
+export const DELIVERY_SYSTEMS = {
+  mac: { arch: "arm64", ext: "zip", launcher: (name) => name, node: "node" },
+  linux: { arch: "x64", ext: "tar.gz", launcher: (name) => name, node: "node" },
+  win: { arch: "x64", ext: "zip", launcher: (name) => `${name}.cmd`, node: "node.exe" },
+};
+
+/** A name pattern of names.json filled in for `system` and `version`. */
+const deliveryName = (pattern, names, system, version) => {
+  const { arch, ext } = DELIVERY_SYSTEMS[system];
+  return pattern
+    .replaceAll("${productName}", names.productName)
+    .replaceAll("${version}", version)
+    .replaceAll("${os}", system)
+    .replaceAll("${arch}", arch)
+    .replaceAll("${ext}", ext);
+};
+
+/** The one folder the archive of `system` holds, `ReqSeq-<version>-<os>-<arch>` (ADR-0020). */
+export const deliveryFolderName = (names, system, version) =>
+  deliveryName(names.folder, names, system, version);
+
+/** The file name of the archive of `system`. */
+export const deliveryArtifactName = (names, system, version) =>
+  deliveryName(names.artifact, names, system, version);
+
+/**
+ * Why `pin` (toolchain/packaging/node.json) is not a usable pin of Node (empty: it is): an exact version whose major
+ * is the one of `.nvmrc` (`nvmrc`, the Node CI runs on), and for each system an archive of that version for the
+ * system's CPU with a SHA-256.
+ */
+export function nodePinProblems(pin, nvmrc) {
+  const problems = [];
+  const version = /^(\d+)\.\d+\.\d+$/.exec(pin.version ?? "");
+  if (version === null) {
+    return [`node.json: version ${JSON.stringify(pin.version)} is not an exact version`];
+  }
+  if (version[1] !== nvmrc.trim()) {
+    problems.push(`node.json: Node ${pin.version} is not of the major version ${nvmrc.trim()} of .nvmrc`);
+  }
+  const platforms = { mac: "darwin", linux: "linux", win: "win" };
+  for (const [system, { arch }] of Object.entries(DELIVERY_SYSTEMS)) {
+    const archive = pin.archives?.[system];
+    const ext = system === "win" ? "zip" : "tar.gz";
+    if (archive?.file !== `node-v${pin.version}-${platforms[system]}-${arch}.${ext}`) {
+      problems.push(
+        `node.json: the ${system} archive is not node-v${pin.version}-${platforms[system]}-${arch}.${ext}`,
+      );
+    }
+    if (!/^[0-9a-f]{64}$/.test(archive?.sha256 ?? "")) {
+      problems.push(`node.json: the ${system} archive has no SHA-256`);
+    }
+  }
+  return problems;
+}
+
+/** The download address of the Node archive of `system`. */
+export const nodeArchiveUrl = (pin, system) =>
+  pin.url.replaceAll("${version}", pin.version).replaceAll("${file}", pin.archives[system].file);
+
+/** The members of the Node archive of `system` that the delivery takes: the binary and the licence (no npm). */
+export function nodeArchiveMembers(pin, system) {
+  const top = pin.archives[system].file.replace(/\.(zip|tar\.gz)$/, "");
+  return {
+    binary: system === "win" ? `${top}/node.exe` : `${top}/bin/node`,
+    license: `${top}/LICENSE`,
+  };
+}
+
+/** The SHA-256 of a file, hex. */
+export async function sha256Of(file) {
+  return createHash("sha256")
+    .update(await fs.readFile(file))
+    .digest("hex");
+}
+
+/** The notice entry of the shipped Node (ADR-0020): its full LICENSE, which names its parts and their licences. */
+export const nodeNotice = (version, license) => ({
+  name: "Node.js",
+  version,
+  license: "MIT, and the licences of its parts in its LICENSE below",
+  texts: [license],
+});

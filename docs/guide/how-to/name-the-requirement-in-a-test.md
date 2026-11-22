@@ -12,7 +12,7 @@ The key is in the element file. A number in the name, or a key no criterion or s
 
 The ID is the short ID that `reqseq element list` prints (it gets longer when another UUID ends the same way), the UUID, or an identifier such as `REQ-012`. An unknown short ID or UUID, usually a typo, is reported; an unknown identifier in brackets is passed over, since tools put other text in brackets too, and so is a test that names no requirement.
 
-**Vitest** (the example in the release, `resources/docs/junit/vitest/`):
+**Vitest** (the example in the release, `examples/junit/vitest/`):
 
 ```js
 it("[SR-a1c0de] accepts a valid password", () => { /* ... */ });
@@ -24,7 +24,7 @@ it("locks the account after three wrong passwords", async ({ annotate }) => {
 
 JUnit XML: `vitest run --reporter=junit --outputFile=results.xml`, or the same in `vitest.config.js`.
 
-**pytest** (`resources/docs/junit/pytest/`): a function name cannot hold brackets, so use a property or a parameter ID, and run `pytest --junitxml=results.xml` with `junit_family = xunit1` in `pytest.ini`, without which pytest writes no properties:
+**pytest** (`examples/junit/pytest/`): a function name cannot hold brackets, so use a property or a parameter ID, and run `pytest --junitxml=results.xml` with `junit_family = xunit1` in `pytest.ini`, without which pytest writes no properties:
 
 ```python
 def test_accepts_a_valid_password(record_property):

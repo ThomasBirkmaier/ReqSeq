@@ -13,12 +13,13 @@ import {
   skillCall,
 } from "./agent-setup.js";
 
-const MAC_APP = "/Applications/ReqSeq.app";
+// The unpacked delivery of ADR-0020: `<folder>/bin/reqseq`, `<folder>/runtime/node`, `<folder>/lib/dist/bin.js`.
+const MAC_FOLDER = "/Users/ann/ReqSeq";
 const mac: SetupFacts = {
   installation: {
-    runtime: `${MAC_APP}/Contents/MacOS/ReqSeq`,
-    entry: `${MAC_APP}/Contents/Resources/cli/dist/bin.js`,
-    electron: true,
+    runtime: `${MAC_FOLDER}/runtime/node`,
+    entry: `${MAC_FOLDER}/lib/dist/bin.js`,
+    electron: false,
   },
   platform: "darwin",
   launcherExists: true,
@@ -29,9 +30,9 @@ const mac: SetupFacts = {
 };
 const linux: SetupFacts = {
   installation: {
-    runtime: "/home/ann/ReqSeq/ReqSeq",
-    entry: "/home/ann/ReqSeq/resources/cli/dist/bin.js",
-    electron: true,
+    runtime: "/home/ann/ReqSeq/runtime/node",
+    entry: "/home/ann/ReqSeq/lib/dist/bin.js",
+    electron: false,
   },
   platform: "linux",
   launcherExists: true,
@@ -42,9 +43,9 @@ const linux: SetupFacts = {
 };
 const windows: SetupFacts = {
   installation: {
-    runtime: "C:\\Tools\\ReqSeq\\ReqSeq.exe",
-    entry: "C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js",
-    electron: true,
+    runtime: "C:\\Tools\\ReqSeq\\runtime\\node.exe",
+    entry: "C:\\Tools\\ReqSeq\\lib\\dist\\bin.js",
+    electron: false,
   },
   platform: "win32",
   launcherExists: false,
@@ -52,6 +53,15 @@ const windows: SetupFacts = {
   env: { APPDATA: "C:\\Users\\ann\\AppData\\Roaming" },
   workspace: "C:\\Work\\station",
   workspaceName: "Weather station",
+};
+/** A command line run by Electron (the paused app's checkout), which needs `ELECTRON_RUN_AS_NODE`. */
+const windowsElectron: SetupFacts = {
+  ...windows,
+  installation: {
+    runtime: "C:\\Tools\\ReqSeq\\ReqSeq.exe",
+    entry: "C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js",
+    electron: true,
+  },
 };
 
 /** The entry of a JSON block: env only when it has variables. */
@@ -98,7 +108,7 @@ describe("setupOf", () => {
       expect(setup("other", facts).setup.file).toBeUndefined();
     }
     expect(setup("claude-code", mac).setup.text).toBe(
-      "claude mcp add --transport stdio reqseq -- /Applications/ReqSeq.app/Contents/Resources/bin/reqseq mcp --workspace /Users/ann/Projects/station",
+      "claude mcp add --transport stdio reqseq -- /Users/ann/ReqSeq/bin/reqseq mcp --workspace /Users/ann/Projects/station",
     );
     expect(setup("codex-cli", linux).setup.text).toBe(
       "codex mcp add reqseq -- /home/ann/ReqSeq/bin/reqseq mcp --workspace /home/ann/station",
@@ -106,27 +116,35 @@ describe("setupOf", () => {
     expect(setup("vscode", linux).setup.text).toBe(
       `code --add-mcp '{"name":"reqseq","type":"stdio","command":"/home/ann/ReqSeq/bin/reqseq","args":["mcp","--workspace","/home/ann/station"]}'`,
     );
-    expect(setup("claude-code", windows).setup.text).toBe(
+    expect(setup("claude-code", windowsElectron).setup.text).toBe(
       "claude mcp add --env ELECTRON_RUN_AS_NODE=1 --transport stdio reqseq '--' 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
     );
-    expect(setup("codex-cli", windows).setup.text).toBe(
+    expect(setup("codex-cli", windowsElectron).setup.text).toBe(
       "codex mcp add reqseq --env ELECTRON_RUN_AS_NODE=1 '--' 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' mcp --workspace 'C:\\Work\\station'",
     );
-    expect(setup("vscode", windows).setup.text).toBe(
+    expect(setup("vscode", windowsElectron).setup.text).toBe(
       String.raw`code --% --add-mcp "{\"name\":\"reqseq\",\"type\":\"stdio\",\"command\":\"C:\\Tools\\ReqSeq\\ReqSeq.exe\",\"args\":[\"C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js\",\"mcp\",\"--workspace\",\"C:\\Work\\station\"],\"env\":{\"ELECTRON_RUN_AS_NODE\":\"1\"}}"`,
     );
     // Under the setup of every client but Claude Desktop, the call that writes the skill file, for a terminal
     // (PowerShell on Windows), started as the setup starts the server.
     expect(setup("claude-code", mac).next).toMatch(
-      /To give Claude Code the skill file, run this in a terminal: `\/Applications\/ReqSeq\.app\/Contents\/Resources\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
+      /To give Claude Code the skill file, run this in a terminal: `\/Users\/ann\/ReqSeq\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
     );
     expect(skillCall({ ...linux, workspace: "/home/ann/my station" })).toBe(
       "/home/ann/ReqSeq/bin/reqseq tool guide --skill --write --workspace '/home/ann/my station'",
     );
     expect(skillCall({ ...linux, launcherExists: false })).toBe(
-      "ELECTRON_RUN_AS_NODE=1 /home/ann/ReqSeq/ReqSeq /home/ann/ReqSeq/resources/cli/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
+      "/home/ann/ReqSeq/runtime/node /home/ann/ReqSeq/lib/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
     );
-    expect(skillCall(windows)).toBe(
+    expect(
+      skillCall({
+        ...linux,
+        installation: { runtime: "/repo/electron", entry: "/repo/cli/dist/bin.js", electron: true },
+      }),
+    ).toBe(
+      "ELECTRON_RUN_AS_NODE=1 /repo/electron /repo/cli/dist/bin.js tool guide --skill --write --workspace /home/ann/station",
+    );
+    expect(skillCall(windowsElectron)).toBe(
       "$env:ELECTRON_RUN_AS_NODE='1'; & 'C:\\Tools\\ReqSeq\\ReqSeq.exe' 'C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js' tool guide --skill --write --workspace 'C:\\Work\\station'; Remove-Item Env:ELECTRON_RUN_AS_NODE",
     );
     const node = {
@@ -187,9 +205,10 @@ describe("setupOf", () => {
     }
   });
 
-  it("[SR-227/AK-cw0k] names the absolute launcher or runtime and the workspace, the Windows form with ReqSeq.exe, bin.js and ELECTRON_RUN_AS_NODE, where it holds, and differs between two installations", () => {
+  // The Windows form is the assumption of #2352: the shipped node.exe and bin.js, without ELECTRON_RUN_AS_NODE.
+  it("[SR-227/AK-cw0k] names the absolute launcher or runtime and the workspace, the Windows form with node.exe and bin.js, where it holds, and differs between two installations", () => {
     expect(serverOf(mac)).toEqual({
-      command: `${MAC_APP}/Contents/Resources/bin/reqseq`,
+      command: `${MAC_FOLDER}/bin/reqseq`,
       args: ["mcp", "--workspace", mac.workspace],
       env: {},
     });
@@ -199,18 +218,18 @@ describe("setupOf", () => {
       env: {},
     });
     expect(serverOf(windows)).toEqual({
-      command: "C:\\Tools\\ReqSeq\\ReqSeq.exe",
-      args: ["C:\\Tools\\ReqSeq\\resources\\cli\\dist\\bin.js", "mcp", "--workspace", "C:\\Work\\station"],
-      env: { ELECTRON_RUN_AS_NODE: "1" },
+      command: "C:\\Tools\\ReqSeq\\runtime\\node.exe",
+      args: ["C:\\Tools\\ReqSeq\\lib\\dist\\bin.js", "mcp", "--workspace", "C:\\Work\\station"],
+      env: {},
     });
     for (const client of CLIENTS) {
       const text = setup(client.value, windows).setup.text;
-      expect(text).toContain("ReqSeq.exe");
+      expect(text).toContain("node.exe");
       expect(text).toContain("bin.js");
-      expect(text).toContain("ELECTRON_RUN_AS_NODE");
+      expect(text).not.toContain("ELECTRON_RUN_AS_NODE");
       expect(text).toContain("station");
     }
-    expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_APP}.`);
+    expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_FOLDER}.`);
     expect(setup("claude-code", linux).valid).toBe(
       "The setup holds as long as ReqSeq stays in /home/ann/ReqSeq.",
     );
@@ -234,9 +253,9 @@ describe("setupOf", () => {
     const moved: SetupFacts = {
       ...linux,
       installation: {
-        runtime: "/opt/ReqSeq/ReqSeq",
-        entry: "/opt/ReqSeq/resources/cli/dist/bin.js",
-        electron: true,
+        runtime: "/opt/ReqSeq/runtime/node",
+        entry: "/opt/ReqSeq/lib/dist/bin.js",
+        electron: false,
       },
     };
     expect(serverOf(moved).command).toBe("/opt/ReqSeq/bin/reqseq");
@@ -267,7 +286,7 @@ describe("the launch form", () => {
   it("takes the launcher only in a delivery where it exists, and never on Windows", () => {
     expect(serverOf({ ...linux, launcherExists: false }).command).toBe(linux.installation.runtime);
     expect(deliveryLauncher(windows.installation, "win32")).toBeUndefined();
-    // A checkout run by Electron: the runtime is not next to the resources folder.
+    // A checkout run by Electron: no runtime/ and lib/ of a delivery.
     const checkout = {
       runtime: "/repo/node_modules/electron/dist/electron",
       entry: "/repo/packages/cli/dist/bin.js",
@@ -275,7 +294,11 @@ describe("the launch form", () => {
     };
     expect(deliveryLauncher(checkout, "linux")).toBeUndefined();
     expect(deliveryLauncher(checkout, "darwin")).toBeUndefined();
-    expect(deliveryLauncher({ ...linux.installation, electron: false }, "linux")).toBeUndefined();
+    // Node elsewhere, or bin.js not in lib/dist/ of the folder.
+    expect(deliveryLauncher({ ...linux.installation, runtime: "/usr/bin/node" }, "linux")).toBeUndefined();
+    expect(
+      deliveryLauncher({ ...linux.installation, entry: "/home/ann/ReqSeq/cli/dist/bin.js" }, "linux"),
+    ).toBeUndefined();
     expect(setup("other", { ...linux, installation: checkout }).valid).toContain("/repo/packages/cli");
   });
 
@@ -291,16 +314,14 @@ describe("the launch form", () => {
 
 describe("folders and environment", () => {
   it("finds a delivery whose runtime folder differs only in case on Windows and macOS, not on Linux", () => {
-    const upper = { ...windows.installation, runtime: "C:\\TOOLS\\ReqSeq\\ReqSeq.exe" };
+    const upper = { ...windows.installation, runtime: "C:\\TOOLS\\ReqSeq\\runtime\\node.exe" };
     expect(setup("other", { ...windows, installation: upper }).valid).toBe(
       "The setup holds as long as ReqSeq stays in C:\\Tools\\ReqSeq.",
     );
-    const macUpper = { ...mac.installation, runtime: "/applications/ReqSeq.app/Contents/MacOS/ReqSeq" };
-    expect(serverOf({ ...mac, installation: macUpper }).command).toBe(
-      `${MAC_APP}/Contents/Resources/bin/reqseq`,
-    );
-    const linuxUpper = { ...linux.installation, runtime: "/home/ann/REQSEQ/ReqSeq" };
-    expect(serverOf({ ...linux, installation: linuxUpper }).command).toBe("/home/ann/REQSEQ/ReqSeq");
+    const macUpper = { ...mac.installation, runtime: "/users/ann/reqseq/runtime/node" };
+    expect(serverOf({ ...mac, installation: macUpper }).command).toBe(`${MAC_FOLDER}/bin/reqseq`);
+    const linuxUpper = { ...linux.installation, runtime: "/home/ann/REQSEQ/runtime/node" };
+    expect(serverOf({ ...linux, installation: linuxUpper }).command).toBe("/home/ann/REQSEQ/runtime/node");
   });
 
   it("takes a configuration folder from the environment only when it is absolute", () => {

@@ -13,6 +13,7 @@
     "!dist/**/*.test.*",
     "!dist/**/*.test-helper.*",
     "docs",
+    "web",
     "THIRD_PARTY_NOTICES.txt",
     "README.md"
   ],

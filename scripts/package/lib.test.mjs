@@ -3,9 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  DELIVERY_SYSTEMS,
   buildInfoOf,
+  deliveryArtifactName,
+  deliveryFolderName,
   hardLinkEntries,
   isBuildLeftover,
+  nodeArchiveMembers,
+  nodeArchiveUrl,
+  nodeNotice,
+  nodePinProblems,
   noticesText,
   offlineSiteProblems,
   packageFolders,
@@ -13,6 +20,7 @@ import {
   releaseNotes,
   removeBuildLeftovers,
   renderLauncher,
+  sha256Of,
   stagedManifest,
   tagReleasesVersion,
   versionOfTag,
@@ -467,5 +475,82 @@ describe("build info (SR-161)", () => {
       "junction",
     );
     await expect(writeBuildInfo(linked, info)).rejects.toThrow(/outside/);
+  });
+});
+
+describe("archives and the Node runtime (ADR-0020)", () => {
+  const names = {
+    productName: "Tool",
+    folder: "${productName}-${version}-${os}-${arch}",
+    artifact: "${productName}-${version}-${os}-${arch}.${ext}",
+  };
+  const pin = {
+    version: "22.1.2",
+    url: "https://nodejs.org/dist/v${version}/${file}",
+    archives: {
+      mac: { file: "node-v22.1.2-darwin-arm64.tar.gz", sha256: "a".repeat(64) },
+      linux: { file: "node-v22.1.2-linux-x64.tar.gz", sha256: "b".repeat(64) },
+      win: { file: "node-v22.1.2-win-x64.zip", sha256: "c".repeat(64) },
+    },
+  };
+
+  it("names the folder and the archive of each system, and its launcher and runtime", () => {
+    expect(deliveryFolderName(names, "mac", "0.3.0")).toBe("Tool-0.3.0-mac-arm64");
+    expect(deliveryArtifactName(names, "linux", "0.3.0")).toBe("Tool-0.3.0-linux-x64.tar.gz");
+    expect(deliveryArtifactName(names, "win", "0.3.0")).toBe("Tool-0.3.0-win-x64.zip");
+    expect(DELIVERY_SYSTEMS.win.launcher("tool")).toBe("tool.cmd");
+    expect(DELIVERY_SYSTEMS.mac.launcher("tool")).toBe("tool");
+    expect([DELIVERY_SYSTEMS.linux.node, DELIVERY_SYSTEMS.win.node]).toEqual(["node", "node.exe"]);
+  });
+
+  it("accepts an exact pin of the major version of .nvmrc with an archive and a SHA-256 per system", () => {
+    expect(nodePinProblems(pin, "22\n")).toEqual([]);
+    expect(nodePinProblems({ ...pin, version: "22" }, "22")).toEqual([
+      'node.json: version "22" is not an exact version',
+    ]);
+    expect(nodePinProblems({ version: undefined }, "22")).toEqual([
+      "node.json: version undefined is not an exact version",
+    ]);
+    const wrong = {
+      ...pin,
+      archives: { ...pin.archives, mac: { file: "node-v22.1.2-darwin-x64.tar.gz", sha256: "x" } },
+    };
+    expect(nodePinProblems(wrong, "24")).toEqual([
+      "node.json: Node 22.1.2 is not of the major version 24 of .nvmrc",
+      "node.json: the mac archive is not node-v22.1.2-darwin-arm64.tar.gz",
+      "node.json: the mac archive has no SHA-256",
+    ]);
+    expect(nodePinProblems({ version: "22.1.2" }, "22")).toHaveLength(6);
+  });
+
+  it("gives the download address and the members it takes, without npm", () => {
+    expect(nodeArchiveUrl(pin, "win")).toBe("https://nodejs.org/dist/v22.1.2/node-v22.1.2-win-x64.zip");
+    expect(nodeArchiveMembers(pin, "win")).toEqual({
+      binary: "node-v22.1.2-win-x64/node.exe",
+      license: "node-v22.1.2-win-x64/LICENSE",
+    });
+    expect(nodeArchiveMembers(pin, "linux")).toEqual({
+      binary: "node-v22.1.2-linux-x64/bin/node",
+      license: "node-v22.1.2-linux-x64/LICENSE",
+    });
+  });
+
+  it("hashes a file and makes the notice of Node with its full licence", async () => {
+    const file = path.join(await tempFolder(), "a");
+    await fs.writeFile(file, "abc");
+    expect(await sha256Of(file)).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    const notice = nodeNotice("22.1.2", "Node.js is licensed ...");
+    expect(notice).toMatchObject({ name: "Node.js", version: "22.1.2", texts: ["Node.js is licensed ..."] });
+    expect(
+      await noticesText({
+        nodeModules: [],
+        scope: "@t/",
+        required: ["Node.js"],
+        title: "T",
+        extra: [notice],
+      }),
+    ).toContain(
+      "Node.js 22.1.2\nLicense: MIT, and the licences of its parts in its LICENSE below\n\nNode.js is licensed ...",
+    );
   });
 });

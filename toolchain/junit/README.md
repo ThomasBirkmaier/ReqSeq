@@ -2,7 +2,7 @@
 
 How to connect a test tool that writes JUnit XML is part of the ReqSeq documentation, which comes with every delivery in the version of the delivery (`reqseq serve docs`, or Help > ReqSeq Documentation in the app): the pages "Record test evidence from JUnit XML", "Name the requirement in a test" and "Record test results in CI". Online, for the newest version: [Record test evidence from JUnit XML](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-evidence/), [Name the requirement in a test](https://thomasbirkmaier.github.io/ReqSeq/how-to/name-the-requirement-in-a-test/) and [Record test results in CI](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-results-in-ci/).
 
-This folder holds the example those pages refer to: a workspace with four requirements (`workspace/`), Vitest tests with their configuration (`vitest/`) and pytest tests with `pytest.ini` and the JUnit file of a real run (`pytest/`). The delivery has it in `resources/docs/junit/`.
+This folder holds the example those pages refer to: a workspace with four requirements (`workspace/`), Vitest tests with their configuration (`vitest/`) and pytest tests with `pytest.ini` and the JUnit file of a real run (`pytest/`). The delivery has it in `examples/junit/`.
 
 ## Try it here
 

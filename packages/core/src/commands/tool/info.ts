@@ -1,10 +1,10 @@
 // tool.info (SR-161): the version of the app, the command line and the MCP server, the build, the runtime
 // and the open workspace in one place, read only (AK1); the licence notice, the third-party licences and
 // where the documentation and the releases are, as text only: no network connection (AK2, SR-077). One
-// delivery ships app, command line and MCP server with one version (AK4, ADR-0014). The runtime is the
-// process's: the app's core process and the delivered command line, API and MCP server all run on the
-// Electron of the delivery (`ELECTRON_RUN_AS_NODE`), so every access gives the same values (AK5). The
-// resource files exist only in a delivery, so they are named only with its build info.
+// delivery ships command line, MCP server and web UI with one version (AK4, ADR-0020). The runtime is the
+// process's: the delivered command line, API, MCP server and UI server all run on the Node of the delivery, so
+// every access gives the same values (AK5). The files of a delivery exist only there, so they are named only with
+// its build info.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { BuildInfo } from "../../build-info.js";
@@ -20,9 +20,9 @@ type Output = CommandOutput<"tool.info">;
 export const ONLINE_DOCUMENTATION = "https://thomasbirkmaier.github.io/ReqSeq/";
 export const RELEASES = "https://github.com/ThomasBirkmaier/ReqSeq/releases";
 
-/** In a delivery, relative to its resources folder (ADR-0014); the documentation site is `docs/` of the CLI (SR-141). */
+/** In a delivery, relative to its folder (ADR-0020); the documentation site is `docs/` of the CLI in `lib/` (SR-141). */
 export const THIRD_PARTY_NOTICES = "THIRD_PARTY_NOTICES.txt";
-export const BUNDLED_DOCUMENTATION = "cli/docs";
+export const BUNDLED_DOCUMENTATION = "lib/docs";
 
 /** What the process tells about itself: the parts of `process` the info reads. */
 export interface ProcessFacts {

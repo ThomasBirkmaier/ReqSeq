@@ -7,17 +7,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DeliveryNames, DeliverySystem } from "./delivery.js";
 import {
   WINDOWS_TAR,
-  asarEntries,
   cliTarballName,
   connectProbe,
   deliveryArtifactName,
+  deliveryFolderName,
   deliveryLayout,
   inspectDelivery,
   installDelivery,
   isBuildLeftover,
+  isElectronPart,
   offlineProblems,
-  readAsarHeader,
-  readFuses,
   unpackCommand,
 } from "./delivery.js";
 
@@ -28,9 +27,9 @@ const NAMES: DeliveryNames = {
   packageScope: "@t/",
   cliTarball: "tool-cli-${version}.tgz",
   artifact: "${productName}-${version}-${os}-${arch}.${ext}",
+  folder: "${productName}-${version}-${os}-${arch}",
 };
-const NOTICES = ["@dagrejs/dagre", "@dagrejs/graphlib"];
-const SENTINEL = "dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX";
+const NOTICES = ["katex", "Node.js"];
 /** NTFS has no execute bits: on Windows the inspector does not check them, so no test expects that finding. */
 const EXEC_BITS = process.platform !== "win32";
 
@@ -45,72 +44,27 @@ const tempFolder = async (): Promise<string> => {
   return folder;
 };
 
-/** An asar archive with `header` and no file contents. */
-const asar = (header: unknown): Buffer => {
-  const json = Buffer.from(JSON.stringify(header));
-  const padded = Math.ceil(json.length / 4) * 4;
-  const out = Buffer.alloc(16 + padded);
-  out.writeUInt32LE(4, 0);
-  out.writeUInt32LE(8 + padded, 4);
-  out.writeUInt32LE(4 + padded, 8);
-  out.writeUInt32LE(json.length, 12);
-  json.copy(out, 16);
-  return out;
-};
-
-/** A binary with a fuse wire of `wire` ("1", "0", "r" per fuse). */
-const binary = (wire: string): Buffer =>
-  Buffer.concat([
-    Buffer.from("ELF..."),
-    Buffer.from(SENTINEL),
-    Buffer.from([1, wire.length]),
-    Buffer.from(wire),
-  ]);
-
-const GOOD_ASAR = {
-  files: {
-    "package.json": { size: 1, offset: "0" },
-    out: { files: { main: { files: { "index.js": { size: 1, offset: "0" } } } } },
-    node_modules: {
-      files: {
-        "@t": {
-          files: {
-            core: { files: { dist: { files: { "code-fingerprint.json": { size: 1, offset: "0" } } } } },
-          },
-        },
-      },
-    },
-  },
-};
-
 /** Writes an installed delivery of `system` at `root` that passes the inspection. */
 const writeDelivery = async (root: string, system: DeliverySystem): Promise<void> => {
   const layout = deliveryLayout(NAMES, system);
-  const write = async (file: string, content: string | Buffer, mode = 0o644): Promise<void> => {
+  const write = async (file: string, content: string, mode = 0o644): Promise<void> => {
     await fs.mkdir(path.dirname(path.join(root, file)), { recursive: true });
     await fs.writeFile(path.join(root, file), content, { mode });
   };
-  const cli = path.join(layout.resources, "cli");
-  await write(layout.app, layout.app === layout.fuseBinary ? binary("100001") : "app", 0o755);
-  await write(layout.fuseBinary, binary("100001"), 0o755);
+  const lib = layout.lib;
   await write(layout.launcher, "#!/bin/sh\n", 0o755);
-  for (const file of layout.executables) {
-    await fs.access(path.join(root, file)).catch(() => write(file, "", 0o755));
-  }
-  await write(path.join(cli, "dist", "bin.js"), "");
-  await write(path.join(cli, "node_modules", "@t", "api", "package.json"), "{}");
-  await write(path.join(cli, "node_modules", "@t", "mcp", "package.json"), "{}");
-  await write(path.join(cli, "node_modules", "@t", "core", "dist", "code-fingerprint.json"), "{}");
-  await write(path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js"), "");
-  await write(path.join(cli, "node_modules", "@t", "core", "dist", "model", "agent-beat-worker.js"), "");
-  await write(path.join(layout.resources, "docs", "junit", "README.md"), "");
+  await write(layout.runtime, "ELF", 0o755);
+  await write(path.join(lib, "dist", "bin.js"), "");
+  await write(path.join(lib, "node_modules", "@t", "api", "package.json"), "{}");
+  await write(path.join(lib, "node_modules", "@t", "mcp", "package.json"), "{}");
+  await write(path.join(lib, "node_modules", "@t", "core", "dist", "code-fingerprint.json"), "{}");
+  await write(path.join(lib, "node_modules", "@t", "core", "dist", "model", "read-worker.js"), "");
+  await write(path.join(lib, "node_modules", "@t", "core", "dist", "model", "agent-beat-worker.js"), "");
+  await write(path.join(layout.web, "index.html"), "");
   await write(path.join(layout.docs, "index.html"), "");
   await write(path.join(layout.docs, "search-index.json"), "{}");
-  await write(
-    path.join(layout.resources, "THIRD_PARTY_NOTICES.txt"),
-    "@dagrejs/dagre 3.1.1\n\n@dagrejs/graphlib 4.0.5\n",
-  );
-  await write(path.join(layout.resources, "app.asar"), asar(GOOD_ASAR));
+  await write(path.join("examples", "junit", "README.md"), "");
+  await write(layout.notices, "katex 0.19.0\n\nNode.js 22.23.5\n");
 };
 
 describe("names", () => {
@@ -121,38 +75,30 @@ describe("names", () => {
     expect(cliTarballName(NAMES, "0.3.0")).toBe("tool-cli-0.3.0.tgz");
   });
 
-  it("lays out the app, its fuse binary, the launcher and the resources per system", () => {
-    expect(deliveryLayout(NAMES, "mac")).toEqual({
-      app: path.join("Tool.app", "Contents", "MacOS", "Tool"),
-      fuseBinary: path.join(
-        "Tool.app",
-        "Contents",
-        "Frameworks",
-        "Electron Framework.framework",
-        "Electron Framework",
-      ),
-      launcher: path.join("Tool.app", "Contents", "Resources", "bin", "tool"),
-      resources: path.join("Tool.app", "Contents", "Resources"),
-      docs: path.join("Tool.app", "Contents", "Resources", "cli", "docs"),
-      executables: [
-        path.join("Tool.app", "Contents", "MacOS", "Tool"),
-        path.join("Tool.app", "Contents", "Resources", "bin", "tool"),
-      ],
-    });
-    expect(deliveryLayout(NAMES, "linux")).toEqual({
-      app: "Tool",
-      fuseBinary: "Tool",
-      launcher: path.join("bin", "tool"),
-      resources: "resources",
-      docs: path.join("resources", "cli", "docs"),
-      executables: ["Tool", path.join("bin", "tool"), "chrome-sandbox"],
-    });
+  it("names the one folder of each archive", () => {
+    expect(deliveryFolderName(NAMES, "mac", "0.3.0")).toBe("Tool-0.3.0-mac-arm64");
+    expect(deliveryFolderName(NAMES, "win", "0.3.0")).toBe("Tool-0.3.0-win-x64");
+  });
+
+  it("lays out the launcher, the runtime, the program, the pages, the documentation and the notices per system", () => {
+    const common = {
+      lib: "lib",
+      web: path.join("lib", "web"),
+      docs: path.join("lib", "docs"),
+      notices: "THIRD_PARTY_NOTICES.txt",
+    };
+    for (const system of ["mac", "linux"] as const) {
+      expect(deliveryLayout(NAMES, system)).toEqual({
+        launcher: path.join("bin", "tool"),
+        runtime: path.join("runtime", "node"),
+        ...common,
+        executables: [path.join("bin", "tool"), path.join("runtime", "node")],
+      });
+    }
     expect(deliveryLayout(NAMES, "win")).toEqual({
-      app: "Tool.exe",
-      fuseBinary: "Tool.exe",
       launcher: path.join("bin", "tool.cmd"),
-      resources: "resources",
-      docs: path.join("resources", "cli", "docs"),
+      runtime: path.join("runtime", "node.exe"),
+      ...common,
       executables: [],
     });
   });
@@ -171,44 +117,6 @@ describe("unpackCommand", () => {
   });
 });
 
-describe("asar", () => {
-  it("lists the entries of a header and reads the header of an archive", async () => {
-    const file = path.join(await tempFolder(), "app.asar");
-    await fs.writeFile(file, asar(GOOD_ASAR));
-    expect(asarEntries(await readAsarHeader(file))).toEqual([
-      "/package.json",
-      "/out",
-      "/out/main",
-      "/out/main/index.js",
-      "/node_modules",
-      "/node_modules/@t",
-      "/node_modules/@t/core",
-      "/node_modules/@t/core/dist",
-      "/node_modules/@t/core/dist/code-fingerprint.json",
-    ]);
-    expect(asarEntries(null)).toEqual([]);
-  });
-});
-
-describe("readFuses", () => {
-  it("reads on, off and removed fuses, and only as many as the wire has", () => {
-    expect(readFuses(binary("10r"))).toEqual({
-      runAsNode: "on",
-      enableCookieEncryption: "off",
-      enableNodeOptionsEnvironmentVariable: "removed",
-    });
-  });
-
-  it("gives undefined without a wire and nothing for a wire cut off after the sentinel", () => {
-    expect(readFuses(Buffer.from("no fuses here"))).toBeUndefined();
-    expect(readFuses(Buffer.from(SENTINEL))).toEqual({});
-    expect(readFuses(Buffer.concat([Buffer.from(SENTINEL), Buffer.from([1, 2])]))).toEqual({
-      runAsNode: "removed",
-      enableCookieEncryption: "removed",
-    });
-  });
-});
-
 describe("inspectDelivery", () => {
   it.each(["mac", "linux", "win"] as const)(
     "finds nothing wrong in a complete %s delivery",
@@ -221,79 +129,65 @@ describe("inspectDelivery", () => {
 
   it("lists every missing part of an empty folder", async () => {
     const root = await tempFolder();
-    const cli = path.join("resources", "cli");
+    const modules = path.join("lib", "node_modules", "@t");
     expect(await inspectDelivery(root, NAMES, "linux", NOTICES)).toEqual([
-      "missing: Tool",
-      "missing: Tool",
       `missing: ${path.join("bin", "tool")}`,
-      `missing: ${path.join(cli, "dist", "bin.js")}`,
-      `missing: ${path.join(cli, "node_modules", "@t", "api", "package.json")}`,
-      `missing: ${path.join(cli, "node_modules", "@t", "mcp", "package.json")}`,
-      `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "code-fingerprint.json")}`,
-      `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "model", "read-worker.js")}`,
-      `missing: ${path.join(cli, "node_modules", "@t", "core", "dist", "model", "agent-beat-worker.js")}`,
-      `missing: ${path.join("resources", "docs", "junit", "README.md")}`,
-      `missing: ${path.join(cli, "docs", "index.html")}`,
-      `missing: ${path.join(cli, "docs", "search-index.json")}`,
-      `missing: ${path.join("resources", "THIRD_PARTY_NOTICES.txt")}`,
-      `missing: ${path.join("resources", "app.asar")}`,
+      `missing: ${path.join("runtime", "node")}`,
+      `missing: ${path.join("lib", "dist", "bin.js")}`,
+      `missing: ${path.join(modules, "api", "package.json")}`,
+      `missing: ${path.join(modules, "mcp", "package.json")}`,
+      `missing: ${path.join(modules, "core", "dist", "code-fingerprint.json")}`,
+      `missing: ${path.join(modules, "core", "dist", "model", "read-worker.js")}`,
+      `missing: ${path.join(modules, "core", "dist", "model", "agent-beat-worker.js")}`,
+      `missing: ${path.join("lib", "web", "index.html")}`,
+      `missing: ${path.join("lib", "docs", "index.html")}`,
+      `missing: ${path.join("lib", "docs", "search-index.json")}`,
+      `missing: ${path.join("examples", "junit", "README.md")}`,
+      "missing: THIRD_PARTY_NOTICES.txt",
     ]);
   });
 
-  it("finds lost executable bits, updaters, notices without the required names, asar gaps and wrong fuses", async () => {
+  it("finds lost executable bits, npm in the runtime, Electron, and notices without the required names", async () => {
     const root = await tempFolder();
     await writeDelivery(root, "linux");
-    await fs.chmod(path.join(root, "chrome-sandbox"), 0o644);
-    await fs.writeFile(path.join(root, "resources", "app-update.yml"), "provider: github\n");
-    await fs.mkdir(path.join(root, "resources", "cli", "node_modules", "electron-updater"));
-    await fs.writeFile(
-      path.join(root, "resources", "THIRD_PARTY_NOTICES.txt"),
-      "@dagrejs/dagre-extra 1.0.0\n",
-    );
-    await fs.writeFile(
-      path.join(root, "resources", "app.asar"),
-      asar({ files: { "package.json": {}, node_modules: { files: { "electron-updater": { files: {} } } } } }),
-    );
-    await fs.writeFile(path.join(root, "Tool"), binary("1010"));
+    await fs.chmod(path.join(root, "runtime", "node"), 0o644);
+    await fs.writeFile(path.join(root, "runtime", "npm"), "");
+    await fs.mkdir(path.join(root, "lib", "node_modules", "electron-updater"));
+    await fs.writeFile(path.join(root, "app.asar"), "");
+    await fs.writeFile(path.join(root, "THIRD_PARTY_NOTICES.txt"), "katex-extra 1.0.0\n");
     expect(await inspectDelivery(root, NAMES, "linux", NOTICES)).toEqual([
-      ...(EXEC_BITS ? ["not executable: chrome-sandbox"] : []),
-      `update configuration: ${path.join("resources", "app-update.yml")}`,
-      "updater in the CLI: electron-updater",
-      "third-party notices do not name @dagrejs/dagre",
-      "third-party notices do not name @dagrejs/graphlib",
-      "missing in app.asar: /out/main/index.js",
-      "missing in app.asar: /node_modules/@t/core/dist/code-fingerprint.json",
-      "updater in app.asar: electron-updater",
-      "fuse enableNodeOptionsEnvironmentVariable is on, expected off",
-      "fuse onlyLoadAppFromAsar is absent, expected on",
+      ...(EXEC_BITS ? [`not executable: ${path.join("runtime", "node")}`] : []),
+      `more than Node in the runtime: ${path.join("runtime", "npm")}`,
+      "Electron: app.asar",
+      `Electron: ${path.join("lib", "node_modules", "electron-updater")}`,
+      "third-party notices do not name katex",
+      "third-party notices do not name Node.js",
+    ]);
+    expect(["chrome-sandbox", "a/Electron Framework", "b/plain.md"].map(isElectronPart)).toEqual([
+      true,
+      true,
+      false,
     ]);
   });
 
   it("does not check executable bits on a Windows host", async () => {
     const root = await tempFolder();
     await writeDelivery(root, "linux");
-    await fs.chmod(path.join(root, "chrome-sandbox"), 0o644);
+    await fs.chmod(path.join(root, "runtime", "node"), 0o644);
     expect(await inspectDelivery(root, NAMES, "linux", NOTICES, "win32")).toEqual([]);
   });
 
-  it("finds source maps, type declarations and build info in the command line and in app.asar", async () => {
+  it("finds source maps, type declarations and build info", async () => {
     const root = await tempFolder();
     await writeDelivery(root, "linux");
-    const dist = path.join("resources", "cli", "dist");
+    const dist = path.join("lib", "dist");
     for (const file of ["bin.js.map", "bin.d.ts", "test.tsbuildinfo"]) {
       await fs.writeFile(path.join(root, dist, file), "");
     }
-    const entry = { size: 1, offset: "0" };
-    const main = { files: { "index.js": entry, "index.js.map": entry } };
-    await fs.writeFile(
-      path.join(root, "resources", "app.asar"),
-      asar({ files: { ...GOOD_ASAR.files, out: { files: { main } } } }),
-    );
     expect(await inspectDelivery(root, NAMES, "linux", NOTICES)).toEqual([
       `build leftover: ${path.join(dist, "bin.d.ts")}`,
       `build leftover: ${path.join(dist, "bin.js.map")}`,
       `build leftover: ${path.join(dist, "test.tsbuildinfo")}`,
-      "build leftover in app.asar: /out/main/index.js.map",
     ]);
     expect(["a.d.mts", "a.d.cts", "a.js", "a.ts", "map.js"].map(isBuildLeftover)).toEqual([
       true,
@@ -302,13 +196,6 @@ describe("inspectDelivery", () => {
       false,
       false,
     ]);
-  });
-
-  it("finds a binary without a fuse wire", async () => {
-    const root = await tempFolder();
-    await writeDelivery(root, "win");
-    await fs.writeFile(path.join(root, "Tool.exe"), "MZ");
-    expect(await inspectDelivery(root, NAMES, "win", NOTICES)).toEqual(["no fuse wire in Tool.exe"]);
   });
 });
 
@@ -332,17 +219,15 @@ describe("installDelivery", () => {
 
   it("unpacks and gives the one folder of the archive", async () => {
     const dest = await tempFolder();
-    expect(await installDelivery(await archive("Tool-0.3.0-linux-x64"), dest, NAMES)).toBe(
+    expect(await installDelivery(await archive("Tool-0.3.0-linux-x64"), dest)).toBe(
       path.join(dest, "Tool-0.3.0-linux-x64"),
     );
     expect((await fs.stat(path.join(dest, "Tool-0.3.0-linux-x64", "inside"))).isDirectory()).toBe(true);
   });
 
-  it("gives the folder itself for the macOS app and for several top entries", async () => {
-    const one = await tempFolder();
-    expect(await installDelivery(await archive("Tool.app"), one, NAMES, "darwin")).toBe(one);
+  it("gives the folder itself for several top entries", async () => {
     const two = await tempFolder();
-    expect(await installDelivery(await archive("a", "b"), two, NAMES, "linux")).toBe(two);
+    expect(await installDelivery(await archive("a", "b"), two)).toBe(two);
   });
 });
 

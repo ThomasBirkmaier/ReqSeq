@@ -5387,7 +5387,7 @@
                 "title": "Program",
                 "type": "string",
                 "minLength": 1,
-                "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`ReqSeq.exe` of a delivery on Windows, or Node)."
+                "description": "The absolute path of the program the client starts: the launcher `bin/reqseq` of a delivery on macOS and Linux, else the runtime (`runtime\\node.exe` of a delivery on Windows, or Node)."
               },
               "args": {
                 "title": "Arguments",
@@ -5403,7 +5403,7 @@
                 "additionalProperties": {
                   "type": "string"
                 },
-                "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is the Electron of a delivery; else empty."
+                "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty."
               }
             },
             "additionalProperties": false,
@@ -5590,7 +5590,7 @@
             "required": [
               "node"
             ],
-            "description": "The runtime of the process. The command line, API and MCP server of a release run on the Electron of the app, so a release gives the same values in every access."
+            "description": "The runtime of the process. The command line, API, MCP server and web UI of a release run on the Node it ships, so a release gives the same values in every access."
           },
           "workspace": {
             "title": "Workspace",
@@ -5647,7 +5647,7 @@
               "thirdParty": {
                 "title": "Third-party licences",
                 "$ref": "#/$defs/common/$defs/outputPath",
-                "description": "The file of the release that lists the third-party components with their licences, relative to its resources folder. Left out in a build from a checkout."
+                "description": "The file of the release that lists the third-party components with their licences, relative to its folder. Left out in a build from a checkout."
               }
             },
             "additionalProperties": false,
@@ -5663,7 +5663,7 @@
               "bundled": {
                 "title": "Bundled documentation",
                 "$ref": "#/$defs/common/$defs/outputPath",
-                "description": "The folder of the release with its documentation site, relative to its resources folder, with `/` between its names (`cli/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
+                "description": "The folder of the release with its documentation site, relative to its folder, with `/` between its names (`lib/docs`); `reqseq serve docs` serves it. Left out in a build from a checkout."
               },
               "online": {
                 "title": "Online documentation",
