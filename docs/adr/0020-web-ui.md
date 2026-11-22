@@ -117,7 +117,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
   - The renderer moves to the subpath `@reqseq/core/markdown`. The helpers it imports through `model/index.ts` (`imageLink`, `isUuid`, `referenceRepository`) move to import-free modules first.
   - A `reqseq:` reference becomes a hash route to its element.
 - **Links:** only http, https and mailto. They open only on a click, in a new browsing context without opener.
-- **Images:** only through the read command for embedded images, a spec change of its own. Until then the page shows a placeholder with the file name. The server serves no workspace file itself (SR-248 AK2).
+- **Images:** an embedded image of the repository is read with `element.readImage` (SR-251), and the page shows it from a `blob:` URL it makes of the bytes (SR-247 AK9), revoked once the image has loaded; an image that cannot be read stays its Markdown text. The server serves no workspace file itself (SR-248 AK2).
 - **Formulas and diagrams:** KaTeX as in the export. Mermaid runs with `securityLevel: "strict"` and without HTML labels; it is pinned exactly, and an upgrade is reviewed, because it runs in the token's origin.
 
 ### Status and Git
