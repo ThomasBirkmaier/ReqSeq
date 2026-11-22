@@ -26,3 +26,4 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0018](0018-baseline-file.md) | Baseline file: name, layout, fast reader | D-039, D-045, D-058, N-036 |
 | [0019](0019-shared-display-model.md) | One display model per display, shared by the app and the HTML export | D-029, D-062, D-078, D-080, N-036 |
 | [0020](0020-web-ui.md) | Web UI: server, token, packages and release without Electron | D-083, SR-247..SR-250 |
+| [0021](0021-desktop-shell.md) | Desktop shell: Tauri host, test seam and lean CI | D-084, SR-252, SR-253 |

@@ -1,6 +1,6 @@
 # ADR-0011: Test tools, evidence and quality gates
 
-Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-077..SR-083, SR-249
+Status: Accepted · Based on: D-026, D-051 · SRs: SR-019, SR-020, SR-068, SR-077..SR-083, SR-249 · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): tests and CI steps of the desktop shell
 
 ## Decision
 

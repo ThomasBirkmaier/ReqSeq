@@ -1,6 +1,6 @@
 # ADR-0002: Command catalog as the only program logic
 
-Status: Accepted · Based on: D-025, D-029, D-045 · SRs: SR-080, SR-072, SR-017, SR-081, SR-215
+Status: Accepted · Based on: D-025, D-029, D-045 · SRs: SR-080, SR-072, SR-017, SR-081, SR-215 · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): the desktop shell's Rust host code and its four functions are outside the catalog
 
 ## Context
 
