@@ -1,7 +1,9 @@
-//! The real host (ADR-0021): Tauri's window and run loop, the server process, the end signals and the opener of
-//! the operating system. A controller thread owns the shell's rules and handles every event in order.
+//! The real host (ADR-0021): Tauri's window and run loop, the server process, the end signals, the opener and the
+//! dialogs of the operating system. A controller thread owns the shell's rules and handles every event in order; a
+//! dialog waits for the person on a thread of Tauri's async runtime, so the events go on meanwhile.
 use crate::{Input, engine, server_started, write_error};
 use shell::address::ServerAddress;
+use shell::pick::{Dialog, Dialogs, Pick, Shown};
 use shell::redact::TokenSlot;
 use shell::run::{ADDRESS_WAIT, Event, Host, Shell, Timer};
 use shell::start::{Layout, ServerSpec, release_root, root_folder};
@@ -136,14 +138,13 @@ impl Host for RealHost {
 
     fn show(&mut self, address: &ServerAddress) -> Result<(), String> {
         *self.allowed.lock().unwrap_or_else(PoisonError::into_inner) = Some(address.clone());
-        self.app
-            .add_capability(
-                CapabilityBuilder::new("server")
-                    .window(shell::WINDOW)
-                    .remote(address.origin())
-                    .permission("allow-open-address"),
-            )
-            .map_err(|e| e.to_string())?;
+        let capability = shell::permissions().into_iter().fold(
+            CapabilityBuilder::new("server")
+                .window(shell::WINDOW)
+                .remote(address.origin()),
+            CapabilityBuilder::permission,
+        );
+        self.app.add_capability(capability).map_err(|e| e.to_string())?;
         let window = self
             .app
             .get_webview_window(shell::WINDOW)
@@ -236,6 +237,72 @@ async fn open_address(address: String, tx: tauri::State<'_, mpsc::Sender<Input>>
         .unwrap_or_else(|_| Err("The shell is ending.".to_owned()))
 }
 
+/// The dialogs of the operating system (SR-253 AK1); in an e2e build the driver's stand-in.
+pub struct SystemDialog {
+    app: AppHandle,
+}
+
+impl Dialog for SystemDialog {
+    fn show(&self, pick: Pick, shown: &Shown) -> Option<PathBuf> {
+        #[cfg(feature = "e2e")]
+        {
+            let _ = &self.app;
+            crate::e2e::dialog(pick, shown)
+        }
+        #[cfg(not(feature = "e2e"))]
+        {
+            use tauri_plugin_dialog::DialogExt as _;
+            let mut builder = self.app.dialog().file().set_title(pick.title());
+            if let Some(window) = self.app.get_webview_window(shell::WINDOW) {
+                builder = builder.set_parent(&window);
+            }
+            if let Some(folder) = &shown.folder {
+                builder = builder.set_directory(folder);
+            }
+            if let Some(name) = &shown.name {
+                builder = builder.set_file_name(name);
+            }
+            let chosen = match pick {
+                Pick::Folder => builder.blocking_pick_folder(),
+                Pick::File => builder.blocking_pick_file(),
+                Pick::Target => builder.blocking_save_file(),
+            };
+            chosen.and_then(|path| path.into_path().ok())
+        }
+    }
+}
+
+type Picker = Dialogs<SystemDialog>;
+
+fn choose(dialogs: &Picker, pick: Pick, start: Option<&str>, name: Option<&str>) -> Option<String> {
+    dialogs.choose(pick, start, name, cfg!(windows))
+}
+
+#[tauri::command]
+async fn pick_folder(
+    start: Option<String>,
+    dialogs: tauri::State<'_, Picker>,
+) -> Result<Option<String>, String> {
+    Ok(choose(&dialogs, Pick::Folder, start.as_deref(), None))
+}
+
+#[tauri::command]
+async fn pick_file(
+    start: Option<String>,
+    dialogs: tauri::State<'_, Picker>,
+) -> Result<Option<String>, String> {
+    Ok(choose(&dialogs, Pick::File, start.as_deref(), None))
+}
+
+#[tauri::command]
+async fn pick_save_target(
+    start: Option<String>,
+    name: Option<String>,
+    dialogs: tauri::State<'_, Picker>,
+) -> Result<Option<String>, String> {
+    Ok(choose(&dialogs, Pick::Target, start.as_deref(), name.as_deref()))
+}
+
 /// The Node binary and the CLI entry: the release's, or in an e2e build those the test names.
 fn layout() -> Layout {
     #[cfg(feature = "e2e")]
@@ -274,11 +341,19 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(tx.clone())
-        .invoke_handler(tauri::generate_handler![open_address])
+        .invoke_handler(tauri::generate_handler![
+            pick_folder,
+            pick_file,
+            pick_save_target,
+            open_address
+        ])
         .setup({
             let tx = tx.clone();
             let allowed = allowed.clone();
             move |app| {
+                app.manage(Picker::new(SystemDialog {
+                    app: app.handle().clone(),
+                }));
                 let event = match window(app.handle(), allowed) {
                     Ok(()) => Event::WindowReady,
                     Err(error) => Event::WindowFailed(error.to_string()),

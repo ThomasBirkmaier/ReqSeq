@@ -4,10 +4,14 @@
 //!
 //! Commands: `{"eval": "<script>", "id": <n>}` runs a script in the page, as a person's input would, and answers
 //! `e2e eval {"id": <n>, "result": <JSON text>}`; `{"close": true}` closes the window; `{"crash": true}` aborts the
-//! process.
+//! process; `{"dialog": "<path>"}` or `{"dialog": null}` queues the answer of the next dialog. The dialog stand-in
+//! records what the dialog would show first (`e2e dialog`) and gives the queued answer, or none when nothing is queued.
+use shell::pick::{Pick, Shown};
 use shell::start::Layout;
+use std::collections::VecDeque;
 use std::io::{BufRead as _, Write as _};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 use tauri::{AppHandle, Manager as _};
 
@@ -58,6 +62,26 @@ pub fn open_with(script: &Path, url: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The answers of the next dialogs, in order.
+static ANSWERS: Mutex<VecDeque<Option<PathBuf>>> = Mutex::new(VecDeque::new());
+
+/// The stand-in of the operating system's dialog: records what it would show first and gives the queued answer.
+pub fn dialog(pick: Pick, shown: &Shown) -> Option<PathBuf> {
+    record(
+        "dialog",
+        serde_json::json!({
+            "command": pick.command(),
+            "folder": shown.folder.as_ref().map(|f| f.to_string_lossy()),
+            "name": shown.name,
+        }),
+    );
+    ANSWERS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .pop_front()
+        .flatten()
+}
+
 /// Reads the commands on a thread of its own.
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
@@ -67,6 +91,15 @@ pub fn start(app: AppHandle) {
                 record("error", format!("not a command: {line}"));
                 continue;
             };
+            if let Some(answer) = command.get("dialog") {
+                let answer = answer.as_str().map(PathBuf::from);
+                ANSWERS
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push_back(answer);
+                record("queued", command["dialog"].clone());
+                continue;
+            }
             let Some(window) = app.get_webview_window(shell::WINDOW) else {
                 record("error", "no window");
                 continue;

@@ -1,9 +1,10 @@
-//! The desktop shell `reqseq-shell` (ADR-0021, D-084): the rules of its start, end, failures and the opening of
-//! addresses, behind the `Host` of `run`, plus the platform code it needs. `main.rs` wires Tauri as the real host.
+//! The desktop shell `reqseq-shell` (ADR-0021, D-084): the rules of its start, end, failures, the opening of
+//! addresses and the dialogs, behind the `Host` of `run` and the `Dialog` of `pick`, plus the platform code it needs. `main.rs` wires Tauri as the real host.
 //! The shell calls no command, reads no workspace file and has no update function.
 #![deny(unsafe_code)]
 
 pub mod address;
+pub mod pick;
 pub mod redact;
 pub mod run;
 pub mod server;
@@ -20,7 +21,16 @@ pub mod unix;
 pub mod windows;
 
 /// The commands the pages may call, each behind a permission of the app manifest (ADR-0021, Capabilities).
-pub const COMMANDS: &[&str] = &["open_address"];
+pub const COMMANDS: &[&str] = &["pick_folder", "pick_file", "pick_save_target", "open_address"];
+
+/// The permissions of the run-time capability: one per command, as `tauri-build` names them from the app manifest.
+#[must_use]
+pub fn permissions() -> Vec<String> {
+    COMMANDS
+        .iter()
+        .map(|command| format!("allow-{}", command.replace('_', "-")))
+        .collect()
+}
 
 /// The label of the one window.
 pub const WINDOW: &str = "main";
@@ -33,6 +43,23 @@ pub fn is_file(path: &std::path::Path) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_pages_get_the_three_dialogs_and_the_opener() {
+        use super::pick::Pick;
+        let picks = [Pick::Folder, Pick::File, Pick::Target].map(Pick::command);
+        assert_eq!(super::COMMANDS[..3], picks);
+        assert_eq!(super::COMMANDS[3..], ["open_address"]);
+        assert_eq!(
+            super::permissions(),
+            [
+                "allow-pick-folder",
+                "allow-pick-file",
+                "allow-pick-save-target",
+                "allow-open-address"
+            ]
+        );
+    }
+
     #[test]
     fn only_regular_files_count() {
         let dir = std::env::temp_dir().join(format!("reqseq-shell-isfile-{}", std::process::id()));

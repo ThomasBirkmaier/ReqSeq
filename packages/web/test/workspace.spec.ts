@@ -94,6 +94,8 @@ test("the folder field completes the folders of the typed path", async ({ page, 
     await fs.mkdir(path.join(folder.dir, "beta"));
     await open("/w/open");
     const field = page.getByLabel("Folder of the workspace");
+    // The dialog of the operating system is only in the desktop shell (SR-253); the browser keeps the field.
+    await expect(page.getByRole("button", { name: /^Choose/ })).toHaveCount(0);
     await field.fill(`${folder.dir}/`);
     const options = page.locator(`#${(await field.getAttribute("list")) ?? ""} option`);
     await expect(options).toHaveCount(2);
