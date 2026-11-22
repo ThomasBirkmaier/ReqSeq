@@ -226,6 +226,15 @@ describe("SR-252: the desktop shell shows the web UI of its release", () => {
     for (const name of cases) {
       if (name === "unreadable") {
         await fs.chmod(file, 0o000);
+        // Root, and the mapped root of `unshare -r` on Linux CI, still reads it: the case then shows nothing new.
+        if (
+          await fs.access(file, fs.constants.R_OK).then(
+            () => true,
+            () => false,
+          )
+        ) {
+          continue;
+        }
       }
       const shell = await startShell({
         cli: FAKE_SERVER,

@@ -16,6 +16,7 @@ use windows_sys::Win32::Foundation::{
     SetHandleInformation,
 };
 use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
+use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx};
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE, STD_OUTPUT_HANDLE, SetStdHandle,
 };
@@ -274,7 +275,8 @@ fn duplicate(which: STD_HANDLE) -> io::Result<File> {
 /// The shell's standard output and error replaced by pipes, whose lines a thread each copies to the original handles
 /// with the token replaced (ADR-0021, Start step 6). A standard handle the starter did not give is left alone.
 pub struct Filter {
-    replaced: Vec<STD_HANDLE>,
+    /// Each replaced standard handle with the value it had before, as an address so that the filter stays `Send`.
+    replaced: Vec<(STD_HANDLE, usize)>,
     ends: Vec<OwnedHandle>,
     threads: Vec<JoinHandle<()>>,
 }
@@ -295,24 +297,45 @@ impl Filter {
             let Ok(original) = duplicate(which) else {
                 continue;
             };
-            // The write end is inheritable, so programs started later inherit the pipe (A1).
-            let (write, read) = pipe(false)?;
-            // SAFETY: `write` stays open while it is the standard handle; `finish` resets the standard handle first.
-            check(unsafe { SetStdHandle(which, write.as_raw_handle()) })?;
-            let token = token.clone();
-            filter.threads.push(thread::spawn(move || {
-                let mut original = original;
-                let _ = redact::copy_lines(&mut BufReader::new(File::from(read)), &mut original, &token);
-            }));
-            filter.replaced.push(which);
-            filter.ends.push(write);
+            if let Err(error) = filter.replace(which, original, token) {
+                // No standard handle may be left on a pipe end that closes with the filter.
+                filter.restore();
+                return Err(error);
+            }
         }
         Ok(filter)
     }
 
+    fn replace(&mut self, which: STD_HANDLE, original: File, token: &TokenSlot) -> io::Result<()> {
+        // The write end is inheritable, so programs started later inherit the pipe (A1).
+        let (write, read) = pipe(false)?;
+        // SAFETY: reads a handle value of this process.
+        let previous = unsafe { GetStdHandle(which) };
+        // SAFETY: `write` stays open while it is the standard handle; `finish` and `restore` reset it first.
+        check(unsafe { SetStdHandle(which, write.as_raw_handle()) })?;
+        let token = token.clone();
+        self.threads.push(thread::spawn(move || {
+            let mut original = original;
+            let _ = redact::copy_lines(&mut BufReader::new(File::from(read)), &mut original, &token);
+        }));
+        self.replaced.push((which, previous as usize));
+        self.ends.push(write);
+        Ok(())
+    }
+
+    /// Puts back the standard handles the filter replaced; the pipes close when it drops.
+    fn restore(&self) {
+        for &(which, previous) in &self.replaced {
+            // SAFETY: `previous` is the value the standard handle had, which the filter never closed.
+            unsafe {
+                SetStdHandle(which, previous as HANDLE);
+            }
+        }
+    }
+
     /// Closes the shell's write ends and waits up to `wait` for the threads to copy what is left.
     pub fn finish(self, wait: Duration) {
-        for which in self.replaced {
+        for (which, _) in self.replaced {
             // SAFETY: a null standard handle is allowed; the old one is closed below.
             unsafe {
                 SetStdHandle(which, null_mut());
@@ -334,6 +357,15 @@ impl Filter {
 ///
 /// The code `ShellExecuteW` returned when it failed.
 pub fn open(url: &str) -> Result<(), String> {
+    // ShellExecuteW may run handlers that are COM objects, so its thread joins a single-threaded apartment first,
+    // once per thread; a second call only counts up.
+    thread_local! {
+        static COM: () = {
+            // SAFETY: no reserved pointer; the flags are valid for `CoInitializeEx`.
+            let _ = unsafe { CoInitializeEx(null(), (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32) };
+        };
+    }
+    COM.with(|()| ());
     let operation = wide_nul(OsStr::new("open"));
     let file = wide_nul(OsStr::new(url));
     // SAFETY: both strings are NUL-terminated and live across the call; no window, parameters or folder.

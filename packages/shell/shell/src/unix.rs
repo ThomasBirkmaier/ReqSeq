@@ -7,7 +7,8 @@ use std::io::{self, BufReader, Write as _};
 use std::os::fd::{AsRawFd, FromRawFd as _, OwnedFd, RawFd};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -31,12 +32,65 @@ pub fn spawn(spec: &ServerSpec) -> io::Result<Child> {
 }
 
 /// SIGKILL to the process group of the server `pid`, which it leads, so the processes it started end too.
-pub fn kill_group(pid: u32) {
+fn kill_group(pid: u32) {
     if let Ok(pid) = libc::pid_t::try_from(pid) {
         // SAFETY: `killpg` takes plain integers and touches no memory of this process.
         unsafe {
             libc::killpg(pid, libc::SIGKILL);
         }
+    }
+}
+
+/// The server's process group. It is killed only while its leader is not reaped: until then the leader, alive or a
+/// zombie, holds its ID, so the ID cannot belong to another group.
+#[derive(Clone)]
+pub struct Group {
+    pid: u32,
+    reaped: Arc<Mutex<bool>>,
+}
+
+impl Group {
+    #[must_use]
+    pub fn of(child: &Child) -> Self {
+        Self {
+            pid: child.id(),
+            reaped: Arc::default(),
+        }
+    }
+
+    /// SIGKILL to the group, unless its leader is reaped.
+    pub fn kill(&self) {
+        let reaped = self.reaped.lock().unwrap_or_else(PoisonError::into_inner);
+        if !*reaped {
+            kill_group(self.pid);
+        }
+    }
+
+    /// Waits until the leader `child` has ended, without reaping it, and then reaps it while no kill can run.
+    ///
+    /// # Errors
+    ///
+    /// Why the wait failed.
+    pub fn wait(&self, child: &mut Child) -> io::Result<ExitStatus> {
+        // An error (none is expected) leaves the plain wait below, which still holds the lock.
+        let _ = wait_exited(self.pid);
+        let mut reaped = self.reaped.lock().unwrap_or_else(PoisonError::into_inner);
+        let status = child.wait();
+        *reaped = true;
+        status
+    }
+}
+
+/// Blocks until the child `pid` has ended, and leaves it unreaped (`WNOWAIT`).
+fn wait_exited(pid: u32) -> io::Result<()> {
+    // SAFETY: `siginfo_t` is plain data, for which all zero bytes are a valid value.
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    // SAFETY: `info` is a valid, writable `siginfo_t` for the duration of the call.
+    let result = unsafe { libc::waitid(libc::P_PID, pid, &raw mut info, libc::WEXITED | libc::WNOWAIT) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
     }
 }
 
@@ -215,6 +269,42 @@ mod tests {
                 ..spec
             })
             .is_err()
+        );
+    }
+
+    #[test]
+    fn the_group_is_killed_only_until_its_leader_is_reaped() {
+        let spec = ServerSpec {
+            program: "sh".into(),
+            args: vec!["-c".into(), "read line; exit 3".into()],
+            cwd: "/".into(),
+            remove: "NODE_OPTIONS",
+            set: ("X", "1"),
+        };
+        let mut child = spawn(&spec).unwrap();
+        let group = Group::of(&child);
+        drop(child.stdin.take());
+        // Ended but not reaped: the reaping wait below still gets its status.
+        wait_exited(child.id()).unwrap();
+        assert_eq!(
+            crate::server::describe(group.clone().wait(&mut child).unwrap()),
+            "exit code 3"
+        );
+        assert!(*group.reaped.lock().unwrap());
+        // No signal goes to the ID once it is free.
+        group.kill();
+        assert!(wait_exited(child.id()).is_err());
+        // A group whose leader runs is killed.
+        let mut child = spawn(&ServerSpec {
+            args: vec!["-c".into(), "sleep 30".into()],
+            ..spec
+        })
+        .unwrap();
+        let group = Group::of(&child);
+        group.kill();
+        assert_eq!(
+            crate::server::describe(group.wait(&mut child).unwrap()),
+            "signal 9"
         );
     }
 

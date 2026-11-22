@@ -155,7 +155,9 @@ jobs:
     # the e2e build took about 3.5 minutes on 4 cores, plus the system packages, the cargo tools and the e2e suite (#2377).
     timeout-minutes: ${{ github.event_name == 'schedule' && 42 || needs.shell-scope.outputs.shell != 'false' && 37 || 22 }}
     needs: shell-scope
-    if: ${{ github.event.action != 'closed' }}
+    # `!cancelled()`: a failed `shell-scope` must not skip this job (a skipped required job counts as passed); its
+    # empty output then runs the shell steps.
+    if: ${{ !cancelled() && github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -462,8 +464,9 @@ jobs:
       ${{ matrix.os == 'windows-2025' && (needs.shell-scope.outputs.shell != 'false' && 57 || 42) ||
       (needs.shell-scope.outputs.shell != 'false' && 40 || 25) }}
     needs: shell-scope
+    # `!cancelled()` as in `checks`.
     if: >-
-      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
+      ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft)) }}
     strategy:
       fail-fast: false
       matrix:

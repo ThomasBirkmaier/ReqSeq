@@ -155,7 +155,7 @@ Plus the **release tests** on the unpacked artifacts in the release workflow (AD
 | SR-252 AK7 | e2e with recorded connections, an element with a remote image and raw HTML | all three |
 | SR-252 AK8 | release test: as the last Linux step `dpkg -r --force-depends libwebkit2gtk-4.1-0` (no network needed), and a start without a display; e2e on Windows: no usable WebView2 runtime (A3) | Ubuntu 24.04, Windows |
 | SR-252 AK9 | e2e: the pages' calls recorded while elements with links and raw HTML load; then one click | all three |
-| SR-252 AK10 | unit: the rule; e2e: a readable and an unreadable workspace file in the folder the e2e build takes for the root (`REQSEQ_SHELL_E2E_ROOT`), no server started, the reason names the file | all three (unreadable: macOS, Linux) |
+| SR-252 AK10 | unit: the rule; e2e: a readable and an unreadable workspace file in the folder the e2e build takes for the root (`REQSEQ_SHELL_E2E_ROOT`), no server started, the reason names the file | all three (unreadable: where the test cannot read it, not as root or in `unshare -r`) |
 | SR-253 AK1 | e2e: each of the four commands, a plugin command and an unknown name refused; unit: dialog inputs | all three |
 | SR-253 AK2 | e2e: a chosen path outside the repositories is refused by the command | all three |
 | SR-249 AK3 | release test (#2379) | all three |

@@ -51,7 +51,7 @@ pub fn install_filter(token: &TokenSlot) -> Option<Filter> {
 /// The server's process, as the operating system knows it.
 enum Server {
     #[cfg(unix)]
-    Unix { pid: u32 },
+    Unix { group: shell::unix::Group },
     #[cfg(windows)]
     Windows { job: Arc<shell::windows::Job> },
 }
@@ -86,13 +86,14 @@ impl Host for RealHost {
                 return Err("the server's pipes are missing".to_owned());
             };
             self.input = Some(File::from(OwnedFd::from(stdin)));
-            self.server = Some(Server::Unix { pid: child.id() });
+            let group = shell::unix::Group::of(&child);
+            self.server = Some(Server::Unix { group: group.clone() });
             shell::server::watch(
                 File::from(OwnedFd::from(stdout)),
                 File::from(OwnedFd::from(stderr)),
                 move || {
-                    child
-                        .wait()
+                    group
+                        .wait(&mut child)
                         .map_or_else(|e| e.to_string(), shell::server::describe)
                 },
                 send,
@@ -122,7 +123,7 @@ impl Host for RealHost {
     fn kill_server(&mut self) {
         match &self.server {
             #[cfg(unix)]
-            Some(Server::Unix { pid }) => shell::unix::kill_group(*pid),
+            Some(Server::Unix { group }) => group.kill(),
             #[cfg(windows)]
             Some(Server::Windows { job }) => job.terminate(),
             None => {}

@@ -11,7 +11,16 @@ fn main() {
         let _ = std::io::stderr().write_all(launcher::missing_engine_message(&reason).as_bytes());
         std::process::exit(1);
     }
-    let exe = std::env::current_exe().unwrap_or_default();
+    // Without its own path the launcher fails instead of looking `reqseq-shell` up in PATH.
+    let exe = match std::env::current_exe() {
+        Ok(exe) => exe,
+        Err(error) => {
+            let shell = std::path::Path::new(launcher::SHELL_PROGRAM);
+            let _ =
+                std::io::stderr().write_all(launcher::no_shell_message(shell, &error.to_string()).as_bytes());
+            std::process::exit(1);
+        }
+    };
     let shell = launcher::shell_beside(&exe);
     // `exec` returns only when it failed.
     let error = std::process::Command::new(&shell)
