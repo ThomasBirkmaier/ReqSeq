@@ -122,15 +122,30 @@ describe("workspace.markOpened", () => {
 
   it("[SR-250/AK-vr1n] refuses a list it cannot read or write, names the reason and changes nothing", async () => {
     await fs.mkdir(path.dirname(listFile()), { recursive: true });
-    // Content that is no list of ReqSeq.
-    await fs.writeFile(listFile(), "not a list\n");
-    expect(await refusal(fixture.root)).toEqual({
-      code: "file.faulty",
-      message:
-        "Not marked: the list of recent workspaces cannot be read, or it is no list of ReqSeq; move the file recent-workspaces.json in the folder reqseq of the OS cache folder away",
-      details: { reason: "unreadable" },
-    });
-    expect(await fs.readFile(listFile(), "utf8")).toBe("not a list\n");
+    // Content that is no list of ReqSeq: non-JSON, an empty file, other JSON, a list of this format
+    // padded past 65 536 bytes (only its size is wrong), and a list with another format number.
+    const emptyList = JSON.stringify({ format: 1, workspaces: [] });
+    const unreadable = [
+      "not a list\n",
+      "",
+      "[]",
+      emptyList.padEnd(65_537, " "),
+      JSON.stringify({ format: 2, workspaces: [] }),
+    ];
+    for (const content of unreadable) {
+      await fs.writeFile(listFile(), content);
+      expect(await refusal(fixture.root)).toEqual({
+        code: "file.faulty",
+        message:
+          "Not marked: the list of recent workspaces cannot be read, or it is no list of ReqSeq; move the file recent-workspaces.json in the folder reqseq of the OS cache folder away",
+        details: { reason: "unreadable" },
+      });
+      expect(await fs.readFile(listFile(), "utf8")).toBe(content);
+    }
+    // The padded list is a list of ReqSeq at 65 536 bytes.
+    await fs.writeFile(listFile(), emptyList.padEnd(65_536, " "));
+    await mark(fixture.root);
+    expect(await recentRoots()).toEqual([fixture.root]);
 
     // A list that cannot be written: the file stays as it was.
     await rememberWorkspace(path.join(home, "other"), { now: at(1) });
