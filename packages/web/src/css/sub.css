@@ -1,0 +1,152 @@
+/* The pages of one element other than the element page (its evidence, trace graph, impact): the tabs in the top
+   bar, the head of the page, and the fields and buttons of their forms. The top bar itself is element.css's. */
+.etabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.etabs a {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--dim);
+  padding: 6px 12px;
+  border-radius: 7px;
+}
+.etabs a:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+.etabs a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.sub-wrap {
+  padding: 28px 28px 64px;
+  min-height: calc(100vh - 60px);
+}
+.sub {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+.sub-head .kick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.sub-head .kick b {
+  color: var(--dim);
+  font-weight: 500;
+}
+.sub-head h1 {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin-top: 6px;
+  text-wrap: balance;
+}
+.lead {
+  font-size: 14.5px;
+  color: var(--dim);
+  max-width: 70ch;
+}
+.sub .sect {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+.sub .none {
+  font-size: 13px;
+  color: var(--faint);
+}
+.notice.ok {
+  background: var(--accent-soft);
+  border-color: var(--pill-ok-border);
+}
+.pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--dim);
+  padding: 12px 0;
+}
+.fld {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.fld.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.fl {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+.fh {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.fld :is(input, select, textarea),
+.exform input {
+  font: 400 13.5px "IBM Plex Sans";
+  color: var(--ink);
+  background: var(--pane);
+  border: 1px solid var(--field);
+  border-radius: 7px;
+  padding: 6px 9px;
+  min-height: 34px;
+  width: 100%;
+}
+.fld.inline :is(input, select) {
+  width: auto;
+}
+.fld textarea {
+  resize: vertical;
+}
+:is(.fld, .exform) :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.check,
+.radio {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.check input,
+.radio input {
+  accent-color: var(--accent);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-strong);
+}
+.btn.primary:hover {
+  background: var(--accent-ink);
+}
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+@media (max-width: 720px) {
+  .etabs {
+    margin-left: 0;
+  }
+  .sub-wrap {
+    padding: 20px 16px 48px;
+  }
+}

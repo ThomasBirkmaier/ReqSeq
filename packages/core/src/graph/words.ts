@@ -4,6 +4,8 @@
 import type { CommandOutput } from "../catalog.js";
 import { degreePercent } from "../evidence/degree-text.js";
 
+export { degreePercent };
+
 type GraphNode = CommandOutput<"trace.graph">["nodes"][number];
 type GraphEdge = CommandOutput<"trace.graph">["edges"][number];
 type GraphMark = GraphNode["marks"][number];

@@ -1,0 +1,151 @@
+/* The trace graph of an element (nodes in layers by level, joined by soft links) and the impact of a change. The
+   size of `.gnode` is the one `layout` in trace.ts places. */
+.gctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  align-items: center;
+}
+.gscroll {
+  overflow: auto;
+  max-height: calc(100vh - 230px);
+  min-height: 240px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 40px 28px 28px;
+}
+.gcanvas {
+  position: relative;
+  margin: 0 auto;
+}
+.glinks {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.glinks path {
+  fill: none;
+  stroke: var(--link-stroke);
+  stroke-width: 1.4;
+}
+.glinks path.der {
+  stroke: var(--line-strong);
+  stroke-width: 1.8;
+}
+.glinks path.ref {
+  stroke-dasharray: 2 4;
+}
+.glinks path.warn {
+  stroke: var(--warn-line);
+  stroke-dasharray: 6 4;
+}
+.gnode {
+  position: absolute;
+  width: 232px;
+  height: 92px;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  transition:
+    border-color 150ms var(--ease),
+    box-shadow 150ms var(--ease);
+}
+.gnode:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 2px 10px -6px rgba(20, 24, 29, 0.25);
+}
+.gnode.root,
+.gnode.root:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.gnode.warn {
+  background: var(--node-warn-bg);
+  border-color: var(--warn-border);
+}
+.gnode.obs .nt {
+  text-decoration: line-through;
+  color: var(--faint);
+}
+.gnode .nk {
+  display: flex;
+  gap: 2px 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.gnode .nk .st,
+.gnode .nk .deg {
+  margin-left: auto;
+  font-size: 11.5px;
+}
+.gnode .nt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gnode .ne,
+.gnode .why {
+  font-size: 11.5px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gnode .why {
+  color: var(--warn);
+}
+.glegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.glegend .lk::before {
+  content: "";
+  display: inline-block;
+  width: 22px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 1.8px solid var(--line-strong);
+}
+.glegend .lk.rel::before {
+  border-top: 1.4px solid var(--link-stroke);
+}
+.glegend .lk.ref::before {
+  border-top: 1.4px dotted var(--field);
+}
+.glegend .lk.warn::before {
+  border-top: 1.8px dashed var(--warn-line);
+}
+.dist,
+.olderrec {
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dist .it.obs .t {
+  text-decoration: line-through;
+}
+.olderrec ul {
+  list-style: none;
+  padding: 0 22px 14px;
+  font-size: 13px;
+  display: grid;
+  gap: 4px;
+}
+.olderrec .note {
+  padding: 0 22px 8px;
+}
