@@ -20,6 +20,10 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 import "./areas/overview.js";
 import "./areas/element.js";
 import "./areas/edit.js";
+import "./areas/evidence.js";
+import "./areas/trace.js";
+import "./areas/matrix.js";
+import "./areas/variants.js";
 import "./areas/changes.js";
 
 applyTheme();
@@ -100,10 +104,14 @@ async function refresh(ids: readonly string[]): Promise<void> {
     }
     return;
   }
-  const scrolls = [...root.querySelectorAll(".lscroll, .trace-wrap")].map((x) => x.scrollTop);
+  const scrolls = [...root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll")].map((x) => [
+    x.scrollTop,
+    x.scrollLeft,
+  ]);
   await route({ keepFocus: true });
-  root.querySelectorAll(".lscroll, .trace-wrap").forEach((x, at) => {
-    x.scrollTop = scrolls[at] ?? 0;
+  root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll").forEach((x, at) => {
+    x.scrollTop = scrolls[at]?.[0] ?? 0;
+    x.scrollLeft = scrolls[at]?.[1] ?? 0;
   });
   reveal(root, ids);
   announce("The workspace changed. The page is up to date.");

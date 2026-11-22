@@ -364,3 +364,6 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.etabs + .edit-link {
+  margin-left: 8px;
+}
