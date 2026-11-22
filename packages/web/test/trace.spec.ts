@@ -136,8 +136,13 @@ test("a variant shows what it adds, replaces and excludes, and a core requiremen
   await page
     .getByRole("combobox", { name: "Exclude a core requirement" })
     .fill(refOf(keep ?? { shortId: "" }));
+  // ReqSeq's own write is followed by no change event: only the page can know the verification is outdated.
+  const reread = page.waitForRequest(
+    (r) => r.url().endsWith("/api/element.list") && (r.postData() ?? "").includes('"withVerification":true'),
+  );
   await page.getByRole("button", { name: "Exclude", exact: true }).click();
   await expect(page.locator(".notice.ok")).toContainText("is excluded from");
+  await reread;
   await expect(group(/^Excluded/).locator(".vrow")).toHaveCount(diff.excluded.length + 1);
   expect((await ui.run("variant.diff", { variant: variant.id })).excluded).toContain(keep?.id);
   await group(/^Excluded/)
