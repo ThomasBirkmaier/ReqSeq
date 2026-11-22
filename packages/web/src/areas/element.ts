@@ -526,11 +526,20 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     h(
       "div",
       { class: "page-bg" },
-      topbar(
+      topbar([
         firstPackage === undefined
           ? null
           : h("span", { class: "crumb" }, el(firstPackage.id)?.title ?? firstPackage.title ?? ""),
-      ),
+        // The form of the edit area; the way back leads here.
+        h(
+          "a",
+          {
+            class: "btn sm edit-link",
+            href: `${hashOf("edit", refOf(e))}?from=${encodeURIComponent(route.hash)}`,
+          },
+          "Edit",
+        ),
+      ]),
       h("main", { id: "main", class: "trace-wrap", tabindex: -1 }, trace),
     ),
     refOf(e),

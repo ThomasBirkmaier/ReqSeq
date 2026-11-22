@@ -22,6 +22,7 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
 | `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, read only |
+| `edit.ts` (with `edit-pick.ts`) | `#/new[?type=<type>]`, `#/edit/<identifier or short ID>[?from=<route>]`: create and edit an element of any type, its properties and relations |
 
 ## Rules
 
