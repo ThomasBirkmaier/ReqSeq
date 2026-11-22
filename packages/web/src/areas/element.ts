@@ -36,7 +36,7 @@ import {
 import { markdown } from "../markdown.js";
 import { swap } from "../motion.js";
 import type { Route } from "../router.js";
-import { HOME, addRoute, fromOf, hashOf, isCurrent, parseHash, withFrom } from "../router.js";
+import { HOME, addRoute, fromOf, hashOf, isCurrent, parseHash, titleOf, withFrom } from "../router.js";
 import { el, refOf, shownId, store, verificationOf, viewSelection } from "../store.js";
 import { queueOf } from "../queues.js";
 
@@ -74,6 +74,10 @@ function backTarget(from: string | null): { readonly href: string; readonly titl
   if (area === "e" && part !== undefined) {
     const e = el(part);
     return { href: `#${route.hash}`, title: e === undefined ? part : (e.identifier ?? e.title ?? part) };
+  }
+  const named = titleOf(route);
+  if (area !== "q" && named !== undefined) {
+    return { href: `#${route.hash}`, title: named };
   }
   const queue = area === "q" && part !== undefined ? queueOf(part) : undefined;
   return { href: `#${route.hash}`, title: queue === undefined ? "Overview" : queue.title() };

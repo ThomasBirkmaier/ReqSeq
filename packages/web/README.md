@@ -22,6 +22,8 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
 | `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, read only |
+| `lists.ts` | `#/l/all`, `#/l/type/<type>`, `#/l/package/<short ID>`, `#/l/filter/<name>`, `#/l/perspective/<name>`, `#/l/search?q=<words>`: lists with facets, sort and groups (the parameters of `list-state.ts`); saving a list as a filter or perspective, and renaming and deleting one |
+| `palette.ts` | no route: ⌘K (Ctrl+K) finds a list or an element from every workspace page |
 
 ## Rules
 
