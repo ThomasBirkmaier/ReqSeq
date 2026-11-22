@@ -1,8 +1,9 @@
 // What the delivery tests of the desktop shell read from the operating system (#2379): the processes with their
 // parents and arguments, the current folder and open files of a process, and the TCP connections with their owners.
 // The release build has no test driver (ADR-0021), so the tests see the shell only from outside.
+import type { ChildProcess } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, readlinkSync } from "node:fs";
+import { readFileSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
 
 export interface Process {
   readonly pid: number;
@@ -213,3 +214,27 @@ export async function waitFor<T>(probe: () => T | undefined, ms: number, what: s
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }
+
+/** The exit code and the standard error of a child, once it ended and its output is read. */
+export const ended = (child: ChildProcess): Promise<{ code: number | null; stderr: string }> =>
+  new Promise((resolve) => {
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
+    child.on("close", (code) => {
+      resolve({ code, stderr });
+    });
+  });
+
+/** A path as the operating system names it, so that a short or linked spelling compares equal. */
+export const real = (file: string): string => {
+  try {
+    const resolved = realpathSync.native(file);
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  } catch {
+    return file;
+  }
+};
+
+/** The UI server of a release: a process that runs its `lib/dist/bin.js`, named by `cli`. */
+export const serverOf = (all: readonly Process[], cli: string): Process | undefined =>
+  all.find((p) => p.args.slice(1).some((arg) => real(arg) === real(cli)));

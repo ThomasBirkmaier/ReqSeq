@@ -240,6 +240,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The delivery is all three archives with the sealed macOS one, so every test job waits for `seal`.
   # The delivery tests on each reference system: the archive of the system is unpacked and run, `reqseq ui` loaded in
   # Chromium, Firefox and WebKit (SR-249 AK1); the inspection of all archives runs on every system.
   test:

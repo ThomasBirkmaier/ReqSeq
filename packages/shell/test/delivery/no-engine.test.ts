@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import type { DeliveryNames } from "@reqseq/testkit";
 import { deliveryArtifactName, deliveryLayout, installDelivery } from "@reqseq/testkit";
 import { afterAll, describe, expect, it } from "vitest";
-import { processes } from "./processes.js";
+import { ended, processes, serverOf } from "./processes.js";
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url));
 const names = JSON.parse(
@@ -41,19 +41,16 @@ describe("SR-252: the desktop shell without its web engine", () => {
     const installed = await installDelivery(artifact, folder);
     const layout = deliveryLayout(names, "linux");
     const shell = spawn(path.join(installed, layout.shellStart), [], { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    shell.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    const code = await new Promise<number | null>((resolve) => shell.on("exit", resolve));
+    const { code, stderr } = await ended(shell);
     expect(code).toBe(1);
     expect(stderr).toContain("the web engine is missing");
     expect(stderr).toContain("libwebkit2gtk-4.1-0");
     expect(stderr).toMatch(/^Reason: .*libwebkit2gtk-4\.1\.so\.0/m);
     expect(stderr).toMatch(/^[\x20-\x7e\n]*$/);
-    const cli = path.join(installed, layout.lib, "dist", "bin.js");
-    expect(processes().filter((p) => p.args.includes(cli))).toEqual([]);
+    expect(serverOf(processes(), path.join(installed, layout.lib, "dist", "bin.js"))).toBeUndefined();
   });
 
-  it("[SR-252/AK-ts68] on Windows without a usable WebView2 runtime the shell ends with 1, gives the reason, and starts no server", async (ctx) => {
+  it("[SR-252/AK-ts68] on Windows without a usable WebView2 runtime the shell ends with an exit code other than 0, gives the reason, and starts no server", async (ctx) => {
     if (process.platform !== "win32") {
       ctx.skip("runs on Windows");
       return;
@@ -69,13 +66,18 @@ describe("SR-252: the desktop shell without its web engine", () => {
       stdio: ["ignore", "ignore", "pipe"],
       env: { ...process.env, WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: empty },
     });
-    let stderr = "";
-    shell.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    const code = await new Promise<number | null>((resolve) => shell.on("exit", resolve));
-    expect(code, stderr).toBe(1);
-    expect(stderr).toMatch(/^ReqSeq: the window could not open: \S/m);
+    // A window that opens after all must not leave the shell behind: it ends with its server (Job Object).
+    const timer = setTimeout(() => {
+      shell.kill();
+    }, 60_000);
+    const { code, stderr } = await ended(shell).finally(() => {
+      clearTimeout(timer);
+    });
+    // AK8: an exit code other than 0 and an English reason; a panic before the server gives the fixed line.
+    expect(code, stderr).not.toBe(0);
+    expect(code, stderr).not.toBeNull();
+    expect(stderr).toMatch(/^ReqSeq: the window could not open/m);
     expect(stderr).toMatch(/^[\x20-\x7e\r\n]*$/);
-    const cli = path.join(installed, layout.lib, "dist", "bin.js");
-    expect(processes().filter((p) => p.args.includes(cli))).toEqual([]);
+    expect(serverOf(processes(), path.join(installed, layout.lib, "dist", "bin.js"))).toBeUndefined();
   });
 });

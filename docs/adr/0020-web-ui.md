@@ -180,7 +180,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
   - The release workflow downloads each archive once, checks it against the pin, and caches it.
   - Nothing is downloaded at install or run time (SR-078 AK2).
 - **Launcher:** it runs the CLI on the shipped binary and unsets `NODE_OPTIONS`, so options from the environment cannot change the program.
-- **Signing:** the Node binaries keep the signatures of the Node project. The archives are not signed by us.
+- **Signing:** the Node binaries keep the signatures of the Node project. Nothing else is signed by us except the ad hoc seal of `ReqSeq.app` (ADR-0021, Signing).
 - **Quarantine:** removing the macOS quarantine flag after unpacking is a one-time step of the install guide (SR-249 AK1).
 - **Data folders:** Electron's app data folder goes away. The cache folder and its files stay (ADR-0008).
 

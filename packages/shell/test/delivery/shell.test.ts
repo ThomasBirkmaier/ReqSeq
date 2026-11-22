@@ -5,7 +5,7 @@
 // test that cannot run here is skipped with its reason, never left out.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -21,7 +21,16 @@ import {
 } from "@reqseq/testkit";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import type { Process } from "./processes.js";
-import { connections, descendants, folderAndFiles, processes, waitFor } from "./processes.js";
+import {
+  connections,
+  descendants,
+  ended,
+  folderAndFiles,
+  processes,
+  real,
+  serverOf,
+  waitFor,
+} from "./processes.js";
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url));
 const names = JSON.parse(
@@ -62,30 +71,6 @@ const install = async (): Promise<string> => {
   temps.push(folder);
   return installDelivery(artifact, folder);
 };
-
-/** The exit code and the standard error of a child, once it ended. */
-const ended = (child: ChildProcess): Promise<{ code: number | null; stderr: string }> =>
-  new Promise((resolve) => {
-    let stderr = "";
-    child.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    child.on("exit", (code) => {
-      resolve({ code, stderr });
-    });
-  });
-
-/** A path as the operating system names it, so that a short or linked spelling compares equal. */
-const real = (file: string): string => {
-  try {
-    const resolved = realpathSync.native(file);
-    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-  } catch {
-    return file;
-  }
-};
-
-/** The UI server of the release in `root`: a process that runs its `lib/dist/bin.js`. */
-const serverOf = (all: readonly Process[], cli: string): Process | undefined =>
-  all.find((p) => p.args.slice(1).some((arg) => real(arg) === real(cli)));
 
 describe("SR-252: the desktop shell of the delivery", () => {
   it("[SR-252/AK-ws9r] started from a workspace folder with arguments, the shell starts `ui --no-open` of its own release where no workspace is found, and its window keeps a request with the token open", async (ctx) => {
