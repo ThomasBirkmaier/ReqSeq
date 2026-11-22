@@ -344,7 +344,8 @@ jobs:
   # junit-web-ubuntu-24.04 (evidence.yml).
   web:
     name: web (ubuntu-24.04)
-    # A run takes about 4 minutes, most of it the install and the build; the bound ends a hang.
+    # Every run installs the system libraries of Firefox and WebKit and runs the contract tests in the three browsers,
+    # after the install and the build; the bound ends a hang.
     timeout-minutes: 15
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04

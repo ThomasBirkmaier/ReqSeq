@@ -1,17 +1,20 @@
 // The record of programs and files of a process (SR-248 AK2, ADR-0020 "Test seam"): a test starts `reqseq ui`
 // with the preload `packages/testkit/preload/record-access.mjs` (`node --import`), which installs the recorder
-// below on `child_process`, `fs`, `fs/promises` and `worker_threads`. Each program started and each file opened
-// is written as one JSON line with the step that started or opened it. The product has no switch for it.
+// below on `child_process`, `fs`, `fs/promises` and `worker_threads`. Each program started and each file opened,
+// written, copied, moved or removed is written as one JSON line with the step that did it. The product has no
+// switch for it.
 //
-// The step of a call: the innermost frame of the stack that names a step (`stepOfStack`), where the stack is
-// the synchronous stack of the call plus that of every asynchronous resource the call descends from. The
-// stacks alone lose the step: work that a memoised promise, a timer or a callback of core starts shows only
-// core's own frames (the model load, the search index, `git` of a version date), so the recorder carries the
-// step along the asynchronous resources as `AsyncLocalStorage` does. A resource created while a step is known
-// keeps it; one created where none is known takes the step of the stack at its creation. A program that the
-// server starts by itself, from its own request handler or timer, descends from no step and has none, even
-// while a command runs at the same time (#2312, #2329). Worker threads start with no resource of the main
-// thread: a call in a worker has the step of the place where its `Worker` was created.
+// The step of a call (`frameStep`): the innermost frame of the stack of the call that names a step, or no step
+// when a frame of the UI server's own code (`ui-server.js` but `openChecked`) comes first. Without either in the
+// stack, the call has the step of the asynchronous resource it runs in. The stack of the call alone loses the
+// step: work that a memoised promise, a timer or a callback of core starts shows only core's own frames (the model
+// load, the search index, `git` of a version date), so the recorder carries the step along the asynchronous
+// resources as `AsyncLocalStorage` does: a resource takes the step its creation's stack names, or "none" when
+// the server's own code created it, else the step of the resource it was created in. So server code that core
+// calls back into (the server's change listener) and what it starts have no step, and neither has a program the
+// server starts from its own handler or timer, even while a command runs (#2312, #2329). Worker threads start
+// with no resource of the main thread: a call in a worker has the step of the place where its `Worker` was
+// created.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,13 +22,15 @@ import { fileURLToPath } from "node:url";
 export type AccessStep = "command" | "open" | "watcher";
 
 /**
- * The frames that name a step, in built code of this checkout (`dist/`):
+ * The frames that name a step, in built code of this checkout (`dist/`), and the frames of the UI server's own
+ * code (`step` null), checked in this order on each frame:
  * - `command`: a catalog command, core's `commands/` and `runtime/invoke.js`, which runs every command;
  * - `open`: opening the workspace, `openChecked` of the UI server (at start and on a switch), and the load the
  *   server starts right after, core's `runtime/warm.js`;
- * - `watcher`: detecting and taking over changed files (SR-007), core's `model/watch*.js`.
+ * - `watcher`: detecting and taking over changed files (SR-007), core's `model/watch*.js`;
+ * - null: any other frame of `ui-server.js`, the server itself.
  */
-export const STEP_FRAMES: readonly { readonly step: AccessStep; readonly frame: RegExp }[] = [
+export const STEP_FRAMES: readonly { readonly step: AccessStep | null; readonly frame: RegExp }[] = [
   {
     step: "command",
     frame: /[\\/]packages[\\/]core[\\/]dist[\\/](?:commands[\\/]|runtime[\\/]invoke\.js:)/u,
@@ -33,10 +38,14 @@ export const STEP_FRAMES: readonly { readonly step: AccessStep; readonly frame: 
   { step: "open", frame: /\bopenChecked \(\S*[\\/]packages[\\/]api[\\/]dist[\\/]ui-server\.js:/u },
   { step: "open", frame: /[\\/]packages[\\/]core[\\/]dist[\\/]runtime[\\/]warm\.js:/u },
   { step: "watcher", frame: /[\\/]packages[\\/]core[\\/]dist[\\/]model[\\/]watch(?:-tree|-change)?\.js:/u },
+  { step: null, frame: /[\\/]packages[\\/]api[\\/]dist[\\/]ui-server\.js:/u },
 ];
 
-/** The step of the innermost frame of `stack` (an `Error#stack`) that names one, or undefined. */
-export const stepOfStack = (stack: string): AccessStep | undefined => {
+/**
+ * What the innermost frame of `stack` (an `Error#stack`) that `STEP_FRAMES` knows says: its step, null for the
+ * UI server's own code, undefined when no frame is known.
+ */
+export const frameStep = (stack: string): AccessStep | null | undefined => {
   for (const line of stack.split("\n").slice(1)) {
     const found = STEP_FRAMES.find(({ frame }) => frame.test(line));
     if (found !== undefined) {
@@ -46,11 +55,18 @@ export const stepOfStack = (stack: string): AccessStep | undefined => {
   return undefined;
 };
 
-/** One line of the record. `thread` is the thread of the call (0 the main thread); `step` null for none. */
+/** The step `stack` names (`frameStep`), or undefined for none. */
+export const stepOfStack = (stack: string): AccessStep | undefined => frameStep(stack) ?? undefined;
+
+/**
+ * One line of the record. `pid` is the process and `thread` the thread of the call (0 the main thread); `step`
+ * null for none. A call that names two files (copy, move) gives one record per file.
+ */
 export type AccessRecord =
-  | { readonly kind: "process"; readonly thread: number; readonly execPath: string }
+  | { readonly kind: "process"; readonly pid: number; readonly thread: number; readonly execPath: string }
   | {
       readonly kind: "program";
+      readonly pid: number;
       readonly thread: number;
       readonly call: string;
       readonly program: string;
@@ -59,6 +75,7 @@ export type AccessRecord =
     }
   | {
       readonly kind: "file";
+      readonly pid: number;
       readonly thread: number;
       readonly call: string;
       /** The absolute path, or null when the call names an open file (a descriptor or handle). */
@@ -68,6 +85,7 @@ export type AccessRecord =
     }
   | {
       readonly kind: "worker";
+      readonly pid: number;
       readonly thread: number;
       readonly worker: number;
       readonly step: AccessStep | null;
@@ -75,21 +93,27 @@ export type AccessRecord =
 
 /** The calls that start a program (`child_process`). */
 export const PROGRAM_CALLS = ["spawn", "spawnSync", "execFile", "execFileSync", "exec", "execSync", "fork"];
-/** The calls of `fs` that open, read or write a file. */
-export const FILE_CALLS = [
+/** The calls of `fs/promises` that open, read, write, copy, move or remove a file. */
+export const FILE_PROMISE_CALLS = [
   "open",
-  "openSync",
   "readFile",
-  "readFileSync",
-  "createReadStream",
   "writeFile",
-  "writeFileSync",
   "appendFile",
-  "appendFileSync",
+  "copyFile",
+  "cp",
+  "rename",
+  "truncate",
+  "rm",
+  "unlink",
+];
+/** The same calls of `fs`, in their callback and Sync forms, and its streams. */
+export const FILE_CALLS = [
+  ...FILE_PROMISE_CALLS.flatMap((name) => [name, `${name}Sync`]),
+  "createReadStream",
   "createWriteStream",
 ];
-/** The calls of `fs/promises` that open, read or write a file. */
-export const FILE_PROMISE_CALLS = ["open", "readFile", "writeFile", "appendFile"];
+/** The calls that name two files, the source and the target. */
+export const TWO_FILE_CALLS = ["copyFile", "copyFileSync", "cp", "cpSync", "rename", "renameSync"];
 
 type Module = Record<string, unknown>;
 type Call = (this: unknown, ...args: unknown[]) => unknown;
@@ -112,7 +136,8 @@ export interface RecorderModules {
 export interface RecorderOptions {
   /** Writes one line of the record; it must not call a wrapped function. */
   readonly write: (line: string) => void;
-  /** The thread the recorder runs in (`worker_threads.threadId`). */
+  /** The process (`process.pid`) and the thread (`worker_threads.threadId`) the recorder runs in. */
+  readonly pid: number;
   readonly thread: number;
   /** The Node program of this process (`process.execPath`). */
   readonly execPath: string;
@@ -123,6 +148,11 @@ export interface RecorderOptions {
 }
 
 const STEP = Symbol("reqseq.access-step");
+/** The label of a resource the UI server's own code created: no step, whatever it was created in. */
+const NONE = "none";
+interface Labelled {
+  [STEP]?: AccessStep | typeof NONE;
+}
 
 /** The path a file call names: a string, a `file:` URL or a buffer; null for a descriptor or handle. */
 const fileOf = (target: unknown, cwd: string): string | null => {
@@ -146,26 +176,32 @@ export function installAccessRecorder(modules: RecorderModules, options: Recorde
   const stack = options.stack ?? ((): string => String(new Error().stack));
   // Set while the recorder itself runs: what it creates (a stack, say) takes no step and writes no record.
   let busy = false;
-  const stepHere = (): AccessStep | undefined => {
-    const current = modules.asyncHooks.executionAsyncResource() as { [STEP]?: AccessStep };
-    if (current[STEP] !== undefined) {
-      return current[STEP];
-    }
+  /** The step here: that of the stack (null for the server's own code), else that of the current resource. */
+  const labelHere = (): AccessStep | typeof NONE | undefined => {
     busy = true;
+    let found: AccessStep | null | undefined;
     try {
-      return stepOfStack(stack());
+      found = frameStep(stack());
     } finally {
       busy = false;
     }
+    if (found !== undefined) {
+      return found ?? NONE;
+    }
+    return (modules.asyncHooks.executionAsyncResource() as Labelled)[STEP];
+  };
+  const stepHere = (): AccessStep | undefined => {
+    const label = labelHere();
+    return label === NONE ? undefined : label;
   };
   const hook = modules.asyncHooks.createHook({
     init(_asyncId, _type, _trigger, resource) {
       if (busy) {
         return;
       }
-      const step = stepHere();
-      if (step !== undefined) {
-        (resource as { [STEP]?: AccessStep })[STEP] = step;
+      const label = labelHere();
+      if (label !== undefined) {
+        (resource as Labelled)[STEP] = label;
       }
     },
   });
@@ -210,6 +246,7 @@ export function installAccessRecorder(modules: RecorderModules, options: Recorde
   const program = (name: string, args: unknown[]): void => {
     write({
       kind: "program",
+      pid: options.pid,
       thread: options.thread,
       call: name,
       program: name === "fork" ? options.execPath : String(args[0]),
@@ -217,15 +254,19 @@ export function installAccessRecorder(modules: RecorderModules, options: Recorde
     });
   };
   const file = (name: string, args: unknown[]): void => {
-    write({
-      kind: "file",
-      thread: options.thread,
-      call: name,
-      file: fileOf(args[0], options.cwd()),
-      ...stepOfCall(),
-    });
+    const step = stepOfCall();
+    for (const target of TWO_FILE_CALLS.includes(name) ? args.slice(0, 2) : args.slice(0, 1)) {
+      write({
+        kind: "file",
+        pid: options.pid,
+        thread: options.thread,
+        call: name,
+        file: fileOf(target, options.cwd()),
+        ...step,
+      });
+    }
   };
-  write({ kind: "process", thread: options.thread, execPath: options.execPath });
+  write({ kind: "process", pid: options.pid, thread: options.thread, execPath: options.execPath });
   wrap(modules.childProcess, PROGRAM_CALLS, program);
   wrap(modules.fs, FILE_CALLS, file);
   wrap(modules.fsPromises, FILE_PROMISE_CALLS, file);
@@ -233,7 +274,13 @@ export function installAccessRecorder(modules: RecorderModules, options: Recorde
   modules.workerThreads.Worker = class extends Worker {
     constructor(...args: never[]) {
       super(...args);
-      write({ kind: "worker", thread: options.thread, worker: this.threadId, step: stepOfCall().step });
+      write({
+        kind: "worker",
+        pid: options.pid,
+        thread: options.thread,
+        worker: this.threadId,
+        step: stepOfCall().step,
+      });
     }
   };
   restore.push(() => {
@@ -255,7 +302,8 @@ export const parseAccessRecords = (text: string): AccessRecord[] =>
     .filter((line) => line.trim() !== "")
     .map((line) => JSON.parse(line) as AccessRecord);
 
-const isBelow = (file: string, folder: string): boolean => {
+/** Whether `file` is `folder` or lies below it. */
+export const isBelow = (file: string, folder: string): boolean => {
   const relative = path.relative(folder, file);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 };
@@ -270,17 +318,22 @@ export function accessViolations(
   records: readonly AccessRecord[],
   repositories: readonly string[],
 ): AccessRecord[] {
-  const workers = new Map<number, AccessStep | null>();
+  const workers = new Map<string, AccessStep | null>();
   const nodes = new Set<string>();
   for (const record of records) {
     if (record.kind === "worker") {
-      workers.set(record.worker, record.step);
+      workers.set(`${String(record.pid)}:${String(record.worker)}`, record.step);
     } else if (record.kind === "process") {
       nodes.add(record.execPath);
     }
   }
-  const stepOf = (record: { readonly thread: number; readonly step: AccessStep | null }): AccessStep | null =>
-    record.step ?? (record.thread === 0 ? null : (workers.get(record.thread) ?? null));
+  const stepOf = (record: {
+    readonly pid: number;
+    readonly thread: number;
+    readonly step: AccessStep | null;
+  }): AccessStep | null =>
+    record.step ??
+    (record.thread === 0 ? null : (workers.get(`${String(record.pid)}:${String(record.thread)}`) ?? null));
   return records.filter((record) => {
     if (record.kind === "program") {
       return stepOf(record) === null && !nodes.has(record.program);

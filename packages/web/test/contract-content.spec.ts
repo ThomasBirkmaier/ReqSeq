@@ -9,13 +9,14 @@ import path from "node:path";
 import type { Page } from "@playwright/test";
 import type { Ui } from "./fixtures.js";
 import { drawn, expect, test as base } from "./fixtures.js";
-import { isLoopback, refuseRemote } from "./contract.js";
+import { BLOCK_NETWORK, isLoopback, refuseRemote, scratch, startCliUi } from "./contract.js";
 import { PAGES, createWorkspace, runOn, startUi } from "./start-ui.js";
 
-/** The element that holds the hostile content: its ID, and the route of its page. */
+/** The element that holds the hostile content: its ID, the route of its page, and the image outside its repository. */
 interface Hostile {
   readonly id: string;
   readonly ref: string;
+  readonly outside: string;
 }
 
 const test = base.extend<object, { ui: Ui; hostile: Hostile }>({
@@ -37,7 +38,12 @@ const test = base.extend<object, { ui: Ui; hostile: Hostile }>({
         text: TEXT,
         properties: { motivation: MARKDOWN_PROPERTY, "success-signs": [PLAIN_PROPERTY] },
       });
-      await use({ id: made.element.id, ref: made.element.identifier ?? made.element.shortId });
+      // The image the text names by `../../outside.png`: next to the workspace, outside its repository.
+      const outside = path.resolve(ui.root, path.dirname(made.element.file), "..", "..", "outside.png");
+      expect(path.relative(ui.root, outside).startsWith("..")).toBe(true);
+      await fs.writeFile(outside, OUTSIDE_IMAGE);
+      await use({ id: made.element.id, ref: made.element.identifier ?? made.element.shortId, outside });
+      await fs.rm(outside, { force: true });
     },
     { scope: "worker" },
   ],
@@ -51,13 +57,17 @@ const RUN = "top.__reqseqRan=1;alert(1)";
 const PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
+/** The bytes of the image outside the repository: a PNG header and a mark no page file or element holds. */
+const OUTSIDE_MARK = "REQSEQ-OUTSIDE-IMAGE-MARK";
+const OUTSIDE_IMAGE = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.from(OUTSIDE_MARK)]);
+
 const TITLE = `Hostile <img src=x onerror="${RUN}"><script>${RUN}</script> title`;
 const TEXT = [
   `Raw <script>${RUN}</script> and <img src="${REMOTE}/raw.png" onerror="${RUN}"> and <b onmouseover="${RUN}">HTML</b>.`,
   "",
   `[script link](javascript:${RUN}) [file link](file:///etc/passwd) [vb link](vbscript:msgbox) [data link](data:text/html,<script>${RUN}</script>)`,
   "",
-  `![remote](${REMOTE}/remote.png) ![named](${REMOTE_NAME}/named.png) ![inline](data:image/png;base64,${PNG}) ![outside](../../../../outside.png) ![absolute](/etc/outside.png)`,
+  `![remote](${REMOTE}/remote.png) ![named](${REMOTE_NAME}/named.png) ![inline](data:image/png;base64,${PNG}) ![outside](../../outside.png) ![deeper](../../../../outside.png) ![absolute](/etc/outside.png)`,
   "",
   `<svg xmlns="http://www.w3.org/2000/svg" onload="${RUN}"><script>${RUN}</script><image href="${REMOTE}/svg.png"/><use href="${REMOTE}/sprite.svg#a"/><a href="javascript:${RUN}"><text>x</text></a></svg>`,
   "",
@@ -173,6 +183,15 @@ test("[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, n
   });
   const remote = await refuseRemote(context);
   const other = await recordOtherFiles(page);
+  // What the commands answered and what the page asked for: none may carry the image outside the repository.
+  const answers: Promise<string>[] = [];
+  const asked: string[] = [];
+  page.on("request", (request) => asked.push(request.url()));
+  page.on("response", (response) => {
+    if (new URL(response.url()).pathname.startsWith("/api/") && !response.url().endsWith("/api/events")) {
+      answers.push(response.text().catch(() => ""));
+    }
+  });
   await visit(page, ui.server.url, []);
   for (const route of routesOf(hostile)) {
     await page.evaluate((hash) => {
@@ -199,28 +218,53 @@ test("[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, n
   expect(dialogs).toEqual([]);
   expect(remote).toEqual([]);
   expect(other).toEqual([]);
+  expect(asked.filter((url) => url.includes("outside.png"))).toEqual([]);
+  const carried = (await Promise.all(answers)).filter(
+    (text) => text.includes(OUTSIDE_MARK) || text.includes(OUTSIDE_IMAGE.toString("base64")),
+  );
+  expect(answers.length).toBeGreaterThan(0);
+  expect(carried).toEqual([]);
 });
 
-test("[SR-078/AK-wx9y] the pages make no connection to another machine, also for an element that names one", async ({
+test("[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one", async ({
   page,
   context,
   ui,
   hostile,
 }) => {
+  // The pages: every request of the context to another machine is refused and recorded. The server: the built
+  // `reqseq ui` on the same workspace, with the network block of the tests, which records each attempt.
   const remote = await refuseRemote(context);
-  const { partial = [] } = await ui.run("element.list", { limit: 5, fields: ["identifier"] });
-  await visit(page, ui.server.url, [
-    ...routesOf(hostile),
-    ...partial.map((e) => `/e/${encodeURIComponent(e.identifier ?? e.shortId)}`),
-    "/q/evidence-outdated",
-    "/r",
-    "/evidence",
-    "/matrix",
-    "/w/open",
-    "/w/problems",
-    "/w/export",
-    "/w/settings",
-  ]);
-  await page.waitForTimeout(500);
-  expect(remote).toEqual([]);
+  const home = await scratch();
+  const log = path.join(home.dir, "network.log");
+  try {
+    const server = await startCliUi({
+      root: ui.root,
+      home: home.dir,
+      preloads: [BLOCK_NETWORK],
+      env: { REQSEQ_NETWORK_LOG: log },
+    });
+    try {
+      const { partial = [] } = await ui.run("element.list", { limit: 5, fields: ["identifier"] });
+      await visit(page, server.url, [
+        ...routesOf(hostile),
+        ...partial.map((e) => `/e/${encodeURIComponent(e.identifier ?? e.shortId)}`),
+        "/q/evidence-outdated",
+        "/r",
+        "/evidence",
+        "/matrix",
+        "/w/open",
+        "/w/problems",
+        "/w/export",
+        "/w/settings",
+      ]);
+      await page.waitForTimeout(500);
+    } finally {
+      await server.stop();
+    }
+    expect(remote).toEqual([]);
+    expect(await fs.readFile(log, "utf8").catch(() => "")).toBe("");
+  } finally {
+    await home.done();
+  }
 });

@@ -21,6 +21,7 @@ if (file !== undefined && file !== "") {
       write: (line) => {
         append(file, line);
       },
+      pid: process.pid,
       thread: workerThreads.threadId,
       execPath: process.execPath,
       cwd: () => process.cwd(),

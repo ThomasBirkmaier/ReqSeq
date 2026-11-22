@@ -16,6 +16,13 @@ export const BIN = path.join(ROOT, "packages", "cli", "dist", "bin.js");
 export const RECORD_ACCESS = pathToFileURL(
   path.join(ROOT, "packages", "testkit", "preload", "record-access.mjs"),
 ).href;
+/**
+ * The network block of the tests (SR-078 AK1), `--import` URL: it refuses every connection to another machine and,
+ * with `REQSEQ_NETWORK_LOG` naming a file, writes each attempt there.
+ */
+export const BLOCK_NETWORK = pathToFileURL(
+  path.join(ROOT, "scripts", "test-support", "block-network.mjs"),
+).href;
 
 export interface CliUi {
   /** The address `reqseq ui` printed, with the token. */
@@ -23,6 +30,9 @@ export interface CliUi {
   /** Ends the process and resolves when it has ended. */
   readonly stop: () => Promise<void>;
 }
+
+/** How long `reqseq ui` may take to print its address. */
+const START_MS = 30_000;
 
 const ADDRESS = /^ReqSeq UI on (http:\/\/127\.0\.0\.1:\d+\/#token=[\w-]+)$/m;
 
@@ -81,14 +91,20 @@ export async function startCliUi(options: {
   child.stdout.on("data", (chunk: Buffer) => (out += chunk.toString("utf8")));
   child.stderr.on("data", (chunk: Buffer) => (out += chunk.toString("utf8")));
   const url = await new Promise<string>((resolve, reject) => {
+    const late = setTimeout(() => {
+      child.kill();
+      reject(new Error(`reqseq ui printed no address within ${String(START_MS)} ms:\n${out}`));
+    }, START_MS);
     const check = (): void => {
       const found = ADDRESS.exec(out);
       if (found?.[1] !== undefined) {
+        clearTimeout(late);
         resolve(found[1]);
       }
     };
     child.stdout.on("data", check);
     child.once("exit", (code) => {
+      clearTimeout(late);
       reject(new Error(`reqseq ui ended with ${String(code)} before it printed its address:\n${out}`));
     });
   });
@@ -121,7 +137,7 @@ export function recordCommandCalls(page: Page): CommandCall[] {
 
 /** Whether `url` names a loopback address (SR-078: a connection on the same machine is none to another). */
 export const isLoopback = (url: URL): boolean =>
-  ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname) || url.hostname.startsWith("127.");
+  ["[::1]", "localhost"].includes(url.hostname) || /^127(?:\.\d{1,3}){3}$/u.test(url.hostname);
 
 /**
  * Refuses every request of `context` to an address other than loopback and records it, also a request the

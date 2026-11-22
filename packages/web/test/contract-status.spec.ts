@@ -62,7 +62,7 @@ test("[SR-248/AK-xgr3] a status is set only by a confirmation that names the ele
   expect(calls.filter((c) => STATUS_COMMANDS.includes(c.name))).toEqual([]);
 
   // Set status: a cancelled confirmation calls nothing; a confirmed one calls once, with this element and status.
-  // The page's list of elements takes the new one when the UI server's watcher reports it.
+  // The page's list of elements takes the new element only after a reload (#2374).
   const actions = page.locator(`.cdetail[data-id="${made.id}"] .cacts`);
   await expect(async () => {
     await open("/c");
@@ -94,6 +94,11 @@ test("[SR-248/AK-xgr3] a status is set only by a confirmation that names the ele
     await choose.selectOption(invalid.key);
   }
   await supersede.getByLabel("Successor").fill(successor.identifier ?? successor.shortId);
+  // The confirmation names the element, the status and the successor before anything is written.
+  const summary = supersede.locator("[data-summary]");
+  await expect(summary).toContainText(made.identifier ?? made.title ?? made.shortId);
+  await expect(summary).toContainText(`as ${invalid.name}, followed by`);
+  await expect(summary).toContainText(successor.identifier ?? successor.title ?? successor.shortId);
   const atSupersede = calls.length;
   await supersede.getByRole("button", { name: /^Supersede / }).click();
   await expect(page.locator("[data-flash]")).toContainText(`as ${invalid.name}, followed by`);

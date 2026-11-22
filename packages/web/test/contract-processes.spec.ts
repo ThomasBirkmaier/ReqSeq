@@ -5,7 +5,7 @@
 // found); the page reads and changes elements, and a file changes outside the server.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { accessViolations, parseAccessRecords } from "@reqseq/testkit";
+import { accessViolations, isBelow, parseAccessRecords } from "@reqseq/testkit";
 import { RECORD_ACCESS, scratch, startCliUi } from "./contract.js";
 import { drawn, expect, open, test } from "./fixtures.js";
 import { createWorkspace, runOn } from "./start-ui.js";
@@ -66,7 +66,7 @@ test("[SR-248/AK-spzg] programs and workspace files only in a command, the open 
     expect(records.some((r) => r.kind === "program" && r.step === "command")).toBe(true);
     const steps = new Set(
       records
-        .filter((r) => r.kind === "file" && folders.some((f) => r.file?.startsWith(f) === true))
+        .filter((r) => r.kind === "file" && r.file !== null && folders.some((f) => isBelow(r.file ?? "", f)))
         .map((r) => (r.kind === "file" ? r.step : null)),
     );
     expect([...steps].sort()).toEqual(["command", "open", "watcher"]);
