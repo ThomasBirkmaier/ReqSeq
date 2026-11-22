@@ -19,6 +19,7 @@ import { forgetToken, pagePlace, takeToken } from "./token.js";
 // The areas.
 import "./areas/overview.js";
 import "./areas/element.js";
+import "./areas/changes.js";
 import { WORKSPACES, WORKSPACE_OPENED, isWorkspaceOpen, setWorkspaceOpen } from "./areas/workspace.js";
 
 applyTheme();

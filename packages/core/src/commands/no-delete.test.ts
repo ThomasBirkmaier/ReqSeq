@@ -12,6 +12,7 @@ import { createCommandRuntime } from "../runtime/invoke.js";
 import { readFirstFor } from "../runtime/read-first.test-helper.js";
 import { Workspace } from "../runtime/workspace.js";
 import { commands } from "./index.js";
+import { isolateOsCache } from "./scenarios.test-helper.js";
 
 /** Words of an action that would delete something. */
 const DELETE_LIKE = /delete|remove|destroy|erase|purge|drop|unlink|trash|discard|clear|wipe/i;
@@ -288,6 +289,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
   ],
+  "workspace.markOpened": [{}, { extra: true }],
 };
 
 /** Every file below `root` (relative, with `/`), except Git's own. */
@@ -298,6 +300,8 @@ const filesBelow = (root: string): string[] =>
     .map((e) => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
     .filter((file) => !file.split("/").includes(".git"))
     .sort();
+
+isolateOsCache();
 
 describe("no delete of an element (SR-099, D-045)", () => {
   it("[SR-099/AK-nbg9] the catalog offers no command that deletes an element", () => {
@@ -394,7 +398,10 @@ describe("no delete of an element (SR-099, D-045)", () => {
     const sources = fs
       .readdirSync(src, { recursive: true, withFileTypes: true })
       .filter((e) => e.isFile() && e.name.endsWith(".ts") && !e.name.endsWith(".test.ts"))
-      .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"));
+      .map((e) => path.relative(src, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
+      // The shared scenarios of the tests remove the temporary OS cache folder they set up
+      // (`isolateOsCache`); a test helper, which the package leaves out of dist, removes no user file.
+      .filter((file) => file !== "commands/scenarios.test-helper.ts");
     const read = (file: string): string => fs.readFileSync(path.join(src, file), "utf8");
     const removing = sources
       .filter((file) =>

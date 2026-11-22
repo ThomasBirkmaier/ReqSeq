@@ -26,12 +26,15 @@ import {
 import type { CatalogEntry, CommandName, CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
+  RECENT_WORKSPACES_FILE,
   Workspace,
   createCommandRuntime,
   defineTestCommand,
   jsonChunks,
   jsonLines,
   loadContracts,
+  recentWorkspacesFolder,
+  rememberWorkspace,
 } from "@reqseq/core";
 import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
@@ -311,13 +314,23 @@ let cache: string;
 
 // Building the templates spawns `git` three times per repository. On Windows runners that can take seconds.
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
+// The list of recent workspaces lies there too, with one entry from the start, so a command that
+// replaced or created it would be seen (SR-250 AK4, `listText`).
 let cacheHome = "";
 beforeAll(async () => {
   cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
+  await rememberWorkspace(path.join(cacheHome, "opened-before"), { now: new Date(Date.UTC(2026, 9, 27, 9)) });
 });
+
+/** The only command that changes the list of recent workspaces (SR-250 AK4). */
+const MARK_OPENED = "workspace.markOpened";
+
+/** The text of the list of recent workspaces of this process, undefined when there is none. */
+const listText = async (): Promise<string | undefined> =>
+  fs.readFile(path.join(recentWorkspacesFolder(), RECENT_WORKSPACES_FILE), "utf8").catch(() => undefined);
 afterAll(async () => {
   vi.unstubAllEnvs();
   await fs.rm(cacheHome, { recursive: true, force: true });
@@ -451,13 +464,32 @@ const withoutRecorded = (access: string, outcome: Outcome): Outcome => {
   return { output: { ...rest, answer: "<answer>", recorded: "<recorded>" } };
 };
 
-/** `called` of command `name` with what differs by call or access replaced (`GENERATED_AT_TOP`, `CACHE_FOLDER_STATE`). */
+/**
+ * `outcome` of workspace.markOpened with its `opened` replaced, after checking it lies within the call
+ * (ms): the time of the mark (SR-250 AK1).
+ */
+const withoutOpened = (access: string, outcome: Outcome, start: number, end: number): Outcome => {
+  if (!("output" in outcome)) {
+    return outcome;
+  }
+  const { opened, ...rest } = outcome.output as { opened?: unknown };
+  const time = Date.parse(String(opened));
+  expect([access, time >= start && time <= end]).toEqual([access, true]);
+  return { output: { ...rest, opened: "<opened>" } };
+};
+
+/**
+ * `called` of command `name` with what differs by call or access replaced (`GENERATED_AT_TOP`,
+ * `CACHE_FOLDER_STATE`, `MARK_OPENED`).
+ */
 const comparable = (access: string, name: string, called: Outcome, start: number, end: number): Outcome =>
   GENERATED_AT_TOP.has(name)
     ? withoutGenerated(access, called, start, end)
     : CACHE_FOLDER_STATE.has(name)
       ? withoutRecorded(access, called)
-      : called;
+      : name === MARK_OPENED
+        ? withoutOpened(access, called, start, end)
+        : called;
 
 /**
  * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
@@ -543,9 +575,14 @@ const runAll = async (
     const before = await filesOf(top);
     const foldersBefore = shared === undefined ? await foldersOf(top) : [];
     const input = { ...scenario.input };
+    const list = await listText();
     const start = Date.now();
     const called = await via(access, root, entry, input);
     const end = Date.now();
+    if (entry.name !== MARK_OPENED) {
+      expect([access, entry.name, await listText()]).toEqual([access, entry.name, list]);
+    }
+    await scenario.after?.(made, access);
     const outcome = comparable(access, entry.name, called, start, end);
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
@@ -652,7 +689,9 @@ describe(
     for (const entry of runtime.contracts.commands) {
       const explicit = SCENARIOS.get(entry.name as CommandName) ?? [];
       for (const scenario of [DEFAULT, ...explicit]) {
-        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"} ${entry.name}, ${scenario.name}`, async () => {
+        // Every call but those of workspace.markOpened also shows that the list of recent workspaces stays
+        // as it is (`runAccess`, SR-250 AK4).
+        it(`${scenario.tag ?? "[SR-080/AK-bb1t]"}${entry.name === MARK_OPENED ? "" : " [SR-250/AK-vp6h]"} ${entry.name}, ${scenario.name}`, async () => {
           const results = await runAll(entry, scenario, ACCESSES);
           const core = results["core"];
           if (scenario !== DEFAULT) {

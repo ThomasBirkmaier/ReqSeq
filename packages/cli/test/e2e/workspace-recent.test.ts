@@ -1,7 +1,7 @@
-// `reqseq workspace recent` end to end (SR-131, SR-080 AK4): the built binary reads the list of the
-// workspaces the app opened last from the OS cache folder of its environment, from any folder, as JSON
-// and readable, and writes nothing. Only the app records the list; here core's `rememberWorkspace`
-// seeds it, as the app's core process would.
+// `reqseq workspace recent` end to end (SR-131): the built binary reads the list of the workspaces
+// opened last from the OS cache folder of its environment, from any folder, as JSON and readable, and
+// writes nothing. Here core's `rememberWorkspace` seeds the list, as the app's core process would;
+// `reqseq workspace mark-opened` marks a workspace in a process of its own (SR-250 AK1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -58,7 +58,7 @@ describe("reqseq workspace recent (SR-131)", () => {
     const json = await reqseq(["workspace", "recent", "--json"], fixture.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     expect(JSON.parse(json.stdout)).toEqual({
-      answer: "The list of workspaces the app opened holds 2 workspaces.",
+      answer: "The list of recent workspaces holds 2 workspaces.",
       workspaces: [
         { root: fixture.root, opened: at(2), exists: true },
         { root: gone, opened: at(1), exists: false },
@@ -82,7 +82,7 @@ describe("reqseq workspace recent (SR-131)", () => {
     const result = await reqseq(["workspace", "recent", "--json"], elsewhere);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
-      answer: "The list of workspaces the app opened holds 1 workspace.",
+      answer: "The list of recent workspaces holds 1 workspace.",
       workspaces: [{ root: fixture.root, opened: at(2), exists: true }],
     });
     expect(await fs.readFile(list, "utf8")).toBe(text);
@@ -99,7 +99,30 @@ describe("reqseq workspace recent (SR-131)", () => {
     expect([result.code, result.stderr, JSON.parse(result.stdout)]).toEqual([
       0,
       "",
-      { answer: "The list of workspaces the app opened holds 0 workspaces.", workspaces: [] },
+      { answer: "The list of recent workspaces holds 0 workspaces.", workspaces: [] },
+    ]);
+  });
+});
+
+describe("reqseq workspace mark-opened (SR-250)", () => {
+  it("[SR-250/AK-dky0] marks the workspace it runs on, and a process started later lists it first with the time of the mark", async () => {
+    await opened(path.join(home, "other"), 1);
+    const inside = path.join(fixture.root, "requirements");
+    await fs.mkdir(inside, { recursive: true });
+
+    // Run from a folder inside the workspace: the root of the main repository is marked.
+    const marked = await reqseq(["workspace", "mark-opened", "--json"], inside);
+    expect([marked.code, marked.stderr]).toEqual([0, ""]);
+    const output = JSON.parse(marked.stdout) as { root: string; opened: string };
+    expect(output.root).toBe(fixture.root);
+
+    const elsewhere = path.join(home, "elsewhere");
+    await fs.mkdir(elsewhere);
+    const listed = await reqseq(["workspace", "recent", "--json"], elsewhere);
+    expect([listed.code, listed.stderr]).toEqual([0, ""]);
+    expect((JSON.parse(listed.stdout) as { workspaces: unknown[] }).workspaces).toEqual([
+      { root: fixture.root, opened: output.opened, exists: true },
+      { root: path.join(home, "other"), opened: at(1), exists: false },
     ]);
   });
 });

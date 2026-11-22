@@ -503,7 +503,7 @@ describe("serveMcp without a workspace", () => {
     await client.close();
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({
-      answer: "The list of workspaces the app opened holds 1 workspace.",
+      answer: "The list of recent workspaces holds 1 workspace.",
       workspaces: [{ root, opened: opened.toISOString(), exists: true }],
     });
   });
