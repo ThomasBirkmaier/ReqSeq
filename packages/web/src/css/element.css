@@ -256,7 +256,7 @@ a.node:hover {
 }
 .crit {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr);
   gap: 10px;
   padding: 12px 0;
   border-top: 1px solid var(--line-soft);
@@ -274,6 +274,9 @@ a.node:hover {
   font-variant-numeric: tabular-nums;
 }
 /* What belongs to one entry alone, at the end of its row: the verification status of a criterion. */
+.crit:has(> .crit-end) {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
 .crit-end {
   display: flex;
   align-items: flex-start;
@@ -412,7 +415,8 @@ svg.links path.warn {
   .card {
     padding: 22px 18px;
   }
-  .crit {
+  .crit,
+  .crit:has(> .crit-end) {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: 8px;
   }

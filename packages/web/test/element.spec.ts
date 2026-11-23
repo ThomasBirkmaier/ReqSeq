@@ -144,11 +144,14 @@ test("each acceptance criterion shows its own verification status", async ({ pag
   if (found === undefined) {
     throw new Error("The workspace has no requirement with records per criterion");
   }
+  const { element } = await ui.run("element.get", { ref: found.ref });
+  const key = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
+  const count = (element.properties[key] as unknown[]).length;
   await open(`/e/${found.ref}`);
-  for (const row of found.rows) {
-    await expect(
-      page.locator(`.card .crit[data-n="${String(row.criterion)}"] .crit-end .st.${row.status}`),
-    ).toHaveCount(1);
+  // A criterion no record bears on is open.
+  for (let n = 1; n <= count; n += 1) {
+    const status = found.rows.find((r) => r.criterion === n)?.status ?? "open";
+    await expect(page.locator(`.card .crit[data-n="${String(n)}"] .crit-end .st.${status}`)).toHaveCount(1);
   }
 });
 

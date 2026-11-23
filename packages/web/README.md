@@ -21,7 +21,7 @@ An area is one module in `src/areas/` with a style sheet of its own in `src/css/
 | Area | Routes |
 | --- | --- |
 | `overview.ts` | `#/q/overview`, `#/q/<queue>`: the overview with the head of each queue (`queues.ts`), and each queue |
-| `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, with its problems (`element.get`, grouped by `elementProblemGroups`), the verification status of each acceptance criterion in the chosen view (`evidence.list` `display.rows`) and the decisions on its status (Approve, Set status, Supersede) |
+| `element.ts` | `#/e/<identifier or short ID>[?from=<route>]`: an element in its trace, with its problems (`element.get`, grouped by `elementProblemGroups`), the verification status of each acceptance criterion in the chosen view (`criterionStatuses` of `evidence.list`, filled in after the page is drawn) and the decisions on its status (Approve, Set status, Supersede) |
 | `edit.ts` (with `edit-pick.ts`) | `#/new[?type=<type>]`, `#/edit/<identifier or short ID>[?from=<route>]`: create and edit an element of any type, its properties and relations |
 | `evidence.ts` | `#/evidence/<ref>`: an element's evidence per criterion, test case and view, and a form to record a check |
 | `trace.ts` | `#/graph/<ref>[?depth=&chain=&evidence=]`: the trace graph over several levels; `#/impact/<ref>`: what a change can affect |
