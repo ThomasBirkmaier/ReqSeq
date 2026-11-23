@@ -10,10 +10,12 @@ import { readGeneratedContracts } from "./reference.js";
 
 const guideDir = fileURLToPath(new URL("../../../docs/guide/", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
+/** The Get started page: the first test runs it, and the examples test runs it again before a broken page. */
+const GET_STARTED = "start/get-started.md";
 
 describe("guide", () => {
   it("[SR-140/AK-kbzc] the steps of Get started, run in order, create a workspace, a first element and a first chain", async () => {
-    const path = "start/get-started.md";
+    const path = GET_STARTED;
     const steps = pageSteps({ path, text: await readFile(join(guideDir, path), "utf8") });
     const cwd = await mkdtemp(join(tmpdir(), "reqseq-get-started-"));
     try {
@@ -42,12 +44,12 @@ describe("guide", () => {
       path: "start/broken.md",
       text: "```sh\nreqseq workspace init . W\nreqseq element get N-000000\n```",
     };
-    // The guide's own pages passed above; one of them runs again before the broken page, not all of them, so the
-    // test runs the guide once (#2509).
-    const passing = pages.filter((page) => page.path === "start/get-started.md");
+    // The guide's own pages passed above; only the short Get started page runs again before the broken page, so the
+    // test runs the guide once (#2509). The broken page is the first and only failure.
+    const passing = pages.filter((page) => page.path === GET_STARTED);
     expect(passing).toHaveLength(1);
     await expect(checkExamples([...passing, broken], runReqseq)).rejects.toThrow(
-      "start/broken.md:3: reqseq element get N-000000: exit code",
+      /^docs: failing examples\nstart\/broken\.md:3: reqseq element get N-000000: exit code \d+\n/,
     );
     const changed = {
       path: "start/changed.md",
