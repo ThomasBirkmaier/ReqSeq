@@ -38,10 +38,10 @@ function Audit-Setting([string]$guid) {
   return [string]$rows[0].'Inclusion Setting'
 }
 
-# Event fields by name, plus the event's time and the process ID it ran in.
+# Event fields by name, plus the event's time, its record number in its log and the process ID it ran in.
 function Event-Row($event) {
   $x = [xml]$event.ToXml()
-  $row = [ordered]@{ _time = $event.TimeCreated.ToUniversalTime().ToString('o'); _pid = [string]$x.Event.System.Execution.ProcessID }
+  $row = [ordered]@{ _time = $event.TimeCreated.ToUniversalTime().ToString('o'); _record = [string]$event.RecordId; _pid = [string]$x.Event.System.Execution.ProcessID }
   foreach ($d in $x.Event.EventData.Data) { $row[$d.Name] = [string]$d.'#text' }
   return $row
 }

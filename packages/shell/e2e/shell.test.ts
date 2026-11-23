@@ -528,6 +528,8 @@ describe.skipIf(windowsRecording === "skip")(
         record.normalize(SHELL),
       );
       expect(record.serverPid).toBeDefined();
+      // The engine's browser process starts the renderer: the tree reaches the engine's own descendants.
+      expect(record.processes.some((p) => !p.server && p.commandLine.includes("--type=renderer"))).toBe(true);
       const root = record.normalize(ws?.root ?? "");
       const workspaceFile = `${root}\\reqseq-workspace.yaml`;
       const serverOpens = record.opens.filter(

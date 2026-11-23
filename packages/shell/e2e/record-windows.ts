@@ -60,7 +60,7 @@ const numberOf = (text: string | undefined): number => {
   return /^0x/i.test(t) ? Number.parseInt(t, 16) : Number(t);
 };
 
-/** An event as record-windows.ps1 exports it: its fields by name, plus `_time` and `_pid`. */
+/** An event as record-windows.ps1 exports it: its fields by name, plus `_time`, `_record` and `_pid`. */
 type EventRow = Record<string, string | undefined>;
 
 export interface Setup {
@@ -150,11 +150,11 @@ interface Created {
   readonly commandLine: string;
 }
 
-/** The processes of `created` that descend from `root` (the events come in time order), `root` included. */
+/** The processes of `created` (in time order) that descend from `root`, `root` included. */
 function descendants(created: readonly Created[], root: number): Set<number> {
   const tree = new Set([root]);
   for (const p of created) {
-    if (tree.has(p.parent)) {
+    if (tree.has(p.parent) && p.pid !== root) {
       tree.add(p.pid);
     }
   }
@@ -368,12 +368,17 @@ export class WindowsRecorder {
     >;
     const paths = new Paths(JSON.parse(await ps(this.dir, "devices")) as Record<string, string>);
 
-    const created: Created[] = asList(events.processes).map((e) => ({
-      pid: numberOf(e["NewProcessId"]),
-      parent: numberOf(e["ProcessId"]),
-      program: e["NewProcessName"] ?? "",
-      commandLine: e["CommandLine"] ?? "",
-    }));
+    // Get-WinEvent gives the newest event first; the tree is built from the oldest on, in the log's record order.
+    const created: Created[] = asList(events.processes)
+      .map((e) => ({
+        record: numberOf(e["_record"]),
+        pid: numberOf(e["NewProcessId"]),
+        parent: numberOf(e["ProcessId"]),
+        program: e["NewProcessName"] ?? "",
+        commandLine: e["CommandLine"] ?? "",
+      }))
+      .sort((a, b) => a.record - b.record)
+      .map(({ record: _, ...p }) => p);
     const tree = descendants(created, shellPid);
     const server = created.find((p) => p.parent === shellPid && p.commandLine.includes("ui --no-open"));
     const serverTree = server === undefined ? new Set<number>() : descendants(created, server.pid);
