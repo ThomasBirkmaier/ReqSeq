@@ -25,7 +25,7 @@ The left side lists where to go, with a count where there is one:
 - **Write:** a new element.
 - **Workspace:** its problems, export, the ReqIF import, the workspaces to open or create, and the settings.
 
-A workspace opens on the overview: queue heads, how much is verified, and how much changed since the newest baseline.
+Workspaces open on the overview: queue heads, how much is verified, and how much changed since the newest baseline.
 
 ![The overview: the rail, the drafts to decide, and how many system requirements are verified.](../images/ui-overview.png)
 
