@@ -77,7 +77,7 @@
         "title": "Named elements",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
-        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none."
+        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",
