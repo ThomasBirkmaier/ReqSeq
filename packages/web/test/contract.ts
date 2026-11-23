@@ -1,4 +1,4 @@
-// What the contract tests of the web UI share (SR-248, SR-078 AK3; ADR-0020, Tests): the built `reqseq ui` as a
+// What the contract tests of the web UI share (SR-248, SR-078 AK3, SR-080 AK4; ADR-0020, Tests): the built `reqseq ui` as a
 // process, the record of the page's command calls, and a recorder that refuses every request of a browser
 // context to another machine.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
