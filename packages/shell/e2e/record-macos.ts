@@ -198,12 +198,13 @@ const isRoot = (e: EsEvent, starter: number, shell: string): boolean =>
 /**
  * The tree of the shell that `starter` (the process the test spawned, sudo) started: the shell's exec, its forks
  * and their execs, in stream order. A process ID taken again after an exit counts for the new process only. The
- * server is the shell's child that runs `ui --no-open`, with its descendants.
+ * server is the shell's child that runs `server` (the Node copy) with `ui --no-open`, with its descendants.
  */
 export function shellTree(
   events: readonly EsEvent[],
   starter: number,
   shell: string,
+  server: string,
 ): { shellPid: number | undefined; processes: Started[] } {
   const ordered = [...events].sort((a, b) => a.global - b.global);
   const rootAt = ordered.findIndex((e) => isRoot(e, starter, shell));
@@ -237,7 +238,10 @@ export function shellTree(
       all.push(child);
     } else if (e.kind === "exec" && e.target !== undefined) {
       node.programs.push({ program: e.target.program, args: e.target.args });
-      node.server ||= node.parent === root.pid && e.target.args.join(" ").includes("ui --no-open");
+      node.server ||=
+        node.parent === root.pid &&
+        e.target.program === server &&
+        e.target.args.join(" ").includes("ui --no-open");
     }
   }
   return { shellPid: root.pid, processes: all.map((n) => ({ ...n })) };
@@ -544,7 +548,7 @@ export class MacRecorder {
         events.push(e);
       }
     }
-    const { shellPid, processes } = shellTree(events, starter, SHELL);
+    const { shellPid, processes } = shellTree(events, starter, SHELL, this.node);
     const server = new Set(processes.filter((p) => p.server).map((p) => p.pid));
     const tree = new Set(processes.map((p) => p.pid));
     const shellEvents = events.filter((e) => e.pid === shellPid);

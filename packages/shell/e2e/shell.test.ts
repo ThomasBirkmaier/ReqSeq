@@ -796,9 +796,10 @@ describe.skipIf(macRecording === "skip")(
           `${String(record.files.length)} file events of the tree outside the server and of the engine`,
       );
       expectControls();
-      // A process of the tree outside the server runs no program but the shell itself (a fork) and the engine's.
+      // A process of the tree outside the server, the shell included, runs no program but the shell itself (a fork)
+      // and the engine's.
       const started = record.processes
-        .filter((p) => p.pid !== record.shellPid && !p.server)
+        .filter((p) => !p.server)
         .flatMap((p) => p.programs.filter((r) => r.program !== SHELL && !isEngine(r.program)))
         .map((r) => [r.program, ...r.args].join(" "));
       expect(started).toEqual([]);
@@ -819,6 +820,8 @@ describe.skipIf(macRecording === "skip")(
         `${String(record.packets.length)} packets of the tree and the engine; pf counters after the controls ` +
           `${record.counters.control.join("/")}, at the end ${record.counters.end.join("/")}`,
       );
+      // The packets count for the processes of the stream: a process missing there would leave its packets out.
+      expectControls();
       expect(record.control.outside).toBe("timeout");
       expect(record.control.inside).toBe("error ECONNREFUSED");
       expect({

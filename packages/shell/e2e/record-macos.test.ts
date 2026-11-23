@@ -102,16 +102,21 @@ describe("the macOS recorder's process tree", () => {
       at(9, "fork", 60, { target: { pid: 52, program: "/bin/sh", args: [] } }), // the ID again, outside the tree
       at(10, "exec", 52, exec(52, "/bin/ls")),
       at(11, "fork", 50, { target: { pid: 53, program: "/x/reqseq-shell", args: [] } }),
+      // Another program with the server's arguments is not the server.
+      at(12, "exec", 53, exec(53, "/bin/other", ["other", "ui", "--no-open"])),
     ];
-    const { shellPid, processes } = shellTree(events, 40, "/x/reqseq-shell");
+    const { shellPid, processes } = shellTree(events, 40, "/x/reqseq-shell", "/n/node");
     expect(shellPid).toBe(50);
     expect(processes.map((p) => [p.pid, p.server, p.programs.map((r) => r.program)])).toEqual([
       [50, false, ["/x/reqseq-shell"]],
       [51, true, ["/x/reqseq-shell", "/n/node"]],
       [52, true, ["/n/node", "/usr/bin/git"]],
-      [53, false, ["/x/reqseq-shell"]],
+      [53, false, ["/x/reqseq-shell", "/bin/other"]],
     ]);
-    expect(shellTree(events, 41, "/x/reqseq-shell")).toEqual({ shellPid: undefined, processes: [] });
+    expect(shellTree(events, 41, "/x/reqseq-shell", "/n/node")).toEqual({
+      shellPid: undefined,
+      processes: [],
+    });
   });
 
   it("takes every engine process that started while the shell ran, with the arguments of its exec", () => {
