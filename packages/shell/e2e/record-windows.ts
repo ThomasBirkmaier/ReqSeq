@@ -199,8 +199,10 @@ export const parseFileLines = (text: string): FileLine[] =>
 
 /**
  * Opens and writes of the tree's processes, from the lines in record order. The kernel reuses file objects and file
- * keys after a close, so a write is named from the names known when it happened: the last Create or CreateNewFile of
- * its process with that file object, else the last NameCreate of its file key.
+ * keys after a close, so a write is named from the names known when it happened: the last Create or CreateNewFile with
+ * that file object, else the last NameCreate of its file key. A file object is one kernel object in every process
+ * that holds a handle to it, so the Create of another process names it too: the test runner creates the pipes of the
+ * shell's standard input and output, which the shell inherits.
  */
 export function fileEvents(
   lines: readonly FileLine[],
@@ -214,8 +216,11 @@ export function fileEvents(
   for (const l of lines) {
     if (l.id === 10 && l.name !== "") {
       byKey.set(l.fileKey, l.name);
-    } else if ((l.id === 12 || l.id === 30) && tree.has(l.pid)) {
-      byObject.set(`${String(l.pid)}:${l.fileObject}`, l.name);
+    } else if (l.id === 12 || l.id === 30) {
+      byObject.set(l.fileObject, l.name);
+      if (!tree.has(l.pid)) {
+        continue;
+      }
       const event = { pid: l.pid, path: named(l.name), raw: l.name, write: false, unnamed: false };
       opens.push(event);
       // The disposition (bits 24-31 of the options): anything but FILE_OPEN (1) may create or overwrite.
@@ -223,7 +228,7 @@ export function fileEvents(
         writes.push(event);
       }
     } else if (l.id === 16 && tree.has(l.pid)) {
-      const raw = byObject.get(`${String(l.pid)}:${l.fileObject}`) ?? byKey.get(l.fileKey);
+      const raw = byObject.get(l.fileObject) ?? byKey.get(l.fileKey);
       writes.push({
         pid: l.pid,
         path: raw === undefined ? undefined : named(raw),
@@ -408,7 +413,10 @@ export class WindowsRecorder {
     const serverTree = server === undefined ? new Set<number>() : descendants(created, server);
     // The file events and lookups name only a process ID; those of the tree's processes count.
     const tree = new Set([shellPid, ...[...treeIndexes].map((i) => created[i]?.pid ?? -1)]);
-    const lines = parseFileLines(await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree].join(",") }));
+    // This process too, for the names of the pipes it creates for the shell.
+    const lines = parseFileLines(
+      await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree, process.pid].join(",") }),
+    );
     const refused = asList(events.refused).map((e) => ({
       pid: numberOf(e["ProcessID"]),
       application: e["Application"] ?? "",
