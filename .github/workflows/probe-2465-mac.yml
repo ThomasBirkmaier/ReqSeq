@@ -82,49 +82,41 @@ jobs:
           ls -la /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/ 2>&1 | head
           ls -d /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework 2>&1
 
-      - name: Probe - eslogger variants with one control and two sessions
+      - name: Probe - eslogger trials, one instance at a time
         if: ${{ env.MODE == 'probe' }}
-        timeout-minutes: 12
+        timeout-minutes: 15
         shell: bash
         run: |
           set +e
-          NODEDIR="$(dirname "$(dirname "$(node -e 'console.log(process.execPath)')")")"
+          mkdir -p "$PROBE/nodecopy/bin"
+          cp "$(node -e 'console.log(process.execPath)')" "$PROBE/nodecopy/bin/node"
+          "$PROBE/nodecopy/bin/node" -e 'console.log("node copy", process.version)'
+          WK1=/System/Library/Frameworks/WebKit.framework
+          WK2=/System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework
+          SEL=(--select "$PWD/packages/shell/target" --select "$PROBE/nodecopy" --select "$WK1" --select "$WK2" --select /usr/bin/sudo)
           mark() { echo "$(date -u +%FT%T.%NZ | cut -c1-23) $*" | tee -a "$PROBE/private/marks.txt"; }
-          sudo nohup eslogger exec fork exit --format json > "$PROBE/es-a.json" 2> "$PROBE/es-a.err" < /dev/null &
-          sudo nohup eslogger open close create rename --format json \
-            --select "$PWD/packages/shell/target" --select "$NODEDIR" \
-            --select /System/Library/Frameworks/WebKit.framework \
-            --select /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework \
-            > "$PROBE/es-b.json" 2> "$PROBE/es-b.err" < /dev/null &
-          sudo nohup eslogger open close create rename --format json > "$PROBE/es-c.json" 2> "$PROBE/es-c.err" < /dev/null &
-          sudo nohup tcpdump -n -l -k -i pktap,all > "$PROBE/pktap.txt" 2> "$PROBE/pktap.err" < /dev/null &
-          sleep 5
-          pgrep -lf 'eslogger|tcpdump'
-          head -c 300 "$PROBE/es-b.err"; echo
-          mark start
-          node probe/control.mjs control-plain
-          sudo -n -u runner -g reqseq-e2e env PROBE="$PROBE" "$(command -v node)" probe/control.mjs control-group
-          mark controls done
-          PROBE_OPTS='{"label":"s1","session":true,"capMs":90000}' node probe/drive.mjs | head -c 4000
-          mark s1 done
-          PROBE_OPTS='{"label":"s2","session":true,"capMs":90000,"wrap":["sudo","-n","-u","runner","-g","reqseq-e2e"]}' node probe/drive.mjs | head -c 4000
-          mark s2 done
-          sleep 2
-          mark stop
-          T0=$(date +%s)
-          sudo pkill -INT -x eslogger; sudo pkill -INT -x tcpdump
-          for i in $(seq 1 120); do pgrep -x eslogger >/dev/null || break; sleep 1; done
-          echo "eslogger still running after $(( $(date +%s) - T0 )) s: $(pgrep -lx eslogger)"
-          mark stopped
-          ls -la "$PROBE"
-          tail -3 "$PROBE"/es-*.err
-          node probe/es-analyze.mjs "$PROBE/es-a.json" "$PROBE/es-b.json" "$PROBE/es-c.json" 2>&1 | cut -c1-2500
-          echo "== pktap: sample of lines not on lo0"
-          grep -v 'lo0' "$PROBE/pktap.txt" | head -15 | cut -c1-400
-          echo "== pktap: lines of node (controls, sessions) and WebKit"
-          grep -v 'lo0' "$PROBE/pktap.txt" | grep -E 'proc (node|com\.apple\.WebKit|reqseq)|eproc (node|com\.apple\.WebKit|reqseq)' | head -40 | cut -c1-400
-          echo "== pktap lines with 192.0.2. or example.com"; grep -E '192\.0\.2\.|example\.com|probe-2465' "$PROBE/pktap.txt" | head -20 | cut -c1-400
-          echo "== pf"; sudo pfctl -a com.apple/reqseq-probe -s rules -v 2>&1
+          trial() {
+            local name="$1"; shift
+            sudo eslogger "$@" > "$PROBE/es-$name.json" 2> "$PROBE/es-$name.err" < /dev/null &
+            for i in $(seq 1 50); do [ -s "$PROBE/es-$name.json" ] && break; sleep 0.2; done
+            mark "$name start ($(wc -c < "$PROBE/es-$name.json") bytes after the wait)"
+            sudo -n -u runner -g reqseq-e2e env PROBE="$PROBE" "$PROBE/nodecopy/bin/node" probe/control.mjs "control-$name" > /dev/null
+            PROBE_OPTS="{\"label\":\"$name\",\"session\":true,\"capMs\":90000,\"node\":\"$PROBE/nodecopy/bin/node\",\"wrap\":[\"sudo\",\"-n\",\"-u\",\"runner\",\"-g\",\"reqseq-e2e\"]}" node probe/drive.mjs > "$PROBE/drive-$name.txt"
+            grep -E '"exit"|token' -A1 "$PROBE/drive-$name.txt" | head -6
+            sleep 2
+            mark "$name stop"
+            local t0=$(date +%s)
+            sudo pkill -TERM -x eslogger
+            for i in $(seq 1 60); do pgrep -x eslogger >/dev/null || break; sleep 0.5; done
+            echo "eslogger ended after $(( $(date +%s) - t0 )) s; left: $(pgrep -lx eslogger)"
+            sudo pkill -KILL -x eslogger
+            node probe/es-analyze.mjs "$PROBE/es-$name.json" 2>&1 | grep -v '^  [a-z]*: {' | cut -c1-3000
+            rm -f "$PROBE/private/token-"* "$PROBE/private/pid-"*
+          }
+          trial t1 exec fork exit
+          trial t2 exec fork open create rename "${SEL[@]}"
+          trial t3 exec fork open close create rename "${SEL[@]}"
+          trial t4 exec fork exit open create rename
 
       - name: Probe - clean up
         if: ${{ always() }}
