@@ -167,10 +167,22 @@ impl Filter {
         }
         let deadline = Instant::now() + wait;
         for thread in self.threads {
-            while !thread.is_finished() && Instant::now() < deadline {
-                thread::sleep(Duration::from_millis(5));
-            }
+            wait_until(deadline, || thread.is_finished());
         }
+    }
+}
+
+/// Asks `done` every 5 ms until it answers yes or `deadline` has passed, and gives its last answer. Every path runs
+/// in each test run whatever the timing, so the coverage of its callers does not depend on it (#2416).
+fn wait_until(deadline: Instant, mut done: impl FnMut() -> bool) -> bool {
+    loop {
+        if done() {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(5));
     }
 }
 
@@ -260,6 +272,17 @@ mod tests {
     use super::*;
     use std::io::Read as _;
     use std::sync::Arc;
+
+    #[test]
+    fn the_wait_asks_until_yes_or_the_deadline() {
+        let mut asked = 0;
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), || {
+            asked += 1;
+            asked == 3
+        }));
+        assert_eq!(asked, 3);
+        assert!(!wait_until(Instant::now(), || false));
+    }
 
     /// Runs in a test process of its own, which it starts again with `REQSEQ_SHELL_TEST_NO_CORE_DUMP`: the change
     /// cannot be undone in this one.
@@ -372,13 +395,9 @@ mod tests {
         let grandchild: libc::pid_t = line.trim().parse().unwrap();
         kill_group(child.id());
         assert_eq!(crate::server::describe(child.wait().unwrap()), "signal 9");
-        let deadline = Instant::now() + Duration::from_secs(5);
         // SAFETY: probing with signal 0 sends nothing.
-        while unsafe { libc::kill(grandchild, 0) } == 0 && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
-        // SAFETY: as above.
-        assert_ne!(unsafe { libc::kill(grandchild, 0) }, 0);
+        let gone = || unsafe { libc::kill(grandchild, 0) } != 0;
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), gone));
         kill_group(u32::MAX);
     }
 
@@ -453,10 +472,7 @@ mod tests {
         .unwrap();
         std::fs::set_permissions(&program, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
         open_with(&program, "https://example.org/a b").unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while !record.exists() && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
+        wait_until(Instant::now() + Duration::from_secs(5), || record.exists());
         thread::sleep(Duration::from_millis(50));
         assert_eq!(
             std::fs::read_to_string(&record).unwrap(),
