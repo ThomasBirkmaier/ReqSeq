@@ -5,16 +5,14 @@ description: Search the elements in full text, narrow a list step by step, save 
 
 The search finds words in titles, texts, property values, type and status names and IDs, in any case, despite a typo, best first; typed exactly, 4 letters also match inside words (SR-221); quoted words only as a phrase. A synonym or translation (D-059) also finds the other designations of its element, after direct hits (SR-220). Criterion keys and references find their criterion (SR-222). A filter keeps the elements that meet its conditions on type, status, package, properties and relations, combined with and, or and not. A saved filter is a YAML file in the repository, shared by all. Grouping and sorting change no file, unless saved as a perspective, or the sort with a saved filter.
 
-## App
+## Web UI
 
-1. **Go to element or buffer** (Ctrl+P, ⌘P) finds an element by short ID or title words; Enter opens it.
-2. To search, run **Search elements** (Ctrl+Shift+F, ⌘⇧F) and type. Ctrl+Enter (⌘↩) picks the fields. Open a hit with arrows and Enter, or all hits with Enter alone.
-3. **List all elements** (Ctrl+K L, ⌘K L) opens the whole list. Narrow it with “Filter list” (Ctrl+K F, ⌘K F): pick a kind, then a value, adding one step; “Type” takes several, matching any, until “Take N types”. Escape goes back a step. “Clear list filter” takes back the last step, “Clear all list filters” all, except a perspective’s own selection.
-4. “Sort list” (Ctrl+K S, ⌘K S) orders the list by a key, ascending or descending, or as derivation tree. “Group list” offers type, status, package and properties with values to choose from; “Ungroup list” ends it. Search hits take filters and groups and keep their order. A right-click outside the rows offers most of these.
-5. To list every element with a value of the open element, put the cursor on the value and press Ctrl+Shift+Enter (⌘⇧↩) for “List elements with this value”, or Ctrl+Click (⌘Click) it.
-6. Elements in a status the metamodel marks invalid (`obsolete` in the standard model) stand at the end of a list in the closed section “Folded statuses”; “Fold status in lists” chooses the statuses that fold on this computer.
-7. Ctrl+K V (⌘K V) opens a perspective. “Save list as perspective” saves a list’s steps, grouping and sort, “Save list as saved filter” its steps and a sort chosen or saved with the perspective; **New perspective** in the [command prompt](/concepts/the-app/) asks name, condition, grouping, sort; the modeline says “modified” once a step, sort or grouping of a perspective’s buffer changes.
-8. **New saved filter** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks a name, then conditions, all holding; `{` starts JSON. Then “Next: sort” and “Save”.
+1. Ctrl+K (⌘K on macOS) finds a list or an element by name, short ID or words of its title; Enter opens the marked hit, or searches for the words.
+2. **Search** in the rail searches the text of every element; the hits narrow and group as a list does.
+3. **All elements**, a type or a package in the rail opens its list. The values on the right narrow it: tick one or more, and the list shows the elements that match; each tick shows above the list, where a click takes it back.
+4. **Sort** orders the list by a property, ascending or descending, or as a derivation tree; **Group** groups it by type, status, package or a property.
+5. **Save as filter** keeps what the list shows and its sort, **Save as perspective** also its grouping; both appear in the rail, and their list offers **Rename** and **Delete**.
+6. **View** at the top of the rail, in a workspace with variants, shows the core or one variant in every list and count.
 
 ## CLI
 
@@ -203,7 +201,7 @@ elements:
 total: 4
 ```
 
-`element facets` counts the types, statuses and property values a filter or group can take. Folding changes only what the app displays; the CLI leaves those elements out with `{"not":{"invalid":true}}`.
+`element facets` counts the types, statuses and property values a filter or group can take. A selection with `{"not":{"invalid":true}}` leaves out the elements in a status the metamodel marks invalid (`obsolete` in the standard model).
 
 ## API
 

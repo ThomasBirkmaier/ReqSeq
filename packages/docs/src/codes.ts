@@ -6,7 +6,7 @@ import YAML from "yaml";
 import { inline } from "./markdown.js";
 
 export interface CodeText {
-  /** The title of a problem kind, which the reference and the app show (SR-224 AK6); error codes have none. */
+  /** The title of a problem kind, which the reference and the web UI show (SR-224 AK6); error codes have none. */
   readonly title?: string;
   readonly cause: string;
   readonly remedy: string;
@@ -54,7 +54,7 @@ export function codesPage(codes: ProblemCodes): string {
     "description: The cause and the remedy of every problem code and every error code of ReqSeq.",
     "---",
     "",
-    "Every message of ReqSeq carries a stable code. The app, the command line, the API and MCP show the same codes.",
+    "Every message of ReqSeq carries a stable code. The web UI, the command line, the API and MCP show the same codes.",
     "",
     "## Problem codes",
     "",

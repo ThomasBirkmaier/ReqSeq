@@ -7,9 +7,9 @@ The metamodel says which element types, properties, relation kinds and statuses 
 
 This page adds the type `component`, a property `component-id` with the meaning `identifier`, so a component can be named by a readable ID such as `C-ANEMO`, and the relation kind `allocated-to` from a system requirement to a component. A key must be new: a key used twice, also between a property and a relation kind, is an error, and the workspace is then read-only until it is fixed. The one change your own file cannot make is a new property on a type of the standard model: for that, add the key to that type's `properties` in `standard-model.yaml`.
 
-## App
+## Web UI
 
-Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) shows the types and relation kinds with their problems, and **Check workspace** lists what does not fit the new model. Then create a component with **Create element** and relate a requirement to it with **Create relation**.
+Not possible in the web UI: the metamodel is a file you edit in a text editor. The web UI reads the change when you save it: **Settings** shows the types, properties, relation kinds and statuses, and **Problems** lists what does not fit the new model. Then create a component with **New element** and relate it in its form.
 
 ## CLI
 

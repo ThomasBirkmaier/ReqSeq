@@ -3,7 +3,7 @@ title: Get started
 description: Create a workspace, a first need and a requirement derived from it, look at the trace chain and check the workspace.
 ---
 
-This page creates a workspace with a need and a system requirement derived from it, in the app and on the command line. The commands run when the documentation is built, so they work with its ReqSeq version.
+This page creates a workspace with a need and a system requirement derived from it, on the command line and in the web UI. The commands run when the documentation is built, so they work with its ReqSeq version.
 
 ## Install
 
@@ -40,9 +40,7 @@ Next, **Connect AI agent** prints the setup for your AI agent's client ([Connect
 
 ReqSeq never commits: put the folder under Git yourself.
 
-In the app: click **Create workspace** and choose the folder; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. Details: [Open or create a workspace](/how-to/open-a-workspace/).
-
-![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
+In the web UI: `reqseq ui` outside a workspace starts on the workspaces page. Under **Create a workspace**, type the full path of the folder and the name, then click **Create and open**. Details: [Open or create a workspace](/how-to/open-a-workspace/) and [The web UI](/concepts/the-web-ui/).
 
 ## Write a first need
 
@@ -62,7 +60,7 @@ No problems.
 
 `N-7fe707` is its short ID; use yours in its place below. A new element starts as draft; only people change a status.
 
-In the app: run **Create element** (Ctrl+K E, ⌘K E). The command prompt asks for the type (`Need`) and the title. The need opens in its own buffer: press Enter to write its text, and Ctrl+S (⌘S) to save.
+In the web UI: click **New element** in the rail, choose the type Need, type the title and the text, and click **Create**.
 
 ## Derive a system requirement
 
@@ -99,9 +97,9 @@ No problems.
 
 The relation keeps the version of the need, so a changed need shows the relation as outdated.
 
-In the app: **Create element** with the type `System Requirement` asks after the title for the requirement type and the acceptance criteria, one per Enter; an empty Enter ends the list or skips the property; **Add property** fills a skipped one later. Then run **Create relation** (Ctrl+K R, ⌘K R) on the requirement: Enter takes it as source, choose `Derives from` and type a word of the need's title.
+In the web UI: **New element** with the type System requirement also has fields for the requirement type and the acceptance criteria, one per entry. Under **Derives from**, type a word of the need's title and pick it; **Create** writes the requirement with its relation.
 
-![The requirement "Show the wind speed" open in the app: its text, its requirement type and acceptance criteria, and below them the need it derives from.](../images/app-element.png)
+![The requirement "Show the wind speed" in the web UI: its type, status and verification, its text and acceptance criteria, and below them the need it derives from.](../images/ui-element.png)
 
 ## Look at the chain
 
@@ -120,9 +118,9 @@ No problems.
 
 The chain runs from the need to its requirements and their evidence records; the gap says no test shows the requirement yet.
 
-In the app: open the need with Ctrl+P (⌘P) and a word of its title, then press Ctrl+J (⌘J) for its neighbourhood, or run **Show trace chain**.
+In the web UI: press Ctrl+K (⌘K), type a word of the need's title, open it, and click its **Trace graph** tab.
 
-![The neighbourhood of the need "See the wind speed": the requirement derived from it, with its status.](../images/app-neighbourhood.png)
+![The trace graph of the need "See the wind speed": the need, 0 % verified, and below it the requirement derived from it, with none of its 2 acceptance criteria verified.](../images/ui-trace-graph.png)
 
 ## Check the workspace
 
@@ -139,10 +137,10 @@ checkedElements: 2
 
 `ok: true` means no errors. In a pipeline the command exits with 1 on errors, with `--fail-on warning` on warnings too.
 
-In the app: **Check workspace**. The overview, where a workspace opens, counts the elements per type.
+In the web UI: **Problems** in the rail lists what the check reports. The overview, where a workspace opens, shows the drafts to decide and how many system requirements are verified.
 
-![The app on the workspace of this page: the overview counts one need and one system requirement, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
+![The web UI on the workspace of this page: the rail with the lists of needs and system requirements, the two drafts to decide, and none of the one system requirement verified.](../images/ui-overview.png)
 
 ## The same through the API and MCP
 
-Each step is a command with the same result in the app, the CLI, the [local API](/concepts/cli-api-and-mcp/#api) (`POST /v1/commands/element.create`) and the [MCP server](/concepts/cli-api-and-mcp/#mcp) (tool `element_create`); the [command reference](/reference/commands/) shows all four. [Write the text of an element](/how-to/write-the-text-of-an-element/) shows the app's text editor.
+Each step is a command with the same result in the CLI, the [local API](/concepts/cli-api-and-mcp/#api) (`POST /v1/commands/element.create`) and the [MCP server](/concepts/cli-api-and-mcp/#mcp) (tool `element_create`), and the web UI runs the same commands; the [command reference](/reference/commands/) shows the first three. [Write the text of an element](/how-to/write-the-text-of-an-element/) shows how to write a text in the web UI.

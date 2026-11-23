@@ -7,13 +7,15 @@ The status of an element is one of the statuses its type has in the metamodel. I
 
 ReqSeq never deletes an element. You supersede an approved one: it gets an invalid status, and a successor, if there is one, can name it with `supersedes`, so the chain and its evidence stay traceable. A draft that was never approved and is in no baseline you can [remove](/how-to/remove-a-draft/).
 
-## App
+## Web UI
 
-1. Open the element and run **Set status** (Ctrl+K T, ⌘K T on macOS). It offers the shown element first; add more elements one per Enter, end the list with an empty Enter, and choose Approved. A right-click on the status in the modeline offers it too.
-2. To set another property for every element of a list, open the command prompt on the list (Ctrl+Shift+P, ⌘⇧P) and run **Bulk update elements**. It then shows what it would change and asks to confirm, “No” marked, naming how many elements it writes and skips. “Yes, apply” or Ctrl+Enter (⌘↩) writes what the preview shows; “No” or Escape goes back.
-3. Before you change an element, **Show affected elements** lists the elements that trace to it.
-4. After the change, each requirement that derives from the need shows "link outdated" next to the need. **List hints** lists all such hints. Review each requirement and set it back to Draft with **Set status** if it needs more work. Then run **Confirm hints** (Ctrl+K H, ⌘K H) on it, which clears the mark; the app confirms one requirement at a time.
-5. To supersede an element, create its successor with **Create element** (Ctrl+K E, ⌘K E). Then run **Supersede element** on the old one and choose Obsolete; with Ctrl+Enter (⌘↩) you can name the successor.
+The web UI sets a status only on **Changes since**, named after the baseline, so a workspace needs a baseline first ([Take a baseline](/how-to/take-a-baseline/)); before it, use the CLI, the API or MCP.
+
+1. Open **Changes since** in the rail and click an element: its difference shows word by word, with **Approve**, **Set status** and **Supersede**. Each writes only after a confirmation that names the elements and the status.
+2. To decide on several at once, tick them in the list: **Approve**, **Set status** and **Change a property** act on all of them. **Change a property** first shows what ReqSeq would change, and writes nothing before you confirm.
+3. Before you change an element, its **Impact** tab lists the elements that trace to it.
+4. After the change, **Links to review** on the overview lists the requirements whose link to the need is outdated. Review each; where it is listed on **Changes since**, **Mark links as reviewed** on its difference clears the mark.
+5. To supersede an element, create its successor with **New element**. Then, where the old one is listed on **Changes since**, click **Supersede** on its difference, choose the status, and name the successor.
 
 ## CLI
 

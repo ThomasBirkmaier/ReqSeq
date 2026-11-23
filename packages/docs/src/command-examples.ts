@@ -246,7 +246,7 @@ async function templateIn(top: string, runtime: CommandRuntime): Promise<string>
   return root;
 }
 
-/** What a command needs before it runs, beyond the fixed workspace: the app's list of recent workspaces. */
+/** What a command needs before it runs, beyond the fixed workspace: the list of recent workspaces. */
 const PREPARE: Readonly<Record<string, (root: string) => Promise<void>>> = {
   "workspace.recent": async (root) => {
     await rememberWorkspace(root, { now: new Date(SHOWN_TIME) });

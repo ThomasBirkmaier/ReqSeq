@@ -9,7 +9,7 @@ The desktop shell is a program of the release that shows the web UI in a window 
 
 ## Start it
 
-Start `ReqSeq.app` on macOS, `ReqSeq.exe` on Windows or `ReqSeq` on Linux, from the place [Install ReqSeq](/how-to/install-reqseq/) moved it to. The shell starts `reqseq ui --no-open` of its own release, without a workspace and whatever folder or arguments it was started with (SR-252 AK1), and shows its pages once the server prints its address. Open a workspace in the window, as in the browser. The folder and file dialogs are those of your system (SR-253 AK1).
+Start `ReqSeq.app` on macOS, `ReqSeq.exe` on Windows or `ReqSeq` on Linux, from the place [Install ReqSeq](/how-to/install-reqseq/) moved it to. The shell starts `reqseq ui --no-open` of its own release, without a workspace and whatever folder or arguments it was started with (SR-252 AK1), and shows its pages once the server prints its address. Open a workspace in the window, as in the browser ([The web UI](/concepts/the-web-ui/)). The folder and file dialogs are those of your system (SR-253 AK1).
 
 The shell does not start when the root of the file system, on Windows the root of the system drive, holds a workspace file, because the server would find it there; it names that file (SR-252 AK10). On Linux it needs the package `libwebkit2gtk-4.1-0`; without it, `ReqSeq` ends with a message that names the package, and starts no server (SR-252 AK8).
 

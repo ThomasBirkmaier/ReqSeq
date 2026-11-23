@@ -1,6 +1,6 @@
 // How-to pages (SR-140 AK3): each shows its task in the CLI, the API and MCP, in a section `## CLI`, `## API` and
-// `## MCP`; where the task is not possible in an access, its section says so. A page may have a section `## App`
-// before them (#2309 rewrites those pages). The names a section uses must exist in this build: API paths with their
+// `## MCP`; where the task is not possible in an access, its section says so. A page may have a section `## Web UI`
+// before them, where the web UI offers the task. The names a section uses must exist in this build: API paths with their
 // body fields (`http` blocks in `## API`) and MCP tools with their arguments (`json` blocks with a `name` in `## MCP`).
 import { COMMANDS_PATH } from "@reqseq/api";
 import type { CatalogEntry } from "@reqseq/core";
@@ -15,8 +15,8 @@ export const HOW_TO_FOLDER = "how-to";
 /** The section headings of the accesses, in this order. */
 export { ACCESSES };
 
-/** The sections every how-to page has: those of the accesses but the app. */
-export const REQUIRED_ACCESSES: readonly string[] = ACCESSES.filter((access) => access !== "App");
+/** The sections every how-to page has: those of the accesses but the web UI. */
+export const REQUIRED_ACCESSES: readonly string[] = ACCESSES.filter((access) => access !== "Web UI");
 
 /** What the accesses of this build offer: the input fields of each command. */
 export interface AccessNames {

@@ -1,4 +1,4 @@
-// A decoder for the PNG files the app's Electron tests write (Chromium screenshots: 8 bits per channel, RGB or RGBA,
+// A decoder for the PNG files the guide's Playwright spec writes (Chromium screenshots: 8 bits per channel, RGB or RGBA,
 // not interlaced), so that guide-images.ts can compare pixels without a dependency (#1258). Other PNG kinds throw.
 import { inflateSync } from "node:zlib";
 

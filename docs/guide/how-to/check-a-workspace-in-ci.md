@@ -5,11 +5,9 @@ description: Let a pipeline check the workspace on every change, only the change
 
 `workspace check` checks the workspace against its metamodel: files, required properties, statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence files and gaps of verification. In a pipeline it decides by its exit code whether the step passes.
 
-## App
+## Web UI
 
-Not possible in the app: a pipeline runs without one. To see the same problems while you work, run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
-
-![The command prompt of the app: type a part of a command's name to narrow the list.](../images/app-command-prompt.png)
+Not possible in the web UI: a pipeline runs without one. To see the same problems while you work, open **Problems** in the rail.
 
 ## CLI
 

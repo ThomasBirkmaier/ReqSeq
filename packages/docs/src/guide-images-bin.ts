@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { checkGuideImages, guideImagesReport, updatedImages } from "./guide-images.js";
 
 // The CI step "Guide screenshots changed" (#1258): reports the screenshots of the guide that a pull request changes
-// without updating their copies, after the Electron run wrote the current ones. The workflow passes the images the pull
+// without updating their copies, after the web job's Playwright run wrote the current ones. The workflow passes the images the pull
 // request changed (`GUIDE_IMAGES_UPDATED`, the output of `git diff --name-only`) and the cache key of main's
 // screenshots (`GUIDE_IMAGES_MAIN_KEY`). Its exit code is 0 unless the comparison itself breaks.
 const { log, summary } = guideImagesReport(

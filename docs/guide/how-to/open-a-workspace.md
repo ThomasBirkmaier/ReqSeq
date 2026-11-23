@@ -1,27 +1,21 @@
 ---
 title: Open or create a workspace
-description: Open a workspace in the app, from the command line, the API and MCP, switch to one you opened before, or create a new one.
+description: Open a workspace in the web UI, from the command line, the API and MCP, switch to one you opened before, or create a new one.
 ---
 
-A workspace is a folder with a `reqseq-workspace.yaml`, often the folder `spec/` of a Git repository. The app shows one workspace per window; the command line, the API and the MCP server each work in the workspace they find or are given.
+A workspace is a folder with a `reqseq-workspace.yaml`, often the folder `spec/` of a Git repository. The web UI shows one workspace at a time; the command line, the API and the MCP server each work in the workspace they find or are given.
 
-## App
+## Web UI
 
-Without a workspace the app shows three start commands, and the modeline says "No workspace is open." Click one, or select it with the arrow keys and Enter:
+`reqseq ui --workspace <folder>` starts the web UI with that workspace. Without one, it starts on the workspaces page, which **Workspaces** in the rail opens later:
 
-- "Open workspace…" opens the folder dialog of your system, the same as Ctrl+O (⌘O on macOS) and "File > Open Workspace…" in the menu. On Windows and Linux the menu bar is hidden until you press Alt. Choose the workspace folder or any folder inside it: the app opens the nearest workspace from there upwards.
-- **Create workspace** opens the folder dialog, or takes the folder open without a workspace; the command prompt asks only for the name, filled in with the folder's, and Enter creates and opens the workspace. A workspace folder opens as it is.
-- **Connect AI agent** asks for the workspace first, as [Connect an AI agent](/how-to/connect-an-ai-agent/) shows.
+- **Recently opened** lists the workspaces you opened, the most recent first; **Open** opens one.
+- **Open a workspace** takes the full path of the folder that holds `reqseq-workspace.yaml`; `~` stands for your home folder.
+- **Create a workspace** takes the full path of a new folder, or of one without a workspace yet, and a name; **Create and open** creates the folder when it is missing, writes the workspace and opens it.
 
-Ctrl+Shift+P (⌘⇧P) opens the command prompt. Its entry "Open workspace" lists the recent workspaces, the most recent first, and narrows them as you type; one that no longer holds its workspace file is marked "not found". Or type an absolute path, starting with `/`, `~` or, on Windows, a drive letter such as `C:\`. Enter on the first line, "Open" with your path, opens the workspace of that folder or a folder above it. Below it the prompt suggests the folders that match the name after the last separator; Down and Enter put one into the path.
+The chosen workspace replaces the open one in every tab.
 
-The chosen workspace replaces the open one, after your unsaved input is saved.
-
-From the command prompt, **Create workspace** asks for the path too.
-
-One level above a workspace, the bottom line names it: `No reqseq-workspace.yaml in the workspace folder; one level below lies spec/reqseq-workspace.yaml: open that folder as the workspace`.
-
-The [desktop shell](/concepts/the-desktop-shell/) starts without a workspace, whatever its arguments: open one in its window. `reqseq ui --workspace <folder>` starts the web UI with one.
+The [desktop shell](/concepts/the-desktop-shell/) starts without a workspace, whatever its arguments: open one in its window, where a button next to the path also opens the folder dialog of your system.
 
 ## CLI
 
@@ -39,7 +33,7 @@ name: Weather station
 No problems.
 ```
 
-Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it as the app does. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
+Without a workspace, a command that needs one exits with code 2 and [workspace.not-found](/reference/problem-codes/#error-workspace-not-found); one level above a workspace, the message names it. Otherwise, and after `workspace init`, the lines under `next:` name the next calls; API and MCP return them as `next`.
 
 `workspace recent` lists the recent workspaces, and `workspace mark-opened` puts the workspace it runs on first:
 

@@ -19,9 +19,9 @@ repositories:
 
 To see the evidence as it stood at a baseline, run `reqseq baseline get "Release 1" --with-evidence`. It gives each requirement's status at its version in the baseline, per view (only the variant's view when the baseline was made for one), and each need's validation status. Only results dated up to the baseline count; results for that version dated after it are listed under `later`. Only each requirement's own results count, so a requirement that `evidence status` shows as `indirect` in a view is `open` in that view's row. The command reads the files on disk, not the commits the baseline names, so check out every repository at the commit the baseline names (its `repositories`); for each one at another commit it warns with `baseline.repository-commit-differs` and both commits.
 
-## App
+## Web UI
 
-Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘↩ on macOS): the prompt then offers the optional arguments, among them the variant. **Show verification status** shows the status per view.
+Enriching a JUnit file is not possible in the web UI. In a workspace with variants, an element's **Evidence** tab shows its results per view.
 
 ## CLI
 

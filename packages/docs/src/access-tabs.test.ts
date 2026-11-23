@@ -11,13 +11,13 @@ const roundTrip = (page: string): string => withoutAccessTabs(String(accessTabs(
 describe("accessTabs", () => {
   it("leaves a page without the sections in order, and ignores headings in code blocks", () => {
     expect(accessTabs("---\ntitle: A\n---\n\n## Overview\n\nText.\n")).toBeUndefined();
-    expect(accessTabs(sections(["App", "CLI", "MCP", "API"]))).toBeUndefined();
-    expect(accessTabs(sections(["App", "CLI", "API"]))).toBeUndefined();
+    expect(accessTabs(sections(["Web UI", "CLI", "MCP", "API"]))).toBeUndefined();
+    expect(accessTabs(sections(["Web UI", "CLI", "API"]))).toBeUndefined();
     expect(accessTabs(sections(["CLI", "API", "MCP"]))).toBeUndefined();
-    expect(accessTabs(`\`\`\`md\n## App\n\`\`\`\n\n${sections(["CLI", "API", "MCP"])}`)).toBeUndefined();
+    expect(accessTabs(`\`\`\`md\n## Web UI\n\`\`\`\n\n${sections(["CLI", "API", "MCP"])}`)).toBeUndefined();
   });
 
-  it("makes the sections tabs without the one on the app on a command page only", () => {
+  it("makes the sections tabs without the one on the web UI on a command page only", () => {
     const page = sections(["CLI", "API", "MCP"]);
     expect(accessTabs(page, "page", true)?.match(/<TabItem label="(\w+)">/g)).toEqual([
       '<TabItem label="CLI">',
@@ -29,7 +29,7 @@ describe("accessTabs", () => {
     expect(
       accessTabs(`\`\`\`md\n## CLI\n\`\`\`\n\n${sections(["API", "MCP"])}`, "page", true),
     ).toBeUndefined();
-    expect(accessTabs(ways, "page", true)?.match(/<TabItem label="(\w+)">/g)).toHaveLength(4);
+    expect(accessTabs(ways, "page", true)?.match(/<TabItem label="([\w ]+)">/g)).toHaveLength(4);
   });
 
   it("makes the four sections tabs with one sync key and a print label each, up to the next section", () => {
@@ -56,7 +56,7 @@ describe("accessTabs", () => {
         "",
         "Intro.",
         "",
-        ...tab("App", `<Tabs syncKey="${ACCESS_SYNC_KEY}">`),
+        ...tab("Web UI", `<Tabs syncKey="${ACCESS_SYNC_KEY}">`),
         ...tab("CLI", "</TabItem>"),
         ...tab("API", "</TabItem>"),
         ...tab("MCP", "</TabItem>"),
@@ -74,21 +74,23 @@ describe("accessTabs", () => {
   });
 
   it("closes the tabs at the end of a page, and keeps sub-headings and code inside a tab", () => {
-    const page = `## App\n\nA.\n\n## CLI\n\n### More\n\n\`\`\`sh\n## API\n\`\`\`\n\n## API\n\nB.\n\n## MCP\n\nC.\n`;
+    const page = `## Web UI\n\nA.\n\n## CLI\n\n### More\n\n\`\`\`sh\n## API\n\`\`\`\n\n## API\n\nB.\n\n## MCP\n\nC.\n`;
     const tabbed = String(accessTabs(page));
-    expect(tabbed.startsWith(`${IMPORT}\n\n\n<Tabs syncKey="access">\n\n<TabItem label="App">\n`)).toBe(true);
+    expect(tabbed.startsWith(`${IMPORT}\n\n\n<Tabs syncKey="access">\n\n<TabItem label="Web UI">\n`)).toBe(
+      true,
+    );
     expect(tabbed).toContain("### More\n\n```sh\n## API\n```\n");
     expect(tabbed.endsWith("C.\n\n\n</TabItem>\n\n</Tabs>\n")).toBe(true);
   });
 
   it("puts a blank line before each closing tag where a section ends without one", () => {
-    const page = "## App\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.\n## Next\nE.";
+    const page = "## Web UI\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.\n## Next\nE.";
     const tabbed = String(accessTabs(page));
     expect(tabbed).toContain("A.\n\n</TabItem>\n");
     expect(tabbed).toContain("D.\n\n</TabItem>\n\n</Tabs>\n\n## Next\nE.");
     expect(withoutAccessTabs(tabbed)).toBe(page);
-    expect(roundTrip("## App\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.")).toBe(
-      "## App\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.",
+    expect(roundTrip("## Web UI\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.")).toBe(
+      "## Web UI\nA.\n## CLI\nB.\n## API\nC.\n## MCP\nD.",
     );
   });
 
@@ -151,10 +153,10 @@ describe("withoutAccessTabs", () => {
   });
 
   it("leaves the same lines in a code block, cut-off tags and a brace it did not escape", () => {
-    const code = `\`\`\`mdx\n${IMPORT}\n\n<Tabs syncKey="access">\n\n<TabItem label="App">\n{/* x */}\n\`\`\`\n`;
+    const code = `\`\`\`mdx\n${IMPORT}\n\n<Tabs syncKey="access">\n\n<TabItem label="Web UI">\n{/* x */}\n\`\`\`\n`;
     expect(withoutAccessTabs(code)).toBe(code);
-    expect(withoutAccessTabs('<TabItem label="App">\n\nA.')).toBe('<TabItem label="App">\n\nA.');
-    const cut = '<Tabs syncKey="access">\n\n<TabItem label="App">\n';
+    expect(withoutAccessTabs('<TabItem label="Web UI">\n\nA.')).toBe('<TabItem label="Web UI">\n\nA.');
+    const cut = '<Tabs syncKey="access">\n\n<TabItem label="Web UI">\n';
     expect(withoutAccessTabs(cut)).toBe(cut);
     expect(withoutAccessTabs("\\\\{ stays")).toBe("\\\\{ stays");
   });

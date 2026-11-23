@@ -193,7 +193,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 
 - `packages/app`, electron-builder and the Electron jobs of CI went with #2310. ADR-0010 and ADR-0014 describe nothing that is still built.
 - `tool.info` reports the versions of the command line and the MCP server and the Node it runs on, as SR-161 AK1 asks; the app version and the Electron and Chromium versions are gone (#2400).
-- The guide may describe the app until the docs step before the v0.13 release (#2309). Its committed images stay as they are.
+- The guide, its pictures and the README animation show the web UI; the Playwright project `guide` makes them (ADR-0017, #2309).
 - A save dialog for a place outside the repositories, with a desktop shell, needs a spec change of SR-248 AK4.
 
 ## Rejected

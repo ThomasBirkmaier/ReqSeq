@@ -20,9 +20,9 @@ ReqSeq writes into a new folder, an empty one, or the folder of an earlier expor
 
 In a repository of the workspace, ReqSeq creates the folders that are missing above the target, such as `exports/` for `exports/html`. It refuses, and creates no folder, when the way there leads through a link, `.git`, `node_modules`, an embedded Git repository, a repository of the workspace that is not on this computer or a file, or a name on it is spelled otherwise than on disk, holds `\` or is one Windows does not take (SR-235 AK7, AK8). The API and MCP take a target only inside the repositories (SR-235 AK3); outside them, ReqSeq creates only the target folder itself (SR-235 AK9). A failed export removes each folder it created that is empty (SR-235 AK10).
 
-## App
+## Web UI
 
-In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS), run **Export HTML** and choose the folder.
+Open **Export** in the rail. Under **HTML pages**, type the folder, relative to the workspace folder, and click **Export HTML**.
 
 ## CLI
 

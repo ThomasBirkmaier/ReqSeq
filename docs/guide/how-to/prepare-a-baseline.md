@@ -10,10 +10,10 @@ Two commands gather the outputs of other commands in one output and name the nex
 
 **Create baseline** is left out for a selection it refuses: a baseline, the output of a command, or a saved filter with another view than its own. While the workspace is read-only, every step whose command is then refused is left out.
 
-## App
+## Web UI
 
-1. On a package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Prepare baseline**. Its next steps include **Create baseline**; Enter on it asks only the name.
-2. Later, run **Show changes since baseline**; Ctrl+Enter (⌘↩) asks a baseline first. Several hints of one kind show as one line with the kind and their count, and Tab unfolds it.
+1. Open **Check before a baseline** in the rail. It shows the errors and warnings of the workspace, how many requirements are verified and without a passed test, and what changed since the newest baseline. Below, **Create a baseline** takes the name, and of a package if you choose one under **Elements**.
+2. Later, **Changes since** in the rail, named after the baseline, lists what changed, was added or was superseded since a baseline; **Compare with baseline** chooses another one, and a click on an element shows its difference word by word.
 
 ## CLI
 

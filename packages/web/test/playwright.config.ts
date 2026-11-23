@@ -6,6 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
 import type { Options } from "./fixtures.js";
 
 const CONTRACT = /contract-[^/\\]+\.spec\.ts$/;
+const GUIDE = /guide-[^/\\]+\.spec\.ts$/;
 const BROWSERS = {
   chromium: "Desktop Chrome",
   firefox: "Desktop Firefox",
@@ -29,7 +30,20 @@ export default defineConfig<Options>({
   },
   // Every page runs on each workspace; the tests of the page's foundation and build on the spec copy only.
   projects: [
-    { name: "spec", use: { kind: "spec" }, testIgnore: CONTRACT },
+    { name: "spec", use: { kind: "spec" }, testIgnore: [CONTRACT, GUIDE] },
+    // The pictures of the guide and the README animation, on fixtures of their own (ADR-0017): light, without
+    // motion, in one time zone and locale, so that a run on the same system writes the same pixels.
+    {
+      name: "guide",
+      testMatch: GUIDE,
+      use: {
+        viewport: { width: 1280, height: 720 },
+        colorScheme: "light",
+        reducedMotion: "reduce",
+        timezoneId: "UTC",
+        locale: "en-US",
+      },
+    },
     {
       name: "orbit",
       use: { kind: "orbit" },

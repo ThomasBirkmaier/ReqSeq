@@ -53,7 +53,7 @@ describe("reference", () => {
       for (const heading of ["Input", "Output", "CLI", "API", "MCP"]) {
         expect(section(page, heading), `${entry.name}: ${heading}`).not.toBe("");
       }
-      expect(page, entry.name).not.toContain("\n## App\n");
+      expect(page, entry.name).not.toContain("\n## Web UI\n");
       expect(section(page, "CLI")).toMatch(/^`reqseq \S+ \S+`[^]*```text\nUsage: reqseq \S+ \S+/);
       expect(section(page, "API")).toContain(`POST /v1/commands/${entry.name}`);
       expect(section(page, "MCP")).toContain(`\`${entry.name.replace(".", "_")}\``);

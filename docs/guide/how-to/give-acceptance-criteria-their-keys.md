@@ -17,15 +17,13 @@ acceptance-criteria:
   AK2: Given no reading, then a dash shows.
 ```
 
-API and MCP give them as `criterionReferences`. In the app, the editor shows the reference after each criterion in the acceptance criteria box, unless a criterion there holds a line break, and a criterion whose key another one carries too shows only its key, since it has no reference (SR-205 AK1); the check reports such a key as an error (SR-204). A criterion you add shows its reference once it is saved. To copy a reference, put the cursor on the criterion and run **Copy criterion reference**, from the command prompt or the context menu of the line (SR-205). For a criterion without key, it asks you to run **Assign criterion keys** first.
+API and MCP give them as `criterionReferences`. A criterion whose key another one carries too has no reference; the check reports such a key as an error (SR-204).
 
-For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205); in the app, type the reference in **Go to**, which lists the requirement once, with the criterion's number and text (SR-222). A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
+For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205). A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
 
-## App
+## Web UI
 
-Show the requirements you want, for example with a filter, and run **Assign criterion keys** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS). It acts on the elements the list shows.
-
-When you edit the acceptance criteria in the editor, a reworded or moved criterion keeps its key (Alt+Up, ⌥Up, or Alt+Down, ⌥Down, moves a line); of a split criterion the first part keeps it, and of two merged ones the front one (SR-204). A criterion you add, duplicate or paste gets a new key, also when its text equals that of another one and also after a cut (SR-204). Undo gives the criteria their previous keys back, also after the change was saved (SR-204).
+Open the requirement and click **Edit**. When some of its acceptance criteria have no key, the form says how many and offers **Give keys**, before you change anything else; the form then opens again on the new file.
 
 ## CLI
 

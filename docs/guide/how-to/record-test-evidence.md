@@ -20,13 +20,13 @@ evidence:
 
 `reqseq workspace status` lists the evidence locations, each with `available: false` when ReqSeq does not read it; `reqseq workspace check` says why.
 
-## App
+## Web UI
 
-Run **Enrich JUnit file** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS); it asks for the file and the item under test. A file a pipeline writes shows up within seconds.
+Reading a JUnit file is not possible in the web UI. A file a pipeline writes shows up without a reload.
 
-A requirement's page has a badge for the core and each variant: open, verified, indirect, or in colour failed or outdated, with how many acceptance criteria are verified. A list row shows the verification status too. **Show verification status** shows it per view under each requirement's row, **Show coverage** counts per level.
+A requirement's page shows its verification status, and a list row too. Its **Evidence** tab shows, per acceptance criterion, the test cases and records with their result and view. **Record a check** there writes a record of a check that is no automated test, such as an inspection or a review.
 
-![A requirement whose test failed: its badge "Core: failed, 0 of 1 criteria, AK1 not verified" and below it its failed evidence record.](../images/app-verification-badges.png)
+![The evidence of a requirement whose test failed: "Failed, 0 of 1 criteria verified", criterion 1 failed with its record, and the form to record a check below.](../images/ui-evidence.png)
 
 ## CLI
 
