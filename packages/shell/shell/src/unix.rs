@@ -323,13 +323,18 @@ mod tests {
         let grandchild: libc::pid_t = line.trim().parse().unwrap();
         kill_group(child.id());
         assert_eq!(crate::server::describe(child.wait().unwrap()), "signal 9");
-        let deadline = Instant::now() + Duration::from_secs(5);
         // SAFETY: probing with signal 0 sends nothing.
-        while unsafe { libc::kill(grandchild, 0) } == 0 && Instant::now() < deadline {
+        let gone = || unsafe { libc::kill(grandchild, 0) } != 0;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        // Sleeps at least once and evaluates both conditions every time (`|`, not `||`), so the lines run whether
+        // or not the grandchild is already gone (#2414).
+        loop {
             thread::sleep(Duration::from_millis(10));
+            if gone() | (Instant::now() >= deadline) {
+                break;
+            }
         }
-        // SAFETY: as above.
-        assert_ne!(unsafe { libc::kill(grandchild, 0) }, 0);
+        assert!(gone());
         kill_group(u32::MAX);
     }
 
@@ -403,12 +408,10 @@ mod tests {
         )
         .unwrap();
         std::fs::set_permissions(&program, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        // A FIFO: the read below ends when the opener has written and closed it, with no timing in the test, so
+        // its coverage does not depend on how fast the opener runs (#2414).
+        assert!(Command::new("mkfifo").arg(&record).status().unwrap().success());
         open_with(&program, "https://example.org/a b").unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while !record.exists() && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
-        thread::sleep(Duration::from_millis(50));
         assert_eq!(
             std::fs::read_to_string(&record).unwrap(),
             "1|https://example.org/a b|"
