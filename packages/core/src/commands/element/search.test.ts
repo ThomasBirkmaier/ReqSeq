@@ -226,7 +226,7 @@ describe("element.search (SR-068)", () => {
     ]);
   });
 
-  it("[SR-066/AK-v40r] (search scope) the link search finds by title and IDs only: a short ID and a title word, not a text word", async () => {
+  it("(search scope) a search in the title and the IDs only finds a short ID and a title word, not a text word", async () => {
     const ws = await open();
     expect(await hits(ws, "supplier", { fields: ["title", "id"] })).toEqual([]);
     expect(await hits(ws, "SR-0000b5", { fields: ["title", "id"] })).toEqual([B5]);
