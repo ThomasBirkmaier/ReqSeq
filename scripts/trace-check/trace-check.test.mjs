@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -321,6 +322,19 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
     expect(report).toContain("| SR-001 | AK1 (kone) | test | pkg/a.test.ts:2 |");
     expect(report).toContain("| SR-001 | AK2 (ktwo) | test | packages/cli/test/cross-access.test.ts:1 |");
     expect(traceCheck(root, []).warnings).toEqual(["pkg/a.test.ts:6: SR-002 is obsolete"]);
+  });
+
+  it("skips the folders and files that Git ignores, such as a staged delivery in build/", () => {
+    const root = repo({
+      ".gitignore": "/build/package/\nlocal.test.ts\n",
+      "pkg/a.test.ts": `it("${tag("SR-001", 1)} a");\n`,
+      "build/package/pkg/a.test.ts": `it("${tag("SR-001", 1)} a");\nit("${tag("SR-001", 2)} b");\n`,
+      "pkg/local.test.ts": `it("${tag("SR-001", 2)} b");\n`,
+    });
+    execFileSync("git", ["init", "--quiet"], { cwd: root });
+    const report = traceCheck(root, ["--require", "SR-001"]);
+    expect(report.report).toContain("| SR-001 | AK1 (kone) | test | pkg/a.test.ts:1 |");
+    expect(report.errors).toEqual(["SR-001 AK2 (ktwo) has no test"]);
   });
 
   it("reads frontmatter only when it is a mapping that parses", () => {
