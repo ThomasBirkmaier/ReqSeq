@@ -320,13 +320,17 @@ describe("git reader", () => {
     const commit = await ws.head("repo");
     // git runs in the repository. Node on Windows looks for a bare program name in the working
     // folder of the child before PATH; elsewhere a relative entry of PATH (".") names that folder.
+    // On Windows the planted program is a small one of the system that rejects git's options, so
+    // the test writes no large file just before a git call with a 10 s limit (#2484).
     if (process.platform === "win32") {
-      await fs.copyFile(process.execPath, path.join(repo, "git.exe"));
+      const system = path.join(process.env["SystemRoot"] ?? "C:\\Windows", "System32");
+      await fs.copyFile(path.join(system, "whoami.exe"), path.join(repo, "git.exe"));
     } else {
       await fs.writeFile(path.join(repo, "git"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
       vi.stubEnv("PATH", `.${path.delimiter}${process.env["PATH"] ?? ""}`);
     }
-    expect(await headCommit(repo)).toMatchObject({ known: true, commit });
+    // All fields, so that a failure shows the reason and git's message.
+    expect(await headCommit(repo)).toEqual({ known: true, commit, shallow: false });
   });
 
   it("starts no git when PATH holds none (#940)", async () => {

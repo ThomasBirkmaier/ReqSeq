@@ -152,9 +152,13 @@ const startApi = (cwd: string, home: string): Promise<Started> =>
     });
   });
 
-/** Stops a server and waits for its exit; it writes a pending model cache first (`workspace.close`). */
+/**
+ * Stops a server and waits for its exit; it writes a pending model cache first (`workspace.close`). A server
+ * that has ended returns at once: on Windows `kill()` ends it without its SIGTERM handler, so it has no exit
+ * code but `signalCode`, and its `exit` does not come again (#2497).
+ */
 const stop = async (child: ChildProcessWithoutNullStreams): Promise<void> => {
-  if (child.exitCode !== null) {
+  if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
   // The listener of `startApi` would reject a start that is over by now: it goes first.

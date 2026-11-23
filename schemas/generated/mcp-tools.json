@@ -13522,6 +13522,7 @@
           "criteria": {
             "type": "array",
             "items": {
+              "description": "An acceptance criterion by its number alone, counted from 1 (for example 2, with no letters before it), or by its criterion key alone (for example k7f3, with no prefix).",
               "anyOf": [
                 {
                   "type": "integer",

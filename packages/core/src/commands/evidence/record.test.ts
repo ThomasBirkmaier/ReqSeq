@@ -334,6 +334,13 @@ describe("evidence.record (SR-030)", () => {
         "input.invalid",
       );
     }
+    // A criterion written as `element get` labels it names both forms the command takes (#2457).
+    expect(
+      (await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: ["AK-kdir"] })).message,
+    ).toMatch(/"AK-kdir" does not have the expected form: An acceptance criterion by its number/);
+    expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION, criteria: ["AK2"] })).message).toBe(
+      'Invalid input for evidence.record: criteria[0] "AK2" does not have the expected form: An acceptance criterion by its number alone, counted from 1 (for example 2, with no letters before it), or by its criterion key alone (for example k7f3, with no prefix).',
+    );
     expect(await filesOf(fixture)).toEqual(before);
   });
 
