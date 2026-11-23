@@ -45,6 +45,11 @@ export interface StartOptions {
   readonly args?: readonly string[];
   /** Record processes, files and connections with strace (Linux only). */
   readonly record?: boolean;
+  /**
+   * A command that starts the shell, such as `sudo -n -u runner -g <group>` (the macOS recording). The shell's
+   * variables then go through `env`, because sudo resets the environment.
+   */
+  readonly wrap?: readonly string[];
 }
 
 /** A folder removed after the test. */
@@ -62,9 +67,13 @@ export class Shell {
   readonly exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
   private nextId = 1;
 
-  constructor(child: ChildProcessWithoutNullStreams, trace: string | undefined) {
+  /** Whether a wrapper such as sudo started the shell: the shell is then its child. */
+  private readonly wrapped: boolean;
+
+  constructor(child: ChildProcessWithoutNullStreams, trace: string | undefined, wrapped = false) {
     this.child = child;
     this.trace = trace;
+    this.wrapped = wrapped;
     let partial = "";
     child.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8");
@@ -178,6 +187,14 @@ export class Shell {
 
   async end(): Promise<void> {
     if (this.child.exitCode === null && this.child.signalCode === null) {
+      if (this.wrapped) {
+        // sudo runs as root and passes on no SIGKILL: the shell, its child, is killed through sudo.
+        await new Promise((resolve) => {
+          spawn("sudo", ["-n", "pkill", "-KILL", "-P", String(this.child.pid)], { stdio: "ignore" })
+            .once("exit", resolve)
+            .once("error", resolve);
+        });
+      }
       this.child.kill("SIGKILL");
       await this.exited;
     }
@@ -213,8 +230,16 @@ export async function startShell(options: StartOptions = {}): Promise<Shell> {
     ];
     command = "strace";
   }
+  const [wrapper, ...wrapArgs] = options.wrap ?? [];
+  if (wrapper !== undefined) {
+    const own = Object.entries(env).filter(
+      ([k]) => k === "PATH" || k.startsWith("REQSEQ_") || k in (options.env ?? {}),
+    );
+    args = [...wrapArgs, "env", ...own.map(([k, v]) => `${k}=${v}`), command, ...args];
+    command = wrapper;
+  }
   const child = spawn(command, args, { cwd: options.cwd ?? root, env, stdio: "pipe" });
-  const shell = new Shell(child, trace);
+  const shell = new Shell(child, trace, wrapper !== undefined);
   started.push(shell);
   return shell;
 }

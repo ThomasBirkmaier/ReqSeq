@@ -19,7 +19,7 @@ pnpm --filter @reqseq/shell build:e2e      # target/debug/reqseq-shell with the 
 pnpm --filter @reqseq/shell test:e2e
 ```
 
-Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace` with `CAP_SYS_PTRACE` over the shell, because the shell is not dumpable (ADR-0021, End): root, or `unshare -r` as in CI. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. On Windows the recorded tests need an elevated session with the audit the CI step `Shell - recorders (Windows)` sets up, and `REQSEQ_SHELL_E2E_RECORD=windows`; `e2e/record-windows.ts` adds and removes its own firewall rules and ETW trace. Without that variable they skip, and in CI (`CI` set) they fail. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
+Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace` with `CAP_SYS_PTRACE` over the shell, because the shell is not dumpable (ADR-0021, End): root, or `unshare -r` as in CI. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. On Windows the recorded tests need an elevated session with the audit the CI step `Shell - recorders (Windows)` sets up, and `REQSEQ_SHELL_E2E_RECORD=windows`; `e2e/record-windows.ts` adds and removes its own firewall rules and ETW trace. On macOS they need password-free sudo with a runas group and the group `reqseq-e2e`, which the CI step `Shell - recorders (macOS)` sets up, and `REQSEQ_SHELL_E2E_RECORD=macos`; `e2e/record-macos.ts` loads and removes its own pf anchor and runs `eslogger` and `tcpdump` through sudo. Without that variable they skip, and in CI (`CI` set) they fail. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
 
 ## The e2e build
 
@@ -36,7 +36,7 @@ The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. 
 | format, clippy, unit tests | yes | yes |
 | coverage 100 % (`--lib`), crate licences, audit | yes | no |
 | e2e: start, end, failures, opening an address (SR-252 AK3, AK4, AK5, AK9, AK10), the dialogs (SR-253) | yes, without network | yes |
-| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall; macOS: no recorder yet |
+| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall; macOS: eslogger, pktap and pf |
 | e2e: a window that cannot open (SR-252 AK8) | delivery tests | Windows: an empty WebView2 runtime folder |
 
 ## The release build

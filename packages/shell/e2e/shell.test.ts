@@ -2,7 +2,7 @@
 // of the checkout, driven through its test driver. The recording tests (AK2, AK6, AK7) run on Linux with
 // `strace -f`; on Linux CI the suite runs under Xvfb and a D-Bus session inside `unshare -rn`, so every connection
 // to another machine is refused. On Windows they record with the event log, ETW and firewall rules
-// (record-windows.ts).
+// (record-windows.ts), on macOS with eslogger, pktap and pf (record-macos.ts).
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -11,6 +11,8 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
 import type { WindowsRecord } from "./record-windows.js";
+import type { MacRecord } from "./record-macos.js";
+import { MacRecorder, isEngine, macRecordingMode, onLoopback } from "./record-macos.js";
 import { CONTROL_ADDRESS, WindowsRecorder, holds, inside, recordingMode } from "./record-windows.js";
 import type { Shell } from "./support.js";
 import {
@@ -659,6 +661,189 @@ describe.skipIf(windowsRecording === "skip")(
         connections: record.connections.filter((c) => !loopback(c.source) || !loopback(c.address)),
         lookups: record.lookups,
       }).toEqual({ refused: [], connections: [], lookups: [] });
+    });
+  },
+);
+
+const macRecording = process.platform === "darwin" ? macRecordingMode() : "skip";
+
+// On macOS one recorded run of the shell serves the tests of AK2, AK6 and AK7, each reading the same record, as on
+// Windows. The shell and its server run in the test group, whose connections pf refuses; the engine's processes do
+// not (launchd starts them), so their packets are recorded and any one off loopback fails the test (#2479).
+describe.skipIf(macRecording === "skip")(
+  "SR-252: what the desktop shell starts, opens, writes and connects to (eslogger, pktap and pf, macOS)",
+  () => {
+    let recorder: MacRecorder | undefined;
+    let ws: FixtureWorkspace | undefined;
+    let root = "";
+    let record: MacRecord;
+    let token = "";
+    let shellOut = { stdout: "", stderr: "" };
+    let port = -1;
+
+    beforeAll(async () => {
+      if (macRecording === "fail") {
+        throw new Error(
+          "The recording on macOS is not set up (REQSEQ_SHELL_E2E_RECORD=macos is missing); in CI the step " +
+            "`Shell - recorders (macOS)` sets it, and without it these tests fail instead of skipping.",
+        );
+      }
+      recorder = await MacRecorder.start();
+      ws = await newWorkspace();
+      // The record names real paths: the temporary folder is under /private/var on macOS.
+      root = await fs.realpath(ws.root);
+      await recorder.runControls();
+      const shell = await startShell({ node: recorder.node, wrap: recorder.wrap });
+      port = Number(new URL(String(await shell.event("shown", () => true, 60_000))).port);
+      token = await pageToken(shell);
+      await shell.eval(
+        "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
+      );
+      await showElement(shell, ws);
+      await changeElement(shell, ws);
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      shell.send({ close: true });
+      expect((await shell.exited).code).toBe(0);
+      shellOut = { stdout: shell.stdout, stderr: shell.stderr };
+      record = await recorder.stop(shell.child.pid ?? -1);
+    }, 300_000);
+
+    afterAll(async () => {
+      await recorder?.cleanup();
+      await ws?.cleanup();
+    });
+
+    const serverPids = (): Set<number> => new Set(record.processes.filter((p) => p.server).map((p) => p.pid));
+    const enginePids = (): Set<number> => new Set(record.engine.map((p) => p.pid));
+
+    /**
+     * The record is complete and can find what it looks for: Endpoint Security dropped no event, the stream reaches
+     * the shell's exit and a marker after it, the controls are in it, the server opened the workspace file and the
+     * engine's processes are in it and wrote a file.
+     */
+    function expectControls(): void {
+      expect(record.events).toBeGreaterThan(0);
+      expect(record.missing).toEqual({
+        global: 0,
+        byKind: Object.fromEntries(Object.keys(record.missing.byKind).map((k) => [k, 0])),
+      });
+      expect([record.shellExit, record.marker, record.control.started]).toEqual([true, true, true]);
+      expect(record.shellPid).toBeDefined();
+      expect(serverPids().size).toBeGreaterThan(0);
+      expect(record.engine.some((p) => p.program.endsWith("/com.apple.WebKit.WebContent"))).toBe(true);
+      expect(record.engine.some((p) => p.program.endsWith("/com.apple.WebKit.Networking"))).toBe(true);
+      const workspaceFile = path.join(root, "reqseq-workspace.yaml");
+      expect(record.serverFiles.some((f) => f.kind === "open" && f.path === workspaceFile)).toBe(true);
+      const engine = enginePids();
+      expect(record.files.some((f) => f.write === true && engine.has(f.pid))).toBe(true);
+    }
+
+    it("[SR-252/AK-nhyc] the token is in no argument, no output of the shell and no file it writes (macOS)", async ({
+      annotate,
+    }) => {
+      expectControls();
+      expect(shellOut.stdout).not.toContain(token);
+      expect(shellOut.stderr).not.toContain(token);
+      // The arguments of every program the tree ran and of every engine process; the exec of each engine process is
+      // in the stream (xpcproxy runs it).
+      expect(
+        record.engine.filter((p) => p.args === undefined).map((p) => `${String(p.pid)} ${p.program}`),
+      ).toEqual([]);
+      const argv = [
+        ...record.processes.flatMap((p) => p.programs.map((r) => [r.program, ...r.args].join(" "))),
+        ...record.engine.map((p) => [p.program, ...(p.args ?? [])].join(" ")),
+      ];
+      expect(argv.length).toBeGreaterThan(2);
+      expect(argv.filter((a) => a.includes(token))).toEqual([]);
+      // Every file a process of the tree other than the server, or of the engine, created, renamed to or opened for
+      // writing; devices are no files.
+      const written = [
+        ...new Set(
+          record.files
+            .filter((f) => f.write === true && f.path !== undefined && !f.path.startsWith("/dev/"))
+            .map((f) => f.path ?? ""),
+        ),
+      ];
+      const probe = path.join(root, "token-control");
+      for (const encoding of ["utf8", "utf16le"] as const) {
+        await fs.writeFile(probe, `x${token}x`, encoding);
+        expect([encoding, await holds(probe, token)]).toEqual([encoding, true]);
+      }
+      await fs.rm(probe);
+      const holding: string[] = [];
+      const unreadable: string[] = [];
+      for (const file of written) {
+        const found = await holds(file, token);
+        if (found === true) {
+          holding.push(file);
+        } else if (found === undefined) {
+          unreadable.push(file);
+        }
+      }
+      await annotate(
+        `${String(record.processes.length)} processes in the tree, ${String(record.engine.length)} engine processes, ` +
+          `${String(written.length)} written files checked: ${written.join(", ")}`,
+      );
+      expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
+    }, 120_000);
+
+    it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (macOS)", async ({
+      annotate,
+    }) => {
+      await annotate(
+        `${String(record.events)} events; tree: ${record.processes.map((p) => `${String(p.pid)}${p.server ? " (server)" : ""} ${p.programs.map((r) => path.basename(r.program)).join(" > ")}`).join("; ")}; ` +
+          `engine: ${record.engine.map((p) => `${String(p.pid)} ${path.basename(p.program)}`).join(", ")}; ` +
+          `${String(record.files.length)} file events of the tree outside the server and of the engine`,
+      );
+      expectControls();
+      // A process of the tree outside the server runs no program but the shell itself (a fork) and the engine's.
+      const started = record.processes
+        .filter((p) => p.pid !== record.shellPid && !p.server)
+        .flatMap((p) => p.programs.filter((r) => r.program !== SHELL && !isEngine(r.program)))
+        .map((r) => [r.program, ...r.args].join(" "));
+      expect(started).toEqual([]);
+      expect(
+        record.files
+          .filter((f) => f.path !== undefined && (f.path === root || f.path.startsWith(`${root}/`)))
+          .map((f) => `${String(f.pid)} ${f.kind} ${f.path ?? ""}`),
+      ).toEqual([]);
+    });
+
+    // pf refuses every connection of the shell and the server off loopback and counts it; pktap records every packet
+    // with its process and, for a lookup through mDNSResponder, the process that asked. The test fails on a refused
+    // packet of the test group after the controls and on any packet of the tree or the engine off loopback.
+    it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine and looks up no name (macOS)", async ({
+      annotate,
+    }) => {
+      await annotate(
+        `${String(record.packets.length)} packets of the tree and the engine; pf counters after the controls ` +
+          `${record.counters.control.join("/")}, at the end ${record.counters.end.join("/")}`,
+      );
+      expect(record.control.outside).toBe("timeout");
+      expect(record.control.inside).toBe("error ECONNREFUSED");
+      expect({
+        packet: record.control.packet,
+        lookedUp: record.control.lookedUp,
+        reset: record.control.reset,
+      }).toEqual({ packet: true, lookedUp: true, reset: true });
+      expect(record.rules).toMatch(
+        /block return out log quick inet from any to ! 127\.0\.0\.0\/8 group = \d+/,
+      );
+      expect(record.rules).toMatch(/block return out log quick inet6 from any to ! ::1 group = \d+/);
+      expect(record.counters.control[0]).toBeGreaterThan(0);
+      expect(record.dropped).toBe(0);
+      // The engine's own packets to its server: the record attributes the engine's traffic.
+      const engine = enginePids();
+      expect(
+        record.packets.some(
+          (p) =>
+            onLoopback(p) && p.pids.some((pid) => engine.has(pid)) && p.line.includes(`.${String(port)}`),
+        ),
+      ).toBe(true);
+      expect({
+        refused: record.counters.end,
+        packets: record.packets.filter((p) => !onLoopback(p)).map((p) => p.line),
+      }).toEqual({ refused: record.counters.control, packets: [] });
     });
   },
 );
