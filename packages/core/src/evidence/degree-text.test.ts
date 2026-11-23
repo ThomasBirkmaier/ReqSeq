@@ -1,4 +1,5 @@
 // The display rule of the verification degree (SR-037, ThomasBirkmaier/ReqSeq-archive#592 Q3): one decimal, rounded down, on every access.
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { degreeClause, degreePercent, degreeShareOf, minimumHeadText } from "./degree-text.js";
 
@@ -79,5 +80,12 @@ describe("degreeShareOf (SR-037)", () => {
         { share: 0.6, counts: 3 },
       ].map(degreeShareOf),
     ).toEqual(Array.from({ length: 11 }, () => undefined));
+  });
+});
+
+describe("degree-text.ts (SR-037)", () => {
+  it("imports nothing: the display models load it through graph/words.ts (ADR-0019)", async () => {
+    const source = await readFile(new URL("degree-text.ts", import.meta.url), "utf8");
+    expect(source.split("\n").filter((line) => /^\s*(import|export .* from)\b/.test(line))).toEqual([]);
   });
 });

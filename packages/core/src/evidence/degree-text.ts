@@ -3,7 +3,8 @@
 // counted requirement is verified or indirect (ADR-0012 "Status rules", bullet "Verification degree";
 // assumption of spec question ThomasBirkmaier/ReqSeq-archive#592 Q3). One rule on every access. The head of
 // a matrix column with minima (SR-153 AK1) and the sentence on a degree (`degreeClause`) are built here too,
-// so the CLI, the HTML export and every test that compares with them use one rule.
+// so the CLI, the HTML export and every test that compares with them use one rule. The display models
+// load it through `graph/words.ts` (ADR-0019), so this module imports nothing.
 
 /**
  * `share` (0 to 1) as a percentage rounded down to one decimal, with a space before `%`. The `1e-9`

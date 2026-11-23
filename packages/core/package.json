@@ -25,14 +25,6 @@
       "types": "./dist/displays/index.d.ts",
       "default": "./dist/displays/index.js"
     },
-    "./metamodel-graph": {
-      "types": "./dist/metamodel/graph.d.ts",
-      "default": "./dist/metamodel/graph.js"
-    },
-    "./criterion-items": {
-      "types": "./dist/model/criterion-items.d.ts",
-      "default": "./dist/model/criterion-items.js"
-    },
     "./command-error": {
       "types": "./dist/catalog.d.ts",
       "default": "./dist/catalog.js"
@@ -45,25 +37,9 @@
       "types": "./dist/html-export/markdown.d.ts",
       "default": "./dist/html-export/markdown.js"
     },
-    "./render-options": {
-      "types": "./dist/html-export/render-options.d.ts",
-      "default": "./dist/html-export/render-options.js"
-    },
-    "./next-steps": {
-      "types": "./dist/next-steps.d.ts",
-      "default": "./dist/next-steps.js"
-    },
-    "./fold": {
-      "types": "./dist/query/fold.d.ts",
-      "default": "./dist/query/fold.js"
-    },
     "./problem-titles": {
       "types": "./dist/problem-titles.d.ts",
       "default": "./dist/problem-titles.js"
-    },
-    "./suggested-key": {
-      "types": "./dist/metamodel/suggested-key.d.ts",
-      "default": "./dist/metamodel/suggested-key.js"
     }
   },
   "scripts": {

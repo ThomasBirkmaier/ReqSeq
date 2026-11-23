@@ -420,7 +420,7 @@ describe("element.facets (ThomasBirkmaier/ReqSeq-archive#425)", () => {
     }
   });
 
-  it("[SR-124/AK-hxcz] the facets of one element give each of its values, one item of a list property each, and each selects with eq every element that has it", async () => {
+  it("[SR-124/AK-hxcz] offers for a list of one element each of its properties with selectable values: a fixed value, a package and a shared topic, each value selecting with eq the elements that have it", async () => {
     const ws = await open(WITH_EXTRA);
     const all = await facets(ws);
     const list = async (where: Record<string, unknown>): Promise<FullList> =>

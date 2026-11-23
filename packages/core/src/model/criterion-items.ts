@@ -1,6 +1,6 @@
 // The items of an acceptance criteria list (D-072, SR-204, ADR-0004): a text without criterion key,
-// or a block mapping `{ key, text }` with its criterion key. Pure, without imports, so the app's
-// renderer can read the items too (`@reqseq/core/criterion-items`). Also the bracket token of a test
+// or a block mapping `{ key, text }` with its criterion key. Pure, without imports, so the
+// display models can read the items too (ADR-0019). Also the bracket token of a test
 // name, `[<ref>/AK-<key>]` (SR-029 AK10, SR-205 AK1, AK5): `criterionReference` writes it, and
 // `bracketReference` reads it for enrich-junit (`criterionRefsOf`), element.resolve and the app's
 // "Go to", so all of them split it the same way, at the first `/`.

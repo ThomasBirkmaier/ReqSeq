@@ -1,5 +1,5 @@
 // The key and the prefix of a new definition made from its name (SR-236 AK6, D-043), without a file or a
-// workspace, so the command prompt of the app shows them as it asks (`@reqseq/core/suggested-key`).
+// workspace.
 //
 // The key: letters in lower case, digits as they are, ä, ö, ü and ß as ae, oe, ue and ss, other letters
 // with a diacritic as the letter without it (é as e, ç as c), every run of other characters one hyphen,

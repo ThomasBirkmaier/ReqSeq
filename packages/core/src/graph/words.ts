@@ -1,4 +1,5 @@
-// The words of the graph of an element (SR-111, SR-136) that the Mermaid text (SR-151 AK1, #1537) uses.
+// The words of the graph of an element (SR-111, SR-136) that the Mermaid text (SR-151 AK1, #1537) uses. The
+// display models import it (ADR-0019), so this module imports only types and `evidence/degree-text.ts`.
 import type { CommandOutput } from "../catalog.js";
 import { degreePercent } from "../evidence/degree-text.js";
 

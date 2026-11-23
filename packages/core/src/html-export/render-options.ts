@@ -1,6 +1,5 @@
 // How formulas and diagrams are set, the same in the app's editor preview (SR-096) and in the HTML export
-// (SR-231 AK5): KaTeX's options and Mermaid's settings, limits and colours. Exported as
-// `@reqseq/core/render-options` for the app's renderer, so it imports nothing.
+// (SR-231 AK5): KaTeX's options and Mermaid's settings, limits and colours.
 
 /**
  * KaTeX's options without `displayMode` and `errorColor`: `trust: false` draws the commands that could link, load
