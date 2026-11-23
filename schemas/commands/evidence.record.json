@@ -112,7 +112,7 @@
       "criteria": {
         "type": "array",
         "items": {
-          "description": "An acceptance criterion by its number, counted from 1 (for example 2, not AK2), or by its criterion key (for example k7f3).",
+          "description": "An acceptance criterion by its number, counted from 1 (for example 2, not AK2), or by its criterion key (for example k7f3, not AK-k7f3).",
           "anyOf": [
             { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
             {
