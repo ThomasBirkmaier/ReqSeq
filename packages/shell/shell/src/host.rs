@@ -379,7 +379,7 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
             );
         }
     };
-    let host = RealHost {
+    let mut host = RealHost {
         app: app.handle().clone(),
         tx: tx.clone(),
         token,
@@ -388,7 +388,10 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
         input: None,
         filter,
     };
-    thread::spawn(move || controller(&rx, Shell::new(spec), host));
+    let mut shell = Shell::new(spec);
+    // Tauri creates the window when its run loop starts; `WebView2` may never report the result (#2477).
+    shell.begin(&mut host);
+    thread::spawn(move || controller(&rx, shell, host));
     #[cfg(unix)]
     {
         let tx = tx.clone();
