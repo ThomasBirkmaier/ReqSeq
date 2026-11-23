@@ -857,7 +857,7 @@ describe.skipIf(macRecording === "skip")(
 describe.runIf(windows)("SR-252: a window that cannot open (Windows)", () => {
   it("[SR-252/AK-ts68] with an empty WebView2 runtime folder the shell ends with 1, names the reason in English, and no server runs", async () => {
     // WebView2 takes its runtime from this folder (WEBVIEW2_BROWSER_EXECUTABLE_FOLDER); an empty one is no runtime,
-    // and the window cannot open. The hangs with other broken runtimes are #2477.
+    // and the window cannot open.
     const empty = await tempFolder("no-runtime");
     onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
     const shell = await startShell({ env: { WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: empty } });
@@ -874,7 +874,86 @@ describe.runIf(windows)("SR-252: a window that cannot open (Windows)", () => {
     expect(shell.all("page-load")).toEqual([]);
     expect(await children(shell.child.pid ?? -1)).toEqual([]);
   }, 60_000);
+
+  it("[SR-252/AK-ts68] with a WebView2 user data folder that refuses writes the shell ends with 1 after its wait for the window, names the reason in English, and no server runs", async () => {
+    // The engine starts its process but never reports the window (#2477); the shell's wait for the window ends the
+    // shell, shortened here from 120 s.
+    const folder = await tempFolder("no-user-data");
+    onTestFinished(async () => {
+      await endEngines(folder);
+      await command("icacls", [folder, "/reset", "/T", "/Q"]);
+      await fs.rm(folder, { recursive: true, force: true });
+    });
+    await command("icacls", [folder, "/deny", "*S-1-1-0:(OI)(CI)(W,AD,WD,DC)"]);
+    await expect(fs.writeFile(path.join(folder, "write.txt"), "x")).rejects.toThrow();
+    const started = Date.now();
+    const shell = await startShell({ env: { ...WINDOW_WAIT, WEBVIEW2_USER_DATA_FOLDER: folder } });
+    await endsWithoutWindow(shell, started);
+  }, 90_000);
+
+  it.runIf((process.env["CI"] ?? "") !== "")(
+    "[SR-252/AK-ts68] with a WebView2 engine process that cannot start the shell ends with 1 after its wait for the window, names the reason in English, and no server runs",
+    async () => {
+      // An IFEO Debugger that does not exist makes each start of msedgewebview2.exe fail, and the engine never
+      // reports the window (#2477). The setting holds for every WebView2 program of the machine and needs
+      // administrator rights, so the test runs only in CI, on a runner that is thrown away.
+      const key = String.raw`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedgewebview2.exe`;
+      const before = await command("reg", ["query", key]).catch(() => undefined);
+      expect(before ?? "", "an IFEO Debugger is already set; the test leaves it alone").not.toMatch(
+        /\bDebugger\b/i,
+      );
+      // A program in a folder that does not exist, beside the shell's build.
+      const missing = path.join(path.dirname(SHELL), "no-such-folder", "debugger.exe");
+      await command("reg", ["add", key, "/v", "Debugger", "/t", "REG_SZ", "/d", missing, "/f"]);
+      onTestFinished(async () => {
+        await command(
+          "reg",
+          before === undefined ? ["delete", key, "/f"] : ["delete", key, "/v", "Debugger", "/f"],
+        );
+      });
+      const started = Date.now();
+      await endsWithoutWindow(await startShell({ env: WINDOW_WAIT }), started);
+    },
+    90_000,
+  );
 });
+
+/** The wait for the window in the two cases above: 10 s instead of 120 s. */
+const WINDOW_WAIT = { REQSEQ_SHELL_E2E_WINDOW_WAIT_MS: "10000" };
+
+/** Runs `program` with `args` and gives its standard output. */
+async function command(program: string, args: readonly string[]): Promise<string> {
+  const { stdout } = await promisify(execFile)(program, args, { timeout: 30_000 });
+  return stdout;
+}
+
+/**
+ * The shell, started at `started` with the 10 s wait for the window, ends after that wait and within 30 s, with exit
+ * code 1 and the reason in English (the reason names the program's wait, 120 s), shows no page, and leaves no server:
+ * no process whose parent was the shell, other than the engine's, which may stay behind.
+ */
+async function endsWithoutWindow(shell: Shell, started: number): Promise<void> {
+  const ended = await Promise.race([
+    shell.exited,
+    new Promise<undefined>((resolve) => setTimeout(resolve, 30_000 - (Date.now() - started), undefined)),
+  ]);
+  expect(ended, `stderr: ${shell.stderr}`).toEqual({ code: 1, signal: null });
+  expect(Date.now() - started).toBeGreaterThanOrEqual(10_000);
+  expect(shell.stderr).toMatch(
+    /^ReqSeq: the window could not open: the web engine did not create it within 120 s\r?$/m,
+  );
+  expect(shell.all("shown")).toEqual([]);
+  expect(shell.all("page-load")).toEqual([]);
+  const left = await children(shell.child.pid ?? -1);
+  expect(left.filter((p) => !p.toLowerCase().startsWith("msedgewebview2.exe "))).toEqual([]);
+}
+
+/** Ends the engine processes that use `folder` as their user data folder, so the folder can be removed. */
+async function endEngines(folder: string): Promise<void> {
+  const like = folder.replaceAll("'", "''").replaceAll("[", "[[]");
+  const script = `Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*${like}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+  await command("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
+}
 
 /** The processes still running whose parent was `pid`, with their programs and command lines. */
 async function children(pid: number): Promise<string[]> {

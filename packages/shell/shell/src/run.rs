@@ -8,6 +8,10 @@ use std::path::Path;
 use std::time::Duration;
 use url::Url;
 
+/// How long the shell waits for the engine to create its window (SR-252 AK8). On Windows `WebView2` reports neither
+/// success nor failure when its process cannot start or its user data folder cannot be written (#2477). Long, so that
+/// a slow first start of the engine is not ended (#2499).
+pub const WINDOW_WAIT: Duration = Duration::from_mins(2);
 /// How long the shell waits for the address line (SR-252 AK5).
 pub const ADDRESS_WAIT: Duration = Duration::from_secs(30);
 /// How long the server has after its standard input closed, before it is killed (ADR-0021, End).
@@ -58,6 +62,8 @@ pub trait Host {
 /// A timer the shell set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Timer {
+    /// The window was not created in time.
+    Window,
     /// The address line did not come in time.
     Address,
     /// The server did not end in time after its standard input closed.
@@ -113,6 +119,11 @@ impl Shell {
         }
     }
 
+    /// Starts the wait for the window; the host calls it once, before it creates the window.
+    pub fn begin(&mut self, host: &mut impl Host) {
+        host.after(WINDOW_WAIT, Timer::Window);
+    }
+
     /// Whether the shell has asked to exit.
     #[must_use]
     pub fn done(&self) -> bool {
@@ -124,13 +135,18 @@ impl Shell {
         match (&self.phase, event) {
             (_, Event::Stderr(chunk)) => self.tail.push(&chunk),
             (Phase::Created, Event::WindowReady) => self.start(host),
-            (Phase::Created, Event::WindowFailed(reason)) => {
-                host.write_error(&format!("ReqSeq: the window could not open: {reason}\n"));
-                self.exit(host, FAILED);
+            (Phase::Created, Event::WindowFailed(reason)) => self.no_window(host, &reason),
+            (Phase::Created, Event::Timer(Timer::Window)) => {
+                let reason = format!(
+                    "the web engine did not create it within {} s",
+                    WINDOW_WAIT.as_secs()
+                );
+                self.no_window(host, &reason);
             }
             (Phase::Waiting, Event::Stdout(line)) => self.read_line(&line, host),
             (Phase::Waiting, Event::Timer(Timer::Address)) => {
-                self.fail(host, "printed no loopback address within 30 s");
+                let reason = format!("printed no loopback address within {} s", ADDRESS_WAIT.as_secs());
+                self.fail(host, &reason);
             }
             (Phase::Waiting, Event::ServerExited(status)) => {
                 self.fail(host, &format!("could not start ({status})"));
@@ -217,6 +233,12 @@ impl Shell {
         };
         host.report(&reason);
         host.exit(FAILED);
+    }
+
+    /// No server has started yet, so the shell only names the reason and exits (SR-252 AK8).
+    fn no_window(&mut self, host: &mut impl Host, reason: &str) {
+        host.write_error(&format!("ReqSeq: the window could not open: {reason}\n"));
+        self.exit(host, FAILED);
     }
 
     fn exit(&mut self, host: &mut impl Host, code: i32) {
@@ -342,6 +364,38 @@ mod tests {
         assert_eq!(
             host.log,
             ["stderr ReqSeq: the window could not open: no display\n", "exit 1"]
+        );
+    }
+
+    #[test]
+    fn a_window_the_engine_does_not_create_in_time_ends_the_shell_without_a_server() {
+        let mut host = Fake::default();
+        let mut shell = shell();
+        shell.begin(&mut host);
+        shell.on(Event::Timer(Timer::Window), &mut host);
+        shell.on(Event::WindowReady, &mut host);
+        assert!(shell.done());
+        assert_eq!(
+            host.log,
+            [
+                "after 120s Window",
+                "stderr ReqSeq: the window could not open: the web engine did not create it within 120 s\n",
+                "exit 1"
+            ]
+        );
+    }
+
+    #[test]
+    fn the_window_wait_does_not_apply_once_the_window_exists() {
+        let mut host = Fake::default();
+        let mut shell = shell();
+        shell.begin(&mut host);
+        shell.on(Event::WindowReady, &mut host);
+        shell.on(Event::Timer(Timer::Window), &mut host);
+        assert!(!shell.done());
+        assert_eq!(
+            host.log,
+            ["after 120s Window", started().as_str(), "after 30s Address"]
         );
     }
 

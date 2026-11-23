@@ -5,7 +5,7 @@ use crate::{Input, engine, frame, server_started, write_error};
 use shell::address::ServerAddress;
 use shell::pick::{Dialog, Dialogs, Pick, Shown};
 use shell::redact::TokenSlot;
-use shell::run::{ADDRESS_WAIT, Event, Host, Shell, Timer};
+use shell::run::{ADDRESS_WAIT, Event, Host, Shell, Timer, WINDOW_WAIT};
 use shell::start::{Layout, ServerSpec, release_root, root_folder};
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -207,11 +207,14 @@ impl Host for RealHost {
 
     fn after(&mut self, delay: Duration, timer: Timer) {
         #[cfg(feature = "e2e")]
-        let delay = crate::e2e::address_wait()
-            .filter(|_| timer == Timer::Address && delay == ADDRESS_WAIT)
-            .unwrap_or(delay);
+        let delay = match timer {
+            Timer::Address if delay == ADDRESS_WAIT => crate::e2e::address_wait(),
+            Timer::Window if delay == WINDOW_WAIT => crate::e2e::window_wait(),
+            _ => None,
+        }
+        .unwrap_or(delay);
         #[cfg(not(feature = "e2e"))]
-        let _ = ADDRESS_WAIT;
+        let _ = (ADDRESS_WAIT, WINDOW_WAIT);
         let tx = self.tx.clone();
         thread::spawn(move || {
             thread::sleep(delay);
@@ -385,7 +388,7 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
             );
         }
     };
-    let host = RealHost {
+    let mut host = RealHost {
         app: app.handle().clone(),
         tx: tx.clone(),
         token,
@@ -394,7 +397,10 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
         input: None,
         filter,
     };
-    thread::spawn(move || controller(&rx, Shell::new(spec), host));
+    let mut shell = Shell::new(spec);
+    // Tauri creates the window when its run loop starts; `WebView2` may never report the result (#2477).
+    shell.begin(&mut host);
+    thread::spawn(move || controller(&rx, shell, host));
     #[cfg(unix)]
     {
         let tx = tx.clone();
