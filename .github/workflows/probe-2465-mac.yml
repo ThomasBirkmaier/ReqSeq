@@ -8,7 +8,7 @@ on:
 
 env:
   # probe (eslogger variants) or suite (the shell e2e suite)
-  MODE: probe
+  MODE: suite
 
 permissions:
   contents: read
@@ -55,78 +55,27 @@ jobs:
       - name: Shell - e2e build
         run: pnpm --filter @reqseq/shell build:e2e
 
-      - name: Probe - set up
-        if: ${{ env.MODE == 'probe' }}
+      - name: Shell - recorders (macOS)
         shell: bash
         run: |
-          set +e
-          P="$RUNNER_TEMP/probe"; mkdir -p "$P/out" "$P/private"
-          {
-            echo "PROBE=$P"
-            echo "PROBE_ROOT=$PWD"
-            echo "PROBE_SHELL=$PWD/packages/shell/target/debug/reqseq-shell"
-            echo "PROBE_CLI=$PWD/packages/cli/dist/bin.js"
-          } >> "$GITHUB_ENV"
-          sw_vers; uname -m
-          echo "== eslogger help"; eslogger --help 2>&1 | head -60
           sudo dscl . -create /Groups/reqseq-e2e
           sudo dscl . -create /Groups/reqseq-e2e PrimaryGroupID 4265
-          sudo dscl . -append /Groups/reqseq-e2e GroupMembership runner
-          echo 'runner ALL=(ALL:ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/zz-probe-2465 >/dev/null
-          sudo chmod 440 /etc/sudoers.d/zz-probe-2465
+          sudo dscl . -append /Groups/reqseq-e2e GroupMembership "$USER"
+          echo "$USER ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/zz-reqseq-shell-e2e > /dev/null
+          sudo chmod 440 /etc/sudoers.d/zz-reqseq-shell-e2e
+          sudo visudo -c -q
           sudo dscacheutil -flushcache
-          printf 'block return out log quick inet from any to ! 127.0.0.0/8 group reqseq-e2e\nblock return out log quick inet6 from any to ! ::1 group reqseq-e2e\n' > "$P/anchor.conf"
-          sudo pfctl -a com.apple/reqseq-probe -f "$P/anchor.conf" 2>&1
-          sudo pfctl -E 2>&1 | tee "$P/private/pf-enable.txt"
-          node -e 'console.log(process.execPath)'
-          ls -la /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/ 2>&1 | head
-          ls -d /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework 2>&1
-
-      - name: Probe - eslogger trials, one instance at a time
-        if: ${{ env.MODE == 'probe' }}
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set +e
-          mkdir -p "$PROBE/nodecopy/bin"
-          cp "$(node -e 'console.log(process.execPath)')" "$PROBE/nodecopy/bin/node"
-          "$PROBE/nodecopy/bin/node" -e 'console.log("node copy", process.version)'
-          WK1=/System/Library/Frameworks/WebKit.framework
-          WK2=/System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework
-          SEL=(--select "$PWD/packages/shell/target" --select "$PROBE/nodecopy" --select "$WK1" --select "$WK2" --select /usr/bin/sudo)
-          mark() { echo "$(date -u +%FT%T.%NZ | cut -c1-23) $*" | tee -a "$PROBE/private/marks.txt"; }
-          trial() {
-            local name="$1"; shift
-            sudo eslogger "$@" > "$PROBE/es-$name.json" 2> "$PROBE/es-$name.err" < /dev/null &
-            for i in $(seq 1 50); do [ -s "$PROBE/es-$name.json" ] && break; sleep 0.2; done
-            mark "$name start ($(wc -c < "$PROBE/es-$name.json") bytes after the wait)"
-            sudo -n -u runner -g reqseq-e2e env PROBE="$PROBE" "$PROBE/nodecopy/bin/node" probe/control.mjs "control-$name" > /dev/null
-            PROBE_OPTS="{\"label\":\"$name\",\"session\":true,\"capMs\":90000,\"node\":\"$PROBE/nodecopy/bin/node\",\"wrap\":[\"sudo\",\"-n\",\"-u\",\"runner\",\"-g\",\"reqseq-e2e\"]}" node probe/drive.mjs > "$PROBE/drive-$name.txt"
-            grep -E '"exit"|token' -A1 "$PROBE/drive-$name.txt" | head -6
-            sleep 2
-            mark "$name stop"
-            local t0=$(date +%s)
-            sudo pkill -TERM -x eslogger
-            for i in $(seq 1 60); do pgrep -x eslogger >/dev/null || break; sleep 0.5; done
-            echo "eslogger ended after $(( $(date +%s) - t0 )) s; left: $(pgrep -lx eslogger)"
-            sudo pkill -KILL -x eslogger
-            node probe/es-analyze.mjs "$PROBE/es-$name.json" 2>&1 | grep -v '^  [a-z]*: {' | cut -c1-3000
-            rm -f "$PROBE/private/token-"* "$PROBE/private/pid-"*
-          }
-          trial t1 exec fork exit
-          trial t2 exec fork open create rename "${SEL[@]}"
-          trial t3 exec fork open close create rename "${SEL[@]}"
-          trial t4 exec fork exit open create rename
-
-      - name: Probe - clean up
+          test "$(sudo -n -u "$USER" -g reqseq-e2e id -gn)" = reqseq-e2e
+          echo 'REQSEQ_SHELL_E2E_RECORD=macos' >> "$GITHUB_ENV"
+      - name: Shell - e2e
+        timeout-minutes: 10
+        run: pnpm --filter @reqseq/shell test:e2e
+      - name: Shell - remove the recorders (macOS)
         if: ${{ always() }}
         continue-on-error: true
         shell: bash
         run: |
-          set +e
-          sudo pkill -INT -x eslogger; sudo pkill -INT -x tcpdump
-          sudo pfctl -a com.apple/reqseq-probe -F all 2>&1
-          tok=$(sed -n 's/.*Token : \([0-9]*\).*/\1/p' "$PROBE/private/pf-enable.txt" 2>/dev/null)
-          [ -n "$tok" ] && sudo pfctl -X "$tok" 2>&1
-          sudo rm -f /etc/sudoers.d/zz-probe-2465
-          sudo dscl . -delete /Groups/reqseq-e2e
+          sudo -n pkill -KILL -x eslogger || true
+          sudo -n pkill -TERM -x tcpdump || true
+          sudo -n pfctl -q -a com.apple/reqseq-shell-e2e -F all || true
+          echo "pf rules left: $(sudo -n pfctl -a com.apple/reqseq-shell-e2e -s rules 2> /dev/null | grep -c block)"
