@@ -14,15 +14,13 @@ acceptance-criteria:
     text: Gegeben ein Element der Auswahl lässt die Property nach dem Metamodell nicht zu oder hat einen Typ, den das Metamodell nicht kennt, wenn geändert wird, dann lässt das Tool es aus und nennt es.
   - key: f00k
     text: "Gegeben eine Mehrfachänderung soll ID, Typ oder Status setzen, ergänzen oder entfernen (CLI, API, MCP: `element.bulkUpdate`), dann lehnt das Tool das ab und schreibt nichts; den Status mehrerer Elemente setzt `element.setStatus` in einem Schritt."
-  - key: j9gx
-    text: "Gegeben die Mehrfachänderung in der Befehlszeile der App, wenn das letzte Argument beantwortet ist, dann zeigt die App die Vorschau in einem Buffer und fragt als nächsten Schritt die Bestätigung mit den Treffern „No“, zuerst und markiert, und „Yes, apply“; die Zeile aus SR-210 nennt die Zahl der Elemente, die die Änderung schreiben würde, die Zahl der ausgelassenen (AK3) und dass Ctrl+Enter schreibt. Enter oder ein Klick auf „Yes, apply“ schreibt, was die gezeigte Vorschau nennt (AK2); Ctrl+Enter (unter macOS Cmd+Enter) schreibt ebenso, gleich welcher Treffer markiert ist (abweichend von SR-108 AK6). Enter auf „No“ und Escape führen einen Schritt zurück, die Vorschau bleibt offen. Lehnt das Tool die Bestätigung ab, weil sich die Änderung seit der Vorschau geändert hat, zeigt die App die neue Vorschau und fragt neu. Würde die Änderung kein Element schreiben, fragt die Befehlszeile nicht und meldet das. Für Tastendrücke und Klicks auf der Bestätigung gilt der letzte Satz von SR-218 AK3."
 verification-method: test
 packages:
   - { id: e8a95bf4-c96c-4c8a-9fa0-7e9bc0dbd5bd, version: n2:8144976caed4daca, title: Element bearbeiten }
 derives-from:
   - { id: 6adc693a-e1d7-42a9-aeca-7ab5bfacefec, version: n1:b86cbcab02241a36, title: Mehrere Elemente auf einmal ändern }
 based-on:
-  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:5086a4bc7d6ff7de, title: Statuswerte kommen aus dem Metamodell }
+  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:400ae9ecbb41c185, title: Statuswerte kommen aus dem Metamodell }
 ---
 
 Das Tool muss eine Property für eine Auswahl von Elementen in einem Schritt setzen, ergänzen oder entfernen lassen. Ergänzen fügt einer Property mit mehreren Werten die genannten Werte hinzu. Entfernen ohne Wert entfernt die Property, mit Werten nur diese Werte.

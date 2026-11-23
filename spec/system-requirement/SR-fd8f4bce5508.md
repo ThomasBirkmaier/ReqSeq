@@ -15,8 +15,6 @@ acceptance-criteria:
     text: Gegeben eine Spalte der Matrix, wenn die Matrix angezeigt wird, dann kennzeichnet das Tool Lücken und nennt die Angaben über der Spalte so, wie SR-153 es festlegt; eine leere Zelle ist nicht schon deshalb eine Lücke.
   - key: zs8y
     text: Gegeben eine Beziehung zeigt auf eine ältere Fassung ihres Ziels oder auf ein fehlendes Ziel, wenn die Matrix angezeigt wird, dann ist sie in ihrer Zelle als veraltet oder fehlend gekennzeichnet.
-  - key: k8sg
-    text: Gegeben ein Element in einer Zeile oder Zelle der Matrix, wenn es gewählt wird, dann öffnet das Tool dieses Element.
   - key: w9wp
     text: Gegeben eine Auswahl über Paket, gespeicherten Filter oder eine Liste von IDs, wenn die Matrix über Kommandozeile, API oder MCP abgefragt wird, dann liefert das Tool in allen Zugängen dieselben Zeilen, Spalten und Zellen für dieselbe Auswahl.
 verification-method: test

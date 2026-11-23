@@ -26,8 +26,6 @@ acceptance-criteria:
     text: Gegeben ein solcher Befehl ist gelungen, wenn danach derselbe Prozess einen Befehl ausführt, dann arbeitet er mit dem neuen Metamodell, jeder andere laufende Zugang nach SR-015 AK1; ändert sich dadurch die Fassung von Elementen (SR-015 AK4) oder fehlt Elementen eine neue Pflicht-Property (SR-015 AK3), nennt die Ausgabe die Zahl dieser Elemente.
   - key: jskb
     text: "Gegeben ein anderer Schreibaufruf läuft gleichzeitig, wenn ein solcher Befehl ausgeführt wird, dann gilt SR-166: im selben Prozess wie nacheinander, mit der Nutzung nach dem Stand bei der Ausführung, und eine Datei, die ein anderer Prozess seit dem Lesen geändert hat, schreibt der Befehl nicht und meldet einen Fehler."
-  - key: q76q
-    text: "Gegeben die Befehlszeile der App fragt einen dieser Befehle, wenn sie erscheint, dann fragt sie nur die Schritte, die die Stelle nicht schon liefert (D-077, SR-199 AK2 und AK5 bis AK7): die Definition, die Angabe, die sich ändern soll, und ihren neuen Wert; mehrere Typen, also Quell- und Ziel-Typen oder die Ziel-Typen einer Property, als Marken wie in SR-215 AK5, mit „Any type“ als eigenem Treffer, der keine Liste schreibt; feste Werte je Wert mit Name und Schlüssel als Marke; Mindest- und Höchstzahl je Ziel-Typ als Zahl oder leer. Eine leere Liste von Typen schreibt kein Befehl."
   - key: rtcn
     text: Gegeben dieselbe Eingabe und dasselbe Metamodell, wenn ein solcher Befehl über Kommandozeile, API oder MCP-Server ausgeführt wird, dann schreibt das Tool jede Datei Zeichen für Zeichen gleich und liefert dieselbe Ausgabe.
 packages:

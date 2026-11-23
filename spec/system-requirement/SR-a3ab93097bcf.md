@@ -18,12 +18,6 @@ acceptance-criteria:
     text: Gegeben ein Befehl, dessen Antwort Elemente sind, wenn `element.list` mit der Auswahl „Ausgabe dieses Befehls mit dieser Eingabe“ aufgerufen wird, dann liefert es genau diese Elemente, unabhängig von Seiten der Ausgabe. Enthält die Antwort Elemente, die der Arbeitsbereich nicht enthält, liefert `element.list` die übrigen und kennzeichnet das Ergebnis als unvollständig.
   - key: rxbd
     text: Gegeben eine Art eines Befunds, wenn die Referenz erzeugt wird, dann führt das Tool für sie einen kurzen Titel, den die Referenz und die Ausgabe nennen.
-  - key: zk0v
-    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau die Schreibbefehle als „zeigt seine Ausgabe“ gekennzeichnet, deren Ausgabe die Vorschau oder das Ergebnis einer Mehrfachänderung (SR-071 AK2), eines ReqIF-Imports, eines ReqIF-Exports oder einer Anreicherung ist, und der Schreibbefehl, dessen Ausgabe die Agent-Anleitung oder die Skill-Datei ist (SR-229 AK1, AK7): `element.bulkUpdate`, `reqif.import`, `reqif.export`, `evidence.enrichJunit` und `tool.guide`; jeder andere Schreibbefehl ist es nicht."
-  - key: nhzq
-    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind genau `baseline.get` und `evidence.status` als „bleibt Ausgabeseite“ gekennzeichnet; ihre Antwort ist der Zustand jedes Eintrags (die Änderung seit der Baseline, der Nachweisstatus je Sicht). Jeder andere Befehl ist es nicht, auch `evidence.withoutPassedTest` nicht, dessen Antwort die Auswahl der Requirements ist (SR-120 AK2)."
-  - key: cwyt
-    text: "Gegeben der Befehlskatalog, wie ihn die API liefert, wenn er gelesen wird, dann sind an einem Eintrag der Antwort von `evidence.status` genau diese Angaben des Eintrags als Angabe des Elements gekennzeichnet: Typ, Fassung, Repository, Datei, Properties und Beziehungen. Jede andere Angabe des Eintrags ist es nicht, auch seine UUID, die Kennzeichnung als emergentes Verhalten, der Nachweisstatus je Sicht, der Validierungsstatus, dessen Begründung und die Befunde des Eintrags nicht. An einem Eintrag der Antwort von `baseline.get` ist keine Angabe so gekennzeichnet, und an der Ausgabe jedes anderen Befehls auch keine."
 packages:
   - { id: 17252361-b899-4483-ba2b-baf32da3193e, version: n2:233cd483722ffe08, title: Zugänge und Anbindung }
 verification-method: test

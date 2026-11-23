@@ -20,7 +20,7 @@ acceptance-criteria:
   - key: tj6p
     text: Gegeben eine Perspektive, die einen gespeicherten Filter nennt, wenn der Filter neu gespeichert wurde, dann gilt beim nächsten Aufruf seine neue Bedingung; gibt es den Filter nicht oder ist seine Datei fehlerhaft, lehnt das Tool den Aufruf ab und nennt Perspektive und Filter.
   - key: zz87
-    text: Gegeben eine Perspektive mit einer Gruppierung nach einer Property, deren Werte sich nach SR-124 AK2 nicht mehr auswählen lassen, wenn sie ohne eigene Gruppierung aufgerufen wird, dann liefert das Tool die Liste ohne Gruppen und meldet, dass sich danach nicht gruppieren lässt, in allen Zugängen.
+    text: Gegeben eine Perspektive mit einer Gruppierung nach einer Property, deren Werte sich nach SR-124 AK1 nicht mehr auswählen lassen, wenn sie ohne eigene Gruppierung aufgerufen wird, dann liefert das Tool die Liste ohne Gruppen und meldet, dass sich danach nicht gruppieren lässt, in allen Zugängen.
   - key: qp6d
     text: Gegeben eine fehlerhafte Perspektiven-Datei, wenn die Perspektiven aufgelistet werden, dann nennt das Tool Datei und Grund, listet die übrigen Perspektiven und überschreibt die Datei nie von selbst (SR-008).
 packages:

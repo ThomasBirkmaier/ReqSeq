@@ -19,7 +19,7 @@ derives-from:
   - { id: 6ad47d8b-773c-4d21-bf35-1b7deeb96561, version: n1:de3fc7e167c1c882, title: Anpassbares Metamodell }
 based-on:
   - { id: 6adc50a6-2c26-4513-8a40-a2afbca60eec, version: n1:213303dcc0ab524e, title: Oberfläche nur auf Englisch }
-  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:5086a4bc7d6ff7de, title: Statuswerte kommen aus dem Metamodell }
+  - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n2:400ae9ecbb41c185, title: Statuswerte kommen aus dem Metamodell }
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:7c87e88362a6b473, title: Keine feste Reihenfolge }
   - { id: 6adc691e-6394-45b3-a796-31e830aa3392, version: n2:679806539676c56d, title: Was das Standardmodell enthält }
   - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n2:1113c0f4b5aa5043, title: Bedeutungen und Standardmodell vervollständigt }
