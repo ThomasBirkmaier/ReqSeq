@@ -17,6 +17,7 @@ import {
   commitBlobs,
   commitsBetween,
   fileHistory,
+  firstParentChanges,
   fileMoves,
   headCommit,
   headFiles,
@@ -49,6 +50,7 @@ vi.mock("../git/reader.js", async (importOriginal) => {
     headFiles: vi.fn(original.headFiles),
     fileHistory: vi.fn(original.fileHistory),
     fileMoves: vi.fn(original.fileMoves),
+    firstParentChanges: vi.fn(original.firstParentChanges),
     historyRange: vi.fn(original.historyRange),
     commitBlobs: vi.fn(original.commitBlobs),
     commitsBetween: vi.fn(original.commitsBetween),
@@ -1438,45 +1440,111 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     expect(historyRange).toHaveBeenCalledTimes(2);
   });
 
-  it("forgets what Git could not tell at a commit HEAD no longer reaches", async () => {
+  it("answers a sort from HEAD's version first: undated only where Git could not tell HEAD's own, newer where HEAD has another, whichever call came first (SR-075 AK6)", async () => {
     const repo = await repository([
       { name: "one", files: { [FILE]: one } },
       { name: "two", files: { [FILE]: two } },
     ]);
     const version = await versionOf(repo.workspace, two);
     const blob = (await repo.fixture.git(["rev-parse", `HEAD:${FILE}`])).trim();
-    vi.mocked(openObjectReader).mockImplementationOnce((folder, options): ObjectReader => {
-      const real = actual.openObjectReader(folder, options);
-      return {
-        info: (names) => real.info(names),
-        read: async (names, open) => {
-          const lost = names.indexOf(blob);
-          const read = await real.read(names, (info, i) => (i === lost ? () => undefined : open(info, i)));
-          return read.known
-            ? { known: true, objects: read.objects.map((o, i) => (i === lost ? null : o)) }
-            : read;
-        },
-        close: () => {
-          real.close();
-        },
-      };
-    });
-    const kinds = async (): Promise<string[]> =>
+    // The next reader cannot read the text of `two`.
+    const lose = (): void => {
+      vi.mocked(openObjectReader).mockImplementationOnce((folder, options): ObjectReader => {
+        const real = actual.openObjectReader(folder, options);
+        return {
+          info: (names) => real.info(names),
+          read: async (names, open) => {
+            const lost = names.indexOf(blob);
+            const read = await real.read(names, (info, i) => (i === lost ? () => undefined : open(info, i)));
+            return read.known
+              ? { known: true, objects: read.objects.map((o, i) => (i === lost ? null : o)) }
+              : read;
+          },
+          close: () => {
+            real.close();
+          },
+        };
+      });
+    };
+    const kinds = async (workspace = repo.workspace): Promise<string[]> =>
       (
-        await versionTimes(await context(repo.workspace), [
-          { repository: "system", file: FILE, id: ID, version },
-        ])
+        await versionTimes(await context(workspace), [{ repository: "system", file: FILE, id: ID, version }])
       ).map((t) => t.kind);
+    lose();
     expect(await kinds()).toEqual(["undated"]);
-    // A commit on top: `two` is still reached, and still unknown.
+    // Nor does a start of an older version count where Git could not tell HEAD's.
+    const starts = new Workspace(repo.fixture.root);
+    onTestFinished(() => starts.close());
+    lose();
+    const older = await versionOf(repo.workspace, one);
+    expect(await dates(starts, [{ version: older }])).toEqual([null]);
+    // A sort after it reads the same from what the walk kept.
+    expect(
+      (
+        await versionTimes(await context(starts), [
+          { repository: "system", file: FILE, id: ID, version: older },
+        ])
+      ).map((t) => t.kind),
+    ).toEqual(["undated"]);
+    // A commit on top: `two` is still reached and unknown, but HEAD's version is known and another,
+    // so the content counts as newer than every commit.
     const ids = await made(repo, [
       { name: "three", parents: [await repo.fixture.head()], files: { [FILE]: three } },
     ]);
     await moveTo(repo, String(ids["three"]));
-    expect(await kinds()).toEqual(["undated"]);
+    expect(await kinds()).toEqual(["uncommitted"]);
+    // The same where the start was looked up first (it kept no date: Git could not tell `two`).
+    const after = new Workspace(repo.fixture.root);
+    onTestFinished(() => after.close());
+    lose();
+    expect(await dates(after, [{ version }])).toEqual([null]);
+    expect(await kinds(after)).toEqual(["uncommitted"]);
     // Back to `one`: `two` is not reached, and no commit has its version.
     await moveTo(repo, String(repo.made["one"]?.id));
     expect(await kinds()).toEqual(["uncommitted"]);
+  });
+
+  it("sorts as late, not as newer, where the history read for an image HEAD's text embeds did not answer in time", async () => {
+    const text = element("![i](img.png)");
+    const repo = await repository([
+      { name: "one", files: { [FILE]: text, "requirements/img.png": "1" } },
+      { name: "two", files: { "requirements/img.png": "2" } },
+    ]);
+    const asked = [
+      {
+        repository: "system",
+        file: FILE,
+        id: ID,
+        version: await versionOf(repo.workspace, text, { "img.png": "2" }),
+      },
+    ];
+    // HEAD's text is read, it embeds the image, and the history read for it times out.
+    vi.mocked(fileHistory).mockImplementationOnce(actual.fileHistory).mockResolvedValueOnce(TIMEOUT);
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual([{ kind: "late" }]);
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual([
+      { kind: "dated", date: at(repo, "two") },
+    ]);
+  });
+
+  it("finds the start of a version HEAD does not have after a sort of it, and sorts it as newer after its start was found", async () => {
+    const repo = await repository([
+      { name: "one", files: { [FILE]: one } },
+      { name: "two", files: { [FILE]: two } },
+    ]);
+    const version = await versionOf(repo.workspace, one);
+    const asked = [
+      { repository: "system", file: FILE, id: ID, version },
+      { repository: "system", file: FILE, id: ID, version: await versionOf(repo.workspace, two) },
+    ];
+    const sorted = [{ kind: "uncommitted" }, { kind: "dated", date: at(repo, "two") }];
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual(sorted);
+    // Again, from what the walk keeps.
+    expect(await versionTimes(await context(repo.workspace), asked)).toEqual(sorted);
+    expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "one")]);
+    const fresh = new Workspace(repo.fixture.root);
+    onTestFinished(() => fresh.close());
+    expect(await dates(fresh, [{ version }])).toEqual([at(repo, "one")]);
+    expect(await versionTimes(await context(fresh), asked)).toEqual(sorted);
   });
 
   it("walks again a walk Git refused at the old HEAD, and one an answer still holds", async () => {
@@ -1629,5 +1697,150 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
         ids.map((id) => ({ file: file(id), id, version: versionMany })),
       ),
     ).toEqual(ids.map(() => at(repo, "all")));
+  });
+});
+
+describe("version date at a merge, against its first parent (SR-082 AK4)", () => {
+  /** Enough files open at one merge that it is compared with its first parent (`MERGES_FROM`). */
+  const MANY = 100;
+  const ids = Array.from(
+    { length: MANY },
+    (_, i) => `66666666-6666-4666-8666-${i.toString(16).padStart(12, "0")}`,
+  );
+  const file = (i: number): string => `requirements/SR-${String(ids[i]).slice(-12)}.md`;
+  const texts = (text: (i: number) => string): Record<string, string> =>
+    Object.fromEntries(ids.map((id, i) => [file(i), element(text(i), "", id)]));
+  // The first file embeds an image.
+  const top = (i: number): string => (i === 0 ? "Top ![i](img.png)." : `Top ${String(i)}.`);
+
+  /**
+   * `base` and `top` on main (the working copy), a side from `base` with `side`, and a merge of it
+   * into `top` that takes `taken` of the side: sorted at `top` first, then HEAD is moved to the merge.
+   */
+  const merged = async (
+    side: HistoryCommitSpec["files"],
+    taken: HistoryCommitSpec["files"],
+    deleted: readonly string[] = [],
+    config: readonly (readonly [string, string])[] = [],
+  ): Promise<{ readonly repo: Repository; readonly asked: VersionDateRequest[] }> => {
+    const repo = await repository([
+      { name: "base", files: { ...texts((i) => `Base ${String(i)}.`), "requirements/img.png": "1" } },
+      { name: "top", files: texts(top) },
+    ]);
+    for (const [key, value] of config) {
+      await repo.fixture.git(["config", key, value]);
+    }
+    const asked: VersionDateRequest[] = [
+      ...(
+        await Promise.all(
+          ids.map((_, i) =>
+            versionOf(repo.workspace, element(top(i), "", ids[i]), i === 0 ? { "img.png": "1" } : {}),
+          ),
+        )
+      ).map((version, i) => ({ repository: "system", file: file(i), id: String(ids[i]), version })),
+      // A file of the working copy that only the side has.
+      {
+        repository: "system",
+        file: FILE,
+        id: ID,
+        version: await versionOf(repo.workspace, element("Side.")),
+      },
+    ];
+    expect(new Set((await versionTimes(await context(repo.workspace), asked)).map((t) => t.kind))).toEqual(
+      new Set(["dated", "uncommitted"]),
+    );
+    const head = await repo.fixture.head();
+    const made = await repo.fixture.commitHistory([
+      {
+        name: "side",
+        parents: [String(repo.made["base"]?.id)],
+        files: { [FILE]: element("Side."), ...side },
+      },
+      { name: "merge", parents: [head, "side"], files: { "side.txt": "s\n", ...taken }, deleted },
+    ]);
+    await repo.fixture.git(["update-ref", "refs/heads/main", String(made["merge"]?.id)]);
+    vi.clearAllMocks();
+    return { repo, asked };
+  };
+
+  /** The answers of a sort and of the starts, carried and fresh: the same. */
+  const sameAsFresh = async (repo: Repository, asked: readonly VersionDateRequest[]): Promise<unknown> => {
+    const answers = async (workspace: Workspace): Promise<unknown> => {
+      const ctx = await context(workspace);
+      return [await versionTimes(ctx, asked), await versionStarts(ctx, asked)];
+    };
+    const carried = await answers(repo.workspace);
+    const fresh = new Workspace(repo.fixture.root);
+    onTestFinished(() => fresh.close());
+    expect(carried).toEqual(await answers(fresh));
+    return carried;
+  };
+
+  it("takes the version of the first parent's side where the merge changed none of the file's paths, and reads the others", async () => {
+    // The side changes two texts and the image; the merge takes one text and the image.
+    const { repo, asked } = await merged(
+      {
+        [file(1)]: element("Side 1.", "", ids[1]),
+        [file(2)]: element("Side 2.", "", ids[2]),
+        "requirements/img.png": "2",
+      },
+      { [file(1)]: element("Side 1.", "", ids[1]), "requirements/img.png": "2" },
+    );
+    // The names the carried sort asks Git for at the merge: only those of the files it changed.
+    const names: string[] = [];
+    vi.mocked(openObjectReader).mockImplementationOnce((folder, options): ObjectReader => {
+      const real = actual.openObjectReader(folder, options);
+      return {
+        info: (asked) => {
+          names.push(...asked);
+          return real.info(asked);
+        },
+        read: (asked, open) => real.read(asked, open),
+        close: () => {
+          real.close();
+        },
+      };
+    });
+    const times = (await sameAsFresh(repo, asked)) as [{ kind: string }[]];
+    expect(firstParentChanges).toHaveBeenCalledTimes(1);
+    const merge = await repo.fixture.head();
+    expect(new Set(names.filter((n) => n.startsWith(merge)).map((n) => n.slice(merge.length + 1)))).toEqual(
+      new Set([file(0), file(1), "requirements/img.png"]),
+    );
+    // The texts and the image the merge took, and the file only the side had, which it did not take.
+    expect(times[0].map((t, i) => (t.kind === "dated" ? [] : [i])).flat()).toEqual([0, 1, MANY]);
+  });
+
+  it("reads where git lists a move by both paths, whatever log.diffMerges and diff.renames say", async () => {
+    const moved = file(3).replace(".md", "-moved.md");
+    const { repo, asked } = await merged(
+      { [moved]: element(top(3), "", ids[3]), [file(4)]: element("Side 4.", "", ids[4]) },
+      { [moved]: element(top(3), "", ids[3]), [file(4)]: element("Side 4.", "", ids[4]) },
+      [file(3)],
+      [
+        ["log.diffMerges", "combined"],
+        ["diff.renames", "true"],
+      ],
+    );
+    const times = (await sameAsFresh(repo, asked)) as [{ kind: string }[]];
+    expect(firstParentChanges).toHaveBeenCalledTimes(1);
+    expect(times[0].map((t, i) => (t.kind === "dated" ? [] : [i])).flat()).toEqual([3, 4, MANY]);
+  });
+
+  it("reads the merge where git refuses the list or leaves the merge out, and is late where it does not answer in time", async () => {
+    for (const answer of [BROKEN, { known: true, changes: new Map() }] as const) {
+      const { repo, asked } = await merged({}, {});
+      vi.mocked(firstParentChanges).mockResolvedValueOnce(answer);
+      await sameAsFresh(repo, asked);
+      expect(firstParentChanges).toHaveBeenCalledTimes(1);
+    }
+    const { repo, asked } = await merged({}, {});
+    vi.mocked(firstParentChanges).mockResolvedValueOnce(TIMEOUT);
+    expect(new Set((await versionTimes(await context(repo.workspace), asked)).map((t) => t.kind))).toContain(
+      "late",
+    );
+    // The next call asks again.
+    const [times] = (await sameAsFresh(repo, asked)) as [{ kind: string }[]];
+    expect(times.map((t) => t.kind)).not.toContain("late");
   });
 });

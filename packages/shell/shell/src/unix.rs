@@ -167,10 +167,22 @@ impl Filter {
         }
         let deadline = Instant::now() + wait;
         for thread in self.threads {
-            while !thread.is_finished() && Instant::now() < deadline {
-                thread::sleep(Duration::from_millis(5));
-            }
+            wait_until(deadline, || thread.is_finished());
         }
+    }
+}
+
+/// Asks `done` every 5 ms until it answers yes or `deadline` has passed, and gives its last answer. Every path runs
+/// in each test run whatever the timing, so the coverage of its callers does not depend on it (#2416).
+fn wait_until(deadline: Instant, mut done: impl FnMut() -> bool) -> bool {
+    loop {
+        if done() {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(5));
     }
 }
 
@@ -236,19 +248,70 @@ pub fn write_quietly(mut out: &File, text: &str) {
     let _ = out.write_all(text.as_bytes());
 }
 
+/// Makes this process write no core dump when it ends by a signal, as the e2e driver's crash does (#2406). While the
+/// kernel writes a core, every descriptor of the process stays open, the write end of the server's standard input
+/// among them, so the server would outlive the dump. On Linux the process becomes not dumpable, which stops a core
+/// pattern that pipes to a helper too (apport, systemd-coredump), because such a pattern ignores `RLIMIT_CORE`
+/// (core(5)); elsewhere `RLIMIT_CORE` 0 is enough.
+pub fn no_core_dump() {
+    let none = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    // SAFETY: `setrlimit` reads the `rlimit` above, which lives for the call; `prctl` with `PR_SET_DUMPABLE` takes
+    // plain integers. A failure leaves the core dump as it was, which only makes the crash slower.
+    unsafe {
+        libc::setrlimit(libc::RLIMIT_CORE, &raw const none);
+        #[cfg(target_os = "linux")]
+        libc::prctl(libc::PR_SET_DUMPABLE, libc::c_ulong::from(0u8));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::Read as _;
     use std::sync::Arc;
 
-    /// Whether `done` holds within 5 s, asked every 10 ms after a first sleep. It has no branch of its own, so its
-    /// lines run on every timing, and the coverage gate does not depend on how fast a process ends (#2414).
-    fn within_5_s(mut done: impl FnMut() -> bool) -> bool {
-        (0..500).any(|_| {
-            thread::sleep(Duration::from_millis(10));
-            done()
-        })
+    #[test]
+    fn the_wait_asks_until_yes_or_the_deadline() {
+        let mut asked = 0;
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), || {
+            asked += 1;
+            asked == 3
+        }));
+        assert_eq!(asked, 3);
+        assert!(!wait_until(Instant::now(), || false));
+    }
+
+    /// Runs in a test process of its own, which it starts again with `REQSEQ_SHELL_TEST_NO_CORE_DUMP`: the change
+    /// cannot be undone in this one.
+    #[test]
+    fn after_no_core_dump_the_process_writes_no_core() {
+        const NAME: &str = "unix::tests::after_no_core_dump_the_process_writes_no_core";
+        if std::env::var_os("REQSEQ_SHELL_TEST_NO_CORE_DUMP").is_some() {
+            no_core_dump();
+            let mut limit = libc::rlimit {
+                rlim_cur: 1,
+                rlim_max: 1,
+            };
+            // SAFETY: `getrlimit` writes the `rlimit` above, which lives for the call.
+            assert_eq!(unsafe { libc::getrlimit(libc::RLIMIT_CORE, &raw mut limit) }, 0);
+            assert_eq!((limit.rlim_cur, limit.rlim_max), (0, 0));
+            #[cfg(target_os = "linux")]
+            // SAFETY: `PR_GET_DUMPABLE` takes no further argument and touches no memory.
+            assert_eq!(unsafe { libc::prctl(libc::PR_GET_DUMPABLE) }, 0);
+            return;
+        }
+        let out = Command::new(std::env::current_exe().unwrap())
+            .args([NAME, "--exact", "--test-threads", "1"])
+            .env("REQSEQ_SHELL_TEST_NO_CORE_DUMP", "1")
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success(), "{stdout}{stderr}");
+        assert!(stdout.contains("1 passed"), "{stdout}");
     }
 
     #[test]
@@ -333,7 +396,8 @@ mod tests {
         kill_group(child.id());
         assert_eq!(crate::server::describe(child.wait().unwrap()), "signal 9");
         // SAFETY: probing with signal 0 sends nothing.
-        assert!(within_5_s(|| unsafe { libc::kill(grandchild, 0) } != 0));
+        let gone = || unsafe { libc::kill(grandchild, 0) } != 0;
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), gone));
         kill_group(u32::MAX);
     }
 
@@ -419,7 +483,9 @@ mod tests {
         // The opener is reaped by the thread of `open_with`: until then it is a zombie that signal 0 still reaches.
         let pid: libc::pid_t = pid.parse().unwrap();
         // SAFETY: probing with signal 0 sends nothing.
-        assert!(within_5_s(|| unsafe { libc::kill(pid, 0) } != 0));
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), || unsafe {
+            libc::kill(pid, 0)
+        } != 0));
         let error = open_with(&dir.join("missing"), "https://example.org/").unwrap_err();
         assert!(error.contains("missing"), "{error}");
         let file = File::options().write(true).open("/dev/null").unwrap();
