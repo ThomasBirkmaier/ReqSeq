@@ -118,6 +118,6 @@ test("where the panel is hidden, the list header still counts the verified requi
     await expect(mini.getByRole("link")).toHaveCount(0);
     return;
   }
-  await mini.getByRole("link", { name: new RegExp(`since ${baseline.name}`) }).click();
+  await mini.getByRole("link", { name: `since ${baseline.name}.` }).click();
   await expect(page.getByRole("heading", { level: 1, name: `Changes since ${baseline.name}` })).toBeVisible();
 });

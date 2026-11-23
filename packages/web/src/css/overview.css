@@ -129,7 +129,7 @@
   .app:not(.wide) .ov {
     display: none;
   }
-  .ov-mini {
+  .app:not(.wide) .ov-mini {
     display: block;
     font-size: 15px;
     font-weight: 500;
@@ -138,5 +138,7 @@
   }
   .ov-mini a {
     color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 }
