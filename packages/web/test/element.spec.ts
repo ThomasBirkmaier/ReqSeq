@@ -155,6 +155,44 @@ test("each acceptance criterion shows its own verification status", async ({ pag
   }
 });
 
+test("each acceptance criterion copies with its reference, and all of them at once", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const ref = await requirementWithTrace(ui.run);
+  const { element, criterionReferences } = await ui.run("element.get", { ref });
+  const mm = await ui.run("metamodel.get", {});
+  const key = mm.properties.find((p) => p.meaning === "acceptance-criteria")?.key ?? "";
+  const texts = (element.properties[key] as unknown[]).map((item) =>
+    typeof item === "string" ? item : String((item as { text: unknown }).text),
+  );
+  // The reference as `element.get` gives it, before the text; a criterion without one as its text.
+  const expected = texts.map((text, at) => {
+    const reference = criterionReferences?.criteria.find((c) => c.criterion === at + 1)?.reference;
+    return reference === undefined ? text : `${reference} ${text}`;
+  });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(`/e/${ref}`);
+  const clipboard = (): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
+  // With the keyboard: the copy button of the last criterion, then the one for all of them.
+  const last = page.getByRole("button", {
+    name: `Copy criterion ${String(texts.length)} with its reference`,
+  });
+  await last.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#live")).toHaveText(`Criterion ${String(texts.length)} copied.`);
+  await expect(last).toHaveText("Copied");
+  expect(await clipboard()).toBe(expected.at(-1));
+  await page.getByRole("button", { name: "Copy all criteria with their references" }).press("Enter");
+  await expect(page.locator("#live")).toHaveText("All criteria copied.");
+  expect(await clipboard()).toBe(expected.join("\n"));
+  // On a page with references, the copy holds them.
+  if (criterionReferences?.criteria.some((c) => c.reference !== undefined) === true) {
+    expect(await clipboard()).toMatch(/^\[[^\]]+\/AK-[^\]]+\] /m);
+  }
+});
+
 test("the problems of an element stand on its page, several of one kind in one row that opens", async ({
   page,
   open,

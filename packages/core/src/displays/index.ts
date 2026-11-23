@@ -1,6 +1,7 @@
 // The display models that the web UI and the HTML export share (ADR-0019), as the subpath `@reqseq/core/displays`.
 // Its modules import only types, each other and import-free modules of core, so the bundle of the web UI's
 // pages loads nothing of `node:*` with it (the lint rule on `packages/core/src/displays/**`).
+export * from "./criterion-copy.js";
 export * from "./element-page.js";
 export * from "./element-problems.js";
 export * from "./element-ref.js";
