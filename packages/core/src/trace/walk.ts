@@ -255,7 +255,14 @@ const findCycles = <G>(vertices: readonly Vertex<G>[]): OpenCycle<G>[] => {
       }
     }
   }
-  const rest = vertices.filter((v) => v.incoming > 0);
+  return cyclesAmong(vertices.filter((v) => v.incoming > 0));
+};
+
+/**
+ * The cycles of `rest`, vertices whose edges all lead to one of them (what the peel of `findCycles`
+ * leaves), with their elements in the order of `rest`; sets `cycle` on each vertex of one.
+ */
+const cyclesAmong = <G>(rest: readonly Vertex<G>[]): OpenCycle<G>[] => {
   findComponents(rest);
   const cycles: OpenCycle<G>[] = [];
   for (const { cycle, element } of rest) {
@@ -267,6 +274,79 @@ const findCycles = <G>(vertices: readonly Vertex<G>[]): OpenCycle<G>[] => {
     }
   }
   return cycles;
+};
+
+/**
+ * The positions of the reached elements that the peel of `findCycles` leaves, in order, from the
+ * edges as positions (`from[e]` to `to[e]`, ordered by `from`, as the walk takes them) of `count`
+ * elements: typed arrays instead of a vertex with a list per element (SR-082 AK4, #2496).
+ */
+const unpeeled = (count: number, from: readonly number[], to: readonly number[]): number[] => {
+  const incoming = new Int32Array(count);
+  // The edges of position i are first[i] to first[i + 1] - 1.
+  const first = new Int32Array(count + 1);
+  for (let e = 0; e < to.length; e += 1) {
+    const target = Number(to[e]);
+    incoming[target] = Number(incoming[target]) + 1;
+    const after = Number(from[e]) + 1;
+    first[after] = Number(first[after]) + 1;
+  }
+  for (let i = 0; i < count; i += 1) {
+    first[i + 1] = Number(first[i + 1]) + Number(first[i]);
+  }
+  const peel: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    if (incoming[i] === 0) {
+      peel.push(i);
+    }
+  }
+  for (let v = peel.pop(); v !== undefined; v = peel.pop()) {
+    for (let e = Number(first[v]); e < Number(first[v + 1]); e += 1) {
+      const next = Number(to[e]);
+      const left = Number(incoming[next]) - 1;
+      incoming[next] = left;
+      if (left === 0) {
+        peel.push(next);
+      }
+    }
+  }
+  const rest: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    if (Number(incoming[i]) > 0) {
+      rest.push(i);
+    }
+  }
+  return rest;
+};
+
+/**
+ * The cycles of the walked graph of `elements` with the edges as positions (`fromAt[e]` to `toAt[e]`):
+ * vertices only for what the peel leaves, the cycles and what lies below them, often none.
+ */
+const walkCycles = <G>(
+  elements: readonly ElementRecord[],
+  fromAt: readonly number[],
+  toAt: readonly number[],
+): OpenCycle<G>[] => {
+  const rest = unpeeled(elements.length, fromAt, toAt);
+  if (rest.length === 0) {
+    return [];
+  }
+  const left = new Set(rest);
+  const vertices = new Map<number, Vertex<G>>();
+  elements.forEach((element, at) => {
+    if (left.has(at)) {
+      vertices.set(at, vertex<G>(element, 0, undefined));
+    }
+  });
+  for (let e = 0; e < fromAt.length; e += 1) {
+    const from = vertices.get(Number(fromAt[e]));
+    const to = vertices.get(Number(toAt[e]));
+    if (from !== undefined && to !== undefined) {
+      link(from, to);
+    }
+  }
+  return cyclesAmong([...vertices.values()]);
 };
 
 /** A cycle as the functions here give it: elements and edges. */
@@ -337,7 +417,10 @@ const markCycleEdges = <E>(
 /**
  * Walks breadth first from `starts` (each record once, in the given order) along `expand`. See the
  * file comment for depth, edges, cycles, `maxDepth`, `unresolved`, `incomplete` and leaves. One
- * lookup by record per step; the cycles are found on the vertices the walk built, without another.
+ * lookup by record per step; the reached elements are positions in arrays and the edges pairs of
+ * positions, so the cycle search peels them without another lookup and builds vertices only for what
+ * the peel leaves (`walkCycles`): a chain of 42,000 elements allocates one node per element and one
+ * edge per step (SR-082 AK4, #2496).
  */
 export const walk = <E, L = never>(
   starts: readonly ElementRecord[],
@@ -346,67 +429,86 @@ export const walk = <E, L = never>(
 ): WalkResult<E, L> => {
   const { maxDepth, leaves, maxNodes = Number.POSITIVE_INFINITY } = options;
   const expands = (depth: number): boolean => maxDepth === undefined || depth < maxDepth;
-  const reached = new Map<ElementRecord, Vertex<OpenEdge<E>>>();
+  // The reached elements by position, in walk order; no object per element until the nodes.
+  const position = new Map<ElementRecord, number>();
+  const elements: ElementRecord[] = [];
+  const depths: number[] = [];
+  const vias: (OpenEdge<E> | undefined)[] = [];
+  const reach = (element: ElementRecord, depth: number, via: OpenEdge<E> | undefined): number => {
+    const at = elements.length;
+    position.set(element, at);
+    elements.push(element);
+    depths.push(depth);
+    vias.push(via);
+    return at;
+  };
   for (const element of starts) {
-    if (!reached.has(element)) {
-      reached.set(element, vertex<OpenEdge<E>>(element, 0, undefined));
+    if (!position.has(element)) {
+      reach(element, 0, undefined);
     }
   }
+  const wasExpanded: number[] = [];
   const edges: OpenEdge<E>[] = [];
+  // The ends of each edge as positions, for the cycle search.
+  const fromAt: number[] = [];
+  const toAt: number[] = [];
   const unresolved: WalkUnresolved<E>[] = [];
   let incomplete = false;
   let cut = false;
   // The elements besides the starts are counted against `maxNodes`.
-  const startCount = reached.size;
-  // A Map iterates the entries added while it is read: breadth first, level by level.
-  for (const from of reached.values()) {
-    if (!expands(from.depth)) {
+  const startCount = elements.length;
+  // Breadth first, level by level: the list grows while it is read.
+  for (let at = 0, element = elements[0]; element !== undefined; at += 1, element = elements[at]) {
+    const depth = Number(depths[at]);
+    if (!expands(depth)) {
       continue;
     }
-    if (reached.size - startCount >= maxNodes) {
+    if (elements.length - startCount >= maxNodes) {
       cut = true;
       break;
     }
-    from.expanded = true;
-    const expansion = expand(from.element, from.depth);
+    wasExpanded.push(at);
+    const expansion = expand(element, depth);
     incomplete ||= expansion.incomplete;
     for (const { link: unfollowed, state } of expansion.unresolved) {
-      unresolved.push({ from: from.element, link: unfollowed, state });
+      unresolved.push({ from: element, link: unfollowed, state });
     }
     for (const step of expansion.steps) {
-      const edge: OpenEdge<E> = { from: from.element, to: step.to, link: step.link, cyclic: false };
+      const edge: OpenEdge<E> = { from: element, to: step.to, link: step.link, cyclic: false };
       edges.push(edge);
-      let to = reached.get(step.to);
-      if (to === undefined) {
-        to = vertex(step.to, from.depth + 1, edge);
-        reached.set(step.to, to);
-      }
-      link(from, to);
+      fromAt.push(at);
+      toAt.push(position.get(step.to) ?? reach(step.to, depth + 1, edge));
     }
   }
-  const vertices = [...reached.values()];
-  const cycles = findCycles(vertices);
+  const isExpanded = new Uint8Array(elements.length);
+  for (const at of wasExpanded) {
+    isExpanded[at] = 1;
+  }
+  const cycles = walkCycles<OpenEdge<E>>(elements, fromAt, toAt);
   markCycleEdges(cycles, edges);
-  const nodes = vertices.map(({ element, depth, via, expanded }): WalkNode<E, L> => ({
+  const nodes = elements.map((element, at): WalkNode<E, L> => ({
     element,
-    depth,
-    via,
-    expanded,
+    depth: Number(depths[at]),
+    via: vias[at],
+    expanded: isExpanded[at] === 1,
     leaves: leaves?.(element) ?? NO_LEAVES,
   }));
-  // Built on first read (`pathTo`): a chain of 40,000 elements does not need it (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227).
+  return walkResult({ nodes, edges, cycles: cycles.map(closed), unresolved, incomplete, cut });
+};
+
+/**
+ * The result of `walk` with `byElement` built on first read (`pathTo`): a chain of 40,000 elements
+ * does not need it (SR-082 AK4, ThomasBirkmaier/ReqSeq-archive#227). A function of its own, so that its
+ * getter keeps only the nodes alive, not the arrays and the map of the walk (#2496).
+ */
+const walkResult = <E, L>(result: Omit<WalkResult<E, L>, "byElement">): WalkResult<E, L> => {
   let byElement: ReadonlyMap<ElementRecord, WalkNode<E, L>> | undefined;
   return {
-    nodes,
+    ...result,
     get byElement() {
-      byElement ??= new Map(nodes.map((n) => [n.element, n]));
+      byElement ??= new Map(result.nodes.map((n) => [n.element, n]));
       return byElement;
     },
-    edges,
-    cycles: cycles.map(closed),
-    unresolved,
-    incomplete,
-    cut,
   };
 };
 
