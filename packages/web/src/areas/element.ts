@@ -1,4 +1,5 @@
-// The element page (`#/e/<identifier or short ID>`): the element in its trace, and the decisions on its status.
+// The element page (`#/e/<identifier or short ID>`): the element in its trace, its problems, the verification status
+// of each acceptance criterion, and the decisions on its status.
 // What it points to on the left, the element in the centre, what points to it on the right. The way back to the
 // list it was opened from stays in the top bar (`?from=<route>`).
 import "../css/element.css";
@@ -8,7 +9,14 @@ import type {
   ElementGetOutput,
   TraceNeighbourhoodOutput,
 } from "@reqseq/core";
-import { boundNote, elementPageDisplay, relationGroupLabel } from "@reqseq/core/displays";
+import type { ProblemGroupDisplay } from "@reqseq/core/displays";
+import {
+  boundNote,
+  criterionStatuses,
+  elementPageDisplay,
+  elementProblemGroups,
+  relationGroupLabel,
+} from "@reqseq/core/displays";
 import { call } from "../api.js";
 import type { Child } from "../dom.js";
 import { h, icon, s } from "../dom.js";
@@ -309,22 +317,71 @@ const textBlock = (
     ? markdown(text, e, fromOf("e", refOf(e)), cls)
     : Promise.resolve(h("div", { class: `${cls} plain` }, paragraphs(text)));
 
-/** A numbered list under its heading: the acceptance criteria, or a text list of the type. */
-const numbered = async (e: DataExportElement, key: string, items: readonly unknown[]): Promise<Child> => [
+/**
+ * One row of a numbered list: its number, its text, and at its end what belongs to that entry alone (of an
+ * acceptance criterion its verification status), each part a child of `.crit-end`.
+ */
+const listRow = (n: number, text: HTMLElement, end: readonly Child[]): HTMLElement =>
+  h(
+    "div",
+    { class: "crit", "data-n": n },
+    h("span", { class: "n" }, n),
+    text,
+    end.some((part) => part !== null && part !== undefined && part !== false)
+      ? h("div", { class: "crit-end" }, end)
+      : null,
+  );
+
+/**
+ * A numbered list under its heading: the acceptance criteria, or a text list of the type. With `statusSlots`, each
+ * row has a place for its verification status, which `fillCriterionStatuses` fills once the page is drawn.
+ */
+const numbered = async (
+  e: DataExportElement,
+  key: string,
+  items: readonly unknown[],
+  statusSlots = false,
+): Promise<Child> => [
   h("h2", { class: "sect" }, nameOfProp(key)),
   items.length === 0
     ? h("p", { class: "none" }, "None yet.")
     : await Promise.all(
         items.map(async (item, at) =>
-          h(
-            "div",
-            { class: "crit" },
-            h("span", { class: "n" }, at + 1),
+          listRow(
+            at + 1,
             await textBlock(e, itemText(item), key, "ct"),
+            statusSlots ? [h("span", { class: "crit-st" })] : [],
           ),
         ),
       ),
 ];
+
+/**
+ * Fills the status place of each acceptance criterion with its verification status in the chosen view
+ * (`criterionStatuses` of `evidence.list`). It runs after the card is drawn, so opening an element waits for no
+ * further command; without an answer the criteria stay without a status.
+ */
+async function fillCriterionStatuses(cardEl: HTMLElement, e: DataExportElement, route: Route): Promise<void> {
+  const slots = [...cardEl.querySelectorAll(".crit-st")];
+  if (slots.length === 0) {
+    return;
+  }
+  const out = await call("evidence.list", {
+    ref: e.id,
+    repository: e.repository,
+    file: e.file,
+    ...viewSelection(),
+  }).catch(() => undefined);
+  if (out === undefined || !isCurrent(route) || !cardEl.isConnected) {
+    return;
+  }
+  criterionStatuses(out.display.rows, slots.length).forEach((status, at) => {
+    const mark = verificationMark(status);
+    if (mark !== null) {
+      slots[at]?.replaceWith(mark);
+    }
+  });
+}
 
 /** The text properties of the card: notes, the acceptance criteria and the numbered lists. */
 async function texts(e: DataExportElement): Promise<Child> {
@@ -349,7 +406,9 @@ async function texts(e: DataExportElement): Promise<Child> {
   );
   return [
     notes,
-    criteriaKey === undefined ? null : await numbered(e, criteriaKey, listOf(criteriaKey)),
+    criteriaKey === undefined
+      ? null
+      : await numbered(e, criteriaKey, listOf(criteriaKey), e.verification !== undefined),
     await Promise.all(
       listProps(mm, e.type)
         .filter((key) => listOf(key).length > 0)
@@ -388,6 +447,60 @@ function meta(e: DataExportElement): HTMLElement {
   );
 }
 
+const SEVERITY_WORDS: Readonly<Record<ProblemGroupDisplay["severity"], string>> = {
+  error: "Error",
+  warning: "Warning",
+  info: "Info",
+};
+
+const severityMark = (severity: ProblemGroupDisplay["severity"]): HTMLElement =>
+  h("span", { class: "sev" }, SEVERITY_WORDS[severity]);
+
+/**
+ * The problems of the element, errors first (`elementProblemGroups`): a kind with one problem as that problem, a
+ * kind with several as one row headed by the kind and their count that opens on click or with the keyboard.
+ */
+function problemsOf(e: DataExportElement): HTMLElement | null {
+  const groups = elementProblemGroups(e.problems);
+  if (groups.length === 0) {
+    return null;
+  }
+  const count = groups.reduce((n, g) => n + g.problems.length, 0);
+  return h(
+    "section",
+    { class: "probs", "aria-labelledby": "el-probs" },
+    h("h2", { class: "sect", id: "el-probs" }, "Problems ", h("b", null, count)),
+    h(
+      "ul",
+      null,
+      groups.map((g) =>
+        h(
+          "li",
+          { "data-severity": g.severity, "data-code": g.code },
+          g.problems.length === 1
+            ? [severityMark(g.severity), h("span", { class: "pm" }, g.problems[0]?.message)]
+            : h(
+                "details",
+                null,
+                h(
+                  "summary",
+                  null,
+                  severityMark(g.severity),
+                  h("span", { class: "pm" }, g.title),
+                  h("b", null, g.problems.length),
+                ),
+                h(
+                  "ul",
+                  null,
+                  g.problems.map((p) => h("li", null, p.message)),
+                ),
+              ),
+        ),
+      ),
+    ),
+  );
+}
+
 /** The card: the element itself. */
 async function card(got: ElementGetOutput): Promise<HTMLElement> {
   const e = got.element;
@@ -398,6 +511,7 @@ async function card(got: ElementGetOutput): Promise<HTMLElement> {
     { class: "card", id: "card", "aria-labelledby": "el-title", "data-id": e.id },
     kick(e),
     h("h1", { id: "el-title", "data-vt": refOf(e) }, e.title),
+    problemsOf(e),
     prose,
     more,
     entries.length === 0
@@ -541,6 +655,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     refOf(e),
   );
   document.title = `${shownId(e) === "" ? "" : `${shownId(e)} `}${e.title} · ReqSeq`;
+  void fillCriterionStatuses(cardEl, e, route);
   observer?.disconnect();
   observer = new ResizeObserver(() => {
     drawLinks(trace, svg);

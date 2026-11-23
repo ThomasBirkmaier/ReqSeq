@@ -71,3 +71,31 @@ test("the overview links each group to its whole queue", async ({ page, open }) 
     page.getByRole("navigation", { name: "Workspace" }).locator('[aria-current="page"]'),
   ).toContainText(name);
 });
+
+test("the overview counts the changes since the newest baseline and opens their list", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const { baseline } = await ui.run("baseline.changes", { limit: 1 });
+  await open();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  const fact = page.locator(".facts a", { hasText: /since/ });
+  if (baseline === undefined) {
+    await expect(fact).toHaveCount(0);
+    return;
+  }
+  // The same count as the rail, from the same command.
+  const { counts } = baseline;
+  const count = counts.changed + counts.superseded + (counts.added ?? 0) + (counts.removed ?? 0);
+  await expect(fact).toHaveText(
+    `${String(count)}${count === 1 ? "change" : "changes"} since ${baseline.name}`,
+  );
+  if (count > 0) {
+    await expect(
+      page.getByRole("navigation", { name: "Workspace" }).locator('[data-num="q:changes"]'),
+    ).toHaveText(String(count));
+  }
+  await fact.click();
+  await expect(page.getByRole("heading", { level: 1, name: `Changes since ${baseline.name}` })).toBeVisible();
+});

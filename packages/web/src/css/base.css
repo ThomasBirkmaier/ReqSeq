@@ -152,6 +152,10 @@ html,
 body {
   height: 100%;
 }
+/* No rubber band past the edge of the window: the frame scrolls in its panes, not as a whole. */
+html {
+  overscroll-behavior: none;
+}
 body {
   background: var(--bg);
   color: var(--ink);
@@ -196,8 +200,12 @@ h1[tabindex="-1"]:focus,
 main:focus {
   outline: none;
 }
+/* Pinned to the top of its containing block: at its place in the flow, a hidden text inside a pane that scrolls
+   (with no positioned ancestor in it) would lengthen the page and let the whole window scroll. */
 .sr {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
