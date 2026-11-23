@@ -118,7 +118,7 @@ The response headers stay as they are. Tauri's IPC first fetches its own protoco
   - Preferences of the pages take their defaults at each start in the shell (ADR-0020: each has a default).
   - The engine's data folder, which WebView2 needs even in InPrivate, is the operating system's per-user app data folder under the app id of `toolchain/packaging/names.json`.
 - **Engine connections switched off.**
-  - WebView2: SmartScreen and background networking off through the browser arguments; autofill and password saving off.
+  - WebView2: SmartScreen, background networking and proxy detection off through the browser arguments (`--no-proxy-server`: otherwise the engine's network service looks up the host `wpad`, #2480); autofill and password saving off.
   - WKWebView: the fraudulent-website warning off.
   - WebKitGTK: DNS prefetching off.
 

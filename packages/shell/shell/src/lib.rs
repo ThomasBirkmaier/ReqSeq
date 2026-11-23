@@ -35,6 +35,13 @@ pub fn permissions() -> Vec<String> {
 /// The label of the one window.
 pub const WINDOW: &str = "main";
 
+/// The browser arguments of `WebView2` (ADR-0021, Engine data and the engine's own connections; SR-252 AK7). They
+/// replace Tauri's own defaults (`msWebOOUI`, `msPdfOOUI`, `msSmartScreenProtection`), so those are kept here.
+/// `--no-proxy-server` switches off proxy detection, which otherwise looks up the host `wpad` (#2480).
+pub const WEBVIEW2_ARGUMENTS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+     --disable-background-networking --disable-component-update --disable-domain-reliability \
+     --disable-sync --no-pings --no-first-run --no-proxy-server";
+
 /// Whether `path` is a regular file, links followed, as the CLI's `isFile` tests it. Reads nothing.
 #[must_use]
 pub fn is_file(path: &std::path::Path) -> bool {
@@ -74,5 +81,13 @@ mod tests {
             assert!(super::is_file(&dir.join("link.yaml")));
         }
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn webview2_detects_no_proxy_and_keeps_the_tauri_defaults() {
+        let arguments: Vec<&str> = super::WEBVIEW2_ARGUMENTS.split_whitespace().collect();
+        assert!(arguments.contains(&"--no-proxy-server"));
+        assert!(arguments.contains(&"--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"));
+        assert!(!arguments.iter().any(|a| a.starts_with("--proxy-")));
     }
 }
