@@ -63,6 +63,17 @@ describe("the Windows recorder's file events", () => {
     ]);
   });
 
+  it("names a write on an inherited handle from the Create of the process that made it, and reports no open for it", () => {
+    const lines = parseFileLines(
+      ["12\t1\t0xP\t\t0x02000000\t\\Device\\NamedPipe\\uv\\stdout", "16\t100\t0xP\t0xKP\t\t"].join("\n"),
+    );
+    const { opens, writes } = fileEvents(lines, new Set([100]), named);
+    expect(opens).toEqual([]);
+    expect(writes.map((w) => [w.raw, w.write, w.unnamed])).toEqual([
+      ["\\Device\\NamedPipe\\uv\\stdout", true, false],
+    ]);
+  });
+
   it("counts a Create that may write as a write, and one with FILE_OPEN as an open only", () => {
     const lines = parseFileLines(
       [

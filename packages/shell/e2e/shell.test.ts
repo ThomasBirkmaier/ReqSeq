@@ -596,7 +596,9 @@ describe.skipIf(windowsRecording === "skip")(
       }
       // A write the trace gives no name for cannot be read back, so it fails the test (writes named on a device that
       // is no drive, a pipe or the console, are not counted here).
-      const unnamed = record.writes.filter((w) => !server.has(w.pid) && w.unnamed).map((w) => w.raw);
+      const unnamed = record.writes
+        .filter((w) => !server.has(w.pid) && w.unnamed)
+        .map((w) => `${String(w.pid)} ${w.raw}`);
       await annotate(
         `${String(record.processes.length)} processes, ${String(written.length)} written files checked, ` +
           `${String(unnamed.length)} writes the trace names no file for`,
