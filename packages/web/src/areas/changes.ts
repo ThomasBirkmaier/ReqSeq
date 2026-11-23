@@ -1260,9 +1260,14 @@ export function decisions(e: ElementPart | undefined): HTMLButtonElement[] {
           ),
         ]
       : []),
-    button("Set status", () => {
-      setStatusDialog([e.id]);
-    }),
+    // Only where the type has a status to choose besides the element's own.
+    ...(commonStatuses(store.mm, [e.type]).some((s) => s !== e.status)
+      ? [
+          button("Set status", () => {
+            setStatusDialog([e.id]);
+          }),
+        ]
+      : []),
     ...(statusesOf(store.mm, e.type).some((s) => isInvalid(store.mm, s))
       ? [
           button("Supersede", () => {
