@@ -103,18 +103,32 @@ const TEST_MARKS: Readonly<Record<string, string>> = {
   "not-executed": "not run",
 };
 
-/** The test cases of a requirement in one cell: their count and the marked ones by name. */
+/** Marked test cases a cell names before it folds the rest, so one row does not grow to the height of many. */
+const MARKED_SHOWN = 3;
+
+/** The test cases of a requirement in one cell: their count and the marked ones by name, folded after the first few. */
 const testsCell = (row: Row): Child => {
   const cases = row.testCases ?? [];
   if (cases.length === 0) {
     return h("span", { class: "none" }, "–");
   }
-  const marked = cases.filter((c) => c.mark !== undefined);
+  const marked = cases
+    .filter((c) => c.mark !== undefined)
+    .map((c) =>
+      h("span", { class: `tc ${c.mark ?? ""}` }, `${c.name}: ${TEST_MARKS[c.mark ?? ""] ?? c.mark ?? ""}`),
+    );
+  const folded = marked.slice(MARKED_SHOWN);
   return [
     h("span", null, cases.length === 1 ? "1 test case" : `${String(cases.length)} test cases`),
-    marked.map((c) =>
-      h("span", { class: `tc ${c.mark ?? ""}` }, `${c.name}: ${TEST_MARKS[c.mark ?? ""] ?? c.mark ?? ""}`),
-    ),
+    marked.slice(0, MARKED_SHOWN),
+    folded.length === 0
+      ? null
+      : h(
+          "details",
+          { class: "tcmore" },
+          h("summary", null, `${String(folded.length)} more marked`),
+          h("div", null, folded),
+        ),
   ];
 };
 

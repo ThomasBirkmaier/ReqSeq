@@ -359,7 +359,10 @@ test("[SR-080/AK-hn1m] every value the web UI shows is the output of a command t
       // (3) Opening the workspace that is open (`POST ui/workspace`): its answer names the root `tool.info` gives.
       await open(page, ui.url, "/w/open");
       await page.getByLabel("Folder of the workspace").fill(workspace.root);
-      await page.getByRole("button", { name: "Open", exact: true }).click();
+      await page
+        .getByRole("region", { name: "Open a workspace" })
+        .getByRole("button", { name: "Open", exact: true })
+        .click();
       await drawn(page, "/q/overview");
       const opened = (await Promise.all(recorded.opened)) as { root?: unknown }[];
       const info = (await overCli("tool.info", {}, workspace.root, env)) as { workspace: { path: string } };

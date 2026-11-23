@@ -185,7 +185,7 @@ describe("html.export shows the neighbourhood of an element (SR-232 AK5)", () =>
         '<h3>← Related</h3><ul class="rq-nb">',
         linked(USER, 0, "SR-000010", "Log wind", "draft"),
         "</ul>",
-        '<h3>← inline reference</h3><ul class="rq-nb">',
+        '<h3>← Inline reference</h3><ul class="rq-nb">',
         linked(
           USER,
           0,
@@ -652,7 +652,7 @@ statuses:
     const section = await (await exportedSections())(PKG);
     expect(section).toContain(
       `<h3>← Basis for</h3><ul class="rq-nb">${linked(BASED, 0, "SR-000024", "Req 24", "draft")}</ul>` +
-        `<h3>← inline reference</h3><ul class="rq-nb">${linked(MEMBER, 0, "SR-000022", "Req 22", "draft")}</ul></section>`,
+        `<h3>← Inline reference</h3><ul class="rq-nb">${linked(MEMBER, 0, "SR-000022", "Req 22", "draft")}</ul></section>`,
     );
     expect(section).not.toContain("← Package");
     expect(section).not.toContain("link outdated");

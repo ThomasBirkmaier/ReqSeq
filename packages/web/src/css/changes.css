@@ -3,12 +3,13 @@
 .crow {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
-  align-items: baseline;
+  /* The row's link has no baseline (content-visibility in .lscroll), so the box is set on its first line. */
+  align-items: start;
   border-bottom: 1px solid var(--line-soft);
 }
 .crow > input {
   justify-self: end;
-  margin: 0 0 0 10px;
+  margin: 13px 0 0 10px;
   width: 15px;
   height: 15px;
   accent-color: var(--accent);

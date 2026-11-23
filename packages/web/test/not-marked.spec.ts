@@ -41,7 +41,10 @@ test("the page shows why the workspace was not marked as opened, at start and af
     });
     await drawn(page, "/w/open");
     await page.getByLabel("Folder of the workspace").fill(second.root);
-    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Open a workspace" })
+      .getByRole("button", { name: "Open", exact: true })
+      .click();
     await drawn(page, "/q/overview");
     await expect(notice).toContainText(REASON);
     // It stays through a redraw, and closes.

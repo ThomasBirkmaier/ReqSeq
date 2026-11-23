@@ -30,14 +30,14 @@ export const REFERENCE_WORD = "inline reference";
 /**
  * The heading of a group of relations: an outgoing relation by the name of its kind, an incoming one by the
  * inverse name of its kind, else its name, as `trace.matrix` names an incoming column; a relation property by
- * the property's name; the key where the metamodel names none; an inline reference "inline reference". An
- * incoming group starts with "← ".
+ * the property's name; the key where the metamodel names none; an inline reference "Inline reference", capitalised
+ * like the names of the metamodel that head the other groups. An incoming group starts with "← ".
  */
 export const relationGroupLabel = (link: GroupedLink, names: RelationNames): string => {
   const prefix = link.direction === "in" ? "← " : "";
   const { kind } = link;
   if (kind === undefined) {
-    return `${prefix}${REFERENCE_WORD}`;
+    return `${prefix}${REFERENCE_WORD.charAt(0).toUpperCase()}${REFERENCE_WORD.slice(1)}`;
   }
   if (link.property === true) {
     return `${prefix}${names.properties.find((p) => p.key === kind)?.name ?? kind}`;

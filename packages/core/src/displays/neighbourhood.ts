@@ -70,7 +70,7 @@ export interface IncomingEntry {
 
 export interface IncomingGroupDisplay {
   readonly key: string;
-  /** "← <name of the kind>" or "← inline reference". */
+  /** "← <name of the kind>" or "← Inline reference". */
   readonly label: string;
   readonly entries: readonly IncomingEntry[];
 }

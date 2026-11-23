@@ -566,7 +566,7 @@ scenariosOf("html.export", [
         const own = contentOf(String(files[`site/elements/${PACKAGE}.html`]));
         const section = own.slice(own.indexOf('<section class="rq-neighbourhood">'));
         expect(section).toContain(
-          `<h3>← inline reference</h3><ul class="rq-nb"><li><a href="../elements/${CHILD}.html"><span>SR-00c0de</span><span>Show gusts</span><span>draft</span></a></li></ul>`,
+          `<h3>← Inline reference</h3><ul class="rq-nb"><li><a href="../elements/${CHILD}.html"><span>SR-00c0de</span><span>Show gusts</span><span>draft</span></a></li></ul>`,
         );
         expect(section).not.toContain("← Package");
         expect(section).not.toContain(`href="../elements/${WIND}.html"`);
