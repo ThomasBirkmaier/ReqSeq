@@ -4,7 +4,7 @@
 //!
 //! Commands: `{"eval": "<script>", "id": <n>}` runs a script in the page, as a person's input would, and answers
 //! `e2e eval {"id": <n>, "result": <JSON text>}`; `{"close": true}` closes the window; `{"crash": true}` aborts the
-//! process, without a core dump; `{"dialog": "<path>"}` or `{"dialog": null}` queues the answer of the next dialog.
+//! process; `{"dialog": "<path>"}` or `{"dialog": null}` queues the answer of the next dialog.
 //! The dialog stand-in records what the dialog would show first (`e2e dialog`) and gives the queued answer, or none
 //! when nothing is queued.
 use shell::pick::{Pick, Shown};
@@ -106,9 +106,6 @@ pub fn start(app: AppHandle) {
                 continue;
             };
             if command.get("crash").is_some() {
-                // Without a core dump, which would keep the server's standard input open while it is written (#2406).
-                #[cfg(unix)]
-                shell::unix::no_core_dump();
                 std::process::abort();
             } else if command.get("close").is_some() {
                 let _ = window.close();

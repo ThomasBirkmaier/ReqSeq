@@ -248,8 +248,8 @@ pub fn write_quietly(mut out: &File, text: &str) {
     let _ = out.write_all(text.as_bytes());
 }
 
-/// Makes this process write no core dump when it ends by a signal, as the e2e driver's crash does (#2406). While the
-/// kernel writes a core, every descriptor of the process stays open, the write end of the server's standard input
+/// Makes this process write no core dump when it ends by a signal, as `main` does at the start on Linux (#2413). While
+/// the kernel writes a core, every descriptor of the process stays open, the write end of the server's standard input
 /// among them, so the server would outlive the dump. On Linux the process becomes not dumpable, which stops a core
 /// pattern that pipes to a helper too (apport, systemd-coredump), because such a pattern ignores `RLIMIT_CORE`
 /// (core(5)); elsewhere `RLIMIT_CORE` 0 is enough.

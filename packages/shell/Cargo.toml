@@ -17,5 +17,6 @@ unsafe_code = "deny"
 pedantic = { level = "warn", priority = -1 }
 
 [profile.release]
-# A crash closes every handle at once, so the server's standard input ends and the server stops (ADR-0021, End).
+# A crash closes every handle at once, so the server's standard input ends and the server stops (ADR-0021, End; on
+# Linux the shell writes no core dump, which would hold the handles open while it is written).
 panic = "abort"
