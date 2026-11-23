@@ -36,7 +36,7 @@ The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. 
 | format, clippy, unit tests | yes | yes |
 | coverage 100 % (`--lib`), crate licences, audit | yes | no |
 | e2e: start, end, failures, opening an address (SR-252 AK3, AK4, AK5, AK9, AK10), the dialogs (SR-253) | yes, without network | yes |
-| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall (AK7 untagged until #2480); macOS: no recorder yet |
+| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall; macOS: no recorder yet |
 | e2e: a window that cannot open (SR-252 AK8) | delivery tests | Windows: an empty WebView2 runtime folder |
 
 ## The release build

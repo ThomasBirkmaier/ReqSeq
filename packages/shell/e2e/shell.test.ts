@@ -608,11 +608,9 @@ describe.skipIf(windowsRecording === "skip")(
       ).toEqual([]);
     });
 
-    // Not evidence of SR-252 AK7 yet: the engine looks up `wpad` by itself (question #2480). This test runs the
-    // recorder and its controls and shows that nothing else of the tree connects to or looks up another machine.
-    it("SR-252 AK7 recorder (Windows): the firewall refuses and records the control, and the tree connects to no other machine", async ({
-      annotate,
-    }) => {
+    // A name lookup counts as a connection to another machine (#2480), also one the engine makes by itself. Lookups go
+    // through the DNS client service, which no program rule refuses, so the DNS client log records them.
+    it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine and looks up no name (Windows)", () => {
       expect(control).toBe("error EACCES");
       expect(record.control.refused).toEqual([
         { application: record.normalize(recorder?.node ?? ""), address: CONTROL_ADDRESS },
@@ -627,10 +625,7 @@ describe.skipIf(windowsRecording === "skip")(
       expect(engines.filter((e) => !record.rules.includes(e))).toEqual([]);
       expect(record.rules).toContain(record.normalize(recorder?.node ?? ""));
       expect(record.rules).toContain(record.normalize(SHELL));
-      expect(record.refused).toEqual([]);
-      const wpad = record.lookups.filter((l) => l.name.toLowerCase() === "wpad");
-      await annotate(`${String(wpad.length)} lookups of wpad by the engine (#2480)`);
-      expect(record.lookups.filter((l) => l.name.toLowerCase() !== "wpad")).toEqual([]);
+      expect({ refused: record.refused, lookups: record.lookups }).toEqual({ refused: [], lookups: [] });
     });
   },
 );
