@@ -44,7 +44,7 @@ The release is not signed with a developer certificate. Once after unpacking:
 
 Add the folder of the launcher `reqseq` to the path, then open a new terminal:
 
-- macOS (zsh): `echo 'export PATH="/Applications/ReqSeq.app/Contents/Resources/bin:$PATH"' >> ~/.zprofile`. Up to version 0.13 it was `bin/` of the unpacked folder: change an older path line, and run `reqseq workspace connect-agent` again for each agent.
+- macOS (zsh): `echo 'export PATH="/Applications/ReqSeq.app/Contents/Resources/bin:$PATH"' >> ~/.zprofile`.
 - Linux (bash): `echo 'export PATH="$HOME/ReqSeq/bin:$PATH"' >> ~/.bashrc`, and in `~/.profile` for login shells and scripts.
 - Windows (PowerShell): `[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\Tools\ReqSeq\bin', 'User')`.
 
