@@ -90,8 +90,9 @@ jobs:
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
     # (ADR-0011); the job prints what it got. A manual run may choose another system (#2469).
     runs-on: ${{ inputs.system || 'ubuntu-24.04' }}
-    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner.
-    timeout-minutes: 75
+    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner. On Windows
+    # the suite ran out of 75 min with about half of its files done (run 45221615062), so a Windows run gets 180 min.
+    timeout-minutes: ${{ inputs.system == 'windows-2025' && 180 || 75 }}
     # Bash on every system: the Report step passes $GITHUB_SHA and the other variables as bash reads them.
     defaults:
       run:
