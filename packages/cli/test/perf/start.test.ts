@@ -154,11 +154,11 @@ const startApi = (cwd: string, home: string): Promise<Started> =>
 
 /**
  * Stops a server and waits for its exit. On Linux and macOS it gets SIGTERM and writes a pending model cache
- * first (`workspace.close`); on Windows, which has no signals, its process tree is ended (#2497).
+ * first (`workspace.close`); on Windows, which has no signals, its process tree is ended, so that no child of
+ * the server outlives it. A server that has ended returns at once: ended without its SIGTERM handler, it has
+ * no exit code but `signalCode`, and its `exit` does not come again (#2497).
  */
 const stop = async (child: ChildProcessWithoutNullStreams): Promise<void> => {
-  // A process ended by a signal keeps `exitCode` null and sets `signalCode`: on Windows every `kill` ends it
-  // that way, and waiting for a second exit event then never ends (#2497).
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }

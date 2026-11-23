@@ -219,6 +219,32 @@ export async function startShell(options: StartOptions = {}): Promise<Shell> {
   return shell;
 }
 
+/**
+ * How long the first start may take to show its page. The engine's first window on a fresh machine took 5.6 to
+ * 12.7 s on windows-2025 runners, and once showed nothing within 30 s, while every later start took under 2 s
+ * (#2485); the bound still ends a start that hangs.
+ */
+export const FIRST_START_MS = 120_000;
+
+/**
+ * Starts the shell once, until its page has loaded, and closes it, so that the engine's first start on this machine
+ * does not count into the waits of the tests (#2485). The shell then has 10 s to end.
+ */
+export async function warmUp(): Promise<void> {
+  const shell = await startShell();
+  try {
+    await shell.event("page-load", (v) => String(v).startsWith("Finished"), FIRST_START_MS);
+    shell.send({ close: true });
+    let ended = false;
+    void shell.exited.then(() => {
+      ended = true;
+    });
+    await shell.until("the exit after the close", () => (ended ? true : undefined), 10_000);
+  } finally {
+    await endShells();
+  }
+}
+
 /** Ends every shell a test started that is still running. */
 export async function endShells(): Promise<void> {
   await Promise.all(started.splice(0).map((s) => s.end()));
