@@ -1,5 +1,5 @@
 // The element page (`#/e/<identifier or short ID>`): the element in its trace, its problems, the verification status
-// of each acceptance criterion, and the decisions on its status.
+// of each acceptance criterion, a copy of each criterion with its reference, and the decisions on its status.
 // What it points to on the left, the element in the centre, what points to it on the right. The way back to the
 // list it was opened from stays in the top bar (`?from=<route>`).
 import "../css/element.css";
@@ -9,9 +9,10 @@ import type {
   ElementGetOutput,
   TraceNeighbourhoodOutput,
 } from "@reqseq/core";
-import type { ProblemGroupDisplay } from "@reqseq/core/displays";
+import type { CriteriaCopy, ProblemGroupDisplay } from "@reqseq/core/displays";
 import {
   boundNote,
+  criteriaCopy,
   criterionStatuses,
   elementPageDisplay,
   elementProblemGroups,
@@ -19,7 +20,7 @@ import {
 } from "@reqseq/core/displays";
 import { call } from "../api.js";
 import type { Child } from "../dom.js";
-import { h, icon, s } from "../dom.js";
+import { announce, h, icon, s } from "../dom.js";
 import { errorBox } from "../layout.js";
 import { statusPill, verificationMark, verificationWord } from "../marks.js";
 import type { Metamodel } from "../meaning.js";
@@ -319,7 +320,7 @@ const textBlock = (
 
 /**
  * One row of a numbered list: its number, its text, and at its end what belongs to that entry alone (of an
- * acceptance criterion its verification status), each part a child of `.crit-end`.
+ * acceptance criterion its verification status and its copy button), each part a child of `.crit-end`.
  */
 const listRow = (n: number, text: HTMLElement, end: readonly Child[]): HTMLElement =>
   h(
@@ -333,25 +334,69 @@ const listRow = (n: number, text: HTMLElement, end: readonly Child[]): HTMLEleme
   );
 
 /**
+ * A button that puts `text` on the clipboard and says so: on the button for a moment, and to assistive technology
+ * through the live region of the page.
+ */
+const copyButton = (label: string, name: string, text: string, done: string): HTMLButtonElement => {
+  const button = h("button", { type: "button", class: "btn sm copy", "aria-label": name }, label);
+  let reset: ReturnType<typeof setTimeout> | undefined;
+  button.addEventListener("click", () => {
+    // A page without the Clipboard API (no secure context) fails in the same way as a refusal.
+    void Promise.resolve()
+      .then(() => navigator.clipboard.writeText(text))
+      .then(
+        () => {
+          button.textContent = "Copied";
+          clearTimeout(reset);
+          reset = setTimeout(() => {
+            button.textContent = label;
+          }, 1500);
+          announce(done);
+        },
+        () => {
+          announce("The browser did not allow copying. Select the text and copy it.");
+        },
+      );
+  });
+  return button;
+};
+
+/**
  * A numbered list under its heading: the acceptance criteria, or a text list of the type. With `statusSlots`, each
- * row has a place for its verification status, which `fillCriterionStatuses` fills once the page is drawn.
+ * row has a place for its verification status, which `fillCriterionStatuses` fills once the page is drawn. With
+ * `copy` (the acceptance criteria, `criteriaCopy`), each row has a button that copies the criterion with its
+ * reference, and the heading one that copies all of them.
  */
 const numbered = async (
   e: DataExportElement,
   key: string,
   items: readonly unknown[],
   statusSlots = false,
+  copy?: CriteriaCopy,
 ): Promise<Child> => [
-  h("h2", { class: "sect" }, nameOfProp(key)),
+  copy === undefined || items.length === 0
+    ? h("h2", { class: "sect" }, nameOfProp(key))
+    : h(
+        "div",
+        { class: "sect-bar" },
+        h("h2", { class: "sect" }, nameOfProp(key)),
+        copyButton("Copy all", "Copy all criteria", copy.all, "All criteria copied."),
+      ),
   items.length === 0
     ? h("p", { class: "none" }, "None yet.")
     : await Promise.all(
         items.map(async (item, at) =>
-          listRow(
-            at + 1,
-            await textBlock(e, itemText(item), key, "ct"),
-            statusSlots ? [h("span", { class: "crit-st" })] : [],
-          ),
+          listRow(at + 1, await textBlock(e, itemText(item), key, "ct"), [
+            statusSlots ? h("span", { class: "crit-st" }) : null,
+            copy === undefined
+              ? null
+              : copyButton(
+                  "Copy",
+                  `Copy criterion ${String(at + 1)}`,
+                  copy.rows[at] ?? itemText(item),
+                  `Criterion ${String(at + 1)} copied.`,
+                ),
+          ]),
         ),
       ),
 ];
@@ -383,8 +428,12 @@ async function fillCriterionStatuses(cardEl: HTMLElement, e: DataExportElement, 
   });
 }
 
-/** The text properties of the card: notes, the acceptance criteria and the numbered lists. */
-async function texts(e: DataExportElement): Promise<Child> {
+/**
+ * The text properties of the card: notes, the acceptance criteria, each copied with the reference `element.get`
+ * gives it (`criterionReferences`), and the numbered lists.
+ */
+async function texts(got: ElementGetOutput): Promise<Child> {
+  const e = got.element;
   const mm = store.mm;
   const criteriaKey = propOfType(mm, e.type, "acceptance-criteria");
   const listOf = (key: string): readonly unknown[] => {
@@ -408,7 +457,13 @@ async function texts(e: DataExportElement): Promise<Child> {
     notes,
     criteriaKey === undefined
       ? null
-      : await numbered(e, criteriaKey, listOf(criteriaKey), e.verification !== undefined),
+      : await numbered(
+          e,
+          criteriaKey,
+          listOf(criteriaKey),
+          e.verification !== undefined,
+          criteriaCopy(listOf(criteriaKey).map(itemText), got.criterionReferences?.criteria),
+        ),
     await Promise.all(
       listProps(mm, e.type)
         .filter((key) => listOf(key).length > 0)
@@ -505,7 +560,7 @@ function problemsOf(e: DataExportElement): HTMLElement | null {
 async function card(got: ElementGetOutput): Promise<HTMLElement> {
   const e = got.element;
   const entries = propEntries(store.mm, e);
-  const [prose, more] = await Promise.all([markdown(e.text, e, fromOf("e", refOf(e)), "prose"), texts(e)]);
+  const [prose, more] = await Promise.all([markdown(e.text, e, fromOf("e", refOf(e)), "prose"), texts(got)]);
   return h(
     "article",
     { class: "card", id: "card", "aria-labelledby": "el-title", "data-id": e.id },

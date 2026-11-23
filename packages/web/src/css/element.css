@@ -273,7 +273,21 @@ a.node:hover {
   padding-top: 2px;
   font-variant-numeric: tabular-nums;
 }
-/* What belongs to one entry alone, at the end of its row: the verification status of a criterion. */
+/* The heading of the acceptance criteria with the button that copies all of them. */
+.sect-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 30px 0 2px;
+}
+.card .sect-bar .sect {
+  flex: 1;
+  margin: 0;
+}
+.sect-bar + .crit {
+  border-top: 0;
+}
+/* What belongs to one entry alone, at the end of its row: the verification status of a criterion, its copy button. */
 .crit:has(> .crit-end) {
   grid-template-columns: 38px minmax(0, 1fr) auto;
 }
