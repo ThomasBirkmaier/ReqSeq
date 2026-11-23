@@ -19,7 +19,7 @@ import {
 
 /**
  * SR-069/filter with a topic shared by a single value and a list, so that a value of a list property selects
- * its element (SR-132 AK2).
+ * its element.
  */
 const VALUES: FixtureOptions = {
   fixture: "SR-069/filter",
@@ -504,22 +504,19 @@ scenariosOf("element.list", [
     expect: "output",
   },
   {
-    name: "the elements with a topic, one item of a list included, as the app lists them (SR-132)",
-    tag: "[SR-132/AK-ymp3]",
+    name: "the elements with a topic, one item of a list included",
     fixture: VALUES,
     input: { selection: { where: { property: "topic", op: "eq", value: "Timing" } }, sort: TYPE_AND_ID },
     expect: "output",
   },
   {
-    name: "the elements with a status as the condition property equals value (SR-132)",
-    tag: "[SR-132/AK-ymp3]",
+    name: "the elements with a status as the condition property equals value",
     fixture: VALUES,
     input: { selection: { where: { property: "status", op: "eq", value: "approved" } }, sort: TYPE_AND_ID },
     expect: "output",
   },
   {
-    name: "the elements with the same package as target (SR-132)",
-    tag: "[SR-132/AK-q3fb]",
+    name: "the elements with the same package as target",
     fixture: VALUES,
     input: {
       selection: { where: { property: "packages", op: "eq", value: "PKG-0000d1" } },

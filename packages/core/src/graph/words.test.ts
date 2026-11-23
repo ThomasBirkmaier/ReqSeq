@@ -1,4 +1,4 @@
-// The words of the element graph (SR-111 AK4, SR-136, SR-084 AK4, SR-154 AK1) that the app shows.
+// The words of the element graph (SR-111 AK4, SR-136, SR-084 AK4, SR-151 AK1).
 import { describe, expect, it } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import type { Verifiable } from "./words.js";
@@ -69,7 +69,7 @@ describe("graph words", () => {
     ]);
   });
 
-  it("[SR-154/AK-rhrj] names a kind or relation property by the metamodel, else its key, a reference by its word", () => {
+  it("[SR-151/AK-qv2x] names a kind or relation property by the metamodel, else its key, a reference by its word", () => {
     const names = relationNames({
       relations: [{ key: "derives-from", name: "Derives from" }],
       properties: [

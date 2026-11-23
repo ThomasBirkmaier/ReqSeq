@@ -25,8 +25,7 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
-    name: "the condition the command prompt builds from marks: each in its order under all, the same file by every access (SR-215 AK10)",
-    tag: "[SR-215/AK-hnzf]",
+    name: "conditions in their order under all: the same file by every access",
     fixture: SAVED,
     input: {
       name: "Drafts without child",
@@ -41,8 +40,7 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
-    name: "the sort the command prompt builds from marks: its keys in their order, the same file by every access (SR-215 AK10)",
-    tag: "[SR-215/AK-hnzf]",
+    name: "sort keys in their order: the same file by every access",
     fixture: SAVED,
     input: {
       name: "By tree then title",
@@ -55,15 +53,13 @@ scenariosOf("filter.save", [
     expect: "output",
   },
   {
-    name: "the empty sort of Workspace order (SR-215 AK10)",
-    tag: "[SR-215/AK-hnzf]",
+    name: "the empty sort of workspace order",
     fixture: SAVED,
     input: { name: "In workspace order", where: { all: [] }, sort: [] },
     expect: "output",
   },
   {
-    name: 'the input "Save list as saved filter" gives: the conditions of the filter steps in their order under all and the chosen sort, the same file by every access (SR-219 AK9)',
-    tag: "[SR-219/AK-kj5g]",
+    name: "conditions under all with a sort: the same file by every access",
     fixture: SAVED,
     input: {
       name: "Measured drafts",

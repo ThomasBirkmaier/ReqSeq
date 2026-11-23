@@ -81,8 +81,7 @@ scenariosOf("element.create", [
     newElement: true,
   },
   {
-    name: "the properties and relations the command prompt builds from marks: each entry with its value, the same file by every access but the UUID (SR-215 AK10)",
-    tag: "[SR-215/AK-hnzf]",
+    name: "properties and relations, each entry with its value: the same file by every access but the UUID",
     fixture: FILTER,
     input: {
       type: "system-requirement",

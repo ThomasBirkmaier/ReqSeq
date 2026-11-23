@@ -31,19 +31,8 @@ export {
 export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
 export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks, jsonLines } from "./files/index.js";
 export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
-export {
-  degreePercent,
-  degreeShareOf,
-  minimumHeadText,
-  packageSummaryText,
-  summaryViewText,
-} from "./evidence/degree-text.js";
-export type {
-  SummaryDegree,
-  SummaryDegreeOutput,
-  SummaryLevel,
-  SummaryName,
-} from "./evidence/degree-text.js";
+export { degreePercent, degreeShareOf, minimumHeadText } from "./evidence/degree-text.js";
+export type { SummaryDegree } from "./evidence/degree-text.js";
 export * from "./version/version.js";
 export { versionIn } from "./model/version-input.js";
 export { criterionKey, criterionLabel, criterionText, isCriterionKey } from "./model/criterion-items.js";

@@ -8,6 +8,7 @@ import { DEGREE, EVIDENCE } from "../../fixtures.js";
 interface CoverageLevel {
   readonly type: string;
   readonly total: number;
+  readonly withChildren: number;
   readonly withEvidence?: number;
 }
 
@@ -84,17 +85,25 @@ scenariosOf("evidence.coverage", [
     },
   },
   {
-    name: "a package page counts 8 of 10 requirements with evidence, not its need",
+    name: "a package counts per level how many elements have children and how many requirements have evidence",
     fixture: DEGREE,
     input: { selection: { package: "PKG-00d003" } },
-    tag: "[SR-112/AK-s1rj]",
+    tag: "[SR-036/AK-wkgr]",
     expect: "output",
     check: (results) => {
       const { levels } = (results["core"]?.outcome as { output: { levels: readonly CoverageLevel[] } })
         .output;
-      expect(levels.map(({ type, total, withEvidence }) => [type, total, withEvidence])).toEqual([
-        ["need", 1, undefined],
-        ["system-requirement", 10, 8],
+      // Of P3's 10 valid requirements R10 has a child (C3) and 8 have evidence; its need N1 has no child.
+      expect(
+        levels.map(({ type, total, withChildren, withEvidence }) => [
+          type,
+          total,
+          withChildren,
+          withEvidence,
+        ]),
+      ).toEqual([
+        ["need", 1, 0, undefined],
+        ["system-requirement", 10, 1, 8],
       ]);
     },
   },

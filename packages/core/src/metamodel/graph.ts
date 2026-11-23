@@ -1,5 +1,5 @@
 // The metamodel as a graph (SR-130 AK2, AK3), for the Mermaid text (SR-151 AK2,
-// #1537; `@reqseq/core/metamodel-graph`, this module imports only types): which box and which curve stand for
+// #1537; this module imports only types): which box and which curve stand for
 // which field of `metamodel.get`. Pure display (ADR-0002 rule 3, SR-080 AK4): nothing is decided here, every word shown
 // is a value of the output or a word for a field ("extends", "Any type", "abstract", "any source").
 // - A node is one entry of `types`, in their order, with its name, prefix and every property of

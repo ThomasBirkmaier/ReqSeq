@@ -800,7 +800,7 @@ describe("element.get hintDates (ThomasBirkmaier/ReqSeq-archive#702)", () => {
   const outdated = (element: Element): readonly Problem[] =>
     hints(element).filter((problem) => problem.code === "relation.outdated");
 
-  it("[SR-110/AK-j1xs] dates the outdated relations and references of the element, but not its own version", async () => {
+  it("dates the outdated relations and references of the element, but not its own version", async () => {
     const opened = await open(HINTS);
     const plain = await get(opened, { ref: "SR-0000b1" });
     const dated = await get(opened, { ref: "SR-0000b1", hintDates: true });
@@ -823,7 +823,7 @@ describe("element.get hintDates (ThomasBirkmaier/ReqSeq-archive#702)", () => {
     expect(dated).toEqual(withoutDate);
   });
 
-  it("[SR-110/AK-j1xs] gives an element without outdated relations as without the input", async () => {
+  it("gives an element without outdated relations as without the input", async () => {
     const opened = await open(TWO);
     expect(await get(opened, { ref: WIND.id, hintDates: true })).toEqual(await get(opened, { ref: WIND.id }));
   });

@@ -192,7 +192,7 @@ describe("the order of late hits in lists of hits", () => {
     expect(groups).toEqual(["draft: b2 a2", "approved: a4 a5 b1 a1", "obsolete: b3 a3"]);
   });
 
-  it("[SR-201/AK-d03x] orders the hits in place and those of the section at the end each with the late hits last", async () => {
+  it("[SR-068/AK-rbwp] orders the hits of a filtered selection, and of the selection the filter leaves out, each with the late hits last", async () => {
     const ws = await open();
     const folded = { status: ["obsolete"] };
     expect(await order(ws, "package", { selection: { where: { not: folded } } })).toEqual([
@@ -206,7 +206,7 @@ describe("the order of late hits in lists of hits", () => {
     expect(await order(ws, "package", { selection: { where: folded } })).toEqual(["b3", "a3"]);
   });
 
-  it("[SR-183/AK-qq2p] gives the first hits of a page in the order of the whole list, late hits last", async () => {
+  it("gives the first hits of a page in the order of the whole list, late hits last", async () => {
     const ws = await open();
     const all = await order(ws, "package");
     for (const limit of [1, 5, 6, 7]) {
