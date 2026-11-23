@@ -95,9 +95,10 @@ jobs:
           node-version-file: .nvmrc
       - name: System packages (Linux)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev
+        # Restarted when it stalls (#2436).
+        run: >-
+          .github/scripts/apt-retry.sh bash -c 'sudo apt-get update &&
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev'
       # rust-toolchain.toml names the version and its components.
       - name: Rust toolchain
         working-directory: packages/shell
@@ -288,14 +289,14 @@ jobs:
           key: ${{ steps.browser-cache.outputs.cache-primary-key }}
       - name: System libraries of the browsers (Linux)
         if: runner.os == 'Linux'
-        run: pnpm --filter @reqseq/web exec playwright install-deps chromium firefox webkit
+        run: .github/scripts/apt-retry.sh pnpm --filter @reqseq/web exec playwright install-deps chromium firefox webkit
       # The web engine of the desktop shell, a display and a session bus for it (SR-252 AK1); delivery-tests.sh
       # removes the engine again for the last test (SR-252 AK8).
       - name: Web engine of the desktop shell (Linux)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 xvfb xauth dbus
+        run: >-
+          .github/scripts/apt-retry.sh bash -c 'sudo apt-get update &&
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 xvfb xauth dbus'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: delivery*
