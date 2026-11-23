@@ -1,0 +1,992 @@
+# Probe for #2465 (step 2 of its plan review): one run per system that builds the shell's e2e build as ci.yml does
+# and only starts each recorder and the AK8 conditions once, printing what they give. Never merged: it lives only on
+# the branch probe/2465-shell-recorders.
+name: Probe 2465
+
+on:
+  push:
+    branches: [probe/2465-shell-recorders]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: probe (${{ matrix.os }})
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Shell - Rust toolchain
+        working-directory: packages/shell
+        shell: bash
+        run: |
+          rustup toolchain install
+          rustc --version
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          echo "CARGO_PROFILE_DEV_DEBUG=0" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: shell-cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1-audit-0.22.2
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: packages/shell/target
+          key: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/Cargo.toml', 'packages/shell/*/Cargo.toml', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1
+          restore-keys: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Shell - fetch the crates
+        working-directory: packages/shell
+        run: cargo fetch --locked
+      - name: Shell - e2e build
+        id: e2e-build
+        run: pnpm --filter @reqseq/shell build:e2e
+
+      - name: Probe - scripts
+        id: scripts
+        shell: bash
+        run: |
+          node -e '
+            const p = require("node:path");
+            const r = process.cwd();
+            const exe = process.platform === "win32" ? ".exe" : "";
+            console.log("PROBE=" + p.join(process.env.RUNNER_TEMP, "probe"));
+            console.log("PROBE_ROOT=" + r);
+            console.log("PROBE_SHELL=" + p.join(r, "packages", "shell", "target", "debug", "reqseq-shell" + exe));
+            console.log("PROBE_CLI=" + p.join(r, "packages", "cli", "dist", "bin.js"));
+          ' | tee -a "$GITHUB_ENV" > probe-env.txt
+          . <(sed 's/^\([A-Z_]*\)=\(.*\)$/\1="\2"/' probe-env.txt)
+          mkdir -p "$PROBE/out" "$PROBE/private"
+          cat > "$PROBE/drive.mjs" <<'PROBE_EOF'
+          // Probe #2465: starts the e2e shell once and prints its driver lines, standard error, exit and the processes
+          // around it. Options in PROBE_OPTS (JSON): label, capMs, env, node, wrap (command prefix; the variables then go
+          // through `env`), session (open a workspace, show an element, close the window).
+          import { spawn, execFileSync } from "node:child_process";
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const o = JSON.parse(process.env.PROBE_OPTS ?? "{}");
+          const OUT = path.join(process.env.PROBE, "out");
+          const PRIV = path.join(process.env.PROBE, "private");
+          fs.mkdirSync(OUT, { recursive: true });
+          fs.mkdirSync(PRIV, { recursive: true });
+          const SHELL = process.env.PROBE_SHELL;
+          const CLI = process.env.PROBE_CLI;
+          const ROOT = process.env.PROBE_ROOT;
+          const win = process.platform === "win32";
+          const cap = o.capMs ?? 60_000;
+          const ELEMENT = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
+          let token = null;
+          const redact = (s) => (token ? String(s).split(token).join("<TOKEN>") : String(s));
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+          function sh(cmd, args) {
+            try {
+              return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 });
+            } catch (e) {
+              return `(${cmd} failed: ${String(e.message).split("\n")[0]})\n${e.stdout ?? ""}`;
+            }
+          }
+
+          function snapshot() {
+            if (win) {
+              const ps =
+                "Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(msedgewebview2|reqseq-shell|node|node-probe|WerFault|WerFaultSecure|WerMgr)\\.exe$' -and [string]$_.CommandLine -notmatch 'drive\\.mjs' } | ForEach-Object { $c = [string]$_.CommandLine; '{0} {1} {2} {3}' -f $_.ProcessId, $_.ParentProcessId, $_.Name, $c.Substring(0, [Math]::Min(200, $c.Length)) }";
+              return sh("powershell", ["-NoProfile", "-Command", ps])
+                .split(/\r?\n/)
+                .filter(Boolean)
+                .map(redact);
+            }
+            let text = sh("ps", ["-axww", "-o", "pid=,ppid=,user=,rgid=,args="]);
+            if (text.startsWith("(ps failed")) {
+              text = sh("ps", ["-axww", "-o", "pid=,ppid=,user=,args="]);
+            }
+            return text
+              .split("\n")
+              .filter((l) => /WebKit|reqseq|bin\.js|ReportCrash|bsexec/.test(l) && !/drive\.mjs|ps -axww/.test(l))
+              .map((l) => redact(l.trim().slice(0, 240)));
+          }
+
+          function killAll() {
+            if (win) {
+              sh("taskkill", ["/T", "/F", "/PID", String(child.pid)]);
+              sh("powershell", [
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'reqseq-shell.exe' -or ([string]$_.CommandLine -match 'ui --no-open') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+              ]);
+            } else {
+              child.kill("SIGKILL");
+              sh("sudo", ["-n", "pkill", "-9", "-f", "target/debug/reqseq-shell"]);
+              sh("sudo", ["-n", "pkill", "-9", "-f", "ui --no-open"]);
+            }
+          }
+
+          // The workspace of a session: the fixture of the e2e suite with its element of links, image and raw HTML.
+          let workspace;
+          if (o.session) {
+            workspace = path.join(process.env.PROBE, `ws-${o.label}`);
+            fs.rmSync(workspace, { recursive: true, force: true });
+            fs.cpSync(path.join(ROOT, "fixtures", "SR-004", "one-repository"), workspace, { recursive: true });
+            fs.writeFileSync(
+              path.join(workspace, "requirements", "SR-6328cee88fb3.md"),
+              [
+                "---",
+                `id: ${ELEMENT}`,
+                "type: system-requirement",
+                "status: draft",
+                "title: Show wind speed",
+                "---",
+                "",
+                "The station shows the current wind speed. See [the guide](https://example.org/guide?from=reqseq), [write to us](mailto:someone@example.org)",
+                "and the picture ![wind](https://192.0.2.7/wind.png).",
+                "",
+                '<a href="https://192.0.2.8/raw">raw link</a> <img src="https://192.0.2.9/raw.png"> <iframe src="https://192.0.2.10/"></iframe>',
+                "",
+              ].join("\n"),
+            );
+            if (o.wrap) {
+              fs.chmodSync(process.env.PROBE, 0o755);
+            }
+          }
+
+          const env = { REQSEQ_SHELL_E2E_NODE: o.node ?? process.execPath, REQSEQ_SHELL_E2E_CLI: CLI, ...(o.env ?? {}) };
+          let cmd = SHELL;
+          let args = [];
+          if (o.wrap) {
+            [cmd, ...args] = o.wrap;
+            args.push("env", ...Object.entries(env).map(([k, v]) => `${k}=${v}`), SHELL);
+          }
+          const t0 = new Date();
+          const ms = () => Date.now() - t0.getTime();
+          const child = spawn(cmd, args, { cwd: o.cwd ?? ROOT, env: { ...process.env, ...env }, stdio: "pipe" });
+          const events = [];
+          const other = [];
+          let stderr = "";
+          let partial = "";
+          let exit = null;
+          let spawnError = null;
+          child.stdout.on("data", (chunk) => {
+            partial += chunk.toString("utf8");
+            const lines = partial.split("\n");
+            partial = lines.pop() ?? "";
+            for (const raw of lines) {
+              const line = raw.replace(/\r$/, "");
+              const m = /^e2e (\S+) (.*)$/.exec(line);
+              if (m) {
+                let value;
+                try {
+                  value = JSON.parse(m[2]);
+                } catch {
+                  value = m[2];
+                }
+                events.push({ ms: ms(), kind: m[1], value });
+              } else if (other.length < 40) {
+                other.push(`${ms()}ms ${line.slice(0, 300)}`);
+              }
+            }
+          });
+          child.stderr.on("data", (c) => {
+            stderr += c.toString("utf8");
+          });
+          child.stdin.on("error", () => {});
+          const exited = new Promise((resolve) => {
+            child.once("exit", (code, signal) => {
+              exit = { code, signal, ms: ms() };
+              resolve();
+            });
+            child.once("error", (e) => {
+              spawnError = e.message;
+              exit = { error: e.message, ms: ms() };
+              resolve();
+            });
+          });
+
+          const until = async (f, limit) => {
+            const d = Date.now() + limit;
+            for (;;) {
+              const v = f();
+              if (v !== undefined && v !== null && v !== false) return v;
+              if (exit || Date.now() > d) return undefined;
+              await sleep(50);
+            }
+          };
+          let nextId = 1;
+          async function evalJs(script, limit = 5_000) {
+            for (let i = 0; i < 3; i++) {
+              const id = nextId++;
+              child.stdin.write(`${JSON.stringify({ eval: script, id })}\n`);
+              const ans = await until(() => events.find((e) => e.kind === "eval" && e.value?.id === id), limit);
+              if (ans) return ans.value.result;
+              if (exit) return undefined;
+            }
+            return undefined;
+          }
+          async function evalUntil(script, limit = 30_000) {
+            const d = Date.now() + limit;
+            for (;;) {
+              const v = await evalJs(script);
+              if (v !== null && v !== false && v !== undefined) return v;
+              if (exit || Date.now() > d) return v;
+              await sleep(200);
+            }
+          }
+          const steps = [];
+          const mark = (s) => steps.push(`${ms()}ms ${s}`);
+          const snaps = {};
+
+          if (o.session) {
+            const loaded = await until(
+              () => events.find((e) => e.kind === "page-load" && String(e.value).startsWith("Finished")),
+              45_000,
+            );
+            mark(loaded ? "page loaded" : "no page-load");
+            if (loaded) {
+              await evalUntil("sessionStorage.getItem('reqseq.token') !== null");
+              token = (await evalJs("sessionStorage.getItem('reqseq.token')")) ?? null;
+              if (token) fs.writeFileSync(path.join(PRIV, `token-${o.label}`), token);
+              mark(`token ${token ? `length ${token.length}` : "missing"}`);
+              await evalJs(`(() => {
+                window.__opened = null;
+                fetch("ui/workspace", {
+                  method: "POST",
+                  headers: { "content-type": "application/json", authorization: "Bearer " + sessionStorage.getItem("reqseq.token") },
+                  body: ${JSON.stringify(JSON.stringify({ path: workspace }))},
+                }).then(async (r) => { window.__generation = (await r.json()).generation; window.__opened = r.status; }, (e) => { window.__opened = String(e); });
+                return true;
+              })()`);
+              mark(`workspace open ${JSON.stringify(await evalUntil("window.__opened"))}`);
+              const route = `#/e/${ELEMENT}`;
+              const shown = await evalUntil(
+                `(() => { if (location.hash !== ${JSON.stringify(route)}) { location.hash = ${JSON.stringify(route)}; return false; } return document.readyState === "complete"; })()`,
+              );
+              mark(`element route ${String(shown)}`);
+              const link = await evalUntil(`document.querySelector('a[href^="https://example.org/guide"]') !== null`, 15_000);
+              mark(`element shown ${String(link)}`);
+              await sleep(3_000);
+              snaps.showing = snapshot();
+              child.stdin.write(`${JSON.stringify({ close: true })}\n`);
+              mark("close sent");
+              await Promise.race([exited, sleep(15_000)]);
+            }
+          } else {
+            await Promise.race([exited, sleep(Math.min(20_000, cap))]);
+            if (!exit) snaps.at20s = snapshot();
+          }
+          await Promise.race([exited, sleep(Math.max(0, cap - ms()))]);
+          const timedOut = !exit;
+          if (timedOut) {
+            snaps.atCap = snapshot();
+            mark("cap reached: killing");
+            killAll();
+            await Promise.race([exited, sleep(5_000)]);
+          }
+          await sleep(1_500);
+          snaps.after = snapshot();
+          killAll();
+
+          const result = {
+            label: o.label,
+            platform: process.platform,
+            command: [cmd, ...args].join(" "),
+            t0: t0.toISOString(),
+            t1: new Date().toISOString(),
+            childPid: child.pid,
+            exit: timedOut ? `no exit within ${cap} ms (killed)` : exit,
+            spawnError,
+            steps,
+            driverLines: events
+              .filter((e) => e.kind !== "eval")
+              .map((e) => `${e.ms}ms ${e.kind} ${redact(JSON.stringify(e.value)).slice(0, 300)}`),
+            evalAnswers: events.filter((e) => e.kind === "eval").length,
+            otherStdout: other.map(redact),
+            stderr: redact(stderr).slice(-3_000),
+            reasonLine: /ReqSeq: the window could not open: /.test(stderr),
+            panicHookLine: /^ReqSeq: the window could not open\.\s*$/m.test(stderr),
+            tokenInStderrOrStdout: token !== null && (stderr.includes(token) || other.some((l) => l.includes(token))),
+            workspace,
+            snapshots: snaps,
+          };
+          const text = JSON.stringify(result, null, 2);
+          console.log(`PROBE-RESULT ${o.label}`);
+          console.log(text);
+          fs.writeFileSync(path.join(OUT, `${o.label}.json`), text);
+          process.exit(0);
+          PROBE_EOF
+          cat > "$PROBE/control.mjs" <<'PROBE_EOF'
+          // Probe #2465: one connection to a documentation address over IPv4 and IPv6 and one name lookup, so the
+          // recorders show whether they see and refuse anything. Argument: a label.
+          import net from "node:net";
+          import dns from "node:dns";
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const label = process.argv[2] ?? "control";
+          fs.mkdirSync(path.join(process.env.PROBE, "private"), { recursive: true });
+          fs.writeFileSync(path.join(process.env.PROBE, "private", `pid-${label}`), String(process.pid));
+          const t0 = Date.now();
+          const connect = (host) =>
+            new Promise((resolve) => {
+              const s = net.connect({ host, port: 80 });
+              const done = (what) => {
+                s.destroy();
+                resolve(`${what} after ${Date.now() - start} ms`);
+              };
+              const start = Date.now();
+              s.setTimeout(5_000, () => done("timeout"));
+              s.once("connect", () => done("connected"));
+              s.once("error", (e) => done(`error ${e.code}`));
+            });
+          const lookup = (name) =>
+            new Promise((resolve) => {
+              dns.lookup(name, { all: true }, (e, a) => resolve(e ? `error ${e.code}` : JSON.stringify(a)));
+            });
+          console.log(`control ${label} pid ${process.pid} execPath ${process.execPath}`);
+          console.log(`  v4 192.0.2.1:80     ${await connect("192.0.2.1")}`);
+          console.log(`  v6 [2001:db8::1]:80 ${await connect("2001:db8::1")}`);
+          console.log(`  dns probe-2465-${label}.example.com ${await lookup(`probe-2465-${label}.example.com`)}`);
+          console.log(`  took ${Date.now() - t0} ms at ${new Date().toISOString()}`);
+          PROBE_EOF
+          cat > "$PROBE/analyze-win.mjs" <<'PROBE_EOF'
+          // Probe #2465, Windows: reads what the recorders exported. Modes: `events` (4688, 5157, 3006), `csv <file>`
+          // (the tracerpt CSV), `files <file>` (Kernel-File events of the shell's tree from Get-WinEvent).
+          import fs from "node:fs";
+          import path from "node:path";
+          import readline from "node:readline";
+
+          const P = process.env.PROBE;
+          const read = (f, d) => {
+            try {
+              return fs.readFileSync(f, "utf8").replace(/^﻿/, "");
+            } catch {
+              return d;
+            }
+          };
+          const list = (f) => {
+            const t = read(f, "");
+            if (t.trim() === "") return [];
+            const v = JSON.parse(t);
+            return Array.isArray(v) ? v : [v];
+          };
+          const session = JSON.parse(read(path.join(P, "out", "win-session.json"), "{}"));
+          const token = read(path.join(P, "private", "token-win-session"), "").trim();
+          const controlPid = Number(read(path.join(P, "private", "pid-control-win"), "0"));
+          const redact = (s) => (token ? String(s ?? "").split(token).join("<TOKEN>") : String(s ?? ""));
+          const num = (v) => (typeof v === "string" && v.startsWith("0x") ? parseInt(v, 16) : Number(v));
+          const norm = (p) => String(p ?? "").toLowerCase();
+          const mode = process.argv[2];
+
+          if (mode === "events") {
+            const e4688 = list(path.join(P, "private", "ev-4688.json"));
+            const children = new Map();
+            for (const e of e4688) {
+              const parent = num(e.ProcessId);
+              if (!children.has(parent)) children.set(parent, []);
+              children.get(parent).push(e);
+            }
+            const root = session.childPid;
+            const tree = new Set([root]);
+            const rows = [];
+            const walk = (pid, depth) => {
+              for (const e of children.get(pid) ?? []) {
+                const c = num(e.NewProcessId);
+                if (tree.has(c)) continue;
+                tree.add(c);
+                rows.push(`${"  ".repeat(depth)}${c} <- ${pid} ${e.NewProcessName} | ${redact(e.CommandLine).slice(0, 400)}`);
+                walk(c, depth + 1);
+              }
+            };
+            walk(root, 1);
+            console.log(`4688 events since t0: ${e4688.length}; with a command line: ${e4688.filter((e) => e.CommandLine).length}`);
+            console.log(`shell pid ${root}: ${tree.size - 1} descendants recorded`);
+            for (const r of rows) console.log(r);
+            const own = e4688.find((e) => num(e.NewProcessId) === root);
+            console.log(`the shell's own 4688: ${own ? `${own.NewProcessName} | ${redact(own.CommandLine).slice(0, 300)}` : "not found"}`);
+            console.log(
+              `token in a command line: tree ${token ? e4688.filter((e) => tree.has(num(e.NewProcessId)) && String(e.CommandLine).includes(token)).length : "no token"}, any ${token ? e4688.filter((e) => String(e.CommandLine).includes(token)).length : "-"}`,
+            );
+            const engine = [...new Set(e4688.filter((e) => tree.has(num(e.NewProcessId)) && /msedgewebview2\.exe$/i.test(e.NewProcessName)).map((e) => e.NewProcessName))];
+            const ruled = list(path.join(P, "out", "fw-programs.json")).map(norm);
+            console.log(`engine paths in the tree: ${JSON.stringify(engine)}`);
+            console.log(`  each among the firewall rule programs: ${JSON.stringify(engine.map((p) => ruled.includes(norm(p))))}`);
+            const outside = e4688.filter((e) => !tree.has(num(e.NewProcessId)) && /msedgewebview2|reqseq|node-probe/i.test(e.NewProcessName));
+            console.log(`engine, shell or server processes outside the tree: ${outside.length}`);
+            for (const e of outside.slice(0, 10)) console.log(`  ${num(e.NewProcessId)} <- ${num(e.ProcessId)} ${e.NewProcessName} | ${redact(e.CommandLine).slice(0, 200)}`);
+            fs.writeFileSync(path.join(P, "private", "tree-pids.txt"), [...tree].join("\n"));
+            const server = (session.snapshots?.showing ?? []).find((l) => /ui --no-open/.test(l));
+            const serverPid = server ? Number(server.split(" ")[0]) : 0;
+            console.log(`server in the snapshot: ${server ?? "none"}; in the tree: ${tree.has(serverPid)}`);
+            fs.writeFileSync(path.join(P, "private", "server-pid.txt"), String(serverPid));
+
+            const e5157 = list(path.join(P, "private", "ev-5157.json"));
+            console.log(`\n5157 (connection blocked) events since t0: ${e5157.length}`);
+            const byApp = new Map();
+            for (const e of e5157) {
+              const pid = Number(e.ProcessID);
+              const who = pid === controlPid ? "control" : tree.has(pid) ? "shell tree" : "other";
+              const k = `${who} ${e.Application} -> ${e.DestAddress}:${e.DestPort} proto ${e.Protocol} dir ${e.Direction}`;
+              byApp.set(k, (byApp.get(k) ?? 0) + 1);
+            }
+            for (const [k, n] of byApp) console.log(`  ${n}x ${k}`);
+            const e3006 = list(path.join(P, "private", "ev-3006.json"));
+            console.log(`\nDNS client 3006 events since t0: ${e3006.length}`);
+            const byName = new Map();
+            for (const e of e3006) {
+              const pid = Number(e._pid);
+              const who = pid === controlPid ? "control" : tree.has(pid) ? "shell tree" : `pid ${pid}`;
+              const k = `${who} ${e.QueryName}`;
+              byName.set(k, (byName.get(k) ?? 0) + 1);
+            }
+            for (const [k, n] of [...byName].slice(0, 60)) console.log(`  ${n}x ${k}`);
+          } else if (mode === "csv") {
+            const file = process.argv[3];
+            const tree = new Set(read(path.join(P, "private", "tree-pids.txt"), "").split("\n").filter(Boolean));
+            const ws = norm(path.basename(session.workspace ?? "ws-win-session"));
+            const bom = Buffer.alloc(2);
+            const fd = fs.openSync(file, "r");
+            fs.readSync(fd, bom, 0, 2, 0);
+            fs.closeSync(fd);
+            const encoding = bom[0] === 0xff && bom[1] === 0xfe ? "utf16le" : "utf8";
+            console.log(`CSV encoding: ${encoding}`);
+            const rl = readline.createInterface({ input: fs.createReadStream(file, { encoding }) });
+            let n = 0;
+            const head = [];
+            const kinds = new Map();
+            const inTree = [];
+            const wsRows = [];
+            let pidCol = -1;
+            for await (const raw of rl) {
+              const line = raw.replace(/^﻿/, "").replace(/\0/g, "");
+              n++;
+              if (head.length < 6) head.push(line.slice(0, 400));
+              const cols = line.split(",").map((c) => c.trim());
+              if (pidCol < 0 && /Event Name/.test(line)) {
+                pidCol = cols.findIndex((c) => /^(PID|Process ID)$/i.test(c));
+                continue;
+              }
+              const k = `${cols[0]} | ${cols[1]}`;
+              kinds.set(k, (kinds.get(k) ?? 0) + 1);
+              const pid = pidCol >= 0 ? String(parseInt(cols[pidCol], cols[pidCol]?.startsWith("0x") ? 16 : 10)) : "";
+              if (tree.has(pid) && inTree.length < 25) inTree.push(line.slice(0, 400));
+              if (norm(line).includes(ws) && wsRows.length < 25) wsRows.push(`pid ${pid}: ${line.slice(0, 400)}`);
+            }
+            console.log(`CSV lines: ${n}; PID column: ${pidCol}`);
+            console.log("first lines:");
+            for (const h of head) console.log(`  ${h}`);
+            console.log("rows per event name and type:");
+            for (const [k, c] of [...kinds].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`  ${c}x ${k}`);
+            console.log("rows of the shell tree (first 25):");
+            for (const r of inTree) console.log(`  ${redact(r)}`);
+            console.log("rows naming the workspace folder (first 25):");
+            for (const r of wsRows) console.log(`  ${redact(r)}`);
+          } else if (mode === "files") {
+            const events = list(process.argv[3]);
+            const tree = new Set(read(path.join(P, "private", "tree-pids.txt"), "").split("\n").filter(Boolean).map(Number));
+            const serverPid = Number(read(path.join(P, "private", "server-pid.txt"), "0"));
+            const ws = norm(path.basename(session.workspace ?? "ws-win-session"));
+            const names = new Map();
+            const kinds = new Map();
+            const created = new Map();
+            const written = new Map();
+            const wsOpens = new Map();
+            for (const e of events) {
+              kinds.set(`${e._id} ${e._task}`, (kinds.get(`${e._id} ${e._task}`) ?? 0) + 1);
+              const pid = Number(e._pid);
+              if (e.FileName) {
+                names.set(`${pid}:${e.FileObject}`, e.FileName);
+                const k = `${pid}`;
+                if (!created.has(k)) created.set(k, new Set());
+                created.get(k).add(e.FileName);
+                if (norm(e.FileName).includes(ws)) {
+                  if (!wsOpens.has(pid)) wsOpens.set(pid, new Set());
+                  wsOpens.get(pid).add(e.FileName);
+                }
+              }
+            }
+            for (const e of events) {
+              if (e._id === 16 || e._id === "16") {
+                const pid = Number(e._pid);
+                const name = names.get(`${pid}:${e.FileObject}`) ?? `(FileObject ${e.FileObject})`;
+                if (!written.has(pid)) written.set(pid, new Set());
+                written.get(pid).add(name);
+              }
+            }
+            console.log(`Kernel-File events of the tree: ${events.length}`);
+            for (const [k, c] of kinds) console.log(`  event ${k}: ${c}`);
+            console.log(`server pid (from the snapshot): ${serverPid}`);
+            for (const [pid, set] of wsOpens) console.log(`workspace files created/opened by ${pid}${pid === serverPid ? " (server)" : tree.has(pid) ? " (tree)" : ""}: ${[...set].slice(0, 8).join(" ; ")}`);
+            for (const [pid, set] of written) {
+              const dirs = new Map();
+              for (const f of set) {
+                const d = String(f).split("\\").slice(0, 8).join("\\");
+                dirs.set(d, (dirs.get(d) ?? 0) + 1);
+              }
+              console.log(`files written by ${pid}${pid === serverPid ? " (server)" : ""}: ${set.size}; by folder:`);
+              for (const [d, c] of [...dirs].slice(0, 20)) console.log(`  ${c}x ${d}`);
+            }
+            const sample = [...created.values()].flatMap((s) => [...s]).slice(0, 5);
+            console.log(`path forms (sample): ${JSON.stringify(sample)}`);
+            fs.writeFileSync(path.join(P, "private", "written.txt"), [...written.values()].flatMap((s) => [...s]).join("\n"));
+          } else {
+            console.log(`unknown mode ${mode}`);
+          }
+          PROBE_EOF
+          cat > "$PROBE/analyze-mac.mjs" <<'PROBE_EOF'
+          // Probe #2465, macOS: reads the eslogger stream, the pktap and the pflog record of the two recorded sessions.
+          import fs from "node:fs";
+          import path from "node:path";
+          import readline from "node:readline";
+
+          const P = process.env.PROBE;
+          const read = (f, d) => {
+            try {
+              return fs.readFileSync(f, "utf8");
+            } catch {
+              return d;
+            }
+          };
+          const labels = ["mac-session", "mac-session-group"];
+          const tokens = labels.map((l) => read(path.join(P, "private", `token-${l}`), "").trim()).filter(Boolean);
+          const redact = (s) => tokens.reduce((t, k) => t.split(k).join("<TOKEN>"), String(s ?? ""));
+          const controls = Object.fromEntries(
+            ["control-plain", "control-group"].map((l) => [Number(read(path.join(P, "private", `pid-${l}`), "0")), l]),
+          );
+          const wsNames = labels.map((l) => `ws-${l}`);
+
+          // --- eslogger ---
+          const es = path.join(P, "es.json");
+          const kinds = new Map();
+          let lines = 0;
+          let bad = 0;
+          let minSeq = Infinity;
+          let maxSeq = -Infinity;
+          const seqs = [];
+          const tokenHits = new Map();
+          const procs = new Map(); // pid -> { path, ppid, rpid, egid, rgid, args }
+          const forks = new Map(); // child -> parent
+          const execs = [];
+          const modified = []; // { pid, path }
+          const opens = []; // { pid, path }
+          if (fs.existsSync(es)) {
+            const rl = readline.createInterface({ input: fs.createReadStream(es, { encoding: "utf8" }) });
+            for await (const line of rl) {
+              lines++;
+              let m;
+              try {
+                m = JSON.parse(line);
+              } catch {
+                bad++;
+                continue;
+              }
+              const kind = Object.keys(m.event ?? {})[0] ?? `type ${m.event_type}`;
+              kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+              if (typeof m.global_seq_num === "number") {
+                seqs.push(m.global_seq_num);
+                minSeq = Math.min(minSeq, m.global_seq_num);
+                maxSeq = Math.max(maxSeq, m.global_seq_num);
+              }
+              for (const t of tokens) if (line.includes(t)) tokenHits.set(kind, (tokenHits.get(kind) ?? 0) + 1);
+              const p = m.process ?? {};
+              const pid = p.audit_token?.pid;
+              const info = (proc) => ({
+                path: proc.executable?.path,
+                ppid: proc.ppid,
+                rpid: proc.responsible_audit_token?.pid,
+                euid: proc.audit_token?.euid,
+                egid: proc.audit_token?.egid,
+                rgid: proc.audit_token?.rgid,
+              });
+              if (pid !== undefined && !procs.has(pid)) procs.set(pid, info(p));
+              const ev = m.event?.[kind] ?? {};
+              if (kind === "fork" && ev.child) {
+                forks.set(ev.child.audit_token?.pid, pid);
+                procs.set(ev.child.audit_token?.pid, info(ev.child));
+              } else if (kind === "exec" && ev.target) {
+                const t = ev.target;
+                const tp = t.audit_token?.pid ?? pid;
+                procs.set(tp, { ...info(t), args: ev.args });
+                execs.push({ pid: tp, ppid: t.ppid, rpid: t.responsible_audit_token?.pid, path: t.executable?.path, args: ev.args, egid: t.audit_token?.egid, rgid: t.audit_token?.rgid });
+              } else if (kind === "close" && ev.modified) {
+                modified.push({ pid, path: ev.target?.path });
+              } else if (kind === "open") {
+                opens.push({ pid, path: ev.file?.path });
+              } else if (kind === "create") {
+                const d = ev.destination ?? {};
+                const fp = d.existing_file?.path ?? (d.new_path ? `${d.new_path.dir?.path}/${d.new_path.filename}` : undefined);
+                modified.push({ pid, path: fp, create: true });
+              }
+            }
+          }
+          seqs.sort((a, b) => a - b);
+          let gaps = 0;
+          for (let i = 1; i < seqs.length; i++) if (seqs[i] !== seqs[i - 1] + 1) gaps += seqs[i] - seqs[i - 1] - 1;
+          console.log(`eslogger: ${lines} lines, ${bad} not JSON, size ${fs.existsSync(es) ? fs.statSync(es).size : 0} bytes`);
+          console.log(`  events: ${JSON.stringify(Object.fromEntries(kinds))}`);
+          console.log(`  global_seq_num ${minSeq}..${maxSeq}, ${seqs.length} seen, missing ${gaps}`);
+          console.log(`  lines with a session token: ${JSON.stringify(Object.fromEntries(tokenHits))}`);
+
+          const shells = execs.filter((e) => /\/target\/debug\/reqseq-shell$/.test(e.path ?? ""));
+          console.log(`  shell execs: ${shells.map((s) => `${s.pid} (ppid ${s.ppid}, egid ${s.egid}, rgid ${s.rgid})`).join(", ") || "none"}`);
+          const parentOf = (pid) => forks.get(pid) ?? procs.get(pid)?.ppid;
+          const descends = (pid, root) => {
+            for (let p = pid, i = 0; p !== undefined && p > 1 && i < 64; p = parentOf(p), i++) if (p === root) return true;
+            return false;
+          };
+          for (const s of shells) {
+            const tree = [...procs.keys()].filter((pid) => descends(pid, s.pid));
+            const tset = new Set(tree);
+            const resp = [...procs.entries()].filter(([pid, i]) => !tset.has(pid) && i.rpid !== undefined && tset.has(i.rpid)).map(([pid]) => pid);
+            const all = new Set([...tree, ...resp]);
+            console.log(`\nshell ${s.pid}: ${tree.length} processes in its tree, ${resp.length} more with it as responsible process`);
+            for (const pid of tree) {
+              const i = procs.get(pid);
+              console.log(`  tree ${pid} <- ${parentOf(pid)} ${i.path} egid ${i.egid} rgid ${i.rgid} args ${redact(JSON.stringify(i.args ?? null)).slice(0, 300)}`);
+            }
+            for (const pid of resp) {
+              const i = procs.get(pid);
+              console.log(`  responsible ${pid} <- ppid ${i.ppid} rpid ${i.rpid} ${i.path} euid ${i.euid} egid ${i.egid} rgid ${i.rgid}`);
+            }
+            const webkit = [...procs.entries()].filter(([, i]) => /com\.apple\.WebKit\./.test(i.path ?? ""));
+            console.log(`  all WebKit processes seen: ${webkit.map(([pid, i]) => `${pid} rpid ${i.rpid} egid ${i.egid} ${path.basename(i.path)}`).join("; ")}`);
+            const mod = modified.filter((m) => all.has(m.pid));
+            const dirs = new Map();
+            for (const m of mod) {
+              const d = String(m.path).split("/").slice(0, 7).join("/");
+              dirs.set(d, (dirs.get(d) ?? 0) + 1);
+            }
+            console.log(`  files written or created by tree and responsible: ${mod.length}; by folder:`);
+            for (const [d, c] of [...dirs].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`    ${c}x ${d}`);
+            const wsOpen = opens.filter((o) => all.has(o.pid) && wsNames.some((w) => String(o.path).includes(w)));
+            const byPid = new Map();
+            for (const o of wsOpen) byPid.set(o.pid, (byPid.get(o.pid) ?? 0) + 1);
+            console.log(`  workspace opens by pid: ${JSON.stringify(Object.fromEntries([...byPid].map(([p, c]) => [`${p} ${path.basename(procs.get(p)?.path ?? "?")}`, c])))}`);
+            fs.appendFileSync(path.join(P, "private", "mac-pids.txt"), `${[...all].join("\n")}\n`);
+          }
+          const saved = modified.filter((m) => /Saved Application State/.test(m.path ?? ""));
+          console.log(`\nwrites under Saved Application State: ${saved.length} ${saved.slice(0, 5).map((m) => m.path).join(" ; ")}`);
+          const ctl = execs.filter((e) => controls[e.pid]);
+          console.log(`control execs seen by eslogger: ${ctl.map((e) => `${controls[e.pid]} ${e.pid} egid ${e.egid}`).join(", ") || "none"}`);
+
+          // --- pktap ---
+          const pids = new Set(read(path.join(P, "private", "mac-pids.txt"), "").split("\n").filter(Boolean));
+          for (const k of Object.keys(controls)) pids.add(k);
+          const pk = read(path.join(P, "pktap.txt"), "").split("\n");
+          console.log(`\npktap: ${pk.length} lines`);
+          const nonLo = pk.filter((l) => l.trim() !== "" && !/\(lo0[,)]/.test(l));
+          console.log(`  not on lo0: ${nonLo.length}; first 5:`);
+          for (const l of nonLo.slice(0, 5)) console.log(`    ${l.slice(0, 300)}`);
+          const procKey = new Map();
+          for (const l of nonLo) {
+            const proc = /proc ([^,)]*)/.exec(l)?.[1] ?? "-";
+            const eproc = /eproc ([^,)]*)/.exec(l)?.[1] ?? "-";
+            const k = `proc ${proc.split(":").slice(0, 2).join(":")} eproc ${eproc.split(":").slice(0, 2).join(":")}`;
+            procKey.set(k, (procKey.get(k) ?? 0) + 1);
+          }
+          console.log("  not on lo0 by proc and eproc:");
+          for (const [k, c] of [...procKey].sort((a, b) => b[1] - a[1]).slice(0, 30)) console.log(`    ${c}x ${k}`);
+          const mine = nonLo.filter((l) => [...(l.matchAll(/:(\d+)[:,)]/g) ?? [])].some((m) => pids.has(m[1])) || /192\.0\.2\.|2001:db8|probe-2465/.test(l));
+          console.log(`  lines of the shell, its engine, the controls, or the test addresses: ${mine.length}`);
+          for (const l of mine.slice(0, 30)) console.log(`    ${l.slice(0, 300)}`);
+          console.log(`\npflog:\n${read(path.join(P, "pflog.txt"), "(none)").split("\n").slice(0, 40).join("\n")}`);
+          PROBE_EOF
+          for f in "$PROBE"/*.mjs; do node --check "$f" && echo "ok $f"; done
+
+      # ---------------------------------------------------------------- Windows: recorders
+      - name: Probe W - set up audit, DNS log, firewall and the Kernel-File trace
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          "== whoami"; whoami; whoami /groups | Select-String 'Mandatory Label|BUILTIN\\Administrators'
+          "== OS: $([Environment]::OSVersion.VersionString)"
+          "== audit before"
+          auditpol /get /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}"
+          auditpol /get /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}"
+          auditpol /set /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}" /success:enable
+          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /failure:enable
+          reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f
+          "== audit after"
+          auditpol /get /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}"
+          auditpol /get /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}"
+          wevtutil sl Microsoft-Windows-DNS-Client/Operational /e:true
+          wevtutil gl Microsoft-Windows-DNS-Client/Operational | Select-String 'enabled|maxSize'
+          "== firewall profiles before"
+          $before = Get-NetFirewallProfile
+          $before | Format-Table Name, Enabled, DefaultOutboundAction, DefaultInboundAction, LogBlocked, LogFileName -AutoSize | Out-String -Width 220
+          $before | Select-Object Name, Enabled, LogBlocked | ConvertTo-Json | Set-Content "$env:PROBE\private\fw-before.json"
+          Set-NetFirewallProfile -All -Enabled True -LogBlocked True
+          "== firewall profiles during the probe"
+          Get-NetFirewallProfile | Format-Table Name, Enabled, DefaultOutboundAction, LogBlocked -AutoSize | Out-String -Width 220
+          "== WebView2 runtime"
+          $wv = @(Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application\*\msedgewebview2.exe', 'C:\Program Files\Microsoft\EdgeWebView\Application\*\msedgewebview2.exe' -ErrorAction SilentlyContinue)
+          $wv | ForEach-Object { $_.FullName }
+          reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+          Copy-Item (Get-Command node).Source "$env:PROBE\node-probe.exe"
+          $programs = @("$env:PROBE\node-probe.exe", $env:PROBE_SHELL) + ($wv | ForEach-Object { $_.FullName })
+          $remote = @('1.0.0.0-126.255.255.255', '128.0.0.0-255.255.255.255', '::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff')
+          foreach ($p in $programs) {
+            New-NetFirewallRule -DisplayName "probe-2465 $p" -Group probe-2465 -Direction Outbound -Action Block -Program $p -RemoteAddress $remote | Out-Null
+          }
+          "== probe rules"
+          Get-NetFirewallRule -Group probe-2465 | ForEach-Object { $a = $_ | Get-NetFirewallApplicationFilter; $r = $_ | Get-NetFirewallAddressFilter; "$($_.Enabled) $($_.Action) $($a.Program) -> $($r.RemoteAddress -join ',')" }
+          $programs | ConvertTo-Json | Set-Content "$env:PROBE\out\fw-programs.json"
+          "== path forms"
+          Add-Type -Namespace Probe -Name K -MemberDefinition @'
+          [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern uint GetLongPathName(string s, System.Text.StringBuilder l, uint n);
+          [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern uint QueryDosDevice(string d, System.Text.StringBuilder t, uint n);
+          '@
+          foreach ($p in @($env:TEMP, $env:PROBE, $env:PROBE_SHELL, $env:LOCALAPPDATA)) { $sb = New-Object System.Text.StringBuilder 1024; [void][Probe.K]::GetLongPathName($p, $sb, 1024); "$p -> long: $sb" }
+          foreach ($d in @('C:', 'D:')) { $sb = New-Object System.Text.StringBuilder 1024; [void][Probe.K]::QueryDosDevice($d, $sb, 1024); "$d = $sb" }
+          "== Kernel-File trace"
+          (Get-Date).ToString('o') | Set-Content "$env:PROBE\private\t0.txt"
+          $t = Measure-Command { logman start probe-kf -p Microsoft-Windows-Kernel-File 0x1290 0x5 -o "$env:PROBE\kf.etl" -ets -bs 1024 -nb 128 640 | Out-Host }
+          "logman start took $([int]$t.TotalMilliseconds) ms"
+          logman query probe-kf -ets
+
+      - name: Probe W - controls (blocked node copy, IPv4, IPv6, DNS)
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          & "$env:PROBE\node-probe.exe" "$env:PROBE\control.mjs" control-win
+          node "$env:PROBE\control.mjs" control-unblocked
+
+      - name: Probe W - recorded shell run
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 4
+        shell: pwsh
+        run: |
+          $env:PROBE_OPTS = @{ label = 'win-session'; session = $true; capMs = 90000; node = "$env:PROBE\node-probe.exe" } | ConvertTo-Json -Compress
+          node "$env:PROBE\drive.mjs"
+
+      - name: Probe W - stop and read the recorders
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          "== logman query before stop"
+          logman query probe-kf -ets
+          logman stop probe-kf -ets
+          Get-Item "$env:PROBE\kf.etl" | ForEach-Object { "etl size: $($_.Length) bytes" }
+          $t0 = [datetime](Get-Content "$env:PROBE\private\t0.txt")
+          function Export-Events($filter, $file) {
+            $n = 0
+            $rows = @(Get-WinEvent -FilterHashtable $filter -ErrorAction SilentlyContinue | ForEach-Object {
+              $x = [xml]$_.ToXml(); $d = [ordered]@{ _time = $_.TimeCreated.ToString('o'); _pid = $x.Event.System.Execution.ProcessID }
+              foreach ($e in $x.Event.EventData.Data) { $d[$e.Name] = $e.'#text' }
+              [pscustomobject]$d
+            })
+            ConvertTo-Json -InputObject $rows -Depth 3 | Set-Content $file
+            "exported $($rows.Count) events to $file"
+          }
+          Export-Events @{ LogName = 'Security'; Id = 4688; StartTime = $t0 } "$env:PROBE\private\ev-4688.json"
+          Export-Events @{ LogName = 'Security'; Id = 5157; StartTime = $t0 } "$env:PROBE\private\ev-5157.json"
+          Export-Events @{ LogName = 'Microsoft-Windows-DNS-Client/Operational'; Id = 3006; StartTime = $t0 } "$env:PROBE\private\ev-3006.json"
+          "== 4688, 5157, 3006"
+          node "$env:PROBE\analyze-win.mjs" events | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+          "== pfirewall.log, last drops"
+          Get-Content "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log" -Tail 15 -ErrorAction SilentlyContinue
+          "== tracerpt"
+          $t = Measure-Command { tracerpt "$env:PROBE\kf.etl" -o "$env:PROBE\kf.csv" -of CSV -summary "$env:PROBE\kf-summary.txt" -y | Out-Host }
+          "tracerpt took $([int]$t.TotalSeconds) s" | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+          Get-Item "$env:PROBE\kf.csv" -ErrorAction SilentlyContinue | ForEach-Object { "csv size: $($_.Length) bytes" }
+          Get-Content "$env:PROBE\kf-summary.txt" -TotalCount 40 -ErrorAction SilentlyContinue
+          node "$env:PROBE\analyze-win.mjs" csv "$env:PROBE\kf.csv" | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+          "== Get-WinEvent on the trace, the shell's tree only"
+          $pids = @(Get-Content "$env:PROBE\private\tree-pids.txt" | Where-Object { $_ })
+          $xpath = '*[System[(' + (($pids | ForEach-Object { "Execution[@ProcessID=$_]" }) -join ' or ') + ')]]'
+          $t = Measure-Command {
+            $rows = @(Get-WinEvent -Path "$env:PROBE\kf.etl" -Oldest -FilterXPath $xpath -ErrorAction SilentlyContinue | ForEach-Object {
+              $x = [xml]$_.ToXml(); $d = [ordered]@{ _id = $_.Id; _task = $_.TaskDisplayName; _pid = $x.Event.System.Execution.ProcessID }
+              foreach ($e in $x.Event.EventData.Data) { $d[$e.Name] = $e.'#text' }
+              [pscustomobject]$d
+            })
+          }
+          "Get-WinEvent -Path with the tree filter: $($rows.Count) events in $([int]$t.TotalSeconds) s" | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+          ConvertTo-Json -InputObject $rows -Depth 3 | Set-Content "$env:PROBE\private\kf-tree.json"
+          node "$env:PROBE\analyze-win.mjs" files "$env:PROBE\private\kf-tree.json" | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+          "== token in files the tree wrote (device paths mapped to drive letters)"
+          Add-Type -Namespace Probe -Name K -MemberDefinition @'
+          [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern uint QueryDosDevice(string d, System.Text.StringBuilder t, uint n);
+          '@
+          $token = Get-Content "$env:PROBE\private\token-win-session" -ErrorAction SilentlyContinue
+          $map = @{}
+          foreach ($d in @('C:', 'D:')) { $sb = New-Object System.Text.StringBuilder 1024; [void][Probe.K]::QueryDosDevice($d, $sb, 1024); $map["$sb".ToLower()] = $d }
+          $checked = 0; $hits = 0; $missing = 0
+          foreach ($f in (Get-Content "$env:PROBE\private\written.txt" -ErrorAction SilentlyContinue | Sort-Object -Unique)) {
+            $p = $f
+            foreach ($k in $map.Keys) { if ($p.ToLower().StartsWith($k + '\')) { $p = $map[$k] + $p.Substring($k.Length) } }
+            if ($token -and (Test-Path -LiteralPath $p -PathType Leaf)) { $checked++; if (Select-String -LiteralPath $p -SimpleMatch $token -Quiet -ErrorAction SilentlyContinue) { $hits++; "token in $p" } } else { $missing++ }
+          }
+          "written files checked: $checked, with the token: $hits, gone or not a file: $missing" | Tee-Object -Append "$env:PROBE\out\analysis.txt"
+
+      # ---------------------------------------------------------------- Windows: AK8
+      - name: Probe W - AK8 with a broken WebView2 runtime
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force "$env:PROBE\empty" | Out-Null
+          New-Item -ItemType Directory -Force "$env:PROBE\ro" | Out-Null
+          icacls "$env:PROBE\ro" /deny '*S-1-1-0:(OI)(CI)(W,AD,WD,DC)'
+          icacls "$env:PROBE\ro"
+          try { Set-Content "$env:PROBE\ro\try.txt" 'x' -ErrorAction Stop; "ro folder: writable (!)" } catch { "ro folder: write refused: $($_.Exception.Message)" }
+          function Run-Case($label, $envs) {
+            $start = Get-Date
+            $env:PROBE_OPTS = @{ label = $label; capMs = 60000; env = $envs } | ConvertTo-Json -Compress
+            node "$env:PROBE\drive.mjs"
+            "== WER and application errors since the start of $label"
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $start } -ErrorAction SilentlyContinue | Where-Object { $_.Id -in 1000, 1001, 1002, 1026 } | ForEach-Object { "$($_.Id) $($_.ProviderName): $(($_.Message -split "`n")[0..6] -join ' | ')" }
+            Get-WinEvent -FilterHashtable @{ LogName = 'Security'; Id = 4688; StartTime = $start } -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'WerFault|msedgewebview2' } | ForEach-Object { $x = [xml]$_.ToXml(); ($x.Event.EventData.Data | Where-Object Name -in 'NewProcessName', 'CommandLine' | ForEach-Object { $_.'#text' }) -join ' | ' } | Select-Object -First 12
+          }
+          Run-Case 'ak8-win-control' @{}
+          Run-Case 'ak8-win-empty-browser-folder' @{ WEBVIEW2_BROWSER_EXECUTABLE_FOLDER = "$env:PROBE\empty" }
+          Run-Case 'ak8-win-missing-browser-folder' @{ WEBVIEW2_BROWSER_EXECUTABLE_FOLDER = "$env:PROBE\no-such-folder" }
+          Run-Case 'ak8-win-unwritable-user-data' @{ WEBVIEW2_USER_DATA_FOLDER = "$env:PROBE\ro" }
+          $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedgewebview2.exe'
+          New-Item -Force $ifeo | Out-Null
+          New-ItemProperty -Force -Path $ifeo -Name Debugger -Value 'C:\probe-2465-no-such\debugger.exe' | Out-Null
+          Get-ItemProperty $ifeo | Select-Object Debugger | Format-List | Out-String
+          Run-Case 'ak8-win-ifeo-debugger' @{}
+          Remove-Item -Force -Recurse $ifeo
+          "IFEO key left: $(Test-Path $ifeo)"
+
+      # ---------------------------------------------------------------- macOS: recorders
+      - name: Probe M - set up group, sudo, pf, eslogger and tcpdump
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set +e
+          sw_vers; id; uname -m
+          echo "== sudo"; sudo -V | head -2; sudo -V | grep -i -E 'pty|env_reset|env_keep' | head; sudo -n -l | head -20
+          echo "== ps keywords"; ps -L | tr ' ' '\n' | grep -E '^(gid|rgid|egid|group|rgroup)$' | tr '\n' ' '; echo
+          sudo dscl . -create /Groups/reqseq-e2e
+          sudo dscl . -create /Groups/reqseq-e2e PrimaryGroupID 4265
+          sudo dscl . -append /Groups/reqseq-e2e GroupMembership runner
+          echo 'runner ALL=(ALL:ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/zz-probe-2465 >/dev/null
+          sudo chmod 440 /etc/sudoers.d/zz-probe-2465
+          sudo visudo -c
+          sudo dscacheutil -flushcache
+          echo "== sudo -u runner -g reqseq-e2e id"; sudo -n -u runner -g reqseq-e2e id
+          echo "== interfaces with IPv6"; ifconfig | grep -E '^[a-z]|inet6' | grep -B1 inet6 | head -20
+          echo "== pf.conf"; cat /etc/pf.conf
+          echo "== pf before"; sudo pfctl -s info 2>&1 | head -3
+          sudo pfctl -f /etc/pf.conf 2>&1 | grep -v 'ALTQ'
+          printf 'block return out log quick inet from any to ! 127.0.0.0/8 group reqseq-e2e\nblock return out log quick inet6 from any to ! ::1 group reqseq-e2e\n' > "$PROBE/anchor.conf"
+          sudo pfctl -a com.apple/reqseq-probe -f "$PROBE/anchor.conf" 2>&1
+          sudo pfctl -E 2>&1 | tee "$PROBE/private/pf-enable.txt"
+          echo "== anchor rules"; sudo pfctl -a com.apple/reqseq-probe -s rules 2>&1
+          echo "== anchors"; sudo pfctl -s Anchors 2>&1
+          sudo ifconfig pflog0 create 2>&1; ifconfig pflog0
+          sudo nohup tcpdump -n -e -ttt -l -i pflog0 > "$PROBE/pflog.txt" 2>&1 < /dev/null &
+          sudo nohup tcpdump -n -l -k -i pktap,all > "$PROBE/pktap.txt" 2> "$PROBE/pktap.err" < /dev/null &
+          sudo nohup eslogger exec fork open close create rename --format json > "$PROBE/es.json" 2> "$PROBE/es.err" < /dev/null &
+          sleep 5
+          echo "== recorders running"; pgrep -lf 'eslogger|tcpdump'
+          echo "== eslogger stderr"; cat "$PROBE/es.err"; ls -la "$PROBE/es.json"
+          echo "== pktap stderr"; cat "$PROBE/pktap.err"; head -3 "$PROBE/pktap.txt"
+
+      - name: Probe M - controls (group and plain, IPv4, IPv6, DNS)
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          sudo -n -u runner -g reqseq-e2e env PROBE="$PROBE" "$(command -v node)" "$PROBE/control.mjs" control-group
+          node "$PROBE/control.mjs" control-plain
+
+      - name: Probe M - recorded shell runs (plain, and as group reqseq-e2e)
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          PROBE_OPTS='{"label":"mac-session","session":true,"capMs":90000}' node "$PROBE/drive.mjs"
+          PROBE_OPTS='{"label":"mac-session-group","session":true,"capMs":90000,"wrap":["sudo","-n","-u","runner","-g","reqseq-e2e"]}' node "$PROBE/drive.mjs"
+
+      - name: Probe M - stop and read the recorders
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set +e
+          sleep 2
+          sudo pkill -INT eslogger; sudo pkill -INT tcpdump; sleep 3
+          pgrep -lf 'eslogger|tcpdump'
+          ls -la "$PROBE"
+          echo "== eslogger stderr"; tail -5 "$PROBE/es.err"
+          echo "== pf state"; sudo pfctl -a com.apple/reqseq-probe -s rules -v 2>&1
+          time node "$PROBE/analyze-mac.mjs" | tee -a "$PROBE/out/analysis.txt"
+          echo "== Saved Application State"; ls ~/Library/"Saved Application State" 2>&1 | head -20
+          echo "== WebKit and cache folders named after the shell"; ls -d ~/Library/WebKit/* ~/Library/Caches/* ~/Library/HTTPStorages/* 2>/dev/null | grep -i -E 'reqseq|shell' | head
+
+      # ---------------------------------------------------------------- macOS: AK8
+      - name: Probe M - AK8 outside the GUI session (launchctl bsexec /)
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.scripts.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PROBE_OPTS='{"label":"ak8-mac-bsexec-root","capMs":60000,"wrap":["sudo","-n","launchctl","bsexec","/"]}' node "$PROBE/drive.mjs"
+          PROBE_OPTS='{"label":"ak8-mac-bsexec-runner","capMs":60000,"wrap":["sudo","-n","launchctl","bsexec","/","sudo","-n","-u","runner"]}' node "$PROBE/drive.mjs"
+          echo "== crash reports"; ls -lt ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports 2>/dev/null | grep -i -E 'reqseq|shell' | head
+
+      # ---------------------------------------------------------------- both: clean up and upload
+      - name: Probe - clean up
+        if: ${{ always() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            pwsh -NoProfile -Command '
+              logman stop probe-kf -ets 2>$null | Out-Null
+              Get-NetFirewallRule -Group probe-2465 -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+              Remove-Item -Force -Recurse "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedgewebview2.exe" -ErrorAction SilentlyContinue
+              $b = Get-Content "$env:PROBE\private\fw-before.json" -ErrorAction SilentlyContinue | ConvertFrom-Json
+              foreach ($p in $b) { Set-NetFirewallProfile -Name $p.Name -Enabled ([bool]$p.Enabled) -LogBlocked ([bool]$p.LogBlocked) }
+              icacls "$env:PROBE\ro" /reset 2>$null | Out-Null
+              "rules left: $(@(Get-NetFirewallRule -Group probe-2465 -ErrorAction SilentlyContinue).Count)"'
+          else
+            sudo pkill -INT eslogger; sudo pkill -INT tcpdump
+            sudo pfctl -a com.apple/reqseq-probe -F all 2>&1
+            tok=$(sed -n 's/.*Token : \([0-9]*\).*/\1/p' "$PROBE/private/pf-enable.txt" 2>/dev/null)
+            [ -n "$tok" ] && sudo pfctl -X "$tok" 2>&1
+            sudo rm -f /etc/sudoers.d/zz-probe-2465
+            sudo dscl . -delete /Groups/reqseq-e2e
+            echo "anchor rules left:"; sudo pfctl -a com.apple/reqseq-probe -s rules 2>&1
+          fi
+      - name: Probe - upload the summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: probe-2465-${{ matrix.os }}
+          path: ${{ runner.temp }}/probe/out
+          retention-days: 14
