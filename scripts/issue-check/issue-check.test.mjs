@@ -84,6 +84,22 @@ describe("checkIssues", () => {
   it("treats an SR unknown to spec/ without parentheses as having no criteria", () => {
     expect(checkIssues({ epic: issue(10, "SR-999"), subs: [], counts })).toEqual([]);
   });
+
+  it("checks the issues of a cut without an epic against the required SRs and spec/ only", () => {
+    const subs = [issue(11, "SR-901 (AK1, AK2)"), issue(12, "SR-901 (AK4), SR-902 (AK1, AK5)")];
+    const required = new Map([
+      ["SR-901", new Set([1, 2, 3, 4])],
+      ["SR-902", new Set([1])],
+    ]);
+    expect(checkIssues({ subs, required, counts })).toEqual([
+      "SR-901 AK3 is in no issue",
+      "SR-902 has 3 criteria in spec/, not AK5",
+    ]);
+    const met = new Map([["SR-901", new Set([1, 2, 4])]]);
+    expect(
+      checkIssues({ subs: subs.slice(0, 1).concat(issue(12, "SR-901 (AK4)")), required: met, counts }),
+    ).toEqual([]);
+  });
 });
 
 describe("run and parseArgs", () => {
@@ -103,6 +119,24 @@ describe("run and parseArgs", () => {
       counts,
     });
     expect(none.lines).toEqual(["epic #10, sub-issues none", "every criterion is in a sub-issue"]);
+  });
+
+  it("reads the given issues through the API when there is no epic", () => {
+    const routes = [];
+    const api = (route) => {
+      routes.push(route);
+      return route.endsWith("/11") ? issue(11, "SR-902 (AK1, AK2)") : issue(12, "SR-902 (AK3)");
+    };
+    const required = new Map([["SR-902", "all"]]);
+    const { problems, lines } = run({ issueNumbers: [11, 12], required, api, counts });
+    expect(routes).toEqual([
+      "repos/ThomasBirkmaier/ReqSeq/issues/11",
+      "repos/ThomasBirkmaier/ReqSeq/issues/12",
+    ]);
+    expect(problems).toEqual([]);
+    expect(lines).toEqual(["issues #11, #12", "every criterion is in an issue"]);
+    const gap = run({ issueNumbers: [11], required, api, counts });
+    expect(gap.lines).toEqual(["issues #11", "SR-902 AK3 is in no issue"]);
   });
 
   it("counts the criteria of each SR in the spec of this repository", () => {
@@ -141,6 +175,35 @@ describe("run and parseArgs", () => {
     expect(parseArgs(["--epic", ""]).error).toBe("--epic needs a value");
   });
 
+  it("parses repeated --issue with --require, and refuses --issue with --epic, without --require or a number", () => {
+    const parsed = parseArgs([
+      "--issue",
+      "2428",
+      "--require",
+      "SR-901 (AK3)",
+      "--issue",
+      "#2429",
+      "--issue",
+      "2428",
+    ]);
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.epicNumber).toBeUndefined();
+    expect(parsed.issueNumbers).toEqual([2428, 2429]);
+    expect([...parsed.required.get("SR-901")]).toEqual([3]);
+    expect(parseArgs(["--epic", "5"]).issueNumbers).toEqual([]);
+    expect(parseArgs(["--epic", "5", "--issue", "6", "--require", "SR-901"]).error).toBe(
+      "--issue checks a cut without an epic; give --epic or --issue",
+    );
+    expect(parseArgs(["--issue", "6"]).error).toBe("--issue needs --require");
+    expect(parseArgs(["--issue", "six", "--require", "SR-901"]).error).toBe(
+      "--issue needs an issue number, not six",
+    );
+    expect(parseArgs(["--issue", "0", "--require", "SR-901"]).error).toBe(
+      "--issue needs an issue number, not 0",
+    );
+    expect(parseArgs(["--issue", "--require", "SR-901"]).error).toBe("--issue needs a value");
+  });
+
   it("refuses an unknown argument and a part of --require it cannot read", () => {
     expect(parseArgs(["--epic", "5", "--sr", "SR-901"]).error).toBe("unknown argument --sr");
     expect(parseArgs(["--epic", "5", "--require", "SR-901 (AK x)"]).error).toBe(
@@ -154,5 +217,18 @@ describe("the command line", () => {
     const script = path.join(import.meta.dirname, "issue-check.mjs");
     const output = execFileSync(process.execPath, [script, "--help"], { encoding: "utf8" });
     expect(output).toMatch(/^usage: node scripts\/issue-check\/issue-check\.mjs --epic <n>/);
+    expect(output).toMatch(/--issue <n> \[--issue <n>\]\.\.\. --require/);
+  });
+
+  it("refuses --issue without --require with exit code 2", () => {
+    const script = path.join(import.meta.dirname, "issue-check.mjs");
+    let failure;
+    try {
+      execFileSync(process.execPath, [script, "--issue", "5"], { encoding: "utf8", stdio: "pipe" });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure?.status).toBe(2);
+    expect(failure?.stderr).toBe("--issue needs --require\n");
   });
 });
