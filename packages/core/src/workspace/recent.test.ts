@@ -14,14 +14,12 @@ import {
   RECENT_WORKSPACES_MAX_BYTES,
   createBoundedRunner,
   createExistenceChecker,
-  createWorkspaceChecks,
   markWorkspace,
   parseRecentWorkspaces,
   readRecentWorkspaces,
   recentWorkspaceStates,
   recentWorkspacesFolder,
   rememberWorkspace,
-  workspaceExists,
   workspaceKey,
 } from "./recent.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
@@ -366,12 +364,9 @@ describe("existence of the recent workspaces", () => {
       ["requirements", false],
       ["present", true],
     ]);
-    expect(await workspaceExists(present)).toBe(true);
-    expect(await workspaceExists(inside)).toBe(false);
     // An own checker is used when given.
     const check: ExistenceChecker = (list) => Promise.resolve(list.map(() => true));
     expect((await recentWorkspaceStates({ environment, check })).every((state) => state.exists)).toBe(true);
-    expect(await workspaceExists(gone, check)).toBe(true);
   });
 
   it("a check that does not answer within 1 s is a timeout, and at most 2 checks run at once", async () => {
@@ -451,34 +446,5 @@ describe("existence of the recent workspaces", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe("the checkers of a process", () => {
-  it("the re-check of a chosen root has a slot of its own, so stats of the list that hang do not block it", async () => {
-    vi.useFakeTimers();
-    const hanging = new Set<string>();
-    const asked: string[] = [];
-    const stat = (file: string): Promise<{ isFile(): boolean }> => {
-      const root = path.basename(path.dirname(file));
-      asked.push(root);
-      return hanging.has(root) ? new Promise(() => undefined) : Promise.resolve({ isFile: () => true });
-    };
-    const checks = createWorkspaceChecks({ stat });
-    hanging.add("nfs-a").add("nfs-b");
-    const listed = vi.fn();
-    void checks.list(["nfs-a", "nfs-b", "local"].map((name) => path.join(top, name))).then(listed);
-    await vi.advanceTimersByTimeAsync(1_000);
-    // The two slots of the list hang for good: "local" got no stat there and counts as missing.
-    expect(listed).toHaveBeenCalledExactlyOnceWith(["timeout", "timeout", "timeout"]);
-    expect(asked).toEqual(["nfs-a", "nfs-b"]);
-    // The chosen root is still checked, with its own slot.
-    expect(await workspaceExists(path.join(top, "local"), checks.chosen)).toBe(true);
-    // The list's slots stay taken: a later list still gets no stat.
-    const again = vi.fn();
-    void checks.list([path.join(top, "local")]).then(again);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(again).toHaveBeenCalledExactlyOnceWith(["timeout"]);
-    expect(asked).toEqual(["nfs-a", "nfs-b", "local"]);
   });
 });

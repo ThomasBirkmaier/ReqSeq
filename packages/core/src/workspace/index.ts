@@ -32,9 +32,7 @@ export {
   recentWorkspaceStates,
   recentWorkspacesFolder,
   rememberWorkspace,
-  workspaceExists,
   workspaceKey,
-  createWorkspaceChecks,
 } from "./recent.js";
 export type {
   ExistenceAnswer,
@@ -43,7 +41,6 @@ export type {
   RecentWorkspace,
   RecentWorkspaceState,
   RememberOptions,
-  WorkspaceChecks,
 } from "./recent.js";
 export type { CheckedWorkspaceFile } from "./config.js";
 export {

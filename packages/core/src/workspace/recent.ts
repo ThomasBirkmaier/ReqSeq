@@ -1,15 +1,12 @@
 // The workspaces opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
 // (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
-// one per folder. Two writers: the app's core process records the root it opened (`rememberWorkspace`
-// through `model/recent-record.ts`), and `workspace.markOpened` marks the root it runs on
-// (`markWorkspace`, SR-250); the app's main process reads the list and checks which roots still hold a
-// workspace.
+// one per folder. `workspace.markOpened` marks the root it runs on (`markWorkspace`, SR-250);
+// `rememberWorkspace` is the form that skips instead of refusing, which tests and the command examples
+// use to fill the list. `workspace.recent` reads the list and checks which roots still hold a
+// workspace (`recentWorkspaceStates`).
 //
-// Main loads this module on its own (`@reqseq/core/recent-workspaces`), so it imports only `node:*`,
-// `cache.ts` (with the private-file part of the files block) and `workspace-file.ts`: no schema
-// validator, no command. Main makes no synchronous file-system call through it: reading the list never
-// resolves a root again (the canonical `key` is stored), and the existence check is asynchronous and
-// bounded (`createExistenceChecker`).
+// Reading the list never resolves a root again (the canonical `key` is stored), and the existence check
+// is asynchronous and bounded (`createExistenceChecker`).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -417,51 +414,14 @@ export function createExistenceChecker(options: ExistenceOptions = {}): Existenc
   return (roots) => Promise.all(roots.map((root) => run(() => holdsWorkspace(stat, root), timeoutMs)));
 }
 
-/**
- * The existence checks of a process: one for the list and one for the root a person chose. Each has
- * slots of its own, so a `stat` that hangs in one never blocks the other.
- */
-export interface WorkspaceChecks {
-  /** The roots of the list when it is shown: EXISTS_SLOTS `stat`s at once. */
-  readonly list: ExistenceChecker;
-  /**
-   * The root of the list chosen to open (it is checked again): one slot of its own, so roots of the list
-   * that hang on a dead share cannot keep a local workspace from opening. A root that hangs in the list
-   * counts as missing there and is never chosen to open.
-   */
-  readonly chosen: ExistenceChecker;
-}
-
-/** The two checkers of a process; `stat` and the timeout for tests. */
-export function createWorkspaceChecks(
-  options: Pick<ExistenceOptions, "stat" | "timeoutMs"> = {},
-): WorkspaceChecks {
-  return {
-    list: createExistenceChecker(options),
-    chosen: createExistenceChecker({ ...options, slots: 1 }),
-  };
-}
-
-/** The checkers of this process: at most 3 `stat`s at once. */
-const checks: WorkspaceChecks = createWorkspaceChecks();
-
-/**
- * Whether `<root>/reqseq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default
- * with the checker for a chosen root (`WorkspaceChecks.chosen`).
- */
-export async function workspaceExists(
-  root: string,
-  check: ExistenceChecker = checks.chosen,
-): Promise<boolean> {
-  const [exists] = await check([root]);
-  return exists === true;
-}
+/** The existence check of this process for the roots of the list: EXISTS_SLOTS `stat`s at once. */
+const listCheck: ExistenceChecker = createExistenceChecker();
 
 /** The list with whether each root still holds a workspace (`createExistenceChecker`); never rejects. */
 export async function recentWorkspaceStates(
   options: { readonly environment?: CacheEnvironment; readonly check?: ExistenceChecker } = {},
 ): Promise<readonly RecentWorkspaceState[]> {
   const list = await readRecentWorkspaces(options.environment);
-  const exists = await (options.check ?? checks.list)(list.map((entry) => entry.root));
+  const exists = await (options.check ?? listCheck)(list.map((entry) => entry.root));
   return list.map((entry, index) => ({ ...entry, exists: exists[index] === true }));
 }

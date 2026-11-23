@@ -12,9 +12,6 @@
 // `lstat` per entry on the event loop, outside the slot and its timeout. It never follows a link. On
 // Windows libuv reports every reparse point (links, junctions, OneDrive and Cloud Files placeholders,
 // deduplicated files, app execution aliases) as a link.
-//
-// Main loads this module on its own (`@reqseq/core/list-folder`), so it imports only `node:*`,
-// `path-text.ts` and `recent.ts`.
 import fs from "node:fs/promises";
 import type { BoundedRun } from "./recent.js";
 import { createBoundedRunner } from "./recent.js";

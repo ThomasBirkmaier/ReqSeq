@@ -105,7 +105,7 @@ describe("reqseq workspace recent (SR-131)", () => {
 });
 
 describe("reqseq workspace mark-opened (SR-250)", () => {
-  it("[SR-250/AK-dky0] marks the workspace it runs on, and a process started later lists it first with the time of the mark", async () => {
+  it("[SR-250/AK-dky0] [SR-131/AK-w8h0] marks the workspace it runs on, and a process started later lists it first with the time of the mark", async () => {
     await opened(path.join(home, "other"), 1);
     const inside = path.join(fixture.root, "requirements");
     await fs.mkdir(inside, { recursive: true });
