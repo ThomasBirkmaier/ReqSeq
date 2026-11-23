@@ -1,0 +1,140 @@
+# Probe for #2465, macOS: fast loop for the shell's recorders on macOS. Never merged: it lives only on the branch
+# probe/2465-mac-e2e.
+name: Probe 2465 mac
+
+on:
+  push:
+    branches: [probe/2465-mac-e2e]
+
+env:
+  # probe (eslogger variants) or suite (the shell e2e suite)
+  MODE: probe
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    name: mac (${{ github.sha }})
+    timeout-minutes: 40
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Shell - Rust toolchain
+        working-directory: packages/shell
+        shell: bash
+        run: |
+          rustup toolchain install
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          echo "CARGO_PROFILE_DEV_DEBUG=0" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: shell-cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1-audit-0.22.2
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: packages/shell/target
+          key: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/Cargo.toml', 'packages/shell/*/Cargo.toml', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1
+          restore-keys: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Shell - fetch the crates
+        working-directory: packages/shell
+        run: cargo fetch --locked
+      - name: Shell - e2e build
+        run: pnpm --filter @reqseq/shell build:e2e
+
+      - name: Probe - set up
+        if: ${{ env.MODE == 'probe' }}
+        shell: bash
+        run: |
+          set +e
+          P="$RUNNER_TEMP/probe"; mkdir -p "$P/out" "$P/private"
+          {
+            echo "PROBE=$P"
+            echo "PROBE_ROOT=$PWD"
+            echo "PROBE_SHELL=$PWD/packages/shell/target/debug/reqseq-shell"
+            echo "PROBE_CLI=$PWD/packages/cli/dist/bin.js"
+          } >> "$GITHUB_ENV"
+          sw_vers; uname -m
+          echo "== eslogger help"; eslogger --help 2>&1 | head -60
+          sudo dscl . -create /Groups/reqseq-e2e
+          sudo dscl . -create /Groups/reqseq-e2e PrimaryGroupID 4265
+          sudo dscl . -append /Groups/reqseq-e2e GroupMembership runner
+          echo 'runner ALL=(ALL:ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/zz-probe-2465 >/dev/null
+          sudo chmod 440 /etc/sudoers.d/zz-probe-2465
+          sudo dscacheutil -flushcache
+          printf 'block return out log quick inet from any to ! 127.0.0.0/8 group reqseq-e2e\nblock return out log quick inet6 from any to ! ::1 group reqseq-e2e\n' > "$P/anchor.conf"
+          sudo pfctl -a com.apple/reqseq-probe -f "$P/anchor.conf" 2>&1
+          sudo pfctl -E 2>&1 | tee "$P/private/pf-enable.txt"
+          node -e 'console.log(process.execPath)'
+          ls -la /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/ 2>&1 | head
+          ls -d /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework 2>&1
+
+      - name: Probe - eslogger variants with one control and two sessions
+        if: ${{ env.MODE == 'probe' }}
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set +e
+          NODEDIR="$(dirname "$(dirname "$(node -e 'console.log(process.execPath)')")")"
+          mark() { echo "$(date -u +%FT%T.%NZ | cut -c1-23) $*" | tee -a "$PROBE/private/marks.txt"; }
+          sudo nohup eslogger exec fork exit --format json > "$PROBE/es-a.json" 2> "$PROBE/es-a.err" < /dev/null &
+          sudo nohup eslogger open close create rename --format json \
+            --select "$PWD/packages/shell/target" --select "$NODEDIR" \
+            --select /System/Library/Frameworks/WebKit.framework \
+            --select /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework \
+            > "$PROBE/es-b.json" 2> "$PROBE/es-b.err" < /dev/null &
+          sudo nohup eslogger open close create rename --format json > "$PROBE/es-c.json" 2> "$PROBE/es-c.err" < /dev/null &
+          sudo nohup tcpdump -n -l -k -i pktap,all > "$PROBE/pktap.txt" 2> "$PROBE/pktap.err" < /dev/null &
+          sleep 5
+          pgrep -lf 'eslogger|tcpdump'
+          head -c 300 "$PROBE/es-b.err"; echo
+          mark start
+          node probe/control.mjs control-plain
+          sudo -n -u runner -g reqseq-e2e env PROBE="$PROBE" "$(command -v node)" probe/control.mjs control-group
+          mark controls done
+          PROBE_OPTS='{"label":"s1","session":true,"capMs":90000}' node probe/drive.mjs | head -c 4000
+          mark s1 done
+          PROBE_OPTS='{"label":"s2","session":true,"capMs":90000,"wrap":["sudo","-n","-u","runner","-g","reqseq-e2e"]}' node probe/drive.mjs | head -c 4000
+          mark s2 done
+          sleep 2
+          mark stop
+          T0=$(date +%s)
+          sudo pkill -INT -x eslogger; sudo pkill -INT -x tcpdump
+          for i in $(seq 1 120); do pgrep -x eslogger >/dev/null || break; sleep 1; done
+          echo "eslogger still running after $(( $(date +%s) - T0 )) s: $(pgrep -lx eslogger)"
+          mark stopped
+          ls -la "$PROBE"
+          tail -3 "$PROBE"/es-*.err
+          node probe/es-analyze.mjs "$PROBE/es-a.json" "$PROBE/es-b.json" "$PROBE/es-c.json" 2>&1 | cut -c1-2500
+          echo "== pktap: sample of lines not on lo0"
+          grep -v 'lo0' "$PROBE/pktap.txt" | head -15 | cut -c1-400
+          echo "== pktap: lines of node (controls, sessions) and WebKit"
+          grep -v 'lo0' "$PROBE/pktap.txt" | grep -E 'proc (node|com\.apple\.WebKit|reqseq)|eproc (node|com\.apple\.WebKit|reqseq)' | head -40 | cut -c1-400
+          echo "== pktap lines with 192.0.2. or example.com"; grep -E '192\.0\.2\.|example\.com|probe-2465' "$PROBE/pktap.txt" | head -20 | cut -c1-400
+          echo "== pf"; sudo pfctl -a com.apple/reqseq-probe -s rules -v 2>&1
+
+      - name: Probe - clean up
+        if: ${{ always() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          sudo pkill -INT -x eslogger; sudo pkill -INT -x tcpdump
+          sudo pfctl -a com.apple/reqseq-probe -F all 2>&1
+          tok=$(sed -n 's/.*Token : \([0-9]*\).*/\1/p' "$PROBE/private/pf-enable.txt" 2>/dev/null)
+          [ -n "$tok" ] && sudo pfctl -X "$tok" 2>&1
+          sudo rm -f /etc/sudoers.d/zz-probe-2465
+          sudo dscl . -delete /Groups/reqseq-e2e
