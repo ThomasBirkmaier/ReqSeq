@@ -75,8 +75,8 @@ jobs:
         timeout-minutes: 10
         working-directory: packages/shell
         run: |
-          ./node_modules/.bin/vitest run --config vitest.shell.config.ts e2e/shell.test.ts -t 'macOS'
-          ./node_modules/.bin/vitest run --config vitest.shell.config.ts e2e/shell.test.ts -t 'macOS'
+          ./node_modules/.bin/vitest run --config vitest.shell.config.ts e2e/shell.test.ts -t 'macOS' --reporter=verbose
+          ./node_modules/.bin/vitest run --config vitest.shell.config.ts e2e/shell.test.ts -t 'macOS' --reporter=verbose
       - name: Shell - remove the recorders (macOS)
         if: ${{ always() }}
         continue-on-error: true
