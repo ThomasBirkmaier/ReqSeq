@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates every icon file of the app and the docs from one master drawing (#410, ADR-0014):
+// Generates every icon file of the delivery, the web UI and the docs from one master drawing (#410):
 // toolchain/packaging/icon/icon.svg. Renders the PNGs with the Chromium of Playwright (no network) and writes
 // the results into the repository; run it after changing the master and commit what it writes.
 //
@@ -16,8 +16,8 @@ import { fullBleed, icnsFile, icoFile } from "./lib.mjs";
 const root = path.resolve(import.meta.dirname, "..", "..");
 const icon = path.join(root, "toolchain", "packaging", "icon");
 const site = path.join(root, "packages", "docs", "site", "public");
-const appPublic = path.join(root, "packages", "app", "src", "renderer", "public");
-const { chromium } = createRequire(path.join(root, "packages", "app", "package.json"))("@playwright/test");
+const webPublic = path.join(root, "packages", "web", "public");
+const { chromium } = createRequire(path.join(root, "packages", "web", "package.json"))("@playwright/test");
 
 const master = await fs.readFile(path.join(icon, "icon.svg"), "utf8");
 const bleed = fullBleed(master);
@@ -58,9 +58,8 @@ await fs.mkdir(path.join(icon, "icons"), { recursive: true });
 for (const [size, png] of linux) {
   await fs.writeFile(path.join(icon, "icons", `${size}x${size}.png`), png);
 }
-// The window icon on Linux (shell.ts); the renderer build copies public/ into out/renderer/.
-await fs.mkdir(appPublic, { recursive: true });
-await fs.writeFile(path.join(appPublic, "icon.png"), linux.get(512));
+// The favicon of the web UI (index.html); the Vite build copies public/ into dist/.
+await fs.writeFile(path.join(webPublic, "favicon.svg"), `${bleed.trimEnd()}\n`);
 await fs.writeFile(path.join(site, "favicon.svg"), `${bleed.trimEnd()}\n`);
 await fs.writeFile(path.join(site, "favicon.ico"), icoFile([favicon]));
 await fs.writeFile(path.join(site, "apple-touch-icon.png"), touch);
