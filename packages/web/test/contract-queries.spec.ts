@@ -9,32 +9,18 @@
 // its routes, and the cross-access test that all accesses give the same result.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { execFile, spawn } from "node:child_process";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { promisify } from "node:util";
 import type { Page, Response } from "@playwright/test";
 import { BIN, scratch, startCliUi } from "./contract.js";
 import { drawn, expect, open, test } from "./fixtures.js";
 import type { Run } from "./start-ui.js";
-import { createWorkspace, runOn } from "./start-ui.js";
+import { createWorkspace, runOn, runner } from "./start-ui.js";
 
 const run = promisify(execFile);
-const SCHEMAS = path.join(import.meta.dirname, "..", "..", "..", "schemas", "commands");
 
-/** The catalog: each command with whether it only reads. */
-async function catalog(): Promise<ReadonlyMap<string, boolean>> {
-  const files = (await fs.readdir(SCHEMAS)).filter((f) => f.endsWith(".json"));
-  const entries = await Promise.all(
-    files.map(async (f) => {
-      const c = JSON.parse(await fs.readFile(path.join(SCHEMAS, f), "utf8")) as {
-        name: string;
-        effect: string;
-      };
-      return [c.name, c.effect === "read"] as const;
-    }),
-  );
-  return new Map(entries);
-}
+/** The catalog of core (catalog order of `schemas/commands/catalog.header.json`): each command with whether it reads. */
+const catalog = (): ReadonlyMap<string, boolean> =>
+  new Map(runner.contracts.commands.map((c) => [c.name, c.effect === "read"]));
 
 const QUEUES = [
   "evidence-outdated",
@@ -43,6 +29,7 @@ const QUEUES = [
   "links",
   "needs-without",
   "drafts",
+  "problems",
 ];
 
 const enc = encodeURIComponent;
@@ -82,11 +69,14 @@ async function routes(read: Run): Promise<string[]> {
     out.push(`/new?type=${enc(types[0].key)}`);
   }
   out.push("/matrix", "/c", "/r");
+  // One element that changed since the newest baseline, so the page compares its two versions.
   const changes = await read("baseline.changes", { limit: 1 });
   if (changes.baseline !== undefined) {
-    const got = await read("baseline.get", { baseline: changes.baseline.name, limit: 1 });
-    if (got.elements[0] !== undefined) {
-      out.push(`/c/${got.elements[0].id}`);
+    const got = await read("baseline.get", { baseline: changes.baseline.name, limit: 5000 });
+    const changed =
+      got.elements.find((e) => e.state === "changed") ?? got.elements.find((e) => e.state === "added");
+    if (changed !== undefined) {
+      out.push(`/c/${changed.id}`);
     }
   }
   out.push("/w/problems", "/w/export", "/w/import", "/w/settings", "/w/open");
@@ -167,7 +157,10 @@ const comparable = (name: string, output: unknown): unknown => {
   return JSON.parse(text) as unknown;
 };
 
-/** The CLI arguments of command `name`: `element.searchFields` is `element search-fields`. */
+/**
+ * The CLI arguments of command `name`: `element.searchFields` is `element search-fields`, as `kebab` of
+ * packages/cli/src/fields.ts names an action; this package does not depend on the CLI package.
+ */
 const cliCommand = (name: string): string[] => {
   const [group = "", action = ""] = name.split(".");
   return [group, action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)];
@@ -189,26 +182,49 @@ async function overCli(name: string, input: unknown, root: string, env: NodeJS.P
 async function mcpServer(
   root: string,
   env: NodeJS.ProcessEnv,
-): Promise<{ readonly call: (name: string, input: unknown) => Promise<unknown>; readonly stop: () => void }> {
+): Promise<{
+  readonly call: (name: string, input: unknown) => Promise<unknown>;
+  readonly stop: () => Promise<void>;
+}> {
   const child: ChildProcessWithoutNullStreams = spawn(process.execPath, [BIN, "mcp", "--workspace", root], {
     cwd: root,
     env,
     stdio: "pipe",
   });
-  const waiting = new Map<number, (message: Record<string, unknown>) => void>();
+  const waiting = new Map<
+    number,
+    { resolve: (message: Record<string, unknown>) => void; reject: (error: Error) => void }
+  >();
+  let errors = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => (errors += chunk));
+  const exited = new Promise<void>((resolve) => {
+    child.once("exit", (code) => {
+      for (const pending of waiting.values()) {
+        pending.reject(new Error(`reqseq mcp ended with ${String(code)}:\n${errors}`));
+      }
+      waiting.clear();
+      resolve();
+    });
+  });
   let buffer = "";
-  child.stdout.on("data", (chunk: Buffer) => {
-    buffer += chunk.toString("utf8");
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    buffer += chunk;
     let end = buffer.indexOf("\n");
     while (end >= 0) {
       const line = buffer.slice(0, end).trim();
       buffer = buffer.slice(end + 1);
-      if (line !== "") {
-        const message = JSON.parse(line) as Record<string, unknown>;
-        if (typeof message["id"] === "number") {
-          waiting.get(message["id"])?.(message);
-          waiting.delete(message["id"]);
-        }
+      let message: Record<string, unknown> | undefined;
+      try {
+        message = JSON.parse(line) as Record<string, unknown>;
+      } catch {
+        // Not a JSON-RPC message (an empty line): nothing waits for it.
+      }
+      const id = message?.["id"];
+      if (message !== undefined && typeof id === "number") {
+        waiting.get(id)?.resolve(message);
+        waiting.delete(id);
       }
       end = buffer.indexOf("\n");
     }
@@ -217,8 +233,8 @@ async function mcpServer(
   const request = (method: string, params: unknown): Promise<Record<string, unknown>> => {
     next += 1;
     const id = next;
-    return new Promise((resolve) => {
-      waiting.set(id, resolve);
+    return new Promise((resolve, reject) => {
+      waiting.set(id, { resolve, reject });
       child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     });
   };
@@ -233,12 +249,16 @@ async function mcpServer(
       const answer = await request("tools/call", { name: name.replace(".", "_"), arguments: input });
       const result = answer["result"] as { structuredContent?: unknown; isError?: boolean } | undefined;
       if (result === undefined || result.isError === true) {
-        throw new Error(`MCP ${name} failed: ${JSON.stringify(answer)}`);
+        throw new Error(`MCP ${name} failed: ${JSON.stringify(answer)}\n${errors}`);
       }
       return result.structuredContent;
     },
-    stop: () => {
-      child.kill();
+    // Waits for the end of the process, so that no file of the workspace is still open when it is removed.
+    stop: async () => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill();
+        await exited;
+      }
     },
   };
 }
@@ -275,7 +295,7 @@ test("[SR-080/AK-hn1m] every value the web UI shows is the output of a command t
     LOCALAPPDATA: home.dir,
   };
   try {
-    const commands = await catalog();
+    const commands = catalog();
     const walk = await routes(runOn(workspace.root));
     const ui = await startCliUi({ root: workspace.root, home: home.dir });
     try {
@@ -301,6 +321,7 @@ test("[SR-080/AK-hn1m] every value the web UI shows is the output of a command t
           "trace.graph",
           "trace.matrix",
           "baseline.changes",
+          "baseline.compare",
           "evidence.list",
           "workspace.status",
           "workspace.recent",
@@ -333,7 +354,7 @@ test("[SR-080/AK-hn1m] every value the web UI shows is the output of a command t
           ]);
         }
       } finally {
-        mcp.stop();
+        await mcp.stop();
       }
       // (3) Opening the workspace that is open (`POST ui/workspace`): its answer names the root `tool.info` gives.
       await open(page, ui.url, "/w/open");

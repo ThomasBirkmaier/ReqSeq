@@ -1,6 +1,6 @@
 // UI tests of the web UI (ADR-0020, Tests): Playwright drives Chromium against the UI server, which the fixtures
-// start in each worker on a generated workspace (start-ui.ts). The contract tests (`contract-*.spec.ts`, SR-248 and
-// SR-078 AK3) also run in Firefox and WebKit, on the Orbit Lab workspace. Build first (`pnpm build`: the pages, and
+// start in each worker on a generated workspace (start-ui.ts). The contract tests (`contract-*.spec.ts`, SR-248,
+// SR-078 AK3 and SR-080 AK4) also run in Firefox and WebKit, on the Orbit Lab workspace. Build first (`pnpm build`: the pages, and
 // the CLI and the test kit the contract tests start), then `pnpm --filter @reqseq/web test:ui`.
 import { defineConfig, devices } from "@playwright/test";
 import type { Options } from "./fixtures.js";
