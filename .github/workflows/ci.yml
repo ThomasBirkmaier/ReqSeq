@@ -377,7 +377,7 @@ jobs:
       - name: Shell - unit tests with coverage (Linux)
         if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && steps.shell-tools.outcome == 'success' }}
         working-directory: packages/shell
-        run: cargo llvm-cov --locked --offline --workspace --lib --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100
+        run: cargo llvm-cov --locked --offline --workspace --lib --show-missing-lines --fail-under-lines 100 --fail-under-functions 100 --fail-under-regions 100
       # The licences of the crates the shell ships, against ADR-0015's allowlist, for the three release targets.
       - name: Shell - crate licences (Linux)
         if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' && runner.os == 'Linux' }}
