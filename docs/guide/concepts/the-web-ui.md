@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-The web UI shows a workspace in your browser. It runs the same commands as the CLI, the API and MCP and shows their results; it has no logic of its own, and it never runs Git.
+The web UI shows a workspace in your browser. It runs the same commands as the CLI, the API and MCP and shows their results; it has no logic of its own, and it never writes to Git.
 
 ## Start it
 
@@ -18,7 +18,7 @@ A change to the files, by you, an agent or the command line, reaches every open 
 The left side lists where to go, with a count where there is one:
 
 - **Inbox:** the overview and its queues, such as the drafts to decide or the links to review.
-- **Lists:** search, all elements, one list per type and per package, and your saved filters and perspectives.
+- **Lists:** search, all elements and one list per type; below it the packages, saved filters and perspectives.
 - **Trace:** the trace matrix.
 - **Review:** the changes since a baseline and the check before a baseline.
 - **Variants:** each variant compared with the core, in a workspace with variants. **View** at the top chooses whether lists and counts show the core or one variant.
@@ -39,7 +39,7 @@ A list narrows by the values on its right, sorts and groups. **Save as filter** 
 
 ## An element
 
-An element's page shows its text, properties and acceptance criteria, its verification status, and the elements it relates to, in both directions. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form. A click on a related element opens its page.
+An element's page shows its text, properties and acceptance criteria, its verification status, and the elements it relates to, in both directions. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form.
 
 ## Write
 
@@ -47,7 +47,7 @@ An element's page shows its text, properties and acceptance criteria, its verifi
 
 ## Decide
 
-People set the status of an element, never ReqSeq. **Changes since a baseline** lists what changed since a baseline, word by word; there you approve one or several elements, set a status, supersede an element or change a property of many, each after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
+People set the status of an element, never ReqSeq. **Changes since** (with the name of the baseline) lists what changed since a baseline, word by word; there you approve one or several elements, set a status, supersede an element or change a property of many, each after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
 
 ## Settings
 

@@ -8,10 +8,10 @@ The search finds words in titles, texts, property values, type and status names 
 ## Web UI
 
 1. Ctrl+K (⌘K on macOS) finds a list or an element by name, short ID or words of its title; Enter opens the marked hit, or searches for the words.
-2. **Search** in the rail searches the text of every element; the hits narrow, sort and group as a list does.
+2. **Search** in the rail searches the text of every element; the hits narrow and group as a list does.
 3. **All elements**, a type or a package in the rail opens its list. The values on the right narrow it: tick one or more, and the list shows the elements that match; each tick shows above the list, where a click takes it back.
 4. **Sort** orders the list by a property, ascending or descending, or as a derivation tree; **Group** groups it by type, status, package or a property.
-5. **Save as filter** keeps what the list shows, **Save as perspective** also its grouping and sort; both appear in the rail, and their list offers **Rename** and **Delete**.
+5. **Save as filter** keeps what the list shows and its sort, **Save as perspective** also its grouping; both appear in the rail, and their list offers **Rename** and **Delete**.
 6. **View** at the top of the rail, in a workspace with variants, shows the core or one variant in every list and count.
 
 ## CLI

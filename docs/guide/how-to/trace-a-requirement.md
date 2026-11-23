@@ -10,7 +10,7 @@ A system requirement traces to the need it meets through a relation stored in it
 1. Create the need with **New element**, then each requirement with **New element**: under **Derives from**, type a word of the need's title and pick it.
 2. An element's page lists the elements it relates to, in both directions. Its **Trace graph** tab draws the element with its neighbours over one or more levels; **Derivations only** leaves out the other relations. Each requirement shows how many of its acceptance criteria are verified, a need the share of its requirements that are verified.
 3. Its **Impact** tab lists the elements a change of it can affect, nearest first.
-4. **Trace matrix** in the rail shows the elements of one type, one column per relation kind.
+4. **Trace matrix** in the rail shows the elements of one type, one column per relation kind and direction.
 
 ![The trace matrix of the system requirements: each with the need it derives from.](../images/ui-trace-matrix.png)
 

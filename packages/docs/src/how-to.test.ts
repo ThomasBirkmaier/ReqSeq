@@ -52,7 +52,7 @@ describe("accessNames", () => {
 });
 
 describe("howToProblems", () => {
-  it("accepts a page with every access and names that exist, with or without a section on the app", () => {
+  it("accepts a page with every access and names that exist, with or without a section on the web UI", () => {
     expect(howToProblems(page(complete), names)).toEqual([]);
     expect(howToProblems(page({ "Web UI": "Run **Any entry**.", ...complete }), names)).toEqual([]);
   });

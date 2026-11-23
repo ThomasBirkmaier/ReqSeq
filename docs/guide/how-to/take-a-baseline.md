@@ -14,7 +14,7 @@ ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuse
 3. The package's list under **Packages** in the rail shows its elements.
 4. Commit the files.
 5. Open **Check before a baseline** in the rail, choose the package under **Elements**, type the name and click **Create baseline**. Commit the new file.
-6. Later, **Changes since a baseline** shows what changed since it; **Compare with baseline** chooses another baseline.
+6. Later, **Changes since** in the rail, named after the baseline, shows what changed since it; **Compare with baseline** chooses another baseline.
 
 ## CLI
 

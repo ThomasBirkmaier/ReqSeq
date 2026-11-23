@@ -13,7 +13,7 @@ Two commands gather the outputs of other commands in one output and name the nex
 ## Web UI
 
 1. Open **Check before a baseline** in the rail. It shows the errors and warnings of the workspace, how many requirements are verified and without a passed test, and what changed since the newest baseline. Below, **Create a baseline** takes the name, and of a package if you choose one under **Elements**.
-2. Later, **Changes since a baseline** lists what changed, was added or was superseded since a baseline; **Compare with baseline** chooses another one, and a click on an element shows its difference word by word.
+2. Later, **Changes since** in the rail, named after the baseline, lists what changed, was added or was superseded since a baseline; **Compare with baseline** chooses another one, and a click on an element shows its difference word by word.
 
 ## CLI
 

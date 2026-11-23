@@ -567,7 +567,8 @@ jobs:
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/playwright test --config test/playwright.config.ts'
       # The guide's screenshots (ADR-0017): the project `guide` has just made them (test-results/web/guide-images/). A
       # nightly or manual run on main keeps them as the reference of later pull requests (a few hundred KB; each run
-      # saves a new entry, the restore takes the newest, and GitHub evicts an entry unused for 7 days).
+      # saves a new entry, the restore takes the newest, and GitHub evicts an entry unused for 7 days). Only a run whose UI
+      # tests passed saves them, so a reference never holds the shots of a broken page.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && hashFiles('test-results/web/guide-images/*.png') != ''
         with:

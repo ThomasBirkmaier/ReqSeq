@@ -34,7 +34,7 @@ properties:
 
 ## Web UI
 
-Not possible in the web UI: the metamodel is a file you edit in a text editor. The web UI reads the change when you save it; **Problems** in the rail and the element's own page show the hints.
+Not possible in the web UI: the metamodel is a file you edit in a text editor. The web UI reads the change when you save it; **Problems** in the rail shows the hints.
 
 ## CLI
 

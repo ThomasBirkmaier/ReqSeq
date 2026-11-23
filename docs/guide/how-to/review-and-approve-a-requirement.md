@@ -9,13 +9,13 @@ ReqSeq never deletes an element. You supersede an approved one: it gets an inval
 
 ## Web UI
 
-The web UI sets a status only on **Changes since a baseline**, so a workspace needs a baseline first ([Take a baseline](/how-to/take-a-baseline/)); before it, use the CLI, the API or MCP.
+The web UI sets a status only on **Changes since**, named after the baseline, so a workspace needs a baseline first ([Take a baseline](/how-to/take-a-baseline/)); before it, use the CLI, the API or MCP.
 
-1. Open **Changes since a baseline** and click an element: its difference shows word by word, with **Approve**, **Set status** and **Supersede**. Each writes only after a confirmation that names the elements and the status.
+1. Open **Changes since** in the rail and click an element: its difference shows word by word, with **Approve**, **Set status** and **Supersede**. Each writes only after a confirmation that names the elements and the status.
 2. To decide on several at once, tick them in the list: **Approve**, **Set status** and **Change a property** act on all of them. **Change a property** first shows what ReqSeq would change, and writes nothing before you confirm.
 3. Before you change an element, its **Impact** tab lists the elements that trace to it.
-4. After the change, **Links to review** on the overview lists the requirements whose link to the need is outdated. Review each; where it is listed on **Changes since a baseline**, **Mark links as reviewed** on its difference clears the mark.
-5. To supersede an element, create its successor with **New element**. Then click **Supersede** on the old one, choose the status, and name the successor.
+4. After the change, **Links to review** on the overview lists the requirements whose link to the need is outdated. Review each; where it is listed on **Changes since**, **Mark links as reviewed** on its difference clears the mark.
+5. To supersede an element, create its successor with **New element**. Then, where the old one is listed on **Changes since**, click **Supersede** on its difference, choose the status, and name the successor.
 
 ## CLI
 

@@ -92,11 +92,11 @@ function mdxProse(line: string, where: string): string {
 
 /**
  * The MDX page with the sections of the ways in as tabs, or undefined when `text` has no `## Web UI` followed by
- * `## CLI`, `## API` and `## MCP` as its next level-2 sections; with `withoutApp` (a command page), the run of
+ * `## CLI`, `## API` and `## MCP` as its next level-2 sections; with `commandPage`, the run of
  * `## CLI`, `## API` and `## MCP` counts as well. The tabs end at the next level-2 heading. `path` names the page in an
  * error.
  */
-export function accessTabs(text: string, path = "page", withoutApp = false): string | undefined {
+export function accessTabs(text: string, path = "page", commandPage = false): string | undefined {
   const front = FRONT_MATTER.exec(text)?.[0] ?? "";
   const lines = text.slice(front.length).split("\n");
   const outside = prose(lines);
@@ -104,7 +104,7 @@ export function accessTabs(text: string, path = "page", withoutApp = false): str
     const heading = outside[index] === true ? /^## (.+?)\s*$/.exec(line)?.[1] : undefined;
     return heading === undefined ? [] : [{ heading, index }];
   });
-  const allowed = withoutApp ? ACCESSES : ACCESSES.slice(0, 1);
+  const allowed = commandPage ? ACCESSES : ACCESSES.slice(0, 1);
   const first = headings.findIndex(({ heading }) => allowed.includes(heading));
   const ways = headings[first]?.heading === ACCESSES[0] ? ACCESSES : ACCESSES.slice(1);
   const run = headings.slice(first, first + ways.length);

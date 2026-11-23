@@ -16,7 +16,7 @@ The export writes a package or any selection and can leave out properties; a rel
 
 1. Open **Import ReqIF** in the rail. Type the path of the ReqIF file, relative to the workspace folder, and for a file of another tool the path of its mapping file, then click **Check file**: the page shows what the import would change.
 2. Without a mapping file, **Map the file** lets you choose for each part of the file what it becomes in the workspace; **Save mapping** writes the mapping into the mapping folder of the workspace and checks the file again with it.
-3. Give the name of the source and of the delivery, and import. For the next delivery, each conflict offers **Take the delivery** or **Keep mine**.
+3. Give the name of the delivery, and of the source when you map the file, and import. For the next delivery, each conflict offers **Take the delivery** or **Keep mine**.
 4. **Export** in the rail writes the whole workspace as one ReqIF file under **ReqIF**. A package alone, and the statements or the source model for your answer to the source, are not possible in the web UI: use the CLI, the API or MCP.
 
 ## CLI
