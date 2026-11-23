@@ -28,7 +28,8 @@ mod macos {
             return;
         }
         // SAFETY: `window` is the NSWindow that Tauri hands out for the window built in `setup`, on the main thread;
-        // the setter takes an NSInteger.
+        // the setter takes an NSInteger and exists from macOS 11, the minimum of the shipped `aarch64-apple-darwin`
+        // build.
         unsafe {
             let _: () = msg_send![&*window, setTitlebarSeparatorStyle: LINE];
         }
