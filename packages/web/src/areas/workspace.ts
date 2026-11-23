@@ -1192,7 +1192,7 @@ function showCount(): void {
 }
 
 addRailSection({
-  order: 90,
+  order: 92,
   title: "Workspace",
   // The rail waits for the check a short time only, so a large workspace does not hold every page: a later answer
   // fills in the count. A failed check leaves the count out, never the page.

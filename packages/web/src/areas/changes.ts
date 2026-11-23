@@ -1580,7 +1580,7 @@ addRoute("c", renderChanges);
 addRoute("r", renderRelease);
 
 addRailSection({
-  order: 30,
+  order: 36,
   title: "Review",
   prepare: async () => {
     const key = stamp();

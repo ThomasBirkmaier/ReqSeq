@@ -344,7 +344,7 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
 addRoute(MATRIX, render);
 addPlace(MATRIX, () => "Trace matrix");
 addRailSection({
-  order: 30,
+  order: 34,
   title: "Trace",
   links: () => [{ href: hashOf(MATRIX), key: MATRIX, name: "Trace matrix" }],
 });

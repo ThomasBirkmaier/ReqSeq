@@ -44,7 +44,7 @@ The release is not signed with a developer certificate. Once after unpacking:
 
 Add the folder of the launcher `reqseq` to the path, then open a new terminal:
 
-- macOS (zsh): `echo 'export PATH="/Applications/ReqSeq.app/Contents/Resources/bin:$PATH"' >> ~/.zprofile`. Up to version 0.13 it was `bin/` of the unpacked folder: change an older path line, and run `reqseq workspace connect-agent` again for each agent.
+- macOS (zsh): `echo 'export PATH="/Applications/ReqSeq.app/Contents/Resources/bin:$PATH"' >> ~/.zprofile`.
 - Linux (bash): `echo 'export PATH="$HOME/ReqSeq/bin:$PATH"' >> ~/.bashrc`, and in `~/.profile` for login shells and scripts.
 - Windows (PowerShell): `[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\Tools\ReqSeq\bin', 'User')`.
 
@@ -72,6 +72,6 @@ An agent's client starts the MCP server with `reqseq mcp` and the workspace. `re
 
 ## Update or remove
 
-A new ReqSeq version is a new download: swap its folder, on macOS `ReqSeq.app`, for the old one. The recent workspaces and elements, the path line and the MCP configuration stay. Repeat the first start on macOS and Windows.
+A new ReqSeq version is a new download: swap its folder, on macOS `ReqSeq.app`, for the old one. The recent workspaces and elements, the path line and the MCP configuration stay. On Windows, an MCP configuration written by a version with the Electron desktop app starts that app: run `reqseq workspace connect-agent` again for each agent. Repeat the first start on macOS and Windows.
 
 To remove ReqSeq, delete its folder and the folder `reqseq` in your system's cache folder (`~/Library/Caches`, `~/.cache`, `%LOCALAPPDATA%`). Versions with the Electron desktop app also left `~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq` or `%APPDATA%\ReqSeq`.
