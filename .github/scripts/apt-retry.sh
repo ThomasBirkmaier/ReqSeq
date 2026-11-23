@@ -26,21 +26,23 @@ Acquire::Retries "3";
 Acquire::http::Timeout "30";
 Acquire::https::Timeout "30";
 DPkg::Lock::Timeout "120";
-APT::Keep-Downloaded-Packages "true";
 CONF
 
 if [ -n "$debs" ]; then
+  echo 'APT::Keep-Downloaded-Packages "true";' | sudo tee -a /etc/apt/apt.conf.d/99-reqseq-ci >/dev/null
   mkdir -p "$debs"
   if compgen -G "$debs/*.deb" >/dev/null; then sudo cp "$debs"/*.deb /var/cache/apt/archives/; fi
   echo "apt-retry: $(find "$debs" -maxdepth 1 -name '*.deb' | wc -l) .deb files from the cache"
 fi
 
-# After a successful attempt: the .deb files of apt's cache into APT_DEB_CACHE.
+# After a successful attempt: the .deb files of apt's cache into APT_DEB_CACHE. autoclean first drops the versions
+# the package lists no longer offer (those of an older entry that apt replaced), so the cache does not grow.
 keep_debs() {
   [ -n "$debs" ] || return 0
-  rm -f "$debs"/*.deb
-  sudo find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} +
-  sudo chown -R "$(id -u):$(id -g)" "$debs"
+  rm -f "$debs"/*.deb &&
+    sudo apt-get autoclean -qq &&
+    sudo find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} + &&
+    sudo chown -R "$(id -u):$(id -g)" "$debs" || return 1
   echo "apt-retry: $(find "$debs" -maxdepth 1 -name '*.deb' | wc -l) .deb files for the cache, $(du -sh "$debs" | cut -f1)"
 }
 
@@ -80,7 +82,11 @@ for attempt in $(seq 1 "$attempts"); do
   wait "$pid"
   status=$?
   if [ "$stalled" = false ] && [ "$status" -eq 0 ]; then
-    keep_debs
+    # A partial folder must not become a cache entry: without the folder, the save step saves nothing.
+    if ! keep_debs; then
+      echo "::warning title=apt::Could not collect the .deb files for the cache"
+      rm -rf "$debs"
+    fi
     exit 0
   fi
   if [ "$stalled" = true ]; then
