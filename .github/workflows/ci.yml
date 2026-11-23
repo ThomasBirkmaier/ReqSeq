@@ -325,8 +325,9 @@ jobs:
       - name: Shell - system packages (Linux)
         id: shell-packages
         if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && runner.os == 'Linux' }}
-        # Bounded attempts against a stalled mirror (#2436); the step bound covers all three of them.
-        timeout-minutes: 14
+        # Restarted when it stalls (#2436). A slow mirror took up to 12.5 minutes for a green run on 2026-11-23; the
+        # step bound leaves room for that and ends a hang that makes progress.
+        timeout-minutes: 20
         run: >-
           .github/scripts/apt-retry.sh bash -c 'sudo apt-get update &&
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev xvfb xauth strace dbus'
@@ -527,9 +528,9 @@ jobs:
   web:
     name: web (ubuntu-24.04)
     # Every run installs the system libraries of Firefox and WebKit and runs the contract tests in the three browsers,
-    # after the install and the build; the bound ends a hang. 20, not 15: on a stalled mirror the apt attempts of
-    # `System libraries of the browsers` may take up to 12 minutes before they succeed or fail the step (#2436).
-    timeout-minutes: 20
+    # after the install and the build; the bound ends a hang. A normal run takes 6-8 minutes; on a slow mirror
+    # `System libraries of the browsers` alone took 7 to 14 minutes on 2026-11-23 (#2436), hence 25.
+    timeout-minutes: 25
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps:
@@ -581,7 +582,8 @@ jobs:
       # The system libraries Firefox and WebKit need (apt), on every run: the cache holds only the browsers.
       - name: System libraries of the browsers
         if: steps.changes.outputs.tests != 'false'
-        # Bounded attempts against a stalled mirror (#2436).
+        # Restarted when it stalls (#2436); the step bound as in `Shell - system packages (Linux)`.
+        timeout-minutes: 20
         run: .github/scripts/apt-retry.sh pnpm --filter @reqseq/web exec playwright install-deps firefox webkit
       # Core, the API (the UI server), the CLI the contract tests start, the test kit for the test starter, and the
       # pages (vite build).

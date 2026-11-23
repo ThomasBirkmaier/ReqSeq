@@ -95,7 +95,7 @@ jobs:
           node-version-file: .nvmrc
       - name: System packages (Linux)
         if: runner.os == 'Linux'
-        # Bounded attempts against a stalled mirror (#2436).
+        # Restarted when it stalls (#2436).
         run: >-
           .github/scripts/apt-retry.sh bash -c 'sudo apt-get update &&
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev'
