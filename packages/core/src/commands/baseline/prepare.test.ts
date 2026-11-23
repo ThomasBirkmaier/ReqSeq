@@ -1,7 +1,7 @@
 // baseline.prepare through `invoke` (SR-242) on fixtures/SR-061/export (Git repositories `system` and
 // `sensor`): two warnings and no error in the check, the baseline „Release 1“ without stored selection,
 // `broken.yaml` that is no valid baseline, and the variants Coast (c1) and Inland (c2). Each number is
-// compared with the command that gives it (D-082). Also the next steps of a read-only workspace (SR-226 AK6).
+// compared with the command that gives it (D-082). Also the next steps of a read-only workspace (SR-226).
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { rm } from "node:fs/promises";

@@ -15,12 +15,12 @@
 // so it is never retargeted. When the tail fits exactly one element, that element is named as the
 // candidate (prefix changed since, ThomasBirkmaier/ReqSeq-archive#275).
 //
-// A reference to an acceptance criterion as a test name writes it (SR-205 AK5), `[SR-036/AK-k7f3]` or
+// A reference to an acceptance criterion as a test name writes it (SR-205), `[SR-036/AK-k7f3]` or
 // `SR-036/AK-k7f3`, is split at the first `/` as enrich-junit splits it (`criterionReferenceOf`): the
 // part before resolves as above (with the outdated-prefix candidate), and `criterion` gives the
 // criterion of the current version with that key, with number, text and reference; the element
 // carries all of them (`criterionReferences`, AK1). A key no criterion carries is `ref.unknown`, a
-// key two carry `ref.ambiguous` (SR-204 AK10). A number suffix (`AK2`) is refused: test names name
+// key two carry `ref.ambiguous` (SR-204). A number suffix (`AK2`) is refused: test names name
 // criteria by key (SR-029 AK13), and a number would point at another criterion after a move. A text
 // that itself names one element, such as the identifier `ECU/AK2`, stays that element's reference.
 import type { CommandOutput } from "../../catalog.js";
@@ -221,7 +221,7 @@ export default defineCommand({
       throw error;
     }
     // With its verification and validation status, the variants that replace or exclude it, and
-    // `names` and `incomplete`, as element.get shows it (SR-031, SR-034, SR-038, SR-046 AK3, #456).
+    // `names` and `incomplete`, as element.get shows it (SR-031, SR-034, SR-038, SR-046, #456).
     const { element, ...rest } = await shownWithNames(ctx.workspace, shown);
     const key = reference?.criterion;
     const criterion =

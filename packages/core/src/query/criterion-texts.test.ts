@@ -1,6 +1,6 @@
 // Conditions and search read an acceptance criterion with its criterion key as its text (SR-204): the
 // key is no value a property condition compares and no word of the index. The search finds the key
-// beside the index, exactly (SR-222 AK1, AK5: search-criteria.test.ts).
+// beside the index, exactly (SR-222 AK1: search-criteria.test.ts).
 import { describe, expect, it } from "vitest";
 import { valuesOf } from "./context.js";
 import { valueTexts } from "./search-index.js";

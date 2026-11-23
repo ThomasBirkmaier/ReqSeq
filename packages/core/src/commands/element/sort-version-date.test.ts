@@ -1,4 +1,4 @@
-// element.list sorted by the time of the version (SR-075 AK6, D-013) on fixtures/SR-075/sort (store
+// element.list sorted by the time of the version (SR-075, D-013) on fixtures/SR-075/sort (store
 // order N1, N2, b1, b2, b3, b4, f1, f2, f3; see sort.test.ts) as one Git repository: the first
 // commit has every file, then b2 and f1 change in a commit each, and b1 changes and goes back to its
 // first text in the working copy. b3 holds a counted value without a normal form, so it has no
@@ -73,7 +73,7 @@ const list = async (workspace: Workspace, input: Record<string, unknown>): Promi
 const order = async (workspace: Workspace, sort: unknown): Promise<string[]> =>
   (await list(workspace, { sort })).elements.map((e) => name(e.id));
 
-describe("element.list by the time of the version (SR-075 AK6)", () => {
+describe("element.list by the time of the version (SR-075)", () => {
   it("[SR-075/AK-qr2j] sorts oldest first or newest first, uncommitted content newer than any commit and elements without a time last", async () => {
     const workspace = await history();
     // Equal times keep the workspace order (AK1).

@@ -16,7 +16,7 @@ const SKILL = ".claude/skills/managing-requirements/SKILL.md";
 const AGENTS = ".agents/skills/managing-requirements/SKILL.md";
 const PRECEDENCE = "Project rules take precedence over this skill and the agent guide.";
 
-/** The start of the MCP server instructions, the same for every folder (SR-229 AK17). */
+/** The start of the MCP server instructions, the same for every folder (SR-229). */
 const INSTRUCTIONS_START = "# Working with ReqSeq\n\nThese instructions hold only the rules.";
 
 const instructionsCheck = (results: Readonly<Record<string, Result>>): void => {

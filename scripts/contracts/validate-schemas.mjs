@@ -68,12 +68,12 @@ for (const cmd of catalog.commands) {
   }
 }
 
-// Titles, argument sources of the command prompt (SR-108) and jsonLines; needs entries that match the meta-schema.
+// Titles, argument sources of the command prompt and jsonLines; needs entries that match the meta-schema.
 if (entriesValid) {
   errors.push(...checkCatalog(catalog, schemas));
-  // Titles and marks of the output fields (SR-224 AK3, AK4, AK7).
+  // Titles and marks of the output fields (SR-224 AK3 and AK4).
   errors.push(...checkOutputs(catalog, schemas));
-  // Each normal value (`x-normal`, SR-223 AK7) is a value of its field, also one a definition gives its fields.
+  // Each normal value (`x-normal`) is a value of its field, also one a definition gives its fields.
   for (const [file, schema] of Object.entries(schemas)) {
     for (const [name, def] of Object.entries(schema.$defs ?? {})) {
       const valid =

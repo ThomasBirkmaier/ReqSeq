@@ -145,7 +145,7 @@ const sameByRef = async (
     const record = whole.byId.get(id)?.[0];
     const expected = all.filter((hint) => isHint(hint) && problemElement(whole, hint) === record);
     // The counts per kind of the element's hints, in the order of their first hint, then the kinds
-    // of the filter without one (SR-026 AK6).
+    // of the filter without one (SR-026).
     const counted = new Map<string, number>();
     for (const hint of expected) {
       counted.set(hint.code, (counted.get(hint.code) ?? 0) + 1);

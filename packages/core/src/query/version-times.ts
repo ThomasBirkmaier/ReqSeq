@@ -1,4 +1,4 @@
-// The times of the versions that a sort by `versionDate` reads (SR-075 AK6, D-013; `sortValuesFor`,
+// The times of the versions that a sort by `versionDate` reads (SR-075, D-013; `sortValuesFor`,
 // ordered.ts): for each element
 // of the selection its current version (`currentVersionsOf`) and the time Git gives that version
 // (`versionTimes`, model/version-date.ts). One walk per HEAD for all files, which the workspace keeps

@@ -1023,7 +1023,7 @@ describe("version date", () => {
     expect(await fs.readFile(repo.fixture.path(FILE), "utf8")).toBe(element("One."));
   });
 
-  describe("as a sort reads it (SR-075 AK6)", () => {
+  describe("as a sort reads it (SR-075)", () => {
     const times = async (
       workspace: Workspace,
       requests: readonly Partial<VersionDateRequest>[],

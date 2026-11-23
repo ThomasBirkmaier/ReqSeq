@@ -24,7 +24,7 @@
 //   So a page costs the search and the files of its hits (SR-098: measured for 50 and 500 hits in
 //   test/perf/search-speed.test.ts). The Markdown parser comes with it, so the command is imported
 //   on its first call (`lazyCommand`, #178).
-// - With `group` (SR-149 AK6) every hit is put in order (`rankedHits`, one sort) and dealt into the
+// - With `group` (SR-149) every hit is put in order (`rankedHits`, one sort) and dealt into the
 //   groups of `groupingOf` over the hit records, keeping that order inside each group; the page is
 //   then the rows of the groups in turn, as element.list gives them, and only its distinct hits are
 //   described and get a snippet. The records are the index's, so a file changed since the selection

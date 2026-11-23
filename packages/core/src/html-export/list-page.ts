@@ -17,7 +17,7 @@
 // - `data-q` holds the search text, `data-f` the facets and `data-s` the ranks of the model; `data-rq-list` its
 //   columns and filters. The order of SR-075 AK1 that ranks them is `listOrderOf` (`sortValueOf`: the metamodel's
 //   order for statuses and choices, then numbers, then text ignoring case); the verification status is in the
-//   order of SR-075 AK5 (`VERIFICATION_RANKS`: failed, open, outdated, verified, indirect as verified).
+//   order of SR-075 (`VERIFICATION_RANKS`: failed, open, outdated, verified, indirect as verified).
 // - Change since a baseline (SR-233 AK2), when the workspace has one: the baselines newest first in `data-rq-list`
 //   (`compare`), each row's change since each of them as an index into `CHANGE_VALUES` (`data-b`, as `baseline.get`
 //   names it, SR-232 AK7; "not in the baseline" when the baseline neither lists it nor adds it), and a last column

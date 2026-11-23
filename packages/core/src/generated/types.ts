@@ -2,7 +2,7 @@
 // change the schema or the catalog and run `pnpm contracts:generate`.
 
 /**
- * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
+ * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins). It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
  * Schema: `schemas/activity.schema.json#`.
  */
 export interface ActivityFile {
@@ -354,7 +354,7 @@ export interface Problem {
   readonly elementShortId?: ShortId;
   /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305), for display next to `elementShortId`; given with it when the element has one. */
   readonly elementIdentifier?: string;
-  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`. */
+  /** Title of the element `elementId` names, for display next to `elementShortId` (SR-026); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`. */
   readonly elementTitle?: string;
   readonly targetId?: Uuid;
   /** Workspace name of the repository the target `targetId` names was resolved in (#172); given when the problem's target is one element there. */
@@ -363,7 +363,7 @@ export interface Problem {
   readonly targetShortId?: ShortId;
   /** Identifier of the element `targetId` names (the value of its property with the meaning `identifier`, ThomasBirkmaier/ReqSeq-archive#305, #172), for display next to `targetShortId`; given with it when the element has one. */
   readonly targetIdentifier?: string;
-  /** Title of the element `targetId` names, for display next to `targetShortId` (SR-026 AK6); given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`. */
+  /** Title of the element `targetId` names, for display next to `targetShortId` (SR-026); given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`. */
   readonly targetTitle?: string;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
@@ -392,11 +392,11 @@ export interface Problem {
   readonly targetType?: Key;
   /** How many relations the element has that the limit counts (SR-152), how many entries its list property has (SR-171), or how many of its acceptance criteria have no criterion key (`element.criterion-key-missing`, SR-204). */
   readonly count?: number;
-  /** The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204 AK10), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text). */
+  /** The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text). */
   readonly criteria?: readonly DataExportCriterionName[];
   /** The maximum (`relation.too-many`, `element.too-many-items`) or minimum (`relation.too-few`) the metamodel sets (SR-152, SR-171). */
   readonly limit?: number;
-  /** The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026 AK6): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173). */
+  /** The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173). */
   readonly view?: ViewId;
 }
 
@@ -811,7 +811,7 @@ export interface BaselineSince {
 }
 
 /**
- * A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.
+ * A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets.
  * Schema: `schemas/common.schema.json#/$defs/nextStep`.
  */
 export interface NextStep {
@@ -897,12 +897,12 @@ export interface DataExportElement {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
-  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  /** Given only for a core requirement (SR-046): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
   readonly replacedBy?: readonly {
     readonly variant: Uuid;
     readonly replacement: Uuid;
   }[];
-  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  /** The variants that exclude this core requirement (SR-042, SR-046). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
@@ -949,12 +949,12 @@ export interface DataExportElementPart {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
-  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  /** Given only for a core requirement (SR-046): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
   readonly replacedBy?: readonly {
     readonly variant: Uuid;
     readonly replacement: Uuid;
   }[];
-  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  /** The variants that exclude this core requirement (SR-042, SR-046). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
@@ -1001,12 +1001,12 @@ export interface DataExportLine {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
-  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  /** Given only for a core requirement (SR-046): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
   readonly replacedBy?: readonly {
     readonly variant: Uuid;
     readonly replacement: Uuid;
   }[];
-  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  /** The variants that exclude this core requirement (SR-042, SR-046). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
@@ -1063,12 +1063,12 @@ export interface DataExportElementFields {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
-  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  /** Given only for a core requirement (SR-046): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
   readonly replacedBy?: readonly {
     readonly variant: Uuid;
     readonly replacement: Uuid;
   }[];
-  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  /** The variants that exclude this core requirement (SR-042, SR-046). Left out when empty. */
   readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question ThomasBirkmaier/ReqSeq-archive#591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
@@ -1233,7 +1233,7 @@ export interface DataExportCriterionEntry {
   readonly key?: CriterionKey;
   /** The text of the acceptance criterion. */
   readonly text: string;
-  /** The reference for a test name, `[<name>/AK-<key>]` (SR-205 AK1, SR-029 AK10): the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key (SR-204 AK10; spec question #1525, assumption). */
+  /** The reference for a test name, `[<name>/AK-<key>]` (SR-205 AK1, SR-029 AK10): the name is the identifier of the requirement when a test name with it leads back to this requirement (no `/`, `[` or `]`, not blank, no other element has it), else its short ID. Left out for a criterion without key and for both criteria that carry the same key (SR-204; spec question #1525, assumption). */
   readonly reference?: string;
 }
 
@@ -1749,7 +1749,7 @@ export interface MetamodelStatus {
 }
 
 /**
- * A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.
+ * A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view; the view comes from `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.
  * Schema: `schemas/perspective.schema.json#`.
  */
 export interface PerspectiveFile {
@@ -1775,7 +1775,7 @@ export interface PerspectiveFile {
 export type PerspectiveName = string;
 
 /**
- * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces opened last (SR-131), the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens, and `workspace.markOpened` the root of the workspace it runs on (SR-250); the app's main process reads the list for "Open workspace". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces opened last (SR-131), the most recent first, at most 20, one per folder. `workspace.markOpened` records the root of the workspace it runs on (SR-250), and `workspace.recent` reads the list. It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {
@@ -2104,7 +2104,7 @@ export interface CommandCatalog {
   readonly commands: readonly {
     /** group.action; CLI `reqseq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
     readonly name: string;
-    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes` (D-045). */
+    /** The name of the command for people, English, sentence case, unique in the catalog: the MCP tool `title`. Free of delete words except for relations and for entries with `deletes` (D-045). */
     readonly title: string;
     /** What the command does and what for, in one or two sentences in the user's words: the command reference, its index, `--help`, the MCP tool description and the OpenAPI summary show it. At most 50 words, counted as the text split at white space (`catalog-checks.mjs`, #1252). */
     readonly summary: string;
@@ -2123,11 +2123,11 @@ export interface CommandCatalog {
     /** The stage in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
-    /** How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
+    /** How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`). */
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). choices: a list of new fixed values `{ name, key? }`, each a name and its key, the key suggested from the name (SR-236 AK6, AK11). choiceChanges: a list of `{ choice, name?, description? }`: a fixed value of the property (metamodel.get), then its new name or description. limits: a list of `relationLimit` of metamodel.schema.json: the target types for limits as marks from every type (metamodel.get; those of the limits there are marked, a limit for one source type is kept as it is), then a minimum and a maximum, each a number or empty, per target type marked (SR-236 AK11). text, number, boolean: typed free input; in the steps of the metamodel commands, an empty input of a `number` field that also takes null gives null. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`. */
+      /** element: elements found by element.search; with `meaning`, the elements of the types with that meaning (metamodel.get, then element.list), as view offers the variants, without `core`. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). perspective: perspectives (perspective.list). view: `core` and the variants of the workspace (element.list of the types with the meaning `variant`). repository: repositories of the workspace. selection: the selection of the list shown. choice: the `enum` of the property or of its items, inline or in the definition its `$ref` names (`hint.list` `kind`: the problem codes of `common.schema.json`). folder: a `localPath` field that names a folder, file: one that names a file; both completed with the entries of the typed folder (workspace.listFolder, files only for file), and every `localPath` field has one of them (`catalog-checks.mjs`). criterion: the acceptance criteria of the element in `of` (element.get `criterionReferences`), each by its key; a criterion without a key is not offered, since evidence.record refuses it. evidenceLocation: the evidence locations of the workspace (workspace.status `evidence[].folder`); evidence.record refuses one while the repository of the location is not on this machine; typed text stays, for a folder below one. elementFile: the file of the element in `of` (element.get), or, when the reference is ambiguous, the files of the elements it names (`details.candidates` of `ref.ambiguous`, the answer of the same read command). metamodelLocation: an object `{ repository?, path }`, asked in two steps: the repository (the main repository the default), then the path (in the main repository the folders below the folder in `of`, workspace.listFolder; typed text accepted). group: a `groupKey` field: `type`, `status`, `package` (when the meaning `packages` is assigned) and the properties element.facets gives values for. Composed values, each one flat entry whose field's schema fixes the parts (`catalog-checks.mjs` binds them): condition: a `condition` field of `filter.schema.json`, built from parts: types, statuses and properties with their values (metamodel.get, element.facets over the conditions chosen before), verification and validation status (their enums), validity (core and the variants, as view), relations (the relation kinds of metamodel.get and the `relationCondition` enums) and text. sort: a list of `sortKey`: the keys of its `by` enum and the metamodel.get properties that hold no relations, each with an order from its enum. searchField: a list of `searchFieldKey` (element.search `fields`): the fields element.searchFields lists, each by its name with its key beside. properties: an object of `inputValue` by property key: the properties of the type in `of` (metamodel.get) without the title and those given, each value as value gives it. relations: a `relationRefs` field: the kinds metamodel.get `relationKinds` gives for the type in `of`, then elements of their target types (element.search). choices: a list of new fixed values `{ name, key? }`, each a name and its key, the key suggested from the name (SR-236 AK6). choiceChanges: a list of `{ choice, name?, description? }`: a fixed value of the property (metamodel.get), then its new name or description. limits: a list of `relationLimit` of metamodel.schema.json: the target types for limits as marks from every type (metamodel.get; those of the limits there are marked, a limit for one source type is kept as it is), then a minimum and a maximum, each a number or empty, per target type marked (SR-236). text, number, boolean: typed free input; in the steps of the metamodel commands, an empty input of a `number` field that also takes null gives null. json: any other object or mixed field, typed as JSON and checked by `@reqseq/core`. */
       readonly complete:
         | "element"
         | "type"
@@ -2187,7 +2187,7 @@ export interface CommandCatalog {
       readonly flag?: string;
     }[];
     readonly input: Readonly<Record<string, unknown>>;
-    /** The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319). */
+    /** The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP keeps the JSON object (ADR-0002 rule 3, #319). */
     readonly jsonLines?: {
       /** A top-level array of `output`: one line per item. */
       readonly items: string;
@@ -2209,7 +2209,7 @@ export interface CommandCatalog {
       /** Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object. */
       readonly keys?: readonly (readonly string[])[];
     }[];
-    /** A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API, MCP and the app keep the JSON object (ADR-0002 rule 3, SR-151 AK4). */
+    /** A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr (ADR-0009). API and MCP keep the JSON object (ADR-0002 rule 3, SR-151 AK4). */
     readonly textOutput?: string;
     /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
     readonly output: {
@@ -2358,7 +2358,7 @@ export type WorkspaceActivityInput = Readonly<Record<string, never>>;
  */
 export interface WorkspaceActivityOutput {
   readonly answer: Answer;
-  /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded. */
+  /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Only calls through the API and the MCP server are recorded. */
   readonly activity: ActivityAccess | null;
 }
 
@@ -2404,7 +2404,7 @@ export type WorkspaceRecentInput = Readonly<Record<string, never>>;
  */
 export interface WorkspaceRecentOutput {
   readonly answer: Answer;
-  /** The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them (ADR-0008): the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on (SR-250). Empty when none is recorded or the list cannot be read. No other command changes the list. */
+  /** The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them (ADR-0008): `workspace.markOpened` marks the workspace it runs on (SR-250). Empty when none is recorded or the list cannot be read. No other command changes the list. */
   readonly workspaces: readonly {
     /** The absolute path of the workspace root as it was opened last (the folder that holds reqseq-workspace.yaml). */
     readonly root: OutputPath;
@@ -3329,7 +3329,7 @@ export interface ElementCreateOutput {
   readonly files: readonly OutputPath[];
   /** In a dry run (SR-246): nothing written. */
   readonly dryRun?: true;
-  /** Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064 AK5). */
+  /** Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064). */
   readonly filesToWrite?: readonly OutputPath[];
   /** With `nextIdentifier`: true when a repository of the workspace is not available locally, so only the others counted (SR-245 AK9). */
   readonly incomplete?: Incomplete;
@@ -3345,9 +3345,9 @@ export interface ElementGetInput {
   readonly ref: ElementRef;
   /** The view to show the element in. Not taken yet: it gives `input.invalid`. */
   readonly view?: View;
-  /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
+  /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3). */
   readonly versionDate: boolean;
-  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-082 AK3). `versionDate` dates these hints too. */
+  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message, D-013, ADR-0005, #252), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation. `versionDate` dates these hints too. */
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; ThomasBirkmaier/ReqSeq-archive#255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -3361,13 +3361,13 @@ export interface ElementGetInput {
  */
 export interface ElementGetOutput {
   readonly answer: Answer;
-  /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
+  /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-166). */
   readonly fileSha256: FileSha256;
   /** The acceptance criteria of the element as its file holds them now, each with number, criterion key, text and the reference for a test name (SR-205 AK1); left out for an element that is no requirement or has none. */
   readonly criterionReferences?: DataExportCriterionReferences;
-  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing. */
   readonly incomplete?: Incomplete;
@@ -3378,7 +3378,7 @@ export interface ElementGetOutput {
  * Schema: `schemas/commands/element.resolve.json input`.
  */
 export interface ElementResolveInput {
-  /** UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205 AK5): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`. */
+  /** UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`. */
   readonly ref: ElementRef;
   /** The version the reference stores (D-013); optional. A version of normal form n1 or n2 is compared with the current version in its own form; a version of another normal form is refused with input.invalid (ADR-0005). */
   readonly version?: Version;
@@ -3398,13 +3398,13 @@ export interface ElementResolveOutput {
   readonly answer: Answer;
   /** The element as element.get shows it, with title, text, status, current version in normal form n2 (SR-060 AK1, ADR-0005), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (ThomasBirkmaier/ReqSeq-archive#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, ThomasBirkmaier/ReqSeq-archive#275). */
   readonly element: DataExportElement;
-  /** With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205 AK5). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204 AK10) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference. */
+  /** With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference. */
   readonly criterion?: DataExportCriterionEntry;
   /** As element.get gives it (SR-205 AK1). */
   readonly criterionReferences?: DataExportCriterionReferences;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, ThomasBirkmaier/ReqSeq-archive#276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
-  /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none. */
+  /** The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none. */
   readonly names?: readonly ElementName[];
   /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing (#456). */
   readonly incomplete?: Incomplete;
@@ -3417,7 +3417,7 @@ export interface ElementResolveOutput {
 export interface ElementListInput {
   /** Every part given must hold (SR-101 AK2); with `perspective`, in addition to the perspective's selection (SR-213 AK5). */
   readonly selection?: ElementSelection;
-  /** List as the perspective of this name shows it (SR-213 AK4), read from its file on every call, as its saved filter is (AK6). Its `where`, its saved filter and every part of `selection` must hold (AK5); the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a text, number or date property whose values can no longer be chosen (SR-124 AK2: more than 30 different values in the workspace, or none that two elements share) gives the list without groups and the warning `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter (AK6); errors of its stored `where`, `sort` and `group` name the perspective and its file. */
+  /** List as the perspective of this name shows it (SR-213 AK4), read from its file on every call, as its saved filter is (AK6). Its `where`, its saved filter and every part of `selection` must hold (AK5); the view of its saved filter holds, and its `where` is read in the view of `selection`, else its filter's, else the core. `sort` and `group` of the input replace the stored ones. A stored `group` by a text, number or date property whose values can no longer be chosen (SR-124: more than 30 different values in the workspace, or none that two elements share) gives the list without groups and the warning `perspective.group-unavailable` in `problems` (AK7); any other stored key that cannot be grouped is an error. A name no perspective has is input.invalid at `perspective`, one only a faulty file holds file.faulty. A saved filter it names that does not exist is input.invalid at `perspective`, one only a faulty file holds file.faulty, each naming the perspective and the filter (AK6); errors of its stored `where`, `sort` and `group` name the perspective and its file. */
   readonly perspective?: PerspectiveName;
   /** Keys in order; ties go to the next key, then to the workspace order. `hierarchy` only first: the list is then the derivation tree (`tree`). Without sort, the first stored sort of: the saved filter in `selection.filter`, the perspective, the perspective's saved filter, also a stored `sort: []`. An explicit sort, also `[]`, wins over them. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -3480,7 +3480,7 @@ export type ElementListOutput = {
   /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
-  /** With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075 AK6). */
+  /** With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075). */
   readonly problems?: readonly Problem[];
 } & (
   | {
@@ -3635,7 +3635,7 @@ export interface ElementSetStatusInput {
 export interface ElementSetStatusOutput {
   readonly answer: Answer;
   readonly files: readonly OutputPath[];
-  /** For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2). */
+  /** For each element, element.missing-required for each required property without a value (SR-243); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2). */
   readonly problems?: readonly Problem[];
 }
 
@@ -3772,7 +3772,7 @@ export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
   /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). Give it or content, not both. */
   readonly sourcePath?: LocalPath;
-  /** The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app. Needs name; give it or sourcePath, not both. */
+  /** The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in an editor. Needs name; give it or sourcePath, not both. */
   readonly content?: string;
   /** The file name of content, for its extension (which must be one of sourcePath's) and the name of the copy, e.g. Screenshot 2026-11-07.png. Only with content. */
   readonly name?: string;
@@ -4526,7 +4526,7 @@ export interface HintListInput {
  */
 export interface HintListOutput {
   readonly answer: Answer;
-  /** The number of hints that pass the filters per kind (SR-026 AK6), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`. */
+  /** The number of hints that pass the filters per kind (SR-026), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`. */
   readonly kinds: readonly {
     readonly code: ProblemCode;
     /** Hints of this kind that pass the filters. */
@@ -4583,7 +4583,7 @@ export interface ElementSearchInput {
   readonly selection?: ElementSelection;
   /** Search only in these fields; default all. `title`, `text` (the Markdown text), `id` (UUID, short ID, identifier, and a criterion reference, SR-222 AK2), `properties` (all properties, with the type and status names and keys the metamodel does not know; no relations), or the key of a property that holds no relations and is not the title (a choice is found by the names of its values, the acceptance criteria property also by the criterion keys of its criteria, SR-222 AK1); element.searchFields lists them. Every word must be found in a chosen field, itself (also as a word start or inside a longer word, SR-221) or through another designation (SR-220 AK1), and only they rank a hit; an ID match comes first only with `id`. A word that can match nothing there finds nothing. `properties` with a single property is `properties`. A key that holds relations, the title's key, `type`, `status` or a key the metamodel does not know is `input.invalid`, naming the key. The names `title`, `text`, `properties` and `id` always mean these fields. */
   readonly fields?: readonly SearchFieldKey[];
-  /** Group the hits (SR-149 AK6) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
+  /** Group the hits (SR-149) by the keys and rules of element.list `group`: the same groups in the same order, a hit with several values in each of their groups, the hits without a value (or with only targets not available) in the last group, and an invalid key `input.invalid` whatever the query finds. Inside each group the hits keep the order of the search (ID matches, then hits found by every word itself, then hits found through another designation, then hits with a word found only in the type or status name, each by relevance, then workspace order). The grouping reads the records the hits were found in; their targets are looked up in the workspace the selection was read from. Nothing is stored. */
   readonly group?: GroupKey;
   /** Also give what each row shows of its element's verification (SR-137), in `rowVerification`. */
   readonly withVerification?: boolean;
@@ -4948,7 +4948,7 @@ export interface EvidenceListOutput {
   readonly records: readonly DataExportEvidenceRecord[];
   /** The positions in `records` (from 0, ascending) of the records that bear the element's status (SR-032 AK3): per kind, variant and acceptance criterion (D-072) every record with the newest date of the current version, else every one with the newest date of an older version, so the whole test run of a CI stays open; a record without criteria counts for every criterion (SR-031 AK6). In a repository marked `variant-independent` (SR-173) a variant's records are pooled with those without variant, as its status pools them. The app shows these open and folds the others away. */
   readonly bearing: readonly number[];
-  /** The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run. */
+  /** The Evidence section at a glance (SR-032 AK3), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run. */
   readonly display: {
     /** AK5: each of date, item, version and baselines that every bearing record has with the same value (a date as the same instant, the first record's text); left out otherwise. */
     readonly shared: {
@@ -4971,7 +4971,7 @@ export interface EvidenceListOutput {
       readonly text?: string;
       /** Verification: the worst status of `views` (failed before outdated before open before verified). Validation: the validation status (SR-038). */
       readonly status: "open" | "verified" | "failed" | "outdated" | "validated" | "inconclusive";
-      /** Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
+      /** Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records. */
       readonly views?: readonly {
         /** `core` or the variant's UUID. */
         readonly view: string;
@@ -5549,7 +5549,7 @@ export interface BaselineChangesOutput {
   readonly baseline?: BaselineSince;
   /** The open hints of the whole workspace, as hint.list gives them without a filter, whatever the baseline selects: one page of `limit` hints from `offset`. */
   readonly hints: readonly Problem[];
-  /** The number of open hints per kind, as `kinds` of hint.list without a filter (SR-026 AK6); empty without an open hint. */
+  /** The number of open hints per kind, as `kinds` of hint.list without a filter (SR-026); empty without an open hint. */
   readonly hintKinds: readonly {
     readonly code: ProblemCode;
     /** Open hints of this kind. */

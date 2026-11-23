@@ -1,5 +1,5 @@
 // For tests only: the input of `element.update` as a caller that read the element first sends it. A
-// change of the text or the title needs the write precondition `expectedFileSha256` (SR-106, #269), so
+// change of the text or the title needs the write precondition `expectedFileSha256` (#269), so
 // a test that writes text or title without one gets the `fileSha256` that `element.get` gives now.
 import type { CommandOutput } from "../catalog.js";
 import type { InvokeContext } from "./invoke.js";

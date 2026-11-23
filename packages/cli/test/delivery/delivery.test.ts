@@ -219,7 +219,7 @@ const serveDocsAndSearch = async (launcher: string, docs: string): Promise<void>
   }
 };
 
-/** `tool info --json` of an installed delivery: the info of this delivery (SR-161 AK4). */
+/** `tool info --json` of an installed delivery: the info of this delivery (SR-161). */
 const toolInfo = async (launcher: string): Promise<Record<string, Record<string, unknown>>> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
   fixtures.push(ws);

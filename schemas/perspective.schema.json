@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/perspective.schema.json",
   "title": "Perspective file",
-  "description": "A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.",
+  "description": "A perspective saved as YAML in the repository (SR-213, D-056): a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view; the view comes from `selection.view` (SR-213). Element references may take any form; `perspective.save` writes UUIDs.",
   "type": "object",
   "required": ["reqseq-perspective", "name", "where"],
   "properties": {

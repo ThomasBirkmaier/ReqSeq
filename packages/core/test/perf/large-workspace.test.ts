@@ -99,7 +99,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       "cold load of the element store",
       () => workspace.get(elementStoreState),
       {
-        basis: "N-036, SR-082 AK2 (app start without cache; the app adds its own time)",
+        basis: "N-036, SR-082 AK2 (start without cache)",
         thresholdMs: 30_000,
       },
     );
@@ -261,7 +261,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     }
   }, 600_000);
 
-  it("saves the input of the app as autosave does, on the bytes it read, and reads the element again (SR-105)", async () => {
+  it("saves an input on the bytes it read, and reads the element again", async () => {
     const store = await workspace.get(elementStoreState);
     const element = store.elements[1];
     if (element === undefined) {
@@ -285,14 +285,14 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         sha = saved.fileSha256;
         return saved;
       },
-      { basis: "SR-105 AK1 (one write per pause; ADR-0008)", runs: 21 },
+      { basis: "ADR-0008 (one write per pause)", runs: 21 },
     );
     expect(times).toHaveLength(21);
     // The `written` reload of the buffer after each autosave: one element.get.
     const { result: read } = await measureMedian(
       "autosave: element.get of the saved element (the reload `written` brings, median of 21)",
       () => invoke("element.get", { ref: element.id }, { workspace }) as Promise<{ fileSha256: string }>,
-      { basis: "SR-105, ADR-0008 (open an element: 200 ms)", thresholdMs: 200, runs: 21 },
+      { basis: "ADR-0008 (open an element: 200 ms)", thresholdMs: 200, runs: 21 },
     );
     expect(read.fileSha256).toBe(sha);
   }, 600_000);

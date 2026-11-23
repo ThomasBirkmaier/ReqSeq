@@ -48,7 +48,7 @@ scenariosOf("metamodel.removeRelationKind", [
     expect: "error",
   },
   {
-    name: "writes the same bytes and output, and names the same perspective, through every access (SR-236 AK12)",
+    name: "writes the same bytes and output, and names the same perspective, through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     fixture: UNUSED,
     input: { kind: "conflicts-with" },

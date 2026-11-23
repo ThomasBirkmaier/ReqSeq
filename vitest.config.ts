@@ -7,7 +7,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 // Linux, macOS and local Windows runs keep the defaults.
 const windowsCi = process.platform === "win32" && process.env.CI === "true";
 
-// ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
+// ADR-0011: one Vitest run for all packages; JUnit output is the evidence record.
 // ADR-0016: coverage thresholds (100 % per file in core, 80 % per adapter package) are a required gate.
 export default defineConfig({
   // Tests use the testkit sources directly, so they need no build of @reqseq/testkit first. The status model has its

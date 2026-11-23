@@ -1,4 +1,4 @@
-// trace.neighbourhood through `invoke` (SR-107, D-031, D-062): the data of the four acceptance
+// trace.neighbourhood through `invoke` (SR-107, D-031): the data of the four acceptance
 // criteria on fixtures/SR-107/neighbourhood. The walks themselves: trace/neighbourhood.test.ts.
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";

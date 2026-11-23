@@ -10,7 +10,7 @@
 //   (`pre[data-rq-diagram]`) with the bundled Mermaid (`assets/mermaid.js`, the global `mermaid`), reading the
 //   source with `textContent`, in the colours of the docs' tokens, and shows each drawing as a `data:` URL in an
 //   `<img>`, so nothing in it can run; it draws again when the theme changes. A diagram Mermaid cannot draw keeps its
-//   source, and the error follows it (SR-096 AK3). Without scripts every diagram stays code.
+//   source, and the error follows it. Without scripts every diagram stays code.
 
 /** What `pageScript` needs to draw diagrams: Mermaid's settings, and the docs' token of each colour role. */
 export interface PageScriptSettings {

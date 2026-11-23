@@ -44,7 +44,7 @@ scenariosOf("trace.matrix", [
   },
   {
     tag: "[SR-125/AK-w9wp]",
-    name: "a list of IDs, the sort of the app's list",
+    name: "a list of IDs, by type, then by ID",
     fixture: MATRIX,
     input: {
       selection: { ids: [`${MX}0b0000000005`, `${MX}0b0000000001`, `${MX}0a0000000001`] },

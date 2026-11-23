@@ -6,7 +6,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.addStatus", [
   {
-    name: "adds a new status to a type without a list and writes the same bytes and output through every access (SR-240 AK1, SR-236 AK12)",
+    name: "adds a new status to a type without a list and writes the same bytes and output through every access (SR-240 AK1, SR-236)",
     tag: "[SR-240/AK-s2fx]",
     input: { type: "need", name: "In review", invalid: false },
     expect: "output",
@@ -17,7 +17,7 @@ scenariosOf("metamodel.addStatus", [
     },
   },
   {
-    name: "a status the type has already is refused the same way through every access (SR-236 AK12)",
+    name: "a status the type has already is refused the same way through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "need", status: "draft" },
     expect: "error",

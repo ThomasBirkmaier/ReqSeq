@@ -1,6 +1,6 @@
 // The display model of the hint list (ADR-0019 point 4): the output of `hint.list` as one group per kind,
 // headed by the title of the kind from schemas/problem-codes.yaml (SR-224 AK6, D-078: titles are kept once),
-// in the order of `kinds` with the count core gives for it (SR-026 AK4), and under it one row per hint of the
+// in the order of `kinds` with the count core gives for it (SR-026), and under it one row per hint of the
 // page in the order of the output, with its element, a short reason built from the hint's own fields and the
 // element the row leads to. Pure, and it imports only types and import-free modules, so the app's sandboxed
 // renderer can import it (`@reqseq/core/displays`).
@@ -60,7 +60,7 @@ const targetOf = (hint: Hint): string | undefined => {
 };
 
 /**
- * The reason of a hint from the output's fields (SR-026 AK4): of a count its relation kind or property, the
+ * The reason of a hint from the output's fields (SR-026): of a count its relation kind or property, the
  * target type, the count and the limit; of outdated evidence the view (`core`, or the variant `views`
  * names); of a relation to a resolved target its kind and that target; else the start of the message,
  * after the relation kind and the target where the hint has them.

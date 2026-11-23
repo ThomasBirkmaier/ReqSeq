@@ -563,7 +563,7 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
  * Every hit of `query` in the order of `searchElements` (ID matches, then hits not found only through
  * a type or status name, then those found by every word itself, then score, then store order), the
  * scores rounded first as there, without describing them: a grouped search (element.search `group`,
- * SR-149 AK6) deals them into groups and describes only its page (`describeHit`).
+ * SR-149) deals them into groups and describes only its page (`describeHit`).
  */
 export const rankedHits = (
   index: SearchIndex,

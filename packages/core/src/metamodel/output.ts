@@ -3,11 +3,11 @@
 // types with inheritance resolved, the other definitions as written, the keys assigned to each
 // built-in meaning (empty when none, SR-013 AK3) and the problems of the metamodel. Each property
 // carries `content`, false when not written, so every access says whether it counts to the version
-// (D-057, SR-130 AK5, #624). Also works on a read-only workspace (SR-011 AK3), with whatever the
+// (D-057, SR-130, #624). Also works on a read-only workspace (SR-011 AK3), with whatever the
 // valid files define. `files` names the files that were read, so a person sees which ones count
 // (#625). `relationKinds` gives per type the kinds `relationOptions` allows, the rule of relation.options,
 // so a new element, which has no reference yet, is offered what relation.options offers an element of
-// its type (SR-215 AK8); computed once per metamodel load (`relationKindsState`).
+// its type; computed once per metamodel load (`relationKindsState`).
 import type { CommandOutput, Problem } from "../catalog.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";

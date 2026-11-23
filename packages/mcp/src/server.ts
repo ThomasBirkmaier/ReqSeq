@@ -36,7 +36,7 @@ export interface McpServerStart extends McpServerOptions {
 
 /**
  * The instructions of the `initialize` result: exactly the MCP server instructions of `tool.guide` with
- * `instructions` (SR-229 AK17), the rules and the call that reads the agent guide. The adapter adds no text
+ * `instructions` (SR-229), the rules and the call that reads the agent guide. The adapter adds no text
  * of its own.
  */
 export async function mcpInstructions(runtime: CommandRuntime, workspace: Workspace): Promise<string> {

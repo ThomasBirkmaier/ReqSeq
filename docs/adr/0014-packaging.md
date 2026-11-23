@@ -1,6 +1,6 @@
 # ADR-0014: Packaging and delivery
 
-Status: Superseded by [ADR-0020](0020-web-ui.md) (D-083); describes the Electron delivery until #2308 replaces it · Based on: D-003, D-004, D-029 · SRs: SR-076 (superseded by SR-249), SR-077, SR-078, SR-141 · Changed 2026-10-28: portable delivery instead of installers, release workflow (ThomasBirkmaier/ReqSeq-archive#324) · 2026-11-08: the documentation site in every delivery (#1205)
+Status: Superseded by [ADR-0020](0020-web-ui.md) (D-083); describes the Electron delivery, which #2308 replaced and #2310 removed · Based on: D-003, D-004, D-029 · SRs: SR-076 (superseded by SR-249), SR-077, SR-078, SR-141 · Changed 2026-10-28: portable delivery instead of installers, release workflow (ThomasBirkmaier/ReqSeq-archive#324) · 2026-11-08: the documentation site in every delivery (#1205)
 
 ## Context
 

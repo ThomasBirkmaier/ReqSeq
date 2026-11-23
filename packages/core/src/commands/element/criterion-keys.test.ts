@@ -405,7 +405,7 @@ describe("criterion keys (SR-204)", () => {
   });
 });
 
-describe("criterion key findings (SR-204 AK10)", () => {
+describe("criterion key findings (SR-204)", () => {
   const check = async (opened: Opened): Promise<CommandOutput<"workspace.check">> =>
     run(opened, "workspace.check", {});
 

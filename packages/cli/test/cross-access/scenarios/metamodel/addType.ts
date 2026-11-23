@@ -5,7 +5,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.addType", [
   {
-    name: "adds a type with every field and writes the same bytes and output through every access (SR-236 AK12)",
+    name: "adds a type with every field and writes the same bytes and output through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { name: "Risk Item", prefix: "RI", extends: "need", abstract: true },
     expect: "output",
@@ -16,7 +16,7 @@ scenariosOf("metamodel.addType", [
     },
   },
   {
-    name: "a key made from the name that does not start with a letter is refused through every access (SR-236 AK12)",
+    name: "a key made from the name that does not start with a letter is refused through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { name: "2nd level", prefix: "SL" },
     expect: "error",

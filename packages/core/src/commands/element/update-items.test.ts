@@ -273,5 +273,5 @@ describe("element.update setItems (#177)", () => {
   });
 });
 
-/** A hash no file has: `file.changed-on-disk` (SR-106). */
+/** A hash no file has: `file.changed-on-disk`. */
 const NO_HASH_NEEDED = "0".repeat(64);

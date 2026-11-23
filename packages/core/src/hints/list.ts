@@ -126,7 +126,7 @@ export const HINT_STATES = [
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   itemLimitProblemsState, // SR-171
-  criterionKeyProblemsState, // SR-204 AK10
+  criterionKeyProblemsState, // SR-204
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdentifierProblemsState, // ThomasBirkmaier/ReqSeq-archive#305
@@ -199,7 +199,7 @@ const kindCounts = (
 };
 
 /**
- * A function that gives a hint with the titles of its element and of its target (SR-026 AK6): of
+ * A function that gives a hint with the titles of its element and of its target (SR-026): of
  * the elements that `problemElement` and `problemTarget` find, which the short IDs `invoke` adds name
  * too, so an element or target they do not find gets none; empty without a title that is a text or
  * without the meaning `title`, as `namesOfRecords` reads it. The hint itself is not changed.

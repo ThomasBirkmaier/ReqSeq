@@ -67,7 +67,7 @@
       "display": {
         "title": "Display",
         "type": "object",
-        "description": "The Evidence section at a glance (SR-032 AK3 to AK5), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run.",
+        "description": "The Evidence section at a glance (SR-032 AK3), computed in `@reqseq/core` so every access gives the same: the values the bearing records share, one row per acceptance criterion (and one for the validation), and the other records by test run.",
         "properties": {
           "shared": {
             "title": "Shared by all records",
@@ -104,7 +104,7 @@
             "description": "AK4: with a verification record, one row per acceptance criterion 1..n (one without `criterion` for a requirement without criteria); with a validation record of a need or a requirement, one validation row after them (SR-038 AK5).",
             "items": {
               "type": "object",
-              "description": "One line of the Evidence section (SR-032 AK4): an acceptance criterion, the whole requirement without criteria, or the validation.",
+              "description": "One line of the Evidence section (SR-032): an acceptance criterion, the whole requirement without criteria, or the validation.",
               "properties": {
                 "kind": {
                   "title": "Record kind",
@@ -135,7 +135,7 @@
                 "views": {
                   "title": "Views",
                   "type": "array",
-                  "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                  "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (SR-031, SR-047 AK6; with `view`, that view alone, also such a variant's), the core first. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                   "items": {
                     "type": "object",
                     "properties": {

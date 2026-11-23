@@ -20,7 +20,7 @@
 // alone unless the whole-workspace state is built already (ADR-0008). The messages of outdated
 // relations name the dates of both versions (D-013) only when the caller asks for the version date
 // (`versionDate`) or for the dates of these hints alone (`hintDates`, which the app asks for in a
-// second call to show the version at the reference, SR-110 AK2): without either no git runs, so
+// second call to show the version at the reference): without either no git runs, so
 // opening an element stays fast (SR-082 AK3). `hint.list` always gives the dates.
 import type { ElementHints, LocatableFinding } from "../model/index.js";
 import { unresolvedLinkProblems } from "../model/index.js";

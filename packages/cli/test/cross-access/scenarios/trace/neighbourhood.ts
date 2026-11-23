@@ -76,7 +76,7 @@ scenariosOf("trace.neighbourhood", [
     expect: "error",
   },
   {
-    name: "the element in the repository the app names (SR-107)",
+    name: "the element in a named repository (SR-107)",
     fixture: NEIGHBOURHOOD,
     input: { ref: `${NB}0b0000000001`, repository: "system", direction: "down", meanings: ["derivation"] },
     expect: "output",

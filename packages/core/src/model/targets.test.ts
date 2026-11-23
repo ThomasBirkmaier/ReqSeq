@@ -750,7 +750,7 @@ describe("inline references across repositories (D-058, decision on ThomasBirkma
     ]);
   });
 
-  it("sets the version of a reference the app writes with an empty version in front of its repository, so the saved order is version, repository (SR-129)", async () => {
+  it("sets the version of a reference the app writes with an empty version in front of its repository, so the saved order is version, repository", async () => {
     const opened = await open();
     const ctx = await context(opened);
     const v = versionOf(SENSOR_NEED);

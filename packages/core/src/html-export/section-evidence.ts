@@ -3,7 +3,7 @@
 // (`element-data.ts`), so a record without criterion stands at each criterion, as it counts for each (SR-031 AK6).
 // Each line names the test case (JUnit class name and name) or else the method, then the method beside a test case,
 // result, date as written and views. The records of one test case make one line with all their views when they share
-// result and date; else each view has its lines, in the order of the case's views, the core first (SR-223 AK4). A
+// result and date; else each view has its lines, in the order of the case's views, the core first. A
 // record without test case is a line of its own. At a criterion the lines stand in a collapsed `<details>` that names
 // their number, so a long list does not push the next criterion down; it opens without JavaScript.
 // Validation records are not shown.

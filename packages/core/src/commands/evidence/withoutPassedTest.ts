@@ -1,7 +1,6 @@
 // evidence.withoutPassedTest (SR-120, ThomasBirkmaier/ReqSeq-archive#431): every requirement without a passed test execution in one view
 // (`withoutPassedTest` of the evidence block, the rules and the assumptions of spec question ThomasBirkmaier/ReqSeq-archive#532 are there),
-// one page at a time, by type, then identifier (else short ID): the keys of the app's `DEFAULT_SORT`
-// (`packages/app/src/renderer/buffers.ts`), so the list reads as the app's lists do; change both. Each
+// one page at a time, by type, then identifier (else short ID). Each
 // element as evidence.status gives it, with `verification` and `validation` (`withEvidenceStatus`), so
 // a row says why it is listed; `names` names the variants and missing children those rows give by UUID only
 // (ThomasBirkmaier/ReqSeq-archive#588), from the store. The view is `view`, else the core, as the view rule holds it (`viewRuleOf`:
@@ -29,7 +28,7 @@ import { incompleteNote, sentence, viewNamed } from "../answer.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
 
-/** The order of the list: the keys of the app's `DEFAULT_SORT`. */
+/** The order of the list: type, then identifier. */
 const BY_TYPE_AND_IDENTIFIER: readonly FilterSortKeyWithDefaults[] = Object.freeze([
   Object.freeze({ by: "type", order: "asc" }),
   Object.freeze({ by: "identifier", order: "asc" }),

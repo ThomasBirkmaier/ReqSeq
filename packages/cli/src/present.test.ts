@@ -598,7 +598,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("names the titles of element and target, after the counts per kind (SR-026 AK6)", () => {
+  it("names the titles of element and target, after the counts per kind (SR-026)", () => {
     expect(
       renderHuman({
         kinds: [

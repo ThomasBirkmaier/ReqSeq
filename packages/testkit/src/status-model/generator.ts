@@ -37,7 +37,7 @@ export function renderDate(index: number, offset: (typeof OFFSETS)[number]): str
   return new Date(instant + minutes * 60_000).toISOString().replace(".000Z", offset);
 }
 
-/** 0 to 4 criteria with keys, some missing and some carried twice (SR-204 AK10). */
+/** 0 to 4 criteria with keys, some missing and some carried twice (SR-204). */
 export function criteriaArbitrary(): fc.Arbitrary<ModelCriterion[]> {
   return fc
     .integer({ min: 0, max: 4 })
@@ -48,7 +48,7 @@ export function criteriaArbitrary(): fc.Arbitrary<ModelCriterion[]> {
       ),
     )
     .map(([keys, shape]) => {
-      // shape 0: no key; shape 1: the key of the last criterion before it that has one, a duplicate (SR-204 AK10).
+      // shape 0: no key; shape 1: the key of the last criterion before it that has one, a duplicate (SR-204).
       const criteria: ModelCriterion[] = [];
       let last: string | undefined;
       keys.forEach((key, index) => {

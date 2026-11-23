@@ -5,7 +5,7 @@
 // commit. The first 1,000 of them got a new text in a second commit, so their records are of an
 // older version and the status resolves their numbers through Git (`olderCriteriaState`).
 //
-// A server workspace is warmed as the app keeps it (the verification status with the subtrees of
+// A server workspace is warmed as a server keeps it (the verification status with the subtrees of
 // the top requirements walked). Each run saves another requirement whose records name numbers of
 // its current version (`element.update` of its first criterion), which makes those records older
 // ones, then shows the saved requirement and the top requirement above it (`element.get`): the
@@ -111,7 +111,7 @@ describe("a save that makes records by number older, with 50,000 elements (#1418
     }
     getCommandRuntime();
     workspace = new Workspace(fixture.workspaceRoot);
-    // Warm as the app keeps it: the status with the subtrees of the top requirements walked.
+    // Warm as a server keeps it: the status with the subtrees of the top requirements walked.
     expect(await ws().get(olderCriteriaState)).not.toBe(NO_OLDER_CRITERIA);
     for (const top of tops) {
       await get(top);

@@ -1,4 +1,4 @@
-// The variants that replace or exclude a core requirement (SR-046 AK3) on fixtures/SR-043/example:
+// The variants that replace or exclude a core requirement (SR-046) on fixtures/SR-043/example:
 // variant A (Coast) replaces K1 by A1 and excludes K2; B (Mountain) and C (Desert) change nothing.
 // The element.get test of the AK is in commands/element/get.test.ts; these cases cover the rule.
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -56,7 +56,7 @@ const of = async (
   };
 };
 
-describe("replacedExcludedOf (SR-046 AK3)", () => {
+describe("replacedExcludedOf (SR-046)", () => {
   it("names A replacing K1 by A1 and B excluding it, A excluding K2, nothing for K3", async () => {
     const files = mountainExcludes("a1");
     expect(await of("a1", files)).toEqual({ replacedBy: [["A", "A1"]], excludedBy: ["B"] });

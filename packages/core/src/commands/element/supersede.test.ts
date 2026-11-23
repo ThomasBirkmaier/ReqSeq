@@ -583,7 +583,7 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
           { workspace: opened.workspace },
         )) as CommandOutput<"element.update">
       ).problems?.filter((p) => p.code !== "element.criterion-key-missing") ?? [];
-    // The fixture's acceptance criteria have no criterion keys yet (SR-204 AK10).
+    // The fixture's acceptance criteria have no criterion keys yet (SR-204).
     expect(await update(SR_OLD.id)).toEqual([
       hint(
         SR_OLD,

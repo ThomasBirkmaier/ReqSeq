@@ -1,4 +1,4 @@
-// The variants that replace or exclude a core requirement (SR-046 AK3), as the view rule decides
+// The variants that replace or exclude a core requirement (SR-046), as the view rule decides
 // it (view-rule.ts): a variant v excludes it when v's own exclusion names it, and replaces it with
 // each replacement valid in v that names it, unless v also excludes it (exclusion wins, SR-042
 // AK5). The variants a replacement is valid in are the entries of its validity that resolve to one

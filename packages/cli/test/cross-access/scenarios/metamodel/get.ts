@@ -10,12 +10,12 @@ const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
 
 scenariosOf("metamodel.get", [
   {
-    name: "the metamodel with the properties marked as Markdown (SR-127 AK5)",
+    name: "the metamodel with the properties marked as Markdown (SR-127)",
     fixture: IN_CRITERIA,
     input: {},
     expect: "output",
   },
-  // SR-130 AK6: the app's graph and text of the metamodel show this output alone.
+  // SR-130: the graph and text of the metamodel show this output alone.
   {
     name: "types with inheritance, per-type statuses and open relation kinds (SR-130)",
     fixture: METAMODEL,
@@ -52,7 +52,7 @@ scenariosOf("metamodel.get", [
         ]);
         expect(kind("based-on"), access).not.toHaveProperty("source-types");
         expect(kind("blocks")?.["source-types"], access).toEqual([]);
-        // The relation kinds of each type, as relation.options gives them an element of it (SR-215 AK8).
+        // The relation kinds of each type, as relation.options gives them an element of it.
         expect(
           output.relationKinds["item"]?.map((option) => option.kind),
           access,

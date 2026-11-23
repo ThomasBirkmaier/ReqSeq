@@ -11,7 +11,7 @@
 // - The next steps (AK3, AK4): Confirm hints with the hints open, when a confirmable kind (D-042) has a
 //   hint over all pages; Compare baseline with the baseline and the element open, when an element is
 //   marked changed; Prepare baseline. `invoke` leaves out a step whose write command it refuses while the
-//   workspace is read-only (SR-226 AK6).
+//   workspace is read-only (SR-226).
 // - `countedElements` gives the elements of `baseline.counts.*` by baseline.get's (SR-224 AK4).
 import path from "node:path";
 import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";

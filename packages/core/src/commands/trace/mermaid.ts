@@ -1,4 +1,4 @@
-// trace.mermaid (SR-151 AK1, AK4, AK6): the graph of trace.graph for the same input, without the evidence,
+// trace.mermaid (SR-151 AK1 and AK4): the graph of trace.graph for the same input, without the evidence,
 // as a Mermaid flowchart (`graph/mermaid.ts`), with the names of the types and kinds of its metamodel.
 import { defineCommand } from "../../catalog.js";
 import { elementGraphOf, elementMermaid, relationNames } from "../../graph/index.js";

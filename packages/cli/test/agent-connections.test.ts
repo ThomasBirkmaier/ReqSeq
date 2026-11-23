@@ -146,7 +146,7 @@ const filesOf = async (top: string): Promise<Record<string, string>> => {
 const agentFiles = async (folder: string): Promise<string[]> =>
   (await fs.readdir(folder).catch(() => [])).filter((name) => /^agent-.*\.json$/.test(name));
 
-describe("recording a connection (SR-228 AK5, AK6)", () => {
+describe("recording a connection (SR-228)", () => {
   it("[SR-228/AK-dymn] an MCP server writes its connection only into the cache folder of the copy, not into the workspace or Git", async () => {
     const cache = cacheFolder(fixture.root);
     await fs.rm(cache, { recursive: true, force: true });
@@ -321,7 +321,7 @@ describe("workspace.agents after a connection began or ended (SR-228 AK1, AK2)",
   });
 });
 
-describe("workspace.agents on every access (SR-228 AK7, SR-080 AK2)", () => {
+describe("workspace.agents on every access (SR-228, SR-080 AK2)", () => {
   it("[SR-228/AK-sggn] gives each connection with its client and start, and the one connected last, as the same object through the CLI, the API and MCP", async () => {
     await fs.rm(cacheFolder(fixture.root), { recursive: true, force: true });
     expect(await agentsViaCli()).toEqual({

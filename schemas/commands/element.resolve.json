@@ -18,7 +18,7 @@
     "properties": {
       "ref": {
         "$ref": "../common.schema.json#/$defs/elementRef",
-        "description": "UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205 AK5): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`."
+        "description": "UUID, short ID or identifier of the element, any case; or the reference to one of its acceptance criteria as a test name writes it (SR-205): `[SR-036/AK-k7f3]`, or `SR-036/AK-k7f3` without brackets, split at the first `/` as enrich-junit reads it. A bracket token without such a suffix or with another one (`[SR-036]`, `[SR-036/slow]`) names the element. A suffix that names a criterion by its number (`AK` and a number) is refused with input.invalid and `details.reason` `criterion-by-number`, as test names name criteria by key (SR-029 AK13); one that tries to name a criterion in another form (`AK-x`, or the number 0) with `details.reason` `criterion-malformed`."
       },
       "version": {
         "$ref": "../common.schema.json#/$defs/version",
@@ -61,7 +61,7 @@
       "criterion": {
         "title": "Number",
         "$ref": "../data-export.schema.json#/$defs/criterionEntry",
-        "description": "With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205 AK5). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204 AK10) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference."
+        "description": "With a reference to an acceptance criterion: that criterion of the current version, with its number, key, text and reference (SR-205). A key no criterion of the current version carries is ref.unknown with `details.criterion`; a key two criteria carry (SR-204) is ref.ambiguous with the element as the one candidate and their numbers in `details.criteria`. Left out without such a reference."
       },
       "criterionReferences": {
         "title": "Acceptance criteria",
@@ -77,7 +77,7 @@
         "title": "Named elements",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/elementName" },
-        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none."
+        "description": "The elements the element names by UUID only, as element.get gives them: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046/AK2, SR-047 AK3, ThomasBirkmaier/ReqSeq-archive#588, #456). Left out when it names none."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",

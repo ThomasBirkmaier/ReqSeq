@@ -1,4 +1,4 @@
-// The traceability matrix of a selection (SR-125, N-076, D-062): "je Element eine Zeile und je
+// The traceability matrix of a selection (SR-125, N-076): "je Element eine Zeile und je
 // Beziehungsart eine Spalte mit den verbundenen Elementen". The `trace.matrix` command is
 // `matrixColumns` over the whole selection and `matrixRows` for one page of it.
 //

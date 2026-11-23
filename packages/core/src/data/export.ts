@@ -15,7 +15,7 @@
 //   - `packages`: the UUIDs of the packages its property with the meaning `packages` names, `[]` for
 //     none; left out without such a property;
 //   - `replacedBy` and `excludedBy` of a core requirement: the variants that replace it (with the
-//     replacement) or exclude it by the view rule, whatever view selected it (SR-046 AK3,
+//     replacement) or exclude it by the view rule, whatever view selected it (SR-046,
 //     `replacedExcludedOf`, as element.get gives them); left out when empty;
 //   - each relation with the current version of its other end (`currentVersion`, when it is
 //     available and has one) and `outdated` (SR-025, `isOutdatedVersion`), as trace.matrix gives
@@ -126,7 +126,7 @@ export const exportedElement = (
   ...(properties.packages === undefined ? {} : { packages: targetIds(properties.packages, record) }),
 });
 
-/** `element` with `replacedBy` and `excludedBy` from `uses` (SR-046 AK3), each left out when empty. */
+/** `element` with `replacedBy` and `excludedBy` from `uses` (SR-046), each left out when empty. */
 export const withReplacedExcluded = (
   uses: ReplacedExcluded,
   element: DataExportElement,

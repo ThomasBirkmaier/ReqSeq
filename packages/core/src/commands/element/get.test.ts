@@ -91,7 +91,7 @@ describe("element.get", () => {
     expect(await get(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });
 
-  it("gives the SHA-256 of the element file it was read from, the write precondition of element.update (SR-106)", async () => {
+  it("gives the SHA-256 of the element file it was read from, the write precondition of element.update", async () => {
     const opened = await open(TWO);
     const sha256 = async (): Promise<string> =>
       createHash("sha256")
@@ -253,7 +253,7 @@ describe("element.get", () => {
       expect(await snapshot(opened.fixture.root)).toEqual(before);
     });
 
-    it("names in the details of ref.ambiguous for ref alone each element by id, repository and file, each of which opens it (SR-215)", async () => {
+    it("names in the details of ref.ambiguous for ref alone each element by id, repository and file, each of which opens it", async () => {
       // The command prompt is to offer these files for `file` (#1643); the details have no schema.
       const opened = await open({ fixture: "SR-088/copied-file" }, "system");
       const error = await getError(opened, { ref: COPIED });
@@ -681,7 +681,7 @@ describe("a superseded element names its successor without a relation of its own
       { workspace: opened.workspace },
     );
     const element = await get(opened, { ref: "7a1e0c2b-4d3f-4a5b-8c6d-c3d4e5f6a7b8" });
-    // The fixture's acceptance criteria have no criterion keys yet (SR-204 AK10).
+    // The fixture's acceptance criteria have no criterion keys yet (SR-204).
     expect(hints(element).filter((p) => p.code !== "element.criterion-key-missing")).toEqual([
       expect.objectContaining({
         code: "relation.target-superseded",

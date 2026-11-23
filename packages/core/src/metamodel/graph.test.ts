@@ -1,4 +1,4 @@
-// The graph of the metamodel (SR-130 AK2, AK3) on a small output of metamodel.get: one node per type with
+// The graph of the metamodel (SR-130) on a small output of metamodel.get: one node per type with
 // its own and inherited properties, "Any type" only for an open side, one edge per ordered pair.
 import { describe, expect, it } from "vitest";
 import type { CommandOutput } from "../catalog.js";
@@ -70,7 +70,7 @@ describe("metamodelGraph", () => {
       { key: "note", name: "note", inherited: false, owner: "req" },
     ]);
     expect(sub?.properties.map((property) => property.inherited)).toEqual([true, true, true, true]);
-    // The owner is the farthest ancestor that has it: "title" comes from item over req (SR-199 AK6).
+    // The owner is the farthest ancestor that has it: "title" comes from item over req.
     expect(sub?.properties.map((property) => property.owner)).toEqual(["item", "item", "req", "req"]);
     expect(orphan?.properties).toEqual([{ key: "title", name: "Title", inherited: false, owner: "orphan" }]);
   });

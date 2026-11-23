@@ -1,5 +1,5 @@
 // The acceptance criteria of an element as the verification status counts them (D-072, SR-028 AK4,
-// SR-031 AK11, AK12, SR-204 AK10, SR-205 AK2): the items of its current version, and for each record
+// SR-031 AK11, AK12, SR-204, SR-205 AK2): the items of its current version, and for each record
 // the current criteria its `criteria` count for (`resolveCriterionRefs`). A record of an older version
 // that names a number counts through the key its criterion had in the newest commit with that version
 // (`OlderCriteria`, `older-criteria.ts`); without Git that number counts for none

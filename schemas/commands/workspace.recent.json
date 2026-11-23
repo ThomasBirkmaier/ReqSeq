@@ -42,7 +42,7 @@
           "additionalProperties": false,
           "required": ["root", "opened", "exists"]
         },
-        "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them (ADR-0008): the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on (SR-250). Empty when none is recorded or the list cannot be read. No other command changes the list."
+        "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them (ADR-0008): `workspace.markOpened` marks the workspace it runs on (SR-250). Empty when none is recorded or the list cannot be read. No other command changes the list."
       }
     },
     "additionalProperties": false,

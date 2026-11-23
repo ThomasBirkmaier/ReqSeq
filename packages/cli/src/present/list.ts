@@ -91,7 +91,7 @@ export const valueLines = (
       ...(details ? elementDetails(value, names, references) : []),
     ];
   }
-  // The criterion a reference names (element.resolve, SR-205 AK5): `criterion: AK2 (k7f3) [SR-036/AK-k7f3]: text`.
+  // The criterion a reference names (element.resolve, SR-205): `criterion: AK2 (k7f3) [SR-036/AK-k7f3]: text`.
   if (key === "criterion" && isRecord(value) && typeof value["text"] === "string") {
     return [`criterion: ${criterionEntryLabel(value)}: ${value["text"]}`];
   }
@@ -496,7 +496,7 @@ const terminalGroupedLines = (
 
 /**
  * The key of the elements of a list: `partial` when they have only some fields (element.list `fields`,
- * #982), `hits` for the hits of a search (element.search `group`, SR-149 AK6).
+ * #982), `hits` for the hits of a search (element.search `group`, SR-149).
  */
 export const elementsKey = (rest: Rec): "elements" | "partial" | "hits" =>
   rest["partial"] !== undefined ? "partial" : rest["hits"] !== undefined ? "hits" : "elements";

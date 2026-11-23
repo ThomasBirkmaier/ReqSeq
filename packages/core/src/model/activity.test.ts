@@ -1421,7 +1421,7 @@ describe("a watch that goes on or ends on its own", () => {
   });
 });
 
-describe("following opens no network connection (SR-117 AK6)", () => {
+describe("following opens no network connection (SR-117)", () => {
   it("[SR-117/AK-wzp3] recording and watching open no network connection", async () => {
     const spies = [
       vi.spyOn(net.Socket.prototype, "connect"),

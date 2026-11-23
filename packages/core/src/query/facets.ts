@@ -8,7 +8,7 @@
 //   The properties listed are those a type of a selected element has (metamodel order of the
 //   definitions); an element of a type without it counts by the value its file holds (usually none).
 // - The types are counted as written in the file, exactly: `element.type`, an element of a subtype is
-//   not counted under its parent (SR-118: the lines of an overview add up to the total). A type the
+//   not counted under its parent, so the type counts add up to the total. A type the
 //   metamodel does not know is counted like any other, under its key as written (name = key).
 // - Every value given is one that `{ property, op: "eq", value }` selects, and selects exactly the
 //   elements counted: a relation property gives the short ID of its available targets (the items are

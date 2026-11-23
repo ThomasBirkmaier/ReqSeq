@@ -1,6 +1,6 @@
 # JUnit samples
 
-JUnit XML files written by the real tools (D-054), unchanged, for the tests of the JUnit XML model (`packages/core/src/evidence/junit-model.test.ts`). Not a workspace.
+JUnit XML files written by the real tools, unchanged, for the tests of the JUnit XML model (`packages/core/src/evidence/junit-model.test.ts`). Not a workspace.
 
 - `pytest.xml`: pytest 9.1.1 (Python 3), `pytest --junitxml=pytest.xml -o junit_family=xunit1 -o junit_logging=all test_sample.py`. `xunit1` because pytest writes `record_property` only there.
 - `vitest.xml`: Vitest 5.0.5, `vitest run --reporter=junit --outputFile=vitest.xml`. The property comes from `annotate("SR-46fb54", "reqseq:element")`.

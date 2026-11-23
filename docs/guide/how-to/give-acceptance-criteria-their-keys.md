@@ -3,7 +3,7 @@ title: Assign criterion keys to existing acceptance criteria
 description: Give every acceptance criterion without a criterion key in a selection its key in one step, for files written by hand or from an older workspace.
 ---
 
-Every acceptance criterion carries a criterion key, so a test or a verification record that names it by key still names it after criteria are added or moved (SR-204, D-072). ReqSeq gives the key when a criterion is created or changed. A criterion written by hand, or one from a workspace of an older ReqSeq version, has none until it is changed; `workspace check` reports such a requirement with the hint `element.criterion-key-missing` (SR-204 AK10).
+Every acceptance criterion carries a criterion key, so a test or a verification record that names it by key still names it after criteria are added or moved (SR-204, D-072). ReqSeq gives the key when a criterion is created or changed. A criterion written by hand, or one from a workspace of an older ReqSeq version, has none until it is changed; `workspace check` reports such a requirement with the hint `element.criterion-key-missing` (SR-204).
 
 **Assign criterion keys** gives every criterion without key in a selection its key at once. Keys that criteria have stay as they are, and so do the versions, since a key does not count to the version (SR-204 AK3, SR-091 AK6). The command names how many elements changed.
 
@@ -17,15 +17,15 @@ acceptance-criteria:
   AK2: Given no reading, then a dash shows.
 ```
 
-API and MCP give them as `criterionReferences`. In the app, the editor shows the reference after each criterion in the acceptance criteria box, unless a criterion there holds a line break, and a criterion whose key another one carries too shows only its key, since it has no reference (SR-205 AK1); the check reports such a key as an error (SR-204 AK10). A criterion you add shows its reference once it is saved. To copy a reference, put the cursor on the criterion and run **Copy criterion reference**, from the command prompt or the context menu of the line (SR-205 AK4). For a criterion without key, it asks you to run **Assign criterion keys** first.
+API and MCP give them as `criterionReferences`. In the app, the editor shows the reference after each criterion in the acceptance criteria box, unless a criterion there holds a line break, and a criterion whose key another one carries too shows only its key, since it has no reference (SR-205 AK1); the check reports such a key as an error (SR-204). A criterion you add shows its reference once it is saved. To copy a reference, put the cursor on the criterion and run **Copy criterion reference**, from the command prompt or the context menu of the line (SR-205). For a criterion without key, it asks you to run **Assign criterion keys** first.
 
-For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205 AK5); in the app, type the reference in **Go to**, which lists the requirement once, with the criterion's number and text (SR-222 AK4). A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
+For a failing test, `reqseq element resolve "[SR-036/AK-kred]"` names the requirement and the criterion's number and text (SR-205); in the app, type the reference in **Go to**, which lists the requirement once, with the criterion's number and text (SR-222). A reference by number, `[SR-036/AK2]`, is refused, since a number points at another criterion once criteria move.
 
 ## App
 
 Show the requirements you want, for example with a filter, and run **Assign criterion keys** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS). It acts on the elements the list shows.
 
-When you edit the acceptance criteria in the editor, a reworded or moved criterion keeps its key (Alt+Up, ⌥Up, or Alt+Down, ⌥Down, moves a line); of a split criterion the first part keeps it, and of two merged ones the front one (SR-204 AK7). A criterion you add, duplicate or paste gets a new key, also when its text equals that of another one and also after a cut (SR-204 AK8). Undo gives the criteria their previous keys back, also after the change was saved (SR-204 AK9).
+When you edit the acceptance criteria in the editor, a reworded or moved criterion keeps its key (Alt+Up, ⌥Up, or Alt+Down, ⌥Down, moves a line); of a split criterion the first part keeps it, and of two merged ones the front one (SR-204). A criterion you add, duplicate or paste gets a new key, also when its text equals that of another one and also after a cut (SR-204). Undo gives the criteria their previous keys back, also after the change was saved (SR-204).
 
 ## CLI
 

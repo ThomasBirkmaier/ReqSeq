@@ -6,7 +6,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.changeType", [
   {
-    name: "changes a type's name and description in place and writes the same bytes and output through every access (SR-236 AK12)",
+    name: "changes a type's name and description in place and writes the same bytes and output through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "decision", name: "Design decision", description: "Why: the reason" },
     expect: "output",
@@ -17,7 +17,7 @@ scenariosOf("metamodel.changeType", [
     },
   },
   {
-    name: "a new prefix of a type an element has is refused with the same use through every access (SR-236 AK12)",
+    name: "a new prefix of a type an element has is refused with the same use through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "system-requirement", prefix: "REQ" },
     expect: "error",

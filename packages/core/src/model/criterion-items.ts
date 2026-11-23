@@ -1,7 +1,7 @@
 // The items of an acceptance criteria list (D-072, SR-204, ADR-0004): a text without criterion key,
 // or a block mapping `{ key, text }` with its criterion key. Pure, without imports, so the
 // display models can read the items too (ADR-0019). Also the bracket token of a test
-// name, `[<ref>/AK-<key>]` (SR-029 AK10, SR-205 AK1, AK5): `criterionReference` writes it, and
+// name, `[<ref>/AK-<key>]` (SR-029 AK10, SR-205 AK1): `criterionReference` writes it, and
 // `bracketReference` reads it for enrich-junit (`criterionRefsOf`), element.resolve and the app's
 // "Go to", so all of them split it the same way, at the first `/`.
 
@@ -111,7 +111,7 @@ export const bracketReference = (token: string): BracketReference => {
 };
 
 /**
- * `text` as one reference to a criterion (SR-205 AK5): the whole text, trimmed, is one bracket token
+ * `text` as one reference to a criterion (SR-205): the whole text, trimmed, is one bracket token
  * (`[SR-036/AK-k7f3]`, `[SR-036]`), or a reference and a suffix that tries to name a criterion
  * without brackets (`SR-036/AK-k7f3`). Undefined for any other text, such as a plain reference or an
  * identifier with a `/` whose suffix names no criterion (`SYS/REQ/001`).

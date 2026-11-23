@@ -1,4 +1,4 @@
-// The acceptance criteria of a file of ReqSeq that another tool edited (SR-204 AK12, SR-053): the
+// The acceptance criteria of a file of ReqSeq that another tool edited (SR-204, SR-053): the
 // export writes them as an XHTML list (own.ts), and the import reads that list back as its items,
 // so an unchanged criterion keeps its criterion key by its text (AK4). Fixtures: what
 // fixtures/SR-052/package exports of its requirement WIND, imported into fixtures/SR-052/empty.

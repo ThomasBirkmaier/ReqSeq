@@ -1,4 +1,4 @@
-// `reqseq metamodel get` end to end (SR-130 AK6, SR-080): the built binary gives the metamodel the app
+// `reqseq metamodel get` end to end (SR-130, SR-080): the built binary gives the metamodel the app
 // draws as a graph, on fixtures/SR-130/metamodel: the types with their parents, properties (own and
 // inherited, each with whether it counts to the version), required properties and statuses, and the relation kinds with their source and target
 // types, as JSON and in its readable output, which names the same values by the shape of the output
