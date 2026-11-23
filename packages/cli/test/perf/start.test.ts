@@ -6,7 +6,7 @@
 // ADR-0008). Each test asserts its threshold after the time is recorded. Runs with `pnpm test:perf` after
 // `pnpm build`, nightly and on pull requests labelled `perf`, never in the required test run.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -152,15 +152,24 @@ const startApi = (cwd: string, home: string): Promise<Started> =>
     });
   });
 
-/** Stops a server and waits for its exit; it writes a pending model cache first (`workspace.close`). */
+/**
+ * Stops a server and waits for its exit. On Linux and macOS it gets SIGTERM and writes a pending model cache
+ * first (`workspace.close`); on Windows, which has no signals, its process tree is ended (#2497).
+ */
 const stop = async (child: ChildProcessWithoutNullStreams): Promise<void> => {
-  if (child.exitCode !== null) {
+  // A process ended by a signal keeps `exitCode` null and sets `signalCode`: on Windows every `kill` ends it
+  // that way, and waiting for a second exit event then never ends (#2497).
+  if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
   // The listener of `startApi` would reject a start that is over by now: it goes first.
   child.removeAllListeners("exit");
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  child.kill("SIGTERM");
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)]);
+  } else {
+    child.kill("SIGTERM");
+  }
   await exited;
 };
 
