@@ -50,7 +50,7 @@ interface GlobImportMeta {
 const TEXT_COMMANDS = runtime.contracts.commands.filter((e) => e.textOutput !== undefined);
 
 const { scenarios, answers } = casesOf(partOfFile(import.meta.url));
-// The tests below the commands of this part copy the answer scenario of every command (SR-224 AK2), the
+// Besides the commands of this part, the tests below copy the answer scenario of every command (SR-224 AK2), the
 // output scenarios of the commands with a text output (SR-151) and the data export fixture (#319).
 useFixtures([
   ...scenarios.map(({ scenario }) => scenario),
@@ -135,7 +135,7 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     const client = new Client({ name: "cross-access", version: "1" });
     await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
     // MCP lists only the implemented commands (ThomasBirkmaier/ReqSeq-archive#303): an agent puts the whole list into its context. A call to
-    // one that is not listed still gives command.not-implemented, as every access (the scenarios above).
+    // one that is not listed still gives command.not-implemented, as every access (the default scenario of each command).
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual(names.filter((n) => runtime.commands.has(n)).map(toolName));
     toServer.end();

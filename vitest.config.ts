@@ -1,5 +1,23 @@
 import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
+import { BaseSequencer, type TestSpecification } from "vitest/node";
+
+/**
+ * The parts of the cross-access test (packages/cli/test/cross-access/harness.ts), the longest test files. Without
+ * the results of an earlier run, as in CI, Vitest starts the larger files first; these small files would start last
+ * and run on while the other workers idle (#2440).
+ */
+const CROSS_ACCESS_PART = /\/packages\/cli\/test\/cross-access\/commands-[^/]+\.test\.ts$/;
+
+/** Vitest's order with the parts of the cross-access test first. */
+class CrossAccessFirst extends BaseSequencer {
+  override async sort(files: TestSpecification[]): Promise<TestSpecification[]> {
+    const sorted = await super.sort(files);
+    const first = (spec: TestSpecification): boolean =>
+      CROSS_ACCESS_PART.test(spec.moduleId.replaceAll("\\", "/"));
+    return [...sorted.filter(first), ...sorted.filter((spec) => !first(spec))];
+  }
+}
 
 // The hosted windows-2025 runner of CI (4 vCPUs) stalls tests that take 0.1-1.6 s on Linux for more than 30 s,
 // in whole files at once and in files no change touched (#701). Only there, fewer test workers leave cores for the
@@ -22,6 +40,7 @@ export default defineConfig({
     },
   },
   test: {
+    sequence: { sequencer: CrossAccessFirst },
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
     // CLI end-to-end tests spawn the built binary: `pnpm test:e2e` after `pnpm build` (vitest.e2e.config.ts).
     // The performance suite runs apart, nightly and with label `perf`: `pnpm test:perf` (vitest.perf.config.ts).
