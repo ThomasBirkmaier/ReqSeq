@@ -5,7 +5,7 @@ import { SCHEMA_BASE } from "@reqseq/core";
 import type { JsonSchema } from "@reqseq/core";
 import { cell, markdownCell, table } from "./markdown.js";
 
-/** One row of the field table: the field's path (`a.b`, `a[].b`), its type as Markdown, and its text. */
+/** One row of the field table: the field's path (`a.b`, `a[].b`, `a.*.b`), its type as Markdown, and its text. */
 export interface FieldRow {
   readonly field: string;
   readonly type: string;
@@ -305,17 +305,26 @@ export function fieldRows(schema: Schema, context: SchemaContext, prefix = "", d
       ...(context.output === true ? titleOf(field, context) : {}),
       described: fieldText(field, context).trim() !== "",
     };
-    const items = isSchema(field["items"]) ? field["items"] : undefined;
-    const nested =
-      depth >= MAX_DEPTH
-        ? []
-        : isSchema(field["properties"])
-          ? fieldRows(field, context, `${path}.`, depth + 1)
-          : items !== undefined && isSchema(items["properties"])
-            ? fieldRows(items, context, `${path}[].`, depth + 1)
-            : [];
-    return [row, ...nested];
+    return [row, ...(depth >= MAX_DEPTH ? [] : nestedRows(field, context, path, depth + 1))];
   });
+}
+
+/**
+ * The rows below a field: of its object, of the objects of its array (`a[].b`), or of the objects its map holds under
+ * any key (`a.*.b`), so a field of a map entry is documented too (#2456).
+ */
+function nestedRows(field: Schema, context: SchemaContext, path: string, depth: number): FieldRow[] {
+  const items = isSchema(field["items"]) ? field["items"] : undefined;
+  const entry = isSchema(field["additionalProperties"]) ? field["additionalProperties"] : undefined;
+  if (isSchema(field["properties"])) {
+    return fieldRows(field, context, `${path}.`, depth);
+  }
+  if (items !== undefined && isSchema(items["properties"])) {
+    return fieldRows(items, context, `${path}[].`, depth);
+  }
+  return entry !== undefined && isSchema(entry["properties"])
+    ? fieldRows(entry, context, `${path}.*.`, depth)
+    : [];
 }
 
 /**
