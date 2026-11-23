@@ -5,8 +5,7 @@
 // With --junit, `complete=true` in the GitHub output says that the record may be committed: the suite
 // ran, and its only failures are threshold assertions, which come after their time was recorded. Any
 // other failure, an error or a skipped test may have left rows out (ThomasBirkmaier/ReqSeq-archive#202), so then `complete=false`.
-// `--junit` may be given once per suite (Vitest and the app's Playwright suite, #147): complete only when every
-// report is.
+// `--junit` may be given once per suite: complete only when every report is.
 //
 // Usage: node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
 //        [--commit <sha>] [--run-url <url>] [--summary <file>] [--github-output <file>]
