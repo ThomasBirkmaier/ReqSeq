@@ -555,12 +555,19 @@ describe.skipIf(windowsRecording === "skip")(
           .map((p) => p.program),
       ).toEqual([]);
       // Every file a process of the tree other than the server wrote or created, the engine's data folder excepted
-      // (SR-252 AK2). Paths the trace names by a device other than a drive (pipes, the console) are no files.
+      // (SR-252 AK2). Paths the trace names by a device other than a drive (pipes, the console) are no files, and the
+      // metadata files at the root of a volume (`$Mft`, `$LogFile`) are the file system's own.
       const server = new Set(record.processes.filter((p) => p.server).map((p) => p.pid));
       const written = [
         ...new Set(
           record.writes
-            .filter((w) => !server.has(w.pid) && w.path !== undefined && !inside(w.path, record.engineData))
+            .filter(
+              (w) =>
+                !server.has(w.pid) &&
+                w.path !== undefined &&
+                !/^[a-z]:\\\$[^\\]+$/.test(w.path) &&
+                !inside(w.path, record.engineData),
+            )
             .map((w) => w.path ?? ""),
         ),
       ];
@@ -575,12 +582,12 @@ describe.skipIf(windowsRecording === "skip")(
           unreadable.push(file);
         }
       }
-      expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
       const unnamed = record.writes.filter((w) => !server.has(w.pid) && w.path === undefined).length;
       await annotate(
         `${String(record.processes.length)} processes, ${String(written.length)} written files checked, ` +
           `${String(unnamed)} writes to handles the trace does not name`,
       );
+      expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
     }, 120_000);
 
     it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (Windows)", () => {
