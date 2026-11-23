@@ -39,7 +39,7 @@ A list narrows by the values on its right, sorts and groups. **Save as filter** 
 
 ## An element
 
-An element's page shows its text, properties and acceptance criteria (**Copy** and **Copy all** copy them with test name references), its verification status, and the elements it relates to, in both directions. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form.
+An element's page shows its text, properties and acceptance criteria (**Copy** and **Copy all** copy them with any test name reference), its verification status, and the elements it relates to, in both directions. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form.
 
 ## Write
 
@@ -51,4 +51,4 @@ Only people set a status. An element's page has **Approve**, **Set status** and 
 
 ## Settings
 
-**Settings** shows the workspace, its metamodel (read only), how to connect an AI agent, the colours (system, light or dark, kept in this browser) and the version of ReqSeq.
+**Settings** shows the workspace, its metamodel (read only), how to connect an AI agent, the colours (system, light or dark, per browser) and the version of ReqSeq.

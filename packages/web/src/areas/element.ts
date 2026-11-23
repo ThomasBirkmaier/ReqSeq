@@ -320,7 +320,7 @@ const textBlock = (
 
 /**
  * One row of a numbered list: its number, its text, and at its end what belongs to that entry alone (of an
- * acceptance criterion its verification status), each part a child of `.crit-end`.
+ * acceptance criterion its verification status and its copy button), each part a child of `.crit-end`.
  */
 const listRow = (n: number, text: HTMLElement, end: readonly Child[]): HTMLElement =>
   h(
@@ -341,19 +341,22 @@ const copyButton = (label: string, name: string, text: string, done: string): HT
   const button = h("button", { type: "button", class: "btn sm copy", "aria-label": name }, label);
   let reset: ReturnType<typeof setTimeout> | undefined;
   button.addEventListener("click", () => {
-    void navigator.clipboard.writeText(text).then(
-      () => {
-        button.textContent = "Copied";
-        clearTimeout(reset);
-        reset = setTimeout(() => {
-          button.textContent = label;
-        }, 1500);
-        announce(done);
-      },
-      () => {
-        announce("The browser did not allow copying. Select the text and copy it.");
-      },
-    );
+    // A page without the Clipboard API (no secure context) fails in the same way as a refusal.
+    void Promise.resolve()
+      .then(() => navigator.clipboard.writeText(text))
+      .then(
+        () => {
+          button.textContent = "Copied";
+          clearTimeout(reset);
+          reset = setTimeout(() => {
+            button.textContent = label;
+          }, 1500);
+          announce(done);
+        },
+        () => {
+          announce("The browser did not allow copying. Select the text and copy it.");
+        },
+      );
   });
   return button;
 };
@@ -377,7 +380,7 @@ const numbered = async (
         "div",
         { class: "sect-bar" },
         h("h2", { class: "sect" }, nameOfProp(key)),
-        copyButton("Copy all", "Copy all criteria with their references", copy.all, "All criteria copied."),
+        copyButton("Copy all", "Copy all criteria", copy.all, "All criteria copied."),
       ),
   items.length === 0
     ? h("p", { class: "none" }, "None yet.")
@@ -389,7 +392,7 @@ const numbered = async (
               ? null
               : copyButton(
                   "Copy",
-                  `Copy criterion ${String(at + 1)} with its reference`,
+                  `Copy criterion ${String(at + 1)}`,
                   copy.rows[at] ?? itemText(item),
                   `Criterion ${String(at + 1)} copied.`,
                 ),
