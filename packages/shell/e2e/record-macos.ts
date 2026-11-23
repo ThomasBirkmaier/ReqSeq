@@ -393,6 +393,7 @@ export class MacRecorder {
   readonly wrap: readonly [string, ...string[]];
   private readonly es: string;
   private readonly pktap: string;
+  private readonly capture: string;
   private recorders: { child: ChildProcess; ended: Promise<void>; errors: string }[] = [];
   private pfToken = "";
   private control: Omit<Control, "started" | "packet" | "lookedUp" | "reset"> | undefined;
@@ -403,6 +404,7 @@ export class MacRecorder {
     this.node = path.join(dir, "node", "bin", "node");
     this.es = path.join(dir, "es.json");
     this.pktap = path.join(dir, "pktap.txt");
+    this.capture = path.join(dir, "pktap.pcapng");
     this.wrap = ["sudo", "-n", "-u", os.userInfo().username, "-g", GROUP];
   }
 
@@ -466,8 +468,10 @@ export class MacRecorder {
       "/usr/libexec/xpcproxy",
     ].flatMap((p) => ["--select", p]);
     const es = await recorder(["eslogger", ...EVENTS, ...selected], this.es, `${this.es}.err`);
+    // Written as pcapng with its process metadata and printed after the stop: a tcpdump that prints while it captures
+    // fell behind and the kernel dropped packets. A 64 MiB buffer; `dropped` checks that it sufficed.
     const tcpdump = await recorder(
-      ["tcpdump", "-n", "-l", "-k", "-i", "pktap,all"],
+      ["tcpdump", "-n", "-P", "-B", "65536", "-i", "pktap,all", "-w", this.capture],
       this.pktap,
       `${this.pktap}.err`,
     );
@@ -479,7 +483,7 @@ export class MacRecorder {
     for (let i = 0; i < 100; i++) {
       await sudo(["true"]);
       const size = (await fs.stat(this.es)).size;
-      if (size > 0 && (await fs.stat(this.pktap)).size >= 0) {
+      if (size > 0) {
         return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -548,7 +552,12 @@ export class MacRecorder {
     const to = events.find((e) => e.kind === "exit" && e.pid === shellPid)?.time ?? "~";
     const engine = new Map(engineProcesses(events, from, to).map((p) => [p.pid, p]));
     const watched = new Set([...[...tree].filter((p) => !server.has(p)), ...engine.keys()]);
-    const packets = (await fs.readFile(this.pktap, "utf8"))
+    const printed = await run("sudo", ["-n", "tcpdump", "-n", "-k", "-r", this.capture], {
+      maxBuffer: 512 * 1024 * 1024,
+      timeout: 120_000,
+    });
+    await fs.writeFile(this.pktap, printed.stdout);
+    const packets = printed.stdout
       .split("\n")
       .map(parsePacket)
       .filter((p): p is Packet => p !== undefined);

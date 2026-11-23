@@ -790,12 +790,12 @@ describe.skipIf(macRecording === "skip")(
     it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (macOS)", async ({
       annotate,
     }) => {
-      expectControls();
       await annotate(
         `${String(record.events)} events; tree: ${record.processes.map((p) => `${String(p.pid)}${p.server ? " (server)" : ""} ${p.programs.map((r) => path.basename(r.program)).join(" > ")}`).join("; ")}; ` +
           `engine: ${record.engine.map((p) => `${String(p.pid)} ${path.basename(p.program)}`).join(", ")}; ` +
           `${String(record.files.length)} file events of the tree outside the server and of the engine`,
       );
+      expectControls();
       // A process of the tree outside the server runs no program but the shell itself (a fork) and the engine's.
       const started = record.processes
         .filter((p) => p.pid !== record.shellPid && !p.server)
