@@ -38,6 +38,10 @@ on:
 
 permissions: {}
 
+env:
+  # The names of the files the suites of the three kinds write: <suite>-<system>.xml (enrich, below).
+  EVIDENCE_NAME: '^(unit|e2e|shell|web|perf|delivery)-(ubuntu|macos|windows)-[0-9.]+\.xml$'
+
 concurrency:
   # One at a time per source, none cancelled: each run closes the evidence pull requests of its kind it supersedes.
   # Per source, because a group keeps only one pending run and would drop the other sources' runs of the night.
@@ -144,7 +148,6 @@ jobs:
           fi
           case "$KIND" in
             ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*") ;;
-            # perf-electron-* is the last record of the removed Electron suite (#2399), not of this workflow.
             # Per system: a run on macOS compares with the last macOS evidence, not with the nightly's (#2469).
             perf) files=("spec/evidence/ci/perf-$SYSTEM.xml") ;;
             *) files=("spec/evidence/ci/$KIND-*") ;;
@@ -220,6 +223,10 @@ jobs:
           new="$RUNNER_TEMP/out/ci"
           rm -rf "$out" && mkdir -p "$out" "$new"
           git checkout origin/main -- "$out" 2>/dev/null || true
+          # Only the files a suite of the three kinds still writes (#2446); publish removes the others from main.
+          for file in "$out"/*; do
+            [[ "$(basename "$file")" =~ $EVIDENCE_NAME ]] || rm -f "$file"
+          done
           # The views, as name and view: the core and each variant (VAR-001 Windows, VAR-002 Linux, VAR-003 macOS).
           views=("core:core" "VAR-001 Windows:cd696c2d-2472-4299-8faa-2688cd15c366"
             "VAR-002 Linux:9a7c2fca-3edf-43ab-8b68-7771b9666d08" "VAR-003 macOS:eb05fd98-7ec2-4f49-9374-2397642c0d8b")
@@ -239,8 +246,6 @@ jobs:
           # The artifacts a full run of the kind uploads. The workflows upload with `if-no-files-found: ignore`, so
           # a suite that wrote no file has no artifact at all; it is listed, and main keeps its last file.
           case "$KIND" in
-            # The Electron app and its suite are removed (#2399): no junit-electron-* artifact, and main keeps its
-            # last electron-* files as they are.
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
               junit-e2e-windows-2025 junit-web-ubuntu-24.04 junit-shell-ubuntu-24.04 junit-shell-macos-26
               junit-shell-windows-2025" ;;
@@ -462,8 +467,12 @@ jobs:
           WORKFLOW: ${{ needs.enrich.outputs.workflow }}
           SOURCE: ${{ runner.temp }}/evidence
         run: |
-          # Over main's files: the other kinds, and a suite without an artifact in this run, keep their last file.
+          # Over main's files: the other kinds, and a suite without an artifact in this run, keep their last file. A
+          # file no suite writes any more (a removed suite) is removed, so that it no longer counts (#2446).
           mkdir -p spec/evidence/ci
+          for file in spec/evidence/ci/*; do
+            [[ "$(basename "$file")" =~ $EVIDENCE_NAME ]] || rm -f "$file"
+          done
           cp "$SOURCE"/ci/*.xml spec/evidence/ci/
           if git diff --quiet && [ -z "$(git status --porcelain spec/evidence)" ]; then
             echo "Nothing changed." >> "$GITHUB_STEP_SUMMARY"

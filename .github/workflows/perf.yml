@@ -88,8 +88,7 @@ jobs:
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
     # (ADR-0011); the job prints what it got. A manual run may choose another system (#2469).
     runs-on: ${{ inputs.system || 'ubuntu-24.04' }}
-    # The Vitest suite alone took 36 min at night (2026-11-02); the Electron app's suite, removed now (#2399), added
-    # about 7 min (#147, #1559). The bound of 75 min stays as it was for a slow runner.
+    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner.
     timeout-minutes: 75
     # Bash on every system: the Report step passes $GITHUB_SHA and the other variables as bash reads them.
     defaults:
@@ -128,8 +127,6 @@ jobs:
         run: |
           node -e 'const os = require("node:os"); console.log(`Runner: ${os.cpus().length} cores, ${Math.round(os.totalmem() / 1024 ** 3)} GB memory`)'
           pnpm test:perf
-      # The Electron app's part (#147) is removed with the app (#2399): its rows stay out of the record until the web
-      # UI has a suite of its own.
       - name: Report
         id: report
         if: always() && hashFiles('test-results/perf.jsonl') != ''
