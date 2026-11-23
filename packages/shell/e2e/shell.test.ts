@@ -485,6 +485,7 @@ describe.skipIf(windowsRecording === "skip")(
     let token = "";
     let shellOut = { stdout: "", stderr: "" };
     let control = "";
+    let port = -1;
 
     beforeAll(async () => {
       if (windowsRecording === "fail") {
@@ -498,7 +499,7 @@ describe.skipIf(windowsRecording === "skip")(
       control = await recorder.runControl();
       const shell = await startShell({ node: recorder.node });
       // Up to the shell's own 30 s wait for the server's address, plus its start under the trace.
-      await shell.event("shown", () => true, 60_000);
+      port = Number(new URL(String(await shell.event("shown", () => true, 60_000))).port);
       token = await pageToken(shell);
       await shell.eval(
         "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
@@ -623,7 +624,9 @@ describe.skipIf(windowsRecording === "skip")(
     });
 
     // A name lookup counts as a connection to another machine (#2480), also one the engine makes by itself. Lookups go
-    // through the DNS client service, which no program rule refuses, so the DNS client log records them.
+    // through the DNS client service, which no program rule refuses, so the DNS client log records them. The program
+    // rules refuse the shell, the server's Node copy and the engine; a connection of any other program of the tree
+    // (a child of the server) is recorded as permitted (5156).
     it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine and looks up no name (Windows)", () => {
       expect(control).toBe("error EACCES");
       expect(record.control.refused).toEqual([
@@ -639,7 +642,23 @@ describe.skipIf(windowsRecording === "skip")(
       expect(engines.filter((e) => !record.rules.includes(e))).toEqual([]);
       expect(record.rules).toContain(record.normalize(recorder?.node ?? ""));
       expect(record.rules).toContain(record.normalize(SHELL));
-      expect({ refused: record.refused, lookups: record.lookups }).toEqual({ refused: [], lookups: [] });
+      // Permitted connections of every process of the tree, the server's subtree included: the engine's own to its
+      // server shows that the record attributes them.
+      expect(
+        record.connections.some(
+          (c) =>
+            c.address === "127.0.0.1" &&
+            c.port === port &&
+            record.processes.some(
+              (p) => p.pid === c.pid && !p.server && record.engines.includes(p.normalized),
+            ),
+        ),
+      ).toBe(true);
+      expect({
+        refused: record.refused,
+        connections: record.connections.filter((c) => !loopback(c.source) || !loopback(c.address)),
+        lookups: record.lookups,
+      }).toEqual({ refused: [], connections: [], lookups: [] });
     });
   },
 );

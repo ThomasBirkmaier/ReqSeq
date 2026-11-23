@@ -445,10 +445,10 @@ jobs:
         if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' }}
         run: pnpm --filter @reqseq/shell build:e2e
       # The audit the e2e suite's recorder on Windows reads (packages/shell/e2e/record-windows.ts, ADR-0021 A8): process
-      # creation with command lines (4688), refused connections (5157), the DNS client log (3006), and every firewall
-      # profile on. The Security log gets 256 MB, so that it does not wrap during the recorded run. The suite adds and
-      # removes its own firewall rules and ETW trace. Without the variable this step sets, the recorded tests fail in CI
-      # instead of skipping.
+      # creation with command lines (4688), permitted and refused connections (5156, 5157), the DNS client log (3006),
+      # and every firewall profile on. The Security log gets 256 MB, so that it does not wrap during the recorded run.
+      # The suite adds and removes its own firewall rules and ETW trace. Without the variable this step sets, the
+      # recorded tests fail in CI instead of skipping.
       - name: Shell - recorders (Windows)
         if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'Windows' }}
         timeout-minutes: 2
@@ -456,7 +456,7 @@ jobs:
         run: |
           auditpol /set /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}" /success:enable
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /failure:enable
+          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable
           if ($LASTEXITCODE -ne 0) { exit 1 }
           reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f
           if ($LASTEXITCODE -ne 0) { exit 1 }

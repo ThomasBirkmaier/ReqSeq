@@ -1,7 +1,7 @@
 // The recorders of the shell's e2e suite on Windows (ADR-0021, Test seam, A8): process creation with command lines
 // (Security event 4688), the files each process creates, opens and writes (the ETW provider Microsoft-Windows-Kernel-File
-// through `logman`), and connections refused by firewall program rules (5157) plus name lookups (DNS client event
-// 3006). The system calls are in record-windows.ps1; this module starts them, runs the control and reads the result.
+// through `logman`), the connections the firewall permits (5156) and those its program rules refuse (5157), plus name
+// lookups (DNS client event 3006). The system calls are in record-windows.ps1; this module starts them, runs the control and reads the result.
 //
 // The recording needs an elevated session with the audit set up (the CI step `Shell - recorders (Windows)` does that and
 // sets REQSEQ_SHELL_E2E_RECORD=windows). In CI (`CI` set) a missing setup fails the recorded tests; elsewhere they skip.
@@ -67,7 +67,7 @@ export interface Setup {
   readonly elevated: boolean;
   readonly processCreation: string;
   readonly commandLine: boolean;
-  readonly refusedConnection: string;
+  readonly connectionAudit: string;
   readonly dnsLog: boolean;
   readonly profiles:
     | { readonly name: string; readonly enabled: string }
@@ -82,7 +82,9 @@ function missingSetup(setup: Setup): string[] {
     setup.elevated ? "" : "an elevated session",
     setup.processCreation.includes("Success") ? "" : "the audit of process creation (Success)",
     setup.commandLine ? "" : "command lines in process creation events",
-    setup.refusedConnection.includes("Failure") ? "" : "the audit of Filtering Platform Connection (Failure)",
+    setup.connectionAudit === "Success and Failure"
+      ? ""
+      : "the audit of Filtering Platform Connection (Success and Failure)",
     setup.dnsLog ? "" : "the DNS client log",
     profiles.length > 0 && profiles.every((p) => p.enabled === "True") ? "" : "every firewall profile on",
     asList(setup.engines).length > 0 ? "" : "an installed WebView2 runtime",
@@ -120,12 +122,13 @@ export interface WindowsRecord {
   /** Files created or opened (Create, CreateNewFile) and files written (Write, and creates that may write). */
   readonly opens: readonly FileEvent[];
   readonly writes: readonly FileEvent[];
-  /** Connections of the tree refused and recorded (5157), and its name lookups (3006). */
+  /** Connections of the tree refused (5157) and permitted (5156), and its name lookups (3006). */
   readonly refused: readonly {
     readonly pid: number;
     readonly application: string;
     readonly address: string;
   }[];
+  readonly connections: readonly Connection[];
   readonly lookups: readonly { readonly pid: number; readonly name: string }[];
   /** Completeness: what the trace lost, and how many events it has. */
   readonly lost: {
@@ -147,7 +150,18 @@ export interface WindowsRecord {
   readonly normalize: (p: string) => string;
 }
 
+/** A connection the firewall permitted (5156): the local and the remote address, as the event names them. */
+export interface Connection {
+  readonly pid: number;
+  readonly application: string;
+  readonly source: string;
+  readonly address: string;
+  readonly port: number;
+}
+
 export interface Created {
+  /** The time of the process creation event (UTC, ISO 8601 with 7 decimals). */
+  readonly time: string;
   readonly pid: number;
   readonly parent: number;
   readonly program: string;
@@ -170,6 +184,20 @@ export function descendants(created: readonly Created[], root: number): Set<numb
     holder.set(p.pid, i);
   });
   return tree;
+}
+
+/**
+ * Whether the process that held `pid` at `time` is one of `tree` (indexes into `created`): the last process created
+ * with that ID at or before `time`. An event of a process ID before the tree's process got it is not the tree's.
+ */
+export function heldByTree(
+  created: readonly Created[],
+  tree: ReadonlySet<number>,
+  pid: number,
+  time: string,
+): boolean {
+  const holder = created.findLastIndex((p) => p.pid === pid && p.time <= time);
+  return holder >= 0 && tree.has(holder);
 }
 
 export interface FileLine {
@@ -197,6 +225,15 @@ export const parseFileLines = (text: string): FileLine[] =>
       };
     });
 
+/** Names a file object after its Create; a Create without a name leaves the write to its file key. */
+function nameObject(byObject: Map<string, string>, l: FileLine): void {
+  if (l.name === "") {
+    byObject.delete(l.fileObject);
+  } else {
+    byObject.set(l.fileObject, l.name);
+  }
+}
+
 /**
  * Opens and writes of the tree's processes, from the lines in record order. The kernel reuses file objects and file
  * keys after a close, so a write is named from the names known when it happened: the last Create or CreateNewFile with
@@ -217,7 +254,7 @@ export function fileEvents(
     if (l.id === 10 && l.name !== "") {
       byKey.set(l.fileKey, l.name);
     } else if (l.id === 12 || l.id === 30) {
-      byObject.set(l.fileObject, l.name);
+      nameObject(byObject, l);
       if (!tree.has(l.pid)) {
         continue;
       }
@@ -385,7 +422,7 @@ export class WindowsRecorder {
       await ps(this.dir, "trace-stop", { Session: SESSION, Etl: this.etl }),
     ) as WindowsRecord["lost"];
     const events = JSON.parse(await ps(this.dir, "events", { Since: this.since.toISOString() })) as Record<
-      "processes" | "refused" | "lookups",
+      "processes" | "refused" | "permitted" | "lookups",
       EventRow | EventRow[] | null
     >;
     const paths = new Paths(JSON.parse(await ps(this.dir, "devices")) as Record<string, string>);
@@ -394,6 +431,7 @@ export class WindowsRecorder {
     const created: Created[] = asList(events.processes)
       .map((e) => ({
         record: numberOf(e["_record"]),
+        time: e["_time"] ?? "",
         pid: numberOf(e["NewProcessId"]),
         parent: numberOf(e["ProcessId"]),
         program: e["NewProcessName"] ?? "",
@@ -415,19 +453,33 @@ export class WindowsRecorder {
     const tree = new Set([shellPid, ...[...treeIndexes].map((i) => created[i]?.pid ?? -1)]);
     const lines = parseFileLines(await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree].join(",") }));
     const refused = asList(events.refused).map((e) => ({
+      time: e["_time"] ?? "",
       pid: numberOf(e["ProcessID"]),
       application: e["Application"] ?? "",
       address: e["DestAddress"] ?? "",
     }));
+    const permitted = asList(events.permitted).map((e) => ({
+      time: e["_time"] ?? "",
+      pid: numberOf(e["ProcessID"]),
+      application: e["Application"] ?? "",
+      source: e["SourceAddress"] ?? "",
+      address: e["DestAddress"] ?? "",
+      port: numberOf(e["DestPort"]),
+    }));
     const lookups = asList(events.lookups).map((e) => ({
+      time: e["_time"] ?? "",
       pid: numberOf(e["_pid"]),
       name: e["QueryName"] ?? "",
     }));
+    // Refusals, connections and lookups name a process ID and a time; they count for the process that held the ID.
+    const ofTree = (e: { pid: number; time: string }): boolean =>
+      heldByTree(created, treeIndexes, e.pid, e.time);
     const engineData = path.join(process.env["LOCALAPPDATA"] ?? "", APP_ID);
     await paths.learn(this.dir, [
       ...[this.node, SHELL, engineData, ...this.engines, ...this.rules],
       ...lines.map((l) => l.name),
       ...refused.map((r) => r.application),
+      ...permitted.map((r) => r.application),
       ...created.map((p) => p.program),
     ]);
     const { normalize } = paths;
@@ -440,17 +492,20 @@ export class WindowsRecorder {
         .map(({ i: _, ...p }) => p),
       ...fileEvents(lines, tree, paths.named),
       refused: refused
-        .filter((e) => tree.has(e.pid))
-        .map((e) => ({ ...e, application: normalize(e.application) })),
-      lookups: lookups.filter((e) => tree.has(e.pid)),
+        .filter(ofTree)
+        .map(({ time: _, ...e }) => ({ ...e, application: normalize(e.application) })),
+      connections: permitted
+        .filter(ofTree)
+        .map(({ time: _, ...e }) => ({ ...e, application: normalize(e.application) })),
+      lookups: lookups.filter(ofTree).map(({ time: _, ...e }) => e),
       lost,
       control: {
         started: created.some((p) => p.pid === this.control.pid),
         refused: refused
-          .filter((e) => e.pid === this.control.pid)
+          .filter((e) => e.pid === this.control.pid && !ofTree(e))
           .map((e) => ({ application: normalize(e.application), address: e.address })),
         lookedUp: lookups.some(
-          (e) => e.pid === this.control.pid && e.name.toLowerCase() === this.control.name,
+          (e) => e.pid === this.control.pid && !ofTree(e) && e.name.toLowerCase() === this.control.name,
         ),
       },
       rules: this.rules.map(normalize),
