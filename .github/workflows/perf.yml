@@ -17,12 +17,14 @@ name: Performance
 # branch `perf-record`, not to main: the main ruleset requires checks and has no bypass, and a pull request opened
 # with GITHUB_TOKEN starts no workflows, so it could never get them (#340).
 #
-# A manual run can choose the system (#2469): Ubuntu 24.04 by default, macOS 26 or Windows 2025 once before each
-# release (merge skill), so that each system's variant gets its evidence without a nightly cost. The artifact
+# A manual run can choose the system (#2469): Ubuntu 24.04 by default, or Windows 2025 once before each release
+# (merge skill), so that the Windows variant gets its evidence without a nightly cost. The artifact
 # `perf-results-<system>` carries it, and evidence.yml records it as `perf-<system>.xml`. The suite runs without
 # `unshare` there (Linux only); the in-process network block of every Vitest run (block-network.mjs) still applies.
 # The record on the branch `perf-record` stays the Ubuntu nightly's; an exceeded threshold opens the issue on every
-# system.
+# system. macOS is no option: the hosted `macos-26` runner has 3 cores and 7 GB, below the reference machine
+# (ADR-0011), and missed thresholds there (run 45207751660); macOS is measured on a machine of the reference size
+# before each release and recorded in verification/ (merge skill).
 
 on:
   schedule:
@@ -32,7 +34,7 @@ on:
       system:
         description: Runner system to measure on (the nightly run and pull requests use ubuntu-24.04).
         type: choice
-        options: [ubuntu-24.04, macos-26, windows-2025]
+        options: [ubuntu-24.04, windows-2025]
         default: ubuntu-24.04
   pull_request:
     types: [labeled, closed]

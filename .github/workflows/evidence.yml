@@ -281,6 +281,8 @@ jobs:
             esac
             # A perf run on macOS or Windows records only its variant (#2469): its runner may be weaker than the
             # reference machine (ADR-0011), so its result must not decide the core view, which the Ubuntu run does.
+            # perf.yml offers no macOS run, because the hosted macOS runner (3 cores, 7 GB) is below the reference
+            # machine; the macOS perf results are records in verification/ (merge skill, release).
             core=(--variant core)
             if [ "$KIND" = perf ] && [[ "$os" != ubuntu-* ]]; then core=(); fi
             set +e
