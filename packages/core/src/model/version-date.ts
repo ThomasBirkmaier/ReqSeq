@@ -156,6 +156,11 @@ interface FileWalk {
    * `walked` yet, so the walk is not carried to a new HEAD (`carryWalks`).
    */
   busy: number;
+  /**
+   * The newest history read of the walk, settled whatever it gave: a call that finds the walk's
+   * tracked paths grown waits for it before it reads the history itself (`fitWalks`).
+   */
+  reading: Promise<void>;
 }
 
 /** The element at one text blob: its type, values and text, and the image links of that text. */
@@ -449,7 +454,25 @@ const addOldNames = (walk: FileWalk, commits: readonly HistoryCommit[], facts: F
  * until no name is added. So the names of a walk follow from the history alone, never from the
  * versions computed so far, and every call at the same HEAD gives the same answer (D-029).
  */
-const readHistory = async (
+const readHistory = (
+  repository: RepositoryWalks,
+  folder: string,
+  walks: readonly FileWalk[],
+  signal: AbortSignal,
+): Promise<void> => {
+  const reading = readHistories(repository, folder, walks, signal);
+  const settled = reading.then(
+    () => undefined,
+    () => undefined,
+  );
+  for (const walk of walks) {
+    walk.reading = settled;
+  }
+  return reading;
+};
+
+/** `readHistory` without marking the walks. */
+const readHistories = async (
   repository: RepositoryWalks,
   folder: string,
   walks: readonly FileWalk[],
@@ -677,13 +700,14 @@ const readAll = async (
   return read.objects;
 };
 
-/** Tracks the image paths `held` embeds in `walk`; whether one was new. */
-const trackImages = (walk: FileWalk, held: Held | undefined): boolean => {
-  const before = walk.walked.tracked.size;
+/**
+ * Tracks the image paths `held` embeds in `walk`. A new one leaves the walk's evaluated commits
+ * not fitting its tracked paths until the history is read again (`fitWalks`).
+ */
+const trackImages = (walk: FileWalk, held: Held | undefined): void => {
   for (const link of held?.links.filter((l) => !l.missing) ?? []) {
     walk.walked.tracked.add(imagePath(link).normalize("NFC"));
   }
-  return walk.walked.tracked.size > before;
 };
 
 /** One text a round reads: a name of the file at a commit. */
@@ -706,16 +730,12 @@ const textOf = (
 
 /**
  * Reads and parses the texts of the walked files at `at` that are not parsed yet (each blob once)
- * and tracks the image paths they embed; returns the walks whose tracked paths grew. The names of a
- * file are asked in turn, each only where no name before it held the element, so a commit where
- * the current path holds it costs one name (Git finds a path in a large folder slowly).
+ * and tracks the image paths they embed. The names of a file are asked in turn, each only where no
+ * name before it held the element, so a commit where the current path holds it costs one name (Git
+ * finds a path in a large folder slowly).
  */
-const readTexts = async (
-  round: Round,
-  at: readonly { walk: FileWalk; commit: string }[],
-): Promise<FileWalk[]> => {
+const readTexts = async (round: Round, at: readonly { walk: FileWalk; commit: string }[]): Promise<void> => {
   const { facts } = round.walks;
-  const grown = new Set<FileWalk>();
   for (let open: TextAt[] = at.map((a) => ({ ...a, index: 0 })); open.length > 0;) {
     await ask(
       round,
@@ -728,12 +748,8 @@ const readTexts = async (
     for (const text of open) {
       const found = textOf(facts, text);
       // A text parsed at an earlier HEAD (facts are kept) still tracks its images in this walk.
-      if (
-        found !== undefined &&
-        facts.held.has(found.key) &&
-        trackImages(text.walk, facts.held.get(found.key))
-      ) {
-        grown.add(text.walk);
+      if (found !== undefined && facts.held.has(found.key)) {
+        trackImages(text.walk, facts.held.get(found.key));
       }
       if (found !== undefined && !facts.held.has(found.key)) {
         const holders = unread.get(found.blob.id) ?? new Map<string, { walk: FileWalk; name: string }>();
@@ -754,9 +770,7 @@ const readTexts = async (
         }
         const held = heldElement(name, walk.walked.id, bytes, round.source.ignored);
         facts.held.set(key, held);
-        if (trackImages(walk, held)) {
-          grown.add(walk);
-        }
+        trackImages(walk, held);
       }
     }
     open = open
@@ -769,7 +783,6 @@ const readTexts = async (
       })
       .map((text) => ({ ...text, index: text.index + 1 }));
   }
-  return [...grown];
 };
 
 /** What an image is at a commit: its blob, missing, not counted (nested), or not readable. */
@@ -976,13 +989,41 @@ const firstParentVersions = async (
   return at.filter((item) => !done.has(item));
 };
 
+/** Whether the evaluated commits of `walk` were read for all its tracked paths (`evaluatedFor`). */
+const fits = (walk: FileWalk): boolean => walk.evaluatedFor === walk.walked.tracked.size;
+
 /**
- * Answers `queries` round by round: each round computes the versions the open ones need (one
- * `cat-file` exchange for the texts, one for the images), twice as many as the round before, and
- * reads the history again for files whose texts embed a new image path.
+ * Makes the evaluated commits of the walks of `queries` fit their tracked paths: where a text
+ * embeds a new image path, a commit that changed only that image is not listed yet, so nothing is
+ * decided on the walk before its history is read again (#2408). A read another call runs for the
+ * walk is waited for, so the walk is read once; where its tracked paths grew again meanwhile, or that
+ * read failed, the history is read here, unless another call started a newer read meanwhile, which
+ * is waited for in turn.
+ */
+const fitWalks = async (round: Round, queries: readonly Query[]): Promise<void> => {
+  for (let open = unfit(queries); open.length > 0; open = unfit(queries)) {
+    const waited = open.map((walk) => walk.reading);
+    await Promise.all(waited);
+    const left = open.filter((walk, i) => !fits(walk) && walk.reading === waited[i]);
+    if (left.length > 0) {
+      await readHistory(round.walks, round.source.repository.folder, left, round.signal);
+    }
+  }
+};
+
+/** The walks of `queries` whose evaluated commits do not fit their tracked paths. */
+const unfit = (queries: readonly Query[]): FileWalk[] => [
+  ...new Set(queries.map((q) => q.walk).filter((walk) => !fits(walk))),
+];
+
+/**
+ * Answers `queries` round by round: each round first reads the history again for files whose texts
+ * embed a new image path (`fitWalks`), then computes the versions the open ones need (one
+ * `cat-file` exchange for the texts, one for the images), twice as many as the round before.
  */
 const answer = async (round: Round, queries: readonly Query[]): Promise<void> => {
   for (let chunk = 2; ; chunk *= 2) {
+    await fitWalks(round, queries);
     const needs = new Map<FileWalk, Set<string>>();
     for (const { walk, version, headFirst } of queries.filter(isOpen)) {
       const decision = decide(walk, version, chunk, headFirst);
@@ -999,7 +1040,7 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
       round,
       [...needs].flatMap(([walk, commits]) => [...commits].map((commit) => ({ walk, commit }))),
     );
-    const grown = await readTexts(round, at);
+    await readTexts(round, at);
     const images = await readImages(round, at);
     for (const { walk, commit } of at) {
       const at = versionAt(round, images, walk, commit);
@@ -1007,9 +1048,6 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
         walk.unknown.add(commit);
       }
       walk.versions.set(commit, at === UNKNOWN ? undefined : at);
-    }
-    if (grown.length > 0) {
-      await readHistory(round.walks, round.source.repository.folder, grown, round.signal);
     }
   }
 };
@@ -1124,6 +1162,7 @@ const copyWalk = (walk: FileWalk): FileWalk => ({
   failed: false,
   unknown: new Set(walk.unknown),
   busy: 0,
+  reading: Promise.resolve(),
 });
 
 /** Where a HEAD move leaves the old history: what `carryWalk` needs of it. */
@@ -1468,6 +1507,7 @@ const startWalks = (
       failed: false,
       unknown: new Set(),
       busy: 1,
+      reading: Promise.resolve(),
     });
   }
   if (fresh.size === 0) {
@@ -1583,7 +1623,7 @@ const byHead = (walk: FileWalk, version: string): "newer" | "undated" | undefine
  * `versionStarts` still finds it.
  */
 const sortAnswer = (walk: FileWalk, version: string): Found | undefined => {
-  const kept = walk.dates.get(version);
+  const kept = keptAnswer(walk, version);
   return kept === undefined ? byHead(walk, version) : sortKept(walk, kept);
 };
 
@@ -1595,9 +1635,16 @@ const sortKept = (walk: FileWalk, kept: Answer): Found => {
   return kept === "undated" && walk.unknown.has(walk.head) ? "undated" : "newer";
 };
 
+/**
+ * The answer `walk` keeps for `version`; undefined where its evaluated commits do not fit its
+ * tracked paths: a commit that changed a new image path may be missing (`fitWalks`).
+ */
+const keptAnswer = (walk: FileWalk, version: string): Answer | undefined =>
+  fits(walk) ? walk.dates.get(version) : undefined;
+
 /** Whether `query` still needs an answer round. */
 const isOpen = ({ walk, version, headFirst }: Query): boolean =>
-  headFirst ? sortAnswer(walk, version) === undefined : !walk.dates.has(version);
+  (headFirst ? sortAnswer(walk, version) : keptAnswer(walk, version)) === undefined;
 
 /** The walk of each of `keys`, without waiting where it is settled (`RepositoryWalks.settled`). */
 const walksOf = async (
@@ -1636,7 +1683,7 @@ const answerNow = (
     return "undated";
   }
   // Only a version of a known form is answered and kept.
-  const kept = walk.dates.get(version);
+  const kept = keptAnswer(walk, version);
   if (kept !== undefined) {
     return headFirst ? sortKept(walk, kept) : kept;
   }
@@ -1718,7 +1765,11 @@ const repositoryDates = async (
       });
     for (const { walk, version, index } of queries) {
       // A walk whose answer was cut short has no date for the version.
-      const kept = walk.failed ? "undated" : headFirst ? sortAnswer(walk, version) : walk.dates.get(version);
+      const kept = walk.failed
+        ? "undated"
+        : headFirst
+          ? sortAnswer(walk, version)
+          : keptAnswer(walk, version);
       answers[index] = kept ?? (cut.late ? LATE : "undated");
     }
     // Every request is answered now: before the round, or just above.
