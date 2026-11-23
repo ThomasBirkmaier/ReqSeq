@@ -9,6 +9,7 @@ import type {
   EvidenceRecordInput,
 } from "@reqseq/core";
 import { call } from "../api.js";
+import { fullOnHover, shortCommits } from "../commits.js";
 import type { Child } from "../dom.js";
 import { announce, h } from "../dom.js";
 import { addElementTab, elementPage } from "../element-tabs.js";
@@ -93,20 +94,20 @@ function recordTable(
         h(
           "tr",
           null,
-          h("td", null, dateText(r.date)),
+          h("td", { class: "short" }, dateText(r.date)),
           h(
             "td",
-            null,
+            { class: "short" },
             resultMark(r.result),
             r.reason === undefined ? null : h("span", { class: "why" }, r.reason),
           ),
-          h("td", null, r.kind === "validation" ? "Validation" : cap(r.method ?? "")),
-          h("td", null, r.item ?? ""),
-          views ? h("td", null, viewWord(r.variant ?? "core")) : null,
-          h("td", { class: "num" }, r.version),
+          h("td", { class: "short" }, r.kind === "validation" ? "Validation" : cap(r.method ?? "")),
+          h("td", { class: "long", ...fullOnHover(r.item ?? "") }, shortCommits(r.item ?? "")),
+          views ? h("td", { class: "short" }, viewWord(r.variant ?? "core")) : null,
+          h("td", { class: "num short" }, r.version),
           h(
             "td",
-            { class: "src" },
+            { class: "src long" },
             r.evidenceSource ?? "",
             (r.baselines ?? []).length === 0
               ? null
@@ -167,13 +168,15 @@ function rowBlock(row: Row, records: readonly DataExportEvidenceRecord[]): HTMLE
 const sharedLine = (shared: Display["shared"]): HTMLElement | null => {
   const parts = [
     shared.date === undefined ? null : `Checked ${dateText(shared.date)}`,
-    shared.item === undefined ? null : `item ${shared.item}`,
+    shared.item === undefined ? null : `item ${shortCommits(shared.item)}`,
     shared.version === undefined ? null : `version ${shared.version}`,
     shared.baselines === undefined || shared.baselines.length === 0
       ? null
       : `in ${shared.baselines.join(", ")}`,
   ].filter((p): p is string => p !== null);
-  return parts.length === 0 ? null : h("p", { class: "shared" }, `${parts.join(" · ")}.`);
+  return parts.length === 0
+    ? null
+    : h("p", { class: "shared", ...fullOnHover(shared.item ?? "") }, `${parts.join(" · ")}.`);
 };
 
 /** The evidence section: the rows, then the older runs. */
