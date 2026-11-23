@@ -151,8 +151,9 @@ jobs:
     # and there it takes 14-17 minutes (#1994); the bound of 15 cancelled green runs. The performance suite's assertions
     # on a small workspace add about 1 minute, 1.5 on a slow runner (#2037). 22 leaves about 3 minutes over the slowest
     # healthy run and still ends a hang. The nightly gets up to 5 more for the status model step. The steps of the
-    # desktop shell add 15 more when they run (ADR-0021): cold, without the build cache (#2434), clippy, the coverage build and
-    # the e2e build took about 3.5 minutes on 4 cores, plus the system packages, the cargo tools and the e2e suite (#2377).
+    # desktop shell add 15 more when they run (ADR-0021): cold, without the build cache (#2434), clippy, the coverage
+    # build and the e2e build took about 3.5 minutes on 4 cores, plus the system packages, the cargo tools and the e2e
+    # suite (#2377).
     timeout-minutes: ${{ github.event_name == 'schedule' && 42 || needs.shell-scope.outputs.shell != 'false' && 37 || 22 }}
     needs: shell-scope
     # `!cancelled()`: a failed `shell-scope` must not skip this job (a skipped required job counts as passed); its
@@ -350,18 +351,19 @@ jobs:
             ~/.cargo/bin/cargo-llvm-cov*
             ~/.cargo/bin/cargo-audit*
           key: shell-cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1-audit-0.22.2
-      # The build folder with the compiled dependencies (#2434), keyed on the lockfile and the toolchain. Only runs on
-      # `main` (nightly, manual) save it, with the shell's own crates pruned (step `Shell - save the build folder`), so
+      # The build folder with the compiled dependencies (#2434), keyed on the lockfile, the manifests, the toolchain and
+      # the cargo-llvm-cov version. Only runs that are not pull requests save it (the nightly and manual runs, on `main`
+      # for the entry pull requests read), with the shell's own crates pruned (step `Shell - prune the build folder`), so
       # pull requests share one entry per system and fill no cache quota of their own. A pull request falls back to the
-      # newest entry of its system when the lockfile changed; a run on `main` starts cold then, so the entry holds no
-      # crates the lockfile dropped. Bump the `v1` when the cargo settings of the toolchain step change.
+      # newest entry of its system when the key changed; a run on `main` starts cold then, so the entry holds no crates
+      # the lockfile dropped. Bump the `v1` when the cargo settings of the toolchain step change.
       - name: Shell - restore the build folder
         id: shell-target
         if: ${{ !cancelled() && steps.shell-toolchain.outcome == 'success' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: packages/shell/target
-          key: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}
+          key: shell-target-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/Cargo.toml', 'packages/shell/*/Cargo.toml', 'packages/shell/rust-toolchain.toml') }}-llvm-cov-0.9.1
           restore-keys: ${{ github.event_name == 'pull_request' && format('shell-target-v1-{0}-{1}-', runner.os, runner.arch) || '' }}
       - name: Shell - fetch the crates
         id: shell-fetch
@@ -424,9 +426,11 @@ jobs:
           fi
           unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'
       # After the last cargo build and the e2e suite: the shell's own crates are built from the checkout anyway, so
-      # only the dependencies go into the cache (the coverage build's folder too, on Linux).
+      # only the dependencies go into the cache (the coverage build's folder too, on Linux). A failure here only skips
+      # the save; it never fails the checks.
       - name: Shell - prune the build folder
         id: shell-prune
+        continue-on-error: true
         if: >-
           ${{ !cancelled() && github.event_name != 'pull_request' && steps.shell-e2e-build.outcome == 'success' &&
           steps.shell-target.outputs.cache-hit != 'true' }}
