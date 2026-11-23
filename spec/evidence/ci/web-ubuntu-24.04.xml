@@ -1,212 +1,220 @@
-<testsuites id="" name="" tests="209" failures="0" skipped="7" errors="0" time="399.37023999999997">
-<testsuite name="build.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="1" failures="0" skipped="0" time="0.014" errors="0">
+<testsuites id="" name="" tests="221" failures="0" skipped="7" errors="0" time="324.75185">
+<testsuite name="build.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="1" failures="0" skipped="0" time="0.014" errors="0">
 <testcase name="the built pages have no inline script or style and inline no asset" classname="build.spec.ts" time="0.014">
 </testcase>
 </testsuite>
-<testsuite name="changes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="7" failures="0" skipped="0" time="47.637" errors="0">
-<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="6.863">
+<testsuite name="changes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="7" failures="0" skipped="0" time="33.233" errors="0">
+<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="5.216">
 </testcase>
-<testcase name="another baseline can be chosen" classname="changes.spec.ts" time="3.826">
+<testcase name="another baseline can be chosen" classname="changes.spec.ts" time="2.948">
 </testcase>
-<testcase name="the difference of a changed element shows the old and the new wording word by word" classname="changes.spec.ts" time="3.899">
+<testcase name="the difference of a changed element shows the old and the new wording word by word" classname="changes.spec.ts" time="2.742">
 </testcase>
-<testcase name="Approve is offered only where a type has one status to approve" classname="changes.spec.ts" time="8.753">
+<testcase name="Approve is offered only where a type has one status to approve" classname="changes.spec.ts" time="6.194">
 </testcase>
-<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="2.906">
+<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="1.963">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="10.712">
+<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="7.116">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="10.678">
-</testcase>
-</testsuite>
-<testsuite name="decisions.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="7" failures="0" skipped="0" time="67.406" errors="0">
-<testcase name="a new baseline is created after a confirmation and becomes the newest" classname="decisions.spec.ts" time="5.393">
-</testcase>
-<testcase name="Approve sets the status only after the confirmation names the element and the status" classname="decisions.spec.ts" time="13.685">
-</testcase>
-<testcase name="Set status changes several chosen elements to the status chosen in the confirmation" classname="decisions.spec.ts" time="11.65">
-</testcase>
-<testcase name="Supersede gives the element its superseded status and points its successor to it" classname="decisions.spec.ts" time="12.312">
-</testcase>
-<testcase name="a property of several elements changes only after ReqSeq&apos;s preview is confirmed" classname="decisions.spec.ts" time="12.265">
-</testcase>
-<testcase name="a baseline is refused in plain words while element files are not committed" classname="decisions.spec.ts" time="7.622">
-</testcase>
-<testcase name="Set status leaves superseded elements out and names them" classname="decisions.spec.ts" time="4.479">
+<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="7.054">
 </testcase>
 </testsuite>
-<testsuite name="edit.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="10" failures="0" skipped="0" time="66.095" errors="0">
-<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="8.772">
+<testsuite name="decisions.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="7" failures="0" skipped="0" time="44.778" errors="0">
+<testcase name="a new baseline is created after a confirmation and becomes the newest" classname="decisions.spec.ts" time="4.222">
 </testcase>
-<testcase name="an element created in the form is known to the other pages at once" classname="edit.spec.ts" time="3.64">
+<testcase name="Approve sets the status only after the confirmation names the element and the status" classname="decisions.spec.ts" time="9.375">
 </testcase>
-<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="5.993">
+<testcase name="Set status changes several chosen elements to the status chosen in the confirmation" classname="decisions.spec.ts" time="8.01">
 </testcase>
-<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="7.418">
+<testcase name="Supersede gives the element its superseded status and points its successor to it" classname="decisions.spec.ts" time="8.319">
 </testcase>
-<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="13.704">
+<testcase name="a property of several elements changes only after ReqSeq&apos;s preview is confirmed" classname="decisions.spec.ts" time="7.919">
 </testcase>
-<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="8.72">
+<testcase name="a baseline is refused in plain words while element files are not committed" classname="decisions.spec.ts" time="4.202">
 </testcase>
-<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="2.582">
-</testcase>
-<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="5.759">
-</testcase>
-<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="3.285">
-</testcase>
-<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="6.222">
+<testcase name="Set status leaves superseded elements out and names them" classname="decisions.spec.ts" time="2.731">
 </testcase>
 </testsuite>
-<testsuite name="element.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="4" failures="0" skipped="0" time="17.516" errors="0">
-<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="6.348">
+<testsuite name="edit.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="10" failures="0" skipped="0" time="49.094" errors="0">
+<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="7.104">
 </testcase>
-<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="2.645">
+<testcase name="an element created in the form is known to the other pages at once" classname="edit.spec.ts" time="2.8">
 </testcase>
-<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.61">
+<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="4.524">
 </testcase>
-<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="7.913">
+<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="5.096">
 </testcase>
-</testsuite>
-<testsuite name="evidence.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="3" failures="0" skipped="0" time="12.97" errors="0">
-<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="4.423">
+<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="10.724">
 </testcase>
-<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="5.569">
+<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="6.836">
 </testcase>
-<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="2.978">
+<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="2.108">
 </testcase>
-</testsuite>
-<testsuite name="lists.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="12" failures="0" skipped="0" time="41.079" errors="0">
-<testcase name="every list opens without errors" classname="lists.spec.ts" time="2.935">
+<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="3.847">
 </testcase>
-<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="2.714">
+<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="2.095">
 </testcase>
-<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="2.92">
-</testcase>
-<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="3.335">
-</testcase>
-<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="3.852">
-</testcase>
-<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="2.41">
-</testcase>
-<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.974">
-</testcase>
-<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="3.254">
-</testcase>
-<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="2.091">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="8.269">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="7.25">
-</testcase>
-<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="1.075">
+<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="3.96">
 </testcase>
 </testsuite>
-<testsuite name="mermaid-render.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="2" failures="0" skipped="0" time="2.088" errors="0">
-<testcase name="Mermaid draws the graph text of core (SR-151 AK3) › [SR-151/AK-n1xs] draws the graph of 50 nodes and 100 edges with special characters in its titles, with every node, edge and title" classname="mermaid-render.spec.ts" time="1.368"><properties><property name="reqseq:element" value="1a264d57-242c-4b87-af6f-b795f254513b"/><property name="reqseq:version" value="n2:8ac424c1db0fb142"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="1a264d57-242c-4b87-af6f-b795f254513b:n1xs"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="element.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="6" failures="0" skipped="0" time="24.3" errors="0">
+<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="4.967">
 </testcase>
-<testcase name="Mermaid draws the graph text of core (SR-151 AK3) › [SR-151/AK-n1xs] draws the metamodel graph of the standard model, with every type, edge and label" classname="mermaid-render.spec.ts" time="0.72"><properties><property name="reqseq:element" value="1a264d57-242c-4b87-af6f-b795f254513b"/><property name="reqseq:version" value="n2:8ac424c1db0fb142"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="1a264d57-242c-4b87-af6f-b795f254513b:n1xs"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="2.102">
 </testcase>
-</testsuite>
-<testsuite name="not-marked.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="1" failures="0" skipped="0" time="1.956" errors="0">
-<testcase name="the page shows why the workspace was not marked as opened, at start and after a switch" classname="not-marked.spec.ts" time="1.956">
+<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.566">
 </testcase>
-</testsuite>
-<testsuite name="overview.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="3" failures="0" skipped="0" time="6.008" errors="0">
-<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="3.464">
+<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="6.106">
 </testcase>
-<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="1.891">
+<testcase name="each acceptance criterion shows its own verification status" classname="element.spec.ts" time="3.787">
 </testcase>
-<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.653">
+<testcase name="the problems of an element stand on its page, several of one kind in one row that opens" classname="element.spec.ts" time="6.772">
 </testcase>
 </testsuite>
-<testsuite name="review.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="6" failures="0" skipped="0" time="17.864" errors="0">
-<testcase name="a page that finishes after the person moved on does not draw over the new one" classname="review.spec.ts" time="2.686">
+<testsuite name="evidence.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="3" failures="0" skipped="0" time="10.236" errors="0">
+<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="4.003">
 </testcase>
-<testcase name="a change while the stream was lost shows once it is back" classname="review.spec.ts" time="7.336">
+<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="3.883">
 </testcase>
-<testcase name="a refused token logs out only its own tab (opened first)" classname="review.spec.ts" time="2.067">
-</testcase>
-<testcase name="a refused token logs out only its own tab (opened second)" classname="review.spec.ts" time="1.687">
-</testcase>
-<testcase name="a command refused for a switched workspace waits for the workspace event" classname="review.spec.ts" time="2.824">
-</testcase>
-<testcase name="what points to an element is filtered by the server, without package members, in the view" classname="review.spec.ts" time="1.264">
+<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="2.35">
 </testcase>
 </testsuite>
-<testsuite name="routes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="4" failures="0" skipped="0" time="19.932" errors="0">
-<testcase name="every page opens without errors" classname="routes.spec.ts" time="4.152">
+<testsuite name="lists.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="12" failures="0" skipped="0" time="33.793" errors="0">
+<testcase name="every list opens without errors" classname="lists.spec.ts" time="2.496">
 </testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="7.339">
+<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="2.192">
 </testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="7.792">
+<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="2.612">
 </testcase>
-<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.649">
+<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="2.831">
 </testcase>
-</testsuite>
-<testsuite name="shell.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="5" failures="0" skipped="0" time="9.376" errors="0">
-<testcase name="the page takes the token from the address and keeps it out of every request line" classname="shell.spec.ts" time="0.483">
+<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="3.011">
 </testcase>
-<testcase name="without a token the page says what to open and calls nothing" classname="shell.spec.ts" time="0.195">
+<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="1.305">
 </testcase>
-<testcase name="a refused token gets the same message" classname="shell.spec.ts" time="0.171">
+<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.743">
 </testcase>
-<testcase name="the tabs of a browser share one event stream" classname="shell.spec.ts" time="1.059">
+<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="2.595">
 </testcase>
-<testcase name="a change outside the page shows without a reload" classname="shell.spec.ts" time="7.468">
+<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="1.98">
 </testcase>
-</testsuite>
-<testsuite name="status.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="2" failures="0" skipped="0" time="2.845" errors="0">
-<testcase name="a draft from the overview is approved on its page before the first baseline" classname="status.spec.ts" time="1.704">
+<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="6.533">
 </testcase>
-<testcase name="Set status on the element page sets the status chosen in the confirmation" classname="status.spec.ts" time="1.141">
+<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="6.722">
+</testcase>
+<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="0.773">
 </testcase>
 </testsuite>
-<testsuite name="trace.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="5" failures="0" skipped="0" time="48.147" errors="0">
-<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="4.817">
+<testsuite name="mermaid-render.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="2" failures="0" skipped="0" time="1.821" errors="0">
+<testcase name="Mermaid draws the graph text of core (SR-151 AK3) › [SR-151/AK-n1xs] draws the graph of 50 nodes and 100 edges with special characters in its titles, with every node, edge and title" classname="mermaid-render.spec.ts" time="1.228"><properties><property name="reqseq:element" value="1a264d57-242c-4b87-af6f-b795f254513b"/><property name="reqseq:version" value="n2:8ac424c1db0fb142"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="1a264d57-242c-4b87-af6f-b795f254513b:n1xs"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
-<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="3.056">
-</testcase>
-<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="5.095">
-</testcase>
-<testcase name="a variant shows what it adds, replaces and excludes, and a core requirement can be excluded and included again" classname="trace.spec.ts" time="4.147">
-</testcase>
-<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="31.032">
+<testcase name="Mermaid draws the graph text of core (SR-151 AK3) › [SR-151/AK-n1xs] draws the metamodel graph of the standard model, with every type, edge and label" classname="mermaid-render.spec.ts" time="0.593"><properties><property name="reqseq:element" value="1a264d57-242c-4b87-af6f-b795f254513b"/><property name="reqseq:version" value="n2:8ac424c1db0fb142"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="1a264d57-242c-4b87-af6f-b795f254513b:n1xs"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="workspace.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="spec" tests="15" failures="0" skipped="0" time="33.427" errors="0">
-<testcase name="without a workspace only the page to open one is shown, and opening one shows its overview" classname="workspace.spec.ts" time="0.973">
-</testcase>
-<testcase name="a folder without a workspace is refused in plain words" classname="workspace.spec.ts" time="0.417">
-</testcase>
-<testcase name="a new workspace is created in the folder named and opened" classname="workspace.spec.ts" time="0.572">
-</testcase>
-<testcase name="the folder field completes the folders of the typed path" classname="workspace.spec.ts" time="0.769">
-</testcase>
-<testcase name="the problems page lists what the check of the workspace finds" classname="workspace.spec.ts" time="2.352">
-</testcase>
-<testcase name="each export writes into the folder named and shows the path written" classname="workspace.spec.ts" time="4.548">
-</testcase>
-<testcase name="an export into missing folders of the repository creates them" classname="workspace.spec.ts" time="2.996">
-</testcase>
-<testcase name="a ReqIF file is checked first and then imported with the delivery named" classname="workspace.spec.ts" time="2.812">
-</testcase>
-<testcase name="the mapping of a file of another tool is chosen on the page, saved, and the file imported with it" classname="workspace.spec.ts" time="2.199">
-</testcase>
-<testcase name="a saved mapping that ReqSeq refuses keeps its choices on the page to change the refused one" classname="workspace.spec.ts" time="0.679">
-</testcase>
-<testcase name="a mapping file this page did not build is not changed here" classname="workspace.spec.ts" time="0.443">
-</testcase>
-<testcase name="the settings show the workspace, its metamodel, the agent setup and the version" classname="workspace.spec.ts" time="1.615">
-</testcase>
-<testcase name="the pages of the area have no WCAG 2.1 AA violations (light)" classname="workspace.spec.ts" time="6.353">
-</testcase>
-<testcase name="the pages of the area have no WCAG 2.1 AA violations (dark)" classname="workspace.spec.ts" time="5.962">
-</testcase>
-<testcase name="on a phone the pages of the area fit the width" classname="workspace.spec.ts" time="0.737">
+<testsuite name="not-marked.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="1" failures="0" skipped="0" time="1.235" errors="0">
+<testcase name="the page shows why the workspace was not marked as opened, at start and after a switch" classname="not-marked.spec.ts" time="1.235">
 </testcase>
 </testsuite>
-<testsuite name="guide-animation.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="guide" tests="2" failures="0" skipped="1" time="0.132" errors="0">
-<testcase name="the README shows the committed animation, and it takes at most 30 s once through" classname="guide-animation.spec.ts" time="0.008">
+<testsuite name="overview.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="4" failures="0" skipped="0" time="6.666" errors="0">
+<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="2.419">
+</testcase>
+<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="1.464">
+</testcase>
+<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.514">
+</testcase>
+<testcase name="the overview counts the changes since the newest baseline and opens their list" classname="overview.spec.ts" time="2.269">
+</testcase>
+</testsuite>
+<testsuite name="review.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="6" failures="0" skipped="0" time="15.409" errors="0">
+<testcase name="a page that finishes after the person moved on does not draw over the new one" classname="review.spec.ts" time="2.612">
+</testcase>
+<testcase name="a change while the stream was lost shows once it is back" classname="review.spec.ts" time="5.227">
+</testcase>
+<testcase name="a refused token logs out only its own tab (opened first)" classname="review.spec.ts" time="1.827">
+</testcase>
+<testcase name="a refused token logs out only its own tab (opened second)" classname="review.spec.ts" time="1.727">
+</testcase>
+<testcase name="a command refused for a switched workspace waits for the workspace event" classname="review.spec.ts" time="2.808">
+</testcase>
+<testcase name="what points to an element is filtered by the server, without package members, in the view" classname="review.spec.ts" time="1.208">
+</testcase>
+</testsuite>
+<testsuite name="routes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="5" failures="0" skipped="0" time="17.883" errors="0">
+<testcase name="every page opens without errors" classname="routes.spec.ts" time="3.085">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="6.419">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="6.152">
+</testcase>
+<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.533">
+</testcase>
+<testcase name="the frame pages fit the window, so the window itself does not scroll" classname="routes.spec.ts" time="1.694">
+</testcase>
+</testsuite>
+<testsuite name="shell.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="5" failures="0" skipped="0" time="7.267" errors="0">
+<testcase name="the page takes the token from the address and keeps it out of every request line" classname="shell.spec.ts" time="0.512">
+</testcase>
+<testcase name="without a token the page says what to open and calls nothing" classname="shell.spec.ts" time="0.149">
+</testcase>
+<testcase name="a refused token gets the same message" classname="shell.spec.ts" time="0.18">
+</testcase>
+<testcase name="the tabs of a browser share one event stream" classname="shell.spec.ts" time="0.878">
+</testcase>
+<testcase name="a change outside the page shows without a reload" classname="shell.spec.ts" time="5.548">
+</testcase>
+</testsuite>
+<testsuite name="status.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="2" failures="0" skipped="0" time="2.46" errors="0">
+<testcase name="a draft from the overview is approved on its page before the first baseline" classname="status.spec.ts" time="1.516">
+</testcase>
+<testcase name="Set status on the element page sets the status chosen in the confirmation" classname="status.spec.ts" time="0.944">
+</testcase>
+</testsuite>
+<testsuite name="trace.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="5" failures="0" skipped="0" time="37.345" errors="0">
+<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="3.72">
+</testcase>
+<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="1.979">
+</testcase>
+<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="3.657">
+</testcase>
+<testcase name="a variant shows what it adds, replaces and excludes, and a core requirement can be excluded and included again" classname="trace.spec.ts" time="3.175">
+</testcase>
+<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="24.814">
+</testcase>
+</testsuite>
+<testsuite name="workspace.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="spec" tests="15" failures="0" skipped="0" time="24.61" errors="0">
+<testcase name="without a workspace only the page to open one is shown, and opening one shows its overview" classname="workspace.spec.ts" time="0.621">
+</testcase>
+<testcase name="a folder without a workspace is refused in plain words" classname="workspace.spec.ts" time="0.379">
+</testcase>
+<testcase name="a new workspace is created in the folder named and opened" classname="workspace.spec.ts" time="0.544">
+</testcase>
+<testcase name="the folder field completes the folders of the typed path" classname="workspace.spec.ts" time="0.682">
+</testcase>
+<testcase name="the problems page lists what the check of the workspace finds" classname="workspace.spec.ts" time="1.901">
+</testcase>
+<testcase name="each export writes into the folder named and shows the path written" classname="workspace.spec.ts" time="4.012">
+</testcase>
+<testcase name="an export into missing folders of the repository creates them" classname="workspace.spec.ts" time="2.085">
+</testcase>
+<testcase name="a ReqIF file is checked first and then imported with the delivery named" classname="workspace.spec.ts" time="2.538">
+</testcase>
+<testcase name="the mapping of a file of another tool is chosen on the page, saved, and the file imported with it" classname="workspace.spec.ts" time="2.013">
+</testcase>
+<testcase name="a saved mapping that ReqSeq refuses keeps its choices on the page to change the refused one" classname="workspace.spec.ts" time="0.658">
+</testcase>
+<testcase name="a mapping file this page did not build is not changed here" classname="workspace.spec.ts" time="0.381">
+</testcase>
+<testcase name="the settings show the workspace, its metamodel, the agent setup and the version" classname="workspace.spec.ts" time="1.295">
+</testcase>
+<testcase name="the pages of the area have no WCAG 2.1 AA violations (light)" classname="workspace.spec.ts" time="3.534">
+</testcase>
+<testcase name="the pages of the area have no WCAG 2.1 AA violations (dark)" classname="workspace.spec.ts" time="3.47">
+</testcase>
+<testcase name="on a phone the pages of the area fit the width" classname="workspace.spec.ts" time="0.497">
+</testcase>
+</testsuite>
+<testsuite name="guide-animation.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="guide" tests="2" failures="0" skipped="1" time="0.105" errors="0">
+<testcase name="the README shows the committed animation, and it takes at most 30 s once through" classname="guide-animation.spec.ts" time="0.01">
 </testcase>
 <testcase name="the README animation: the web UI on spec/, a list narrowed, sorted and grouped, ending in a trace graph" classname="guide-animation.spec.ts">
 <properties>
@@ -217,16 +225,16 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="guide-images.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="guide" tests="3" failures="0" skipped="0" time="3.762" errors="0">
-<testcase name="screenshots of Get started and of writing a text, on the workspace the steps of Get started create" classname="guide-images.spec.ts" time="2.667">
+<testsuite name="guide-images.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="guide" tests="3" failures="0" skipped="0" time="3.148" errors="0">
+<testcase name="screenshots of Get started and of writing a text, on the workspace the steps of Get started create" classname="guide-images.spec.ts" time="2.337">
 </testcase>
-<testcase name="screenshot of the trace matrix" classname="guide-images.spec.ts" time="0.395">
+<testcase name="screenshot of the trace matrix" classname="guide-images.spec.ts" time="0.325">
 </testcase>
-<testcase name="screenshots of the verification: the evidence of a failed requirement and the trace graph of a need" classname="guide-images.spec.ts" time="0.7">
+<testcase name="screenshots of the verification: the evidence of a failed requirement and the trace graph of a need" classname="guide-images.spec.ts" time="0.486">
 </testcase>
 </testsuite>
-<testsuite name="changes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="7" failures="0" skipped="1" time="9.853" errors="0">
-<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="0.723">
+<testsuite name="changes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="7" failures="0" skipped="1" time="8.035" errors="0">
+<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="0.55">
 </testcase>
 <testcase name="another baseline can be chosen" classname="changes.spec.ts">
 <properties>
@@ -236,115 +244,123 @@
 <skipped>
 </skipped>
 </testcase>
-<testcase name="the difference of a changed element shows the old and the new wording word by word" classname="changes.spec.ts" time="1.283">
+<testcase name="the difference of a changed element shows the old and the new wording word by word" classname="changes.spec.ts" time="1.034">
 </testcase>
-<testcase name="Approve is offered only where a type has one status to approve" classname="changes.spec.ts" time="1.137">
+<testcase name="Approve is offered only where a type has one status to approve" classname="changes.spec.ts" time="0.787">
 </testcase>
-<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="0.493">
+<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="0.382">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="3.044">
+<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="2.588">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="3.12">
-</testcase>
-</testsuite>
-<testsuite name="edit.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="10" failures="0" skipped="0" time="16.877" errors="0">
-<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="2.643">
-</testcase>
-<testcase name="an element created in the form is known to the other pages at once" classname="edit.spec.ts" time="0.796">
-</testcase>
-<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="1.051">
-</testcase>
-<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="1.04">
-</testcase>
-<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="6.214">
-</testcase>
-<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="1.648">
-</testcase>
-<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="0.722">
-</testcase>
-<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="1.225">
-</testcase>
-<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="0.8">
-</testcase>
-<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="0.738">
+<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="2.633">
 </testcase>
 </testsuite>
-<testsuite name="element.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="4" failures="0" skipped="0" time="3.648" errors="0">
-<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="0.75">
+<testsuite name="edit.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="10" failures="0" skipped="0" time="15.601" errors="0">
+<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="2.253">
 </testcase>
-<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="1.265">
+<testcase name="an element created in the form is known to the other pages at once" classname="edit.spec.ts" time="0.606">
 </testcase>
-<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.424">
+<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="1.038">
 </testcase>
-<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="1.209">
+<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="0.965">
 </testcase>
-</testsuite>
-<testsuite name="evidence.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="3" failures="0" skipped="0" time="1.651" errors="0">
-<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="0.588">
+<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="6.178">
 </testcase>
-<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="0.567">
+<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="1.649">
 </testcase>
-<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="0.496">
+<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="0.613">
 </testcase>
-</testsuite>
-<testsuite name="lists.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="12" failures="0" skipped="0" time="14.159" errors="0">
-<testcase name="every list opens without errors" classname="lists.spec.ts" time="0.992">
+<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="1.011">
 </testcase>
-<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="0.68">
+<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="0.718">
 </testcase>
-<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="0.649">
-</testcase>
-<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="1.124">
-</testcase>
-<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="1.025">
-</testcase>
-<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="0.5">
-</testcase>
-<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.329">
-</testcase>
-<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="1.062">
-</testcase>
-<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="0.821">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="3.314">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="3.251">
-</testcase>
-<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="0.412">
+<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="0.57">
 </testcase>
 </testsuite>
-<testsuite name="overview.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="3" failures="0" skipped="0" time="2.001" errors="0">
-<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="0.557">
+<testsuite name="element.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="6" failures="0" skipped="0" time="4.267" errors="0">
+<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="0.636">
 </testcase>
-<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="1.005">
+<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="0.774">
 </testcase>
-<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.439">
+<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.364">
 </testcase>
-</testsuite>
-<testsuite name="routes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="4" failures="0" skipped="0" time="12.053" errors="0">
-<testcase name="every page opens without errors" classname="routes.spec.ts" time="1.404">
+<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="1.149">
 </testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="5.304">
+<testcase name="each acceptance criterion shows its own verification status" classname="element.spec.ts" time="0.375">
 </testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="4.908">
-</testcase>
-<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.437">
+<testcase name="the problems of an element stand on its page, several of one kind in one row that opens" classname="element.spec.ts" time="0.969">
 </testcase>
 </testsuite>
-<testsuite name="trace.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="orbit" tests="5" failures="0" skipped="0" time="11.605" errors="0">
-<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="0.607">
+<testsuite name="evidence.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="3" failures="0" skipped="0" time="1.542" errors="0">
+<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="0.549">
 </testcase>
-<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="0.365">
+<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="0.484">
 </testcase>
-<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="0.611">
-</testcase>
-<testcase name="a variant shows what it adds, replaces and excludes, and a core requirement can be excluded and included again" classname="trace.spec.ts" time="0.732">
-</testcase>
-<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="9.29">
+<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="0.509">
 </testcase>
 </testsuite>
-<testsuite name="changes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="7" failures="0" skipped="3" time="4.043" errors="0">
-<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="0.417">
+<testsuite name="lists.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="12" failures="0" skipped="0" time="12.048" errors="0">
+<testcase name="every list opens without errors" classname="lists.spec.ts" time="0.81">
+</testcase>
+<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="0.606">
+</testcase>
+<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="0.488">
+</testcase>
+<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="0.995">
+</testcase>
+<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="0.926">
+</testcase>
+<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="0.482">
+</testcase>
+<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.274">
+</testcase>
+<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="0.958">
+</testcase>
+<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="0.752">
+</testcase>
+<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="2.812">
+</testcase>
+<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="2.673">
+</testcase>
+<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="0.272">
+</testcase>
+</testsuite>
+<testsuite name="overview.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="4" failures="0" skipped="0" time="2.04" errors="0">
+<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="0.49">
+</testcase>
+<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="0.843">
+</testcase>
+<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.313">
+</testcase>
+<testcase name="the overview counts the changes since the newest baseline and opens their list" classname="overview.spec.ts" time="0.394">
+</testcase>
+</testsuite>
+<testsuite name="routes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="5" failures="0" skipped="0" time="10.818" errors="0">
+<testcase name="every page opens without errors" classname="routes.spec.ts" time="1.271">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="4.421">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="4.214">
+</testcase>
+<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.313">
+</testcase>
+<testcase name="the frame pages fit the window, so the window itself does not scroll" classname="routes.spec.ts" time="0.599">
+</testcase>
+</testsuite>
+<testsuite name="trace.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="orbit" tests="5" failures="0" skipped="0" time="9.956" errors="0">
+<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="0.563">
+</testcase>
+<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="0.338">
+</testcase>
+<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="0.414">
+</testcase>
+<testcase name="a variant shows what it adds, replaces and excludes, and a core requirement can be excluded and included again" classname="trace.spec.ts" time="0.701">
+</testcase>
+<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="7.94">
+</testcase>
+</testsuite>
+<testsuite name="changes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="7" failures="0" skipped="3" time="3.02" errors="0">
+<testcase name="the list names every element that changed since the newest baseline" classname="changes.spec.ts" time="0.341">
 </testcase>
 <testcase name="another baseline can be chosen" classname="changes.spec.ts">
 <properties>
@@ -370,15 +386,15 @@
 <skipped>
 </skipped>
 </testcase>
-<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="0.277">
+<testcase name="the check before a baseline shows what ReqSeq checks before a baseline" classname="changes.spec.ts" time="0.25">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="1.666">
+<testcase name="the review pages have no WCAG 2.1 AA violations (light)" classname="changes.spec.ts" time="1.214">
 </testcase>
-<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="1.519">
+<testcase name="the review pages have no WCAG 2.1 AA violations (dark)" classname="changes.spec.ts" time="1.081">
 </testcase>
 </testsuite>
-<testsuite name="edit.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="10" failures="0" skipped="1" time="15.296" errors="0">
-<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="1.927">
+<testsuite name="edit.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="10" failures="0" skipped="1" time="12.182" errors="0">
+<testcase name="a new requirement gets a value in every property its type has, its relations and the next identifier" classname="edit.spec.ts" time="1.835">
 </testcase>
 <testcase name="an element created in the form is known to the other pages at once" classname="edit.spec.ts">
 <properties>
@@ -388,91 +404,99 @@
 <skipped>
 </skipped>
 </testcase>
-<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="1.033">
+<testcase name="editing saves only what changed, on the file it was opened on, and never the status" classname="edit.spec.ts" time="0.557">
 </testcase>
-<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="1.021">
+<testcase name="editing sends only a changed choice and a swapped relation, and keeps line breaks of a plain text" classname="edit.spec.ts" time="0.893">
 </testcase>
-<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="6.273">
+<testcase name="an open search keeps its hits when the workspace changes while it is open" classname="edit.spec.ts" time="4.432">
 </testcase>
-<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="2.316">
+<testcase name="typed text stays when the workspace changes, and a change of the same file elsewhere stops the save" classname="edit.spec.ts" time="2.031">
 </testcase>
-<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="0.642">
+<testcase name="leaving a form with typed text asks first" classname="edit.spec.ts" time="0.57">
 </testcase>
-<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="0.844">
+<testcase name="typing [[ in a text links an element, and an added image goes into the text and the workspace" classname="edit.spec.ts" time="0.894">
 </testcase>
-<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="0.678">
+<testcase name="an added image shows in the preview and on the element page" classname="edit.spec.ts" time="0.519">
 </testcase>
-<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="0.432">
-</testcase>
-</testsuite>
-<testsuite name="element.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="4" failures="0" skipped="0" time="3.202" errors="0">
-<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="0.54">
-</testcase>
-<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="0.987">
-</testcase>
-<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.475">
-</testcase>
-<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="1.2">
+<testcase name="criteria without a key get their keys from the form" classname="edit.spec.ts" time="0.369">
 </testcase>
 </testsuite>
-<testsuite name="evidence.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="3" failures="0" skipped="0" time="2.293" errors="0">
-<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="0.754">
+<testsuite name="element.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="6" failures="0" skipped="0" time="3.957" errors="0">
+<testcase name="a requirement shows its trace, text and criteria" classname="element.spec.ts" time="0.461">
 </testcase>
-<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="0.989">
+<testcase name="following a relation opens the related element, which lists the first one as pointing to it" classname="element.spec.ts" time="0.765">
 </testcase>
-<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="0.55">
+<testcase name="an unknown element says so in plain words" classname="element.spec.ts" time="0.254">
 </testcase>
-</testsuite>
-<testsuite name="lists.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="12" failures="0" skipped="0" time="13.349" errors="0">
-<testcase name="every list opens without errors" classname="lists.spec.ts" time="0.822">
+<testcase name="element text is Markdown: a reference to another element opens it, and no markup of the text runs" classname="element.spec.ts" time="1.094">
 </testcase>
-<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="0.575">
+<testcase name="each acceptance criterion shows its own verification status" classname="element.spec.ts" time="0.269">
 </testcase>
-<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="0.577">
-</testcase>
-<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="1.28">
-</testcase>
-<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="1.166">
-</testcase>
-<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="0.583">
-</testcase>
-<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.338">
-</testcase>
-<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="1.03">
-</testcase>
-<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="0.856">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="2.892">
-</testcase>
-<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="2.925">
-</testcase>
-<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="0.305">
+<testcase name="the problems of an element stand on its page, several of one kind in one row that opens" classname="element.spec.ts" time="1.114">
 </testcase>
 </testsuite>
-<testsuite name="overview.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="3" failures="0" skipped="0" time="1.836" errors="0">
-<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="0.481">
+<testsuite name="evidence.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="3" failures="0" skipped="0" time="1.201" errors="0">
+<testcase name="the evidence page shows each criterion with its test cases as ReqSeq lays them out" classname="evidence.spec.ts" time="0.434">
 </testcase>
-<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="0.947">
+<testcase name="a check recorded on the page is written by ReqSeq and shown" classname="evidence.spec.ts" time="0.368">
 </testcase>
-<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.408">
-</testcase>
-</testsuite>
-<testsuite name="routes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="4" failures="0" skipped="0" time="9.274" errors="0">
-<testcase name="every page opens without errors" classname="routes.spec.ts" time="1.117">
-</testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="3.898">
-</testcase>
-<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="3.897">
-</testcase>
-<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.362">
+<testcase name="ReqSeq&apos;s refusal of a record is shown on the form" classname="evidence.spec.ts" time="0.399">
 </testcase>
 </testsuite>
-<testsuite name="trace.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="no-identifier" tests="5" failures="0" skipped="1" time="9.459" errors="0">
-<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="0.546">
+<testsuite name="lists.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="12" failures="0" skipped="0" time="11.438" errors="0">
+<testcase name="every list opens without errors" classname="lists.spec.ts" time="1.177">
 </testcase>
-<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="0.367">
+<testcase name="a type lists its elements, and a facet narrows them by ReqSeq&apos;s counts" classname="lists.spec.ts" time="0.569">
 </testcase>
-<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="0.465">
+<testcase name="a list sorts and groups as element.list does" classname="lists.spec.ts" time="0.465">
+</testcase>
+<testcase name="a list is saved as a filter, renamed and deleted" classname="lists.spec.ts" time="0.87">
+</testcase>
+<testcase name="a perspective keeps the grouping, and its changes are saved into it" classname="lists.spec.ts" time="0.774">
+</testcase>
+<testcase name="a perspective lists in its own sort, over the sort of its filter" classname="lists.spec.ts" time="0.429">
+</testcase>
+<testcase name="an unknown list goes to all elements" classname="lists.spec.ts" time="0.265">
+</testcase>
+<testcase name="the search finds elements by their words, and a row leads back to the search" classname="lists.spec.ts" time="0.954">
+</testcase>
+<testcase name="the finder opens a list or an element from any page" classname="lists.spec.ts" time="0.694">
+</testcase>
+<testcase name="the lists have no WCAG 2.1 AA violations (light)" classname="lists.spec.ts" time="2.399">
+</testcase>
+<testcase name="the lists have no WCAG 2.1 AA violations (dark)" classname="lists.spec.ts" time="2.59">
+</testcase>
+<testcase name="a phone shows the facets above the list without a side scroll" classname="lists.spec.ts" time="0.252">
+</testcase>
+</testsuite>
+<testsuite name="overview.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="4" failures="0" skipped="0" time="1.758" errors="0">
+<testcase name="the overview shows the open work as ReqSeq counts it" classname="overview.spec.ts" time="0.328">
+</testcase>
+<testcase name="a queue lists its elements, and a row opens the element with the way back" classname="overview.spec.ts" time="0.827">
+</testcase>
+<testcase name="the overview links each group to its whole queue" classname="overview.spec.ts" time="0.326">
+</testcase>
+<testcase name="the overview counts the changes since the newest baseline and opens their list" classname="overview.spec.ts" time="0.277">
+</testcase>
+</testsuite>
+<testsuite name="routes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="5" failures="0" skipped="0" time="8.544" errors="0">
+<testcase name="every page opens without errors" classname="routes.spec.ts" time="0.952">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (light)" classname="routes.spec.ts" time="3.523">
+</testcase>
+<testcase name="the pages have no WCAG 2.1 AA violations (dark)" classname="routes.spec.ts" time="3.249">
+</testcase>
+<testcase name="a phone shows the menu instead of the rail" classname="routes.spec.ts" time="0.35">
+</testcase>
+<testcase name="the frame pages fit the window, so the window itself does not scroll" classname="routes.spec.ts" time="0.47">
+</testcase>
+</testsuite>
+<testsuite name="trace.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="no-identifier" tests="5" failures="0" skipped="1" time="8.233" errors="0">
+<testcase name="the trace graph shows the nodes ReqSeq gives, and a node centres the graph on it" classname="trace.spec.ts" time="0.494">
+</testcase>
+<testcase name="the impact page lists what a change can affect, nearest first" classname="trace.spec.ts" time="0.247">
+</testcase>
+<testcase name="the trace matrix has a row per element and a column per relation, as ReqSeq gives them" classname="trace.spec.ts" time="0.354">
 </testcase>
 <testcase name="a variant shows what it adds, replaces and excludes, and a core requirement can be excluded and included again" classname="trace.spec.ts">
 <properties>
@@ -482,85 +506,85 @@
 <skipped>
 </skipped>
 </testcase>
-<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="8.022">
+<testcase name="the pages of the trace open without errors and have no WCAG 2.1 AA violations" classname="trace.spec.ts" time="7.088">
 </testcase>
 </testsuite>
-<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="0.541" errors="0">
-<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="0.541"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="0.495" errors="0">
+<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="0.495"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="2" failures="0" skipped="0" time="5.037" errors="0">
-<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="1.822"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="2" failures="0" skipped="0" time="3.807" errors="0">
+<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="1.322"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
-<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="3.215"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
-</testcase>
-</testsuite>
-<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="1.022" errors="0">
-<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="1.022"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="2.485"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="5.739" errors="0">
-<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="5.739"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="0.664" errors="0">
+<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="0.664"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="29.538" errors="0">
-<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="29.538"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="4.369" errors="0">
+<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="4.369"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="5.048" errors="0">
-<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="5.048"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="23.25" errors="0">
+<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="23.25"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="4.95" errors="0">
-<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="4.95"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-chromium" tests="1" failures="0" skipped="0" time="4.944" errors="0">
+<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="4.944"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="2" failures="0" skipped="0" time="7.608" errors="0">
-<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="3.871"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
-</testcase>
-<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="3.737"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="3.449" errors="0">
+<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="3.449"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="1.639" errors="0">
-<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="1.639"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="2" failures="0" skipped="0" time="6.092" errors="0">
+<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="3.022"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
+</testcase>
+<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="3.07"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="7.637" errors="0">
-<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="7.637"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="1.457" errors="0">
+<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="1.457"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="32.929" errors="0">
-<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="32.929"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="5.591" errors="0">
+<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="5.591"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="9.241" errors="0">
-<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="9.241"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="24.058" errors="0">
+<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="24.058"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="3.616" errors="0">
-<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="3.616"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-firefox" tests="1" failures="0" skipped="0" time="7.33" errors="0">
+<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="7.33"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="2" failures="0" skipped="0" time="6.621" errors="0">
-<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="2.933"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
-</testcase>
-<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="3.688"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-commands.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="7.83" errors="0">
+<testcase name="[SR-248/AK-r5tz] the pages show the values and the order of the commands&apos; outputs, not of the files" classname="contract-commands.spec.ts" time="7.83"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:r5tz"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="1.894" errors="0">
-<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="1.894"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-content.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="2" failures="0" skipped="0" time="8.3" errors="0">
+<testcase name="[SR-248/AK-zh0f] hostile element content is shown as text: nothing runs, nothing loads from elsewhere" classname="contract-content.spec.ts" time="4.75"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:zh0f"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
+</testcase>
+<testcase name="[SR-078/AK-wx9y] the server and its pages make no connection to another machine, also for an element that names one" classname="contract-content.spec.ts" time="3.55"><properties><property name="reqseq:element" value="6adc6d93-4684-4379-941d-21bd583ceb09"/><property name="reqseq:version" value="n2:bbef4dd74b316b9b"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d93-4684-4379-941d-21bd583ceb09:wx9y"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="6.463" errors="0">
-<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="6.463"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-paths.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="1.269" errors="0">
+<testcase name="[SR-248/AK-nyy5] a local path outside the repositories is refused as over the API, except to open or create a workspace" classname="contract-paths.spec.ts" time="1.269"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:nyy5"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="27.257" errors="0">
-<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="27.257"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-processes.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="4.877" errors="0">
+<testcase name="[SR-248/AK-spzg] programs and workspace files only in a command, the open of the workspace or the watcher" classname="contract-processes.spec.ts" time="4.877"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:spzg"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
-<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T13:58:06.230Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="8.263" errors="0">
-<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="8.263"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@a6730d67d61cd55d4a95a0ad2deb0089617885f5 (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T13:56:17Z"/></properties>
+<testsuite name="contract-queries.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="23.386" errors="0">
+<testcase name="[SR-080/AK-hn1m] every value the web UI shows is the output of a command the CLI and the MCP server give alike" classname="contract-queries.spec.ts" time="23.386"><properties><property name="reqseq:element" value="6adc6d95-a7d2-45da-bc70-c756ee97912a"/><property name="reqseq:version" value="n2:4af220019a676a3c"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="6adc6d95-a7d2-45da-bc70-c756ee97912a:hn1m"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
+</testcase>
+</testsuite>
+<testsuite name="contract-status.spec.ts" timestamp="2026-11-23T17:09:25.726Z" hostname="contract-webkit" tests="1" failures="0" skipped="0" time="7.468" errors="0">
+<testcase name="[SR-248/AK-xgr3] a status is set only by a confirmation that names the element and the status" classname="contract-status.spec.ts" time="7.468"><properties><property name="reqseq:element" value="cd3df710-44f4-429c-b238-eed1b58f6212"/><property name="reqseq:version" value="n2:267f62a6a7b8568e"/><property name="reqseq:variant" value="core"/><property name="reqseq:variant" value="9a7c2fca-3edf-43ab-8b68-7771b9666d08"/><property name="reqseq:criterion" value="cd3df710-44f4-429c-b238-eed1b58f6212:xgr3"/><property name="reqseq:item" value="main@ac69aa86e2110b81d471bfda88da0eb9b9b56d8e (ubuntu-24.04)"/><property name="reqseq:date" value="2026-11-23T17:00:29Z"/></properties>
 </testcase>
 </testsuite>
 </testsuites>
