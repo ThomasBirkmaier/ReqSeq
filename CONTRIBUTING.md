@@ -18,4 +18,16 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
+## New catalog command
+
+Besides `schemas/commands/<name>.json`, its line in `catalog.header.json` and its implementation in `packages/core/src/commands/` (listed in `index.ts`), a new command needs an entry in these registries, which tests and checks read:
+
+- `SCENARIOS` in `packages/core/src/commands/scenarios.test-helper.ts`: the calls the answer test and the tests of the product rules (no delete, no status change, Git read-only) run; a write command also needs its scenarios in `packages/core/src/commands/no-delete.test.ts`.
+- The subject of its access in `packages/core/src/model/activity.test.ts` (SR-117).
+- An example input in `schemas/examples/commands/<name>.json`, or a reason in `WITHOUT_EXAMPLE` of `packages/docs/src/command-examples.ts`.
+- Each integer output field that counts no elements in `NOT_ELEMENT_COUNTS` of `scripts/contracts/output-checks.mjs`, with its reason; one that counts elements is marked `x-elements` (SR-224 AK4).
+- Its cross-access scenarios in `packages/cli/test/cross-access/scenarios/<group>/<command>.ts`.
+
+Then run `pnpm contracts:generate`.
+
 References of the form `ThomasBirkmaier/ReqSeq-archive#N` point to issues and pull requests of an earlier repository that is not public.

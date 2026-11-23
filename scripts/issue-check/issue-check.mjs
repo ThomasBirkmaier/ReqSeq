@@ -3,13 +3,15 @@
 // with the SR lines of its sub-issues, and with the acceptance criteria of the SRs a spec PR added or
 // changed. It reports every acceptance criterion of the epic that no sub-issue carries, every one a
 // sub-issue carries that the epic does not name, every one of a required SR that no sub-issue carries,
-// and every number that the SR in spec/ does not have. The reading of the issues against the concept
+// and every number that the SR in spec/ does not have. A cut without an epic is checked by its issues
+// (`--issue`, #2428): every criterion of a required SR is in one of them, and no number is beyond spec/. The reading of the issues against the concept
 // and the approved wording stays with the agent that runs the check.
 //
 // An SR line reads `SR: SR-210 (AK1–AK7), SR-139 (AK6)` (CLAUDE.md, Issues): numbers and ranges with
 // `-` or `–`; an SR without parentheses stands for all of its criteria.
 //
 // Usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]...
+//        node scripts/issue-check/issue-check.mjs --issue <n> [--issue <n>]... --require "SR-250 (AK3)"...
 // --require may repeat, its lists are joined. It names what the spec PR added or changed: an SR alone for all its criteria (a new SR),
 // an SR with criteria for those only.
 // Reads the issues with `gh api` (REST) and spec/ from the working directory; exits with 1 on a gap.
@@ -89,25 +91,28 @@ function pushMissing(problems, from, to, message) {
 
 /**
  * Compares the epic with its sub-issues and the required SRs. `counts` maps an SR to the number of
- * its acceptance criteria in spec/. Returns one line per gap.
+ * its acceptance criteria in spec/. Without an epic, `subs` are the issues of the cut and only the
+ * required SRs and spec/ are compared with them. Returns one line per gap.
  */
 export function checkIssues({ epic, subs, required = new Map(), counts }) {
   const problems = [];
   const unreadable = [];
   const union = unionOf(subs, counts, unreadable);
-  const named = unionOf([epic], counts, unreadable);
-  pushMissing(
-    problems,
-    named,
-    union,
-    (sr, l) => `#${epic.number} names ${sr} ${l}, but no sub-issue carries it`,
-  );
-  pushMissing(
-    problems,
-    union,
-    named,
-    (sr, l) => `a sub-issue carries ${sr} ${l}, but #${epic.number} does not name it`,
-  );
+  if (epic !== undefined) {
+    const named = unionOf([epic], counts, unreadable);
+    pushMissing(
+      problems,
+      named,
+      union,
+      (sr, l) => `#${epic.number} names ${sr} ${l}, but no sub-issue carries it`,
+    );
+    pushMissing(
+      problems,
+      union,
+      named,
+      (sr, l) => `a sub-issue carries ${sr} ${l}, but #${epic.number} does not name it`,
+    );
+  }
   const known = new Map(
     [...required].filter(([sr]) => counts.has(sr)).map(([sr, e]) => [sr, numbersOf(e, sr, counts)]),
   );
@@ -116,8 +121,9 @@ export function checkIssues({ epic, subs, required = new Map(), counts }) {
       problems.push(`${sr} is not in spec/`);
     }
   }
-  pushMissing(problems, known, union, (sr, l) => `${sr} ${l} is in no sub-issue`);
-  for (const [sr, numbers] of unionOf([epic, ...subs], counts, [])) {
+  const where = epic === undefined ? "issue" : "sub-issue";
+  pushMissing(problems, known, union, (sr, l) => `${sr} ${l} is in no ${where}`);
+  for (const [sr, numbers] of unionOf(epic === undefined ? subs : [epic, ...subs], counts, [])) {
     const beyond = [...numbers].filter((n) => counts.has(sr) && n > counts.get(sr));
     if (beyond.length > 0) {
       problems.push(`${sr} has ${counts.get(sr)} criteria in spec/, not ${list(beyond)}`);
@@ -142,15 +148,27 @@ export function criterionCounts(specDir) {
   return new Map([...readSpec(specDir).srs].map(([id, sr]) => [id, sr.criteria.length]));
 }
 
-/** Runs the check for an epic; `api` and `counts` are replaceable for tests. */
+/** Runs the check for an epic, or for `issueNumbers` without one; `api` and `counts` are replaceable for tests. */
 export function run({
   epicNumber,
+  issueNumbers = [],
   required,
   specDir,
   api = ghApi,
   counts = criterionCounts(specDir),
   repo = "ThomasBirkmaier/ReqSeq",
 }) {
+  if (epicNumber === undefined) {
+    const issues = issueNumbers.map((n) => api(`repos/${repo}/issues/${n}`));
+    const problems = checkIssues({ subs: issues, required, counts });
+    return {
+      problems,
+      lines: [
+        `issues ${issues.map((i) => `#${i.number}`).join(", ")}`,
+        ...(problems.length > 0 ? problems : ["every criterion is in an issue"]),
+      ],
+    };
+  }
   const epic = api(`repos/${repo}/issues/${epicNumber}`);
   const subs = api(`repos/${repo}/issues/${epicNumber}/sub_issues?per_page=100`);
   const problems = checkIssues({ epic, subs, required, counts });
@@ -164,44 +182,80 @@ export function run({
   };
 }
 
+const FLAGS = new Set(["--epic", "--issue", "--require"]);
+const NUMBER = /^#?([1-9]\d*)$/;
+
+/** Joins the criteria of `entries` into `required`: `all` wins, sets are joined. */
+function addRequired(required, entries) {
+  for (const [sr, entry] of entries) {
+    const before = required.get(sr);
+    required.set(sr, before === ALL || entry === ALL ? ALL : new Set([...(before ?? []), ...entry]));
+  }
+}
+
+/** The error of a complete set of arguments, or undefined. */
+function argsError({ epicNumber, issueNumbers, required, unreadable }) {
+  if (unreadable.length > 0) {
+    return `cannot read ${unreadable.join(", ")} in --require`;
+  }
+  if (issueNumbers.length > 0 && epicNumber !== undefined) {
+    return "--issue checks a cut without an epic; give --epic or --issue";
+  }
+  if (issueNumbers.length > 0 && required.size === 0) {
+    return "--issue needs --require";
+  }
+  return undefined;
+}
+
 /**
- * Reads `--epic <n>` and `--require <list>` from the arguments. The list has the format of an SR
- * line, `SR-210, SR-061 (AK2)`: an SR alone requires all its criteria. Every --require counts, the
- * criteria of an SR named twice are joined; --epic is given at most once (#1830). Returns `error` for
- * an unknown argument, a repeated --epic, a flag without a value, or a part it cannot read.
+ * Reads `--epic <n>`, `--issue <n>` and `--require <list>` from the arguments. The list has the format
+ * of an SR line, `SR-210, SR-061 (AK2)`: an SR alone requires all its criteria. Every --require counts,
+ * the criteria of an SR named twice are joined; --epic is given at most once (#1830). --issue may
+ * repeat, for a cut without an epic (#2428); it takes no --epic and needs a --require, the only list it
+ * is checked against. Returns `error` for an unknown argument, a repeated --epic, a flag without a
+ * value, an issue number that is no number, --epic with --issue, --issue without --require, or a part
+ * it cannot read.
  */
 export function parseArgs(argv) {
   const required = new Map();
   const unreadable = [];
+  const issueNumbers = [];
   let epicNumber;
+  const result = (error) => ({ epicNumber, issueNumbers, required, error });
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
-    if (flag !== "--epic" && flag !== "--require") {
-      return { epicNumber, required, error: `unknown argument ${flag}` };
+    if (!FLAGS.has(flag)) {
+      return result(`unknown argument ${flag}`);
     }
     const value = argv[(i += 1)];
-    if (value === undefined || value.trim() === "" || value === "--epic" || value === "--require") {
-      return { epicNumber, required, error: `${flag} needs a value` };
+    if (value === undefined || value.trim() === "" || FLAGS.has(value)) {
+      return result(`${flag} needs a value`);
     }
     if (flag === "--epic") {
       if (epicNumber !== undefined) {
-        return { epicNumber, required, error: "--epic given twice" };
+        return result("--epic given twice");
       }
       epicNumber = Number(value);
       continue;
     }
-    for (const [sr, entry] of parseSrLine(value, unreadable)) {
-      const before = required.get(sr);
-      required.set(sr, before === ALL || entry === ALL ? ALL : new Set([...(before ?? []), ...entry]));
+    if (flag === "--issue") {
+      const number = Number(value.trim().match(NUMBER)?.[1]);
+      if (Number.isNaN(number)) {
+        return result(`--issue needs an issue number, not ${value}`);
+      }
+      issueNumbers.push(...(issueNumbers.includes(number) ? [] : [number]));
+      continue;
     }
+    addRequired(required, parseSrLine(value, unreadable));
   }
-  if (unreadable.length > 0) {
-    return { epicNumber, required, error: `cannot read ${unreadable.join(", ")} in --require` };
-  }
-  return { epicNumber, required };
+  const error = argsError({ epicNumber, issueNumbers, required, unreadable });
+  return error === undefined ? { epicNumber, issueNumbers, required } : result(error);
 }
 
-const USAGE = 'usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]';
+const USAGE = [
+  'usage: node scripts/issue-check/issue-check.mjs --epic <n> [--require "SR-210, SR-061 (AK2)"]...',
+  '       node scripts/issue-check/issue-check.mjs --issue <n> [--issue <n>]... --require "SR-250 (AK3)"...',
+].join("\n");
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   // Help on request, with exit 0 (#1831).
@@ -209,12 +263,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     console.log(USAGE);
     process.exit(0);
   }
-  const { epicNumber, required, error } = parseArgs(process.argv.slice(2));
-  if (error !== undefined || !Number.isInteger(epicNumber)) {
+  const { epicNumber, issueNumbers, required, error } = parseArgs(process.argv.slice(2));
+  if (error !== undefined || (issueNumbers.length === 0 && !Number.isInteger(epicNumber))) {
     console.error(error ?? USAGE);
     process.exit(2);
   }
-  const { lines, problems } = run({ epicNumber, required, specDir: path.join(process.cwd(), "spec") });
+  const specDir = path.join(process.cwd(), "spec");
+  const { lines, problems } = run({ epicNumber, issueNumbers, required, specDir });
   console.log(lines.join("\n"));
   process.exit(problems.length > 0 ? 1 : 0);
 }
