@@ -199,6 +199,9 @@ test("the problems of an element stand on its page, several of one kind in one r
 }) => {
   const ref = await requirementWithTrace(ui.run);
   const before = await ui.run("element.get", { ref });
+  // The page is open before the change and draws it once, from the server's change event. Opened after the change,
+  // it could get that event only after the row was opened, and that redraw would close the row again (#2490).
+  await open(`/e/${ref}`);
   // Two references outside a link: two warnings of one kind.
   const text = `${before.element.text ?? ""}\n\nSee reqseq:NO-SUCH-ONE and reqseq:NO-SUCH-TWO.`;
   await ui.run("element.update", { ref, text, expectedFileSha256: before.fileSha256 });
@@ -209,7 +212,7 @@ test("the problems of an element stand on its page, several of one kind in one r
     if (several === undefined) {
       throw new Error("The element has no two problems of one kind");
     }
-    await open(`/e/${ref}`);
+    await expect(page.locator("#live")).toContainText("The page is up to date.");
     const rows = page.locator(".card .probs > ul > li");
     // Errors first, one row per kind, as core orders them.
     await expect(rows).toHaveCount(groups.length);
