@@ -36,6 +36,19 @@
   padding: 28px 28px 64px;
   min-height: calc(100vh - 60px);
 }
+/* The decisions on the status and Edit, at the end of the top bar. */
+.el-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 16px;
+}
+.el-acts .edit-link {
+  margin-left: 0;
+}
+.trace-wrap > .notice {
+  margin-bottom: 18px;
+}
 .form {
   max-width: 760px;
   margin: 0 auto;
@@ -324,6 +337,9 @@ svg.links path.warn {
   .topbar {
     padding: 8px 16px;
     gap: 8px;
+  }
+  .el-acts {
+    margin-left: 0;
   }
   .topbar .back span {
     max-width: 70vw;

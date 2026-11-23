@@ -1,6 +1,6 @@
-// The element page (`#/e/<identifier or short ID>`), read only: the element in its trace. What it points to on
-// the left, the element in the centre, what points to it on the right. The way back to the list it was opened
-// from stays in the top bar (`?from=<route>`).
+// The element page (`#/e/<identifier or short ID>`): the element in its trace, and the decisions on its status.
+// What it points to on the left, the element in the centre, what points to it on the right. The way back to the
+// list it was opened from stays in the top bar (`?from=<route>`).
 import "../css/element.css";
 import type {
   DataExportElement,
@@ -39,6 +39,7 @@ import type { Route } from "../router.js";
 import { addRoute, fromOf, hashOf, isCurrent, withFrom } from "../router.js";
 import { el, refOf, shownId, store, verificationOf, viewSelection } from "../store.js";
 import { backOf, elementTabs } from "../element-tabs.js";
+import { decisions, flashBox } from "./changes.js";
 
 type Neighbourhood = Pick<TraceNeighbourhoodOutput, "nodes" | "edges" | "total">;
 
@@ -518,18 +519,24 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
           : h("span", { class: "crumb" }, el(firstPackage.id)?.title ?? firstPackage.title ?? ""),
         [
           elementTabs(e, "e", route.params.get("from")),
-          // The form of the edit area; the way back leads here.
+          // The decisions on its status, each after its confirmation as on the changes since a baseline, and the
+          // form of the edit area, whose way back leads here.
           h(
-            "a",
-            {
-              class: "btn sm edit-link",
-              href: `${hashOf("edit", refOf(e))}?from=${encodeURIComponent(route.hash)}`,
-            },
-            "Edit",
+            "span",
+            { class: "el-acts" },
+            decisions(el(e.id)),
+            h(
+              "a",
+              {
+                class: "btn sm edit-link",
+                href: `${hashOf("edit", refOf(e))}?from=${encodeURIComponent(route.hash)}`,
+              },
+              "Edit",
+            ),
           ),
         ],
       ),
-      h("main", { id: "main", class: "trace-wrap", tabindex: -1 }, trace),
+      h("main", { id: "main", class: "trace-wrap", tabindex: -1 }, flashBox(route), trace),
     ),
     refOf(e),
   );

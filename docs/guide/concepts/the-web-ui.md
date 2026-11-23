@@ -39,7 +39,7 @@ A list narrows by the values on its right, sorts and groups. **Save as filter** 
 
 ## An element
 
-An element's page shows its text, properties and acceptance criteria, its verification status, and the elements it relates to, in both directions. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form.
+An element's page shows its text, properties and acceptance criteria, its verification status, and the elements it relates to, in both directions, with the buttons that set its status. Its tabs show its **Evidence** per acceptance criterion, its **Trace graph** over one or more levels, and its **Impact**: the elements a change of it can affect. **Edit** opens its form.
 
 ## Write
 
@@ -47,7 +47,7 @@ An element's page shows its text, properties and acceptance criteria, its verifi
 
 ## Decide
 
-People set the status of an element, never ReqSeq. **Changes since** (with the name of the baseline) lists what changed since a baseline, word by word; there you approve one or several elements, set a status, supersede an element or change a property of many, each after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
+People set the status of an element, never ReqSeq. An element's page has **Approve**, **Set status** and **Supersede**. **Changes since** (with the name of the baseline) lists what changed since a baseline, word by word; there you approve one or several elements, set a status, supersede an element or change a property of many. Each writes only after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
 
 ## Settings
 
