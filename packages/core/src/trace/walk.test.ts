@@ -317,4 +317,32 @@ describe("cycles of a graph", () => {
     expect(cycle?.elements).toHaveLength(100_000);
     expect(cycle?.edges).toHaveLength(100_000);
   });
+
+  it("gives a walk the cycles that cyclesOf finds in its nodes and edges (#2496)", () => {
+    // Random graphs of 30 elements, from sparse ones (mostly peeled) to dense ones (mostly cycles).
+    let seed = 2496;
+    const next = (bound: number): number => {
+      seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+      return seed % bound;
+    };
+    let found = 0;
+    for (let round = 0; round < 200; round += 1) {
+      const graph: Record<string, string[]> = {};
+      const steps = 1 + (round % 4) * 15;
+      for (let i = 0; i < steps; i += 1) {
+        const from = `N${String(next(30))}`;
+        (graph[from] ??= []).push(`N${String(next(30))}`);
+      }
+      const { r, expand } = graphOf(graph);
+      const result = walk([r("N0"), r("N1")], expand);
+      const expected = cyclesOf(
+        result.nodes.map((n) => n.element),
+        result.edges,
+      );
+      expect(result.cycles).toEqual(expected);
+      expect(result.edges.filter((e) => e.cyclic)).toHaveLength(expected.flatMap((c) => c.edges).length);
+      found += expected.length;
+    }
+    expect(found).toBeGreaterThan(0);
+  });
 });

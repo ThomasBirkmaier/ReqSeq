@@ -140,16 +140,11 @@ interface OpenCycle<G> {
 
 /**
  * A vertex of the graph: an element with the vertices its edges lead to (`out`), the number of
- * edges into it, the fields of Tarjan's algorithm, and for the walk its depth and the edge it was
- * first reached through.
+ * edges into it and the fields of Tarjan's algorithm.
  */
 interface Vertex<G> {
   readonly element: ElementRecord;
-  readonly depth: number;
-  readonly via: G | undefined;
   readonly out: Vertex<G>[];
-  /** The walk asked for its steps. */
-  expanded: boolean;
   /** The edges into it from vertices not peeled yet (`findCycles`). */
   incoming: number;
   /** Visit number; -1 while not visited. */
@@ -160,12 +155,9 @@ interface Vertex<G> {
   cycle: OpenCycle<G> | undefined;
 }
 
-const vertex = <G>(element: ElementRecord, depth: number, via: G | undefined): Vertex<G> => ({
+const vertex = <G>(element: ElementRecord): Vertex<G> => ({
   element,
-  depth,
-  via,
   out: [],
-  expanded: false,
   incoming: 0,
   index: -1,
   low: 0,
@@ -259,8 +251,9 @@ const findCycles = <G>(vertices: readonly Vertex<G>[]): OpenCycle<G>[] => {
 };
 
 /**
- * The cycles of `rest`, vertices whose edges all lead to one of them (what the peel of `findCycles`
- * leaves), with their elements in the order of `rest`; sets `cycle` on each vertex of one.
+ * The cycles of `rest`, vertices whose edges all lead to one of them (what the peel of vertices
+ * without an edge in leaves, `findCycles` and `unpeeled`), with their elements in the order of
+ * `rest`; sets `cycle` on each vertex of one.
  */
 const cyclesAmong = <G>(rest: readonly Vertex<G>[]): OpenCycle<G>[] => {
   findComponents(rest);
@@ -276,19 +269,30 @@ const cyclesAmong = <G>(rest: readonly Vertex<G>[]): OpenCycle<G>[] => {
   return cycles;
 };
 
+/** The edges of `count` elements as positions, grouped by the element they start from. */
+interface PositionEdges {
+  readonly count: number;
+  /** The position each edge starts from, in ascending order (the walk takes them so). */
+  readonly fromAt: readonly number[];
+  /** The position each edge leads to. */
+  readonly toAt: readonly number[];
+}
+
 /**
- * The positions of the reached elements that the peel of `findCycles` leaves, in order, from the
- * edges as positions (`from[e]` to `to[e]`, ordered by `from`, as the walk takes them) of `count`
- * elements: typed arrays instead of a vertex with a list per element (SR-082 AK4, #2496).
+ * The peel of the elements without an edge in (Kahn, as in `findCycles`) on positions: for each
+ * position the number of its edges in from positions not peeled; above 0 for what the peel leaves.
+ * The edges of position `i` are `first[i]` to `first[i + 1] - 1`, which holds because `fromAt` is
+ * ascending. Typed arrays instead of a vertex with a list per element (SR-082 AK4, #2496).
+ * `Number(...)` reads an entry as the number it is: to the compiler an index into an array may be
+ * undefined (`noUncheckedIndexedAccess`), never here.
  */
-const unpeeled = (count: number, from: readonly number[], to: readonly number[]): number[] => {
+const unpeeled = ({ count, fromAt, toAt }: PositionEdges): Int32Array => {
   const incoming = new Int32Array(count);
-  // The edges of position i are first[i] to first[i + 1] - 1.
   const first = new Int32Array(count + 1);
-  for (let e = 0; e < to.length; e += 1) {
-    const target = Number(to[e]);
+  for (let e = 0; e < toAt.length; e += 1) {
+    const target = Number(toAt[e]);
     incoming[target] = Number(incoming[target]) + 1;
-    const after = Number(from[e]) + 1;
+    const after = Number(fromAt[e]) + 1;
     first[after] = Number(first[after]) + 1;
   }
   for (let i = 0; i < count; i += 1) {
@@ -302,7 +306,7 @@ const unpeeled = (count: number, from: readonly number[], to: readonly number[])
   }
   for (let v = peel.pop(); v !== undefined; v = peel.pop()) {
     for (let e = Number(first[v]); e < Number(first[v + 1]); e += 1) {
-      const next = Number(to[e]);
+      const next = Number(toAt[e]);
       const left = Number(incoming[next]) - 1;
       incoming[next] = left;
       if (left === 0) {
@@ -310,38 +314,28 @@ const unpeeled = (count: number, from: readonly number[], to: readonly number[])
       }
     }
   }
-  const rest: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    if (Number(incoming[i]) > 0) {
-      rest.push(i);
-    }
-  }
-  return rest;
+  return incoming;
 };
 
 /**
- * The cycles of the walked graph of `elements` with the edges as positions (`fromAt[e]` to `toAt[e]`):
- * vertices only for what the peel leaves, the cycles and what lies below them, often none.
+ * The cycles of the walked graph of `elements` with its edges as positions: vertices only for what
+ * the peel leaves (the cycles and what lies below them, often none).
  */
-const walkCycles = <G>(
-  elements: readonly ElementRecord[],
-  fromAt: readonly number[],
-  toAt: readonly number[],
-): OpenCycle<G>[] => {
-  const rest = unpeeled(elements.length, fromAt, toAt);
-  if (rest.length === 0) {
-    return [];
-  }
-  const left = new Set(rest);
+const walkCycles = <G>(elements: readonly ElementRecord[], edges: PositionEdges): OpenCycle<G>[] => {
+  const incoming = unpeeled(edges);
   const vertices = new Map<number, Vertex<G>>();
   elements.forEach((element, at) => {
-    if (left.has(at)) {
-      vertices.set(at, vertex<G>(element, 0, undefined));
+    if (Number(incoming[at]) > 0) {
+      vertices.set(at, vertex<G>(element));
     }
   });
-  for (let e = 0; e < fromAt.length; e += 1) {
-    const from = vertices.get(Number(fromAt[e]));
-    const to = vertices.get(Number(toAt[e]));
+  if (vertices.size === 0) {
+    return [];
+  }
+  // Every edge of a vertex leads to a vertex: no edge leads from what the peel leaves to a peeled one.
+  for (let e = 0; e < edges.fromAt.length; e += 1) {
+    const from = vertices.get(Number(edges.fromAt[e]));
+    const to = vertices.get(Number(edges.toAt[e]));
     if (from !== undefined && to !== undefined) {
       link(from, to);
     }
@@ -366,7 +360,7 @@ export const cyclesOf = <G extends GraphEdge<unknown>>(
   const vertices = new Map<ElementRecord, Vertex<G>>();
   for (const element of elements) {
     if (!vertices.has(element)) {
-      vertices.set(element, vertex<G>(element, 0, undefined));
+      vertices.set(element, vertex<G>(element));
     }
   }
   for (const edge of edges) {
@@ -484,7 +478,7 @@ export const walk = <E, L = never>(
   for (const at of wasExpanded) {
     isExpanded[at] = 1;
   }
-  const cycles = walkCycles<OpenEdge<E>>(elements, fromAt, toAt);
+  const cycles = walkCycles<OpenEdge<E>>(elements, { count: elements.length, fromAt, toAt });
   markCycleEdges(cycles, edges);
   const nodes = elements.map((element, at): WalkNode<E, L> => ({
     element,
