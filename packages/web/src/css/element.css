@@ -273,6 +273,64 @@ a.node:hover {
   padding-top: 2px;
   font-variant-numeric: tabular-nums;
 }
+/* What belongs to one entry alone, at the end of its row: the verification status of a criterion. */
+.crit:has(> .crit-end) {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+.crit-end {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 2px;
+}
+/* The problems of the element: errors first, several of one kind folded into one row. */
+.probs ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.probs > ul > li {
+  padding: 8px 0 8px 10px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 3px solid var(--line);
+  font-size: 13.5px;
+  overflow-wrap: break-word;
+}
+.probs > ul > li:first-child {
+  border-top: 0;
+}
+.probs > ul > li[data-severity="error"] {
+  border-left-color: var(--bad);
+}
+.probs > ul > li[data-severity="warning"] {
+  border-left-color: var(--warn-line);
+}
+.probs .sev {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: 8px;
+}
+.probs [data-severity="error"] .sev {
+  color: var(--bad);
+}
+.probs summary {
+  cursor: pointer;
+}
+.probs summary b {
+  margin-left: 8px;
+  color: var(--dim);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.probs details ul {
+  margin-top: 6px;
+}
+.probs details li {
+  padding: 4px 0 4px 14px;
+  color: var(--dim);
+}
 .pdl {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -357,8 +415,12 @@ svg.links path.warn {
   .card {
     padding: 22px 18px;
   }
-  .crit {
+  .crit,
+  .crit:has(> .crit-end) {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: 8px;
+  }
+  .crit-end {
+    grid-column: 2;
   }
 }

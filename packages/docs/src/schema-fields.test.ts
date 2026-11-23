@@ -103,6 +103,29 @@ describe("schema fields", () => {
     ]);
   });
 
+  it("lists the fields of the objects a map holds under any key, below the map", () => {
+    const schema = {
+      properties: {
+        repositories: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            required: ["path"],
+            properties: { path: { type: "string", description: "Where it lies." } },
+          },
+        },
+        env: { type: "object", additionalProperties: { type: "string" } },
+        closed: { type: "object", additionalProperties: false },
+      },
+    };
+    expect(fieldRows(schema, context).map((row) => [row.field, row.required, row.description])).toEqual([
+      ["repositories", false, ""],
+      ["repositories.*.path", true, "Where it lies."],
+      ["env", false, ""],
+      ["closed", false, ""],
+    ]);
+  });
+
   it("names each field without a text by its table, a default alone or white space included", () => {
     const schema = {
       properties: {

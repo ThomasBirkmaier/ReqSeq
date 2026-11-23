@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verificationLabel } from "./verification.js";
+import { criterionStatuses, verificationLabel } from "./verification.js";
 
 describe("verificationLabel", () => {
   it("words the status alone without counted criteria, in both forms", () => {
@@ -21,5 +21,17 @@ describe("verificationLabel", () => {
     expect(verificationLabel({ status: "verified", criteria: { verified: 3, total: 3 } }, "long")).toBe(
       "verified, 3 of 3 criteria",
     );
+  });
+});
+
+describe("criterionStatuses", () => {
+  it("gives each criterion the status of its verification row, and open where no record bears on it (#2234)", () => {
+    const rows = [
+      { kind: "verification" as const, criterion: 2, status: "failed" as const },
+      { kind: "validation" as const, criterion: 1, status: "validated" as const },
+      { kind: "verification" as const, criterion: 1, status: "verified" as const },
+    ];
+    expect(criterionStatuses(rows, 3)).toEqual(["verified", "failed", "open"]);
+    expect(criterionStatuses([], 2)).toEqual(["open", "open"]);
   });
 });
