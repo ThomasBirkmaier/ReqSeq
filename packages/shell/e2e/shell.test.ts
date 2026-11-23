@@ -575,7 +575,14 @@ describe.skipIf(windowsRecording === "skip")(
             .map((w) => w.path ?? ""),
         ),
       ];
-      expect(written.length).toBeGreaterThan(0);
+      // The tree may write no file outside the engine's data folder; the control is that the read-back finds the
+      // token in a file that holds it, as UTF-8 and as UTF-16.
+      const probe = path.join(ws?.root ?? "", "token-control");
+      for (const encoding of ["utf8", "utf16le"] as const) {
+        await fs.writeFile(probe, `x${token}x`, encoding);
+        expect([encoding, await holds(probe, token)]).toEqual([encoding, true]);
+      }
+      await fs.rm(probe);
       const holding: string[] = [];
       const unreadable: string[] = [];
       for (const file of written) {
