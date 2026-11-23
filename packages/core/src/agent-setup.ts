@@ -235,11 +235,27 @@ const skillSentence = (client: Client, facts: SetupFacts): string => {
   return ` To give ${who} the skill file, run this in ${shell}: \`${skillCall(facts)}\`.`;
 };
 
+/**
+ * The folder a person moves: on macOS the app bundle when the delivery is its `Contents/Resources` (ADR-0021,
+ * SR-249 AK3), else the delivery's folder.
+ */
+const movedFolder = (folder: string, platform: string): string => {
+  const p = path.posix;
+  const contents = p.dirname(folder);
+  // macOS compares names without case, as `sameFolder` does.
+  return platform === "darwin" &&
+    p.basename(folder).toLowerCase() === "resources" &&
+    p.basename(contents).toLowerCase() === "contents" &&
+    p.dirname(contents).toLowerCase().endsWith(".app")
+    ? p.dirname(contents)
+    : folder;
+};
+
 /** The folder whose move ends the setup, as the `valid` sentence names it (AK3). */
 const validSentence = (facts: SetupFacts): string => {
   const folder = deliveryOf(facts.installation, facts.platform);
   if (folder !== undefined) {
-    return `The setup holds as long as ReqSeq stays in ${folder}.`;
+    return `The setup holds as long as ReqSeq stays in ${movedFolder(folder, facts.platform)}.`;
   }
   const p = pathsOf(facts.platform);
   return `The setup holds as long as the command line stays in ${p.dirname(p.dirname(facts.installation.entry))} and its runtime at ${facts.installation.runtime}.`;

@@ -283,7 +283,8 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       ctx.skip(notBuilt);
     }
     expect(path.basename(installed)).toBe(deliveryFolderName(names, system, version));
-    expect(await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).toEqual([]);
+    const findings = await inspectDelivery(installed, names, system, REQUIRED_NOTICES);
+    expect(findings, findings.join("\n")).toEqual([]);
     if (system === "mac" && process.platform === "darwin") {
       // The Node binary keeps the signature of the Node project (ADR-0020).
       const verify = spawnSync("codesign", ["--verify", "--strict", path.join(installed, layout.runtime)], {
@@ -291,7 +292,63 @@ describe.each(DELIVERY_SYSTEMS)("the %s delivery", (system: DeliverySystem) => {
       });
       expect(verify.stderr).toBe("");
       expect(verify.status).toBe(0);
+      // The downloaded bundle carries a valid ad hoc seal (ADR-0021, Signing; A10).
+      const app = path.join(installed, "ReqSeq.app");
+      const seal = spawnSync("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app], {
+        encoding: "utf8",
+      });
+      expect(seal.status, seal.stderr).toBe(0);
+      const details = spawnSync("codesign", ["-dv", app], { encoding: "utf8" });
+      expect(details.stderr).toMatch(/^Signature=adhoc$/m);
     }
+  });
+
+  it(`[SR-249/AK-ys5r] the ${system} delivery holds the desktop shell and the launcher at their places, and the launcher gives the version without an installed runtime`, async (ctx) => {
+    if (!built) {
+      ctx.skip(notBuilt);
+    }
+    // The places SR-249 AK3 names, written out rather than taken from the layout.
+    const places = {
+      mac: [
+        ["ReqSeq.app", "Contents", "MacOS", "ReqSeq"],
+        ["ReqSeq.app", "Contents", "Resources", "bin", "reqseq"],
+      ],
+      win: [["ReqSeq.exe"], ["bin", "reqseq.cmd"]],
+      linux: [["ReqSeq"], ["bin", "reqseq"]],
+    }[system];
+    for (const place of places) {
+      expect((await fs.stat(path.join(installed, ...place))).isFile(), place.join("/")).toBe(true);
+    }
+    expect(path.join(...(places[1] ?? []))).toBe(layout.launcher);
+    // The shell is the release build: no e2e driver, built for its own pages (ADR-0021).
+    const shellFindings = (await inspectDelivery(installed, names, system, REQUIRED_NOTICES)).filter((f) =>
+      f.includes(layout.shellBinary),
+    );
+    expect(shellFindings, shellFindings.join("\n")).toEqual([]);
+    if (!runnable) {
+      ctx.skip(notRunnable);
+    }
+    // No runtime on the PATH: only `dirname`, which the POSIX launcher calls; the Windows launcher needs none.
+    const bin = await tempFolder();
+    if (process.platform !== "win32") {
+      await fs.symlink("/usr/bin/dirname", path.join(bin, "dirname"));
+    }
+    const env: Record<string, string> = { PATH: bin };
+    for (const name of ["SystemRoot", "ComSpec", "TEMP", "TMP"]) {
+      const value = process.env[name];
+      if (value !== undefined) {
+        env[name] = value;
+      }
+    }
+    const launcher = path.join(installed, layout.launcher);
+    const run = spawnSync(process.platform === "win32" ? `"${launcher}"` : launcher, ["--version"], {
+      encoding: "utf8",
+      env,
+      shell: process.platform === "win32",
+    });
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    expect(run.stdout.trim()).toBe(version);
   });
 
   it(`[SR-249/AK-m4f9] the launcher of the ${system} delivery runs the command line and the MCP server on its Node`, async (ctx) => {

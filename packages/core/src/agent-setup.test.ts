@@ -14,7 +14,9 @@ import {
 } from "./agent-setup.js";
 
 // The unpacked delivery of ADR-0020: `<folder>/bin/reqseq`, `<folder>/runtime/node`, `<folder>/lib/dist/bin.js`.
-const MAC_FOLDER = "/Users/ann/ReqSeq";
+/** The delivery inside the macOS bundle (SR-249 AK3), moved to /Applications. */
+const MAC_APP = "/Applications/ReqSeq.app";
+const MAC_FOLDER = `${MAC_APP}/Contents/Resources`;
 const mac: SetupFacts = {
   installation: {
     runtime: `${MAC_FOLDER}/runtime/node`,
@@ -103,7 +105,7 @@ describe("setupOf", () => {
       expect(setup("other", facts).setup.file).toBeUndefined();
     }
     expect(setup("claude-code", mac).setup.text).toBe(
-      "claude mcp add --transport stdio reqseq -- /Users/ann/ReqSeq/bin/reqseq mcp --workspace /Users/ann/Projects/station",
+      "claude mcp add --transport stdio reqseq -- /Applications/ReqSeq.app/Contents/Resources/bin/reqseq mcp --workspace /Users/ann/Projects/station",
     );
     expect(setup("codex-cli", linux).setup.text).toBe(
       "codex mcp add reqseq -- /home/ann/ReqSeq/bin/reqseq mcp --workspace /home/ann/station",
@@ -123,7 +125,7 @@ describe("setupOf", () => {
     // Under the setup of every client but Claude Desktop, the call that writes the skill file, for a terminal
     // (PowerShell on Windows), started as the setup starts the server.
     expect(setup("claude-code", mac).next).toMatch(
-      /To give Claude Code the skill file, run this in a terminal: `\/Users\/ann\/ReqSeq\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
+      /To give Claude Code the skill file, run this in a terminal: `\/Applications\/ReqSeq\.app\/Contents\/Resources\/bin\/reqseq tool guide --skill --write --workspace \/Users\/ann\/Projects\/station`\.$/,
     );
     expect(skillCall({ ...linux, workspace: "/home/ann/my station" })).toBe(
       "/home/ann/ReqSeq/bin/reqseq tool guide --skill --write --workspace '/home/ann/my station'",
@@ -213,7 +215,39 @@ describe("setupOf", () => {
       expect(text).not.toMatch(/--env\b|\\?"env\\?":/);
       expect(text).toContain("station");
     }
-    expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_FOLDER}.`);
+    // On macOS the folder a person moves is the bundle; an unpacked folder of an earlier layout is named itself.
+    expect(setup("claude-code", mac).valid).toBe(`The setup holds as long as ReqSeq stays in ${MAC_APP}.`);
+    const folder: SetupFacts = {
+      ...mac,
+      installation: {
+        runtime: "/Users/ann/ReqSeq/runtime/node",
+        entry: "/Users/ann/ReqSeq/lib/dist/bin.js",
+      },
+    };
+    expect(serverOf(folder).command).toBe("/Users/ann/ReqSeq/bin/reqseq");
+    expect(setup("other", folder).valid).toBe(
+      "The setup holds as long as ReqSeq stays in /Users/ann/ReqSeq.",
+    );
+    const resources: SetupFacts = {
+      ...mac,
+      installation: {
+        runtime: "/Users/ann/Resources/runtime/node",
+        entry: "/Users/ann/Resources/lib/dist/bin.js",
+      },
+    };
+    expect(setup("other", resources).valid).toBe(
+      "The setup holds as long as ReqSeq stays in /Users/ann/Resources.",
+    );
+    const contents: SetupFacts = {
+      ...mac,
+      installation: {
+        runtime: "/Users/ann/Contents/Resources/runtime/node",
+        entry: "/Users/ann/Contents/Resources/lib/dist/bin.js",
+      },
+    };
+    expect(setup("other", contents).valid).toBe(
+      "The setup holds as long as ReqSeq stays in /Users/ann/Contents/Resources.",
+    );
     expect(setup("claude-code", linux).valid).toBe(
       "The setup holds as long as ReqSeq stays in /home/ann/ReqSeq.",
     );
@@ -245,13 +279,14 @@ describe("setupOf", () => {
     expect(serverOf(moved).command).not.toBe(serverOf(linux).command);
   });
 
-  it("[SR-227/AK-wvgw] gives no setup for an app macOS runs from a translocated place, and says to move it to /Applications", () => {
+  it("[SR-227/AK-wvgw] gives no setup for a desktop shell macOS runs from a translocated place, and says to move it to /Applications", () => {
+    // The server the shell starts runs the Node and the command line inside the translocated bundle.
+    const bundle = "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/Resources";
     const translocated: SetupFacts = {
       ...mac,
       installation: {
-        runtime: "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/MacOS/ReqSeq",
-        entry:
-          "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/Resources/cli/dist/bin.js",
+        runtime: `${bundle}/runtime/node`,
+        entry: `${bundle}/lib/dist/bin.js`,
       },
     };
     for (const client of CLIENTS) {
@@ -296,8 +331,17 @@ describe("folders and environment", () => {
     expect(setup("other", { ...windows, installation: upper }).valid).toBe(
       "The setup holds as long as ReqSeq stays in C:\\Tools\\ReqSeq.",
     );
-    const macUpper = { ...mac.installation, runtime: "/users/ann/reqseq/runtime/node" };
+    const macUpper = {
+      ...mac.installation,
+      runtime: "/applications/reqseq.app/contents/resources/runtime/node",
+    };
     expect(serverOf({ ...mac, installation: macUpper }).command).toBe(`${MAC_FOLDER}/bin/reqseq`);
+    // The bundle is named in any case of its names.
+    const lower = "/applications/reqseq.app/contents/resources";
+    const macLower = { runtime: `${lower}/runtime/node`, entry: `${lower}/lib/dist/bin.js` };
+    expect(setup("other", { ...mac, installation: macLower }).valid).toBe(
+      "The setup holds as long as ReqSeq stays in /applications/reqseq.app.",
+    );
     const linuxUpper = { ...linux.installation, runtime: "/home/ann/REQSEQ/runtime/node" };
     expect(serverOf({ ...linux, installation: linuxUpper }).command).toBe("/home/ann/REQSEQ/runtime/node");
   });

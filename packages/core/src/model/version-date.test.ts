@@ -1154,6 +1154,46 @@ describe("version date", () => {
       expect(await times(repo.workspace, requests)).toEqual([at(repo, "now"), "uncommitted"]);
     });
 
+    it("waits for the history another call reads again after the tracked paths grew (#2408)", async () => {
+      // HEAD changed only the image its text embeds: the first history read, without the text,
+      // lists only "one", so HEAD's version is found once the history is read with the image path.
+      const text = element("![d](d.png)");
+      const repo = await repository([
+        { name: "one", files: { [FILE]: text, "requirements/d.png": "1" } },
+        { name: "image", files: { "requirements/d.png": "2" } },
+      ]);
+      const version = await versionOf(repo.workspace, text, { "d.png": "2" });
+      let release = (): void => undefined;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      vi.mocked(fileHistory)
+        .mockImplementationOnce(actual.fileHistory)
+        .mockImplementationOnce(async (...args) => {
+          await gate;
+          return actual.fileHistory(...args);
+        });
+      const first = times(repo.workspace, [{ version }]);
+      // The first call reads the history again; the others start meanwhile, on the same walk.
+      await vi.waitFor(() => {
+        expect(fileHistory).toHaveBeenCalledTimes(2);
+      });
+      const sort = times(repo.workspace, [{ version }]);
+      const date = dates(repo.workspace, [{ version }]);
+      await vi.waitFor(() => {
+        expect(openObjectReader).toHaveBeenCalledTimes(3);
+      });
+      // Whatever needs no git has run by now.
+      await new Promise((resolve) => setImmediate(resolve));
+      release();
+      expect(await Promise.all([first, sort, date])).toEqual([
+        [at(repo, "image")],
+        [at(repo, "image")],
+        [at(repo, "image")],
+      ]);
+      expect(fileHistory).toHaveBeenCalledTimes(2);
+    });
+
     it("is late where git did not answer in time, and undated where git is missing", async () => {
       const repo = await repository([{ name: "one", files: { [FILE]: element("One.") } }]);
       const version = await versionOf(repo.workspace, element("One."));

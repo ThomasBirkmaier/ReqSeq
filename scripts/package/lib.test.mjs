@@ -8,6 +8,7 @@ import {
   deliveryArtifactName,
   deliveryFolderName,
   hardLinkEntries,
+  infoPlist,
   isBuildLeftover,
   nodeArchiveMembers,
   nodeArchiveUrl,
@@ -21,6 +22,7 @@ import {
   removeBuildLeftovers,
   renderLauncher,
   sha256Of,
+  shellLayout,
   stagedManifest,
   tagReleasesVersion,
   versionOfTag,
@@ -501,6 +503,33 @@ describe("archives and the Node runtime (ADR-0020)", () => {
     expect(DELIVERY_SYSTEMS.win.launcher("tool")).toBe("tool.cmd");
     expect(DELIVERY_SYSTEMS.mac.launcher("tool")).toBe("tool");
     expect([DELIVERY_SYSTEMS.linux.node, DELIVERY_SYSTEMS.win.node]).toEqual(["node", "node.exe"]);
+  });
+
+  it("puts the desktop shell at its place and the rest beside it, inside the bundle on macOS (SR-249 AK3)", () => {
+    const shellNames = { productName: "Tool", appId: "org.example.tool", shellProgram: "tool-shell" };
+    const contents = path.join("Tool.app", "Contents");
+    expect(shellLayout(shellNames, "mac")).toEqual({
+      root: path.join(contents, "Resources"),
+      shell: [{ from: "tool-shell", to: path.join(contents, "MacOS", "Tool") }],
+      infoPlist: path.join(contents, "Info.plist"),
+      icon: path.join(contents, "Resources", "icon.icns"),
+    });
+    expect(shellLayout(shellNames, "win")).toEqual({
+      root: "",
+      shell: [{ from: "tool-shell.exe", to: "Tool.exe" }],
+    });
+    expect(shellLayout(shellNames, "linux")).toEqual({
+      root: "",
+      shell: [
+        { from: "Tool", to: "Tool" },
+        { from: "tool-shell", to: "tool-shell" },
+      ],
+    });
+    const plist = infoPlist(shellNames, "0.3.0");
+    expect(plist).toContain("<key>CFBundleExecutable</key>\n\t<string>Tool</string>");
+    expect(plist).toContain("<key>CFBundleIdentifier</key>\n\t<string>org.example.tool</string>");
+    expect(plist).toContain("<key>CFBundleShortVersionString</key>\n\t<string>0.3.0</string>");
+    expect(plist.endsWith("</plist>\n")).toBe(true);
   });
 
   it("accepts an exact pin of the major version of .nvmrc with an archive and a SHA-256 per system", () => {

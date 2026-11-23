@@ -1,12 +1,12 @@
 name: Release
 
-# ADR-0020 (#2308): builds the portable delivery without Electron, one archive per system with the launcher, the
-# pinned Node, the command line with the MCP server and the UI server, the pages of the web UI and the documentation,
-# and the CLI tarball; installs (unpacks) and tests it on each system (ADR-0011), and publishes it as a GitHub release.
+# ADR-0020 (#2308): builds the portable delivery without Electron, one archive per system with the desktop shell
+# (ADR-0021, #2379), the launcher, the pinned Node, the command line with the MCP server and the UI server, the pages
+# of the web UI and the documentation, and the CLI tarball; installs (unpacks) and tests it on each system (ADR-0011), and publishes it as a GitHub release.
 # Only on a stage tag (`v*`) or by hand, never on pull requests or pushes (the delivery must not slow down PR CI). The
 # tag releases only when it is `v<version>` of the root package.json (`v<major>.<minor>` for a patch of 0) and on
 # `main`. Each system is tested on GitHub's runner of SR-249's reference system (macOS 26, Ubuntu 24.04, Windows), so
-# the delivery tests of a run are the evidence for SR-249 AK1 and AK2.
+# the delivery tests of a run are the evidence for SR-249 AK1 to AK3 and SR-252 AK1 and AK8.
 # Every product, artifact and launcher name comes from toolchain/packaging/names.json, the Node version and the
 # SHA-256 of its archives from toolchain/packaging/node.json.
 on:
@@ -66,11 +66,80 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The release build of the desktop shell (ADR-0021) on its system: Cargo with `tauri/custom-protocol` and without the
+  # e2e driver, no Tauri CLI or bundler; with the notices of the crates it links there (scripts/licenses/crates.mjs,
+  # which also fails on a licence outside ADR-0015's allowlist). The crates are fetched once with the lockfile, then
+  # Cargo builds offline. The build job puts the files into the archive of the system.
+  shell:
+    name: shell (${{ matrix.os }})
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-26, system: mac, target: aarch64-apple-darwin, packages: -p shell }
+          - {
+              os: ubuntu-24.04,
+              system: linux,
+              target: x86_64-unknown-linux-gnu,
+              packages: -p shell -p launcher,
+            }
+          - { os: windows-2025, system: win, target: x86_64-pc-windows-msvc, packages: -p shell }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: System packages (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev
+      # rust-toolchain.toml names the version and its components.
+      - name: Rust toolchain
+        working-directory: packages/shell
+        run: rustup toolchain install && rustc --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: shell-release-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/shell/Cargo.lock', 'packages/shell/rust-toolchain.toml') }}
+      - name: Fetch the crates
+        working-directory: packages/shell
+        run: cargo fetch --locked
+      - name: Build
+        working-directory: packages/shell
+        run: cargo build --release --locked --offline ${{ matrix.packages }}
+      - name: Collect the build and the crate notices
+        env:
+          SYSTEM: ${{ matrix.system }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          out="build/shell/$SYSTEM"
+          mkdir -p "$out"
+          program="$(node -p 'require("./toolchain/packaging/names.json").shellProgram')"
+          case "$SYSTEM" in
+            win) cp "packages/shell/target/release/$program.exe" "$out/" ;;
+            linux) cp "packages/shell/target/release/$program" packages/shell/target/release/ReqSeq "$out/" ;;
+            *) cp "packages/shell/target/release/$program" "$out/" ;;
+          esac
+          node scripts/licenses/crates.mjs --notices "$TARGET" "$out/crates.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: shell-${{ matrix.system }}
+          path: build/shell/${{ matrix.system }}
+          if-no-files-found: error
+          retention-days: 1
+
   # The archives of all three systems and the CLI tarball, made once on Linux: the program is JavaScript without
-  # native modules, so only the Node binary differs per system.
+  # native modules, so only the Node binary and the desktop shell differ per system.
   build:
     name: build
-    needs: docs-site
+    needs: [docs-site, shell]
     timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
@@ -104,8 +173,14 @@ jobs:
         with:
           name: docs-site
           path: build/docs-site
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: shell-*
+          path: build/shell
       - name: Stage and pack the archives
-        run: node scripts/package/stage.mjs
+        run: |
+          for system in mac linux win; do mv "build/shell/shell-$system" "build/shell/$system"; done
+          node scripts/package/stage.mjs
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.node-cache.outputs.cache-hit != 'true'
         with:
@@ -113,6 +188,7 @@ jobs:
           key: ${{ steps.node-cache.outputs.cache-primary-key }}
       - name: Pack the command line (CLI tarball)
         run: node scripts/package/stage.mjs --pack
+      # The macOS archive goes to the job `seal` first; `delivery` and `delivery-mac` together are the delivery.
       - name: Upload the delivery
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -121,14 +197,55 @@ jobs:
             delivery/*.zip
             delivery/*.tar.gz
             delivery/*.tgz
+            !delivery/*-mac-*.zip
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload the macOS archive to seal
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsealed-mac
+          path: delivery/*-mac-*.zip
           if-no-files-found: error
           retention-days: 1
 
+  # ADR-0021, Signing: `ReqSeq.app` sealed ad hoc on macOS, the shell's executable first, then the bundle, so the seal
+  # covers Info.plist and the resources; Node in Resources keeps its own signature. This is no Developer ID signature
+  # and no notarization (SR-146). The archive is packed again with ditto, which keeps the seal.
+  seal:
+    name: seal (macos-26)
+    needs: build
+    timeout-minutes: 15
+    runs-on: macos-26
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsealed-mac
+          path: unsealed
+      - name: Seal ReqSeq.app ad hoc
+        run: |
+          archive="$(ls unsealed/*-mac-*.zip)"
+          name="$(basename "$archive")"
+          mkdir -p work sealed
+          ditto -x -k "$archive" work
+          folder="work/${name%.zip}"
+          app="$(ls -d "$folder"/*.app)"
+          codesign --sign - --force "$app/Contents/MacOS/"*
+          codesign --sign - --force "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --norsrc --keepParent "$folder" "sealed/$name"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: delivery-mac
+          path: sealed/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # The delivery is all three archives with the sealed macOS one, so every test job waits for `seal`.
   # The delivery tests on each reference system: the archive of the system is unpacked and run, `reqseq ui` loaded in
   # Chromium, Firefox and WebKit (SR-249 AK1); the inspection of all archives runs on every system.
   test:
     name: test (${{ matrix.os }})
-    needs: build
+    needs: seal
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -172,11 +289,22 @@ jobs:
       - name: System libraries of the browsers (Linux)
         if: runner.os == 'Linux'
         run: pnpm --filter @reqseq/web exec playwright install-deps chromium firefox webkit
+      # The web engine of the desktop shell, a display and a session bus for it (SR-252 AK1); delivery-tests.sh
+      # removes the engine again for the last test (SR-252 AK8).
+      - name: Web engine of the desktop shell (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 xvfb xauth dbus
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: delivery
+          pattern: delivery*
+          merge-multiple: true
           path: delivery
       - name: Delivery tests
+        env:
+          # Linux: the runner is thrown away, so the last test may remove the web engine (SR-252 AK8).
+          REQSEQ_DELIVERY_REMOVE_ENGINE: "1"
         run: scripts/package/delivery-tests.sh
       - name: Upload JUnit results (evidence, D-050)
         if: always()
@@ -193,7 +321,7 @@ jobs:
   # summary of the version in docs/releases/ must be there, or the run fails.
   release:
     name: release
-    needs: [build, test]
+    needs: [build, seal, test]
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     timeout-minutes: 20
     permissions:
@@ -239,7 +367,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = push ]; then ref="$GITHUB_REF_NAME"; fi
           product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
           {
-            echo "Portable delivery: unpack the archive of your system and run \`bin/reqseq\` (see [Install ${product}]($INSTALL))."
+            echo "Portable delivery: unpack the archive of your system and start ${product}, or run \`bin/reqseq\` (on macOS \`${product}.app/Contents/Resources/bin/reqseq\`; see [Install ${product}]($INSTALL))."
             echo
             echo "<!-- files -->"
             echo
@@ -250,7 +378,8 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: steps.tag.outputs.publish == 'true'
         with:
-          name: delivery
+          pattern: delivery*
+          merge-multiple: true
           path: release-assets
       - name: Checksums
         if: steps.tag.outputs.publish == 'true'

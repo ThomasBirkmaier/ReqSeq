@@ -31,7 +31,7 @@ impl Layout {
 }
 
 /// The folder that holds `runtime/` and `lib/`: the folder of the shell's executable, or `Contents/Resources` of
-/// the app bundle on macOS. The release layout of #2379 may move it.
+/// the app bundle on macOS (the release layout, `scripts/package/stage.mjs`).
 #[must_use]
 pub fn release_root(exe: &Path, macos: bool) -> PathBuf {
     let folder = exe.parent().unwrap_or(exe);
