@@ -18,7 +18,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
 import { EXIT, exitCodeFor, runCli, writePieces } from "./main.js";
-import { buildProgram, unknownOptionHint } from "./program.js";
+import { buildProgram, unknownCommandHint, unknownOptionHint } from "./program.js";
 import { Command } from "commander";
 import { YAML_OPTIONS } from "./render.js";
 import { stringify } from "yaml";
@@ -862,6 +862,56 @@ describe("reqseq <group> <action>", () => {
     );
     // No --where-type on test.root: commander's message as it is.
     expect((await run(["test", "root", "--type", "SR"])).stderr).toBe("error: unknown option '--type'\n");
+  });
+
+  it("names the flag a plural, paging or relation option means, as far as the command has it (#2427)", () => {
+    const command = new Command("x")
+      .option("--where-type <key>")
+      .option("--limit <number>")
+      .option("--offset <number>")
+      .option("--add-relations <key=value>")
+      .option("--remove-relations <key=value>");
+    expect(unknownOptionHint("--types", command)).toBe("(Did you mean --where-type?)");
+    expect(unknownOptionHint("--page-size=40", command)).toBe("(Did you mean --limit?)");
+    expect(unknownOptionHint("--skip", command)).toBe("(Did you mean --offset?)");
+    expect(unknownOptionHint("--relation", command)).toBe(
+      "(Did you mean --add-relations or --remove-relations?)",
+    );
+    expect(unknownOptionHint("--relations", new Command("y").option("--add-relations <x>"))).toBe(
+      "(Did you mean --add-relations?)",
+    );
+    // Without the flag, and for an inherited name, no hint.
+    expect(unknownOptionHint("--page-size", new Command("z"))).toBeUndefined();
+    expect(unknownOptionHint("--constructor", command)).toBeUndefined();
+  });
+
+  it("names the group of an action given without one (#2427)", async () => {
+    const result = await run(["ping"]);
+    expect(result).toMatchObject({
+      code: EXIT.usage,
+      stderr: "error: unknown command 'ping'\n(Did you mean reqseq other ping?)\n",
+    });
+    // Inside a group no action of another one (`element delete`, SR-099); every group that has the action.
+    expect((await run(["other", "echo"])).stderr).toBe("error: unknown command 'echo'\n");
+    const two = new Command("reqseq");
+    two.command("a").command("list");
+    two.command("b").command("list");
+    expect(unknownCommandHint("list", two)).toBe("(Did you mean one of reqseq a list, reqseq b list?)");
+    // No group has it: commander's own message stays.
+    expect((await run(["nope"])).stderr).toBe("error: unknown command 'nope'\n");
+  });
+
+  it("says that a flag of every command goes after the command (#2427)", async () => {
+    const json = await run(["--json", "test", "root"]);
+    expect(json.code).toBe(EXIT.usage);
+    expect(JSON.parse(json.stderr)).toEqual({
+      code: "input.invalid",
+      message: "unknown option '--json'\n(--json goes after the command: reqseq <group> <action> --json)",
+    });
+    expect((await run(["test", "--workspace", "x", "root"])).stderr).toBe(
+      "error: unknown option '--workspace'\n(--workspace goes after the command: reqseq test <action> --workspace <path>)\n",
+    );
+    expect((await run(["--nope", "test", "root"])).stderr).toBe("error: unknown option '--nope'\n");
   });
 
   it("names output flags only as far as the command has them (#1831)", () => {

@@ -400,6 +400,29 @@ describe("readable messages of an input that fails its schema (ThomasBirkmaier/R
     ]);
   });
 
+  it("shows the form of an acceptance criterion after a list value with another object (#2427)", () => {
+    const notValue =
+      "is not a property value (text, a number, true or false, a list of these, a relation target { id } with an element reference, or a list of them)";
+    const criterion =
+      ' (an acceptance criterion in the list is text, or {"text": ...} with an optional "key" and no other field, for example ["Given ..., then ...", {"key": "k7f3", "text": "Given ..., then ..."}])';
+    const properties = { "acceptance-criteria": [{ text: "a", method: "test" }] };
+    expect(
+      messages(product, "element.create", { type: "system-requirement", title: "x", properties }),
+    ).toEqual([`properties.acceptance-criteria (a list) ${notValue}${criterion}`]);
+    // A list with a relation target (it has an id) or without objects gets no note.
+    expect(
+      messages(product, "element.update", { ref: "SR-036", set: { a: [{ id: "N-1", x: 1 }], b: [[1]] } }),
+    ).toEqual([`set.a (a list) ${notValue}`, `set.b (a list) ${notValue}`]);
+  });
+
+  it("shows the form of items by position after a wrong type (#2427)", () => {
+    expect(
+      messages(product, "element.update", { ref: "SR-036", setItems: { "acceptance-criteria": ["a"] } }),
+    ).toEqual([
+      'setItems.acceptance-criteria must be an object, not a list (positions from 1 to the new items, for example {"2": "new text of item 2"})',
+    ]);
+  });
+
   it("says after a wrong item of a list of choices what it may have meant (#1831)", () => {
     const choices = "identifier, type, status, title, text, version, file, emergent, properties, relations";
     expect(messages(product, "element.list", { fields: ["spec-id"] })).toEqual([

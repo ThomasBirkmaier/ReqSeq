@@ -134,9 +134,15 @@ interface Source {
 
 const NOT_CONFIRMABLE = `only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in ${commandTitle("hint.list")}) is confirmed, by writing the current version; other hints go away when what they report is changed`;
 
+/**
+ * The note on the value as given (`oneValueNote`) right after the refused value, before the reason, so a
+ * long reason does not hide it (#2427): `; <note>; `, or `: ` without one.
+ */
+const noteFirst = (note: string): string => (note === "" ? ": " : `${note}; `);
+
 const notConfirmable = (
   id: string,
-  reason = `${id} is no ID of a hint that can be confirmed: ${NOT_CONFIRMABLE}${oneValueNote(id)}`,
+  reason = `${id} is no ID of a hint that can be confirmed${noteFirst(oneValueNote(id))}${NOT_CONFIRMABLE}`,
 ): Problem => ({
   code: "hint.not-confirmable",
   severity: "error",
@@ -148,7 +154,7 @@ const notConfirmable = (
 const sinceBaselineRefusal = (given: string, code: string, note = ""): Problem => ({
   code: "hint.not-confirmable",
   severity: "error",
-  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (${commandTitle("baseline.create")} with the view of the variant), not by confirming it${note}`,
+  message: `${given} is not confirmed${noteFirst(note)}a ${code} hint is settled only by a new baseline of its variant (${commandTitle("baseline.create")} with the view of the variant), not by confirming it`,
 });
 
 /** The refusal of `kind` for each since-baseline code it names. */

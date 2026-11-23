@@ -55,6 +55,29 @@ const TYPE_EXAMPLES: Readonly<Record<string, string>> = {
   "common.schema.json#/$defs/relationRefs": '{"derives-from": ["N-073", "N-030"], "based-on": "D-062"}',
 };
 
+/** The `propertyNames` pattern of a map by list position from 1 (`setItems` of `element.update`). */
+const POSITION_KEYS = "^[1-9][0-9]*$";
+
+/** After the wrong type of a map by list position (#2427): its form, which the type alone does not say. */
+const POSITIONS_NOTE = ' (positions from 1 to the new items, for example {"2": "new text of item 2"})';
+
+/**
+ * After a property value that is not one (#2427), when it is a list with an object that is no relation
+ * target (it has no `id`): such an object is meant as an acceptance criterion, whose form is hard to guess.
+ */
+const criterionNote = (value: unknown): string =>
+  Array.isArray(value) &&
+  (value as readonly unknown[]).some(
+    (item) => typeof item === "object" && item !== null && !Array.isArray(item) && !Object.hasOwn(item, "id"),
+  )
+    ? ' (an acceptance criterion in the list is text, or {"text": ...} with an optional "key" and no other field, for example ["Given ..., then ...", {"key": "k7f3", "text": "Given ..., then ..."}])'
+    : "";
+
+/** A note after the message of a shared definition, by its def name (#2427). */
+const DEF_NOTES: Readonly<Record<string, (value: unknown) => string>> = {
+  "element.schema.json#/$defs/inputValue": criterionNote,
+};
+
 /**
  * Def name (`file#/$defs/name`) by the def object, for every def of `DEF_MESSAGES` and `TYPE_EXAMPLES`. Ajv keeps the
  * objects of the schemas it was given, so the `parentSchema` of an error is the def itself.
@@ -417,14 +440,27 @@ const swallowedOf = (all: readonly ErrorObject[]): ((error: ErrorObject, index: 
     );
 };
 
+/** Whether the schema of an error is a map by list position (`POSITION_KEYS`). */
+const isPositionMap = (error: ErrorObject): boolean =>
+  ((error.parentSchema as JsonSchema | undefined)?.["propertyNames"] as JsonSchema | undefined)?.[
+    "pattern"
+  ] === POSITION_KEYS;
+
 /**
  * What is wrong with a value, after its field name: the message of its shared definition `def` when
- * there is one (not for a wrong type), else that of the keyword; a wrong type with the example of `def`.
+ * there is one (not for a wrong type), with the note of `def`, else that of the keyword; a wrong type
+ * with the example of `def`, or with the form of a map by position.
  */
 const valueText = (error: ErrorObject, value: unknown, def: string | undefined): string => {
   const type = error.keyword === "type";
   const defText = def === undefined || type ? undefined : DEF_MESSAGES[def];
-  const text = defText === undefined ? keywordText(error, value) : `${subject(value)} ${defText}`;
+  const text =
+    defText === undefined
+      ? keywordText(error, value)
+      : `${subject(value)} ${defText}${DEF_NOTES[String(def)]?.(value) ?? ""}`;
+  if (type && isPositionMap(error)) {
+    return `${text}${POSITIONS_NOTE}`;
+  }
   const example = def === undefined || !type ? undefined : TYPE_EXAMPLES[def];
   return example === undefined ? text : `${text} (for example ${example})`;
 };
