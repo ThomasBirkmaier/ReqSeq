@@ -122,6 +122,5 @@
     },
     "additionalProperties": false,
     "required": ["answer", "created", "updated", "kept", "dropped", "losses", "files"]
-  },
-  "showsOutput": true
+  }
 }

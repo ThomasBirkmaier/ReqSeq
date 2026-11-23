@@ -135,6 +135,5 @@
     },
     "additionalProperties": false,
     "required": ["answer", "testCases", "withoutReference", "notInView", "unknown", "files", "problems"]
-  },
-  "showsOutput": true
+  }
 }

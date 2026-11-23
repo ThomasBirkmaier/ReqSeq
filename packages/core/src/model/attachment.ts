@@ -16,7 +16,7 @@
 //   (D-036), not ignored, not in a nested repository, portable names.
 // - The source is a local path (ADR-0009 `localPath`), also over the API and MCP, which run on the
 //   same machine only; it is read whole into memory. An absolute source must be on a drive or below
-//   `/` by its text (`typedWorkspaceFolder`), checked before any file-system call: a Windows UNC
+//   `/` by its text (`localFolder`), checked before any file-system call: a Windows UNC
 //   or device path (`\\host\share\x.png`, `\\?\…`) is refused (`source-not-local`), since
 //   reading it would open a network connection (#294). Errors name only its base name, never an
 //   absolute path, so every access gives the same error (D-029).
@@ -33,7 +33,7 @@ import type { ElementAddAttachmentInput, ElementAddAttachmentOutput } from "../g
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
-import { typedWorkspaceFolder, workspaceLayoutState } from "../workspace/index.js";
+import { localFolder, workspaceLayoutState } from "../workspace/index.js";
 import { ELEMENT_FILE_EXTENSION, windowsChanges } from "./discover.js";
 import { imageLinks } from "./images.js";
 import { resolveRef } from "./resolve.js";
@@ -131,7 +131,7 @@ const unreadable = (name: string, error: unknown): CommandError => {
 
 /**
  * The absolute path of the source `sourcePath` (relative to `root`, or absolute), by its text alone,
- * before any file-system call. An absolute `sourcePath` must pass `typedWorkspaceFolder`, so on
+ * before any file-system call. An absolute `sourcePath` must pass `localFolder`, so on
  * Windows a UNC or device path, whose read would connect to its host (offline rule), is refused.
  */
 export const sourceLocation = (
@@ -141,10 +141,7 @@ export const sourceLocation = (
 ): string => {
   const paths = platform === "win32" ? path.win32 : path.posix;
   const absolute = paths.resolve(root, sourcePath);
-  if (
-    paths.isAbsolute(sourcePath) &&
-    typedWorkspaceFolder(sourcePath, { platform, home: root }) === undefined
-  ) {
+  if (paths.isAbsolute(sourcePath) && localFolder(sourcePath, { platform, home: root }) === undefined) {
     throw invalid(
       `${paths.basename(absolute)} is not a path on a drive of this computer; ReqSeq reads no network or device path`,
       {

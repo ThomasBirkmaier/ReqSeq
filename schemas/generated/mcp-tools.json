@@ -13810,15 +13810,7 @@
             "items": {
               "$ref": "#/$defs/data-export/$defs/element"
             },
-            "x-elements": "answer",
-            "x-element-values": [
-              "type",
-              "version",
-              "repository",
-              "file",
-              "properties",
-              "relations"
-            ]
+            "x-elements": "answer"
           },
           "total": {
             "x-elements": "elements",

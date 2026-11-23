@@ -243,14 +243,6 @@
                             "additionalProperties": false,
                             "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson`. Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object."
                           },
-                          "showsOutput": {
-                            "const": true,
-                            "description": "A `write-files` command whose output carries content of its own, such as a plan, an import or an export result: the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
-                          },
-                          "staysOutputPage": {
-                            "const": true,
-                            "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view: the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
-                          },
                           "outputFields": {
                             "type": "array",
                             "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref`. A definition already on the way to a field is not entered again.",
@@ -297,10 +289,6 @@
                                       }
                                     }
                                   ]
-                                },
-                                "elementValue": {
-                                  "const": true,
-                                  "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry, from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values."
                                 },
                                 "keys": {
                                   "type": "array",
@@ -363,30 +351,11 @@
                                 "required": [
                                   "whileReadOnlyReason"
                                 ]
-                              },
-                              {
-                                "required": [
-                                  "showsOutput"
-                                ]
                               }
                             ]
                           }
                         },
                         "allOf": [
-                          {
-                            "if": {
-                              "required": [
-                                "staysOutputPage"
-                              ]
-                            },
-                            "then": {
-                              "properties": {
-                                "effect": {
-                                  "const": "read"
-                                }
-                              }
-                            }
-                          },
                           {
                             "if": {
                               "required": [
@@ -17246,15 +17215,7 @@
                       "items": {
                         "$ref": "#/components/schemas/data-export/$defs/element"
                       },
-                      "x-elements": "answer",
-                      "x-element-values": [
-                        "type",
-                        "version",
-                        "repository",
-                        "file",
-                        "properties",
-                        "relations"
-                      ]
+                      "x-elements": "answer"
                     },
                     "total": {
                       "x-elements": "elements",

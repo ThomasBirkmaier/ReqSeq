@@ -15,14 +15,12 @@ import {
   createBoundedRunner,
   createExistenceChecker,
   createWorkspaceChecks,
-  findTypedWorkspace,
   markWorkspace,
   parseRecentWorkspaces,
   readRecentWorkspaces,
   recentWorkspaceStates,
   recentWorkspacesFolder,
   rememberWorkspace,
-  typedWorkspaceFolder,
   workspaceExists,
   workspaceKey,
 } from "./recent.js";
@@ -482,115 +480,5 @@ describe("the checkers of a process", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(again).toHaveBeenCalledExactlyOnceWith(["timeout"]);
     expect(asked).toEqual(["nfs-a", "nfs-b", "local"]);
-  });
-
-  it("[SR-131/AK-sxyz] a typed path on a hung mount blocks only further typed paths, never a root of the list", async () => {
-    vi.useFakeTimers();
-    const asked: string[] = [];
-    const stat = (file: string): Promise<{ isFile(): boolean }> => {
-      const root = path.basename(path.dirname(file));
-      asked.push(root);
-      return root === "nfs" ? new Promise(() => undefined) : Promise.resolve({ isFile: () => true });
-    };
-    const checks = createWorkspaceChecks({ stat });
-    const typed = vi.fn();
-    void findTypedWorkspace(path.join(top, "nfs"), { check: checks.typed }).then(typed);
-    await vi.advanceTimersByTimeAsync(1_000);
-    // The level that timed out ends the walk: no folder above it is asked, none is opened.
-    expect(typed).toHaveBeenCalledExactlyOnceWith(undefined);
-    expect(asked).toEqual(["nfs"]);
-    // Its stat still hangs, and a root of the list chosen later is checked all the same, at once.
-    expect(await workspaceExists(path.join(top, "local"), checks.chosen)).toBe(true);
-    expect(asked).toEqual(["nfs", "local"]);
-    // A further typed path waits for the typed slot only: it times out and opens nothing.
-    const next = vi.fn();
-    void findTypedWorkspace(path.join(top, "other"), { check: checks.typed }).then(next);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(next).toHaveBeenCalledExactlyOnceWith(undefined);
-    expect(asked).toEqual(["nfs", "local"]);
-  });
-});
-
-describe("a typed folder path (SR-131 AK5)", () => {
-  it("[SR-131/AK-sxyz] typedWorkspaceFolder takes an absolute path or ~, and refuses relative, UNC, NUL and overlong paths by their text", () => {
-    const linux = { platform: "linux" as const, home: "/home/ada" };
-    expect(typedWorkspaceFolder("/req/spec", linux)).toBe("/req/spec");
-    expect(typedWorkspaceFolder("/req/spec/", linux)).toBe("/req/spec");
-    expect(typedWorkspaceFolder("/req/./old/../spec//", linux)).toBe("/req/spec");
-    expect(typedWorkspaceFolder("/", linux)).toBe("/");
-    expect(typedWorkspaceFolder("~", linux)).toBe("/home/ada");
-    expect(typedWorkspaceFolder("~/req/spec", linux)).toBe("/home/ada/req/spec");
-    for (const text of [
-      "",
-      "req/spec",
-      "./spec",
-      "~ada/spec",
-      "~req",
-      "C:\\Work",
-      "/req\0/spec",
-      `/${"x".repeat(MAX_ROOT_LENGTH)}`,
-    ]) {
-      expect(typedWorkspaceFolder(text, linux), text).toBeUndefined();
-    }
-    // `~` that would make the path too long is refused too.
-    expect(typedWorkspaceFolder(`~/${"x".repeat(MAX_ROOT_LENGTH - 3)}`, linux)).toBeUndefined();
-
-    const windows = { platform: "win32" as const, home: "C:\\Users\\ada" };
-    expect(typedWorkspaceFolder("C:\\Work\\Spec\\", windows)).toBe("C:\\Work\\Spec");
-    expect(typedWorkspaceFolder("C:/Work/Spec", windows)).toBe("C:\\Work\\Spec");
-    expect(typedWorkspaceFolder("C:\\", windows)).toBe("C:\\");
-    expect(typedWorkspaceFolder("~\\Spec", windows)).toBe("C:\\Users\\ada\\Spec");
-    expect(typedWorkspaceFolder("~/Spec", windows)).toBe("C:\\Users\\ada\\Spec");
-    // UNC, device and NT paths would make Windows connect to the host, and `\Work` is on the current
-    // drive: only a path on a drive is taken, before any file-system call.
-    for (const text of [
-      "\\??\\UNC\\evil\\share\\x",
-      "/??/UNC/evil/s",
-      "\\??\\C:\\Work",
-      "\\Work",
-      "/Work",
-      "\\\\host\\share\\spec",
-      "//host/share/spec",
-      "\\/host\\share",
-      "/\\host\\share",
-      "\\\\?\\C:\\Work",
-      "\\\\.\\pipe\\x",
-      "C:Work",
-      "Work\\Spec",
-    ]) {
-      expect(typedWorkspaceFolder(text, windows), text).toBeUndefined();
-    }
-    // A home folder on a share (a roaming profile) is no way around it.
-    expect(typedWorkspaceFolder("~", { platform: "win32", home: "\\\\host\\home\\ada" })).toBeUndefined();
-    // The platform of this process by default.
-    expect(typedWorkspaceFolder(path.join(top, "a"), { home: top })).toBe(path.join(top, "a"));
-  });
-
-  it("[SR-131/AK-sxyz] findTypedWorkspace finds the workspace from the typed folder upwards, and none when no folder up to the root holds one", async () => {
-    const root = await folder("station");
-    const inside = await folder("station/requirements/system", false);
-    expect(await findTypedWorkspace(root)).toBe(root);
-    expect(await findTypedWorkspace(inside)).toBe(root);
-    // A folder that does not exist (yet): its parents count all the same, as for `--workspace`.
-    expect(await findTypedWorkspace(path.join(inside, "missing"))).toBe(root);
-    // No workspace up to the root: the checker answers for every folder.
-    const asked: string[] = [];
-    const check: ExistenceChecker = (list) => {
-      asked.push(...list);
-      return Promise.resolve(list.map(() => false));
-    };
-    expect(await findTypedWorkspace("/req/spec", { platform: "linux", check })).toBeUndefined();
-    expect(asked).toEqual(["/req/spec", "/req", "/"]);
-    asked.length = 0;
-    expect(await findTypedWorkspace("C:\\Work\\Spec", { platform: "win32", check })).toBeUndefined();
-    expect(asked).toEqual(["C:\\Work\\Spec", "C:\\Work", "C:\\"]);
-    // A level that times out ends the walk, also when a folder above it holds a workspace.
-    asked.length = 0;
-    const slow: ExistenceChecker = (list) => {
-      asked.push(...list);
-      return Promise.resolve(list.map((dir) => (dir === "/home/ada/net" ? "timeout" : dir === "/home/ada")));
-    };
-    expect(await findTypedWorkspace("/home/ada/net/ws", { platform: "linux", check: slow })).toBeUndefined();
-    expect(asked).toEqual(["/home/ada/net/ws", "/home/ada/net"]);
   });
 });

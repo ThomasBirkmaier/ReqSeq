@@ -4849,14 +4849,6 @@
               "additionalProperties": false,
               "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson`. Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object."
             },
-            "showsOutput": {
-              "const": true,
-              "description": "A `write-files` command whose output carries content of its own, such as a plan, an import or an export result: the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
-            },
-            "staysOutputPage": {
-              "const": true,
-              "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view: the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
-            },
             "outputFields": {
               "type": "array",
               "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref`. A definition already on the way to a field is not entered again.",
@@ -4903,10 +4895,6 @@
                         }
                       }
                     ]
-                  },
-                  "elementValue": {
-                    "const": true,
-                    "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry, from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values."
                   },
                   "keys": {
                     "type": "array",
@@ -4965,30 +4953,11 @@
                   "required": [
                     "whileReadOnlyReason"
                   ]
-                },
-                {
-                  "required": [
-                    "showsOutput"
-                  ]
                 }
               ]
             }
           },
           "allOf": [
-            {
-              "if": {
-                "required": [
-                  "staysOutputPage"
-                ]
-              },
-              "then": {
-                "properties": {
-                  "effect": {
-                    "const": "read"
-                  }
-                }
-              }
-            },
             {
               "if": {
                 "required": [
@@ -7208,7 +7177,6 @@
         "effect": "write-files",
         "whileReadOnly": "allow",
         "whileReadOnlyReason": "Writes only the skill file, which holds no name of the metamodel, so a missing or faulty metamodel does not stop it.",
-        "showsOutput": true,
         "loadUpfront": true,
         "textOutput": "guide",
         "stage": 3,
@@ -19518,7 +19486,6 @@
             "plan"
           ]
         },
-        "showsOutput": true,
         "outputFields": [
           {
             "path": "answer",
@@ -31475,7 +31442,6 @@
             "problems"
           ]
         },
-        "showsOutput": true,
         "outputFields": [
           {
             "path": "answer",
@@ -31693,7 +31659,6 @@
         "summary": "Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.",
         "details": "The verification status comes from the evidence records and, without own record, from the children, with the children that are missing; the validation status from the validation records. Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
         "effect": "read",
-        "staysOutputPage": true,
         "stage": 4,
         "implements": [
           "SR-031",
@@ -31754,15 +31719,7 @@
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/element"
               },
-              "x-elements": "answer",
-              "x-element-values": [
-                "type",
-                "version",
-                "repository",
-                "file",
-                "properties",
-                "relations"
-              ]
+              "x-elements": "answer"
             },
             "total": {
               "x-elements": "elements",
@@ -31816,8 +31773,7 @@
           },
           {
             "path": "elements[].type",
-            "title": "Type",
-            "elementValue": true
+            "title": "Type"
           },
           {
             "path": "elements[].status",
@@ -31834,8 +31790,7 @@
           {
             "path": "elements[].version",
             "title": "Version",
-            "technical": true,
-            "elementValue": true
+            "technical": true
           },
           {
             "path": "elements[].versionDate",
@@ -31843,14 +31798,12 @@
           },
           {
             "path": "elements[].repository",
-            "title": "Repository",
-            "elementValue": true
+            "title": "Repository"
           },
           {
             "path": "elements[].file",
             "title": "File",
-            "technical": true,
-            "elementValue": true
+            "technical": true
           },
           {
             "path": "elements[].readOnly",
@@ -31891,13 +31844,11 @@
           },
           {
             "path": "elements[].properties",
-            "title": "Properties",
-            "elementValue": true
+            "title": "Properties"
           },
           {
             "path": "elements[].relations",
-            "title": "Relations",
-            "elementValue": true
+            "title": "Relations"
           },
           {
             "path": "elements[].relations[].kind",
@@ -35338,7 +35289,6 @@
         "summary": "The elements of a baseline with their version then and its date, each marked changed, superseded, removed or added since; on request also their verification and validation status at that version.",
         "details": "With withEvidence: the verification status of each requirement per view and the validation status at its version in the baseline, with the records dated after it named. The version counts the text, embedded images and the properties marked `content` (a relation property such as `validity` too); the relation kinds of the metamodel, such as `refines` or `derives-from`, never count, so an element whose only change is such a relation is not marked `changed`: baseline.compare gives the commits and the Git command that show it.",
         "effect": "read",
-        "staysOutputPage": true,
         "stage": 5,
         "implements": [
           "SR-051",
@@ -38649,7 +38599,6 @@
             "files"
           ]
         },
-        "showsOutput": true,
         "outputFields": [
           {
             "path": "answer",
@@ -39328,7 +39277,6 @@
             "elementsWithoutStatement"
           ]
         },
-        "showsOutput": true,
         "outputFields": [
           {
             "path": "answer",

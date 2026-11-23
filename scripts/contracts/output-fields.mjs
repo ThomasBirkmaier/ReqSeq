@@ -1,5 +1,5 @@
-// The fields of a command's output with their title and marks (SR-224 AK3, AK4, AK9, D-078): `title`, `x-technical`,
-// `x-normal`, `x-elements`, `x-key` and `x-element-values` of the output schemas (ADR-0002 rule 1). A field takes its own keyword, else the one
+// The fields of a command's output with their title and marks (SR-224 AK3, AK4, D-078): `title`, `x-technical`,
+// `x-normal`, `x-elements` and `x-key` of the output schemas (ADR-0002 rule 1). A field takes its own keyword, else the one
 // of the definition its `$ref` names (and so on along `$ref`s). `x-technical` also holds when an `anyOf` or
 // `oneOf` branch or the `items` of an array are technical (`viewId` → `elementId` → `uuid`). `catalog-checks.mjs`
 // checks the marks with these fields; `generate.mjs` writes them resolved into each entry of the generated catalog
@@ -20,7 +20,7 @@ export const TECHNICAL_DEFINITIONS = [
 ];
 
 /** The marks of the output schemas; `title` is the JSON Schema annotation. */
-export const MARKS = ["x-technical", "x-normal", "x-elements", "x-key", "x-element-values"];
+export const MARKS = ["x-technical", "x-normal", "x-elements", "x-key"];
 
 const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -184,16 +184,6 @@ export const titleOf = (field, schemas) => inherited(field.schema, field.file, s
 /** The normal value of a field: its own `x-normal`, else that of its definition. */
 export const normalOf = (field, schemas) => inherited(field.schema, field.file, schemas, "x-normal");
 
-/**
- * Whether a field is one of the element's own values of an entry (SR-224 AK9): a field of the items of a list whose
- * `x-element-values` names it.
- */
-const isElementValue = (field) => {
-  const list = field.parent;
-  const names = list?.schema["x-element-values"];
-  return Array.isArray(names) && field.path === `${list.path}[].${field.name}` && names.includes(field.name);
-};
-
 /** The path of the field `relative` names from the object that holds `field` (`elements/withChildren`). */
 export const relativePath = (field, relative) => {
   const base = field.path.slice(0, field.path.length - field.name.length);
@@ -203,8 +193,7 @@ export const relativePath = (field, relative) => {
 /**
  * The fields of an output as the generated catalog gives them (`outputFields`): one per path, the first place
  * of a path wins, each with its resolved `title`, `technical` (`true` or `"with-element"`), `normal` and
- * `elements` (`true`, `"answer"`, `"selection"`, or the paths of the lists a count counts) and `elementValue` (a value
- * of the element itself in an entry, `isElementValue`). A count also has
+ * `elements` (`true`, `"answer"`, `"selection"`, or the paths of the lists a count counts). A count also has
  * `keys`: the `x-key` of each list it is inside, outermost first, so a reader names its entry (SR-224 AK4).
  */
 export function resolvedOutputFields(output, schemas) {
@@ -225,7 +214,6 @@ export function resolvedOutputFields(output, schemas) {
         ...(title === undefined ? {} : { title }),
         ...(technical === false ? {} : { technical }),
         ...(normal === undefined ? {} : { normal }),
-        ...(isElementValue(field) ? { elementValue: true } : {}),
         ...(elements === undefined
           ? {}
           : {

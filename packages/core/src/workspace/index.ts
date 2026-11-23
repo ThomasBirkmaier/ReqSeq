@@ -35,8 +35,6 @@ export {
   workspaceExists,
   workspaceKey,
   createWorkspaceChecks,
-  findTypedWorkspace,
-  typedWorkspaceFolder,
 } from "./recent.js";
 export type {
   ExistenceAnswer,
@@ -45,7 +43,6 @@ export type {
   RecentWorkspace,
   RecentWorkspaceState,
   RememberOptions,
-  TypedPathOptions,
   WorkspaceChecks,
 } from "./recent.js";
 export type { CheckedWorkspaceFile } from "./config.js";
@@ -64,3 +61,4 @@ export { gitRootOf } from "./git-root.js";
 export type { GitPlace } from "./git-folder.js";
 export { GIT_PLACE, gitPlaceOf, refuseGit, refuseGitAt, refuseGitPlace } from "./git-folder.js";
 export { shownPath } from "./shown-path.js";
+export { localFolder } from "./path-text.js";
