@@ -1,7 +1,7 @@
 //! The real host (ADR-0021): Tauri's window and run loop, the server process, the end signals, the opener and the
 //! dialogs of the operating system. A controller thread owns the shell's rules and handles every event in order; a
 //! dialog waits for the person on a thread of Tauri's async runtime, so the events go on meanwhile.
-use crate::{Input, engine, server_started, write_error};
+use crate::{Input, engine, frame, server_started, write_error};
 use shell::address::ServerAddress;
 use shell::pick::{Dialog, Dialogs, Pick, Shown};
 use shell::redact::TokenSlot;
@@ -474,5 +474,6 @@ fn window(app: &AppHandle, allowed: Arc<Mutex<Option<ServerAddress>>>) -> tauri:
     });
     let window = engine::configure(builder).build()?;
     engine::switch_off(&window);
+    frame::set(&window);
     Ok(())
 }
