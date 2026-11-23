@@ -135,6 +135,15 @@ a.chip:hover {
   font-size: 12px;
   color: var(--warn);
 }
+.tcmore > div {
+  display: grid;
+  gap: 2px;
+}
+.tcmore summary {
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+}
 .tc.not-executed {
   color: var(--faint);
 }

@@ -51,6 +51,14 @@
   font-size: 13px;
   color: var(--dim);
 }
+/* In a card the grid gap spaces the parts. An output that shows nothing yet takes no grid track, and stays in
+   the accessibility tree so its live region announces what fills it. */
+.wcard > .note {
+  margin-top: 0;
+}
+.wcard > div[aria-live]:empty {
+  position: absolute;
+}
 .wpage .group {
   padding: 8px 0 4px;
   position: static;
@@ -115,6 +123,12 @@
   align-items: center;
   gap: 8px;
 }
+.fld.check input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
 .fhelp {
   font-size: 12.5px;
   color: var(--dim);
@@ -167,6 +181,7 @@
 }
 .wproblems {
   list-style: none;
+  padding: 0;
   display: grid;
   gap: 4px;
   font-size: 13px;
@@ -184,6 +199,7 @@
 }
 .plist {
   list-style: none;
+  padding: 0;
   border-top: 1px solid var(--line-soft);
 }
 .plist li {
@@ -213,6 +229,7 @@
 }
 .recent {
   list-style: none;
+  padding: 0;
   display: grid;
 }
 .recent li {

@@ -37,7 +37,10 @@ test("without a workspace only the page to open one is shown, and opening one sh
     await drawn(page, "/w/open");
 
     await page.getByLabel("Folder of the workspace").fill(workspace.root);
-    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Open a workspace" })
+      .getByRole("button", { name: "Open", exact: true })
+      .click();
     await drawn(page, "/q/overview");
     const status = await runOn(workspace.root)("workspace.status");
     await expect(workspaceName(page)).toHaveText(status.name);
@@ -54,12 +57,18 @@ test("a folder without a workspace is refused in plain words", async ({ page }) 
     await page.goto(server.url);
     await drawn(page, "/w/open");
     await page.getByLabel("Folder of the workspace").fill(folder.dir);
-    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Open a workspace" })
+      .getByRole("button", { name: "Open", exact: true })
+      .click();
     await expect(page.getByRole("alert")).toContainText("There is no workspace in this folder.");
     await expect(page.getByRole("heading", { level: 1, name: "Workspaces" })).toBeVisible();
     // A relative path is refused: the server and the commands would resolve it from different folders.
     await page.getByLabel("Folder of the workspace").fill("some/folder");
-    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Open a workspace" })
+      .getByRole("button", { name: "Open", exact: true })
+      .click();
     await expect(page.getByRole("alert")).toContainText("This needs the full path of the folder.");
   } finally {
     await server.close();

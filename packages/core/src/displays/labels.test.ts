@@ -21,7 +21,7 @@ describe("relationGroupLabel", () => {
       "← Packages",
     );
     expect(relationGroupLabel({ kind: "owners", property: true, direction: "in" }, NAMES)).toBe("← owners");
-    expect(relationGroupLabel({ direction: "in" }, NAMES)).toBe("← inline reference");
+    expect(relationGroupLabel({ direction: "in" }, NAMES)).toBe("← Inline reference");
     expect(relationGroupLabel({ kind: "refines", direction: "out" }, NO_NAMES)).toBe("refines");
     expect(relationGroupLabel({ kind: "refines", direction: "in" }, NO_NAMES)).toBe("← refines");
   });

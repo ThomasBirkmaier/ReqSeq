@@ -147,7 +147,7 @@ describe("the export builds its neighbourhood model from what trace.neighbourhoo
       expect(fromExport).toEqual(fromCommands);
       if (id === ROOT) {
         // It points at itself, and its child LOOP derives back from it (SR-107 AK3, AK5).
-        const self = fromExport.incoming.rows.find((group) => group.label === "← inline reference");
+        const self = fromExport.incoming.rows.find((group) => group.label === "← Inline reference");
         expect(self?.entries.map((entry) => entry.ref.id)).toEqual([ROOT, USER]);
         expect(
           fromExport.children.rows.filter((row) => row.ref.id === ROOT).map((row) => row.repeated),

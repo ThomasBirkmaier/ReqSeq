@@ -236,7 +236,7 @@ describe("neighbourhoodDisplay, incoming", () => {
     );
     expect(incoming.rows.map((group) => [group.label, group.entries.map((entry) => entry.ref.id)])).toEqual([
       ["← Basis for", ["U", "V"]],
-      ["← inline reference", ["V"]],
+      ["← Inline reference", ["V"]],
       ["← Packages", ["U"]],
     ]);
     expect(incoming.rows[0]?.entries[0]?.outdated).toBe("X-U points to an older version of X-E (based-on)");
@@ -255,7 +255,7 @@ describe("neighbourhoodDisplay, incoming", () => {
       ALL,
     );
     expect(incoming.rows.map((group) => [group.label, group.entries.map((entry) => entry.ref.id)])).toEqual([
-      ["← inline reference", ["E"]],
+      ["← Inline reference", ["E"]],
     ]);
   });
 
@@ -310,7 +310,7 @@ describe("neighbourhoodDisplay on a package page (SR-232 AK9)", () => {
   it("[SR-232/AK-chx5] leaves out the group of the packages property with its rows, also of an invalid status, and keeps every other group", () => {
     expect(groups(true, "packages")).toEqual([
       ["← Basis for", ["U"]],
-      ["← inline reference", ["M"]],
+      ["← Inline reference", ["M"]],
     ]);
   });
 
