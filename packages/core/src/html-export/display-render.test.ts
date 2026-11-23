@@ -1,6 +1,6 @@
 // ADR-0019 Consequences: one display model, built once from a shared fixture of `fixtures/displays/`, and the HTML
-// export shows each of its rows, groups and labels. The app's test of the same fixture is
-// `packages/app/src/renderer/display-render.test.ts`, so a drift between the two renderers fails one of them.
+// export shows each of its rows, groups and labels. The Electron app's test of the same fixture
+// went with the app (#2310).
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";

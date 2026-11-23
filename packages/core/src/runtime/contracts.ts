@@ -2,7 +2,7 @@
 // Same Ajv options as scripts/contracts/load.mjs, so `pnpm schemas:check` and the runtime agree, except
 // that the bundled schemas are not checked against the meta-schema again at run time (#178, `createAjv`).
 // The schemas come from generated/contracts.json (pnpm contracts:generate; contracts:check keeps it
-// equal to schemas/), so the package needs no schemas folder at run time (ADR-0014).
+// equal to schemas/), so the package needs no schemas folder at run time (ADR-0020).
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ErrorObject, ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";

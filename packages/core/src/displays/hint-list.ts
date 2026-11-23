@@ -2,8 +2,8 @@
 // headed by the title of the kind from schemas/problem-codes.yaml (SR-224 AK6, D-078: titles are kept once),
 // in the order of `kinds` with the count core gives for it (SR-026), and under it one row per hint of the
 // page in the order of the output, with its element, a short reason built from the hint's own fields and the
-// element the row leads to. Pure, and it imports only types and import-free modules, so the app's sandboxed
-// renderer can import it (`@reqseq/core/displays`).
+// element the row leads to. Pure, and it imports only types and import-free modules, so the pages of the web
+// UI can import it (`@reqseq/core/displays`).
 import type { HintListOutput } from "../generated/types.js";
 import { shownId, shownIdTitle } from "../graph/words.js";
 import { problemTitle } from "../problem-titles.js";
