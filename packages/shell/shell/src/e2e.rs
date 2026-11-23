@@ -39,10 +39,16 @@ pub fn root() -> Option<std::path::PathBuf> {
 
 /// A shorter wait for the address line, from `REQSEQ_SHELL_E2E_ADDRESS_WAIT_MS`.
 pub fn address_wait() -> Option<Duration> {
-    let millis = std::env::var("REQSEQ_SHELL_E2E_ADDRESS_WAIT_MS")
-        .ok()?
-        .parse()
-        .ok()?;
+    millis("REQSEQ_SHELL_E2E_ADDRESS_WAIT_MS")
+}
+
+/// A shorter wait for the window, from `REQSEQ_SHELL_E2E_WINDOW_WAIT_MS`.
+pub fn window_wait() -> Option<Duration> {
+    millis("REQSEQ_SHELL_E2E_WINDOW_WAIT_MS")
+}
+
+fn millis(variable: &str) -> Option<Duration> {
+    let millis = std::env::var(variable).ok()?.parse().ok()?;
     Some(Duration::from_millis(millis))
 }
 

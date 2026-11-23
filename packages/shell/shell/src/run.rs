@@ -9,8 +9,9 @@ use std::time::Duration;
 use url::Url;
 
 /// How long the shell waits for the engine to create its window (SR-252 AK8). On Windows `WebView2` reports neither
-/// success nor failure when its process cannot start or its user data folder cannot be written (#2477).
-pub const WINDOW_WAIT: Duration = Duration::from_secs(30);
+/// success nor failure when its process cannot start or its user data folder cannot be written (#2477). Long, so that
+/// a slow first start of the engine is not ended (#2499).
+pub const WINDOW_WAIT: Duration = Duration::from_mins(2);
 /// How long the shell waits for the address line (SR-252 AK5).
 pub const ADDRESS_WAIT: Duration = Duration::from_secs(30);
 /// How long the server has after its standard input closed, before it is killed (ADR-0021, End).
@@ -136,11 +137,16 @@ impl Shell {
             (Phase::Created, Event::WindowReady) => self.start(host),
             (Phase::Created, Event::WindowFailed(reason)) => self.no_window(host, &reason),
             (Phase::Created, Event::Timer(Timer::Window)) => {
-                self.no_window(host, "the web engine did not create it within 30 s");
+                let reason = format!(
+                    "the web engine did not create it within {} s",
+                    WINDOW_WAIT.as_secs()
+                );
+                self.no_window(host, &reason);
             }
             (Phase::Waiting, Event::Stdout(line)) => self.read_line(&line, host),
             (Phase::Waiting, Event::Timer(Timer::Address)) => {
-                self.fail(host, "printed no loopback address within 30 s");
+                let reason = format!("printed no loopback address within {} s", ADDRESS_WAIT.as_secs());
+                self.fail(host, &reason);
             }
             (Phase::Waiting, Event::ServerExited(status)) => {
                 self.fail(host, &format!("could not start ({status})"));
@@ -372,8 +378,8 @@ mod tests {
         assert_eq!(
             host.log,
             [
-                "after 30s Window",
-                "stderr ReqSeq: the window could not open: the web engine did not create it within 30 s\n",
+                "after 120s Window",
+                "stderr ReqSeq: the window could not open: the web engine did not create it within 120 s\n",
                 "exit 1"
             ]
         );
@@ -389,7 +395,7 @@ mod tests {
         assert!(!shell.done());
         assert_eq!(
             host.log,
-            ["after 30s Window", started().as_str(), "after 30s Address"]
+            ["after 120s Window", started().as_str(), "after 30s Address"]
         );
     }
 
