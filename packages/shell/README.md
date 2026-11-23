@@ -19,7 +19,7 @@ pnpm --filter @reqseq/shell build:e2e      # target/debug/reqseq-shell with the 
 pnpm --filter @reqseq/shell test:e2e
 ```
 
-Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace`. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
+Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace` with `CAP_SYS_PTRACE` over the shell, because the shell is not dumpable (ADR-0021, End): root, or `unshare -r` as in CI. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
 
 ## The e2e build
 
