@@ -1,21 +1,14 @@
 //! The engine's own connections switched off (ADR-0021, Engine data and the engine's own connections; SR-252 AK7):
-//! `SmartScreen`, background networking, autofill and password saving in `WebView2`, the fraudulent-website warning in
-//! `WKWebView`, DNS prefetching in `WebKitGTK`.
+//! `SmartScreen`, background networking, proxy detection, autofill and password saving in `WebView2`, the
+//! fraudulent-website warning in `WKWebView`, DNS prefetching in `WebKitGTK`.
 use tauri::{Runtime, WebviewWindow, WebviewWindowBuilder};
-
-/// The browser arguments of `WebView2`. Tauri's own defaults (`msWebOOUI`, `msPdfOOUI`, `msSmartScreenProtection`)
-/// are replaced by them, so they are kept here.
-#[cfg_attr(not(windows), allow(dead_code))]
-pub const WEBVIEW2_ARGUMENTS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
-     --disable-background-networking --disable-component-update --disable-domain-reliability \
-     --disable-sync --no-pings --no-first-run";
 
 /// The options set while the window is built.
 pub fn configure<R: Runtime, M: tauri::Manager<R>>(
     builder: WebviewWindowBuilder<'_, R, M>,
 ) -> WebviewWindowBuilder<'_, R, M> {
     #[cfg(windows)]
-    let builder = builder.additional_browser_args(WEBVIEW2_ARGUMENTS);
+    let builder = builder.additional_browser_args(shell::WEBVIEW2_ARGUMENTS);
     builder
 }
 

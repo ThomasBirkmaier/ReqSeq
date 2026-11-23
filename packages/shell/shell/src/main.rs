@@ -6,6 +6,7 @@
 #[cfg(feature = "e2e")]
 mod e2e;
 mod engine;
+mod frame;
 mod host;
 
 use shell::redact::TokenSlot;

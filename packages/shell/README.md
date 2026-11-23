@@ -2,7 +2,7 @@
 
 The desktop shell (D-084, ADR-0021): a Tauri program on the web engine of the operating system that starts `reqseq ui` of its release, shows its pages in its window and ends the server with its own end (SR-252). It calls no command and reads no workspace file. A Cargo workspace with two crates:
 
-- `shell/`: the program `reqseq-shell`. The rules are a library behind the `Host` trait (`src/run.rs`): start, the address the server prints, opening an address, failure and end; and behind the `Dialog` trait (`src/pick.rs`) the dialogs for a folder, an existing file and the target of a file (SR-253 AK1). `src/main.rs`, `src/host.rs` and `src/engine.rs` wire Tauri, the window and the engine settings; `src/unix.rs` and `src/windows.rs` start and end the server's process group or Job Object and filter the token out of the shell's own standard output and error output.
+- `shell/`: the program `reqseq-shell`. The rules are a library behind the `Host` trait (`src/run.rs`): start, the address the server prints, opening an address, failure and end; and behind the `Dialog` trait (`src/pick.rs`) the dialogs for a folder, an existing file and the target of a file (SR-253 AK1). `src/main.rs`, `src/host.rs`, `src/engine.rs` and `src/frame.rs` wire Tauri, the window, the engine settings and the window's frame, with the browser arguments of WebView2 from `src/lib.rs`; `src/unix.rs` and `src/windows.rs` start and end the server's process group or Job Object and filter the token out of the shell's own standard output and error output.
 - `launcher/`: the Linux program `ReqSeq`. It loads `libwebkit2gtk-4.1.so.0` first and, when it is missing, names the package `libwebkit2gtk-4.1-0` and ends with exit code 1 (SR-252 AK8); otherwise it runs `reqseq-shell` beside it.
 
 The pages reach the shell only through `packages/web/src/shell.ts`, with the commands `pick_folder`, `pick_file`, `pick_save_target` and `open_address`, which only the window on the server's exact origin may call. A dialog takes an absolute local folder to open in and, for a target, a plain file name to propose; it answers one absolute path or `null`, one dialog at a time. The command that gets the path decides what it may do (SR-253 AK2).
@@ -36,7 +36,7 @@ The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. 
 | format, clippy, unit tests | yes | yes |
 | coverage 100 % (`--lib`), crate licences, audit | yes | no |
 | e2e: start, end, failures, opening an address (SR-252 AK3, AK4, AK5, AK9, AK10), the dialogs (SR-253) | yes, without network | yes |
-| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall (AK7 untagged until #2480); macOS: no recorder yet |
+| e2e with recording: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes, with strace | Windows: event log, ETW and firewall; macOS: no recorder yet |
 | e2e: a window that cannot open (SR-252 AK8) | delivery tests | Windows: an empty WebView2 runtime folder |
 
 ## The release build
@@ -50,4 +50,4 @@ the inspection of the delivery checks (`packages/testkit/src/delivery.ts`). The 
 start that build from outside, through the process table, the open files and the connections of the system (SR-252
 AK1, AK8); only `scripts/package/delivery-tests.sh` runs them.
 
-Not measured by the coverage: `main.rs`, `host.rs`, `engine.rs` and `e2e.rs` (the Tauri wiring, which the e2e suite runs) and the Windows-only `windows.rs`.
+Not measured by the coverage: `main.rs`, `host.rs`, `engine.rs`, `frame.rs` and `e2e.rs` (the Tauri wiring, which the e2e suite runs) and the Windows-only `windows.rs`.
