@@ -1,6 +1,6 @@
 // workspace.listFolder (SR-143) as a read command: relative from the workspace root, `~` as home with
 // `absolute` and in the app, and the folder through the local path rule of the access (SR-142). The
-// criteria of the listing (SR-143 AK7) are tagged here; those of the command prompt are
+// criteria of the listing (SR-143) are tagged here; those of the command prompt are
 // not. The cross-access test runs it through every access.
 import fs from "node:fs/promises";
 import os from "node:os";
