@@ -208,7 +208,7 @@ test("the problems of an element stand on its page, several of one kind in one r
   try {
     const { element } = await ui.run("element.get", { ref });
     const groups = elementProblemGroups(element.problems);
-    const several = groups.find((g) => g.problems.length > 1);
+    const several = groups.find((g) => g.code === "relation.not-a-link" && g.problems.length > 1);
     if (several === undefined) {
       throw new Error("The element has no two problems of one kind");
     }
@@ -235,14 +235,17 @@ test("the problems of an element stand on its page, several of one kind in one r
     const current = await ui.run("element.get", { ref });
     await ui.run("element.update", {
       ref,
-      text: `${text} And reqseq:NO-SUCH-THREE.`,
+      text: `${text}\n\nAnd reqseq:NO-SUCH-THREE.`,
       expectedFileSha256: current.fileSha256,
     });
     const more = elementProblemGroups((await ui.run("element.get", { ref })).element.problems).find(
       (g) => g.code === several.code,
     );
-    await expect(row.locator("summary")).toContainText(String(more?.problems.length));
-    await expect(messages).toHaveText(more?.problems.map((p) => p.message) ?? []);
+    if (more === undefined || more.problems.length <= several.problems.length) {
+      throw new Error("The third reference added no problem of the same kind");
+    }
+    await expect(row.locator("summary")).toContainText(String(more.problems.length));
+    await expect(messages).toHaveText(more.problems.map((p) => p.message));
     await expect(messages.last()).toBeVisible();
   } finally {
     const after = await ui.run("element.get", { ref });

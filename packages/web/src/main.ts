@@ -107,6 +107,8 @@ function noWorkspace(): void {
 }
 
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+/** The keys of the rows that were open before the redraw that is running, if one is. */
+let reopening: ReadonlySet<string> | undefined;
 
 /**
  * The key of each open `details` of the page, so that a redraw can open it again: its `data-open-key`, else the text
@@ -138,12 +140,24 @@ async function refresh(ids: readonly string[]): Promise<void> {
     x.scrollTop,
     x.scrollLeft,
   ]);
-  const opened = new Set([...detailsKeys()].filter(([d]) => d.open).map(([, key]) => key));
+  // A refresh that starts while another one redraws sees that one's rows still closed, so it takes its keys too.
+  const opened = new Set([
+    ...(reopening ?? []),
+    ...[...detailsKeys()].filter(([d]) => d.open).map(([, key]) => key),
+  ]);
+  reopening = opened;
   setWorkspaceOpen(true);
+  const mine = rendering + 1;
   await route({ keepFocus: true });
-  for (const [d, key] of detailsKeys()) {
-    if (opened.has(key)) {
-      d.open = true;
+  if (reopening === opened) {
+    reopening = undefined;
+  }
+  // Overtaken by another page or a newer refresh: that one decides which rows are open.
+  if (mine === rendering) {
+    for (const [d, key] of detailsKeys()) {
+      if (opened.has(key)) {
+        d.open = true;
+      }
     }
   }
   root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll").forEach((x, at) => {
