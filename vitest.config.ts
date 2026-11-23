@@ -58,7 +58,7 @@ export default defineConfig({
     testTimeout: windowsCi ? 60_000 : 30_000,
     hookTimeout: windowsCi ? 60_000 : 30_000,
     // Vitest's default is one worker per core minus one (3 on the 4 vCPUs of windows-2025); 2 there (#701).
-    ...(windowsCi ? { maxWorkers: 2 } : {}),
+    ...(windowsCi ? { maxWorkers: 3 } : {}),
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { REQSEQ_VALIDATE_OUTPUT: "1" },
     // `agent` prints only failures and the summary: short logs for agents and CI (ThomasBirkmaier/ReqSeq-archive#392).
