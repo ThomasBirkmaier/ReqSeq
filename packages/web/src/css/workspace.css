@@ -51,12 +51,13 @@
   font-size: 13px;
   color: var(--dim);
 }
-/* In a card the grid gap spaces the parts; an output that shows nothing yet takes no gap. */
+/* In a card the grid gap spaces the parts. An output that shows nothing yet takes no grid track, and stays in
+   the accessibility tree so its live region announces what fills it. */
 .wcard > .note {
   margin-top: 0;
 }
-.wcard > div:empty {
-  display: none;
+.wcard > div[aria-live]:empty {
+  position: absolute;
 }
 .wpage .group {
   padding: 8px 0 4px;
