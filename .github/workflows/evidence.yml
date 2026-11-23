@@ -162,14 +162,27 @@ jobs:
       # junit-web-ubuntu-24.04/junit-web.xml (the web UI, Ubuntu only).
       # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only).
       # delivery: junit-delivery-<os>/junit-delivery.xml (release.yml).
+      # download-artifact puts each artifact into a folder of its name only when a pattern matches several; a single
+      # match lands directly in `path` (#2444). So perf, with its one artifact, names its folder itself. A download by
+      # name fails without the artifact, where a pattern matches nothing; the step goes on, and Enrich lists the
+      # artifact as missing, as for the other kinds.
       - name: JUnit files of the run
-        if: steps.skip.outputs.skip == 'false'
+        if: steps.skip.outputs.skip == 'false' && steps.run.outputs.kind != 'perf'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ steps.run.outputs.id }}
           github-token: ${{ github.token }}
-          pattern: ${{ steps.run.outputs.kind == 'perf' && 'perf-results' || 'junit-*' }}
+          pattern: junit-*
           path: ${{ runner.temp }}/junit
+      - name: JUnit file of the performance run
+        if: steps.skip.outputs.skip == 'false' && steps.run.outputs.kind == 'perf'
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+          name: perf-results
+          path: ${{ runner.temp }}/junit/perf-results
 
       - name: Enrich
         id: files
@@ -292,7 +305,13 @@ jobs:
           echo "degrees=$degrees" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
           cp "$RUNNER_TEMP/summary.md" "$RUNNER_TEMP/out/"
-          if compgen -G "$new/*.xml" > /dev/null; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
+          if compgen -G "$new/*.xml" > /dev/null; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            # Nothing to publish is named, so that it does not go unnoticed (#2444); the summary says which file.
+            echo "::warning::No JUnit file of $WORKFLOW run $RUN was enriched; nothing is published. See the job summary."
+          fi
           # An unknown requirement (a typo in a test name) or a finding of the check fails the job after the files
           # are written, so the other results are still published.
           exit "$status"
