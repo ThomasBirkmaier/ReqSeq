@@ -121,12 +121,35 @@ function readSince(name: string | undefined): Promise<Since> {
   return data;
 }
 
-/** The newest baseline's counts for the rail, read once per load of the store. */
-let railCounts:
-  { readonly key: string; readonly count: number | undefined; readonly name?: string } | undefined;
+/** The newest baseline's name and the number of listed changes since it, for the rail and the overview. */
+export interface Newest {
+  readonly count: number | undefined;
+  readonly name?: string;
+}
+
+/** The newest baseline's counts, read once per load of the store. */
+let railCounts: (Newest & { readonly key: string }) | undefined;
 
 const listedCount = (counts: NonNullable<Changes["baseline"]>["counts"]): number =>
   counts.changed + counts.superseded + (counts.added ?? 0) + (counts.removed ?? 0);
+
+/** The changes since the newest baseline as `baseline.changes` counts them; no count without a baseline. */
+export async function newestChanges(): Promise<Newest> {
+  const key = stamp();
+  if (railCounts?.key !== key) {
+    try {
+      const out = await call("baseline.changes", { limit: 1 });
+      railCounts = {
+        key,
+        count: out.baseline === undefined ? undefined : listedCount(out.baseline.counts),
+        ...(out.baseline === undefined ? {} : { name: out.baseline.name }),
+      };
+    } catch {
+      railCounts = { key, count: undefined };
+    }
+  }
+  return railCounts;
+}
 
 // ---------- Words ----------
 
@@ -1583,20 +1606,7 @@ addRailSection({
   order: 36,
   title: "Review",
   prepare: async () => {
-    const key = stamp();
-    if (railCounts?.key === key) {
-      return;
-    }
-    try {
-      const out = await call("baseline.changes", { limit: 1 });
-      railCounts = {
-        key,
-        count: out.baseline === undefined ? undefined : listedCount(out.baseline.counts),
-        ...(out.baseline === undefined ? {} : { name: out.baseline.name }),
-      };
-    } catch {
-      railCounts = { key, count: undefined };
-    }
+    await newestChanges();
   },
   links: () => [
     {
