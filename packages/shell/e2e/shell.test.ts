@@ -15,6 +15,7 @@ import { CONTROL_ADDRESS, WindowsRecorder, holds, inside, recordingMode } from "
 import type { Shell } from "./support.js";
 import {
   FAKE_SERVER,
+  FIRST_START_MS,
   OPENER,
   SHELL,
   descends,
@@ -26,6 +27,7 @@ import {
   startShell,
   stopsAnswering,
   tempFolder,
+  warmUp,
 } from "./support.js";
 
 const linux = process.platform === "linux";
@@ -33,9 +35,10 @@ const windows = process.platform === "win32";
 const ELEMENT = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const LINK = "https://example.org/guide?from=reqseq";
 
-beforeAll(() => {
+beforeAll(async () => {
   requireBuilt();
-});
+  await warmUp();
+}, FIRST_START_MS + 10_000);
 
 afterEach(async () => {
   await endShells();
