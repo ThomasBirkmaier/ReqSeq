@@ -14,6 +14,7 @@
 // stage is the package whose identifier is `Stufe-<n>` (or the identifier given, e.g. `Querschnitt`);
 // its system requirements are those that name it in `packages`. Statuses marked invalid in the
 // metamodel (obsolete) give a warning when a test still names the SR.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -360,17 +361,49 @@ export function activeTags(text, file = "") {
 }
 
 /**
+ * The paths below root that Git ignores, relative to root with `/`, a folder with a trailing `/`
+ * (`build/package/`): copies there, such as a staged delivery, are no tests of the checkout (#2410).
+ * Empty when root is not in a Git checkout; any other failure of Git is named on stderr, since the copies then
+ * count again.
+ */
+function gitIgnored(root) {
+  try {
+    const out = execFileSync(
+      "git",
+      ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, LC_ALL: "C" },
+        stdio: ["ignore", "pipe", "pipe"],
+        maxBuffer: 64 * 1024 * 1024,
+      },
+    );
+    return new Set(out.split("\0").filter(Boolean));
+  } catch (error) {
+    if (!/not a git repository/i.test(String(error.stderr ?? ""))) {
+      console.warn(`trace-check: git-ignored files are counted, git ls-files failed: ${error.message}`);
+    }
+    return new Set();
+  }
+}
+
+/**
  * Test references of active tests below root (activeTags): a key tag as "SR-036/-k7f3" -> [file:line]
  * (`resolveTags` turns it into the number), a number tag as "SR-036/2".
  */
 export function testReferences(root) {
   const refs = new Map();
+  const ignored = gitIgnored(root);
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (SKIP.has(entry.name)) {
         continue;
       }
       const p = path.join(dir, entry.name);
+      if (ignored.has(entry.isDirectory() ? `${repoPath(root, p)}/` : repoPath(root, p))) {
+        continue;
+      }
       if (entry.isDirectory()) {
         walk(p);
       } else if (TEST_FILE.test(entry.name) || SCENARIO_MODULE.test(repoPath(root, p))) {
