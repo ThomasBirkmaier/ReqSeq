@@ -1,16 +1,22 @@
 // The e2e tests of the desktop shell (SR-252, ADR-0021, Test seam): the e2e build of `reqseq-shell` with the CLI
 // of the checkout, driven through its test driver. The recording tests (AK2, AK6, AK7) run on Linux with
 // `strace -f`; on Linux CI the suite runs under Xvfb and a D-Bus session inside `unshare -rn`, so every connection
-// to another machine is refused.
+// to another machine is refused. On Windows they record with the event log, ETW and firewall rules
+// (record-windows.ts).
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
-import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
+import type { WindowsRecord } from "./record-windows.js";
+import { CONTROL_ADDRESS, WindowsRecorder, holds, inside, recordingMode } from "./record-windows.js";
 import type { Shell } from "./support.js";
 import {
   FAKE_SERVER,
   OPENER,
+  SHELL,
   descends,
   endShells,
   loopback,
@@ -35,9 +41,16 @@ afterEach(async () => {
   await endShells();
 });
 
-/** The fixture workspace with an element whose text holds links, a remote image and raw HTML. */
+/** The fixture workspace with an element whose text holds links, a remote image and raw HTML, removed after the test. */
 async function workspace(): Promise<FixtureWorkspace> {
-  const ws = await createFixtureWorkspace({
+  const ws = await newWorkspace();
+  onTestFinished(() => ws.cleanup());
+  return ws;
+}
+
+/** The fixture workspace of `workspace()`, which the caller removes. */
+function newWorkspace(): Promise<FixtureWorkspace> {
+  return createFixtureWorkspace({
     fixture: "SR-004/one-repository",
     files: {
       "requirements/SR-6328cee88fb3.md": [
@@ -56,8 +69,6 @@ async function workspace(): Promise<FixtureWorkspace> {
       ].join("\n"),
     },
   });
-  onTestFinished(() => ws.cleanup());
-  return ws;
 }
 
 /** A folder whose `xdg-open` (Linux) or opener script (macOS, Windows) records each address it gets. */
@@ -114,6 +125,38 @@ const askOpen = (key: string, address: string): string => `(() => {
 
 const answer = (shell: Shell, key: string): Promise<unknown> =>
   shell.evalUntil(`the answer for ${key}`, `(window.__open || {})[${JSON.stringify(key)}] || null`);
+
+/** Reads the element and changes its title through the server, as the page's edit does, and checks the file. */
+async function changeElement(shell: Shell, ws: FixtureWorkspace): Promise<void> {
+  const changed = await shell.eval(`(() => {
+    window.__changed = null;
+    const call = (name, input) => fetch("api/" + name, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + sessionStorage.getItem("reqseq.token"), "x-reqseq-workspace": String(window.__generation) },
+      body: JSON.stringify(input),
+    });
+    call("element.get", { ref: "${ELEMENT}" })
+      .then((r) => r.json())
+      .then((got) => call("element.update", { ref: "${ELEMENT}", title: "Show wind speed and gusts", expectedFileSha256: got.fileSha256 }))
+      .then(async (r) => { window.__changed = r.status === 200 ? 200 : r.status + " " + (await r.text()); }, (e) => { window.__changed = String(e); });
+    return true;
+  })()`);
+  expect(changed).toBe(true);
+  expect(await shell.evalUntil("the change", "window.__changed")).toBe(200);
+  expect(await fs.readFile(path.join(ws.root, "requirements", "SR-6328cee88fb3.md"), "utf8")).toContain(
+    "title: Show wind speed and gusts",
+  );
+}
+
+/** The token of the page. The page's answer passes the shell's output filter too, so it comes back encoded. */
+async function pageToken(shell: Shell): Promise<string> {
+  const token = Buffer.from(
+    String(await shell.evalUntil("the token", "btoa(sessionStorage.getItem('reqseq.token') || '') || null")),
+    "base64",
+  ).toString("utf8");
+  expect(token).toMatch(/^[\w-]{20,}$/);
+  return token;
+}
 
 describe("SR-252: the desktop shell shows the web UI of its release", () => {
   it("[SR-252/AK-gq7j] the address stops answering within 5 s however the shell ends, and closing the window ends it", async () => {
@@ -353,14 +396,7 @@ describe.runIf(linux)(
     it("[SR-252/AK-nhyc] the token is in no argument, no output of the shell and no file it writes", async () => {
       const shell = await startShell({ record: true });
       await shell.shown();
-      // The page's answer passes the shell's filter too, so the token comes back encoded.
-      const token = Buffer.from(
-        String(
-          await shell.evalUntil("the token", "btoa(sessionStorage.getItem('reqseq.token') || '') || null"),
-        ),
-        "base64",
-      ).toString("utf8");
-      expect(token).toMatch(/^[\w-]{20,}$/);
+      const token = await pageToken(shell);
       await shell.eval(
         "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
       );
@@ -400,25 +436,7 @@ describe.runIf(linux)(
       const shell = await startShell({ record: true });
       await shell.shown();
       await showElement(shell, ws);
-      // The change goes through the server as the page's edit does: read the element, then change it.
-      const changed = await shell.eval(`(() => {
-      window.__changed = null;
-      const call = (name, input) => fetch("api/" + name, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: "Bearer " + sessionStorage.getItem("reqseq.token"), "x-reqseq-workspace": String(window.__generation) },
-        body: JSON.stringify(input),
-      });
-      call("element.get", { ref: "${ELEMENT}" })
-        .then((r) => r.json())
-        .then((got) => call("element.update", { ref: "${ELEMENT}", title: "Show wind speed and gusts", expectedFileSha256: got.fileSha256 }))
-        .then(async (r) => { window.__changed = r.status === 200 ? 200 : r.status + " " + (await r.text()); }, (e) => { window.__changed = String(e); });
-      return true;
-    })()`);
-      expect(changed).toBe(true);
-      expect(await shell.evalUntil("the change", "window.__changed")).toBe(200);
-      expect(await fs.readFile(path.join(ws.root, "requirements", "SR-6328cee88fb3.md"), "utf8")).toContain(
-        "title: Show wind speed and gusts",
-      );
+      await changeElement(shell, ws);
       shell.send({ close: true });
       expect((await shell.exited).code).toBe(0);
       const recorded = await readTrace(shell.trace ?? "");
@@ -453,6 +471,199 @@ describe.runIf(linux)(
     }, 90_000);
   },
 );
+
+const windowsRecording = windows ? recordingMode() : "skip";
+
+// On Windows one recorded run of the shell serves the tests of AK2, AK6 and AK7, each reading the same record: it
+// reads, shows and changes elements, shows the remote image and raw HTML, and logs the token in the page.
+describe.skipIf(windowsRecording === "skip")(
+  "SR-252: what the desktop shell starts, opens, writes and connects to (event log, ETW and firewall, Windows)",
+  () => {
+    let recorder: WindowsRecorder | undefined;
+    let ws: FixtureWorkspace | undefined;
+    let record: WindowsRecord;
+    let token = "";
+    let shellOut = { stdout: "", stderr: "" };
+    let control = "";
+
+    beforeAll(async () => {
+      if (windowsRecording === "fail") {
+        throw new Error(
+          "The recording on Windows is not set up (REQSEQ_SHELL_E2E_RECORD=windows is missing); in CI the step " +
+            "`Shell - recorders (Windows)` sets it, and without it these tests fail instead of skipping.",
+        );
+      }
+      recorder = await WindowsRecorder.start();
+      ws = await newWorkspace();
+      control = await recorder.runControl();
+      const shell = await startShell({ node: recorder.node });
+      await shell.shown();
+      token = await pageToken(shell);
+      await shell.eval(
+        "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
+      );
+      await showElement(shell, ws);
+      await changeElement(shell, ws);
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      shell.send({ close: true });
+      expect((await shell.exited).code).toBe(0);
+      shellOut = { stdout: shell.stdout, stderr: shell.stderr };
+      record = await recorder.stop(shell.child.pid ?? -1);
+    }, 300_000);
+
+    afterAll(async () => {
+      await recorder?.cleanup();
+      await ws?.cleanup();
+    });
+
+    /**
+     * The record is complete and can find what it looks for: the trace lost nothing, the control process and the shell
+     * are in the process events, the server opened the workspace file and the engine wrote to its data folder.
+     */
+    function expectControls(): void {
+      expect([record.lost.buffersLost, record.lost.eventsLost]).toEqual([0, 0]);
+      expect(record.lost.eventsProcessed).toBeGreaterThan(0);
+      expect(record.control.started).toBe(true);
+      expect(record.processes.find((p) => p.pid === record.shellPid)?.normalized).toBe(
+        record.normalize(SHELL),
+      );
+      expect(record.serverPid).toBeDefined();
+      // The engine's browser process starts the renderer: the tree reaches the engine's own descendants.
+      expect(record.processes.some((p) => !p.server && p.commandLine.includes("--type=renderer"))).toBe(true);
+      const root = record.normalize(ws?.root ?? "");
+      const workspaceFile = `${root}\\reqseq-workspace.yaml`;
+      const serverOpens = record.opens.filter(
+        (o) => o.path === workspaceFile && record.processes.some((p) => p.pid === o.pid && p.server),
+      );
+      expect(serverOpens.length).toBeGreaterThan(0);
+      const engineWrites = record.writes.filter(
+        (w) =>
+          inside(w.path, record.engineData) &&
+          record.processes.some((p) => p.pid === w.pid && !p.server && record.engines.includes(p.normalized)),
+      );
+      expect(engineWrites.length).toBeGreaterThan(0);
+    }
+
+    it("[SR-252/AK-nhyc] the token is in no argument, no output of the shell and no file it writes (Windows)", async ({
+      annotate,
+    }) => {
+      expectControls();
+      expect(shellOut.stdout).not.toContain(token);
+      expect(shellOut.stderr).not.toContain(token);
+      expect(record.processes.length).toBeGreaterThan(2);
+      expect(
+        record.processes
+          .filter((p) => p.commandLine.includes(token) || p.program.includes(token))
+          .map((p) => p.program),
+      ).toEqual([]);
+      // Every file a process of the tree other than the server wrote or created, the engine's data folder excepted
+      // (SR-252 AK2). Paths the trace names by a device other than a drive (pipes, the console) are no files, and the
+      // metadata files at the root of a volume (`$Mft`, `$LogFile`) are the file system's own.
+      const server = new Set(record.processes.filter((p) => p.server).map((p) => p.pid));
+      const written = [
+        ...new Set(
+          record.writes
+            .filter(
+              (w) =>
+                !server.has(w.pid) &&
+                w.path !== undefined &&
+                !/^[a-z]:\\\$[^\\]+$/.test(w.path) &&
+                !inside(w.path, record.engineData),
+            )
+            .map((w) => w.path ?? ""),
+        ),
+      ];
+      expect(written.length).toBeGreaterThan(0);
+      const holding: string[] = [];
+      const unreadable: string[] = [];
+      for (const file of written) {
+        const found = await holds(file, token);
+        if (found === true) {
+          holding.push(file);
+        } else if (found === undefined) {
+          unreadable.push(file);
+        }
+      }
+      const unnamed = record.writes.filter((w) => !server.has(w.pid) && w.path === undefined).length;
+      await annotate(
+        `${String(record.processes.length)} processes, ${String(written.length)} written files checked, ` +
+          `${String(unnamed)} writes to handles the trace does not name`,
+      );
+      expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
+    }, 120_000);
+
+    it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (Windows)", () => {
+      expectControls();
+      const started = record.processes.filter((p) => p.pid !== record.shellPid && !p.server);
+      expect(started.length).toBeGreaterThan(0);
+      expect(started.filter((p) => !record.engines.includes(p.normalized)).map((p) => p.program)).toEqual([]);
+      const root = record.normalize(ws?.root ?? "");
+      const server = new Set(record.processes.filter((p) => p.server).map((p) => p.pid));
+      expect(
+        record.opens.filter((o) => !server.has(o.pid) && inside(o.path, root)).map((o) => o.raw),
+      ).toEqual([]);
+    });
+
+    // Not evidence of SR-252 AK7 yet: the engine looks up `wpad` by itself (question #2480). This test runs the
+    // recorder and its controls and shows that nothing else of the tree connects to or looks up another machine.
+    it("SR-252 AK7 recorder (Windows): the firewall refuses and records the control, and the tree connects to no other machine", async ({
+      annotate,
+    }) => {
+      expect(control).toBe("error EACCES");
+      expect(record.control.refused).toEqual([
+        { application: record.normalize(recorder?.node ?? ""), address: CONTROL_ADDRESS },
+      ]);
+      expect(record.control.lookedUp).toBe(true);
+      const engines = [
+        ...new Set(
+          record.processes.filter((p) => !p.server && p.pid !== record.shellPid).map((p) => p.normalized),
+        ),
+      ];
+      expect(engines.length).toBeGreaterThan(0);
+      expect(engines.filter((e) => !record.rules.includes(e))).toEqual([]);
+      expect(record.rules).toContain(record.normalize(recorder?.node ?? ""));
+      expect(record.rules).toContain(record.normalize(SHELL));
+      expect(record.refused).toEqual([]);
+      const wpad = record.lookups.filter((l) => l.name.toLowerCase() === "wpad");
+      await annotate(`${String(wpad.length)} lookups of wpad by the engine (#2480)`);
+      expect(record.lookups.filter((l) => l.name.toLowerCase() !== "wpad")).toEqual([]);
+    });
+  },
+);
+
+describe.runIf(windows)("SR-252: a window that cannot open (Windows)", () => {
+  it("[SR-252/AK-ts68] with an empty WebView2 runtime folder the shell ends with 1, names the reason in English, and no server runs", async () => {
+    // WebView2 takes its runtime from this folder (WEBVIEW2_BROWSER_EXECUTABLE_FOLDER); an empty one is no runtime,
+    // and the window cannot open. The hangs with other broken runtimes are #2477.
+    const empty = await tempFolder("no-runtime");
+    onTestFinished(() => fs.rm(empty, { recursive: true, force: true }));
+    const shell = await startShell({ env: { WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: empty } });
+    const ended = await Promise.race([
+      shell.exited,
+      new Promise<undefined>((resolve) => setTimeout(resolve, 30_000, undefined)),
+    ]);
+    expect(ended).toEqual({ code: 1, signal: null });
+    // The reason of the builder error, not the fixed line of the panic hook (which a release build would reach by
+    // abort, ADR-0021).
+    expect(shell.stderr).toMatch(/^ReqSeq: the window could not open: .*webview runtime/im);
+    expect(shell.stderr).not.toMatch(/^ReqSeq: the window could not open\.\s*$/m);
+    expect(shell.all("shown")).toEqual([]);
+    expect(shell.all("page-load")).toEqual([]);
+    expect(await children(shell.child.pid ?? -1)).toEqual([]);
+  }, 60_000);
+});
+
+/** The processes still running whose parent was `pid`, with their programs and command lines. */
+async function children(pid: number): Promise<string[]> {
+  const script = `$ErrorActionPreference = 'Stop'; Get-CimInstance Win32_Process -Filter "ParentProcessId = ${String(pid)}" | ForEach-Object { $_.Name + ' ' + $_.CommandLine }`;
+  const { stdout } = await promisify(execFile)("powershell.exe", [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    script,
+  ]);
+  return stdout.split(/\r?\n/).filter((l) => l.trim() !== "");
+}
 
 /** A page script that calls the shell's `command` with `args` and keeps the answer in `window.__call[key]`. */
 const askShell = (key: string, command: string, args: Record<string, unknown>): string => `(() => {
