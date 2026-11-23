@@ -253,36 +253,125 @@ const optionsOf = (field: InputField, fields: readonly InputField[]): FieldOptio
 /** Flags other tools take for the output form; the CLI has `--json`, `--yaml` and `--jsonl` for it (ADR-0009). */
 const OUTPUT_FORM_FLAGS: readonly string[] = ["format", "output"];
 
+/** Flags other tools take for paging, by the flag of the CLI that does it (#2427). */
+const PAGING_FLAGS: Readonly<Record<string, string>> = {
+  "page-size": "limit",
+  "per-page": "limit",
+  "max-results": "limit",
+  skip: "offset",
+};
+
+/** Flags of every command with their value, which go after the command, not before it (`commandFlagHint`). */
+const COMMAND_FLAGS: Readonly<Record<string, string>> = {
+  json: "--json",
+  yaml: "--yaml",
+  jsonl: "--jsonl",
+  input: "--input <json|@file|->",
+  workspace: "--workspace <path>",
+};
+
+/** The value of `table` at `key`, never an inherited one (`--constructor`). */
+const own = (table: Readonly<Record<string, string>>, key: string): string | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined;
+
+/** The flag name without `--` and without a `=value`. */
+const flagName = (flag: string): string => flag.replace(/^--/, "").replace(/=.*$/s, "");
+
+/** `name`, and `name` with a plural `s` taken away or added: `--types` means `--where-type` (#2427). */
+const spellings = (name: string): string[] =>
+  name.endsWith("s") ? [name, name.slice(0, -1)] : [name, `${name}s`];
+
+/** `(Did you mean a?)`, `(Did you mean a or b?)`, with the further sentence `after`. */
+const didYouMean = (flags: readonly string[], after?: string): string =>
+  `(Did you mean ${flags.join(" or ")}?${after === undefined ? "" : ` ${after}`})`;
+
 /**
- * The hint after commander's `unknown option '--x'` on `command` (#1831), in place of its own
- * suggestion: `--where-x` when the command has that flag, the output flags it has for `--format` or
- * `--output`; `undefined` otherwise (also for those when the command has no output flag), and
- * commander's suggestion stays.
+ * The hint after commander's `unknown option '--x'` on `command` (#1831, #2427), in place of its own
+ * suggestion: `--where-x` when the command has that flag (also for `--xs`), `--add-x` and `--remove-x`
+ * when it has those, its paging flag for `--page-size` and its like, the output flags it has for
+ * `--format` or `--output`; `undefined` otherwise (also for those when the command has no such flag),
+ * and commander's suggestion stays.
  */
 export const unknownOptionHint = (flag: string, command: Command): string | undefined => {
-  const name = flag.replace(/^--/, "").replace(/=.*$/s, "");
+  const name = flagName(flag);
   const longs = new Set(command.options.map((option) => option.long));
-  if (longs.has(`--where-${name}`)) {
-    return `(Did you mean --where-${name}?)`;
+  const has = (form: string): boolean => longs.has(form);
+  const where = spellings(name)
+    .map((spelling) => `--where-${spelling}`)
+    .find(has);
+  if (where !== undefined) {
+    return didYouMean([where]);
   }
-  const forms = OUTPUT_FORM_FLAGS.includes(name)
-    ? ["--json", "--jsonl", "--yaml"].filter((form) => longs.has(form))
-    : [];
+  const changes = spellings(name).flatMap((spelling) =>
+    [`--add-${spelling}`, `--remove-${spelling}`].filter(has),
+  );
+  if (changes.length > 0) {
+    return didYouMean(changes);
+  }
+  const paging = own(PAGING_FLAGS, name);
+  if (paging !== undefined && has(`--${paging}`)) {
+    return didYouMean([`--${paging}`]);
+  }
+  const forms = OUTPUT_FORM_FLAGS.includes(name) ? ["--json", "--jsonl", "--yaml"].filter(has) : [];
   if (forms.length === 0) {
     return undefined;
   }
   const without = "Without them, the output is the readable form.";
   return forms.length === 1
-    ? `(Did you mean ${forms.join("")}? ${without.replace("them", "it")})`
+    ? didYouMean(forms, without.replace("them", "it"))
     : `(Did you mean one of ${forms.join(", ")}? ${without})`;
 };
 
-/** `command` with `unknownOptionHint` added to commander's error for an unknown option. */
+/** The words that call `command`: `reqseq element`. */
+const callOf = (command: Command): string =>
+  command.parent === null ? command.name() : `${callOf(command.parent)} ${command.name()}`;
+
+/**
+ * The hint after commander's `unknown option '--json'` on `reqseq` or a group (#2427): a flag of every
+ * command goes after the command, so `reqseq --json element list` names `reqseq <group> <action> --json`;
+ * `undefined` for any other flag.
+ */
+const commandFlagHint = (flag: string, command: Command): string | undefined => {
+  const name = flagName(flag);
+  const usage = own(COMMAND_FLAGS, name);
+  if (usage === undefined) {
+    return undefined;
+  }
+  const rest = command.parent === null ? "<group> <action>" : "<action>";
+  return `(--${name} goes after the command: ${callOf(command)} ${rest} ${usage})`;
+};
+
+/**
+ * The hint after commander's `unknown command 'x'` on `reqseq` (#2427), in place of its own suggestion:
+ * the calls of the groups with an action x, so `reqseq init` names `reqseq workspace init`; `undefined`
+ * when no group has one, and commander's suggestion stays. Only for an action given without a group:
+ * `reqseq element delete` names no action of another group, as if it deleted elements (SR-099).
+ */
+export const unknownCommandHint = (name: string, program: Command): string | undefined => {
+  const calls = program.commands
+    .filter((group) => group.commands.some((action) => action.name() === name))
+    .map((group) => `${callOf(group)} ${name}`);
+  if (calls.length === 0) {
+    return undefined;
+  }
+  return calls.length === 1 ? didYouMean(calls) : `(Did you mean one of ${calls.join(", ")}?)`;
+};
+
+/** The hint for commander's error `message` on `command`; `undefined` when there is none. */
+const hintOf = (message: string, command: Command): string | undefined => {
+  const flag = /^error: unknown option '([^']*)'/.exec(message)?.[1];
+  if (flag !== undefined) {
+    return command.commands.length === 0 ? unknownOptionHint(flag, command) : commandFlagHint(flag, command);
+  }
+  const name = /^error: unknown command '([^']*)'/.exec(message)?.[1];
+  return name === undefined || command.parent !== null ? undefined : unknownCommandHint(name, command);
+};
+
+/** `command` with `hintOf` added to commander's error for an unknown option or command. */
 const withOptionHints = (command: Command): void => {
   const error = command.error.bind(command);
   command.error = (message, errorOptions) => {
-    const flag = /^error: unknown option '([^']*)'/.exec(message)?.[1];
-    const hint = flag === undefined ? undefined : unknownOptionHint(flag, command);
+    const hint = hintOf(message, command);
     return error(
       hint === undefined ? message : `${message.replace(/\n\(Did you mean [^)]*\)$/, "")}\n${hint}`,
       errorOptions,
@@ -477,6 +566,9 @@ export function buildProgram(options: ProgramOptions): Command {
     throw new Error(`catalog group ${clash.join(", ")} clashes with a command of the CLI`);
   }
   addServers(program, options);
+  for (const command of [program, ...groups.values()]) {
+    withOptionHints(command);
+  }
   refuseRepeats(program);
   return program;
 }

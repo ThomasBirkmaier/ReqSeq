@@ -444,24 +444,33 @@ describe("hint.confirm (SR-027)", () => {
     });
   });
 
-  it("says that a comma does not separate hint IDs (#1790)", async () => {
+  it("says that a comma does not separate hint IDs, right after the ID (#1790, #2427)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
     // Also an ID that starts with a since-baseline code, which gets that refusal.
     const sinceBaseline = `variant.core-changed-since-baseline/x,${DERIVES}`;
-    const out = await confirm(open(ws.root), [`${DERIVES},${LINK}`, sinceBaseline]);
+    const list = JSON.stringify([DERIVES, LINK]);
+    const out = await confirm(open(ws.root), [`${DERIVES},${LINK}`, sinceBaseline, list]);
     expect(out.confirmed).toEqual([]);
     const note =
-      /; a comma does not separate values: give each value on its own \(on the command line, the option once per value\)$/;
+      "; a comma does not separate values: give each value on its own (on the command line, the option once per value); ";
     expect(out.problems?.map((p) => [p.code, p.hintId, p.message])).toEqual([
-      ["hint.not-confirmable", `${DERIVES},${LINK}`, expect.stringMatching(note) as unknown],
+      [
+        "hint.not-confirmable",
+        `${DERIVES},${LINK}`,
+        `${DERIVES},${LINK} is no ID of a hint that can be confirmed${note}only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in "List hints") is confirmed, by writing the current version; other hints go away when what they report is changed`,
+      ],
       [
         "hint.not-confirmable",
         sinceBaseline,
-        expect.stringMatching(/is settled only by a new baseline of its variant/) as unknown,
+        `${sinceBaseline} is not confirmed${note}a variant.core-changed-since-baseline hint is settled only by a new baseline of its variant ("Create baseline" with the view of the variant), not by confirming it`,
+      ],
+      [
+        "hint.not-confirmable",
+        list,
+        expect.stringMatching(/^\[.* is no ID of a hint that can be confirmed; a comma/) as unknown,
       ],
     ]);
-    expect(out.problems?.[1]?.message).toMatch(note);
   });
 
   it("[SR-027/AK-q47h] writes nothing when one of the files changed on disk since it was read", async () => {
