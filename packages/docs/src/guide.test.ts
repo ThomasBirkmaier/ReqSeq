@@ -42,7 +42,11 @@ describe("guide", () => {
       path: "start/broken.md",
       text: "```sh\nreqseq workspace init . W\nreqseq element get N-000000\n```",
     };
-    await expect(checkExamples([...pages, broken], runReqseq)).rejects.toThrow(
+    // The guide's own pages passed above; one of them runs again before the broken page, not all of them, so the
+    // test runs the guide once (#2509).
+    const passing = pages.filter((page) => page.path === "start/get-started.md");
+    expect(passing).toHaveLength(1);
+    await expect(checkExamples([...passing, broken], runReqseq)).rejects.toThrow(
       "start/broken.md:3: reqseq element get N-000000: exit code",
     );
     const changed = {
