@@ -2,17 +2,17 @@
 // export's element page show of `element.get` besides text and properties: its verification status per view, its
 // relations by group and its open hints. Both sides render it; neither groups, orders or words these rows itself.
 //
-// - Verification: one cell per entry of `verification`, in core's order (SR-157 AK1); none for an element that is no
+// - Verification: one cell per entry of `verification`, in core's order; none for an element that is no
 //   requirement or need.
 // - Relation groups: one per relation kind and direction, or relation property for incoming relations (the targets
-//   of an outgoing relation property are the values of that property, SR-104, and stand with the properties). The
+//   of an outgoing relation property are the values of that property, and stand with the properties). The
 //   outgoing groups first, then the incoming ones; within each, the kinds in the order of the metamodel, then a kind
 //   the metamodel does not know in the order it first appears, headed by its key (`relationGroupLabel`). Within a
 //   group the relations in the order of `element.get`. The export page shows the outgoing ones only (SR-232 AK1,
 //   option `relations`).
 // - Open hints: those `hint.list` gives for the element, in its order (SR-232 AK4, ADR-0019 point 9(c)); without a
 //   `hint.list` answer, those of `element.get` by the rule of `hint.list` (`openHints`), so the app's status line
-//   counts the same set (SR-114 AK2).
+//   counts the same set.
 // - `readOnly` as `element.get` gives it (point 6); the export ignores it.
 import type { DataExportElement, DataExportRelation, MetamodelGetOutput } from "../generated/types.js";
 import type { ElementRef } from "./element-ref.js";

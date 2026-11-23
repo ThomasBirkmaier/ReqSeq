@@ -375,7 +375,7 @@ const withoutGenerated = (access: string, outcome: Outcome, start: number, end: 
 };
 
 /**
- * Commands whose output says whether the copy has a usable cache folder (`recorded`, SR-228 AK4). Here only
+ * Commands whose output says whether the copy has a usable cache folder (`recorded`, SR-228). Here only
  * the CLI opens the copy with its cache folder (as `reqseq` does), the other accesses without one, so
  * `recorded` is checked per access and then replaced, with the answer that says it, and the rest is compared. The same command with the
  * cache folder on every access, where an MCP session is itself a connection: agent-connections.test.ts.
@@ -1028,7 +1028,7 @@ const crashing = createCommandRuntime({
           input: { type: "object", additionalProperties: false },
           output: { type: "object" },
         },
-        // The MCP server takes its instructions from tool.guide before it serves (SR-229 AK17).
+        // The MCP server takes its instructions from tool.guide before it serves (SR-229).
         {
           name: "tool.guide",
           title: "Agent guide",

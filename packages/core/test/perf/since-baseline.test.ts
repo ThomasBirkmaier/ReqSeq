@@ -16,7 +16,7 @@
 // Method: in process, on a workspace with the model loaded and the current versions built
 // (`loaded()`), unlike ADR-0018's "one new CLI process per call". `hint.list` and `workspace.check`
 // build the versions anyway, so the since-baseline part is measured after them. A cold CLI process
-// (or the app before its background versions build ends) first waits for that build when it asks
+// (or a server before its background versions build ends) first waits for that build when it asks
 // for the hints of a variant with a baseline, 4–5 s at N-036 (ThomasBirkmaier/ReqSeq-archive#259, `hints.md` "Cost").
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
 import {

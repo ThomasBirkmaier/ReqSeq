@@ -1023,7 +1023,7 @@ describe("version date", () => {
     expect(await fs.readFile(repo.fixture.path(FILE), "utf8")).toBe(element("One."));
   });
 
-  describe("as a sort reads it (SR-075 AK6)", () => {
+  describe("as a sort reads it (SR-075)", () => {
     const times = async (
       workspace: Workspace,
       requests: readonly Partial<VersionDateRequest>[],
@@ -1480,7 +1480,7 @@ describe("version date after HEAD moved (SR-082 AK4)", () => {
     expect(historyRange).toHaveBeenCalledTimes(2);
   });
 
-  it("answers a sort from HEAD's version first: undated only where Git could not tell HEAD's own, newer where HEAD has another, whichever call came first (SR-075 AK6)", async () => {
+  it("answers a sort from HEAD's version first: undated only where Git could not tell HEAD's own, newer where HEAD has another, whichever call came first (SR-075)", async () => {
     const repo = await repository([
       { name: "one", files: { [FILE]: one } },
       { name: "two", files: { [FILE]: two } },

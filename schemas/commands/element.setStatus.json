@@ -45,7 +45,7 @@
       },
       "problems": {
         "title": "Problems",
-        "description": "For each element, element.missing-required for each required property without a value (SR-243 AK4); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2).",
+        "description": "For each element, element.missing-required for each required property without a value (SR-243); then, with a status the metamodel marks invalid, the hints on relations to these elements (SR-072 AK2).",
         "type": "array",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"

@@ -1,12 +1,12 @@
-// The metamodel as a graph (SR-130 AK2, AK3), for the Mermaid text (SR-151 AK2,
+// The metamodel as a graph (SR-130), for the Mermaid text (SR-151 AK2,
 // #1537; this module imports only types): which box and which curve stand for
 // which field of `metamodel.get`. Pure display (ADR-0002 rule 3, SR-080 AK4): nothing is decided here, every word shown
 // is a value of the output or a word for a field ("extends", "Any type", "abstract", "any source").
 // - A node is one entry of `types`, in their order, with its name, prefix and every property of
-//   `properties`, own and inherited (SR-130 AK2); `metamodel.get` gives the statuses (AK5). A property is
+//   `properties`, own and inherited (SR-130); `metamodel.get` gives the statuses (AK5). A property is
 //   inherited when its key is among the `properties` of the type its `extends` names; that is the one reading of the output this
 //   module makes (review S2). Its owner, the type that has it itself, is the farthest ancestor up the chain
-//   of `extends` that has it, so a menu on the property acts on that type (SR-199 AK6).
+//   of `extends` that has it, so a menu on the property acts on that type.
 // - A link is an `extends` value (to the parent), one pair of the `source-types` × `target-types` of a
 //   relation kind, or one target type of a property of kind `relation` that a type has as its own (ThomasBirkmaier/ReqSeq-archive#619
 //   Q1: drawn as curves, labelled with the property's name). A side that a relation kind or property

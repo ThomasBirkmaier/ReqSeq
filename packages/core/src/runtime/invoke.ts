@@ -7,7 +7,7 @@
 // command `readOutputElements`, which runs another read command for `selection.output` (SR-224 AK5) the same way
 // (`outputElementsReader`), and with `selection.output.count` gives the elements one number of its output counts
 // (SR-224 AK4, output-count.ts). Leaves out the next steps of an output whose command it would refuse
-// in the workspace of the call while it is read-only (`withRunnableSteps`, SR-226 AK6).
+// in the workspace of the call while it is read-only (`withRunnableSteps`, SR-226).
 import path from "node:path";
 import type {
   AnyCommand,
@@ -49,7 +49,7 @@ export interface InvokeContext {
    * the result in one way only, its local path rule: outside `UNCONFINED_ACCESSES` local paths must lie
    * inside the repositories of the workspace (SR-142, an exception to SR-080 AK2), except for the commands
    * `UNCONFINED_COMMANDS` names for the access, and in the app `~` at
-   * the start of a local path is the home folder (SR-143 AK2; the command line's shell expands it). Core records the element a successful call names as the last access of the
+   * the start of a local path is the home folder (SR-143; the command line's shell expands it). Core records the element a successful call names as the last access of the
    * copy when the access is one of `FOLLOWED_ACCESSES` (API and MCP, SR-117) and the workspace has
    * a cache folder; left out, nothing is recorded and no path is confined (core tests, internal callers).
    */
@@ -79,7 +79,7 @@ const confines = (access: AccessName | undefined, name: string): boolean =>
 
 /**
  * The local path rule of an access of `UNCONFINED_ACCESSES` (or of none): the app's takes `~` for the home
- * folder, since its prompt has no shell that expands it (SR-143 AK2); the command line's shell does.
+ * folder, since its prompt has no shell that expands it (SR-143); the command line's shell does.
  */
 const unconfinedLocalPaths = (access: AccessName | undefined): LocalPaths =>
   access === "app" ? appLocalPaths() : OPEN_LOCAL_PATHS;
@@ -250,7 +250,7 @@ const hasNextSteps = (output: unknown): boolean => {
 };
 
 /**
- * `result` with only the next steps of its `next` that can run now (SR-226 AK6): a step in the workspace of
+ * `result` with only the next steps of its `next` that can run now (SR-226): a step in the workspace of
  * the call is left out when `refused` names its command and the workspace is read-only; a step in another
  * workspace (the new one of `workspace.init`) is the command's to check.
  */

@@ -147,7 +147,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
       `start with ${String(records)} Markdown record files in the repository: model loaded, no cache`,
       start,
       {
-        basis: "SR-082 AK2, N-036 (warmModel in process, untagged; the app adds its own time)",
+        basis: "SR-082 AK2, N-036 (warmModel in process, untagged)",
         thresholdMs: 30_000,
       },
     );
@@ -160,7 +160,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
       `start with ${String(records)} Markdown record files in the repository: model loaded through the model cache`,
       start,
       {
-        basis: "SR-082 AK1, N-036 (warmModel in process, untagged; the app adds its own time)",
+        basis: "SR-082 AK1, N-036 (warmModel in process, untagged)",
         thresholdMs: 3_000,
       },
     );
@@ -242,12 +242,12 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
     );
   });
 
-  it("[SR-082/AK-h27y] sorts all elements by the verification status within 500 ms once its state is built (SR-075 AK5)", async () => {
+  it("[SR-082/AK-h27y] sorts all elements by the verification status within 500 ms once its state is built (SR-075)", async () => {
     const sort = [{ by: "verification" }, { by: "identifier" }];
     const { result: first } = await measure(
       "list: first page (200) of all elements sorted by verification status, then identifier: first such sort",
       () => run("element.list", { sort }),
-      { basis: `SR-082 AK4, SR-075 AK5 (first sort; ${COMPARE_AK4})`, ...COMPARED },
+      { basis: `SR-082 AK4, SR-075 (first sort; ${COMPARE_AK4})`, ...COMPARED },
     );
     const { result: again, measurement } = await measure(
       "list: first page (200) of all elements sorted by verification status, then identifier: again (status state kept)",
@@ -377,7 +377,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 Th
   });
 
   /**
-   * Opens an element as the app shows it (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line at the same
+   * Opens an element with its parents line (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line at the same
    * time; SR-082 AK3 is the time of both (open-filter-chain.test.ts).
    */
   const open = async (id: string): Promise<Output<"element.get">["element"]> => {

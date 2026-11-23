@@ -1,4 +1,4 @@
-// The frame of the metamodel commands (SR-236 AK5, AK9, AK10, AK12) over each relation kind command:
+// The frame of the metamodel commands (SR-236 AK5, AK9 and AK10) over each relation kind command:
 // metamodel.addRelationKind, metamodel.changeRelationKind and metamodel.removeRelationKind, on the
 // small model of the test helper (the relation kind `about` targets hazards; `causes` is unused).
 import fs from "node:fs/promises";

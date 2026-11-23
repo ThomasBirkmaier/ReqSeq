@@ -1,4 +1,4 @@
-// workspace.agents (SR-228 AK7): the clients connected to this copy through the MCP server and the one
+// workspace.agents (SR-228): the clients connected to this copy through the MCP server and the one
 // connected last, as the MCP server processes record them in the cache folder of the copy
 // (model/agents.ts). The app's status line shows them (#1894).
 import type { CommandOutput } from "../../catalog.js";

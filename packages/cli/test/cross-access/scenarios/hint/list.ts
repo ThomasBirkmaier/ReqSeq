@@ -83,7 +83,7 @@ scenariosOf("hint.list", [
     },
   },
   {
-    name: "the outdated reference in an acceptance criterion, with its hint ID and line (SR-127 AK3)",
+    name: "the outdated reference in an acceptance criterion, with its hint ID and line (SR-127)",
     fixture: IN_CRITERIA,
     input: { kind: ["relation.outdated"] },
     expect: "output",

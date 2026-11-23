@@ -1,4 +1,4 @@
-// trace.matrix (SR-125, SR-126, SR-153, N-076, D-062): the traceability matrix of a selection. The rows are the
+// trace.matrix (SR-125, SR-126, SR-153, N-076): the traceability matrix of a selection. The rows are the
 // elements of the selection in the order `element.list` gives (query/ordered.ts), one page at a time;
 // the columns are the relation kinds and directions that occur in the whole selection, each with the
 // rows that have a link, and where the metamodel sets a minimum the rows that meet it and their share,
@@ -6,7 +6,7 @@
 // missing marked (trace/matrix.ts). With an evidence location (SR-126, `showsEvidence`) each
 // requirement row of the page also has its test cases and its verification status, and `evidence`
 // heads them with the view and the verification degree of the whole selection (evidence/matrix.ts,
-// evidence/degree.ts). All of it is computed here, so every access shows the same (SR-125 AK6,
+// evidence/degree.ts). All of it is computed here, so every access shows the same (SR-125,
 // D-029). `incomplete` follows SR-006 AK2 over the whole selection and the evidence locations.
 // `evidence` comes right after `columns`, as the degree stands above the status column (SR-126 AK4);
 // `names` names the variant of its view and the missing children of the rows (ThomasBirkmaier/ReqSeq-archive#588).

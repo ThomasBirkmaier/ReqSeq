@@ -47,7 +47,7 @@ const runtimeFor = (names: readonly string[]): CommandRuntime =>
     validateOutput: true,
     commands: [
       defineTestCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
-      // The MCP server sends the output of tool.guide with instructions as its instructions (SR-229 AK17).
+      // The MCP server sends the output of tool.guide with instructions as its instructions (SR-229).
       defineTestCommand({ name: "tool.guide", run: () => Promise.resolve({ guide: "Test guide" }) }),
       defineTestCommand({
         name: "test.closeFails",

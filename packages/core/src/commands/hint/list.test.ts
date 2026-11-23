@@ -165,7 +165,7 @@ describe("hint.list (SR-026)", () => {
     const workspace = await opened();
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(check.problems.map((p) => p.code)).toContain("relation.missing-target");
-    // The hints of hint.list carry the titles of element and target too (SR-026 AK6).
+    // The hints of hint.list carry the titles of element and target too (SR-026).
     expect(withoutTitles((await list(workspace)).hints)).toEqual(check.problems.filter(isHint));
   });
 

@@ -1,6 +1,6 @@
 // The criteria of a requirement with number, key, text and the reference for a test name, as
 // element.get and element.resolve give them (SR-205 AK1, AK3), and element.resolve of such a
-// reference (SR-205 AK5). The reference leads back to the requirement as enrich-junit reads a test
+// reference (SR-205). The reference leads back to the requirement as enrich-junit reads a test
 // name (`criterionRefsOf`) and the store resolves it (`resolveRef`), so a name that does not is
 // replaced by the short ID (assumption of spec question #1525).
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -106,7 +106,7 @@ describe("element.get: criteria with number, key, text and reference (SR-205 AK1
     expect((await get(workspace, IDS.slash)).criterionReferences).toEqual(keyed("SR-0e0002"));
     expect((await get(workspace, IDS.shared1)).criterionReferences).toEqual(keyed("SR-0e0003"));
     expect((await get(workspace, IDS.bracket)).criterionReferences).toEqual(keyed("SR-0e0007"));
-    // A key two criteria carry names neither of them (SR-204 AK10).
+    // A key two criteria carry names neither of them (SR-204).
     expect((await get(workspace, "SR-903")).criterionReferences?.criteria).toEqual([
       { criterion: 1, key: "kred", text: "First." },
       { criterion: 2, key: "kred", text: "Second." },
@@ -176,7 +176,7 @@ describe("element.get: criteria with number, key, text and reference (SR-205 AK1
   });
 });
 
-describe("element.resolve of a reference to a criterion (SR-205 AK5)", () => {
+describe("element.resolve of a reference to a criterion (SR-205)", () => {
   it("[SR-205/AK-ndnj] names the requirement, number and text of the criterion, with brackets or without, by identifier or short ID", async () => {
     const workspace = await open();
     const ak3 = {

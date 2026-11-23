@@ -7,7 +7,7 @@
 // type's status is optional: a type without status, or one whose statuses are all marked invalid
 // (ThomasBirkmaier/ReqSeq-archive#344, option 1), so a leftover status can be cleared and a retired element made current again.
 // A required property without a value blocks no status (D-030, SR-243): the status is set, and the
-// output names each such property of each element as its hint (SR-243 AK4).
+// output names each such property of each element as its hint (SR-243).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { MetamodelEffectiveType } from "../generated/types.js";
@@ -39,7 +39,7 @@ export interface SetStatusResult {
   readonly files: readonly string[];
   /**
    * For each element, in the order of `refs`, the hint on each required property without a value
-   * (`element.missing-required`, SR-243 AK4); then, with a status the metamodel marks invalid, the
+   * (`element.missing-required`, SR-243); then, with a status the metamodel marks invalid, the
    * hints on relations to these elements (SR-072 AK2).
    */
   readonly problems: readonly Problem[];
@@ -184,7 +184,7 @@ export const setElementStatus = async (
     after.set(`${element.record.repository}\0${element.record.file}`, element);
   }
   const files = written.map((w) => w.file);
-  // A required property without a value blocks no status (D-030); the output names it (SR-243 AK4),
+  // A required property without a value blocks no status (D-030); the output names it (SR-243),
   // without saying that no file changes, as the call may just have written it.
   const missing = [...after.values()].flatMap(({ file, record }) =>
     locateIn(file, requiredFindings(record, metamodel, { unchangedNote: false })),

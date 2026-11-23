@@ -2,7 +2,7 @@
 // with 50,000 elements and 200,000 relations. The columns and their counts take the whole selection
 // (one pass over the records and the incoming index, no file); only the page (`limit`, default 200)
 // gets its cells, and only its rows and their available targets get their versions. The first page
-// of all elements in the sort of the app's list, and of all system requirements, assert SR-082
+// of all elements sorted by type and identifier, and of all system requirements, assert SR-082
 // AK4's 500 ms (tagged, ADR-0011) after a warm-up call (the incoming index is built on the first
 // call); the derivation tree of all elements and a page of hubs (decisions, whose cells hold many
 // relations) are recorded only. Last, the same metamodel with a minimum (a system requirement derives
@@ -34,8 +34,8 @@ const RESULT_MS = 500;
 const RUNS = 5;
 /** The versions stored in relations are all the same, so every relation to an element is outdated. */
 const VERSION: VersionFunction = () => "n1:0000000000000000";
-/** The sort of the app's list when it has none of its own (`DEFAULT_SORT`, packages/app). */
-const APP_SORT = [
+/** Sorted by type, then identifier. */
+const TYPE_SORT = [
   { by: "type", order: "asc" },
   { by: "identifier", order: "asc" },
 ];
@@ -51,7 +51,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     tree = generateLargeWorkspace({ version: VERSION, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
-    // As a server or the app does it at start (SR-082 AK1, AK2).
+    // As a server does it at start (SR-082 AK1, AK2).
     await warmWorkspace(workspace);
     expect((await workspace.get(elementStoreState)).elements).toHaveLength(ELEMENTS);
   }, 600_000);
@@ -70,12 +70,12 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
 
   const basis = "SR-125, N-036 (recorded; compare SR-082 AK4, 500 ms)";
 
-  it("[SR-082/AK-h27y] gives the first page of all elements in the app's sort within 500 ms", async () => {
+  it("[SR-082/AK-h27y] gives the first page of all elements sorted by type and identifier within 500 ms", async () => {
     // The incoming relation index and the short IDs are built once per store, not per call (ADR-0008).
-    await matrix({ sort: APP_SORT });
+    await matrix({ sort: TYPE_SORT });
     const { result, measurement } = await measureMedian(
-      "matrix: first page (200) of all 50,000 elements, columns over the whole selection, the app's sort",
-      () => matrix({ sort: APP_SORT }),
+      "matrix: first page (200) of all 50,000 elements, columns over the whole selection, sorted by type and identifier",
+      () => matrix({ sort: TYPE_SORT }),
       {
         basis: "SR-082 AK4 (trace.matrix, columns over the selection, one page built)",
         thresholdMs: RESULT_MS,
@@ -92,7 +92,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
   });
 
   it("[SR-082/AK-h27y] gives the first page of all system requirements within 500 ms", async () => {
-    const input = { selection: { where: { type: ["system-requirement"] } }, sort: APP_SORT };
+    const input = { selection: { where: { type: ["system-requirement"] } }, sort: TYPE_SORT };
     await matrix(input);
     const { result, measurement } = await measureMedian(
       "matrix: first page (200) of all system requirements, columns over the whole selection",
@@ -121,7 +121,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
   it("records the first page of the decisions, whose cells hold many relations", async () => {
     const { result } = await measure(
       "matrix: first page (200) of all decisions, many incoming relations per cell, all outdated",
-      () => matrix({ selection: { where: { type: ["decision"] } }, sort: APP_SORT }),
+      () => matrix({ selection: { where: { type: ["decision"] } }, sort: TYPE_SORT }),
       { basis },
     );
     expect(result.rows.length).toBeGreaterThan(0);
@@ -144,7 +144,7 @@ describe("trace.matrix with 50,000 elements and 200,000 relations (SR-125, N-036
     const limited = new Workspace(fixture?.workspaceRoot ?? "");
     try {
       await warmWorkspace(limited);
-      const input = { selection: { where: { type: ["system-requirement"] } }, sort: APP_SORT };
+      const input = { selection: { where: { type: ["system-requirement"] } }, sort: TYPE_SORT };
       const run = async (): Promise<Output> =>
         (await invoke("trace.matrix", input, { workspace: limited })) as Output;
       await run();

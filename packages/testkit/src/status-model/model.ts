@@ -90,7 +90,7 @@ export function currentRecordNames(ref: ModelCriterionRef, key: string | undefin
   return key !== undefined && key === ref.key;
 }
 
-// V17 (SR-204 AK10): the key a record can name a current criterion by; none when another criterion carries it too.
+// V17 (SR-204): the key a record can name a current criterion by; none when another criterion carries it too.
 export function namingKeyOf(element: ModelElement, criterion: ModelCriterion): string | undefined {
   const carriers = element.criteria.filter((other) => other.key !== undefined && other.key === criterion.key);
   return carriers.length === 1 ? criterion.key : undefined;
@@ -107,7 +107,7 @@ export function olderRefKey(
   return older?.criteria?.[ref.number - 1]?.key;
 }
 
-// V10, V11, V12, V13, V17 (SR-031 AK6, AK11, AK12, SR-204 AK10): whether a record counts for the criterion at `index`.
+// V10, V11, V12, V13, V17 (SR-031 AK6, AK11, AK12, SR-204): whether a record counts for the criterion at `index`.
 export function countsForCriterion(
   record: ModelRecord,
   element: ModelElement,

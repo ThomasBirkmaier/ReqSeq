@@ -15,7 +15,7 @@ import {
   supersededHintFiles,
 } from "../../fixtures.js";
 
-/** The SHA-256 of a file's bytes, as element.get gives it (`fileSha256`, SR-106). */
+/** The SHA-256 of a file's bytes, as element.get gives it (`fileSha256`). */
 const sha256 = (bytes: string | Buffer): string => createHash("sha256").update(bytes).digest("hex");
 
 /**
@@ -326,7 +326,7 @@ scenariosOf("element.update", [
     expect: "error",
   },
   {
-    name: "a change of the title without expectedFileSha256 is refused: input.invalid (SR-106, #269)",
+    name: "a change of the title without expectedFileSha256 is refused: input.invalid (#269)",
     input: { ref: "SR-e88fb3", title: "Show the wind speed" },
     expect: "error",
     check: (results) => {
@@ -339,12 +339,12 @@ scenariosOf("element.update", [
     },
   },
   {
-    name: "a save with the SHA-256 of the file as read is written (SR-106)",
+    name: "a save with the SHA-256 of the file as read is written",
     input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: WIND_SHA256 },
     expect: "output",
   },
   {
-    name: "a save with an old SHA-256 writes nothing: file.changed-on-disk (SR-106)",
+    name: "a save with an old SHA-256 writes nothing: file.changed-on-disk",
     input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: "0".repeat(64) },
     expect: "error",
   },

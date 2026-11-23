@@ -377,7 +377,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
     ]);
   });
 
-  it("takes the folder workspace.status gives each location: the root, a folder, another repository, none for an unlisted one (SR-215)", async () => {
+  it("takes the folder workspace.status gives each location: the root, a folder, another repository, none for an unlisted one", async () => {
     const { workspace } = await open({
       "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: system, path: . }\n  - { repository: system, path: records/ }\n  - { repository: tests, path: evidence }\n  - { repository: unknown, path: evidence }\n",

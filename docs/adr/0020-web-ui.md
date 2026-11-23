@@ -161,7 +161,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 - **SR-078 AK3:** each browser context routes every request to a non-loopback address to a recorder that refuses it. The test starts the built `reqseq ui` with the network block of the tests (`scripts/test-support/block-network.mjs`), which refuses and records each connection of the server to another machine (`REQSEQ_NETWORK_LOG`), as for SR-078 AK1. The job runs in a network namespace with loopback only (Linux), as the delivery tests do.
 - **Network:** the browsers are cached in CI, and the tests run with the network blocked.
 - **Tags:** only these contract tests carry AK tags (`packages/web/test/contract-*.spec.ts`). Appearance and operation are tested, not traced.
-- **Evidence:** the JUnit file of the UI tests is the artifact `junit-web-ubuntu-24.04` (`junit-web.xml`), which `evidence.yml` enriches like the other suites (D-050).
+- **Evidence:** the JUnit file of the UI tests is the artifact `junit-web-ubuntu-24.04` (`junit-web.xml`), which `evidence.yml` enriches like the other suites.
 
 ### Release (supersedes ADR-0014 from #2308 on)
 
@@ -191,7 +191,7 @@ A refused request runs nothing and gets 403 (Host, Origin, fetch site) or 401 (t
 
 ## Consequences
 
-- `packages/app`, electron-builder and the Electron jobs of CI go with #2310. ADR-0010 and ADR-0014 then describe nothing that is still built.
+- `packages/app`, electron-builder and the Electron jobs of CI went with #2310. ADR-0010 and ADR-0014 describe nothing that is still built.
 - `tool.info` reports the versions of the command line and the MCP server and the Node it runs on, as SR-161 AK1 asks; the app version and the Electron and Chromium versions are gone (#2400).
 - The guide may describe the app until the docs step before the v0.13 release (#2309). Its committed images stay as they are.
 - A save dialog for a place outside the repositories, with a desktop shell, needs a spec change of SR-248 AK4.

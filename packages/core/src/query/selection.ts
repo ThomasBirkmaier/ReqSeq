@@ -8,9 +8,9 @@
 //     one copy of a UUID that files in several repositories share (SR-088) is named without `ref.ambiguous`
 //     (`resolveInRepository`): every element with that UUID in that repository, also two copies there; an
 //     item that names none is `ref.unknown`, as an `ids` item. The app opens the elements a number of a
-//     write command's output counts with it (SR-223 AK5).
+//     write command's output counts with it.
 //   - `where`: the condition (condition.ts, SR-069).
-//   - `package`: the elements assigned to the package (SR-112 AK1), as the condition `package`.
+//   - `package`: the elements assigned to the package, as the condition `package`.
 //   - `view`: the elements the view of the core or a variant holds (`viewRuleOf`: the validity,
 //     SR-040, less what the variant excludes or replaces, SR-041, SR-042, SR-043). It is also the
 //     view of `verification` without `variant` (SR-047).

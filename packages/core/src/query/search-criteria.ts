@@ -9,7 +9,7 @@
 // - A key word (`queryKeyOf`, AK1): a word that is a key in its form, in any case, also with `AK-` in
 //   front as a criterion reference writes it (`AK-rqjp`).
 // - A criterion reference (`queryReferenceOf`, AK2): a word that `criterionReferenceOf` reads with a
-//   key (SR-205 AK5: with or without brackets, split at the first `/`), in any case.
+//   key (SR-205: with or without brackets, split at the first `/`), in any case.
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
 import { acceptanceCriteriaKeyOf } from "../model/acceptance-criteria.js";

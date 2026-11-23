@@ -27,7 +27,7 @@ scenariosOf("metamodel.addRelationKind", [
     },
   },
   {
-    name: "a name another relation kind has is refused through every access (SR-236 AK12)",
+    name: "a name another relation kind has is refused through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { name: "Refines", key: "details" },
     expect: "error",

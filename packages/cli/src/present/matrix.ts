@@ -37,8 +37,8 @@ const cellItem = (relation: unknown): string => {
 };
 
 /**
- * The head of a matrix column (SR-153): with minima `met of expected · share` (core's `minimumHeadText`, as
- * the app), else the count of the rows with a relation.
+ * The head of a matrix column (SR-153): with minima `met of expected · share` (core's `minimumHeadText`),
+ * else the count of the rows with a relation.
  */
 const columnHead = (column: Rec): string => {
   const { count, expected, met, share } = column;

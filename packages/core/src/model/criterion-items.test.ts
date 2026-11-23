@@ -1,9 +1,9 @@
 // The reference of a test name to a criterion as element.get writes it and element.resolve and the
-// app's "Go to" read it (SR-205 AK1, AK5): split at the first `/`, as enrich-junit reads a name.
+// app's "Go to" read it (SR-205 AK1): split at the first `/`, as enrich-junit reads a name.
 import { describe, expect, it } from "vitest";
 import { criterionReference, criterionReferenceOf } from "./criterion-items.js";
 
-describe("criterionReferenceOf (SR-205 AK5)", () => {
+describe("criterionReferenceOf (SR-205)", () => {
   it("[SR-205/AK-ndnj] reads one bracket token, or a reference and a criterion suffix without brackets", () => {
     expect(criterionReferenceOf(criterionReference("SR-036", "k7f3"))).toEqual({
       ref: "SR-036",

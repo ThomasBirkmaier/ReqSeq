@@ -603,7 +603,7 @@ const criterionPositionOf = (items: readonly unknown[], given: number | string):
  * Rule 3: the criteria the record is written for, by position, with their keys (SR-030 AK4); none
  * without the input. `input.invalid` on a validation record, which counts per element (SR-030 AK3),
  * and for a criterion `criterionPositionOf` refuses, one without key (`criterion-without-key`: the file names
- * criteria by key only), and one whose key another criterion carries too (SR-030 AK5, SR-204 AK10).
+ * criteria by key only), and one whose key another criterion carries too (SR-030 AK5, SR-204).
  */
 const criteriaOfInput = (
   input: EvidenceRecordInput,

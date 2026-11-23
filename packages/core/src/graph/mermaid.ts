@@ -1,4 +1,4 @@
-// The graph of an element (SR-151 AK1, AK6) and the graph of the metamodel (AK2) as a Mermaid flowchart:
+// The graph of an element (SR-151 AK1) and the graph of the metamodel (AK2) as a Mermaid flowchart:
 // the same nodes, edges and words as the app's graphs (`words.ts`, `metamodel/graph.ts`), as text. The
 // same output gives the same bytes on every platform (AK4): LF, no trailing spaces, a final newline, no
 // time and no path.
@@ -60,7 +60,7 @@ const text = (lines: readonly string[]): string => `${lines.join("\n")}\n`;
 /**
  * The flowchart of an element's graph (AK1): one node per node of the output, in its order, as `n0`,
  * `n1`, …: "<short ID (identifier)> · <type>", the title, then the marks and the verification words when
- * there are any. The element has a thicker frame (D-062: no colour). One edge per edge of the output, from
+ * there are any. The element has a thicker frame (no colour). One edge per edge of the output, from
  * the source to the target, labelled with the name of its kind and "· outdated"; inline references dashed.
  * First a comment when `limit` left out elements (AK6), then one when the graph is incomplete.
  */

@@ -11,7 +11,7 @@
 // - A `reqseq:` reference is what `reference` gives (SR-231 AK6): a link to the page of its target, its link text
 //   with a note on an inaccessible target, or its link text alone.
 // - A formula (`$…$`, `$$…$$`, a `$$` block, a fenced `math` block) is set by KaTeX (`formula.ts`). One with an error
-//   shows its source as code, then "Error" and KaTeX's message in grey (SR-096 AK3), and is `html.formula-error`; one
+//   shows its source as code, then "Error" and KaTeX's message in grey, and is `html.formula-error`; one
 //   whose HTML is outside the grammar is its source and `html.unsafe-content`.
 // - A Mermaid block with a click action, an HTML label or its own configuration is code without its language and a
 //   finding; any other is marked `data-rq-diagram` for the page script to draw, unless it is over the bounds, which
@@ -268,7 +268,7 @@ const CALLOUT = /^\[!(note|tip|important|warning|caution)\][ \t]*(?:\n|$)/iu;
 const RAW = "rqRaw";
 const ASIDE = "rqAside";
 
-/** An error of a formula or a diagram after its source, in grey (SR-096 AK3). */
+/** An error of a formula or a diagram after its source, in grey. */
 const errorHtml = (source: string, message: string, block: boolean): string => {
   const error = `<span class="rq-render-error-label">Error</span> ${escapeHtml(message)}`;
   return block

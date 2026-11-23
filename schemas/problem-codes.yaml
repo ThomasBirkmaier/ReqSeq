@@ -86,7 +86,7 @@ problems:
   element.criterion-key-missing:
     title: Acceptance criterion without key
     cause: A requirement has acceptance criteria without criterion key, which a test or verification record would name it by; the warning gives their count.
-    remedy: Change the acceptance criteria, with element.update or in the app; then every acceptance criterion of the requirement gets a criterion key. Saving them unchanged changes nothing.
+    remedy: Change the acceptance criteria, with element.update; then every acceptance criterion of the requirement gets a criterion key. Saving them unchanged changes nothing.
   element.criterion-key-duplicate:
     title: Duplicate criterion key
     cause: Two acceptance criteria of one requirement have the same criterion key, usually because a line was copied by hand.

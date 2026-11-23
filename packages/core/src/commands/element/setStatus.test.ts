@@ -349,7 +349,7 @@ describe("element.setStatus writes only the status", () => {
   });
 });
 
-describe("element.setStatus names the required properties without a value (SR-243 AK4)", () => {
+describe("element.setStatus names the required properties without a value (SR-243)", () => {
   /** A third element of fixtures/SR-001/two-elements: no status, an empty and an absent required property. */
   const RAIN = {
     id: "5a6b7c8d-1111-4222-8333-0a0b0c0d0e0f",

@@ -67,7 +67,7 @@
       "kinds": {
         "title": "Hints per kind",
         "type": "array",
-        "description": "The number of hints that pass the filters per kind (SR-026 AK6), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`.",
+        "description": "The number of hints that pass the filters per kind (SR-026), counted over every such hint, not only the page of `limit` from `offset`. Without `kind`: each kind that has a hint, in the order its first hint has in `hints` over all pages. With `kind`: also each kind it names that has none, with count 0, after the others in the order `kind` names them. The counts add up to `total`.",
         "items": {
           "type": "object",
           "properties": {

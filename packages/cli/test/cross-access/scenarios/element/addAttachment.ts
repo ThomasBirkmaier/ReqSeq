@@ -18,7 +18,7 @@ scenariosOf("element.addAttachment", [
     expect: "output",
   },
   {
-    name: "an image given as bytes, as the app pastes one (SR-190 AK3)",
+    name: "an image given as bytes, as an editor pastes one",
     fixture: WITH_IMAGE,
     input: { ref: "SR-e88fb3", content: Buffer.from("an image").toString("base64"), name: "Bild 1.png" },
     expect: "output",

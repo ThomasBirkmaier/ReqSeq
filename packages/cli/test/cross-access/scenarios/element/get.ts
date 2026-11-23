@@ -46,7 +46,7 @@ scenariosOf("element.get", [
     },
   },
   {
-    name: "an element with a reference in an acceptance criterion: its outdated hint (SR-127 AK3)",
+    name: "an element with a reference in an acceptance criterion: its outdated hint (SR-127)",
     fixture: IN_CRITERIA,
     input: { ref: "SR-0000b1" },
     expect: "output",
@@ -92,7 +92,7 @@ scenariosOf("element.get", [
     expect: "output",
   },
   {
-    name: "the outdated relation and reference of an element dated, not the element itself (SR-110 AK2)",
+    name: "the outdated relation and reference of an element dated, not the element itself",
     fixture: HINTS,
     input: { ref: "SR-0000b1", hintDates: true },
     expect: "output",

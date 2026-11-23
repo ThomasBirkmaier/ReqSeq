@@ -240,7 +240,7 @@ const numberedProperties = (
 /**
  * The details of an element below its line: what the line does not show, type and file first, the
  * relations one line each, the text last. The UUIDs of `names` in the values other than the
- * properties (shown as stored) print as the elements they name (`replacedBy`, `excludedBy`, SR-046 AK3).
+ * properties (shown as stored) print as the elements they name (`replacedBy`, `excludedBy`, SR-046).
  */
 export const elementDetails = (
   element: Rec,
@@ -311,7 +311,7 @@ export const listedElementDetails = (element: Rec): string[] => {
 export const findingLine = (finding: Rec, style?: Style): string => {
   // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
   // unique per type only, so alone it could name the wrong element (`--ref`).
-  // Each with its title when it has one (SR-026 AK6), as `names` prints an element: `SHORT-ID  title`,
+  // Each with its title when it has one (SR-026), as `names` prints an element: `SHORT-ID  title`,
   // on one line however the title is written.
   const titleOf = (value: unknown): string =>
     text(value)
@@ -330,7 +330,7 @@ export const findingLine = (finding: Rec, style?: Style): string => {
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
   const hint = hintId === "" ? "" : `hint: ${hintId}`;
-  // The view of outdated evidence (SR-026 AK6), `core` or the variant's UUID, as core gives it.
+  // The view of outdated evidence (SR-026), `core` or the variant's UUID, as core gives it.
   const viewOf = text(finding["view"]);
   const view = viewOf === "" ? "" : `view: ${viewOf}`;
   if (style === undefined) {

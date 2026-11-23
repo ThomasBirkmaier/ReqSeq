@@ -24,9 +24,9 @@ const ABSTRACT: FixtureOptions = {
       "  - { key: derived, name: Derived, prefix: DV, extends: base }\n",
   },
 };
-/** Statuses per type: draft is the initial status, which decisions do not have (SR-064 AK4). */
+/** Statuses per type: draft is the initial status, which decisions do not have (SR-064). */
 const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git: true };
-/** Two repositories, system the main one (SR-064 AK5). */
+/** Two repositories, system the main one (SR-064). */
 const TWO_REPOSITORIES: FixtureOptions = { fixture: "SR-021/targets", git: ["system", "sensor"] };
 /** A list property with max-items 3 (SR-171 AK4). */
 const MAX_ITEMS: FixtureOptions = { fixture: "SR-171/max-items", git: true };

@@ -1,5 +1,5 @@
 // Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the length of
-// summaries (#1252), the argument sources of the command prompt (SR-108), the JSON Lines form
+// summaries (#1252), the argument sources of the command prompt, the JSON Lines form
 // (`jsonLines`, #319) and the answer of every output (SR-224 AK1). Returns the error lines;
 // `validate-schemas.mjs` prints them.
 
@@ -127,7 +127,7 @@ const choiceValues = (item, schemas) =>
   item.$ref === undefined ? item.enum : resolveRef(item.$ref, "commands/", schemas)?.schema.enum;
 
 /**
- * A description for every argument (SR-210 AK6): its own, else the one of the type its field, or the
+ * A description for every argument: its own, else the one of the type its field, or the
  * items of a list field, names by a `$ref`, which the app's core host gives the windows with it.
  */
 function checkDescription(arg, property, schemas) {
@@ -187,7 +187,7 @@ const NEEDS = {
     is: "an object with repository and path",
   },
   evidenceLocation: { holds: (property) => property.type === "string", is: "a string" },
-  // The values of the metamodel commands built in steps (SR-236 AK11).
+  // The values of the metamodel commands built in steps (SR-236).
   choices: {
     holds: (property) => {
       const fields = Object.keys(listOf(property)?.items?.properties ?? {});
@@ -280,13 +280,13 @@ const checkMeaning = (arg) =>
 
 /**
  * `class`: on every `text` source and only there, so a new argument asked as free text is taken up in the
- * catalog on purpose (SR-215 AK2); the meta schema holds the closed list of classes.
+ * catalog on purpose; the meta schema holds the closed list of classes.
  */
 const checkClass = (arg) =>
   (arg.complete === "text") === (arg.class !== undefined)
     ? []
     : arg.complete === "text"
-      ? [`"${arg.field}": a text source needs a class (SR-215 AK2)`]
+      ? [`"${arg.field}": a text source needs a class`]
       : [`"${arg.field}": class is only for a text source, not ${arg.complete}`];
 
 /** `replaces`: only earlier optional fields, each once (a required one is always given). */

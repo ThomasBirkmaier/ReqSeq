@@ -98,7 +98,7 @@ describe("lists (SR-233 AK1)", () => {
     // The table scrolls in its own container.
     expect(page.body).toContain('<div class="rq-list-table"><table>');
   });
-  it("[SR-233/AK-pmt8] ranks the verification status column in the order of SR-075 AK5: failed, open, outdated, verified with indirect, none last", () => {
+  it("[SR-233/AK-pmt8] ranks the verification status column in the order of SR-075: failed, open, outdated, verified with indirect, none last", () => {
     const context = { metamodel, store: {} as ElementStore, shortIds: {} as ShortIds };
     const statuses = ["verified", "failed", "indirect", undefined, "outdated", "open"] as const;
     const page = listPageOf(

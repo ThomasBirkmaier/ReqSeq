@@ -10,7 +10,7 @@ export interface ElementTarget {
 
 /** An element as a row shows it. */
 export interface ElementRef extends ElementTarget {
-  /** The key of its type: the app opens a package page in its own way (SR-212 AK5). */
+  /** The key of its type: the app opens a package page in its own way. */
   readonly type: string;
   readonly shortId: string;
   readonly identifier?: string | undefined;

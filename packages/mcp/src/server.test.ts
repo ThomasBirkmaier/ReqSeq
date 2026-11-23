@@ -617,7 +617,7 @@ describe("callTool", () => {
     expect(named).toEqual(expect.arrayContaining(["workspace_check", "element_create"]));
     // Without a workspace the guide also names tool_guide, to read it again.
     expect([...new Set([...named, "tool_guide"])].sort()).toEqual(upfront.map((tool) => tool.name).sort());
-    // Every tool the instructions name is among them (SR-229 AK17).
+    // Every tool the instructions name is among them (SR-229).
     const { instructions } = await productList();
     const instructed = [...(instructions ?? "").matchAll(/`([a-z]+_[A-Za-z]+)`/g)].map((match) => match[1]);
     expect(instructed).toEqual(["tool_guide", "element_update", "element_setStatus", "element_supersede"]);

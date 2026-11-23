@@ -80,7 +80,7 @@ export const shownIdTitle = (shortId: string, identifier: string | undefined, ti
 export const typeName = (typeNames: ReadonlyMap<string, string>, type: string): string =>
   typeNames.get(type) ?? type;
 
-/** The word of an inline reference in an edge's text: the metamodel names no such kind (SR-154 AK1). */
+/** The word of an inline reference in an edge's text: the metamodel names no such kind. */
 export const REFERENCE_NAME = "Refers to";
 
 /** The key of a relation property in the names of `relationNames`: a property may share a kind's key. */
@@ -88,7 +88,7 @@ export const propertyNameKey = (key: string): string => `property:${key}`;
 
 /**
  * The names of the relation kinds by their key and of the properties of kind `relation` by
- * `propertyNameKey` (SR-154 AK1).
+ * `propertyNameKey`.
  */
 export const relationNames = (metamodel: {
   readonly relations: readonly Pick<Metamodel["relations"][number], "key" | "name">[];
@@ -102,7 +102,7 @@ export const relationNames = (metamodel: {
   ]);
 
 /**
- * The name of a link's kind (SR-154 AK1): the name of its relation kind or relation property from the
+ * The name of a link's kind: the name of its relation kind or relation property from the
  * metamodel (`kindNames`, `relationNames`), its key when the metamodel names none, `REFERENCE_NAME` for
  * an inline reference.
  */

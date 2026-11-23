@@ -307,7 +307,7 @@ export const ownVerificationOf = (
 /**
  * The status of each acceptance criterion of an element in `view` (SR-031, the rule of
  * `ownVerificationOf`), criterion n at position n - 1; without criteria one status for the whole
- * requirement (AK7). The rows of `evidence.list`'s `display` name the views by it (SR-032 AK4), so they
+ * requirement (AK7). The rows of `evidence.list`'s `display` name the views by it (SR-032), so they
  * agree with the status by construction. One pass over the records.
  */
 export const criterionStatusesOf = (

@@ -230,7 +230,7 @@ jobs:
           if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
             git fetch --unshallow --no-tags origin "$(git rev-parse HEAD)"
           fi
-      # The spec is a ReqSeq workspace (D-064, ThomasBirkmaier/ReqSeq-archive#326): ReqSeq checks it like any other (exit 1 on errors).
+      # The spec is a ReqSeq workspace (ThomasBirkmaier/ReqSeq-archive#326): ReqSeq checks it like any other (exit 1 on errors).
       # It also fails when an element that is not a draft lacks a relation the metamodel requires (#1306).
       - name: Check the spec with ReqSeq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -423,8 +423,8 @@ jobs:
           STATUS_MODEL_SEED=$(node -e 'console.log(require("node:crypto").randomInt(2147483647))')
           echo "STATUS_MODEL_SEED=$STATUS_MODEL_SEED STATUS_MODEL_RUNS=$STATUS_MODEL_RUNS STATUS_MODEL_FILE_RUNS=$STATUS_MODEL_FILE_RUNS"
           STATUS_MODEL_SEED=$STATUS_MODEL_SEED pnpm vitest run packages/core/src/evidence/status-model --reporter=dot
-      # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
-      - name: Upload JUnit results of the unit tests (evidence, D-050)
+      # Evidence: the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
+      - name: Upload JUnit results of the unit tests (evidence)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -434,14 +434,14 @@ jobs:
             !test-results/junit-e2e.xml
             !test-results/junit-shell.xml
           if-no-files-found: ignore
-      - name: Upload JUnit results of the e2e suite (evidence, D-050)
+      - name: Upload JUnit results of the e2e suite (evidence)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: junit-e2e-${{ matrix.os || 'ubuntu-24.04' }}
           path: test-results/junit-e2e.xml
           if-no-files-found: ignore
-      - name: Upload JUnit results of the shell's e2e suite (evidence, D-050)
+      - name: Upload JUnit results of the shell's e2e suite (evidence)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -476,7 +476,7 @@ jobs:
 
   # The UI tests of the web UI (ADR-0020, Tests): Playwright drives Chromium against the UI server, which the tests
   # start on generated workspaces (packages/web/test/); the contract tests (SR-248, SR-078 AK3) run in Firefox and
-  # WebKit too. Ubuntu only, in the Ubuntu lane, without network. Their JUnit file is evidence (D-050): the artifact
+  # WebKit too. Ubuntu only, in the Ubuntu lane, without network. Their JUnit file is evidence: the artifact
   # junit-web-ubuntu-24.04 (evidence.yml).
   web:
     name: web (ubuntu-24.04)
@@ -549,7 +549,7 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/playwright test --config test/playwright.config.ts'
-      - name: Upload JUnit results of the UI tests (evidence, D-050)
+      - name: Upload JUnit results of the UI tests (evidence)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

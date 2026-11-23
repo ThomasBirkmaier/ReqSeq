@@ -12,7 +12,7 @@
 //
 // "Cold" is the first use after a start (as in evidence.test.ts): a new `Workspace` on the same files
 // with the model loaded through the model cache, the incoming relation index built (`warmModel`, as
-// at the start of the app) and its evidence files read, so the cold call holds the current versions,
+// at the start of a server) and its evidence files read, so the cold call holds the current versions,
 // `verificationState` (the view rule index) and the page. No SR names
 // a time for `baseline.get`: the rows record, untagged, with SR-082 AK4's 500 ms as a threshold for
 // comparison only (as the evidence rows of ThomasBirkmaier/ReqSeq-archive#693).

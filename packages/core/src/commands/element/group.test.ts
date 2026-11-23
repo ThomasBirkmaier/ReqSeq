@@ -397,7 +397,7 @@ describe("element.list regrouped (SR-149 AK3)", () => {
   });
 });
 
-describe("element.list grouping writes nothing (SR-149 AK5)", () => {
+describe("element.list grouping writes nothing (SR-149)", () => {
   it("[SR-149/AK-rdmd] choosing and changing a grouping changes no file", async () => {
     const { workspace, root } = await open();
     const before = await filesOf(root);

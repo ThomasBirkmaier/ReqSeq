@@ -14,7 +14,7 @@ const input = {
   },
   required: ["ref"],
 };
-/** An entry of `arguments`; a `text` source gets the class every one needs (SR-215 AK2). */
+/** An entry of `arguments`; a `text` source gets the class every one needs. */
 const arg = (field, complete, of) => ({
   field,
   complete,
@@ -29,7 +29,7 @@ const ALL = [
   arg("direction", "choice"),
   arg("meanings", "choice"),
 ];
-/** `schema` with a description on each property that has none, which every argument needs (SR-210 AK6). */
+/** `schema` with a description on each property that has none, which every argument needs. */
 const described = (schema) =>
   schema.properties === undefined
     ? schema
@@ -52,7 +52,7 @@ const check = (...commands) => checkCatalog({ commands });
 /** The answer every output names (SR-224 AK1). */
 const ANSWER = { $ref: "../common.schema.json#/$defs/answer" };
 
-describe("catalog checks (titles and argument sources, SR-108)", () => {
+describe("catalog checks (titles and argument sources)", () => {
   it("accepts the product catalog", () => {
     const { catalog, schemas } = loadContracts();
     expect(checkCatalog(catalog, schemas)).toEqual([]);
@@ -303,7 +303,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("binds the values the metamodel commands build in steps to their fields (SR-236 AK11)", () => {
+  it("binds the values the metamodel commands build in steps to their fields (SR-236)", () => {
     const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
     const list = (properties) => ({ type: "array", items: { type: "object", properties } });
     const limit = { type: "array", items: { $ref: "../metamodel.schema.json#/$defs/relationLimit" } };
@@ -341,7 +341,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("every argument has a description, its own or the one of the type its $ref names (SR-210 AK6)", () => {
+  it("every argument has a description, its own or the one of the type its $ref names", () => {
     const schemas = {
       "common.schema.json": {
         $defs: { named: { type: "string", description: "A named type." }, bare: { type: "string" } },
@@ -387,7 +387,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("binds condition, sort, group and searchField to their schemas both ways, the others one way (SR-215)", () => {
+  it("binds condition, sort, group and searchField to their schemas both ways, the others one way", () => {
     const at = (field, complete, of) => ({ ...arg(field, complete), ...(of === undefined ? {} : { of }) });
     const fields = {
       ref: { type: "string" },
@@ -479,7 +479,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("a meaning only on an element source, and never the field a source without `of` reads (SR-215)", () => {
+  it("a meaning only on an element source, and never the field a source without `of` reads", () => {
     const fields = {
       ref: { type: "string" },
       variant: { type: "string" },
@@ -523,14 +523,14 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("a class on every text source and only there (SR-215 AK2)", () => {
+  it("a class on every text source and only there", () => {
     const fields = { ref: { type: "string" }, name: { type: "string" }, limit: { type: "integer" } };
     const schema = { type: "object", properties: fields, required: ["ref"] };
     const classed = [arg("ref", "element"), arg("name", "text"), arg("limit", "number")];
     expect(check(command("test.one", "One", classed, schema))).toEqual([]);
     const unclassed = [arg("ref", "element"), { field: "name", complete: "text" }, arg("limit", "number")];
     expect(check(command("test.one", "One", unclassed, schema))).toEqual([
-      'schemas/commands/test.one.json: arguments: "name": a text source needs a class (SR-215 AK2)',
+      'schemas/commands/test.one.json: arguments: "name": a text source needs a class',
     ]);
     const onNumber = [
       arg("ref", "element"),

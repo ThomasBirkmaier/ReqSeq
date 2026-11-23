@@ -22,7 +22,7 @@
 //   and `file` among the candidates of `ref.ambiguous` (ThomasBirkmaier/ReqSeq-archive#255, `ElementCopy`).
 // `verification` (SR-031, SR-034) and `validation` (SR-038) are added by `element.get` from the
 // evidence block, which imports the model, and the variants that replace or exclude the element
-// (SR-046 AK3) from the variants block. Left out until later stages: the other incoming relations.
+// (SR-046) from the variants block. Left out until later stages: the other incoming relations.
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
@@ -93,7 +93,7 @@ export type ElementHints = (
   withDate: boolean,
 ) => Promise<readonly LocatableFinding[]>;
 
-/** An element as `showElement` read it, with the SHA-256 of its file (SR-106). */
+/** An element as `showElement` read it, with the SHA-256 of its file (SR-166). */
 export interface ShownElement {
   readonly element: DataExportElement & { readonly problems: readonly Problem[] };
   /** The element as its file holds it now, which `element` shows (for the views of other blocks, SR-031). */
@@ -122,7 +122,7 @@ const formsShown = (version: string | undefined, compute: () => VersionForms): V
  * and the element store is read again so the next call works on the files as they are; a file
  * that the new store reports as faulty (SR-008) is `file.faulty` with its errors instead. With the
  * element comes the SHA-256 of the file it was read from (`fileSha256`, the write precondition of
- * `element.update`, SR-106).
+ * `element.update`, SR-166).
  */
 export const showElement = async (
   context: ShowContext,

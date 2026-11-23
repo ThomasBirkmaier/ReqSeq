@@ -119,7 +119,7 @@ export const FINDING_STATES = [
   targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   itemLimitProblemsState, // SR-171
-  criterionKeyProblemsState, // SR-204 AK10
+  criterionKeyProblemsState, // SR-204
   relationTypeProblemsState, // SR-086
   relationLimitProblemsState, // SR-152
   duplicateIdProblemsState, // SR-088

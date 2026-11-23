@@ -1,10 +1,10 @@
 // `trace.graph` (SR-111) in the performance suite (ADR-0011) on the generated workspace of N-036 with
 // 50,000 elements and 200,000 relations. Each walk stops once it has reached `limit` elements (500,
-// the size of SR-111 AK6), so the calls the app sends assert SR-082 AK4's 500 ms (tagged, ADR-0011):
+// the size of SR-111), so these calls assert SR-082 AK4's 500 ms (tagged, ADR-0011):
 // the direct neighbours, the whole derivation chain, the whole chain over every kind (about 42,000
 // elements without the bound) and the package with the most members at depth 1 (the hub). The core
-// part of a graph of 500 nodes is recorded as well: SR-111 AK6 leaves the rest of its second to the
-// layout in the app. Most of it is the `outdated` mark: the current versions of the link targets of
+// part of a graph of 500 nodes is recorded as well: SR-111 leaves the rest of its second to the
+// layout. Most of it is the `outdated` mark: the current versions of the link targets of
 // every node (about 2,600 files for 500 nodes), read from their files while the workspace has not
 // built the versions of the whole store (no warm-up builds them). The workspace keeps the evidence records
 // of such a project (`withEvidenceRecords`), so each call also gives the verification status of every
@@ -33,7 +33,7 @@ import { standardModel, versionOf } from "./core-version.js";
 const { elements: ELEMENTS, relations: RELATIONS } = perfSize(2000);
 /** SR-082 AK4. */
 const RESULT_MS = 500;
-/** SR-111 AK6. */
+/** SR-111. */
 const NODES = 500;
 
 type Output = CommandOutput<"trace.graph">;
@@ -51,7 +51,7 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(withEvidenceRecords(tree).workspace);
     workspace = new Workspace(fixture.workspaceRoot);
-    // As a server or the app does it at start (SR-082 AK1, AK2).
+    // As a server does it at start (SR-082 AK1, AK2).
     await warmWorkspace(workspace);
     const store = await workspace.get(elementStoreState);
     expect(store.elements).toHaveLength(ELEMENTS);
@@ -134,11 +134,11 @@ describe("trace.graph with 50,000 elements and 200,000 relations (SR-111, N-036)
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
-  it("records the core part of a graph of 500 nodes (SR-111 AK6)", async () => {
+  it("records the core part of a graph of 500 nodes (SR-111)", async () => {
     const { result } = await measureMedian(
       "graph: core part of a graph of 500 nodes (whole chain of the first need, every kind), median of 5",
       () => graph({ ref: firstNeed(), allLevels: true }),
-      { basis: "SR-111 AK6 (recorded; the app lays the graph out within the rest of 1 s)", runs: 5 },
+      { basis: "SR-111 (recorded; the layout has the rest of 1 s)", runs: 5 },
     );
     expect(result.nodes).toHaveLength(NODES);
   });

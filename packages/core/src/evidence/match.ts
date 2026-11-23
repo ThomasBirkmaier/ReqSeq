@@ -36,7 +36,7 @@
 //   that version, through the walk of the version dates (`model/version-date.ts`), asked per call by
 //   `workspace.check` (`olderCriterionProblems`, since Git changes without a file change); without
 //   Git, or when Git does not have the version, the record is not checked. A key two criteria carry
-//   is the element's error (`element.criterion-key-duplicate`, SR-204 AK10), not the record's.
+//   is the element's error (`element.criterion-key-duplicate`, SR-204), not the record's.
 // - `evidence.counts-in-no-view` (warning, SR-047 AK5) for a verification record that counts in no
 //   view, unless another record of its test case counts for the element (`no-view.ts`).
 // - The records are those of `evidenceRecordsState` (records injected there are matched too), in

@@ -57,7 +57,7 @@ const keyed = (file: string, key: string): string =>
 
 /**
  * fixtures/SR-072/supersede with a parent for its one requirement without one (SR-022 AK6), a
- * criterion key for each acceptance criterion (SR-204 AK10), and an evidence location while every
+ * criterion key for each acceptance criterion (SR-204), and an evidence location while every
  * requirement is verified by inspection (SR-230 AK1, AK2): a workspace without findings.
  */
 const CLEAN = {

@@ -9,7 +9,7 @@ import { createCommandRuntime } from "../runtime/invoke.js";
 import { commands } from "./index.js";
 
 /**
- * Stages (D-035) whose catalog commands must all be implemented. Stages 1-6 ended with v0.6 and
+ * Stages whose catalog commands must all be implemented. Stages 1-6 ended with v0.6 and
  * each was added here when it was done; milestones add nothing here.
  */
 const COMPLETED_STAGES: readonly number[] = [1, 2, 3, 4, 5, 6];

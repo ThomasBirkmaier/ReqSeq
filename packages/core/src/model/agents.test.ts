@@ -43,7 +43,7 @@ const { removeCacheFile: actualRemove } =
   await vi.importActual<typeof WorkspaceBlock>("../workspace/index.js");
 
 // The real module, with `loadThroughCache` wrapped so that a test can hold the load of the element
-// store back (SR-228 AK5).
+// store back (SR-228).
 vi.mock("./model-cache.js", async (importOriginal) => {
   const original = await importOriginal<typeof ModelCache>();
   return { ...original, loadThroughCache: vi.fn(original.loadThroughCache) };
@@ -147,7 +147,7 @@ describe("agentConnections", () => {
     const file = path.join(top, "file");
     await fs.writeFile(file, "");
     expect(await agentConnections(file)).toEqual({ recorded: false, connected: [], last: null });
-    // A missing folder knows no connection: recorded, but none (SR-228 AK3).
+    // A missing folder knows no connection: recorded, but none (SR-228).
     expect(await agentConnections(path.join(top, "missing"))).toEqual({
       recorded: true,
       connected: [],

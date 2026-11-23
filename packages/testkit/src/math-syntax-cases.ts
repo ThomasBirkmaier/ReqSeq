@@ -1,6 +1,5 @@
-// The formulas of Markdown texts (SR-096, SR-231 AK5): one case table that runs against the parser of the app's
-// editor (`packages/app/src/renderer/editor/math-syntax.ts`) and the one of the HTML export
-// (`packages/core/src/html-export/math-syntax.ts`), so both find the same formulas.
+// The formulas of Markdown texts (SR-231 AK5): the case table that runs against the parser of the HTML
+// export (`packages/core/src/html-export/math-syntax.ts`).
 
 /** One formula: its TeX source as written between its delimiters, and whether it is set in display style. */
 export interface FoundFormula {

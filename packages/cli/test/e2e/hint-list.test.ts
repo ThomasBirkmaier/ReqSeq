@@ -73,8 +73,8 @@ describe("reqseq hint list (SR-026)", () => {
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const human = await reqseq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    // The answer first (SR-224 AK2), then the counts per kind (SR-026 AK6), then one line per hint: element → target with their
-    // titles (#172, #252, SR-026 AK6), kind, reason, and the hint ID of a hint that can be confirmed
+    // The answer first (SR-224 AK2), then the counts per kind (SR-026), then one line per hint: element → target with their
+    // titles (#172, #252, SR-026), kind, reason, and the hint ID of a hint that can be confirmed
     // (ThomasBirkmaier/ReqSeq-archive#310).
     const lines = human.stdout.split("\n");
     expect(lines.slice(0, 4)).toEqual([

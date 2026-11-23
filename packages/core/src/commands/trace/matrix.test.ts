@@ -1,4 +1,4 @@
-// trace.matrix through `invoke` (SR-125, SR-153, N-076, D-062): the data of the acceptance criteria on
+// trace.matrix through `invoke` (SR-125, SR-153, N-076): the data of the acceptance criteria on
 // fixtures/SR-125/matrix, one repository `system` with the standard model plus one minimum (SR-153):
 // a system requirement derives from at least one need (`derives-from`, `min: 1`);
 // - needs N1 and N2, decision D1, packages P1 (Stage 3) and P2 (Stage 4), variant V1;

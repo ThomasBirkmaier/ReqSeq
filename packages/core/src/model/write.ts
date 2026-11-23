@@ -132,7 +132,7 @@ export interface UpdateElementResult extends ElementWriteResult {
   readonly affected: number;
   /** The elements `affected` counts, each once (SR-224 AK4); empty when it is 0. */
   readonly affectedElements: readonly ElementRecord[];
-  /** The SHA-256 of the element file as written, or as read when nothing changed (SR-106). */
+  /** The SHA-256 of the element file as written, or as read when nothing changed (SR-166). */
   readonly fileSha256: string;
 }
 
@@ -166,7 +166,7 @@ export interface UpdateElementInput {
   readonly removeRelations?: RelationRefs;
   /** Which of the elements `ref` names: the workspace name of its repository (`resolveRef`, ThomasBirkmaier/ReqSeq-archive#255). */
   readonly repository?: string;
-  /** Write precondition (SR-106): the SHA-256 the element file must still have (`expectedFile`). */
+  /** Write precondition (SR-166): the SHA-256 the element file must still have (`expectedFile`). */
   readonly expectedFileSha256?: string;
   /** Check and show the result without writing the file (SR-246). */
   readonly dryRun?: boolean;
@@ -286,7 +286,7 @@ const checkPropertyKeys = (
  * a command never writes a choice value that is no key; a hand-written file is still read as it is
  * (SR-085 AK2). A value that counts as no value (`isEmptyValue`: `null`, an empty or blank string) is
  * no choice to look up: it is kept as given and saved with the hint `element.missing-required` where
- * the property is required (SR-064 AK2, #242). Values of the other kinds are kept as given (a wrong
+ * the property is required (SR-064, #242). Values of the other kinds are kept as given (a wrong
  * kind gives the hint of SR-085).
  */
 export const withChoiceKeys = (
@@ -1220,7 +1220,7 @@ const unchanged = async (
 };
 
 /**
- * The write precondition of the caller (SR-106, `element.update` input `expectedFileSha256`): throws
+ * The write precondition of the caller (SR-166, `element.update` input `expectedFileSha256`): throws
  * `file.changed-on-disk`, with the same message and details as `readUnchanged`, when the file as read
  * for the write (`current`, which `readUnchanged` found equal to the store) no longer has the
  * SHA-256 the caller's change was made on. The element store is not reset: it already holds the file
@@ -1235,7 +1235,7 @@ const expectedFile = (record: ElementRecord, current: ReadElement, expected: str
 };
 
 /**
- * The write precondition is required for a change of the text or the title (SR-106,
+ * The write precondition is required for a change of the text or the title (SR-166,
  * #269): without `expectedFileSha256` such a save is refused with
  * `input.invalid` on every access (SR-080), before anything is read, so a caller that read the
  * element earlier cannot overwrite a change saved in the meantime (the app's autosave). So does
@@ -1486,7 +1486,7 @@ export const writeElementFiles = async (
  * are never touched (SR-002 AK2, ADR-0002 rule 6). Refused with `file.changed-on-disk` when the file
  * changed since the element store read it; the store is then read again on the next call. Also
  * refused, before anything is planned and without reading the store again, when the caller gives
- * `expectedFileSha256` and the file no longer has it (SR-106, `expectedFile`), even when the input
+ * `expectedFileSha256` and the file no longer has it (SR-166, `expectedFile`), even when the input
  * would change nothing, and refused with `input.invalid` when it changes the text or the title without
  * `expectedFileSha256` (`requirePrecondition`, #269). `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
  * ThomasBirkmaier/ReqSeq-archive#255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save

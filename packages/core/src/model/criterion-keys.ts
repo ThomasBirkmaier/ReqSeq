@@ -1,4 +1,4 @@
-// The criterion keys of the acceptance criteria (SR-204 AK10, D-072): when the workspace is
+// The criterion keys of the acceptance criteria (SR-204, D-072): when the workspace is
 // checked, a requirement with an acceptance criterion without criterion key gets a warning, once
 // per element with the count, on the line of the key (`element.criterion-key-missing`); two
 // acceptance criteria with the same criterion key give an error on the later one
@@ -127,7 +127,7 @@ export const allCriterionKeyFindings = (
 };
 
 /**
- * Every finding about criterion keys, with repository, file and line (SR-204 AK10), for
+ * Every finding about criterion keys, with repository, file and line (SR-204), for
  * `workspace.check` (SR-019) and `hint.list`. Kept until the element store or the metamodel is
  * reset; carried over a save or a watcher batch for the changed files (ThomasBirkmaier/ReqSeq-archive#184).
  * Nothing without a property with the meaning `acceptance-criteria` or against a metamodel that is

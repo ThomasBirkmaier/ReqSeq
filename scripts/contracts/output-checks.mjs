@@ -230,11 +230,11 @@ function checkPlace(field, schemas, patterns) {
 /** Whether a field is at the top level of its output. */
 const isTop = (field) => field.parent === undefined && field.path === field.name;
 
-/** The normal values the rule fixes: no problems, not incomplete (SR-223 AK7). */
+/** The normal values the rule fixes: no problems, not incomplete. */
 function checkNormal(field, schemas) {
   const errors = [];
   if (isTop(field) && field.name === "problems" && !equal(normalOf(field, schemas), [])) {
-    errors.push(`"x-normal": [] (no problems is the normal value, SR-223 AK7)`);
+    errors.push(`"x-normal": [] (no problems is the normal value)`);
   }
   if (field.name === "incomplete" && normalOf(field, schemas) !== false) {
     errors.push(`refers to common.schema.json#/$defs/incomplete, whose normal value is false`);
@@ -302,7 +302,7 @@ function namesCopy(schema, file, schemas) {
 /**
  * A path of a count names a list of elements of the same output, in a read command one of all pages. In a write
  * command, which the app never runs again, its entries name their repository too, so the list it opens holds the
- * counted copy of a UUID only (SR-223 AK5, #2024).
+ * counted copy of a UUID only (#2024).
  */
 function checkCountPath(cmd, field, relative, fields, schemas) {
   const named = fields.find((other) => other.path === relativePath(field, relative));

@@ -39,7 +39,7 @@ describe("trace.neighbourhood with 50,000 elements and 200,000 relations (SR-107
     tree = generateLargeWorkspace({ version: VERSION, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
-    // As a server or the app does it at start (SR-082 AK1, AK2).
+    // As a server does it at start (SR-082 AK1, AK2).
     await warmWorkspace(workspace);
     expect((await workspace.get(elementStoreState)).elements).toHaveLength(ELEMENTS);
   }, 600_000);
