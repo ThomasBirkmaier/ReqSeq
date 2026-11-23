@@ -31,7 +31,13 @@ import { embeddedImages } from "./images.js";
 import { RACY_MS } from "./model-cache.js";
 import { loadedVersionsOf } from "./loaded-versions.test-helper.js";
 import { WRITTEN_VERSION } from "./version-forms.test-helper.js";
-import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
+import {
+  applyStoreChange,
+  elementStoreState,
+  ignoredBy,
+  readWithoutVersions,
+  updateElements,
+} from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
@@ -542,7 +548,7 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
     onTestFinished(() => workspace.close());
     const store = await workspace.get(elementStoreState);
     expect(store.versioning).toBeUndefined();
-    expect(store.readWithoutVersions).toBe(true);
+    expect(readWithoutVersions(store)).toBe(true);
     expect(loadedVersionsOf(store).size).toBe(store.elements.length - 1);
     // The metamodel fixed: the build of the whole store learns the missing version for the cache.
     await fixture.write("metamodel/model.yaml", model);
@@ -550,6 +556,17 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
     expect(await workspace.get(elementStoreState)).toBe(store);
     await currentVersionsOf(workspace, store.elements, { build: false });
     expect(workspace.peek(currentVersionsState)).toBeDefined();
+  });
+
+  it("marks no store whose start read only a file that holds no element without a valid metamodel (#2495)", async () => {
+    const { fixture, cacheFolder } = await cachedWorkspace();
+    await fixture.write("requirements/SR-b00000000006.md", "---\nid: [\n---\n");
+    await fixture.write("metamodel/model.yaml", "types: [");
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => workspace.close());
+    const store = await workspace.get(elementStoreState);
+    expect(store.problems.some((p) => p.file === "requirements/SR-b00000000006.md")).toBe(true);
+    expect(readWithoutVersions(store)).toBe(false);
   });
 
   it("with build false still builds the whole store when the store was read without a valid metamodel (#755)", async () => {

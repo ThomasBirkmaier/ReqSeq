@@ -54,7 +54,14 @@ import type { LoadedVersion, Versioning } from "./loaded-version.js";
 import { typeVersioningOf, versioningOf } from "./loaded-version.js";
 import { saveVersionsAgain } from "./model-cache.js";
 import type { ElementStore, StoreUpdate } from "./store.js";
-import { carryStoreUpdate, contributionIn, elementStoreState, ignoredBy, loadedVersionOf } from "./store.js";
+import {
+  carryStoreUpdate,
+  contributionIn,
+  elementStoreState,
+  ignoredBy,
+  loadedVersionOf,
+  readWithoutVersions,
+} from "./store.js";
 import { PatchedMap } from "./patched-map.js";
 import type { VersionForms } from "../version/version.js";
 import { NORMAL_FORM } from "../version/version.js";
@@ -550,27 +557,29 @@ export interface VersionsOfOptions {
   /**
    * Whether a large share of the store builds and keeps the versions of the whole store (default true).
    * False for a reader that keeps what it reads itself (the verification status): it reads only its
-   * records, unless some file of the store was read without a valid metamodel (`readWithoutVersions`;
-   * not a store that took every file from the model cache, #2495) or one of them has a loaded version
-   * of another fingerprint (a metamodel change), which only the build of the whole store learns again
-   * for the model cache (#755).
+   * records, unless the store's full read read an element without a valid metamodel
+   * (`readWithoutVersions`), none of them has a loaded version in a store without `versioning` (a model
+   * cache written so), or one of them has a loaded version of another fingerprint (a metamodel change),
+   * which only the build of the whole store learns again for the model cache (#755). A store that took
+   * every file from a model cache with versions reads only its records (#2495).
    */
   readonly build?: boolean;
 }
 
 /**
- * Whether the build of the whole store would learn versions again for the model cache (#755): some file
- * of the store was read without a valid metamodel and so has no loaded version (`readWithoutVersions`),
- * none of `records` has a loaded version in a store without `versioning` (a model cache written by
- * such a read), or a record of `records` has a loaded version whose type counts other properties now. A store that
- * took every file from the model cache has no `versioning` either (`loadElements` loads no metamodel
- * then), but its records have the loaded versions of the cache, so it builds nothing (#2495).
+ * Whether the build of the whole store would learn versions again for the model cache (#755): the store's
+ * full read read an element without a valid metamodel, which so has no loaded version
+ * (`readWithoutVersions`), none of `records` has a loaded version in a store without `versioning` (a
+ * model cache written while the metamodel was not valid), or a record of `records` has a loaded version
+ * whose type counts other properties now. A store that took every file from a model cache with versions
+ * has no `versioning` either (`loadElements` loads no metamodel then), but its records have the cache's
+ * versions, so it reads only its batch (#2495).
  */
 const relearnable = (run: Run, store: ElementStore, records: readonly ElementRecord[]): boolean => {
   const { versioning } = run;
   return (
     versioning !== undefined &&
-    (store.readWithoutVersions === true ||
+    (readWithoutVersions(store) ||
       // A start that took the files from a cache written without versions read none of them.
       (store.versioning === undefined && records.every((record) => run.loaded(record) === undefined)) ||
       records.some((record) => {
