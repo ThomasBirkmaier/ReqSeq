@@ -94,3 +94,23 @@ test("a phone shows the menu instead of the rail", async ({ page, open }) => {
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(390);
 });
+
+test("the frame pages fit the window, so the window itself does not scroll", async ({ page, open }) => {
+  // Low enough that the overview's verification by package runs past the bottom of its pane.
+  await page.setViewportSize({ width: 1280, height: 640 });
+  const problems: string[] = [];
+  for (const route of ["/q/overview", ...QUEUES.map((q) => `/q/${q}`), "/l/all", "/matrix", "/w/settings"]) {
+    await open(route);
+    const { height, window } = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      window: innerHeight,
+    }));
+    if (height > window) {
+      problems.push(`${route}: ${String(height)} px in a window of ${String(window)} px`);
+    }
+  }
+  expect(problems, problems.join("\n")).toEqual([]);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY)).toBe(
+    "none",
+  );
+});
