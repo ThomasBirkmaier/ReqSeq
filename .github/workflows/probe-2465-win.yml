@@ -51,7 +51,7 @@ jobs:
         run: |
           auditpol /set /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}" /success:enable
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /failure:enable
+          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable
           if ($LASTEXITCODE -ne 0) { exit 1 }
           reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f
           if ($LASTEXITCODE -ne 0) { exit 1 }
