@@ -560,13 +560,15 @@ export interface VersionsOfOptions {
 /**
  * Whether the build of the whole store would learn versions again for the model cache (#755): the store
  * was read without a valid metamodel and so has no loaded version, or a record of `records` has a loaded
- * version whose type counts other properties now.
+ * version whose type counts other properties now. A store that took every file from the model cache
+ * has no `versioning` either (`loadElements` loads no metamodel then), but its records have the loaded
+ * versions of the cache: only when none of `records` has one was the store read without them (#2495).
  */
 const relearnable = (run: Run, store: ElementStore, records: readonly ElementRecord[]): boolean => {
   const { versioning } = run;
   return (
     versioning !== undefined &&
-    (store.versioning === undefined ||
+    ((store.versioning === undefined && records.every((record) => run.loaded(record) === undefined)) ||
       records.some((record) => {
         const loaded = run.loaded(record);
         return (

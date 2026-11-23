@@ -476,6 +476,46 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
     expect(workspace.peek(currentVersionsState)).toBeDefined();
   });
 
+  it("with build false reads only the records of a store that took every file from the model cache, also with some records without a loaded version (#2495)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-019/findings" });
+    onTestFinished(() => fixture.cleanup());
+    // Without the files that do not parse (the cache holds no entry for them) and with no image, a start
+    // through the cache reads no file.
+    for (const file of ["requirements/SR-b00000000006.md", "requirements/SR-b00000000007.md"]) {
+      await fs.rm(fixture.path(file));
+    }
+    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cached-batch-"));
+    onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
+    // Settled files, so the cache takes every one (`RACY_MS`); the first start writes it.
+    const when = new Date(Date.now() - 60_000);
+    for (const entry of await fs.readdir(fixture.root, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile()) {
+        await fs.utimes(path.join(entry.parentPath, entry.name), when, when);
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, RACY_MS + 200));
+    const first = new Workspace(fixture.root, { cacheFolder });
+    await first.get(elementStoreState);
+    await first.close();
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => workspace.close());
+    const store = await workspace.get(elementStoreState);
+    // No file was read, so no metamodel was loaded for the read; the records keep the cache's versions.
+    expect(store.versioning).toBeUndefined();
+    expect(loadedVersionsOf(store).size).toBe(store.elements.length);
+    // Mixed: a record object the store was not read with has no loaded version, the others have one.
+    const record = await recordOf(workspace, "needs/N-a00000000001.md");
+    const other: ElementRecord = { ...record };
+    const own = await currentVersionsOf(workspace, [...store.elements, other], { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeUndefined();
+    // Each entry as the build of the whole store gives it; the other record's from its file.
+    const versions = await currentVersions(workspace);
+    expect(store.elements.map((r) => own.get(r))).toEqual(
+      store.elements.map((r) => versions.byRecord.get(r)),
+    );
+    expect(own.get(other)).toEqual(versions.byRecord.get(record));
+  });
+
   it("with build false still builds the whole store when the store was read without a valid metamodel (#755)", async () => {
     const { fixture, workspace } = await open();
     const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
