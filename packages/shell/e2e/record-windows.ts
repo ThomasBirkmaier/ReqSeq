@@ -106,6 +106,10 @@ export interface FileEvent {
   readonly pid: number;
   readonly path: string | undefined;
   readonly raw: string;
+  /** A Write (16) event, not a Create or CreateNewFile that may write. */
+  readonly write: boolean;
+  /** Whether the trace gave no name at all for the write's file object or file key. */
+  readonly unnamed: boolean;
 }
 
 export interface WindowsRecord {
@@ -161,7 +165,7 @@ function descendants(created: readonly Created[], root: number): Set<number> {
   return tree;
 }
 
-interface FileLine {
+export interface FileLine {
   readonly id: number;
   readonly pid: number;
   readonly fileObject: string;
@@ -170,7 +174,7 @@ interface FileLine {
   readonly name: string;
 }
 
-const parseFileLines = (text: string): FileLine[] =>
+export const parseFileLines = (text: string): FileLine[] =>
   text
     .split(/\r?\n/)
     .filter((l) => l !== "")
@@ -186,46 +190,39 @@ const parseFileLines = (text: string): FileLine[] =>
       };
     });
 
-/** The names of the file objects of each process (Create, CreateNewFile) and of the file keys (NameCreate). */
-function fileNames(lines: readonly FileLine[]): {
-  byObject: Map<string, string>;
-  byKey: Map<string, string>;
-} {
-  const byObject = new Map<string, string>();
-  const byKey = new Map<string, string>();
-  for (const l of lines.filter((x) => x.name !== "")) {
-    if (l.id === 12 || l.id === 30) {
-      byObject.set(`${String(l.pid)}:${l.fileObject}`, l.name);
-    } else if (l.id === 10) {
-      byKey.set(l.fileKey, l.name);
-    }
-  }
-  return { byObject, byKey };
-}
-
-/** Opens and writes of the tree's processes; a write is named through its file object, else its file key. */
-function fileEvents(
+/**
+ * Opens and writes of the tree's processes, from the lines in record order. The kernel reuses file objects and file
+ * keys after a close, so a write is named from the names known when it happened: the last Create or CreateNewFile of
+ * its process with that file object, else the last NameCreate of its file key.
+ */
+export function fileEvents(
   lines: readonly FileLine[],
   tree: ReadonlySet<number>,
   named: (raw: string) => string | undefined,
 ): { opens: FileEvent[]; writes: FileEvent[] } {
-  const { byObject, byKey } = fileNames(lines);
+  const byObject = new Map<string, string>();
+  const byKey = new Map<string, string>();
   const opens: FileEvent[] = [];
   const writes: FileEvent[] = [];
-  for (const l of lines.filter((x) => tree.has(x.pid))) {
-    if (l.id === 12 || l.id === 30) {
-      const event = { pid: l.pid, path: named(l.name), raw: l.name };
+  for (const l of lines) {
+    if (l.id === 10 && l.name !== "") {
+      byKey.set(l.fileKey, l.name);
+    } else if ((l.id === 12 || l.id === 30) && tree.has(l.pid)) {
+      byObject.set(`${String(l.pid)}:${l.fileObject}`, l.name);
+      const event = { pid: l.pid, path: named(l.name), raw: l.name, write: false, unnamed: false };
       opens.push(event);
       // The disposition (bits 24-31 of the options): anything but FILE_OPEN (1) may create or overwrite.
       if (l.id === 30 || ((numberOf(l.createOptions) >>> 24) & 0xff) !== 1) {
         writes.push(event);
       }
-    } else if (l.id === 16) {
+    } else if (l.id === 16 && tree.has(l.pid)) {
       const raw = byObject.get(`${String(l.pid)}:${l.fileObject}`) ?? byKey.get(l.fileKey);
       writes.push({
         pid: l.pid,
         path: raw === undefined ? undefined : named(raw),
         raw: raw ?? `(FileObject ${l.fileObject}, FileKey ${l.fileKey})`,
+        write: true,
+        unnamed: raw === undefined || raw === "",
       });
     }
   }
@@ -268,7 +265,12 @@ class Paths {
     const input = path.join(dir, "short.txt");
     await fs.writeFile(input, (short as string[]).join("\r\n"), "utf8");
     const long = (await ps(dir, "long", { In: input })).split(/\r?\n/);
-    short.forEach((p, i) => this.longOf.set(p ?? "", long[i] ?? p ?? ""));
+    if (long.length < short.length || long.slice(0, short.length).includes("")) {
+      throw new Error(
+        `record-windows.ps1 long gave ${String(long.length)} lines for ${String(short.length)} paths`,
+      );
+    }
+    short.forEach((p, i) => this.longOf.set(p ?? "", long[i] ?? ""));
   }
 
   normalize = (p: string): string => {
@@ -322,12 +324,17 @@ export class WindowsRecorder {
       throw new Error(`The recording on Windows needs ${missing.join(", ")}: ${JSON.stringify(setup)}`);
     }
     const recorder = new WindowsRecorder(dir, setup);
-    await fs.copyFile(process.execPath, recorder.node);
-    const programs = [SHELL, recorder.node, ...recorder.engines];
-    const rules = JSON.parse(await ps(dir, "rules-add", { Group: GROUP, Programs: programs.join("|") })) as
-      string | string[] | null;
-    recorder.rules = asList(rules);
-    await ps(dir, "trace-start", { Session: SESSION, Etl: recorder.etl });
+    try {
+      await fs.copyFile(process.execPath, recorder.node);
+      const programs = [SHELL, recorder.node, ...recorder.engines];
+      const rules = JSON.parse(await ps(dir, "rules-add", { Group: GROUP, Programs: programs.join("|") })) as
+        string | string[] | null;
+      recorder.rules = asList(rules);
+      await ps(dir, "trace-start", { Session: SESSION, Etl: recorder.etl });
+    } catch (error) {
+      await recorder.cleanup();
+      throw error;
+    }
     return recorder;
   }
 

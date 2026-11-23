@@ -46,9 +46,19 @@ function Event-Row($event) {
   return $row
 }
 
+# Whether an error of Get-WinEvent only says that no event matched; every other read error ends the action.
+function No-Events($err) {
+  return $err.FullyQualifiedErrorId -like 'NoMatchingEventsFound*'
+}
+
 function Export-Log([string]$log, [int]$id, [datetime]$start) {
-  $rows = @(Get-WinEvent -FilterHashtable @{ LogName = $log; Id = $id; StartTime = $start } -ErrorAction SilentlyContinue |
-      ForEach-Object { Event-Row $_ })
+  try {
+    $rows = @(Get-WinEvent -FilterHashtable @{ LogName = $log; Id = $id; StartTime = $start } -ErrorAction Stop |
+        ForEach-Object { Event-Row $_ })
+  } catch {
+    if (-not (No-Events $_)) { throw }
+    $rows = @()
+  }
   return , $rows
 }
 
@@ -122,12 +132,14 @@ switch ($Action) {
     $xpath = '*[System[EventID=10' + (($ids | ForEach-Object { " or Execution[@ProcessID=$_]" }) -join '') + ']]'
     $writer = New-Object System.IO.StreamWriter($Out, $false, $utf8)
     try {
-      Get-WinEvent -Path $Etl -Oldest -FilterXPath $xpath -ErrorAction SilentlyContinue | ForEach-Object {
+      Get-WinEvent -Path $Etl -Oldest -FilterXPath $xpath -ErrorAction Stop | ForEach-Object {
         $x = [xml]$_.ToXml()
         $f = @{}
         foreach ($d in $x.Event.EventData.Data) { $f[$d.Name] = [string]$d.'#text' }
         $writer.WriteLine(("{0}`t{1}`t{2}`t{3}`t{4}`t{5}" -f $_.Id, $x.Event.System.Execution.ProcessID, $f['FileObject'], $f['FileKey'], $f['CreateOptions'], $f['FileName']))
       }
+    } catch {
+      if (-not (No-Events $_)) { throw }
     } finally {
       $writer.Close()
     }
