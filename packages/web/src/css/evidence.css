@@ -109,6 +109,7 @@
 }
 .recs td.short .why {
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .recs .why,
 .recs .bl {

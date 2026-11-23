@@ -107,8 +107,8 @@ function recordTable(
           h("td", { class: "num short" }, r.version),
           h(
             "td",
-            { class: "src long" },
-            r.evidenceSource ?? "",
+            { class: "src long", ...fullOnHover(r.evidenceSource ?? "") },
+            shortCommits(r.evidenceSource ?? ""),
             (r.baselines ?? []).length === 0
               ? null
               : h("span", { class: "bl" }, `In ${(r.baselines ?? []).join(", ")}`),
