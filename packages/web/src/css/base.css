@@ -144,6 +144,10 @@
   box-sizing: border-box;
   margin: 0;
 }
+/* The reset above takes the browser's centring from a modal dialog; this gives it back. */
+dialog {
+  margin: auto;
+}
 html,
 body {
   height: 100%;

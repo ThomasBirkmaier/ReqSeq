@@ -190,7 +190,7 @@ const commonStatuses = (mm: Metamodel, types: readonly (string | undefined)[]): 
 /** What the last write did, shown on the page it was made from until the person goes elsewhere. */
 let flash: { readonly route: string; readonly text: string; readonly notes: readonly string[] } | undefined;
 
-const flashBox = (route: Route): HTMLElement | null => {
+export const flashBox = (route: Route): HTMLElement | null => {
   if (flash?.route !== route.hash) {
     flash = undefined;
     return null;
@@ -1234,8 +1234,11 @@ async function differenceBody(baseline: string, entry: Entry, route: Route): Pro
   }
 }
 
-/** The decisions on one element: approve, set its status, supersede it; none for a superseded one. */
-function decisions(e: ElementPart | undefined): HTMLButtonElement[] {
+/**
+ * The decisions on one element: approve, set its status, supersede it; none for a superseded one. The difference
+ * here and the element page offer them, so a status can be set before the first baseline too.
+ */
+export function decisions(e: ElementPart | undefined): HTMLButtonElement[] {
   if (e === undefined || isInvalid(store.mm, e.status)) {
     return [];
   }
@@ -1257,9 +1260,14 @@ function decisions(e: ElementPart | undefined): HTMLButtonElement[] {
           ),
         ]
       : []),
-    button("Set status", () => {
-      setStatusDialog([e.id]);
-    }),
+    // Only where the type has a status to choose besides the element's own.
+    ...(commonStatuses(store.mm, [e.type]).some((s) => s !== e.status)
+      ? [
+          button("Set status", () => {
+            setStatusDialog([e.id]);
+          }),
+        ]
+      : []),
     ...(statusesOf(store.mm, e.type).some((s) => isInvalid(store.mm, s))
       ? [
           button("Supersede", () => {

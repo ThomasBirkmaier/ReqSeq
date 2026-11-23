@@ -47,7 +47,7 @@ An element's page shows its text, properties and acceptance criteria, its verifi
 
 ## Decide
 
-People set the status of an element, never ReqSeq. **Changes since** (with the name of the baseline) lists what changed since a baseline, word by word; there you approve one or several elements, set a status, supersede an element or change a property of many, each after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
+Only people set a status. An element's page has **Approve**, **Set status** and **Supersede**. **Changes since** (with the name of the baseline) lists what changed since a baseline, word by word, with the same buttons; there you also decide on several at once and change a property of many. Each writes after a confirmation that names what is written ([Review and approve a requirement](/how-to/review-and-approve-a-requirement/)). **Check before a baseline** shows what ReqSeq reports before a baseline, and creates one.
 
 ## Settings
 
