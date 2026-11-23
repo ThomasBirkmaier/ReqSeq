@@ -201,8 +201,8 @@ export const parseFileLines = (text: string): FileLine[] =>
  * Opens and writes of the tree's processes, from the lines in record order. The kernel reuses file objects and file
  * keys after a close, so a write is named from the names known when it happened: the last Create or CreateNewFile with
  * that file object, else the last NameCreate of its file key. A file object is one kernel object in every process
- * that holds a handle to it, so the Create of another process names it too: the test runner creates the pipes of the
- * shell's standard input and output, which the shell inherits.
+ * that holds a handle to it, so the Create of another process names it too (the test runner creates the pipes of the
+ * shell's standard input and output, which the shell inherits); the lines hold the Creates of every process.
  */
 export function fileEvents(
   lines: readonly FileLine[],
@@ -413,10 +413,7 @@ export class WindowsRecorder {
     const serverTree = server === undefined ? new Set<number>() : descendants(created, server);
     // The file events and lookups name only a process ID; those of the tree's processes count.
     const tree = new Set([shellPid, ...[...treeIndexes].map((i) => created[i]?.pid ?? -1)]);
-    // This process too, for the names of the pipes it creates for the shell.
-    const lines = parseFileLines(
-      await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree, process.pid].join(",") }),
-    );
+    const lines = parseFileLines(await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree].join(",") }));
     const refused = asList(events.refused).map((e) => ({
       pid: numberOf(e["ProcessID"]),
       application: e["Application"] ?? "",
