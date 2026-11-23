@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-The command line, the local API and the MCP server run the commands of the app's command prompt, with the same input and output. The [command reference](/reference/commands/) shows each command in all four; this page says what they share.
+The command line, the local API and the MCP server run the same commands, with the same input and output, and the [web UI](/concepts/the-web-ui/) runs them too. The [command reference](/reference/commands/) shows each command in all three; this page says what they share.
 
 ## The workspace
 

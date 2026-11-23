@@ -7,17 +7,17 @@ Requirements engineering for agents and people: describe a need in plain words, 
 
 For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your elements still lack under your metamodel, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
 
-The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
+The CLI, API and MCP run the same commands with the same result, and the web UI in your browser runs them too, so you can also work by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
 ![The chain ReqSeq keeps: your agent writes the need and the system requirement into ReqSeq and the code and tests into your repository; the test results come back as JUnit XML and become evidence against the version of the requirement.](./images/chain-light.svg)
 ![The chain ReqSeq keeps: your agent writes the need and the system requirement into ReqSeq and the code and tests into your repository; the test results come back as JUnit XML and become evidence against the version of the requirement.](./images/chain-dark.svg)
 
-![Four ways in with the same commands and the same result: the desktop app, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-light.svg)
-![Four ways in with the same commands and the same result: the desktop app, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-dark.svg)
+![Four ways in with the same commands and the same result: the web UI, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-light.svg)
+![Four ways in with the same commands and the same result: the web UI, the reqseq command line, the MCP server and the local API. ReqSeq keeps the spec as Markdown files in your Git repository.](./images/ways-dark.svg)
 
-![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](./images/app-tour.gif)
+![The web UI on ReqSeq's own specification: a requirement found with Ctrl+K, a list narrowed, sorted and grouped, and the trace graph of a need.](./images/ui-tour.gif)
 
-[CLI, API and MCP](/concepts/cli-api-and-mcp/) explains the three ways in besides the app, and [Install ReqSeq](/how-to/install-reqseq/) says how to unpack and start it.
+[CLI, API and MCP](/concepts/cli-api-and-mcp/) explains the three ways in besides the web UI; [Install ReqSeq](/how-to/install-reqseq/) says how to start it.
 
 ## What it does
 
@@ -29,6 +29,6 @@ The app, CLI, API and MCP run the same commands with the same result, so you can
 
 ## Where to read on
 
-New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call on the command line, in the API and in MCP. [The app](/concepts/the-app/) explains the command prompt, buffers and the other parts of the desktop app. The how-to guides in the menu each show one task in every way in, such as [connecting an AI agent](/how-to/connect-an-ai-agent/) or [publishing the workspace as HTML](/how-to/publish-the-workspace-as-html/).
+New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call on the command line, in the API and in MCP. [The web UI](/concepts/the-web-ui/) explains how to start it and what its pages show. The how-to guides in the menu each show one task in every way in, such as [connecting an AI agent](/how-to/connect-an-ai-agent/) or [publishing the workspace as HTML](/how-to/publish-the-workspace-as-html/).
 
 The source code, the releases and the issues are on [GitHub](https://github.com/ThomasBirkmaier/ReqSeq).

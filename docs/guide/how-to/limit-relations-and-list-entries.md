@@ -32,9 +32,9 @@ properties:
 
 `workspace check` and `hint list` then report an element with more entries (`element.too-many-items`) as a hint with the element, the property, the count and the limit, and `element get` shows it at the element. Nothing is refused: the entries are kept. A property without `max-items` allows any number. `max-items` on a property without `many: true` or of kind `relation` is a metamodel error.
 
-## App
+## Web UI
 
-Not possible in the app: the metamodel is a file you edit in a text editor. The app reads the change when you save it; **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) and the element itself show the hints.
+Not possible in the web UI: the metamodel is a file you edit in a text editor. The web UI reads the change when you save it; **Problems** in the rail and the element's own page show the hints.
 
 ## CLI
 

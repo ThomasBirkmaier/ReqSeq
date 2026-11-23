@@ -1,5 +1,5 @@
-// Whether a pull request changes what the guide's screenshots show (#1258). The Linux Electron run of CI writes them to
-// test-results/electron/guide-images/ (packages/app/test/guide-screenshots.spec.ts). The nightly (or a manual) run on main keeps its
+// Whether a pull request changes what the guide's screenshots show (#1258). The Playwright run of CI's `web` job writes
+// them to test-results/web/guide-images/ (packages/web/test/guide-images.spec.ts). The nightly (or a manual) run on main keeps its
 // screenshots in the Actions cache, and a pull request's run restores them to build/guide-images-main/; this compares
 // the two and reports each screenshot that differs beyond a threshold, as a warning annotation and in the step summary,
 // so the author runs `pnpm docs:screenshots` and commits docs/guide/images/. Both sides come from the same runner image:
@@ -10,8 +10,8 @@ import { join } from "node:path";
 import { decodePng } from "./png.js";
 import type { Pixels } from "./png.js";
 
-/** Where the Electron run writes the screenshots, relative to the root. */
-export const SHOTS_DIR = "test-results/electron/guide-images";
+/** Where the Playwright run writes the screenshots, relative to the root. */
+export const SHOTS_DIR = "test-results/web/guide-images";
 /** Where a pull request's run restores the screenshots of main's last nightly or manual run, relative to the root. */
 export const MAIN_SHOTS_DIR = "build/guide-images-main";
 /** The committed copies the author regenerates. */
@@ -155,7 +155,7 @@ export function guideImagesReport(
     .map(
       ({ name, problem = "" }) =>
         `::warning file=${GUIDE_IMAGES_DIR}/${name},title=Guide screenshot changed::${escapeData(
-          `${name} ${problem}: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit ${GUIDE_IMAGES_DIR}/.`,
+          `${name} ${problem}: if the web UI's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit ${GUIDE_IMAGES_DIR}/.`,
         )}\n`,
     )
     .join("");
@@ -169,8 +169,8 @@ export function guideImagesReport(
     "### Guide screenshots",
     "",
     stale.length === 0
-      ? `None of the ${String(checks.length)} screenshots of the app differs from main without an updated copy.`
-      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from main: if the app's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
+      ? `None of the ${String(checks.length)} screenshots of the web UI differs from main without an updated copy.`
+      : `${String(stale.length)} of ${String(checks.length)} screenshots differ from main: if the web UI's look changed, run \`${SCREENSHOTS_COMMAND}\` and commit them.`,
     "",
     `Screenshots of main: ${reference === undefined || reference === "" ? "the last run on main" : `cache \`${reference}\``}. A pull request merged after that run shows as a difference until the next nightly run.`,
     "",

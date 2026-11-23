@@ -56,7 +56,7 @@ In a pipeline with Node 22, install the tarball instead, without network: `npm i
 
 `reqseq serve docs` serves this documentation of your version without network, on `127.0.0.1` with its search, until Ctrl-C; open the address it prints, `--port <n>` picks the port.
 
-## App
+## Web UI
 
 Start `ReqSeq.app`, `ReqSeq.exe` or `ReqSeq` for the web UI in a window of its own, the [desktop shell](/concepts/the-desktop-shell/). `reqseq ui` in a workspace opens it in your browser instead; `--no-open` only prints its address, whose token is new on every start. It runs until Ctrl-C.
 

@@ -79,7 +79,7 @@ describe("llms.txt", () => {
     await writeFile(join(content, "how-to", "open-a-workspace.md"), page("Open", "sidebar:\n  order: 9\n"));
     await writeFile(join(content, "how-to", "install-reqseq.md"), page("Install"));
     await writeFile(join(content, "reference", "commands", "index.md"), page("Commands", "", "All."));
-    const ways = "## App\n\nA.\n\n## CLI\n\n<!-- tested -->\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.";
+    const ways = "## Web UI\n\nA.\n\n## CLI\n\n<!-- tested -->\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.";
     await writeFile(
       join(content, "reference", "commands", "x.mdx"),
       String(accessTabs(page("X", "sidebar:\n  order: 1\n", ways))),

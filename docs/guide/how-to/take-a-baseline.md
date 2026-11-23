@@ -7,16 +7,14 @@ A baseline is a named state that no longer changes: a file in the baseline folde
 
 ReqSeq never commits the file. Commit before the baseline, because ReqSeq refuses one while the files of the selection, their images, the metamodel or the workspace file are uncommitted, and after it. A second baseline with the same name is refused.
 
-## App
+## Web UI
 
-1. Create the package with **Create element** (Ctrl+K E, ⌘K E on macOS), type Package.
-2. In the element buffer of each requirement, add the property Package with "Add property" (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S).
-3. Open the package with **Go to element or buffer** (Ctrl+P, ⌘P); its page lists its elements.
+1. Create the package with **New element**, type Package.
+2. Open each requirement, click **Edit**, choose the package under **Package**, and save.
+3. The package's list under **Packages** in the rail shows its elements.
 4. Commit the files.
-5. On the package page, open the command prompt (Ctrl+Shift+P, ⌘⇧P) and run **Create baseline**; it asks only the name. Commit the new file.
-6. Later, **List baselines** lists them, and **Show baseline** shows the elements of one with their state. It warns `baseline.repository-commit-differs` when a repository is at another commit than the baseline names. With Ctrl+Enter (⌘↩) and `withEvidence` yes, it adds the verification and validation status at the baseline ([evidence at a baseline](/how-to/record-evidence-for-a-variant/)).
-7. **Compare baseline** asks a baseline and an element and gives what changed since, the two commits and the command. Run it from the workspace folder.
-8. On the package page, **Export data** shows the current state of the package in a result buffer.
+5. Open **Check before a baseline** in the rail, choose the package under **Elements**, type the name and click **Create baseline**. Commit the new file.
+6. Later, **Changes since a baseline** shows what changed since it; **Compare with baseline** chooses another baseline.
 
 ## CLI
 

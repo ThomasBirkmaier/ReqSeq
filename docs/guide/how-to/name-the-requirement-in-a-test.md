@@ -45,10 +45,6 @@ For Rust, Go or Java, write the short ID into the name in another form and give 
 
 A match starts and ends at a word boundary (the start or end of the name, a character that is no letter or digit, or a camel case word), so `loaded123456` never gives D-ed123456. Only names are read, outside brackets. Write a separator where the parts could be read two ways: between a prefix and an ID (`de123456` with the prefixes `D` and `DE`), after the ID before hex letters (`sr_c67baaface`), and between an upper-case ID and a camel case word (`SR2F95EAdd`). Too few digits (`sr_029`) count as without reference. Without a separator, `{prefix}{id}` can also read a hash as a short ID (`TestCacheKeyD41d8cd98f00` gives D-41d8cd98f00), and the command exits with 1 unless the workspace has that ID. `workspace check` does not know the pattern, so it cannot warn when such a file was not enriched.
 
-## App
-
-Run **Enrich JUnit file** in the command prompt and answer the item under test with Ctrl+Enter (⌘↩ on macOS): the prompt then offers the optional arguments, among them the name pattern. For brackets, Enter is enough.
-
 ## CLI
 
 For a Rust test as `cargo nextest run` writes it to its JUnit file, give the pattern too:

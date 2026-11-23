@@ -70,11 +70,11 @@ describe("decodePng", () => {
 
   it("reads a committed screenshot of the guide", async () => {
     const png = await readFile(
-      fileURLToPath(new URL("../../../docs/guide/images/app-overview.png", import.meta.url)),
+      fileURLToPath(new URL("../../../docs/guide/images/ui-overview.png", import.meta.url)),
     );
     const image = decodePng(png);
-    expect(image).toMatchObject({ width: 1024, height: 576, channels: 3 });
-    expect(image.data.length).toBe(1024 * 576 * 3);
+    expect(image).toMatchObject({ width: 1280, height: 720, channels: 3 });
+    expect(image.data.length).toBe(1280 * 720 * 3);
   });
 
   it("refuses what is no PNG of 8-bit RGB or RGBA", () => {

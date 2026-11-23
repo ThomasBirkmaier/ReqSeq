@@ -4,7 +4,7 @@ import { cliOutput } from "./access.js";
 import { SERVERS, SERVERS_PAGE, serversPage } from "./servers.js";
 
 describe("servers page", () => {
-  it("shows the help of serve api, serve docs and mcp with links below the base", async () => {
+  it("shows the help of ui, serve api, serve docs and mcp with links below the base", async () => {
     const runtime = getCommandRuntime();
     const page = await serversPage(runtime, "/ReqSeq/", 52);
     expect(SERVERS_PAGE).toBe("reference/commands/servers.md");
@@ -19,6 +19,7 @@ describe("servers page", () => {
     expect(page).toContain("GET /v1/commands");
     expect(page).toContain("](/ReqSeq/reference/formats/api-endpoint/)");
     expect(page).toContain("](/ReqSeq/concepts/cli-api-and-mcp/)");
+    expect(page).toContain("](/ReqSeq/concepts/the-web-ui/)");
     expect(page).not.toContain("](/reference/");
   });
 });

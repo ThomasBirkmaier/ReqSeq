@@ -67,7 +67,7 @@ describe("assembleContent", () => {
   });
 
   it("turns a hand-written or generated page with the four ways in into MDX with tabs, after the base links", async () => {
-    const ways = "## App\n\nA.\n\n## CLI\n\n[B](/b/)\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
+    const ways = "## Web UI\n\nA.\n\n## CLI\n\n[B](/b/)\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
     const three = "## CLI\n\nB.\n\n## API\n\nC.\n\n## MCP\n\nD.\n";
     await writeFile(join(paths.guideDir, "start", "first.md"), ways);
     // A page with the three sections alone, such as a concept page, keeps them as headings; a command page has tabs.
@@ -84,7 +84,7 @@ describe("assembleContent", () => {
       "start/three.md",
     ]);
     const page = await readFile(join(paths.contentDir, "start", "first.mdx"), "utf8");
-    expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="App">\n');
+    expect(page).toContain('<Tabs syncKey="access">\n\n<TabItem label="Web UI">\n');
     expect(page).toContain('<p class="access-tab-label">CLI</p>\n\n\n[B](/ReqSeq/b/)\n');
     expect(await readFile(join(paths.contentDir, "reference", "commands", "x.mdx"), "utf8")).toBe(
       page.replace("/ReqSeq/b/", "/b/"),
@@ -108,25 +108,25 @@ describe("assembleContent", () => {
 
   it("copies the images of the guide, and refuses a page whose image is not there", async () => {
     await mkdir(join(paths.guideDir, "images"));
-    await writeFile(join(paths.guideDir, "images", "app-overview.png"), "png");
+    await writeFile(join(paths.guideDir, "images", "ui-overview.png"), "png");
     await writeFile(
       join(paths.guideDir, "start", "first.md"),
-      "![The overview](../images/app-overview.png)\n",
+      "![The overview](../images/ui-overview.png)\n",
     );
-    expect(await assembleContent(paths)).toEqual(["images/app-overview.png", "index.md", "start/first.md"]);
-    await writeFile(join(paths.guideDir, "index.md"), "![The list](images/app-list.png)\n");
+    expect(await assembleContent(paths)).toEqual(["images/ui-overview.png", "index.md", "start/first.md"]);
+    await writeFile(join(paths.guideDir, "index.md"), "![The list](images/ui-list.png)\n");
     await writeFile(join(paths.guideDir, "images", "notes.md"), "# Notes\n");
     await expect(assembleContent(paths)).rejects.toThrow("docs/guide: images/notes.md not in a section");
     await rm(join(paths.guideDir, "images", "notes.md"));
     await expect(assembleContent(paths)).rejects.toThrow(
-      "docs/guide: index.md: the image images/app-list.png is no file of the guide relative to the page",
+      "docs/guide: index.md: the image images/ui-list.png is no file of the guide relative to the page",
     );
   });
 
   it("lets a generated page show an image of the guide, and refuses one whose image is not there", async () => {
     await mkdir(join(paths.guideDir, "images"));
-    await writeFile(join(paths.guideDir, "images", "app-model.png"), "png");
-    const page = { path: "reference/model.md", text: "![The model](../images/app-model.png)\n" };
+    await writeFile(join(paths.guideDir, "images", "ui-model.png"), "png");
+    const page = { path: "reference/model.md", text: "![The model](../images/ui-model.png)\n" };
     expect(await assembleContent(paths, [page])).toContain("reference/model.md");
     await expect(
       assembleContent(paths, [{ path: "reference/model.md", text: "![The model](../images/gone.png)\n" }]),
@@ -140,11 +140,11 @@ describe("assembleContent", () => {
 });
 
 describe("imageProblems", () => {
-  const files = new Set(["images/app-overview.png", "start/first.md"]);
+  const files = new Set(["images/ui-overview.png", "start/first.md"]);
 
   it("accepts an image relative to the page, with alt text and a title, and skips code", () => {
     const text = [
-      '![The overview of the app](../images/app-overview.png "Overview")',
+      '![The overview of the web UI](../images/ui-overview.png "Overview")',
       "`![](gone.png)`",
       "```md",
       "![](gone.png)",
@@ -155,16 +155,16 @@ describe("imageProblems", () => {
 
   it("names an image without alt text, a missing one, and one of another site or with a site path", () => {
     const text = [
-      "![ ](../images/app-overview.png)",
-      "![Gone](../images/app-gone.png)",
+      "![ ](../images/ui-overview.png)",
+      "![Gone](../images/ui-gone.png)",
       "![Web](https://example.org/x.png)",
-      "![Site](/images/app-overview.png)",
+      "![Site](/images/ui-overview.png)",
     ].join("\n");
     expect(imageProblems("start/first.md", text, files)).toEqual([
-      "start/first.md: the image ../images/app-overview.png has no alt text",
-      "start/first.md: the image ../images/app-gone.png is no file of the guide relative to the page",
+      "start/first.md: the image ../images/ui-overview.png has no alt text",
+      "start/first.md: the image ../images/ui-gone.png is no file of the guide relative to the page",
       "start/first.md: the image https://example.org/x.png is no file of the guide relative to the page",
-      "start/first.md: the image /images/app-overview.png is no file of the guide relative to the page",
+      "start/first.md: the image /images/ui-overview.png is no file of the guide relative to the page",
     ]);
   });
 });

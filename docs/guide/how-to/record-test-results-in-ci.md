@@ -92,9 +92,9 @@ The snippets were not run on a CI server; their `reqseq` line is tested with a r
 - A requirement is `outdated`: it changed after its last test run; the next run records the new version. A test that ran twice gives two results, and the newest decides.
 - Files with several hundred thousand test cases can run out of memory: set `NODE_OPTIONS=--max-old-space-size=8192`.
 
-## App
+## Web UI
 
-In the app, **Show verification status** shows each requirement's verification status per view, and a need's validation status, under its row, also for a file a pipeline writes while the app is open.
+A requirement's **Evidence** tab shows its verification per acceptance criterion, also for a file a pipeline writes while the page is open.
 
 ## CLI
 

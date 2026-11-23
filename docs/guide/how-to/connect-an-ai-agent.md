@@ -24,15 +24,13 @@ From the CLI tarball (`npm install -g`), it starts Node with the command line's 
 
 A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on Windows; choose `other` and add its block to VS Code by hand.
 
-## App
+## Web UI
 
-Run **Connect AI agent** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS) and choose the client. The app shows what to do, the command or JSON block, and how to go on. "Copy field" (Ctrl+Shift+C, ⌘⇧C on macOS) or the copy symbol at the block puts the block on the clipboard.
+Open **Settings** in the rail. Under **AI agents**, choose the program and click **Show setup**: the page shows what to do, the configuration file where there is one, the command or JSON block, and how to go on. **Copy** puts the block on the clipboard.
 
-Without an open workspace, it first asks for the workspace as "Open workspace" does, opens it, and then asks for the client.
+The same card says whether an agent is connected to this workspace through the MCP server now, and since when, or that none was connected yet.
 
-**Write skill file** writes the skill file `managing-requirements` to `.claude/skills/` and `.agents/skills/` and names each; a file ReqSeq did not write stays.
-
-The right end of the modeline shows whether an AI agent is connected to this copy of the workspace through the MCP server: a green dot and "Agent connected" while one is, a grey dot and "No agent connected" once the last connection has ended, also by a crash, and "Connect AI agent" when none has ever been connected to it. Hover over it for the client and since when it is connected, or which client was connected last and when. A click on "No agent connected" or "Connect AI agent" starts **Connect AI agent**. `reqseq workspace agents` gives the same on the command line.
+Without an open workspace, open or create one first ([Open or create a workspace](/how-to/open-a-workspace/)). **Create a workspace** writes the skill file `managing-requirements` too, unless you clear **Write the skill file for AI agents**.
 
 ## CLI
 

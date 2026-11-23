@@ -18,8 +18,8 @@ export interface ContentPaths {
 export const GUIDE_SECTIONS: readonly string[] = ["start", "how-to", "concepts"];
 
 /**
- * The folder of docs/guide/ for the images of the pages, such as the app's screenshots that the Electron spec
- * `packages/app/test/guide-screenshots.spec.ts` writes on Linux (ADR-0017). It holds no pages.
+ * The folder of docs/guide/ for the images of the pages, such as the web UI's screenshots that the Playwright spec
+ * `packages/web/test/guide-images.spec.ts` writes on Linux (ADR-0017). It holds no pages.
  */
 export const GUIDE_IMAGES = "images";
 
@@ -56,7 +56,7 @@ export function withBase(text: string, base: string): string {
  * Replaces the content folder of the site with a copy of the hand-written pages (their site links with `base`) plus
  * the generated `pages`, and returns its files, relative and with `/`, sorted. A copy, not a symbolic link, so the
  * build reads the same files on every system. A generated page never replaces a hand-written one. A page with the
- * sections of the ways in becomes `.mdx` with them as tabs (`accessTabs`), a command page also without `## App`.
+ * sections of the ways in becomes `.mdx` with them as tabs (`accessTabs`), a command page also without `## Web UI`.
  */
 export async function assembleContent(
   paths: ContentPaths,

@@ -4,7 +4,7 @@ Requirements engineering for agents and people: describe a need in plain words, 
 
 For spec-driven development, your agent works through ReqSeq's CLI or MCP server: every command reports what your elements still lack under your metamodel, such as a parent need or an acceptance criterion, and every relation and evidence record keeps the version it was made against.
 
-The app, CLI, API and MCP run the same commands with the same result, so you can also do all of it by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
+The CLI, API and MCP run the same commands with the same result, and the web UI in your browser runs them too, so you can also work by hand; only people approve, and ReqSeq never writes to Git or opens a network connection.
 
 [![CI](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThomasBirkmaier/ReqSeq/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/ThomasBirkmaier/ReqSeq)](https://github.com/ThomasBirkmaier/ReqSeq/releases/latest)
@@ -22,10 +22,10 @@ Each command names what the elements still lack under the metamodel, such as `tr
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/guide/images/ways-dark.svg">
-  <img src="docs/guide/images/ways-light.svg" alt="ReqSeq has four ways in that run the same commands with the same result: the desktop app for you, the reqseq command line for your agent, your CI and you, the MCP server for your AI agent, and a local HTTP API on loopback for scripts and tools. ReqSeq reads and writes the spec as Markdown files in spec/ of your Git repository, reads Git and never commits, and opens no network connections.">
+  <img src="docs/guide/images/ways-light.svg" alt="ReqSeq has four ways in that run the same commands with the same result: the web UI in your browser for you, the reqseq command line for your agent, your CI and you, the MCP server for your AI agent, and a local HTTP API on loopback for scripts and tools. ReqSeq reads and writes the spec as Markdown files in spec/ of your Git repository, reads Git and never commits, and opens no network connections.">
 </picture>
 
-**Connect AI agent**, in the app or as `reqseq workspace connect-agent --client <client>`, prints the setup that lets your agent's client, such as Claude Code, VS Code, Codex CLI, Claude Desktop or Cursor, start the MCP server for your workspace. [Connect an AI agent](https://thomasbirkmaier.github.io/ReqSeq/how-to/connect-an-ai-agent/) shows each client.
+The AI agents section of the web UI's settings, or `reqseq workspace connect-agent --client <client>`, prints the setup that lets your agent's client, such as Claude Code, VS Code, Codex CLI, Claude Desktop or Cursor, start the MCP server for your workspace. [Connect an AI agent](https://thomasbirkmaier.github.io/ReqSeq/how-to/connect-an-ai-agent/) shows each client.
 
 ## Get started
 
@@ -44,15 +44,15 @@ reqseq workspace check
 
 [Get started](https://thomasbirkmaier.github.io/ReqSeq/start/get-started/) explains each step. [Name the requirement in a test](https://thomasbirkmaier.github.io/ReqSeq/how-to/name-the-requirement-in-a-test/), [Check a workspace in CI](https://thomasbirkmaier.github.io/ReqSeq/how-to/check-a-workspace-in-ci/) and [Record test evidence](https://thomasbirkmaier.github.io/ReqSeq/how-to/record-test-evidence/) connect your tests and your pipeline.
 
-## The app
+## The web UI
 
-![The app on ReqSeq's own specification: a system requirement opened through the search, the command help of "Filter list", the list of system requirements filtered, sorted and grouped, and the graph of a need with its system requirements.](docs/guide/images/app-tour.gif)
+![The web UI on ReqSeq's own specification: a requirement found with Ctrl+K, a list narrowed, sorted and grouped, and the trace graph of a need.](docs/guide/images/ui-tour.gif)
 
-You can also do all of your requirements engineering by hand, without an agent: the desktop app works on the same files and offers every function the CLI and MCP offer, with the same result. One command prompt reaches each of them, and the app shows the graph, the traceability matrix and the evidence. Without a workspace, it starts with "Open workspace…", **Create workspace** and **Connect AI agent**.
+You can also work by hand, without an agent: `reqseq ui` in a workspace starts the web UI on your computer and opens it in your browser. It works on the same files through the same commands. Its overview shows what needs a look or a decision; it lists, searches and edits elements, shows the trace graph, the trace matrix and the evidence, and records your decisions on what changed since a baseline. Only your computer reaches it, and only with the address `reqseq ui` prints. [The web UI](https://thomasbirkmaier.github.io/ReqSeq/concepts/the-web-ui/) says more.
 
 ## Share the requirements
 
-`reqseq html export <folder>`, or **Export HTML** in the app, writes the workspace as a folder of HTML pages that people read in a browser without ReqSeq, Git or network: a page per element with its acceptance criteria, evidence and neighbourhood, lists, baselines and a search. ReqSeq publishes nothing; where you put the folder decides who reads it. [Publish the workspace as HTML](https://thomasbirkmaier.github.io/ReqSeq/how-to/publish-the-workspace-as-html/) says more. ReqSeq's own specification is published this way with each release: [thomasbirkmaier.github.io/ReqSeq/spec](https://thomasbirkmaier.github.io/ReqSeq/spec/).
+`reqseq html export <folder>`, or **Export HTML** in the web UI, writes the workspace as a folder of HTML pages that people read in a browser without ReqSeq, Git or network: a page per element with its acceptance criteria, evidence and neighbourhood, lists, baselines and a search. ReqSeq publishes nothing; where you put the folder decides who reads it. [Publish the workspace as HTML](https://thomasbirkmaier.github.io/ReqSeq/how-to/publish-the-workspace-as-html/) says more. ReqSeq's own specification is published this way with each release: [thomasbirkmaier.github.io/ReqSeq/spec](https://thomasbirkmaier.github.io/ReqSeq/spec/).
 
 ## More
 

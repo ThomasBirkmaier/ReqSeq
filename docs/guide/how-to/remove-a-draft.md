@@ -11,12 +11,12 @@ ReqSeq never deletes an element: one that was approved or is in a baseline is su
 
 ReqSeq itself does not remove the file, because it never deletes elements.
 
-## App
+## Web UI
 
-1. Open the draft and run **Show neighbourhood** (Ctrl+J, ⌘J on macOS) to see the elements that point to it.
-2. Open each of them and run **Remove relation** with the kind and the draft as target. An inline reference or a relation property that names the draft is removed by changing the text or the property.
-3. Remove the file with `git rm` in a terminal; the app does not remove files.
-4. Run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
+1. Open the draft. Its page lists the elements that point to it, and its **Impact** tab every element a change of it can affect.
+2. Open each of them, click **Edit**, and remove the draft from its relations. An inline reference in a text is removed by changing the text.
+3. Remove the file with `git rm` in a terminal; the web UI does not remove files.
+4. Open **Problems** in the rail.
 
 ## CLI
 

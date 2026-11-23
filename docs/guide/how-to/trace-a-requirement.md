@@ -5,19 +5,16 @@ description: Derive system requirements from a need, follow the trace chain, fin
 
 A system requirement traces to the need it meets through a relation stored in its own file. This page relates two requirements to a need, follows the chain down, looks up the parents of one requirement and shows the relations of the whole workspace as a matrix. The relation keeps the version of the need; when the need changes later, ReqSeq marks the relation as outdated, so you know to review the requirement.
 
-## App
+## Web UI
 
-1. Create the need and the requirements with **Create element** (Ctrl+K E, ⌘K E).
-2. In the element buffer of a requirement, run **Create relation** (Ctrl+K R, ⌘K R) and choose the kind Derives from and the need.
-3. Open the command prompt with Ctrl+Shift+P (⌘⇧P) and run **Show trace chain** for the need, or **Show related elements** with `parents` for a requirement. **Show neighbourhood** (Ctrl+J, ⌘J) shows the children, incoming relations and references of the open element in a buffer.
-4. In a list of elements, **Show traceability matrix** (Ctrl+T, ⌘T) shows the list as a matrix, one column per relation kind and direction.
-5. **Show graph** (Ctrl+Shift+G, ⌘⇧G) draws the element with its neighbours. Each requirement shows its verification status and verified criteria, a need the share of its requirements that are verified.
+1. Create the need with **New element**, then each requirement with **New element**: under **Derives from**, type a word of the need's title and pick it.
+2. An element's page lists the elements it relates to, in both directions. Its **Trace graph** tab draws the element with its neighbours over one or more levels; **Derivations only** leaves out the other relations. Each requirement shows how many of its acceptance criteria are verified, a need the share of its requirements that are verified.
+3. Its **Impact** tab lists the elements a change of it can affect, nearest first.
+4. **Trace matrix** in the rail shows the elements of one type, one column per relation kind.
 
-![The neighbourhood of a need: the requirement derived from it.](../images/app-neighbourhood.png)
+![The trace matrix of the system requirements: each with the need it derives from.](../images/ui-trace-matrix.png)
 
-![The traceability matrix of the system requirements: each with the need it derives from.](../images/app-trace-matrix.png)
-
-![The graph of a need with 60 % of its requirements verified; below it each requirement with its status and verified criteria.](../images/app-verification-graph.png)
+![The trace graph of a need with 60 % of its requirements verified, with derivations only: below it each requirement with its verified criteria.](../images/ui-verification-graph.png)
 
 ## CLI
 

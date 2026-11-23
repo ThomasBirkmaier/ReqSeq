@@ -1,13 +1,13 @@
-// The ways in as tabs (#2192): a page whose level-2 sections `## App`, `## CLI`, `## API` and `## MCP` follow each
+// The ways in as tabs (#2192): a page whose level-2 sections `## Web UI`, `## CLI`, `## API` and `## MCP` follow each
 // other, a how-to (SR-140 AK3), reaches the site as MDX with one Starlight `TabItem` per section in a `Tabs` with a
 // `syncKey`, so the reader's choice holds on every page; so does a command page (SR-139 AK1), whose run starts at
-// `## CLI` (#2399; #2309 rewrites the how-to pages). Other pages with `## CLI`, `## API` and `## MCP` alone, such as
+// `## CLI`. Other pages with `## CLI`, `## API` and `## MCP` alone, such as
 // the concept page of the three, keep them as headings. Every tab stays in the page, each with a label that only
 // print shows (site/src/styles/theme.css prints every tab), and `llms-full.txt` turns the tabs back into the
 // sections. The sources stay plain Markdown.
 
 /** The section headings of the ways in, in this order; a command page has them without the first one. */
-export const ACCESSES: readonly string[] = ["App", "CLI", "API", "MCP"];
+export const ACCESSES: readonly string[] = ["Web UI", "CLI", "API", "MCP"];
 
 /** The key under which Starlight keeps the chosen tab for every page (`localStorage`). */
 export const ACCESS_SYNC_KEY = "access";
@@ -91,7 +91,7 @@ function mdxProse(line: string, where: string): string {
 }
 
 /**
- * The MDX page with the sections of the ways in as tabs, or undefined when `text` has no `## App` followed by
+ * The MDX page with the sections of the ways in as tabs, or undefined when `text` has no `## Web UI` followed by
  * `## CLI`, `## API` and `## MCP` as its next level-2 sections; with `withoutApp` (a command page), the run of
  * `## CLI`, `## API` and `## MCP` counts as well. The tabs end at the next level-2 heading. `path` names the page in an
  * error.

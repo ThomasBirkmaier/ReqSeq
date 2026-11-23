@@ -12,15 +12,12 @@ ReqIF 1.2 is the exchange format of tools such as DOORS Next or Polarion. ReqSeq
 
 The export writes a package or any selection and can leave out properties; a relation to an element outside it keeps only its ID. With the mapping, it writes your statements back under the source's identifiers, also in the source's model, or the requirements in that model, where a STRING attribute gets the text without formatting. A file that ReqSeq exported imports without a mapping. Missing folders above the file are created only in a repository (SR-207 AK4, AK6).
 
-## App
+## Web UI
 
-In the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS):
-
-1. Run **Analyse ReqIF file** and choose the file.
-2. Run **Save ReqIF mapping** and type the mapping as JSON, the `mapping` of the API section below.
-3. Run **Import ReqIF file**, choose the file, name the delivery, and answer with Ctrl+Enter (⌘↩) to give the mapping too. For the next delivery, run **Analyse ReqIF file** with the mapping first; when you import, give each conflict with Ctrl+Enter (⌘↩) under `take` or `keep`.
-4. To export a package, create it with **Create element** (Ctrl+K E, ⌘K E), type Package. In the element buffer of each requirement, add the property Package with “Add property” (Ctrl+Alt+A, ⌥⌘A), choose the package, and run **Save element** (Ctrl+S, ⌘S). Open the package with **Go to element or buffer** (Ctrl+P, ⌘P) and run **Export ReqIF** with the name of the new file. On a list, it exports what the list shows.
-5. For your answer to the source, open each requirement (Ctrl+P, ⌘P), add the property Statement with “Add property” and save it. Then, from an element buffer, not a list, run **Export ReqIF** and give the mapping and `statements` or `sourceModel` yes with Ctrl+Enter (⌘↩).
+1. Open **Import ReqIF** in the rail. Type the path of the ReqIF file, relative to the workspace folder, and for a file of another tool the path of its mapping file, then click **Check file**: the page shows what the import would change.
+2. Without a mapping file, **Map the file** lets you choose for each part of the file what it becomes in the workspace; **Save mapping** writes the mapping into the mapping folder of the workspace and checks the file again with it.
+3. Give the name of the source and of the delivery, and import. For the next delivery, each conflict offers **Take the delivery** or **Keep mine**.
+4. **Export** in the rail writes the whole workspace as one ReqIF file under **ReqIF**. A package alone, and the statements or the source model for your answer to the source, are not possible in the web UI: use the CLI, the API or MCP.
 
 ## CLI
 

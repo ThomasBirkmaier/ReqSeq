@@ -1,5 +1,5 @@
-// The page of the three commands outside the catalog that start a server: `reqseq serve api`, `reqseq serve docs`
-// and `reqseq mcp` (SR-139). Their text is the CLI's own `--help`, as on the command pages, so it cannot go stale.
+// The page of the four commands outside the catalog that start a server: `reqseq ui`, `reqseq serve api`,
+// `reqseq serve docs` and `reqseq mcp` (SR-139). Their text is the CLI's own `--help`, as on the command pages, so it cannot go stale.
 import { COMMANDS_PATH } from "@reqseq/api";
 import type { CommandRuntime } from "@reqseq/core";
 import { COMMANDS_FOLDER } from "@reqseq/core/docs-site";
@@ -14,6 +14,11 @@ export const SERVERS: readonly {
   readonly argv: readonly string[];
   readonly purpose: (root: string) => string;
 }[] = [
+  {
+    argv: ["ui"],
+    purpose: (root) =>
+      `Runs the [web UI](${root}/concepts/the-web-ui/) on this computer and opens it in the browser. Only this computer can reach it, and only with the token in the address it prints.`,
+  },
   {
     argv: ["serve", "api"],
     purpose: (root) =>
@@ -50,12 +55,12 @@ export async function serversPage(runtime: CommandRuntime, base: string, order: 
   return [
     "---",
     "title: Servers",
-    'description: "The commands that start the local API, the offline documentation and the MCP server."',
+    'description: "The commands that start the web UI, the local API, the offline documentation and the MCP server."',
     "sidebar:",
     `  order: ${String(order)}`,
     "---",
     "",
-    "Three commands of the command line start a server instead of running one command. They run until Ctrl-C, and `reqseq mcp` also ends with its input.",
+    "Four commands of the command line start a server instead of running one command. They run until Ctrl-C, and `reqseq mcp` also ends with its input.",
     `How the API and MCP find the workspace, take input and report errors: [CLI, API and MCP](${root}/concepts/cli-api-and-mcp/).`,
     "",
     ...sections,

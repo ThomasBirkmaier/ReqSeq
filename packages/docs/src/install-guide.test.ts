@@ -19,11 +19,11 @@ describe("the install guide", () => {
     const parts = sections(text);
     // The one-time steps of the installation (SR-249 AK1) say nothing more for Linux.
     expect(/^- Linux: .*$/m.exec(parts.get("First start") ?? "")?.[0]).toBe("- Linux: nothing to do.");
-    // The package is named once, in a paragraph of its own under App, outside every list of steps.
+    // The package is named once, in a paragraph of its own under Web UI, outside every list of steps.
     const named = [...parts].filter(([, body]) => body.includes("libwebkit2gtk-4.1-0"));
-    expect(named.map(([heading]) => heading)).toEqual(["App"]);
+    expect(named.map(([heading]) => heading)).toEqual(["Web UI"]);
     const paragraph =
-      (parts.get("App") ?? "").split(/\n\n/).find((p) => p.includes("libwebkit2gtk-4.1-0")) ?? "";
+      (parts.get("Web UI") ?? "").split(/\n\n/).find((p) => p.includes("libwebkit2gtk-4.1-0")) ?? "";
     expect(paragraph.split("libwebkit2gtk-4.1-0")).toHaveLength(2);
     expect(paragraph).not.toMatch(/^\s*[-*\d]/m);
     expect(paragraph).toContain("On Linux the desktop shell alone needs");

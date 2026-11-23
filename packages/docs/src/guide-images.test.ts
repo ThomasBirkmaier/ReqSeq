@@ -18,12 +18,12 @@ const image = (name: string): Promise<Buffer> =>
   readFile(fileURLToPath(new URL(`../../../docs/guide/images/${name}`, import.meta.url)));
 let overview: Buffer;
 let element: Buffer;
-let standardModel: Buffer;
+let graph: Buffer;
 beforeAll(async () => {
-  [overview, element, standardModel] = await Promise.all([
-    image("app-overview.png"),
-    image("app-element.png"),
-    image("app-standard-model.png"),
+  [overview, element, graph] = await Promise.all([
+    image("ui-overview.png"),
+    image("ui-element.png"),
+    image("ui-verification-graph.png"),
   ]);
 });
 
@@ -49,29 +49,27 @@ describe("differingShare", () => {
 
 describe("checkImage", () => {
   it("finds a screenshot with main's bytes or main's pixels unchanged", () => {
-    expect(checkImage("app-overview.png", overview, overview)).toEqual({
-      name: "app-overview.png",
+    expect(checkImage("ui-overview.png", overview, overview)).toEqual({
+      name: "ui-overview.png",
       share: 0,
       problem: undefined,
     });
     // A chunk after the image data changes the bytes, not the pixels.
     const tail = Buffer.from([0, 0, 0, 0, 0x74, 0x45, 0x58, 0x74, 0, 0, 0, 0]);
-    expect(checkImage("app-overview.png", Buffer.concat([overview, tail]), overview).problem).toBeUndefined();
+    expect(checkImage("ui-overview.png", Buffer.concat([overview, tail]), overview).problem).toBeUndefined();
   });
 
   it("reports a screenshot that is new, resized, broken or differs beyond the limit", () => {
-    expect(checkImage("app-new.png", overview, undefined)).toEqual({
-      name: "app-new.png",
+    expect(checkImage("ui-new.png", overview, undefined)).toEqual({
+      name: "ui-new.png",
       share: undefined,
       problem: "is new",
     });
-    expect(checkImage("app-overview.png", overview, standardModel).problem).toBe(
-      "is 1024×576, 1368×922 on main",
-    );
-    const changed = checkImage("app-overview.png", overview, element);
+    expect(checkImage("ui-overview.png", overview, graph).problem).toBe("is 1280×720, 1280×1080 on main");
+    const changed = checkImage("ui-overview.png", overview, element);
     expect(changed.share).toBeGreaterThan(0.01);
     expect(changed.problem).toMatch(/^differs from main in \d+\.\d\d % of its pixels$/);
-    expect(checkImage("app-overview.png", Buffer.from("not a png"), overview)).toMatchObject({
+    expect(checkImage("ui-overview.png", Buffer.from("not a png"), overview)).toMatchObject({
       share: undefined,
       problem: expect.stringMatching(/^cannot be compared \(.+\)$/) as string,
     });
@@ -141,13 +139,13 @@ describe("guideImagesReport", () => {
       { name: "d.png", share: 0.02, problem: undefined, updated: true },
     ]);
     expect(log.split("\n")).toEqual([
-      "::warning file=docs/guide/images/b.png,title=Guide screenshot changed::b.png differs from main in 1.23 %25 of its pixels: if the app's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
-      "::warning file=docs/guide/images/c.png,title=Guide screenshot changed::c.png is new: if the app's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
+      "::warning file=docs/guide/images/b.png,title=Guide screenshot changed::b.png differs from main in 1.23 %25 of its pixels: if the web UI's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
+      "::warning file=docs/guide/images/c.png,title=Guide screenshot changed::c.png is new: if the web UI's look changed, run `pnpm docs:screenshots` and commit docs/guide/images/.",
       "guide images: 4 compared with main, 2 changed",
       "",
     ]);
     expect(summary).toContain(
-      "2 of 4 screenshots differ from main: if the app's look changed, run `pnpm docs:screenshots` and commit them.",
+      "2 of 4 screenshots differ from main: if the web UI's look changed, run `pnpm docs:screenshots` and commit them.",
     );
     expect(summary).toContain("| Image | Differing pixels | State (limit 0.05 %) |");
     expect(summary).toContain("| a.png | 0.00 % | as on main |");
@@ -163,7 +161,7 @@ describe("guideImagesReport", () => {
     expect(guideImagesReport([{ name: "a.png", share: 0, problem: undefined }], "")).toEqual({
       log: "guide images: 1 compared with main, 0 changed\n",
       summary: expect.stringContaining(
-        "None of the 1 screenshots of the app differs from main without an updated copy.",
+        "None of the 1 screenshots of the web UI differs from main without an updated copy.",
       ) as string,
     });
   });

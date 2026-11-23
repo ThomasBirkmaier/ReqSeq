@@ -10,15 +10,12 @@ A variant is an element of the type Variant, beside the core. A requirement with
 
 The view of a variant holds the core requirements it neither excludes nor replaces, plus its own; needs, packages and other types without Validity are in every view. When a replaced core requirement changes, the replacing requirement gets the hint `variant.core-changed`. When a core requirement the variant takes over changes after the variant's newest baseline, or comes into its view, the variant gets `variant.core-changed-since-baseline` or `variant.core-new-since-baseline`; only a new baseline of the variant settles those.
 
-## App
+## Web UI
 
-1. Create the variant and its own requirement with **Create element** (Ctrl+K E, ⌘K E on macOS), types Variant and System Requirement.
-2. In the requirement's element buffer, add Validity with "Add property" (Ctrl+Alt+A, ⌥⌘A) and choose the variant, then run **Save element** (Ctrl+S, ⌘S). **Create relation** (Ctrl+K R, ⌘K R) with the kind Replaces and the core requirement makes it a replacement.
-3. **Exclude requirements from variant** in the command prompt (Ctrl+Shift+P, ⌘⇧P) asks the variant and the requirements. To take an exclusion back, press Ctrl+Enter (⌘↩) after the requirements, choose `undo`, answer yes, then Run.
-4. "Choose view" in the command prompt switches the window to all elements, the core or a variant; the modeline then says `view: Coastal station`, and lists, search, chains and coverage follow it.
-5. **Show variant difference** lists the added, replaced and excluded requirements; Enter on a replaced one shows the core requirement and its replacement side by side.
-6. A replacing requirement's page shows the hint when its core requirement changed; **Confirm hints** (Ctrl+K H, ⌘K H) takes over the new version. **List hints** with Ctrl+Enter (⌘↩), then `variant` and Run, lists the hints of the variant's view, and the variant's page lists the core changes since its newest baseline.
-7. For a baseline of the variant, commit the files, then run **Create baseline** on **List all elements** (Ctrl+K L, ⌘K L) in its view.
+1. Create the variant and its own requirement with **New element**, types Variant and System requirement. In the requirement's form, choose the variant under **Validity**, and the core requirement under **Replaces** for a replacement.
+2. The variant's page under **Variants** in the rail lists what it adds, replaces and leaves out of the core. **Exclude a core requirement** takes the ID of a core requirement it does not need and writes the exclusion into the file of the variant.
+3. **View** at the top of the rail shows the core or a variant in every list and count.
+4. **Check before a baseline** in the view of the variant creates a baseline of the variant; commit the files first.
 
 ## CLI
 

@@ -54,7 +54,7 @@ describe("accessNames", () => {
 describe("howToProblems", () => {
   it("accepts a page with every access and names that exist, with or without a section on the app", () => {
     expect(howToProblems(page(complete), names)).toEqual([]);
-    expect(howToProblems(page({ App: "Run **Any entry**.", ...complete }), names)).toEqual([]);
+    expect(howToProblems(page({ "Web UI": "Run **Any entry**.", ...complete }), names)).toEqual([]);
   });
 
   it("names a missing or empty section, an unknown API path, MCP tool and input field", () => {

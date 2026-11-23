@@ -24,13 +24,13 @@ properties:
 
 The criterion key of an acceptance criterion does not count: only its text does, so giving the criteria keys, or changing them, keeps the version (SR-091 AK6, D-027).
 
-`reqseq metamodel get` shows `content: true` or `content: false` for every property, and the app's metamodel text (**Show metamodel**, then Ctrl+T, ⌘T on macOS) marks those that count with "counts to version".
+`reqseq metamodel get` shows `content: true` or `content: false` for every property.
 
 All repositories of a workspace are read with the workspace's metamodel; a repository that is also a workspace of its own must use the same metamodel, or its elements get other versions. `workspace check` warns when they differ (`workspace.metamodel-mismatch`).
 
-## App
+## Web UI
 
-Not possible in the app: the metamodel is a file you edit in a text editor. **Show metamodel** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS), then Ctrl+T (⌘T on macOS), shows the metamodel as text and marks the properties that count with "counts to version".
+Not possible in the web UI: the metamodel is a file you edit in a text editor. **Settings** shows the metamodel of the workspace, read only.
 
 ## CLI
 
