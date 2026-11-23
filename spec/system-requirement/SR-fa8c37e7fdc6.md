@@ -13,7 +13,7 @@ acceptance-criteria:
   - key: hss7
     text: Gegeben eine neueste Baseline nach der Regel von SR-241 AK1, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen ihren Namen und je Kennzeichnung, die `baseline.get` zählt (SR-051), dieselbe Zahl wie `baseline.get` für sie; ohne Baseline fehlt diese Angabe. Hat sie keine gespeicherte Auswahl, sagt die Ausgabe das, und die Zahlen für „hinzugefügt“ und „entfernt“ fehlen (wie SR-241 AK6). Meldet `baseline.get` für sie einen Befund, führt die Ausgabe ihn bei dieser Angabe, getrennt von den Befunden der Prüfung des Bestands; der Antwortsatz zählt ihn nicht. Eine nicht lesbare Baseline-Datei behandelt der Befehl wie SR-241 AK7.
   - key: rqjf
-    text: Gegeben ein Arbeitsbereich mit oder ohne Fehler in der Prüfung des Bestands, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen „Create baseline“ als nächsten Schritt mit der Auswahl, die „Prepare baseline“ erhielt, ohne Angabe mit der Auswahl des ganzen Arbeitsbereichs; offen ist nur der Name. Daneben nennt sie „Show changes since baseline“, wenn es eine Baseline gibt. Ist die Auswahl eine Baseline oder die Ausgabe eines Befehls, oder nennt sie einen gespeicherten Filter und eine andere Sicht als dessen (SR-050 AK8), fehlt „Create baseline“, weil `baseline.create` diese Auswahlen ablehnt; ein Schritt mit einem Schreibbefehl fehlt, solange das Tool Schreibbefehle ablehnt (SR-226 AK6).
+    text: Gegeben ein Arbeitsbereich mit oder ohne Fehler in der Prüfung des Bestands, wenn „Prepare baseline“ aufgerufen wird, dann nennt die Ausgabe in allen Zugängen „Create baseline“ als nächsten Schritt mit der Auswahl, die „Prepare baseline“ erhielt, ohne Angabe mit der Auswahl des ganzen Arbeitsbereichs; offen ist nur der Name. Daneben nennt sie „Show changes since baseline“, wenn es eine Baseline gibt. Ist die Auswahl eine Baseline oder die Ausgabe eines Befehls, oder nennt sie einen gespeicherten Filter und eine andere Sicht als dessen (SR-050 AK8), fehlt „Create baseline“, weil `baseline.create` diese Auswahlen ablehnt; ein Schritt mit einem Schreibbefehl fehlt, solange das Tool Schreibbefehle ablehnt (SR-226 AK5).
   - key: tsww
     text: Gegeben ein Repository des Arbeitsbereichs fehlt lokal (SR-006 AK2), wenn „Prepare baseline“ aufgerufen wird, dann kennzeichnet das Tool die Ausgabe in allen Zugängen als unvollständig.
 packages:
@@ -25,9 +25,9 @@ derives-from:
 refines:
   - { id: 6adc6c49-e383-41ed-ac99-941741a85262, version: n2:94718d1b8a2e216c, title: Nachweisgrad einer Auswahl berechnen }
   - { id: 6adc6bad-b94e-40cf-bd99-7ef5e126d1e6, version: n2:92e9eb83b9ef0a94, title: Bestand per Kommandozeile prüfen }
-  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:d39c6427d7b05c14, title: Den nächsten Schritt nennen }
+  - { id: bcf88b88-5b60-4d0c-ba56-236e6d453819, version: n2:464535f27421fffe, title: Den nächsten Schritt nennen }
   - { id: 6adc6c9a-01d7-43bd-9e05-4dd4c430de10, version: n2:e8660c8dd1727df7, title: Baseline anzeigen und vergleichen }
-  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:e39afa8ca29391e8, title: Requirements ohne bestandenen Test finden }
+  - { id: ad9557d1-874f-49d4-9973-4ce9f96ef998, version: n2:b989765fd9743f52, title: Requirements ohne bestandenen Test finden }
 based-on:
   - { id: 82fd4d1b-0df8-4bb4-91d4-4635cf9ddcc3, version: n2:cedfd19af815d1be, title: "Befehle, die Befehle zusammenstellen" }
   - { id: 6ad47f0f-552c-42de-aa78-27c9c18f3d6b, version: n2:24b59ed5af881fec, title: Anlass einer Baseline liegt außerhalb des Tools }

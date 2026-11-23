@@ -12,8 +12,6 @@ acceptance-criteria:
     text: Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
   - key: rffk
     text: Gegeben eine Sortierung, wenn Elemente angelegt werden, dann speichert das Tool keine feste Reihenfolge in den Dateien.
-  - key: qgzh
-    text: Gegeben die Liste der Suchtreffer, wenn sie angezeigt wird, dann bietet das Tool für sie keine Sortierung an, auch nicht nach der Hierarchie; die Treffer stehen nach Relevanz (SR-124 AK4).
   - key: c3cc
     text: Gegeben eine Auswahl von Elementen, wenn sie nach dem Nachweisstatus sortiert wird (`element.list`), dann stehen sie aufsteigend in der Folge nicht bestanden, offen, veraltet, nachgewiesen, absteigend umgekehrt, im Nachweisstatus der Sicht der Eingabe, ohne Angabe im Kern; indirekt nachgewiesen (SR-034) zählt als nachgewiesen; Elemente ohne Nachweisstatus, also Elemente, die kein Requirement sind, und Requirements außerhalb der Sicht (SR-137 AK4), stehen in beiden Richtungen am Ende; bei gleichem Wert gilt AK1.
   - key: qr2j
@@ -25,7 +23,7 @@ derives-from:
   - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n2:7c87e88362a6b473, title: Keine feste Reihenfolge }
-rationale: "Kennung absteigend (AK1): Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut. Frist je Aufruf (AK6, #2347): Die Frist gilt für jeden Aufruf von Git einzeln, nicht für die ganze Sortierung; eine Runde von `git cat-file` ist eine Anfrage nach einer Gruppe von Objekten an den laufenden Prozess, bis Git sie beantwortet hat. Die Antwortzeit der ersten Seite regelt SR-082 AK4."
+rationale: "Kennung absteigend (AK1): Absteigend nach der Kennung kehrt sich die ganze Ordnung um, Elemente ohne Kennung stehen dann am Anfang, wie gebaut. Frist je Aufruf (AK5, #2347): Die Frist gilt für jeden Aufruf von Git einzeln, nicht für die ganze Sortierung; eine Runde von `git cat-file` ist eine Anfrage nach einer Gruppe von Objekten an den laufenden Prozess, bis Git sie beantwortet hat. Die Antwortzeit der ersten Seite regelt SR-082 AK4."
 ---
 
 Das Tool muss Listen nach Properties, nach dem [Nachweisstatus](reqseq:03ce02e1-30af-4525-a0cc-81211316b1bc?version=n2:481b6d233203bf66), nach dem Zeitpunkt der [Fassung](reqseq:6ad4f981-630d-4227-9025-e1a5fad9ad7c?version=n2:180b056a64f9072f) oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern.

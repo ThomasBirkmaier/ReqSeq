@@ -8,8 +8,6 @@ requirement-type: functional
 acceptance-criteria:
   - key: nxhm
     text: "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements. Ergänzt sind die Requirements, deren Gültigkeit die Variante nennt und die kein Kern-Requirement ersetzen, das in der Variante nicht ausgeschlossen ist."
-  - key: d2rh
-    text: Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander im geteilten Fenster (D-062), je in einem Buffer, nur lesend, mit Text und Akzeptanzkriterien beider.
   - key: dc1n
     text: Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
 verification-method: test

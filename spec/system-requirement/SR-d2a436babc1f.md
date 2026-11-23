@@ -13,7 +13,7 @@ acceptance-criteria:
   - key: z3tv
     text: Gegeben der Link auf die Seite eines Elements, wenn derselbe Arbeitsbereich später erneut an denselben Ort exportiert wird und das Element noch gültig ist, dann öffnet der Link weiter genau dieses Element, auch wenn sich seine Kennung, sein Titel oder seine Kurz-ID geändert haben.
   - key: q64j
-    text: Gegeben die Seiten, wenn sie angezeigt werden, dann binden sie das Stylesheet der mitgelieferten Dokumentation ([SR-141](reqseq:1c987832-234f-4c88-a8bf-dd4b4f6c54d8?version=n2:b3de6a6b9332ffb0)) ein, haben einen Umschalter für hell und dunkel und zeigen unter der Breite, bei der die Dokumentation umbricht, die Navigation als Menü.
+    text: Gegeben die Seiten, wenn sie angezeigt werden, dann binden sie das Stylesheet der mitgelieferten Dokumentation ([SR-141](reqseq:1c987832-234f-4c88-a8bf-dd4b4f6c54d8?version=n2:2b652a60f01e9bab)) ein, haben einen Umschalter für hell und dunkel und zeigen unter der Breite, bei der die Dokumentation umbricht, die Navigation als Menü.
   - key: ycws
     text: "Gegeben ein Text oder eine Markdown-Property mit Formeln, Mermaid-Diagrammen, Tabellen, Aufgabenlisten, Hinweisboxen ([D-074](reqseq:909e3182-bbf5-4705-b55e-4e99001a8b98?version=n2:cafceafb26d02e0a)) oder einem Bild aus dem Repository des Elements, wenn exportiert wird, dann erscheinen sie formatiert: Formeln sind beim Export gesetzt, Mermaid zeichnet eine einmal im Ordner liegende Bibliothek, und das Bild liegt als Kopie im Ordner. Ein fehlerhaftes Diagramm oder eine fehlerhafte Formel zeigt den Fehler und den Quelltext."
   - key: wkbf

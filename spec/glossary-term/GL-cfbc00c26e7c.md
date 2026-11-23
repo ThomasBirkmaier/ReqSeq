@@ -4,7 +4,7 @@ type: glossary-term
 title: Validierungsstatus
 area: fachlich
 distinct-from:
-  - { id: 0d5a8379-b25c-4218-9d4a-fe1e9bc4c235, version: n2:0b506c9483b99cd9, title: Status }
+  - { id: 0d5a8379-b25c-4218-9d4a-fe1e9bc4c235, version: n2:4be9b1f67775715c, title: Status }
 english-term: validation status
 ---
 

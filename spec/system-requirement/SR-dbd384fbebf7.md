@@ -23,7 +23,7 @@ acceptance-criteria:
     text: Gegeben ein Graph ohne gewählte Variante, wenn er abgefragt wird, dann nennt die Ausgabe an jedem Knoten eines Requirements den Nachweisstatus im Kern; ein Requirement, das nicht in der Sicht des Kerns steht, hat keinen Nachweisstatus und keinen Anteil. Mit gewählter Variante ist es der Nachweisstatus in ihrer Sicht.
 verification-method: test
 refines:
-  - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n2:d212212cfaeab5c1, title: Graph des aktuellen Elements liefern }
+  - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n2:2d2e77458dc1d654, title: Graph des aktuellen Elements liefern }
 derives-from:
   - { id: 1015b447-7845-49a6-984d-f1b4e809800f, version: n1:8971994df12cd206, title: Graph des aktuellen Elements }
   - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n2:b080b82a30d57303, title: Status von Nachweis und Validierung }

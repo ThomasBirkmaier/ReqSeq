@@ -7,10 +7,6 @@ spec-id: SR-178
 rationale: "In der Bereinigung der offenen Issues aus #500 als Wunsch ins Paket Später übernommen. Bei der Abnahme der Stufe 5 waren die Varianten der eigenen Spec in der App zunächst nicht auffindbar, ebenso die optionalen Argumente eines Befehls."
 requirement-type: functional
 acceptance-criteria:
-  - key: ddp3
-    text: Gegeben die App, wenn die Ansicht gewählt werden soll, dann geht das über ein Tastenkürzel oder einen Menüeintrag, und die Statuszeile zeigt die gewählte Ansicht.
-  - key: rzw5
-    text: Gegeben ein Arbeitsbereich mit Varianten, wenn in der App Elemente aufgelistet werden, dann sind die Varianten dort ebenso auffindbar wie andere Elemente.
   - key: hz7d
     text: Gegeben ein geöffneter Ordner ohne Arbeitsbereich, in dessen Unterordner einer liegt, wenn er geöffnet wird, dann weist das Tool auf diesen Unterordner hin.
   - key: g5g1

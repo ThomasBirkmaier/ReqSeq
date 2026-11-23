@@ -12,10 +12,6 @@ acceptance-criteria:
     text: Gegeben die Fassung eines Datensatzes ist in Baselines enthalten, wenn er angezeigt wird, dann nennt das Tool diese Baselines.
   - key: hbdt
     text: "Gegeben ein Requirement mit mehreren Datensätzen, wenn seine Nachweise abgefragt werden (CLI, API, MCP: `evidence.list`), dann kennzeichnet das Tool die Datensätze, die seinen Nachweisstatus tragen: je Akzeptanzkriterium und Variante alle Datensätze mit dem neuesten Datum zur aktuellen Fassung (D-072) oder, wenn es zu ihr keinen gibt, die mit dem neuesten Datum zu einer älteren Fassung."
-  - key: rbjn
-    text: Gegeben ein Requirement mit Datensätzen, wenn seine Nachweise in der App angezeigt werden, dann zeigen die offenen Datensätze je Akzeptanzkriterium eine Zeile (ohne Akzeptanzkriterien eine für das Requirement) mit Ergebnis und Zahl der Testfälle; das Ergebnis ist das schlechteste ihrer Datensätze (nicht bestanden vor nicht beurteilbar vor bestanden), eine Zeile, deren Nachweisstatus nicht bestanden oder veraltet ist, ist hervorgehoben und nennt die Varianten, in denen er es ist; ein Datensatz ohne Akzeptanzkriterium erscheint unter jedem, einer ohne Testfall zählt als eigener Testfall; die Zeile klappt per Klick und Tastatur auf zu je einer Zeile je Testfall und diese zu ihren Datensätzen.
-  - key: cd8f
-    text: Gegeben ein Requirement mit offenen Datensätzen, wenn sie in der App angezeigt werden, dann steht jede der Angaben Datum, Prüfling, Fassung und Baselines, die alle offenen Datensätze teilen, einmal über den Zeilen der Akzeptanzkriterien und nicht in jeder Zeile.
 verification-method: test
 packages:
   - { id: ed14d465-fd3f-4188-992b-3ff7af8595af, version: n2:42294a7722f821a6, title: Nachweis und Abdeckung }

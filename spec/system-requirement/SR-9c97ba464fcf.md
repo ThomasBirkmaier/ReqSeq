@@ -33,7 +33,7 @@ verification-method: test
 derives-from:
   - { id: 09ea0170-ab5d-4115-9a55-7ea1f0b05e5f, version: n2:a28b5ef4c4351daa, title: Nächste Kennung ohne Nachschlagen }
 refines:
-  - { id: 6adc6d84-e8f4-48bc-adcc-71a839d13a4d, version: n2:bba082390368e25a, title: Element mit Pflicht-Properties zuerst anlegen }
+  - { id: 6adc6d84-e8f4-48bc-adcc-71a839d13a4d, version: n2:f51117e40dfc935f, title: Element mit Pflicht-Properties zuerst anlegen }
 based-on:
   - { id: 6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2, version: n2:806684a4b1a7fb22, title: "Automatisch erzeugte, zufällige IDs" }
 ---
