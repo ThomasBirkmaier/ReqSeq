@@ -16,11 +16,26 @@ name: Performance
 # schedule or a manual run, with write rights, and commits the record and files the issue. The record goes to the
 # branch `perf-record`, not to main: the main ruleset requires checks and has no bypass, and a pull request opened
 # with GITHUB_TOKEN starts no workflows, so it could never get them (#340).
+#
+# A manual run can choose the system (#2469): Ubuntu 24.04 by default, or Windows 2025 once before each release
+# (merge skill), so that the Windows variant gets its evidence without a nightly cost. The artifact
+# `perf-results-<system>` carries it, and evidence.yml records it as `perf-<system>.xml`. The suite runs without
+# `unshare` there (Linux only); the in-process network block of every Vitest run (block-network.mjs) still applies.
+# The record on the branch `perf-record` stays the Ubuntu nightly's; an exceeded threshold opens the issue on every
+# system. macOS is no option: the hosted `macos-26` runner has 3 cores and 7 GB, below the reference machine
+# (ADR-0011), and missed thresholds there (run 45207751660); macOS is measured on a machine of the reference size
+# before each release and recorded in verification/ (merge skill).
 
 on:
   schedule:
     - cron: "30 2 * * *"
   workflow_dispatch:
+    inputs:
+      system:
+        description: Runner system to measure on (the nightly run and pull requests use ubuntu-24.04).
+        type: choice
+        options: [ubuntu-24.04, windows-2025]
+        default: ubuntu-24.04
   pull_request:
     types: [labeled, closed]
 
@@ -31,8 +46,8 @@ concurrency:
   # Adding a label other than `perf` gets a group of its own, so that it never cancels a running suite. Closing or
   # merging the pull request joins the suite's group and cancels it; that run starts no job. Keyed on the pull
   # request's number, because the `closed` run of a merged pull request may carry the
-  # base branch as its ref.
-  group: perf-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
+  # base branch as its ref. Per system, so that manual runs on two systems do not cancel each other.
+  group: perf-${{ github.event.pull_request.number || github.ref }}-${{ inputs.system || 'ubuntu-24.04' }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
   cancel-in-progress: true
 
 jobs:
@@ -63,7 +78,7 @@ jobs:
           echo "Performance suite needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
 
   perf:
-    name: perf (ubuntu-24.04)
+    name: perf (${{ inputs.system || 'ubuntu-24.04' }})
     needs: changes
     # On pull requests only with label `perf`; adding another label does not restart the run. If `changes` fails,
     # its output is empty and the suite runs.
@@ -73,10 +88,15 @@ jobs:
       (contains(github.event.pull_request.labels.*.name, 'perf') && github.event.action != 'closed' &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf')))
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
-    # (ADR-0011); the job prints what it got.
-    runs-on: ubuntu-24.04
-    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner.
-    timeout-minutes: 75
+    # (ADR-0011); the job prints what it got. A manual run may choose another system (#2469).
+    runs-on: ${{ inputs.system || 'ubuntu-24.04' }}
+    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner. On Windows
+    # the suite ran out of 75 min with about half of its files done (run 45221615062), so a Windows run gets 180 min.
+    timeout-minutes: ${{ inputs.system == 'windows-2025' && 180 || 75 }}
+    # Bash on every system: the Report step passes $GITHUB_SHA and the other variables as bash reads them.
+    defaults:
+      run:
+        shell: bash
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
       complete: ${{ steps.report.outputs.complete }}
@@ -93,6 +113,7 @@ jobs:
       - run: pnpm build
         id: build
       - name: Performance suite without network (unshare -rn)
+        if: runner.os == 'Linux'
         run: |
           # As in ci.yml (CLI e2e): Ubuntu 24.04 lets AppArmor block unprivileged user namespaces; allow
           # them for this job only. If unshare still fails, the step fails: never a run with network.
@@ -104,6 +125,11 @@ jobs:
           # Keep in step with the `test:perf` script in package.json.
           rm -f test-results/perf.jsonl test-results/junit-perf.xml
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
+      - name: Performance suite (macOS, Windows)
+        if: runner.os != 'Linux'
+        run: |
+          node -e 'const os = require("node:os"); console.log(`Runner: ${os.cpus().length} cores, ${Math.round(os.totalmem() / 1024 ** 3)} GB memory`)'
+          pnpm test:perf
       - name: Report
         id: report
         if: always() && hashFiles('test-results/perf.jsonl') != ''
@@ -115,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: perf-results
+          name: perf-results-${{ inputs.system || 'ubuntu-24.04' }}
           path: |
             test-results/
             verification/performance.md
@@ -133,7 +159,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: perf-results
+          name: perf-results-${{ inputs.system || 'ubuntu-24.04' }}
           path: perf-results
       - name: Commit the record (nightly, to the branch perf-record)
         # Only a complete record is kept (ThomasBirkmaier/ReqSeq-archive#202): the suite ran and its only failures, if any, are
@@ -166,6 +192,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SYSTEM: ${{ inputs.system || 'ubuntu-24.04' }}
         with:
           script: |
             const fs = require("node:fs");
@@ -185,17 +212,18 @@ jobs:
               .map((line) => line.split("|")[1].trim())
               .sort()
               .join(";");
-            const marker = `<!-- perf-exceeded: ${names} -->`;
+            // The system is part of the marker: the same names exceeded on another system are news (#2469).
+            const marker = `<!-- perf-exceeded: ${process.env.SYSTEM}: ${names} -->`;
             const { owner, repo } = context.repo;
             // Only the exceeded rows: the whole record is longer than an issue body may be (65,536 characters).
             const machine = lines.find((line) => line.startsWith("- Machine:")) ?? "- Machine: not in the record";
             const header = "| Measurement | Basis | Time | Threshold | Result |";
             const full = [
               marker,
-              `${exceeded.length} threshold(s) exceeded in ${process.env.RUN_URL} (${context.eventName}, commit ${context.sha}).`,
+              `${exceeded.length} threshold(s) exceeded on ${process.env.SYSTEM} in ${process.env.RUN_URL} (${context.eventName}, commit ${context.sha}).`,
               "",
               machine,
-              `- Whole record: the artifact \`perf-results\` of ${process.env.RUN_URL} and ${context.serverUrl}/${owner}/${repo}/blob/perf-record/verification/performance.md`,
+              `- Whole record: the artifact \`perf-results-${process.env.SYSTEM}\` of ${process.env.RUN_URL} and ${context.serverUrl}/${owner}/${repo}/blob/perf-record/verification/performance.md`,
               "",
               "If the runner has fewer than 4 cores or 16 GB, measure again on such a machine before changing code (ADR-0011).",
               "",

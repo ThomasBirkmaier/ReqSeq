@@ -72,6 +72,7 @@ jobs:
       run: ${{ steps.run.outputs.id }}
       kind: ${{ steps.run.outputs.kind }}
       workflow: ${{ steps.run.outputs.workflow }}
+      source: ${{ steps.run.outputs.source }}
     steps:
       - name: The run
         id: run
@@ -109,6 +110,17 @@ jobs:
             core.setOutput("conclusion", run?.conclusion ?? "");
             core.setOutput("kind", kinds[run?.path] ?? "");
             core.setOutput("workflow", run?.name ?? "");
+            // perf: the system the run measured on, from its artifact `perf-results-<system>` (perf.yml, #2469). Each
+            // system is a source of its own (`perf-<system>`): its skip, its file and its evidence pull request.
+            let source = kinds[run?.path] ?? "";
+            if (source === "perf") {
+              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, { owner, repo, run_id: run.id, per_page: 100 });
+              const system = artifacts.map((a) => /^perf-results-(.+)$/.exec(a.name)?.[1]).find((s) => s !== undefined);
+              if (system === undefined) core.setFailed(`Run ${run.id} has no artifact perf-results-<system>.`);
+              core.setOutput("system", system ?? "");
+              source = `perf-${system}`;
+            }
+            core.setOutput("source", source);
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -124,6 +136,7 @@ jobs:
         env:
           SHA: ${{ steps.run.outputs.sha }}
           KIND: ${{ steps.run.outputs.kind }}
+          SYSTEM: ${{ steps.run.outputs.system }}
           MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git fetch --quiet origin main
@@ -135,6 +148,8 @@ jobs:
           fi
           case "$KIND" in
             ci) files=("spec/evidence/ci/unit-*" "spec/evidence/ci/e2e-*") ;;
+            # Per system: a run on macOS compares with the last macOS evidence, not with the nightly's (#2469).
+            perf) files=("spec/evidence/ci/perf-$SYSTEM.xml") ;;
             *) files=("spec/evidence/ci/$KIND-*") ;;
           esac
           # -a: .gitattributes marks the files -diff, which git grep would treat as binary.
@@ -162,7 +177,7 @@ jobs:
       # ci: one artifact per suite and system (ci.yml): junit-<os>/junit.xml, junit-e2e-<os>/junit-e2e.xml,
       # junit-shell-<os>/junit-shell.xml (the desktop shell's e2e suite, ADR-0021),
       # junit-web-ubuntu-24.04/junit-web.xml (the web UI, Ubuntu only).
-      # perf: perf-results/test-results/junit-perf.xml (perf.yml, Ubuntu only).
+      # perf: perf-results-<system>/test-results/junit-perf.xml (perf.yml: nightly on Ubuntu, by hand on any system).
       # delivery: junit-delivery-<os>/junit-delivery.xml (release.yml).
       # download-artifact puts each artifact into a folder of its name only when a pattern matches several; a single
       # match lands directly in `path` (#2444). So perf, with its one artifact, names its folder itself. A download by
@@ -183,8 +198,8 @@ jobs:
         with:
           run-id: ${{ steps.run.outputs.id }}
           github-token: ${{ github.token }}
-          name: perf-results
-          path: ${{ runner.temp }}/junit/perf-results
+          name: perf-results-${{ steps.run.outputs.system }}
+          path: ${{ runner.temp }}/junit/perf-results-${{ steps.run.outputs.system }}
 
       - name: Enrich
         id: files
@@ -197,6 +212,7 @@ jobs:
           KIND: ${{ steps.run.outputs.kind }}
           WORKFLOW: ${{ steps.run.outputs.workflow }}
           CONCLUSION: ${{ steps.run.outputs.conclusion }}
+          SYSTEM: ${{ steps.run.outputs.system }}
           JUNIT: ${{ runner.temp }}/junit
         run: |
           # The files of this run go to $new (published); spec/evidence/ci holds main's files of every kind with this
@@ -233,7 +249,7 @@ jobs:
             ci) expected="junit-ubuntu-24.04 junit-macos-26 junit-windows-2025 junit-e2e-ubuntu-24.04 junit-e2e-macos-26
               junit-e2e-windows-2025 junit-web-ubuntu-24.04 junit-shell-ubuntu-24.04 junit-shell-macos-26
               junit-shell-windows-2025" ;;
-            perf) expected="perf-results" ;;
+            perf) expected="perf-results-$SYSTEM" ;;
             delivery) expected="junit-delivery-macos-26 junit-delivery-ubuntu-24.04 junit-delivery-windows-2025" ;;
           esac
           for artifact in $expected; do
@@ -248,8 +264,8 @@ jobs:
               ci:junit-web-*) echo "$artifact $dir/junit-web.xml web-${artifact#junit-web-} ${artifact#junit-web-}" ;;
               ci:junit-delivery-*) ;;
               ci:junit-*) echo "$artifact $dir/junit.xml unit-${artifact#junit-} ${artifact#junit-}" ;;
-              perf:perf-results)
-                echo "$artifact $dir/test-results/junit-perf.xml perf-ubuntu-24.04 ubuntu-24.04" ;;
+              perf:perf-results-*)
+                echo "$artifact $dir/test-results/junit-perf.xml perf-${artifact#perf-results-} ${artifact#perf-results-}" ;;
               delivery:junit-delivery-*) echo "$artifact $dir/junit-delivery.xml delivery-${artifact#junit-delivery-} ${artifact#junit-delivery-}" ;;
             esac
           done > "$RUNNER_TEMP/files.txt"
@@ -269,9 +285,21 @@ jobs:
                 status=1
                 continue ;;
             esac
+            # A name EVIDENCE_NAME does not keep would be removed by the next run: fail instead of publishing it.
+            if ! [[ "$name.xml" =~ $EVIDENCE_NAME ]]; then
+              echo "| \`$artifact\` | $name.xml does not match EVIDENCE_NAME | | | |" >> "$RUNNER_TEMP/summary.md"
+              status=1
+              continue
+            fi
+            # A perf run on macOS or Windows records only its variant (#2469): its runner may be weaker than the
+            # reference machine (ADR-0011), so its result must not decide the core view, which the Ubuntu run does.
+            # perf.yml offers no macOS run, because the hosted macOS runner (3 cores, 7 GB) is below the reference
+            # machine; the macOS perf results are records in verification/ (merge skill, release).
+            core=(--variant core)
+            if [ "$KIND" = perf ] && [[ "$os" != ubuntu-* ]]; then core=(); fi
             set +e
             node packages/cli/dist/bin.js evidence enrich-junit "$file" "main@$SHA ($os)" --date "$DATE" \
-              --variant core --variant "$variant" --skip-not-in-view \
+              "${core[@]}" --variant "$variant" --skip-not-in-view \
               --workspace spec --output "$new/$name.xml" --json > "$RUNNER_TEMP/$name.json"
             code=$?
             set -e
@@ -447,6 +475,7 @@ jobs:
           SHA: ${{ needs.enrich.outputs.sha }}
           RUN: ${{ needs.enrich.outputs.run }}
           KIND: ${{ needs.enrich.outputs.kind }}
+          ORIGIN: ${{ needs.enrich.outputs.source }}
           WORKFLOW: ${{ needs.enrich.outputs.workflow }}
           SOURCE: ${{ runner.temp }}/evidence
         run: |
@@ -462,14 +491,14 @@ jobs:
             exit 0
           fi
           repo="$GITHUB_REPOSITORY"
-          # Older evidence pull requests of the same kind edit the same files; this one replaces them. Those of
-          # another kind edit other files and stay.
+          # Older evidence pull requests of the same source (a kind; for perf a kind and system, #2469) edit the same
+          # files; this one replaces them. Those of another source edit other files and stay.
           bot="$APP_SLUG[bot]"
-          for n in $(gh api "repos/$repo/pulls?state=open&per_page=100" --jq ".[] | select(.head.repo.full_name == \"$repo\" and .user.login == \"$bot\" and (.head.ref | startswith(\"evidence/$KIND-\"))) | .number"); do
+          for n in $(gh api "repos/$repo/pulls?state=open&per_page=100" --jq ".[] | select(.head.repo.full_name == \"$repo\" and .user.login == \"$bot\" and (.head.ref | startswith(\"evidence/$ORIGIN-run-\"))) | .number"); do
             gh api -X PATCH "repos/$repo/pulls/$n" -f state=closed > /dev/null
             gh api -X POST "repos/$repo/issues/$n/comments" -f body="Replaced by the evidence of $WORKFLOW run $RUN." > /dev/null
           done
-          branch="evidence/$KIND-run-$RUN"
+          branch="evidence/$ORIGIN-run-$RUN"
           git config user.name "reqseq-evidence[bot]"
           git config user.email "reqseq-evidence[bot]@users.noreply.github.com"
           git switch -c "$branch"
