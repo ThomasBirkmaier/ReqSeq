@@ -455,14 +455,17 @@ jobs:
   # for the jobs of all three systems to be present and green.
   checks-platform:
     name: checks (${{ matrix.os }})
-    # A normal run takes 7 (macOS) to 26 (Windows) minutes; the bound ends a hang. Windows runs its unit tests with
+    # A normal run takes 19 (macOS) to 26 (Windows) minutes; the bound ends a hang. On macOS, green jobs without the
+    # shell steps of 2026-11-20 to 23 took 18.5 to 19.4 minutes in the median and up to 21.8, and a runner 1.4 times
+    # slower was cancelled at the old bound of 25 with every test green (#2163); 30 leaves room for such a runner.
+    # Windows runs its unit tests with
     # 2 workers instead of 3 (vitest.config.ts, #701): the 163 green Windows jobs of 2026-11-17 to 20 took 25.9 minutes
     # in the median and up to 34.1, their unit tests up to 26.1, and a runner 6 % slower than that hit the old bound
     # of 35 with every test green (#2039). 42 is about 20 % over the slowest green job and still ends a hang.
     # The steps of the desktop shell add 15 more when they run (ADR-0021, see `checks`).
     timeout-minutes: >-
       ${{ matrix.os == 'windows-2025' && (needs.shell-scope.outputs.shell != 'false' && 57 || 42) ||
-      (needs.shell-scope.outputs.shell != 'false' && 40 || 25) }}
+      (needs.shell-scope.outputs.shell != 'false' && 40 || 30) }}
     needs: shell-scope
     # `!cancelled()` as in `checks`.
     if: >-
