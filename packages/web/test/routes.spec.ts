@@ -96,6 +96,7 @@ test("a phone shows the menu instead of the rail", async ({ page, open }) => {
 });
 
 test("the frame pages fit the window, so the window itself does not scroll", async ({ page, open }) => {
+  // Element pages and the create form scroll as a whole by design, so they are not listed.
   // Low enough that the overview's verification by package runs past the bottom of its pane.
   await page.setViewportSize({ width: 1280, height: 640 });
   const problems: string[] = [];
