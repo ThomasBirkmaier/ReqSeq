@@ -787,8 +787,15 @@ describe.skipIf(macRecording === "skip")(
       expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
     }, 120_000);
 
-    it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (macOS)", () => {
+    it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (macOS)", async ({
+      annotate,
+    }) => {
       expectControls();
+      await annotate(
+        `${String(record.events)} events; tree: ${record.processes.map((p) => `${String(p.pid)}${p.server ? " (server)" : ""} ${p.programs.map((r) => path.basename(r.program)).join(" > ")}`).join("; ")}; ` +
+          `engine: ${record.engine.map((p) => `${String(p.pid)} ${path.basename(p.program)}`).join(", ")}; ` +
+          `${String(record.files.length)} file events of the tree outside the server and of the engine`,
+      );
       // A process of the tree outside the server runs no program but the shell itself (a fork) and the engine's.
       const started = record.processes
         .filter((p) => p.pid !== record.shellPid && !p.server)
@@ -805,7 +812,13 @@ describe.skipIf(macRecording === "skip")(
     // pf refuses every connection of the shell and the server off loopback and counts it; pktap records every packet
     // with its process and, for a lookup through mDNSResponder, the process that asked. The test fails on a refused
     // packet of the test group after the controls and on any packet of the tree or the engine off loopback.
-    it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine and looks up no name (macOS)", () => {
+    it("[SR-252/AK-wfx8] showing pages and an element with a remote image and raw HTML connects to no other machine and looks up no name (macOS)", async ({
+      annotate,
+    }) => {
+      await annotate(
+        `${String(record.packets.length)} packets of the tree and the engine; pf counters after the controls ` +
+          `${record.counters.control.join("/")}, at the end ${record.counters.end.join("/")}`,
+      );
       expect(record.control.outside).toBe("timeout");
       expect(record.control.inside).toBe("error ECONNREFUSED");
       expect({

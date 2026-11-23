@@ -79,3 +79,10 @@ jobs:
           sudo -n pkill -TERM -x tcpdump || true
           sudo -n pfctl -q -a com.apple/reqseq-shell-e2e -F all || true
           echo "pf rules left: $(sudo -n pfctl -a com.apple/reqseq-shell-e2e -s rules 2> /dev/null | grep -c block)"
+      - name: Upload the JUnit file
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-shell-probe
+          path: test-results/junit-shell.xml
+          retention-days: 7
