@@ -192,7 +192,7 @@ test("each acceptance criterion copies with its reference, and all of them at on
   expect(await clipboard()).toMatch(/^\[[^\]]+\/AK-[^\]]+\] /m);
 });
 
-test("the problems of an element stand on its page, several of one kind in one row that opens", async ({
+test("the problems of an element stand on its page, several of one kind in one row that opens and stays open", async ({
   page,
   open,
   ui,
@@ -231,6 +231,19 @@ test("the problems of an element stand on its page, several of one kind in one r
     await expect(messages.first()).toBeHidden();
     await row.locator("summary").press("Enter");
     await expect(messages.first()).toBeVisible();
+    // A change of the workspace draws the page again: the opened row stays open, also with one problem more (#2503).
+    const current = await ui.run("element.get", { ref });
+    await ui.run("element.update", {
+      ref,
+      text: `${text} And reqseq:NO-SUCH-THREE.`,
+      expectedFileSha256: current.fileSha256,
+    });
+    const more = elementProblemGroups((await ui.run("element.get", { ref })).element.problems).find(
+      (g) => g.code === several.code,
+    );
+    await expect(row.locator("summary")).toContainText(String(more?.problems.length));
+    await expect(messages).toHaveText(more?.problems.map((p) => p.message) ?? []);
+    await expect(messages.last()).toBeVisible();
   } finally {
     const after = await ui.run("element.get", { ref });
     await ui.run("element.update", {

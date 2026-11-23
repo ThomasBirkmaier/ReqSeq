@@ -108,7 +108,23 @@ function noWorkspace(): void {
 
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** After a change of the workspace: read again and draw the page again, keeping focus and scroll. */
+/**
+ * The key of each open `details` of the page, so that a redraw can open it again: its `data-open-key`, else the text
+ * of its summary, with the number of earlier rows of the same key, so that two rows of one text stay apart.
+ */
+function detailsKeys(): Map<HTMLDetailsElement, string> {
+  const seen = new Map<string, number>();
+  const keys = new Map<HTMLDetailsElement, string>();
+  for (const d of root.querySelectorAll("details")) {
+    const base = d.dataset["openKey"] ?? d.querySelector(":scope > summary")?.textContent ?? "";
+    const nth = seen.get(base) ?? 0;
+    seen.set(base, nth + 1);
+    keys.set(d, `${base}\u0000${String(nth)}`);
+  }
+  return keys;
+}
+
+/** After a change of the workspace: read again and draw the page again, keeping focus, scroll and the open rows. */
 async function refresh(ids: readonly string[]): Promise<void> {
   try {
     await load();
@@ -122,8 +138,14 @@ async function refresh(ids: readonly string[]): Promise<void> {
     x.scrollTop,
     x.scrollLeft,
   ]);
+  const opened = new Set([...detailsKeys()].filter(([d]) => d.open).map(([, key]) => key));
   setWorkspaceOpen(true);
   await route({ keepFocus: true });
+  for (const [d, key] of detailsKeys()) {
+    if (opened.has(key)) {
+      d.open = true;
+    }
+  }
   root.querySelectorAll(".lscroll, .trace-wrap, .mscroll, .gscroll").forEach((x, at) => {
     x.scrollTop = scrolls[at]?.[0] ?? 0;
     x.scrollLeft = scrolls[at]?.[1] ?? 0;

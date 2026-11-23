@@ -536,7 +536,8 @@ function problemsOf(e: DataExportElement): HTMLElement | null {
             ? [severityMark(g.severity), h("span", { class: "pm" }, g.problems[0]?.message)]
             : h(
                 "details",
-                null,
+                // Kept open across a redraw (`refresh` in main.ts), also when the count in its summary changed.
+                { "data-open-key": `problems:${g.code}` },
                 h(
                   "summary",
                   null,
