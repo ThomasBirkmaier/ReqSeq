@@ -50,9 +50,9 @@ The entries a path argument of the app's command prompt is completed with (ADR-0
 
 ## About ReqSeq (SR-161, `src/commands/tool/info.ts`, `src/build-info.ts`)
 
-- `tool.info` (title "About ReqSeq"; CLI `reqseq tool info`, MCP `tool_info`) gives the versions of app, CLI and MCP server (the one product version, AK4), the build, the runtime, the open workspace (root, name, repository names, number of elements in the available repositories, no view), the licence notice (`LICENSE`, embedded in `generated/product.json` by `pnpm contracts:generate`) and the addresses of the documentation and the releases as text (AK2: no network).
+- `tool.info` (title "About ReqSeq"; CLI `reqseq tool info`, MCP `tool_info`) gives the versions of CLI and MCP server (the one product version, AK4), the build, the runtime, the open workspace (root, name, repository names, number of elements in the available repositories, no view), the licence notice (`LICENSE`, embedded in `generated/product.json` by `pnpm contracts:generate`) and the addresses of the documentation and the releases as text (AK2: no network).
 - Commit and build date come from `dist/build-info.json`, which `scripts/package/stage.mjs` writes into each staged core (`writeBuildInfo`; the date is the commit date). A checkout build has none: `build.development: true`, and the delivery files (`license.thirdParty`, `documentation.bundled`) are left out. `bundled` names the documentation site of the delivery, `lib/docs` in its folder (SR-141, ADR-0020), which `reqseq serve docs` serves.
-- The runtime is `process.versions` of the calling process. The delivered CLI, API, MCP server and UI server run on the delivery's Node (ADR-0020), so they give the same `node` (AK5); `electron` and `chromium` appear only in a process on Electron (the paused app).
+- The runtime is `process.versions` of the calling process. The delivered CLI, API, MCP server and UI server run on the delivery's Node (ADR-0020), so they give the same `node` (AK5).
 
 ## Agent guide (SR-229, `src/commands/tool/guide.ts`, `src/commands/tool/guide/`)
 

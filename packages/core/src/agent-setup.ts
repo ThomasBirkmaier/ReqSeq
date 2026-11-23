@@ -41,6 +41,7 @@ export interface SetupFacts {
 export interface Server {
   readonly command: string;
   readonly args: readonly string[];
+  /** Empty: the program of an installation needs no environment variable (AK3). */
   readonly env: Readonly<Record<string, string>>;
 }
 
@@ -97,11 +98,7 @@ const invocationOf = (facts: SetupFacts, words: readonly string[]): Server => {
   if (launcher !== undefined && facts.launcherExists) {
     return { command: launcher, args: [...words], env: {} };
   }
-  return {
-    command: installation.runtime,
-    args: [installation.entry, ...words],
-    env: installation.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {},
-  };
+  return { command: installation.runtime, args: [installation.entry, ...words], env: {} };
 };
 
 /** The program, arguments and environment that start the MCP server for the workspace (AK3). */
@@ -167,14 +164,10 @@ const configFile = (client: "claude-desktop" | "cursor", facts: SetupFacts): str
 const entryJson = (server: Server): Record<string, unknown> => ({
   command: server.command,
   args: server.args,
-  ...(Object.keys(server.env).length === 0 ? {} : { env: server.env }),
 });
 
 const mcpServersJson = (server: Server): string =>
   JSON.stringify({ mcpServers: { [SERVER_NAME]: entryJson(server) } }, null, 2);
-
-const envOptions = (server: Server): string[] =>
-  Object.entries(server.env).map(([name, value]) => `--env ${name}=${value}`);
 
 /** The terminal command for a client configured by its own command line (AK2). */
 const commandText = (
@@ -189,18 +182,10 @@ const commandText = (
     LITERALS.has(token) ? token : quote(token),
   );
   if (client === "claude-code") {
-    // `--env` must not stand right before the name, which it would take as another pair (Claude Code docs).
-    return [
-      "claude mcp add",
-      ...envOptions(server),
-      "--transport stdio",
-      SERVER_NAME,
-      separator,
-      ...program,
-    ].join(" ");
+    return ["claude mcp add", "--transport stdio", SERVER_NAME, separator, ...program].join(" ");
   }
   if (client === "codex-cli") {
-    return ["codex mcp add", SERVER_NAME, ...envOptions(server), separator, ...program].join(" ");
+    return ["codex mcp add", SERVER_NAME, separator, ...program].join(" ");
   }
   const json = JSON.stringify({ name: SERVER_NAME, type: "stdio", ...entryJson(server) });
   // `code` is `code.cmd` on Windows: `--%` hands the rest to it unchanged, in the quoting of the Windows rules.
@@ -234,19 +219,8 @@ export const skillCall = (facts: SetupFacts): string => {
   const literal: ReadonlySet<string> = new Set(SKILL_WORDS);
   const quote = windows ? quotePowerShell : quoteSh;
   const words = [run.command, ...run.args].map((token) => (literal.has(token) ? token : quote(token)));
-  const env = Object.entries(run.env);
-  if (!windows) {
-    return [...env.map(([name, value]) => `${name}=${quoteSh(value)}`), ...words].join(" ");
-  }
-  // PowerShell runs a quoted program only after `&`; a variable it sets stays for the session, so it is removed.
-  const call = `& ${words.join(" ")}`;
-  return env.length === 0
-    ? call
-    : [
-        ...env.map(([name, value]) => `$env:${name}=${quotePowerShell(value)}`),
-        call,
-        ...env.map(([name]) => `Remove-Item Env:${name}`),
-      ].join("; ");
+  // PowerShell runs a quoted program only after `&`.
+  return windows ? `& ${words.join(" ")}` : words.join(" ");
 };
 
 /**

@@ -113,7 +113,7 @@ describe("trace.mermaid", () => {
 });
 
 describe("metamodel.mermaid", () => {
-  it("[SR-151/AK-jdwg] writes each type with name, prefix and properties, inherited ones marked, Any type for open sides, and one edge per pair with the graph's lines", async () => {
+  it("[SR-151/AK-jdwg] [SR-130/AK-s795] writes each type with name, prefix and properties, inherited ones marked, Any type for open sides, and one edge per pair with the graph's lines", async () => {
     const out = await run("metamodel.mermaid", "SR-130/metamodel", {});
     expect(out["problems"]).toEqual([]);
     expect(String(out["mermaid"]).split("\n")).toEqual([

@@ -1,4 +1,4 @@
-// tool.info (SR-161): the version of the app, the command line and the MCP server, the build, the runtime
+// tool.info (SR-161): the version of the command line and the MCP server, the build, the runtime
 // and the open workspace in one place, read only (AK1); the licence notice, the third-party licences and
 // where the documentation and the releases are, as text only: no network connection (AK2, SR-077). One
 // delivery ships command line, MCP server and web UI with one version (AK4, ADR-0020). The runtime is the
@@ -26,27 +26,22 @@ export const BUNDLED_DOCUMENTATION = "lib/docs";
 
 /** What the process tells about itself: the parts of `process` the info reads. */
 export interface ProcessFacts {
-  readonly versions: { readonly node: string; readonly electron?: string; readonly chrome?: string };
+  readonly versions: { readonly node: string };
   readonly platform: string;
   readonly arch: string;
 }
 
 /** The output without the workspace, from the facts of the process and the build info (if any). */
 export const toolFacts = (facts: ProcessFacts, build: BuildInfo | undefined): Omit<Output, "workspace"> => {
-  const { electron, node, chrome } = facts.versions;
   const delivered = build !== undefined;
   return {
-    versions: { app: PRODUCT_VERSION, cli: PRODUCT_VERSION, mcp: PRODUCT_VERSION },
+    versions: { cli: PRODUCT_VERSION, mcp: PRODUCT_VERSION },
     build: {
       ...(delivered ? { commit: build.commit, date: build.date } : { development: true as const }),
       platform: facts.platform,
       arch: facts.arch,
     },
-    runtime: {
-      ...(electron === undefined ? {} : { electron }),
-      node,
-      ...(chrome === undefined ? {} : { chromium: chrome }),
-    },
+    runtime: { node: facts.versions.node },
     license: { notice: [...PRODUCT_LICENSE], ...(delivered ? { thirdParty: THIRD_PARTY_NOTICES } : {}) },
     documentation: {
       ...(delivered ? { bundled: BUNDLED_DOCUMENTATION } : {}),
@@ -60,7 +55,7 @@ export default defineCommand({
   name: "tool.info",
   answer: (output) =>
     sentence(
-      `ReqSeq ${output.versions.app} with workspace ${output.workspace.name}: ${counted(output.workspace.repositories.length, "repository", "repositories")} and ${counted(output.workspace.elements, "element")}`,
+      `ReqSeq ${output.versions.cli} with workspace ${output.workspace.name}: ${counted(output.workspace.repositories.length, "repository", "repositories")} and ${counted(output.workspace.elements, "element")}`,
     ),
   run: async (ctx): Promise<Output> => {
     const [layout, store, build] = await Promise.all([

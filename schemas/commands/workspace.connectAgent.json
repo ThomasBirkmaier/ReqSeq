@@ -72,7 +72,7 @@
             "title": "Environment",
             "type": "object",
             "additionalProperties": { "type": "string" },
-            "description": "Environment variables the program needs: `ELECTRON_RUN_AS_NODE` = `1` when the runtime is Electron; else empty."
+            "description": "Environment variables the program needs: none, so it is empty."
           }
         },
         "additionalProperties": false,

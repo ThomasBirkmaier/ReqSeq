@@ -37,7 +37,7 @@ const installation = async (): Promise<string> => {
   await fs.mkdir(path.join(top, "cli", "dist"), { recursive: true });
   const entry = path.join(top, "cli", "dist", "bin.js");
   await fs.writeFile(entry, "");
-  setInstallation({ runtime: process.execPath, entry, electron: false });
+  setInstallation({ runtime: process.execPath, entry });
   return entry;
 };
 
@@ -120,9 +120,9 @@ describe("workspace.connectAgent", () => {
 
   it("refuses without the command line's entry", async () => {
     const ws = await fixture();
-    setInstallation({ runtime: process.execPath, entry: path.join(ws.root, "missing.js"), electron: false });
+    setInstallation({ runtime: process.execPath, entry: path.join(ws.root, "missing.js") });
     expect((await failure(run(ws.root, { client: "other" }))).code).toBe("agent.cli-missing");
-    setInstallation({ runtime: process.execPath, entry: ws.root, electron: false });
+    setInstallation({ runtime: process.execPath, entry: ws.root });
     expect((await failure(run(ws.root, { client: "other" }))).code).toBe("agent.cli-missing");
     // A process without a script (a REPL) stands for no installation.
     setInstallation(undefined);
@@ -146,7 +146,7 @@ describe("workspace.connectAgent", () => {
       await fs.mkdir(path.dirname(file), { recursive: true });
       await fs.writeFile(file, "");
     }
-    setInstallation({ runtime, entry, electron: false });
+    setInstallation({ runtime, entry });
     const ws = await fixture();
     const output = await run(ws.root, { client: "other" });
     const args = ["mcp", "--workspace", ws.root];
@@ -168,7 +168,6 @@ describe("workspace.connectAgent", () => {
     setInstallation({
       runtime: path.join(resources, "..", "MacOS", "ReqSeq"),
       entry: path.join(resources, "cli", "dist", "bin.js"),
-      electron: true,
     });
     const ws = await fixture();
     platform("darwin");
