@@ -375,8 +375,8 @@ export class WindowsRecorder {
     const recorder = new WindowsRecorder(dir, setup);
     try {
       await fs.copyFile(process.execPath, recorder.node);
-      // The first start of a new program file can be slow on Windows (the virus scanner reads it); one recorded run
-      // showed no window within 30 s. So the copy starts once before the shell needs it.
+      // One recorded run showed no window within 30 s, so the copy starts once before the shell needs it. The virus
+      // scanner is not the cause: its real-time scan is off on the runners, and C:\ and D:\ are excluded (#2485).
       await run(recorder.node, ["-e", "0"], { timeout: 120_000 });
       const programs = [SHELL, recorder.node, ...recorder.engines];
       const rules = JSON.parse(await ps(dir, "rules-add", { Group: GROUP, Programs: programs.join("|") })) as

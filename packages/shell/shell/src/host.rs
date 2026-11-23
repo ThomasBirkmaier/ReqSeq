@@ -115,6 +115,8 @@ impl Host for RealHost {
                 send,
             );
         }
+        #[cfg(feature = "e2e")]
+        crate::e2e::record("server", "started");
         Ok(())
     }
 
@@ -364,7 +366,11 @@ pub fn run(token: TokenSlot, filter: Option<Filter>) -> i32 {
                     app: app.handle().clone(),
                 }));
                 let event = match window(app.handle(), allowed) {
-                    Ok(()) => Event::WindowReady,
+                    Ok(()) => {
+                        #[cfg(feature = "e2e")]
+                        crate::e2e::record("window", "ready");
+                        Event::WindowReady
+                    }
                     Err(error) => Event::WindowFailed(error.to_string()),
                 };
                 let _ = tx.send(Input::Event(event));
