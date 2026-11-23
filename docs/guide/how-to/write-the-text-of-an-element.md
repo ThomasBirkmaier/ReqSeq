@@ -12,7 +12,7 @@ The text of an element is Markdown (CommonMark with the GitHub extensions) in it
 3. Paste or drop an image file, or click **Add image**. ReqSeq copies the file into a folder next to the element file, named like that file without its extension, and writes a relative Markdown link. The image counts to the version too. An image from the network is never loaded.
 4. **Preview** shows the text formatted, as the element's page does.
 
-![The text of a requirement in the web UI with "[[wind" typed below it: the list offers the need "See the wind speed" to link.](../images/ui-edit.png)
+![The text of a requirement in the web UI with two square brackets and "wind" typed below it: the list offers the need "See the wind speed" to link.](../images/ui-edit.png)
 
 ## CLI
 
