@@ -322,15 +322,46 @@ jobs:
       # ADR-0021: the desktop shell (packages/shell/, Rust and Tauri) when `shell-scope` asks for it. The same steps run
       # on all three systems, with `runner.os` guards for the setup. Cargo fetches the crates once with the lockfile;
       # every later cargo call is offline.
+      # The .deb files of the system packages come from a cache (#2473): a slow mirror that keeps moving took 16.5
+      # minutes for the browser libraries of `web`. Only main's nightly and manual runs save it, once a day (the date
+      # in the key), so security updates reach it; every run restores the newest entry of its image's system, and apt
+      # downloads only the packages whose version changed since.
+      - name: Shell - system packages cache key (Linux)
+        id: shell-debs-key
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          packages="libwebkit2gtk-4.1-dev xvfb xauth strace dbus"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "prefix=apt-debs-v1-shell-$ImageOS-" >> "$GITHUB_OUTPUT"
+          echo "key=apt-debs-v1-shell-$ImageOS-$(date -u +%F)-$ImageVersion-$(echo "$packages" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: shell-debs
+        if: ${{ !cancelled() && steps.shell-debs-key.outcome == 'success' }}
+        with:
+          path: ${{ runner.temp }}/apt-debs
+          key: ${{ steps.shell-debs-key.outputs.key }}
+          restore-keys: ${{ steps.shell-debs-key.outputs.prefix }}
       - name: Shell - system packages (Linux)
         id: shell-packages
         if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && runner.os == 'Linux' }}
         # Restarted when it stalls (#2436). A slow mirror took up to 12.5 minutes for a green run on 2026-11-23; the
         # step bound leaves room for that and ends a hang that makes progress.
         timeout-minutes: 20
-        run: >-
-          .github/scripts/apt-retry.sh bash -c 'sudo apt-get update &&
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev xvfb xauth strace dbus'
+        env:
+          APT_DEB_CACHE: ${{ runner.temp }}/apt-debs
+          PACKAGES: ${{ steps.shell-debs-key.outputs.packages }}
+        # Without the list of the key step, this step fails, so that the later shell steps do not run without them.
+        run: |
+          test -n "$PACKAGES"
+          .github/scripts/apt-retry.sh bash -c "sudo apt-get update && sudo apt-get install -y --no-install-recommends $PACKAGES"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: >-
+          ${{ !cancelled() && steps.shell-packages.outcome == 'success' && github.event_name != 'pull_request' &&
+          github.ref == 'refs/heads/main' && steps.shell-debs.outputs.cache-hit != 'true' }}
+        with:
+          path: ${{ runner.temp }}/apt-debs
+          key: ${{ steps.shell-debs-key.outputs.key }}
       - name: Shell - Rust toolchain
         id: shell-toolchain
         if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.shell-scope.outputs.shell != 'false' && steps.shell-packages.outcome != 'failure' }}
@@ -529,7 +560,7 @@ jobs:
     name: web (ubuntu-24.04)
     # Every run installs the system libraries of Firefox and WebKit and runs the contract tests in the three browsers,
     # after the install and the build; the bound ends a hang. A normal run takes 6-8 minutes; on a slow mirror
-    # `System libraries of the browsers` alone took 7 to 14 minutes on 2026-11-23 (#2436), hence 25.
+    # `System libraries of the browsers` alone took 7 to 16.5 minutes on 2026-11-23 (#2436, #2473), hence 25.
     timeout-minutes: 25
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
@@ -579,12 +610,37 @@ jobs:
         with:
           path: ${{ runner.temp }}/ms-playwright
           key: ${{ steps.browser-cache.outputs.cache-primary-key }}
-      # The system libraries Firefox and WebKit need (apt), on every run: the cache holds only the browsers.
+      # The system libraries Firefox and WebKit need (apt), on every run: the cache above holds only the browsers. Their
+      # .deb files come from a cache of their own (#2473), as in `Shell - system packages (Linux)`.
+      - name: System libraries of the browsers - cache key
+        id: browser-debs-key
+        if: steps.changes.outputs.tests != 'false'
+        shell: bash
+        run: |
+          echo "prefix=apt-debs-v1-browsers-$ImageOS-" >> "$GITHUB_OUTPUT"
+          echo "key=apt-debs-v1-browsers-$ImageOS-$(date -u +%F)-$ImageVersion-${{ steps.playwright.outputs.version }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browser-debs
+        if: steps.changes.outputs.tests != 'false'
+        with:
+          path: ${{ runner.temp }}/apt-debs
+          key: ${{ steps.browser-debs-key.outputs.key }}
+          restore-keys: ${{ steps.browser-debs-key.outputs.prefix }}
       - name: System libraries of the browsers
+        id: browser-libraries
         if: steps.changes.outputs.tests != 'false'
         # Restarted when it stalls (#2436); the step bound as in `Shell - system packages (Linux)`.
         timeout-minutes: 20
+        env:
+          APT_DEB_CACHE: ${{ runner.temp }}/apt-debs
         run: .github/scripts/apt-retry.sh pnpm --filter @reqseq/web exec playwright install-deps firefox webkit
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: >-
+          steps.browser-libraries.outcome == 'success' && github.event_name != 'pull_request' &&
+          github.ref == 'refs/heads/main' && steps.browser-debs.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/apt-debs
+          key: ${{ steps.browser-debs-key.outputs.key }}
       # Core, the API (the UI server), the CLI the contract tests start, the test kit for the test starter, and the
       # pages (vite build).
       - name: Build
