@@ -1,4 +1,4 @@
-// Cross-access scenarios of baseline.prepare (SR-242), in addition to the default one (cross-access.test.ts),
+// Cross-access scenarios of baseline.prepare (SR-242), in addition to the default one (harness.ts),
 // on fixtures/SR-061/export: two warnings, „Release 1“ without stored selection, the variant Coast (c1).
 import fs from "node:fs/promises";
 import path from "node:path";

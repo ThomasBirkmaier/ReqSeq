@@ -1,4 +1,4 @@
-// Cross-access scenarios of tool.guide (SR-229), in addition to the default one (cross-access.test.ts): the
+// Cross-access scenarios of tool.guide (SR-229), in addition to the default one (harness.ts): the
 // same input gives the same guide in every access, for both `names` and without a workspace, the same skill
 // file, which says before its first workflow that project rules go first (AK7), and the same write of it at both
 // places in a workspace folder at the root of its Git repository (AK8), and the same failure when one place holds a

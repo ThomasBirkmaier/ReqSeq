@@ -9,7 +9,7 @@
 // - the saved filter "Stage SRs": the system requirements of P1, sorted by title descending.
 // So in Stage 3 (S1 to S5) S3 (no derivation), S4 (S1 and a missing target) and S5 (S1) undershoot the
 // minimum: expected 5, met 2.
-// The AK5 (opening an element) is the app's. The same matrix on every access: cross-access.test.ts.
+// The AK5 (opening an element) is the app's. The same matrix on every access: the cross-access test.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";

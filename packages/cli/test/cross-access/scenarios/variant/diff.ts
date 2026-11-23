@@ -1,4 +1,4 @@
-// Cross-access scenarios of variant.diff, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of variant.diff, in addition to the default one (harness.ts).
 import type { VariantDiffOutput } from "@reqseq/core";
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";

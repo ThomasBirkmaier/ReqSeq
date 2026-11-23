@@ -1,4 +1,4 @@
-// Cross-access scenarios of relation.remove, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of relation.remove, in addition to the default one (harness.ts).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";

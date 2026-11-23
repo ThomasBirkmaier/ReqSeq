@@ -2,7 +2,7 @@
 // element, its records and its verification status): one repository with the standard model, JUnit runs
 // (one with a skipped test case) and a Markdown inspection record. The records come from the record files;
 // a few tests add records through `evidenceRecordsState` on top of them, or write a variant on top. The
-// same output on every access: cross-access.test.ts. The key path in the app (AK1): app/test/without-passed-test.spec.ts.
+// same output on every access: the cross-access test. The key path in the app (AK1): app/test/without-passed-test.spec.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";

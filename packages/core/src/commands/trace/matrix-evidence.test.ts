@@ -3,7 +3,7 @@
 // (b08 and b09 derive from b07, the others from the need) and the evidence location `evidence/` with
 // two JUnit runs and one inspection record. The relation columns are SR-125's (matrix.test.ts); the
 // unit tests of the evidence columns are evidence/matrix.test.ts. The same matrix on every access:
-// cli/test/cross-access.test.ts.
+// cli/test/cross-access/.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";

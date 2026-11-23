@@ -1,4 +1,4 @@
-// Cross-access scenarios of metamodel.addStatus, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of metamodel.addStatus, in addition to the default one (harness.ts).
 // On the default fixture, SR-004/one-repository with the standard model in one file (no type has a
 // status list) and one system requirement.
 import { expect } from "vitest";

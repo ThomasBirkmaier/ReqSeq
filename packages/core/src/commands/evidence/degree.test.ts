@@ -2,7 +2,7 @@
 // its record, its verification status and its packages): one repository with the standard model and
 // Markdown records in `evidence`, no variants (the variant case writes one on top). The records come from
 // the record files, so the versions they name are those of the element files; two tests give them through
-// `evidenceRecordsState` on top of the files. The same output on every access: cross-access.test.ts.
+// `evidenceRecordsState` on top of the files. The same output on every access: the cross-access test.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureOptions } from "@reqseq/testkit";

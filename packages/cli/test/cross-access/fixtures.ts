@@ -1,5 +1,5 @@
 // Fixtures and helpers that scenarios of more than one command use, and what they are built from
-// (cross-access.test.ts). A fixture or helper that only one command uses lives in that command's module
+// (harness.ts). A fixture or helper that only one command uses lives in that command's module
 // under scenarios/, and so does the setup of its template (`templateSetup`).
 import { readFileSync } from "node:fs";
 import type { FixtureOptions } from "@reqseq/testkit";

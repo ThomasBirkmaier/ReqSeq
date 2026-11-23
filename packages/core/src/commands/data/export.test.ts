@@ -1,7 +1,7 @@
 // data.export through `invoke` (SR-061, SR-101) on fixtures/SR-061/export: the workspace `system/`
 // with the repositories `system` and `sensor`, the standard model, records in Markdown and JUnit, a
 // saved filter and baselines (the fixture's README lists the elements, versions and the expected
-// selections). The same output on every access: cross-access.test.ts; the CLI end to end:
+// selections). The same output on every access: the cross-access test; the CLI end to end:
 // packages/cli/test/e2e/data-export.test.ts.
 import { readFile, rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";

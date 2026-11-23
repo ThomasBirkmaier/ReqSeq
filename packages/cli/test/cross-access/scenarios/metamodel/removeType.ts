@@ -1,4 +1,4 @@
-// Cross-access scenarios of metamodel.removeType, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of metamodel.removeType, in addition to the default one (harness.ts).
 // On SR-004/one-repository with a second metamodel file that has a type nothing uses or names.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";

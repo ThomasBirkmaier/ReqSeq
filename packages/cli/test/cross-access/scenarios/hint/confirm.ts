@@ -1,4 +1,4 @@
-// Cross-access scenarios of hint.confirm, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of hint.confirm, in addition to the default one (harness.ts).
 import { scenariosOf } from "../../scenario.js";
 import { HINTS, IN_CRITERIA, SINCE_BASELINE } from "../../fixtures.js";
 

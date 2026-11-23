@@ -1,4 +1,4 @@
-// Cross-access scenarios of evidence.status, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of evidence.status, in addition to the default one (harness.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";
 import type { Scenario } from "../../scenario.js";

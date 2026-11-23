@@ -1,5 +1,5 @@
 // Cross-access scenarios of metamodel.addRelationKind, in addition to the default one
-// (cross-access.test.ts). On the default fixture, SR-004/one-repository with the standard model in
+// (harness.ts). On the default fixture, SR-004/one-repository with the standard model in
 // one file.
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";

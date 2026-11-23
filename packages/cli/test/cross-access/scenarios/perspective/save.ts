@@ -1,4 +1,4 @@
-// Cross-access scenarios of perspective.save, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of perspective.save, in addition to the default one (harness.ts).
 import { scenariosOf } from "../../scenario.js";
 import { PERSPECTIVES } from "../../fixtures.js";
 

@@ -1,7 +1,7 @@
 // evidence.enrichJunit through `invoke` (SR-029) on fixtures/SR-029/enrich: one repository `system`
 // with SR-46fb54, SR-0b0036, SR-0c0037 and SR-0d0038 (identifier SR-036), an empty evidence folder
 // `evidence/` and the result files in `results/` (see the fixture's README). The same output on every
-// access: packages/cli/test/cross-access.test.ts; the CLI: packages/cli/test/e2e/evidence-enrich-junit.test.ts.
+// access: packages/cli/test/cross-access/; the CLI: packages/cli/test/e2e/evidence-enrich-junit.test.ts.
 import { readFileSync, writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";

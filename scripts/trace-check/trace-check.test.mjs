@@ -316,11 +316,13 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
         "});",
         "",
       ].join("\n"),
-      "packages/cli/test/cross-access.test.ts": `const s = [{ name: "x", tag: "${tag("SR-001", 2)}" }];\n`,
+      "packages/cli/test/cross-access/scenarios/x/a.ts": `const s = [{ name: "x", tag: "${tag("SR-001", 2)}" }];\n`,
     });
     const report = traceCheck(root, ["--require", "SR-001"]).report;
     expect(report).toContain("| SR-001 | AK1 (kone) | test | pkg/a.test.ts:2 |");
-    expect(report).toContain("| SR-001 | AK2 (ktwo) | test | packages/cli/test/cross-access.test.ts:1 |");
+    expect(report).toContain(
+      "| SR-001 | AK2 (ktwo) | test | packages/cli/test/cross-access/scenarios/x/a.ts:1 |",
+    );
     expect(traceCheck(root, []).warnings).toEqual(["pkg/a.test.ts:6: SR-002 is obsolete"]);
   });
 

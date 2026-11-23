@@ -1,4 +1,4 @@
-// Cross-access scenarios of element.bulkUpdate, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of element.bulkUpdate, in addition to the default one (harness.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { FILTER, NESTED, NESTED_A, changedFiles } from "../../fixtures.js";

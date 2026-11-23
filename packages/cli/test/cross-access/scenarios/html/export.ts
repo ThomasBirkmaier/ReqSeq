@@ -1,4 +1,4 @@
-// Cross-access scenarios of html.export, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of html.export, in addition to the default one (harness.ts).
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";

@@ -1,7 +1,7 @@
 // A JUnit test case that names several views (SR-093 AK5) on fixtures/SR-093/views: one test case
 // names the variants Linux (c1) and macOS (c2) and the core, for SR-0000a1 of `system` and SR-0000b1
 // of `supplier`, which the workspace file marks `variant-independent` (SR-173). Windows (c3) is not
-// named. The same on every access in packages/cli/test/cross-access.test.ts.
+// named. The same on every access in packages/cli/test/cross-access/.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";

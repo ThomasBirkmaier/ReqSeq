@@ -1,4 +1,4 @@
-// Cross-access scenarios of evidence.record, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of evidence.record, in addition to the default one (harness.ts).
 import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, EVIDENCE, VARIANT_EVIDENCE } from "../../fixtures.js";
 

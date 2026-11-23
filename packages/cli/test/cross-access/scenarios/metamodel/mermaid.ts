@@ -1,4 +1,4 @@
-// Cross-access scenarios of metamodel.mermaid, in addition to the default one (cross-access.test.ts). The
+// Cross-access scenarios of metamodel.mermaid, in addition to the default one (harness.ts). The
 // suite test [SR-151/AK-c801] also runs them through the CLI's text output.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";

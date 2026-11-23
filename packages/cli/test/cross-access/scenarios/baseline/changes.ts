@@ -1,4 +1,4 @@
-// Cross-access scenarios of baseline.changes (SR-241), in addition to the default one (cross-access.test.ts),
+// Cross-access scenarios of baseline.changes (SR-241), in addition to the default one (harness.ts),
 // on fixtures/SR-061/export: „Release 1“ without stored selection, the faulty `broken.yaml`, two open hints.
 import fs from "node:fs/promises";
 import path from "node:path";

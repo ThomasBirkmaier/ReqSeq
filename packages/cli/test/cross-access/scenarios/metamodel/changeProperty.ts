@@ -1,4 +1,4 @@
-// Cross-access scenarios of metamodel.changeProperty, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of metamodel.changeProperty, in addition to the default one (harness.ts).
 // On the default fixture, SR-004/one-repository with the standard model in one file and one system
 // requirement.
 import { expect } from "vitest";

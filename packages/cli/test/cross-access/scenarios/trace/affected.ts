@@ -1,4 +1,4 @@
-// Cross-access scenarios of trace.affected, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of trace.affected, in addition to the default one (harness.ts).
 import { scenariosOf } from "../../scenario.js";
 import { AFFECTED, IN_CRITERIA, MISSING_TARGETS, WITH_VAULT } from "../../fixtures.js";
 

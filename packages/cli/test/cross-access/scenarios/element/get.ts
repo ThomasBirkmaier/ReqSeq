@@ -1,4 +1,4 @@
-// Cross-access scenarios of element.get, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of element.get, in addition to the default one (harness.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, HINTS, IDENTIFIERS, IN_CRITERIA, MISSING_TARGETS, VARIANT_VIEWS } from "../../fixtures.js";

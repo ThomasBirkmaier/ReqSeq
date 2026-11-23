@@ -1,4 +1,4 @@
-// Cross-access scenarios of element.supersede, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of element.supersede, in addition to the default one (harness.ts).
 import { readFileSync } from "node:fs";
 import { expect } from "vitest";
 import { supersededHintFiles } from "../../fixtures.js";

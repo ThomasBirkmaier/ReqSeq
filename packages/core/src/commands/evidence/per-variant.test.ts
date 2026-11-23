@@ -2,7 +2,7 @@
 // `evidence` and hand-written records: variant A „Coast“ (c1) replaces K1 (a1) by A1 (b1) and
 // excludes K2 (a2); B „Mountain“ (c2) and C „Desert“ (c3) change nothing. The spec's „C excludes“
 // is A here: the fixture's excluding variant. The same on every access in
-// packages/cli/test/cross-access.test.ts; the CLI in packages/cli/test/e2e/evidence-per-variant.test.ts.
+// packages/cli/test/cross-access/; the CLI in packages/cli/test/e2e/evidence-per-variant.test.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";

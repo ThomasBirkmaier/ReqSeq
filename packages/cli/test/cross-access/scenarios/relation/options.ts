@@ -1,4 +1,4 @@
-// Cross-access scenarios of relation.options, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of relation.options, in addition to the default one (harness.ts).
 import { scenariosOf } from "../../scenario.js";
 import { FILTER } from "../../fixtures.js";
 

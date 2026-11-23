@@ -1,4 +1,4 @@
-// Cross-access scenarios of workspace.check, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of workspace.check, in addition to the default one (harness.ts).
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";

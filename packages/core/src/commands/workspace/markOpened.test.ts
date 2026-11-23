@@ -1,5 +1,5 @@
 // workspace.markOpened (SR-250): marks the workspace of the call first in the list of recent workspaces,
-// strictly. The cross-access test (packages/cli/test/cross-access.test.ts) runs it through every access,
+// strictly. The cross-access test (packages/cli/test/cross-access/) runs it through every access,
 // and checks there that no other command changes the list (AK4); the CLI e2e test marks in a process of
 // its own (packages/cli/test/e2e/workspace-recent.test.ts).
 import fs from "node:fs/promises";

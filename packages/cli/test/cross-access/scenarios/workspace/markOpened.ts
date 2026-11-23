@@ -1,4 +1,4 @@
-// Cross-access scenarios of workspace.markOpened, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of workspace.markOpened, in addition to the default one (harness.ts).
 // The list of recent workspaces lies in the OS cache folder of the test process, outside the copy, so
 // each scenario prepares it before every access and checks it after (`after`); each access gets a copy of
 // its own, whose root the list then holds first (SR-250).

@@ -1,4 +1,4 @@
-// The shape of a cross-access scenario and of the results it compares (cross-access.test.ts).
+// The shape of a cross-access scenario and of the results it compares (harness.ts).
 import type { CommandName } from "@reqseq/core";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 

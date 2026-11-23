@@ -4,7 +4,7 @@
 // and holds S1 (d1, derives from K), S2 (d2), S3 (d3, valid in A), S5 (d5), and S6 to S8 (d6 to d8)
 // with records with and without variant. S1's record lies in the evidence folder of `system`, K4's
 // in that of `supplier`: the element's repository decides, not the record's folder (#817 Q1).
-// The same on every access in packages/cli/test/cross-access.test.ts; the CLI in
+// The same on every access in packages/cli/test/cross-access/; the CLI in
 // packages/cli/test/e2e/evidence-per-variant.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";

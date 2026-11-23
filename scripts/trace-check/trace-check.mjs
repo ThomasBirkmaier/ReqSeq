@@ -22,8 +22,8 @@ import YAML from "yaml";
 
 const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq", "target"]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$|^test_.*\.py$|_test\.py$/;
-// The cross-access scenarios of each command, in the modules that cross-access.test.ts loads with its
-// glob `./cross-access/scenarios/*/*.ts`: exactly one folder deep (#527).
+// The cross-access scenarios of each command, in the modules that cross-access/harness.ts loads with its
+// glob `./scenarios/*/*.ts`: exactly one folder deep (#527).
 const SCENARIO_MODULE = /(^|\/)test\/cross-access\/scenarios\/[^/]+\/[^/]+\.ts$/;
 
 /** The frontmatter of a Markdown file as an object, or undefined when it has none that parses. */
@@ -157,7 +157,7 @@ export function stageMembers(spec, stage) {
 // [SR-036/AK-k7f3] by criterion key (SR-204 AK5 form); [SR-036/AK2] by number is read to be reported (SR-029 AK13).
 export const TAG = /\[(SR-\d{3})\/AK(?:(\d+)|-([a-z][a-z0-9]{3,15}))\]/g;
 // Cross-access scenarios carry their test name's tag in a `tag:` field (#689).
-const SCENARIO_FILE = /^packages\/cli\/test\/cross-access(\.test\.ts$|\/scenarios\/)/;
+const SCENARIO_FILE = /^packages\/cli\/test\/cross-access\/scenarios\//;
 // A call that names a test: `it(`, `test(`, or one of them through a call such as `.each(...)(`.
 const DIRECT_TEST = /(?:^|[^\w$.])(?:it|test)\s*$/;
 const CALLED_TEST = /(?:^|[^\w$.])(?:it|test)\s*\.\s*(?:each|skipIf|runIf)\s*$/;

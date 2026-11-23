@@ -3,7 +3,7 @@
 // default folder `baselines`: Beta (A1 at version V1), Release 1.0 (A1 at V1, A2 at V2) and
 // Release 1.1 (A1 at V2, A2 at V2), plus a README that is no baseline. The evidence records are
 // given through `evidenceRecordsState` (ThomasBirkmaier/ReqSeq-archive#127 option 1); the readers come with SR-028 and SR-093,
-// whose end-to-end tests read record files. The same output on every access: cross-access.test.ts.
+// whose end-to-end tests read record files. The same output on every access: the cross-access test.
 // The baseline reader itself: baselines/read.test.ts. The test cases of the element (SR-033) come
 // from the same index; skipped test cases are injected through `evidenceReadState`.
 import { rm } from "node:fs/promises";

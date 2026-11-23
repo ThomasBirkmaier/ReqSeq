@@ -1,4 +1,4 @@
-// Cross-access scenarios of element.list, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of element.list, in addition to the default one (harness.ts).
 import { readFileSync, readdirSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";

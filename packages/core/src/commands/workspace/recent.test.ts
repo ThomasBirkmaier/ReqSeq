@@ -1,4 +1,4 @@
-// workspace.recent (SR-131): the list of the workspaces opened last, as a read command. The cross-access test (packages/cli/test/cross-access.test.ts) runs it through every access.
+// workspace.recent (SR-131): the list of the workspaces opened last, as a read command. The cross-access test (packages/cli/test/cross-access/) runs it through every access.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

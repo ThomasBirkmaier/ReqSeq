@@ -1,4 +1,4 @@
-// Cross-access scenarios of workspace.listFolder, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of workspace.listFolder, in addition to the default one (harness.ts).
 // A relative path is resolved from the workspace root on every access, the command line included (the
 // path is a plain text, not a `localPath`). A folder outside the repositories is refused through the API
 // and the MCP server and listed on the command line (SR-142), so that case is in local-paths.test.ts.

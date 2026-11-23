@@ -1,5 +1,5 @@
 // The registry of the cross-access scenarios (#527). Each test file has its own module instance, so
-// these registrations do not reach cross-access.test.ts.
+// these registrations do not reach the test files of the harness.
 import { describe, expect, it } from "vitest";
 import { SCENARIOS, TEMPLATE_SETUPS, scenariosOf, templateSetup } from "./scenario.js";
 

@@ -1,4 +1,4 @@
-// Cross-access scenarios of trace.neighbourhood, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of trace.neighbourhood, in addition to the default one (harness.ts).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { TraceNeighbourhoodOutput } from "@reqseq/core";

@@ -1,7 +1,7 @@
 // data.store through `invoke` (SR-062) on fixtures/SR-062/store (one Git repository; its README lists
 // what makes a state dirty), fixtures/SR-061/export (two Git repositories) and fixtures/SR-062/subfolder
 // (a workspace in spec/ of a code repository, ThomasBirkmaier/ReqSeq-archive#377). The same output on every access:
-// cross-access.test.ts; the CLI end to end and AK2: packages/cli/test/e2e/data-store.test.ts.
+// the cross-access test; the CLI end to end and AK2: packages/cli/test/e2e/data-store.test.ts.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

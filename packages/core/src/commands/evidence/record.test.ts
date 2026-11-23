@@ -2,7 +2,7 @@
 // its records and the status before and after): one repository `system` with the standard model and the
 // evidence locations `evidence` and `reviews`. The rules below the command (names, folders, read back,
 // the evidence state) are tested in evidence/write-record.test.ts; the same output on every access in
-// packages/cli/test/cross-access.test.ts; the CLI in packages/cli/test/e2e/evidence-record.test.ts.
+// packages/cli/test/cross-access/; the CLI in packages/cli/test/e2e/evidence-record.test.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";

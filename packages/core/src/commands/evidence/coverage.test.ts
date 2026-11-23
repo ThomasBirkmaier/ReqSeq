@@ -9,7 +9,7 @@
 // Without a selected view the coverage counts the core (AK5): S4 and its record of V2 count only in V2.
 // The evidence records are given through `evidenceRecordsState` (ThomasBirkmaier/ReqSeq-archive#127 option 1): the readers come
 // with SR-028 and SR-093, whose end-to-end tests read record files. The same output on every access:
-// cross-access.test.ts.
+// the cross-access test.
 import { readFile, rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";

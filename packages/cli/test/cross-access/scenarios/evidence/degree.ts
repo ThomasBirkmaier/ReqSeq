@@ -1,4 +1,4 @@
-// Cross-access scenarios of evidence.degree, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of evidence.degree, in addition to the default one (harness.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, DEGREE, EVIDENCE, STATUS } from "../../fixtures.js";

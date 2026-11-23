@@ -1,4 +1,4 @@
-// Cross-access scenarios of element.readImage (SR-251), in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of element.readImage (SR-251), in addition to the default one (harness.ts).
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";
 

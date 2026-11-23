@@ -1,4 +1,4 @@
-// Cross-access scenarios of baseline.get, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of baseline.get, in addition to the default one (harness.ts).
 import type { BaselineGetOutput } from "@reqseq/core";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";

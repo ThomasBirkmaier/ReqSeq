@@ -1,5 +1,5 @@
 // Cross-access scenarios of element.assignCriterionKeys (SR-204 AK3), in addition to the default one
-// (cross-access.test.ts).
+// (harness.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { changedFiles } from "../../fixtures.js";

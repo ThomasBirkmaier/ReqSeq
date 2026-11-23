@@ -1,5 +1,5 @@
 // Cross-access scenarios of metamodel.removeRelationKind, in addition to the default one
-// (cross-access.test.ts). On SR-004/one-repository with a second metamodel file that has a relation
+// (harness.ts). On SR-004/one-repository with a second metamodel file that has a relation
 // kind no element file holds.
 import type { FixtureOptions } from "@reqseq/testkit";
 import { expect } from "vitest";

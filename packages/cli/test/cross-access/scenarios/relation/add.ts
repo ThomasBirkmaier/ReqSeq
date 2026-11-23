@@ -1,4 +1,4 @@
-// Cross-access scenarios of relation.add, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of relation.add, in addition to the default one (harness.ts).
 import { expect } from "vitest";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { scenariosOf } from "../../scenario.js";

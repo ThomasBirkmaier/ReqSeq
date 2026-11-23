@@ -1,4 +1,4 @@
-// Cross-access scenarios of trace.chain, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of trace.chain, in addition to the default one (harness.ts).
 import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { CHAIN, EVIDENCE, IDENTIFIERS, MISSING_TARGETS, ORPHANED_CHAIN, WITH_VAULT } from "../../fixtures.js";

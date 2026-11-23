@@ -1,4 +1,4 @@
-// Cross-access scenarios of workspace.recent, in addition to the default one (cross-access.test.ts).
+// Cross-access scenarios of workspace.recent, in addition to the default one (harness.ts).
 import path from "node:path";
 import { rememberWorkspace } from "@reqseq/core";
 import { scenariosOf } from "../../scenario.js";
