@@ -32,8 +32,8 @@ flowchart LR
   agent([AI agents])
   pipeline([CI pipeline])
   subgraph local[Local machine]
-    app[ReqSeq app]
-    cli[reqseq CLI]
+    ui[Web UI: browser or desktop shell]
+    cli[reqseq CLI with UI server]
     api[Local API 127.0.0.1]
     mcp[MCP server stdio]
     files[(Working copies: element, metamodel, baseline, filter, mapping, evidence files)]
@@ -45,13 +45,14 @@ flowchart LR
   evaltools[[Grafana, DuckDB, Pandoc]]
   partner[[Customer or supplier tools via ReqIF]]
 
-  person --> app
+  person --> ui
   person --> gittool
   agent --> mcp
   pipeline --> cli
   pipeline --> api
-  app & cli & api & mcp --> files
-  app & cli & api & mcp -. read only .-> git
+  ui -- loopback HTTP --> cli
+  cli & api & mcp --> files
+  cli & api & mcp -. read only .-> git
   gittool --> git
   git <--> gitserver
   testtools -- JUnit XML --> files
@@ -66,7 +67,7 @@ ReqSeq talks only to the local file system and the local `git` program. Everythi
 
 | Problem | Approach | ADR |
 |---|---|---|
-| Four accesses, one behaviour | A **command catalog**: each function is one command with input and output schema; CLI, API, MCP and app are generic adapters generated from it. | 0002, 0009 |
+| Four accesses, one behaviour | A **command catalog**: each function is one command with input and output schema; CLI, API, MCP and the web UI are generic adapters over it. | 0002, 0009 |
 | Fixed interfaces before parallel work | **Contracts first**: JSON Schema for every file and command, examples, generated OpenAPI and MCP list, all checked in CI. | 0003 |
 | Mergeable, readable storage | One Markdown file per element, YAML frontmatter, relations only in the source file, one line per relation, stable writing. | 0004, 0007 |
 | Detect outdated links without Git history | **Version = content hash** with a versioned normal form. | 0005 |
@@ -90,6 +91,7 @@ flowchart TB
     api[packages/api<br/>node:http, loopback]
     mcp[packages/mcp<br/>MCP SDK, stdio]
     web[packages/web<br/>pages of the web UI]
+    shell[packages/shell<br/>Tauri desktop shell, imports no package]
   end
   subgraph core[packages/core/src]
     index[index.ts<br/>public exports]
@@ -99,7 +101,7 @@ flowchart TB
       data[data<br/>JSON export and store per state]
       reqif[reqif<br/>ReqIF model, parser, mapping files]
       html[html-export<br/>pages of the HTML export, safe Markdown]
-      displays[displays<br/>display models the app and the export share]
+      displays[displays<br/>display models the web UI and the export share]
       elgraph[graph<br/>element graph, its words, Mermaid text]
       query[query<br/>filter engine, sort, search index, saved filters]
       hints[hints<br/>outdated relations, evidence hints, confirm]
@@ -140,7 +142,7 @@ flowchart TB
   ws --> files & git
 ```
 
-An arrow means that at least one module of the source imports a value (a function, a class, a constant) from the target. Imports of types only (`import type`, today only `data` → `git`, `query` and runtime state) are not drawn, nor are the imports of the shared modules; the table lists both. Besides `runtime/invoke.ts`, `index.ts` re-exports helpers of `catalog`, `product`, `runtime`, `workspace`, `model`, `files`, `query`, `evidence` and `version` for the adapters.
+An arrow means that at least one module of the source imports a value (a function, a class, a constant) from the target. `packages/shell`, the desktop shell (ADR-0021), imports no package: it starts the UI server of the same release and shows the pages of `packages/web`, so it has no arrow. Imports of types only (`import type`, today only `data` → `git`, `query` and runtime state) are not drawn, nor are the imports of the shared modules; the table lists both. Besides `runtime/invoke.ts`, `index.ts` re-exports helpers of `catalog`, `product`, `runtime`, `workspace`, `model`, `files`, `query`, `evidence` and `version` for the adapters.
 
 | Block | Imports (values) | Imports (types only) |
 |---|---|---|
@@ -180,12 +182,12 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `git` | Commits, dirty state, history, old contents, read-only (SR-083) |
 | `docs-site` | The offline documentation site of a delivery: which file a request names, media types, the CSP, command page paths; only `node:*`, reads only (SR-141, ADR-0017) ([block file](../../packages/core/docs/docs-site.md)) |
 | `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) |
-| `graph` | The graph of an element with its marks and verification (SR-111), the words the app's graph shows, and the Mermaid text of the element and metamodel graphs (SR-151) ([block file](../../packages/core/docs/graph.md)) |
+| `graph` | The graph of an element with its marks and verification (SR-111), the words the graph of the web UI shows, and the Mermaid text of the element and metamodel graphs (SR-151) ([block file](../../packages/core/docs/graph.md)) |
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints (SR-040); the read-only reader of baseline files (SR-032 AK2) |
 | `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059, ADR-0013); so far the model and the parser on the XML scanner of `files`, and the mapping files (`mapping`: where they are written, reading and checking them against the metamodel, SR-054) ([block file](../../packages/core/docs/reqif.md)) |
-| `displays` | The display models the app and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
+| `displays` | The display models the web UI and the HTML export share: one pure builder per display, built from command outputs, and the words they share; imports only types and import-free modules (ADR-0019) ([block file](../../packages/core/docs/displays.md)) |
 | `html-export` | The HTML export (SR-231 to SR-235): its pages and the safe rendering of texts, which the web UI loads as the subpath `markdown` (it and the core modules it imports load no `node:*` module and import only each other, the Markdown packages and KaTeX, ADR-0020); the folder it replaces is written by `files` (`export-folder`) ([block file](../../packages/core/docs/html-export.md)) |
 
 Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the subpaths `os-cache`, `displays`, `markdown`, `docs-site` and `command-error` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders), and on no other package, with one exception that reuses a server instead of a second one: the CLI starts the API, the docs server and the UI server of `@reqseq/api` (`reqseq serve api`, `reqseq serve docs`, `reqseq ui`, ADR-0020). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
@@ -196,7 +198,7 @@ Rules: adapters depend on `@reqseq/core`'s public exports (`index.ts` and the su
 
 ```mermaid
 sequenceDiagram
-  participant A as Adapter (CLI/API/MCP/app)
+  participant A as Adapter (CLI/API/MCP/UI server)
   participant C as core
   participant G as git reader
   participant FS as files + cache
@@ -213,12 +215,12 @@ sequenceDiagram
   C-->>C: build indexes, versions, hints
   C->>G: HEAD commit per repository
   C-->>A: status with repositories, problems
-  C->>FS: start watcher (web UI, API, MCP, app only)
+  C->>FS: start watcher (web UI, API, MCP only)
 ```
 
 ### 6.2 Edit an element and confirm a hint
 
-1. The app calls `element.update` with a new text. `core` checks the file on disk is unchanged since read, rewrites only the changed frontmatter lines and the text (ADR-0007), writes atomically and recomputes the version.
+1. The web UI calls `element.update` with a new text. `core` checks the file on disk is unchanged since read, rewrites only the changed frontmatter lines and the text (ADR-0007), writes atomically and recomputes the version.
 2. The version changed, so every relation pointing at the element is now outdated. `core` returns `affected` (direct count, SR-024 AK2); the hints index gets one `relation.outdated` hint per relation.
 3. Later someone reviews a child and calls `hint.confirm`. `core` writes the new `version` into that relation line of the child's file, and the target's current title within the same repository (D-042, SR-027, decision on ThomasBirkmaier/ReqSeq-archive#307); any write of a file also refreshes the stored titles of its same-repository targets. The person commits both files with their Git tool; the merge request shows exactly these lines.
 
@@ -242,7 +244,7 @@ sequenceDiagram
 
 ## 7. Deployment
 
-One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). From #2308 on it holds CLI, MCP server, web UI and a Node runtime instead of the app (SR-249, ADR-0020). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
+One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with the desktop shell, CLI, MCP server, web UI and a Node runtime, all offline; installing means unpacking (SR-249, ADR-0020, ADR-0021). It replaced the Electron app's delivery of ADR-0014 with #2308. Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api`), and the UI server only with `reqseq ui` or the desktop shell; both bind to loopback.
 
 ## 8. Cross-cutting concepts
 
@@ -251,7 +253,7 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 - **Status is human.** Only `element.setStatus` and `element.supersede` change a status.
 - **Missing access is normal.** A missing repository or target is shown with its short ID and marks results `incomplete`; nothing blocks (SR-006).
 - **Performance budget.** Every command touching many elements gets a perf test at 50,000 elements (N-036).
-- **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist. CI tooling downloads test inputs before the tests (the ReqIF XSDs), never the product.
+- **Security.** No network; loopback-only API and UI server, each with a token; the web UI with Host and Origin checks and a strict CSP (ADR-0020); a desktop shell that calls no command (ADR-0021); Git read-only allowlist. CI tooling downloads test inputs before the tests (the ReqIF XSDs), never the product.
 - **Language.** All UI, CLI messages, errors and docs in English (SR-074). Content is shown unchanged (SR-074 AK2).
 - **Logging.** Local only, to the cache folder, rotated; never content of elements at info level.
 

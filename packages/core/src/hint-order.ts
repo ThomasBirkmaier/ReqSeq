@@ -1,7 +1,7 @@
 // The order of the hints of one element, `workspace.check`'s after the warning of an element without a version, and
 // which findings are hints (SR-026, glossary "Hinweis"): the rule `hint.list` applies to the problems of one element (`hints/list.ts`). A root module that
-// imports nothing, like `problem-titles.ts`, so the display models (`displays/`, ADR-0019 point 3) and the app's
-// renderer bundle use the same rule without the model.
+// imports nothing, like `problem-titles.ts`, so the display models (`displays/`, ADR-0019 point 3) and the pages
+// of the web UI use the same rule without the model.
 
 /**
  * The codes of the hints of each state of `HINT_STATES` (`hints/list.ts`), in that order, then the since-baseline

@@ -1,6 +1,6 @@
 // ADR-0019 Consequences: one neighbourhood model, built from the shared fixture `fixtures/displays/neighbourhood.json`,
-// and the HTML export shows each of its rows, groups and labels. The app's test of the same fixture is
-// `packages/app/src/renderer/neighbourhood-render.test.ts`, so a drift between the two renderers fails one of them.
+// and the HTML export shows each of its rows, groups and labels. The Electron app's test of the same
+// fixture went with the app (#2310).
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";

@@ -1,6 +1,6 @@
 // Writes `dist/code-fingerprint.json` after core's `tsc -b` (ADR-0008, SR-082): the fingerprint of
 // the code that the model cache checks, computed once at build time, so that a packaged or bundled
-// build (ADR-0014) needs no walk over its own files at start. It uses core's own function, so build
+// build (ADR-0020) needs no walk over its own files at start. It uses core's own function, so build
 // and runtime agree. Usage: node scripts/build/code-fingerprint.mjs <dist folder>
 import fs from "node:fs/promises";
 import path from "node:path";

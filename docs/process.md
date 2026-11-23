@@ -57,7 +57,7 @@ Exactly one type, area and priority per open issue; `scripts/labels.sh` holds th
 | Axis | Values | On every open issue |
 | --- | --- | --- |
 | Type | `bug`, `feature`, `task`, `question` | exactly one |
-| Area | `core`, `cli`, `api`, `mcp`, `app`, `spec`, `dev` | exactly one, where the main change is |
+| Area | `core`, `cli`, `api`, `mcp`, `app` (web UI and desktop shell), `spec`, `dev` | exactly one, where the main change is |
 | Priority | `P1` must, `P2` should, `P3` could | exactly one |
 | Waiting | `needs-human` | while it waits for the product owner |
 | Structure | `epic`, `agent:working` | when it applies |

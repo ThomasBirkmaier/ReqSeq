@@ -20,7 +20,7 @@ export const RENAMES = {
   "commands/catalog.meta.schema.json#": "CommandCatalog",
 };
 
-/** Global names (ECMAScript and DOM, the app renderer has both) a generated type must never shadow. */
+/** Global names (ECMAScript and DOM, the pages of the web UI have both) a generated type must never shadow. */
 const RESERVED = new Set([
   "Blob",
   "Document",

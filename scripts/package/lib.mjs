@@ -1,4 +1,4 @@
-// The parts of staging the delivery that are pure or work on plain folders (ADR-0014, ThomasBirkmaier/ReqSeq-archive#324), tested in
+// The parts of staging the delivery that are pure or work on plain folders (ADR-0020, ThomasBirkmaier/ReqSeq-archive#324), tested in
 // lib.test.mjs. scripts/package/stage.mjs runs them on the real build.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
@@ -98,7 +98,7 @@ export async function packageFolders(nodeModules) {
  * The third-party notices of the staged folders: every package in their `node_modules` except the
  * workspace's own (`scope`), once per name and version, with its licence and licence texts, and the `extra`
  * entries `{ name, version, license, texts }` (the documentation site, scripts/licenses/site.mjs). `required`
- * names must be among them (ADR-0015: dagre and graphlib, bundled into the renderer).
+ * names must be among them (ADR-0020: the packages the web UI bundles, `REQUIRED_NOTICES` in stage.mjs).
  */
 export async function noticesText({ nodeModules, scope, required, title, extra = [] }) {
   const packages = new Map(extra.map((e) => [`${e.name}@${e.version}`, e]));

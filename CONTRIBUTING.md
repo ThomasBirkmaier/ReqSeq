@@ -12,7 +12,7 @@ Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, 
 | `docs/guide/` | The user documentation's hand-written pages, built into a site by `packages/docs` (`pnpm docs:build`, ADR-0017) |
 | `docs/architecture/`, `docs/adr/` | arc42 (short), architecture decision records |
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
-| `packages/` | `core`, `cli`, `api`, `mcp`, `app`, `web` (the pages of the web UI, ADR-0020), `docs` (the documentation site), `testkit` (shared test helpers) |
+| `packages/` | `core`, `cli`, `api`, `mcp`, `web` (the pages of the web UI, ADR-0020), `shell` (the desktop shell, ADR-0021), `docs` (the documentation site), `testkit` (shared test helpers) |
 | `verification/` | Records for analysis, inspection and demonstration |
 | `toolchain/` | `junit/` connects a test tool that writes JUnit XML (SR-063); `packaging/` builds the release archives; `reqif/` lists the ReqIF 1.2 XSDs that CI downloads and pins by hash for the tests |
 | `fixtures/` | Small test data per system requirement, generator for large data sets |

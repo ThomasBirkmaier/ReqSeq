@@ -351,7 +351,7 @@ const significant = (text: string, from: number, end: number): number => {
  * of its digits after the leading zeros, then the digits by code unit, so a run of any length is
  * exact. A digit against a non-digit compares by code units, which keeps the order transitive (the
  * digits are one block of code units). No `Intl.Collator`: its result depends on the ICU data of
- * Node and of Electron and on the locale of the system (D-029). No allocation.
+ * Node and on the locale of the system (D-029). No allocation.
  */
 export const compareNatural = (a: string, b: string): number => {
   let i = 0;
