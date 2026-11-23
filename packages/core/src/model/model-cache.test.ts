@@ -423,7 +423,11 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
     const cache = ws.path("cache/inside");
     const workspace = new Workspace(ws.root, { cacheFolder: cache });
     onTestFinished(() => workspace.close());
-    expect(await workspace.get(elementStoreState)).toStrictEqual(await fullRead(ws.root));
+    // The workspace asks for versions as read, which this metamodel gives none of (#2495).
+    expect(await workspace.get(elementStoreState)).toStrictEqual({
+      ...(await fullRead(ws.root)),
+      readWithoutVersions: true,
+    });
     await workspace.close();
     await expect(fs.stat(cacheFile(cache))).rejects.toThrow();
   });

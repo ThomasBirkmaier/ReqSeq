@@ -550,25 +550,29 @@ export interface VersionsOfOptions {
   /**
    * Whether a large share of the store builds and keeps the versions of the whole store (default true).
    * False for a reader that keeps what it reads itself (the verification status): it reads only its
-   * records, unless the store was read without a valid metamodel or one of them has a loaded version of
-   * another fingerprint (a metamodel change), which only the build of the whole store learns again for
-   * the model cache (#755).
+   * records, unless some file of the store was read without a valid metamodel (`readWithoutVersions`;
+   * not a store that took every file from the model cache, #2495) or one of them has a loaded version
+   * of another fingerprint (a metamodel change), which only the build of the whole store learns again
+   * for the model cache (#755).
    */
   readonly build?: boolean;
 }
 
 /**
- * Whether the build of the whole store would learn versions again for the model cache (#755): the store
- * was read without a valid metamodel and so has no loaded version, or a record of `records` has a loaded
- * version whose type counts other properties now. A store that took every file from the model cache
- * has no `versioning` either (`loadElements` loads no metamodel then), but its records have the loaded
- * versions of the cache: only when none of `records` has one was the store read without them (#2495).
+ * Whether the build of the whole store would learn versions again for the model cache (#755): some file
+ * of the store was read without a valid metamodel and so has no loaded version (`readWithoutVersions`),
+ * none of `records` has a loaded version in a store without `versioning` (a model cache written by
+ * such a read), or a record of `records` has a loaded version whose type counts other properties now. A store that
+ * took every file from the model cache has no `versioning` either (`loadElements` loads no metamodel
+ * then), but its records have the loaded versions of the cache, so it builds nothing (#2495).
  */
 const relearnable = (run: Run, store: ElementStore, records: readonly ElementRecord[]): boolean => {
   const { versioning } = run;
   return (
     versioning !== undefined &&
-    ((store.versioning === undefined && records.every((record) => run.loaded(record) === undefined)) ||
+    (store.readWithoutVersions === true ||
+      // A start that took the files from a cache written without versions read none of them.
+      (store.versioning === undefined && records.every((record) => run.loaded(record) === undefined)) ||
       records.some((record) => {
         const loaded = run.loaded(record);
         return (

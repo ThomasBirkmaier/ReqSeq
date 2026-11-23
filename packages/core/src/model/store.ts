@@ -86,6 +86,12 @@ export interface ElementStore {
    * #439); the store's later reads (watcher batches, writes) use it too. Undefined: none were computed.
    */
   readonly versioning?: Versioning;
+  /**
+   * Some file of the store was read while its versions were asked for and the metamodel gave none (not
+   * valid), so its element has no version as read (#755, #2495). A store that took every file from the model cache
+   * has no `versioning` but its records carry the cache's versions, so it has no such mark.
+   */
+  readonly readWithoutVersions?: true;
 }
 
 /** A store as a full read gives it: with what each file of each repository contributed. */
@@ -150,6 +156,14 @@ const versioningFrom = async (source: VersioningSource | undefined): Promise<Ver
     return undefined;
   }
 };
+
+/**
+ * Whether files read with `versioning` from `source` get no version as read although versions were
+ * asked for (a metamodel that is not valid): the mark `readWithoutVersions`. A read without a source
+ * asks for none.
+ */
+const unversionedRead = (source: VersioningSource | undefined, versioning: Versioning | undefined): boolean =>
+  source !== undefined && versioning === undefined;
 
 /** The `Versioning` for a read into `store`: from `source` when given, else the one `store` was read with. */
 const versioningFor = async (
@@ -227,10 +241,20 @@ const collect = (
   return { problems, nonElements };
 };
 
+/** The fields of a store that say how its files were read: `versioning` and `readWithoutVersions`, when set. */
+const readMarks = (
+  versioning: Versioning | undefined,
+  readWithoutVersions: boolean,
+): Pick<ElementStore, "versioning" | "readWithoutVersions"> => ({
+  ...(versioning === undefined ? {} : { versioning }),
+  ...(readWithoutVersions ? { readWithoutVersions } : {}),
+});
+
 /** The store fields from the contents of the repositories, in their order. */
 const assemble = (
   repositories: readonly RepositoryContents[],
   versioning: Versioning | undefined,
+  readWithoutVersions: boolean,
 ): LoadedStore => {
   const elements: ElementRecord[] = [];
   const { problems, nonElements } = collect(repositories, elements);
@@ -249,7 +273,7 @@ const assemble = (
     nonElements,
     problems,
     repositories,
-    ...(versioning === undefined ? {} : { versioning }),
+    ...readMarks(versioning, readWithoutVersions),
   };
 };
 
@@ -325,15 +349,18 @@ const patchStore = (
   repositories: readonly RepositoryContents[],
   touched: readonly Touched[],
   versioning: Versioning | undefined,
+  unversioned: boolean,
 ): LoadedStore => {
   let count = 0;
   for (const { files } of touched) {
     count += files.size;
   }
+  // `unversioned`: the files of `touched` were read without versions; the others keep the mark of `before`.
+  const readWithoutVersions = before.readWithoutVersions === true || unversioned;
   const store =
     count >= PATCH_LIMIT
-      ? assemble(repositories, versioning)
-      : patched(before, repositories, touched, versioning);
+      ? assemble(repositories, versioning, readWithoutVersions)
+      : patched(before, repositories, touched, versioning, readWithoutVersions);
   patchedFrom.set(store, { from: new WeakRef(before), touched });
   return store;
 };
@@ -344,6 +371,7 @@ const patched = (
   repositories: readonly RepositoryContents[],
   touched: readonly Touched[],
   versioning: Versioning | undefined,
+  readWithoutVersions: boolean,
 ): LoadedStore => {
   const gone = new Set<ElementRecord>();
   const came: ElementRecord[] = [];
@@ -404,7 +432,7 @@ const patched = (
     nonElements,
     problems,
     repositories,
-    ...(versioning === undefined ? {} : { versioning }),
+    ...readMarks(versioning, readWithoutVersions),
   };
 };
 
@@ -441,9 +469,8 @@ export const loadElements = async (
     walks.push({ repository, listed, reused, files: read });
   }
   // Only when a file is read: a start that takes every file from the model cache loads no metamodel.
-  const versioning = walks.some((w) => w.files.length > 0)
-    ? await versioningFrom(options.versioning)
-    : undefined;
+  const reads = walks.some((w) => w.files.length > 0);
+  const versioning = reads ? await versioningFrom(options.versioning) : undefined;
   const read = await readAll(walks, signal, options, versioning);
   return assemble(
     read.map(([{ repository, listed, reused }, files]) => ({
@@ -453,6 +480,7 @@ export const loadElements = async (
       files: inListOrder(listed.files, files, reused),
     })),
     versioning,
+    reads && unversionedRead(options.versioning, versioning),
   );
 };
 
@@ -739,7 +767,13 @@ export const updateElements = async (
   }
   return repositories.every((r, i) => r === before[i])
     ? undefined
-    : patchStore(store as LoadedStore, repositories, touched, versioning);
+    : patchStore(
+        store as LoadedStore,
+        repositories,
+        touched,
+        versioning,
+        unversionedRead(source, versioning),
+      );
 };
 
 /** A file ReqSeq has just written (`element.create`, `element.update`, ...), for `withWrittenFiles`. */
@@ -854,7 +888,13 @@ export const withWrittenFiles = async (
     repositories[index] = after;
     touched.push({ before: contents, after, files: new Set(files.keys()) });
   }
-  return patchStore(store as LoadedStore, repositories, touched, versioning);
+  return patchStore(
+    store as LoadedStore,
+    repositories,
+    touched,
+    versioning,
+    unversionedRead(source, versioning),
+  );
 };
 
 /**
