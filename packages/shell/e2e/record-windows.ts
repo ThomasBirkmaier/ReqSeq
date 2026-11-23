@@ -147,21 +147,28 @@ export interface WindowsRecord {
   readonly normalize: (p: string) => string;
 }
 
-interface Created {
+export interface Created {
   readonly pid: number;
   readonly parent: number;
   readonly program: string;
   readonly commandLine: string;
 }
 
-/** The processes of `created` (in time order) that descend from `root`, `root` included. */
-function descendants(created: readonly Created[], root: number): Set<number> {
-  const tree = new Set([root]);
-  for (const p of created) {
-    if (tree.has(p.parent) && p.pid !== root) {
-      tree.add(p.pid);
+/**
+ * The processes of `created` (in record order) that descend from the one at `root`, `root` included, as indexes.
+ * Windows reuses process IDs, so a parent is the process that held the parent's ID when the child started, not any
+ * process that ever had it.
+ */
+export function descendants(created: readonly Created[], root: number): Set<number> {
+  const holder = new Map<number, number>();
+  const tree = new Set<number>();
+  created.forEach((p, i) => {
+    const parent = holder.get(p.parent);
+    if (i === root || (parent !== undefined && tree.has(parent))) {
+      tree.add(i);
     }
-  }
+    holder.set(p.pid, i);
+  });
   return tree;
 }
 
@@ -389,9 +396,18 @@ export class WindowsRecorder {
       }))
       .sort((a, b) => a.record - b.record)
       .map(({ record: _, ...p }) => p);
-    const tree = descendants(created, shellPid);
-    const server = created.find((p) => p.parent === shellPid && p.commandLine.includes("ui --no-open"));
-    const serverTree = server === undefined ? new Set<number>() : descendants(created, server.pid);
+    // The shell's own event: the last start of the shell's program under its process ID.
+    const root = created.findLastIndex(
+      (p) =>
+        p.pid === shellPid && path.basename(p.program).toLowerCase() === path.basename(SHELL).toLowerCase(),
+    );
+    const treeIndexes = root < 0 ? new Set<number>() : descendants(created, root);
+    const server = [...treeIndexes].find(
+      (i) => created[i]?.parent === shellPid && created[i].commandLine.includes("ui --no-open"),
+    );
+    const serverTree = server === undefined ? new Set<number>() : descendants(created, server);
+    // The file events and lookups name only a process ID; those of the tree's processes count.
+    const tree = new Set([shellPid, ...[...treeIndexes].map((i) => created[i]?.pid ?? -1)]);
     const lines = parseFileLines(await ps(this.dir, "files", { Etl: this.etl, Pids: [...tree].join(",") }));
     const refused = asList(events.refused).map((e) => ({
       pid: numberOf(e["ProcessID"]),
@@ -412,10 +428,11 @@ export class WindowsRecorder {
     const { normalize } = paths;
     return {
       shellPid,
-      serverPid: server?.pid,
+      serverPid: server === undefined ? undefined : created[server]?.pid,
       processes: created
-        .filter((p) => tree.has(p.pid))
-        .map((p) => ({ ...p, normalized: normalize(p.program), server: serverTree.has(p.pid) })),
+        .map((p, i) => ({ ...p, normalized: normalize(p.program), server: serverTree.has(i), i }))
+        .filter((p) => treeIndexes.has(p.i))
+        .map(({ i: _, ...p }) => p),
       ...fileEvents(lines, tree, paths.named),
       refused: refused
         .filter((e) => tree.has(e.pid))

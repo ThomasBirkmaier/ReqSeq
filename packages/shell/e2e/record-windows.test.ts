@@ -1,8 +1,29 @@
 // How the Windows recorder names a write (record-windows.ts); no Windows needed.
 import { describe, expect, it } from "vitest";
-import { fileEvents, parseFileLines } from "./record-windows.js";
+import { descendants, fileEvents, parseFileLines } from "./record-windows.js";
 
 const named = (raw: string): string => raw.toLowerCase();
+
+describe("the Windows recorder's process tree", () => {
+  it("takes a parent as the process that held its ID when the child started, as Windows reuses IDs", () => {
+    const at = (pid: number, parent: number, program: string) => ({ pid, parent, program, commandLine: "" });
+    const created = [
+      at(7, 1, "control.exe"), // before the shell, under the ID the shell gets later
+      at(9, 7, "child-of-control.exe"),
+      at(7, 1, "reqseq-shell.exe"),
+      at(8, 7, "server.exe"),
+      at(5, 1, "other.exe"), // under an ID that a process of the tree takes later
+      at(5, 8, "git.exe"),
+      at(6, 5, "conhost.exe"),
+    ];
+    expect([...descendants(created, 2)].map((i) => created[i]?.program)).toEqual([
+      "reqseq-shell.exe",
+      "server.exe",
+      "git.exe",
+      "conhost.exe",
+    ]);
+  });
+});
 
 describe("the Windows recorder's file events", () => {
   it("names a write after the Create before it, though the kernel reuses the file object later", () => {
