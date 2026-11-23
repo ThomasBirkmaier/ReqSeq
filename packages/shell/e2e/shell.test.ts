@@ -2,6 +2,7 @@
 // of the checkout, driven through its test driver. The recording tests (AK2, AK6, AK7) run on Linux with
 // `strace -f`; on Linux CI the suite runs under Xvfb and a D-Bus session inside `unshare -rn`, so every connection
 // to another machine is refused.
+import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -453,6 +454,23 @@ describe.runIf(linux)(
     }, 90_000);
   },
 );
+
+// On Windows no start makes the window fail (ADR-0021, A3), so the unit test `a_window_that_cannot_open_starts_no_server`
+// in `run.rs` shows the rule there (ADR-0021, Test seam). This runs it, after the unit test step built it, so that its
+// result carries the criterion's tag.
+describe.runIf(windows)("SR-252: a window that cannot open (Windows, unit test of run.rs)", () => {
+  it("[SR-252/AK-ts68] a window that cannot open ends the shell with exit code 1 and an English reason before any server starts", () => {
+    const name = "run::tests::a_window_that_cannot_open_starts_no_server";
+    const result = spawnSync(
+      "cargo",
+      ["test", "--locked", "--offline", "--workspace", "--", "--exact", name],
+      { cwd: path.join(import.meta.dirname, ".."), encoding: "utf8" },
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(`test ${name} ... ok`);
+  }, 300_000);
+});
 
 /** A page script that calls the shell's `command` with `args` and keeps the answer in `window.__call[key]`. */
 const askShell = (key: string, command: string, args: Record<string, unknown>): string => `(() => {

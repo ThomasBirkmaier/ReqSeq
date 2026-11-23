@@ -36,7 +36,8 @@ The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. 
 | format, clippy, unit tests | yes | yes |
 | coverage 100 % (`--lib`), crate licences, audit | yes | no |
 | e2e: start, end, failures, opening an address (SR-252 AK3, AK4, AK5, AK9, AK10), the dialogs (SR-253) | yes, without network | yes |
-| e2e with strace: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes | no recorder yet |
+| e2e with strace: token, programs and files, connections (SR-252 AK2, AK6, AK7) | yes | no recorder yet (#2465) |
+| a window that cannot open (SR-252 AK8) | release tests (`test/delivery/`) | Windows: the e2e suite runs the unit test `a_window_that_cannot_open_starts_no_server` with the criterion's tag (ADR-0021); macOS: no test yet (#2465) |
 
 ## The release build
 
