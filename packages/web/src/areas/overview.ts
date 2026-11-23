@@ -1,6 +1,6 @@
 // The overview and the queues (`#/q/overview`, `#/q/<queue>`): what needs a look or a decision, as ReqSeq reports
-// it. The overview lists the head of each queue next to the verification degree of the workspace and the changes
-// since the newest baseline; a queue lists all its elements. A row opens the element page.
+// it. The overview lists the head of each queue next to the verification degree of the workspace; a queue lists
+// all its elements. A row opens the element page.
 import "../css/overview.css";
 import type { DataExportVerificationDegree } from "@reqseq/core";
 import { call } from "../api.js";
@@ -10,8 +10,6 @@ import { addRailSection, frame, prepareRail } from "../layout.js";
 import { VERIFICATION } from "../marks.js";
 import { isInvalid, needWords, packageWord, propKey, reqWords, typesWith } from "../meaning.js";
 import { animateValues, swap } from "../motion.js";
-import type { Newest } from "./changes.js";
-import { newestChanges } from "./changes.js";
 import type { Queue, QueueRow } from "../queues.js";
 import { allQueues, countOf, degreeOf, queueData, queueOf, rowsOf } from "../queues.js";
 import type { Route } from "../router.js";
@@ -141,7 +139,6 @@ const swatch = (colour: string, cls: string): HTMLElement => {
 function overviewPanel(
   degree: DataExportVerificationDegree,
   packages: readonly PackageDegree[],
-  changes: Newest,
 ): HTMLElement {
   const c = degree.counts;
   const segments = SEGMENTS.map(([status, colour]) => ({ status, colour, n: c[status] })).filter(
@@ -197,14 +194,6 @@ function overviewPanel(
       h(
         "div",
         { class: "facts" },
-        changes.count === undefined || changes.name === undefined
-          ? null
-          : h(
-              "a",
-              { href: hashOf("c") },
-              h("b", { "data-num": "f:changes" }, changes.count),
-              `${changes.count === 1 ? "change" : "changes"} since ${changes.name}`,
-            ),
         draftCount > 0 && drafts !== undefined
           ? h(
               "a",
@@ -302,15 +291,12 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
   await prepareRail();
   if (queue === undefined) {
     const degree = degreeOf();
-    const [packages, changes] = await Promise.all([
-      propKey(store.mm, "packages") === undefined ? [] : packagesDegree(),
-      newestChanges(),
-    ]);
+    const packages = propKey(store.mm, "packages") === undefined ? [] : await packagesDegree();
     // A page that finishes after the person moved on must not draw over the new one.
     if (!isCurrent(route)) {
       return;
     }
-    await swap(root, frame(OVERVIEW, [overviewList(degree), overviewPanel(degree, packages, changes)]));
+    await swap(root, frame(OVERVIEW, [overviewList(degree), overviewPanel(degree, packages)]));
     document.title = "Overview · ReqSeq";
   } else {
     if (!isCurrent(route)) {

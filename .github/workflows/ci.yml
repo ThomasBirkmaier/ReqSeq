@@ -654,6 +654,9 @@ jobs:
           path: test-results/web/
           if-no-files-found: ignore
 
+  # The Electron app and its suite are removed (#2399); its evidence in spec/evidence/ci/electron-* stays at its last
+  # run. release.yml builds and tests the delivery without it (#2308).
+
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems; the e2e suite also runs
   # `reqseq serve api` and `reqseq mcp` as processes (servers.test.ts).

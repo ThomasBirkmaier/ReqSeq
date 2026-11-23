@@ -2,7 +2,6 @@
 // Its modules import only types, each other and import-free modules of core, so the bundle of the web UI's
 // pages loads nothing of `node:*` with it (the lint rule on `packages/core/src/displays/**`).
 export * from "./element-page.js";
-export * from "./element-problems.js";
 export * from "./element-ref.js";
 export * from "./hint-list.js";
 export * from "./labels.js";

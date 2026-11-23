@@ -98,17 +98,6 @@
   padding: 5px 8px 5px 0;
   border-top: 1px solid var(--line-soft);
   vertical-align: top;
-}
-/* Short values (date, result, method, view, version) stay on one line; the item and the evidence take the rest of
-   the width and break anywhere, since paths and IDs have no spaces. */
-.recs td.short {
-  white-space: nowrap;
-}
-.recs td.long {
-  overflow-wrap: anywhere;
-}
-.recs td.short .why {
-  white-space: normal;
   overflow-wrap: anywhere;
 }
 .recs .why,

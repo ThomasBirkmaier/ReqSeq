@@ -2,7 +2,7 @@
 // for a requirement whose status comes from its own records the acceptance criteria they verify (SR-031 AK5). One
 // long form for a page or a line, one short form for a cell or a badge; the app, the HTML export and the CLI's text
 // output all take their words from `verificationLabel`.
-import type { DataExportVerificationEntry, EvidenceListOutput } from "../generated/types.js";
+import type { DataExportVerificationEntry } from "../generated/types.js";
 import { criterionLabel } from "../model/criterion-items.js";
 
 /** The verification status of an element in one view, as `element.get` and `element.list` give it. */
@@ -34,18 +34,3 @@ export const verificationLabel = (
   const open = (criteria.notVerified ?? []).map(criterionLabel);
   return `${status}, ${count} criteria${open.length === 0 ? "" : `, ${open.join(", ")} not verified`}`;
 };
-
-/** A row of the Evidence section of `evidence.list` (`display.rows`). */
-type EvidenceRow = Pick<EvidenceListOutput["display"]["rows"][number], "kind" | "criterion" | "status">;
-
-/**
- * The verification status of each of the `count` acceptance criteria of a requirement, by position (criterion 1
- * first), as the verification rows of `evidence.list` `display` give it in the view it was asked for (#2234); `open`
- * for a criterion without a row, since no record bears on it (SR-031 AK5: a criterion is verified only by a passed
- * record).
- */
-export const criterionStatuses = (rows: readonly EvidenceRow[], count: number): string[] =>
-  Array.from(
-    { length: count },
-    (_, at) => rows.find((row) => row.kind === "verification" && row.criterion === at + 1)?.status ?? "open",
-  );
