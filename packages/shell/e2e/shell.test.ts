@@ -536,8 +536,10 @@ describe.skipIf(windowsRecording === "skip")(
         (o) => o.path === workspaceFile && record.processes.some((p) => p.pid === o.pid && p.server),
       );
       expect(serverOpens.length).toBeGreaterThan(0);
+      // A Write event, named through its file object or file key, not only a Create that may write.
       const engineWrites = record.writes.filter(
         (w) =>
+          w.write &&
           inside(w.path, record.engineData) &&
           record.processes.some((p) => p.pid === w.pid && !p.server && record.engines.includes(p.normalized)),
       );
@@ -584,12 +586,14 @@ describe.skipIf(windowsRecording === "skip")(
           unreadable.push(file);
         }
       }
-      const unnamed = record.writes.filter((w) => !server.has(w.pid) && w.path === undefined).length;
+      // A write the trace gives no name for cannot be read back, so it fails the test (writes named on a device that
+      // is no drive, a pipe or the console, are not counted here).
+      const unnamed = record.writes.filter((w) => !server.has(w.pid) && w.unnamed).map((w) => w.raw);
       await annotate(
         `${String(record.processes.length)} processes, ${String(written.length)} written files checked, ` +
-          `${String(unnamed)} writes to handles the trace does not name`,
+          `${String(unnamed.length)} writes the trace names no file for`,
       );
-      expect({ holding, unreadable }).toEqual({ holding: [], unreadable: [] });
+      expect({ holding, unreadable, unnamed }).toEqual({ holding: [], unreadable: [], unnamed: [] });
     }, 120_000);
 
     it("[SR-252/AK-cg77] reading and changing elements starts only the server and the engine and opens no workspace file (Windows)", () => {
