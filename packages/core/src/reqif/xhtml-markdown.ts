@@ -19,7 +19,6 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown, gfmToMarkdown } from "mdast-util-gfm";
 import { toHast } from "mdast-util-to-hast";
 import { toMarkdown } from "mdast-util-to-markdown";
-import type { Unsafe } from "mdast-util-to-markdown";
 import { gfm } from "micromark-extension-gfm";
 import type { ReqifLoss } from "../generated/types.js";
 import type { XhtmlElement, XhtmlNode } from "./model.js";
@@ -282,12 +281,8 @@ interface Converted {
 
 /** Our node tree to hast, noting the losses; walked without recursion (a value may nest deeply). */
 class ToHast {
-  /** What a line end in a table cell becomes: `<br>` for the import, a space for a paste (SR-190). */
-  private readonly cellBreak: XhtmlNode;
-
-  constructor(cellBreak: XhtmlNode = CELL_BREAK) {
-    this.cellBreak = cellBreak;
-  }
+  /** What a line end in a table cell becomes: `<br>`, as GFM has no other. */
+  private readonly cellBreak: XhtmlNode = CELL_BREAK;
 
   readonly images: XhtmlImage[] = [];
   /** Each entry of `images` with its hast `img` and alt text. */
@@ -588,23 +583,12 @@ export interface PreparedMarkdown {
   readonly markdown: (image?: (image: XhtmlImage, at: number) => string | undefined) => string;
 }
 
-/** How `prepareMarkdown` writes: the import's defaults, or what a paste in the editor needs (SR-190). */
-export interface MarkdownOptions {
-  /** A line end in a table cell: `<br>` (default, as GFM has no other) or a space (no HTML at all). */
-  readonly cellBreak?: "html" | "space";
-  /** Characters escaped besides those of Markdown, such as `$`, which the editor reads as a formula. */
-  readonly unsafe?: readonly Unsafe[];
-}
-
 /**
  * Converts an XHTML value (`THE-VALUE` of `ATTRIBUTE-VALUE-XHTML`) once: the images and losses are
  * known before the links are chosen, so the import reads the images first (SR-095 AK2).
  */
-export const prepareMarkdown = (
-  value: readonly XhtmlNode[],
-  options: MarkdownOptions = {},
-): PreparedMarkdown => {
-  const converter = new ToHast(options.cellBreak === "space" ? " " : CELL_BREAK);
+export const prepareMarkdown = (value: readonly XhtmlNode[]): PreparedMarkdown => {
+  const converter = new ToHast();
   const hast = converter.convert(value);
   const markdown = (image: (image: XhtmlImage, at: number) => string | undefined = (i) => i.data): string => {
     converter.imageNodes.forEach(({ image: entry, node, alt }, at) => {
@@ -636,7 +620,6 @@ export const prepareMarkdown = (
       strong: "*",
       fences: true,
       rule: "-",
-      unsafe: [...(options.unsafe ?? [])],
     });
     return text.replace(/\n$/, "");
   };

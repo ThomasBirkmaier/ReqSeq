@@ -1,6 +1,4 @@
-// The words of the graph of an element (SR-111, SR-136, SR-154) that the app shows, in core so that the
-// Mermaid text (SR-151 AK1, #1537) uses the same ones. The renderer imports it as `@reqseq/core/graph-words`, so this
-// module imports only types and `evidence/degree-text.ts`.
+// The words of the graph of an element (SR-111, SR-136) that the Mermaid text (SR-151 AK1, #1537) uses.
 import type { CommandOutput } from "../catalog.js";
 import { degreePercent } from "../evidence/degree-text.js";
 

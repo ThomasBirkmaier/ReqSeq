@@ -23,10 +23,10 @@ scenariosOf("evidence.degree", [
     expect: "output",
   },
   {
-    name: "a package page counts 6 verified, 1 failed, 1 outdated and 2 open",
+    name: "a package of 10 valid requirements, 6 verified, 1 failed, 1 outdated and 2 open, gives 60 % and the count per status",
     fixture: DEGREE,
     input: { selection: { package: "PKG-00d003" } },
-    tag: "[SR-112/AK-s1rj]",
+    tag: "[SR-037/AK-zxtb]",
     expect: "output",
     check: (results) => {
       expect((results["core"]?.outcome as { output: { degree: unknown } }).output.degree).toEqual({

@@ -717,7 +717,7 @@ describe("element.list, the elements of a package in several repositories (SR-11
       "",
     ].join("\n");
 
-  it("[SR-112/AK-fzbz] where.package lists the members in another repository that name the package with its repository, and not those that name it without one (D-058)", async () => {
+  it("where.package lists the members in another repository that name the package with its repository, and not those that name it without one (D-058)", async () => {
     // The package lives in the repository `platform`; the two requirements are in `system`.
     const fixture = await createFixtureWorkspace({
       fixture: "SR-005/cross-repository",
