@@ -242,6 +242,15 @@ mod tests {
     use std::io::Read as _;
     use std::sync::Arc;
 
+    /// Whether `done` holds within 5 s, asked every 10 ms after a first sleep. It has no branch of its own, so its
+    /// lines run on every timing, and the coverage gate does not depend on how fast a process ends (#2414).
+    fn within_5_s(mut done: impl FnMut() -> bool) -> bool {
+        (0..500).any(|_| {
+            thread::sleep(Duration::from_millis(10));
+            done()
+        })
+    }
+
     #[test]
     fn the_server_runs_in_its_own_group_in_the_root_without_node_options_and_with_the_end_variable() {
         let spec = ServerSpec {
@@ -324,17 +333,7 @@ mod tests {
         kill_group(child.id());
         assert_eq!(crate::server::describe(child.wait().unwrap()), "signal 9");
         // SAFETY: probing with signal 0 sends nothing.
-        let gone = || unsafe { libc::kill(grandchild, 0) } != 0;
-        let deadline = Instant::now() + Duration::from_secs(5);
-        // Sleeps at least once and evaluates both conditions every time (`|`, not `||`), so the lines run whether
-        // or not the grandchild is already gone (#2414).
-        loop {
-            thread::sleep(Duration::from_millis(10));
-            if gone() | (Instant::now() >= deadline) {
-                break;
-            }
-        }
-        assert!(gone());
+        assert!(within_5_s(|| unsafe { libc::kill(grandchild, 0) } != 0));
         kill_group(u32::MAX);
     }
 
@@ -404,18 +403,23 @@ mod tests {
         let program = dir.join("opener");
         std::fs::write(
             &program,
-            format!("#!/bin/sh\nprintf '%s|' \"$#\" \"$@\" > '{}'\n", record.display()),
+            format!(
+                "#!/bin/sh\nprintf '%s|' \"$$\" \"$#\" \"$@\" > '{}'\n",
+                record.display()
+            ),
         )
         .unwrap();
         std::fs::set_permissions(&program, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-        // A FIFO: the read below ends when the opener has written and closed it, with no timing in the test, so
-        // its coverage does not depend on how fast the opener runs (#2414).
+        // A FIFO: the read below ends when the opener has written and closed it, with no timing in the test (#2414).
         assert!(Command::new("mkfifo").arg(&record).status().unwrap().success());
         open_with(&program, "https://example.org/a b").unwrap();
-        assert_eq!(
-            std::fs::read_to_string(&record).unwrap(),
-            "1|https://example.org/a b|"
-        );
+        let written = std::fs::read_to_string(&record).unwrap();
+        let (pid, args) = written.split_once('|').unwrap();
+        assert_eq!(args, "1|https://example.org/a b|");
+        // The opener is reaped by the thread of `open_with`: until then it is a zombie that signal 0 still reaches.
+        let pid: libc::pid_t = pid.parse().unwrap();
+        // SAFETY: probing with signal 0 sends nothing.
+        assert!(within_5_s(|| unsafe { libc::kill(pid, 0) } != 0));
         let error = open_with(&dir.join("missing"), "https://example.org/").unwrap_err();
         assert!(error.contains("missing"), "{error}");
         let file = File::options().write(true).open("/dev/null").unwrap();
