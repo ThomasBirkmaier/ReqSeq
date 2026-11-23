@@ -1,5 +1,7 @@
 // The element page: any element with what it points to, what points to it, its text and its criteria, as
-// `element.get` and `trace.neighbourhood` give them.
+// `element.get` and `trace.neighbourhood` give them, its problems, and the verification status of each criterion as
+// `evidence.list` gives it.
+import { elementProblemGroups } from "@reqseq/core/displays";
 import type { Run } from "./start-ui.js";
 import { expect, test } from "./fixtures.js";
 
@@ -108,6 +110,84 @@ test("element text is Markdown: a reference to another element opens it, and no 
     await prose.getByRole("link", { name: "the parent" }).click();
     await expect(page.locator(`#card[data-id="${target.id}"]`)).toBeVisible();
     expect(await page.title()).not.toBe("run");
+  } finally {
+    const after = await ui.run("element.get", { ref });
+    await ui.run("element.update", {
+      ref,
+      text: before.element.text ?? "",
+      expectedFileSha256: after.fileSha256,
+    });
+  }
+});
+
+test("each acceptance criterion shows its own verification status", async ({ page, open, ui }) => {
+  const mm = await ui.run("metamodel.get", {});
+  const types = mm.types.filter((t) => t.meaning === "requirement" && !t.abstract).map((t) => t.key);
+  const { elements } = await ui.run("evidence.status", { limit: 500, selection: { where: { type: types } } });
+  // A requirement of the core with records per criterion: without records `evidence.list` has no row.
+  let found: { ref: string; rows: { criterion: number; status: string }[] } | undefined;
+  for (const e of elements.filter(
+    (x) => x.verification?.some((v) => v.view === "core" && v.criteria !== undefined) === true,
+  )) {
+    const { display } = await ui.run("evidence.list", { ref: e.id });
+    // The page shows the core.
+    const rows = display.rows.flatMap((r) =>
+      r.kind === "verification" && r.criterion !== undefined
+        ? [{ criterion: r.criterion, status: r.views?.find((v) => v.view === "core")?.status ?? r.status }]
+        : [],
+    );
+    if (rows.length > 0) {
+      found = { ref: refOf(e), rows };
+      break;
+    }
+  }
+  if (found === undefined) {
+    throw new Error("The workspace has no requirement with records per criterion");
+  }
+  await open(`/e/${found.ref}`);
+  for (const row of found.rows) {
+    await expect(
+      page.locator(`.card .crit[data-n="${String(row.criterion)}"] .crit-end .st.${row.status}`),
+    ).toHaveCount(1);
+  }
+});
+
+test("the problems of an element stand on its page, several of one kind in one row that opens", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const ref = await requirementWithTrace(ui.run);
+  const before = await ui.run("element.get", { ref });
+  // Two references outside a link: two warnings of one kind.
+  const text = `${before.element.text ?? ""}\n\nSee reqseq:NO-SUCH-ONE and reqseq:NO-SUCH-TWO.`;
+  await ui.run("element.update", { ref, text, expectedFileSha256: before.fileSha256 });
+  try {
+    const { element } = await ui.run("element.get", { ref });
+    const groups = elementProblemGroups(element.problems);
+    const several = groups.find((g) => g.problems.length > 1);
+    if (several === undefined) {
+      throw new Error("The element has no two problems of one kind");
+    }
+    await open(`/e/${ref}`);
+    const rows = page.locator(".card .probs > ul > li");
+    // Errors first, one row per kind, as core orders them.
+    await expect(rows).toHaveCount(groups.length);
+    expect(await rows.evaluateAll((li) => li.map((x) => x.getAttribute("data-severity")))).toEqual(
+      groups.map((g) => g.severity),
+    );
+    const row = page.locator(`.card .probs > ul > li[data-code="${several.code}"]`);
+    await expect(row.locator("summary")).toContainText(several.title);
+    await expect(row.locator("summary")).toContainText(String(several.problems.length));
+    const messages = row.locator("details li");
+    await expect(messages.first()).toBeHidden();
+    await row.locator("summary").click();
+    await expect(messages).toHaveText(several.problems.map((p) => p.message));
+    // With the keyboard: closed and opened again.
+    await row.locator("summary").press("Enter");
+    await expect(messages.first()).toBeHidden();
+    await row.locator("summary").press("Enter");
+    await expect(messages.first()).toBeVisible();
   } finally {
     const after = await ui.run("element.get", { ref });
     await ui.run("element.update", {
