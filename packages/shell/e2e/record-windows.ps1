@@ -125,11 +125,12 @@ switch ($Action) {
     }
     Write-Out (ConvertTo-Json -InputObject $result -Depth 4)
   }
-  # The Kernel-File events of the given processes, and every NameCreate (10), which names a file key for the
-  # writes: one line per event, `id pid FileObject FileKey CreateOptions FileName`, tab-separated.
+  # The Kernel-File events of the given processes, and every Create (12), NameCreate (10) and CreateNewFile (30) of
+  # any process, which name the file objects and file keys of the writes: one line per event,
+  # `id pid FileObject FileKey CreateOptions FileName`, tab-separated.
   'files' {
     $ids = @($Pids -split ',' | Where-Object { $_ -ne '' })
-    $xpath = '*[System[EventID=10' + (($ids | ForEach-Object { " or Execution[@ProcessID=$_]" }) -join '') + ']]'
+    $xpath = '*[System[EventID=10 or EventID=12 or EventID=30' + (($ids | ForEach-Object { " or Execution[@ProcessID=$_]" }) -join '') + ']]'
     $writer = New-Object System.IO.StreamWriter($Out, $false, $utf8)
     try {
       Get-WinEvent -Path $Etl -Oldest -FilterXPath $xpath -ErrorAction Stop | ForEach-Object {
