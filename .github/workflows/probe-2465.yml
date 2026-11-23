@@ -72,7 +72,7 @@ jobs:
             console.log("PROBE_SHELL=" + p.join(r, "packages", "shell", "target", "debug", "reqseq-shell" + exe));
             console.log("PROBE_CLI=" + p.join(r, "packages", "cli", "dist", "bin.js"));
           ' | tee -a "$GITHUB_ENV" > probe-env.txt
-          . <(sed 's/^\([A-Z_]*\)=\(.*\)$/\1="\2"/' probe-env.txt)
+          while IFS= read -r line; do export "$line"; done < probe-env.txt
           mkdir -p "$PROBE/out" "$PROBE/private"
           cat > "$PROBE/drive.mjs" <<'PROBE_EOF'
           // Probe #2465: starts the e2e shell once and prints its driver lines, standard error, exit and the processes
@@ -262,7 +262,8 @@ jobs:
               await evalUntil("sessionStorage.getItem('reqseq.token') !== null");
               token = (await evalJs("sessionStorage.getItem('reqseq.token')")) ?? null;
               if (token) fs.writeFileSync(path.join(PRIV, `token-${o.label}`), token);
-              mark(`token ${token ? `length ${token.length}` : "missing"}`);
+              mark(`token ${token ? `typeof ${typeof token} length ${String(token).length} shape ${JSON.stringify(token).replace(/[A-Za-z0-9]/g, "x")}` : "missing"}`);
+              if (typeof token !== "string" || token.length < 20) token = null;
               await evalJs(`(() => {
                 window.__opened = null;
                 fetch("ui/workspace", {
@@ -402,6 +403,7 @@ jobs:
               children.get(parent).push(e);
             }
             const root = session.childPid;
+            const nameOf = new Map(e4688.map((e) => [num(e.NewProcessId), `${String(e.NewProcessName).split("\\").pop()} ${(/--(?:type|utility-sub-type)=(\S+)/g.exec(String(e.CommandLine)) ?? [])[1] ?? ""}`.trim()]));
             const tree = new Set([root]);
             const rows = [];
             const walk = (pid, depth) => {
@@ -440,7 +442,7 @@ jobs:
             const byApp = new Map();
             for (const e of e5157) {
               const pid = Number(e.ProcessID);
-              const who = pid === controlPid ? "control" : tree.has(pid) ? "shell tree" : "other";
+              const who = pid === controlPid ? "control" : tree.has(pid) ? `shell tree pid ${pid} (${nameOf.get(pid) ?? "?"})` : `other pid ${pid}`;
               const k = `${who} ${e.Application} -> ${e.DestAddress}:${e.DestPort} proto ${e.Protocol} dir ${e.Direction}`;
               byApp.set(k, (byApp.get(k) ?? 0) + 1);
             }
@@ -450,8 +452,8 @@ jobs:
             const byName = new Map();
             for (const e of e3006) {
               const pid = Number(e._pid);
-              const who = pid === controlPid ? "control" : tree.has(pid) ? "shell tree" : `pid ${pid}`;
-              const k = `${who} ${e.QueryName}`;
+              const who = pid === controlPid ? "control" : tree.has(pid) ? `shell tree pid ${pid} (${nameOf.get(pid) ?? (pid === root ? "the shell" : "?")})` : `pid ${pid}`;
+              const k = `${who} ${e.QueryName} type ${e.QueryType} options ${e.QueryOptions} servers ${e.ServerList ?? "-"} network ${e.IsNetworkQuery ?? "-"}`;
               byName.set(k, (byName.get(k) ?? 0) + 1);
             }
             for (const [k, n] of [...byName].slice(0, 60)) console.log(`  ${n}x ${k}`);
@@ -965,13 +967,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          set +e
           if [ "$RUNNER_OS" = Windows ]; then
             pwsh -NoProfile -Command '
               logman stop probe-kf -ets 2>$null | Out-Null
               Get-NetFirewallRule -Group probe-2465 -ErrorAction SilentlyContinue | Remove-NetFirewallRule
               Remove-Item -Force -Recurse "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedgewebview2.exe" -ErrorAction SilentlyContinue
-              $b = Get-Content "$env:PROBE\private\fw-before.json" -ErrorAction SilentlyContinue | ConvertFrom-Json
-              foreach ($p in $b) { Set-NetFirewallProfile -Name $p.Name -Enabled ([bool]$p.Enabled) -LogBlocked ([bool]$p.LogBlocked) }
+              Set-NetFirewallProfile -All -LogBlocked False
               icacls "$env:PROBE\ro" /reset 2>$null | Out-Null
               "rules left: $(@(Get-NetFirewallRule -Group probe-2465 -ErrorAction SilentlyContinue).Count)"'
           else
