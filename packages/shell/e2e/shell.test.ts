@@ -608,7 +608,11 @@ describe.skipIf(windowsRecording === "skip")(
       expectControls();
       const started = record.processes.filter((p) => p.pid !== record.shellPid && !p.server);
       expect(started.length).toBeGreaterThan(0);
-      expect(started.filter((p) => !record.engines.includes(p.normalized)).map((p) => p.program)).toEqual([]);
+      expect(
+        started
+          .filter((p) => !record.engines.includes(p.normalized))
+          .map((p) => `${p.program} ${p.commandLine}`),
+      ).toEqual([]);
       const root = record.normalize(ws?.root ?? "");
       const server = new Set(record.processes.filter((p) => p.server).map((p) => p.pid));
       expect(
