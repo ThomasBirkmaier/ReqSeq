@@ -75,8 +75,7 @@ jobs:
     # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
     # (ADR-0011); the job prints what it got.
     runs-on: ubuntu-24.04
-    # The Vitest suite alone took 36 min at night (2026-11-02); the Electron app's suite, removed now (#2399), added
-    # about 7 min (#147, #1559). The bound of 75 min stays as it was for a slow runner.
+    # The Vitest suite took 36 min at night (2026-11-02); the bound of 75 min leaves room for a slow runner.
     timeout-minutes: 75
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
@@ -105,8 +104,6 @@ jobs:
           # Keep in step with the `test:perf` script in package.json.
           rm -f test-results/perf.jsonl test-results/junit-perf.xml
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
-      # The Electron app's part (#147) is removed with the app (#2399): its rows stay out of the record until the web
-      # UI has a suite of its own.
       - name: Report
         id: report
         if: always() && hashFiles('test-results/perf.jsonl') != ''

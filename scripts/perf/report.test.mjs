@@ -175,7 +175,7 @@ describe("perf report", () => {
     expect(fs.readFileSync(output, "utf8")).toBe("exceeded=0\ncomplete=true\nexceeded=0\ncomplete=false\n");
   });
 
-  it("is complete only when every JUnit report is (the Vitest suite and the app's, #147)", () => {
+  it("is complete only when every JUnit report is (one per suite)", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const folder = temp();
     const results = path.join(folder, "perf.jsonl");
@@ -183,9 +183,9 @@ describe("perf report", () => {
     const out = path.join(folder, "performance.md");
     const output = path.join(folder, "output.txt");
     const vitest = path.join(folder, "junit-perf.xml");
-    const app = path.join(folder, "junit-perf-electron.xml");
+    const other = path.join(folder, "junit-perf-other.xml");
     fs.writeFileSync(vitest, junit([PASSED, THRESHOLD]));
-    fs.writeFileSync(app, junit([PASSED]));
+    fs.writeFileSync(other, junit([PASSED]));
     const args = [
       "--results",
       results,
@@ -196,12 +196,12 @@ describe("perf report", () => {
       "--junit",
       vitest,
       "--junit",
-      app,
+      other,
     ];
     main(args);
-    fs.writeFileSync(app, junit([WRONG]));
+    fs.writeFileSync(other, junit([WRONG]));
     main(args);
-    fs.rmSync(app);
+    fs.rmSync(other);
     main(args);
     expect(fs.readFileSync(output, "utf8")).toBe(
       "exceeded=0\ncomplete=true\nexceeded=0\ncomplete=false\nexceeded=0\ncomplete=false\n",

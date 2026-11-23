@@ -45,6 +45,16 @@ test("the evidence page shows each criterion with its test cases as ReqSeq lays 
   const first = rows.nth(at).locator(".case").first();
   await first.locator("summary").click();
   await expect(first.locator(".recs tbody tr")).toHaveCount(display.rows[at]?.cases[0]?.records.length ?? 0);
+  // A commit in the table shows by its short form, the full one on hover; the data keeps the full one.
+  await expect(first.locator(".recs tbody")).not.toContainText(/\b[0-9a-f]{40}\b/);
+  const { records } = await ui.run("evidence.list", { ref });
+  const item = records[display.rows[at]?.cases[0]?.records[0] ?? -1]?.item ?? "";
+  const full = /\b[0-9a-f]{40}\b/.exec(item)?.[0];
+  if (full !== undefined) {
+    const cell = first.locator(".recs tbody td.long").first();
+    await expect(cell).toContainText(full.slice(0, 7));
+    await expect(cell).toHaveAttribute("title", item);
+  }
 });
 
 test("a check recorded on the page is written by ReqSeq and shown", async ({ page, open, ui }) => {

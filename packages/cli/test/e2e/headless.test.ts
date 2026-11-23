@@ -16,8 +16,11 @@ const packagesDir = fileURLToPath(new URL("../../../", import.meta.url));
 /** No display of X11 or Wayland, as on a server or in a container. */
 const HEADLESS = { DISPLAY: "", WAYLAND_DISPLAY: "" };
 
-/** The interface packages; none may be among what the CLI loads. */
-const INTERFACE = ["electron", "react", "react-dom"];
+/**
+ * The packages of the graphical interface: the web UI, the desktop shell and the shell's bridge that the web UI loads
+ * (ADR-0020, ADR-0021). None may be among what the CLI loads; `reqseq ui` serves the built pages as files.
+ */
+const INTERFACE = ["@reqseq/web", "@reqseq/shell", "@tauri-apps/api"];
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -74,6 +77,8 @@ describe("the command line without a graphical interface", () => {
     expect(checked.stderr).toBe("");
     expect(JSON.parse(checked.stdout)).toHaveProperty("checkedElements");
 
+    // The list names what the web UI really depends on, so it does not go stale.
+    expect(dependenciesOf("@reqseq/web")).toContain("@tauri-apps/api");
     const loaded = dependenciesOf("@reqseq/cli");
     expect(loaded).toContain("@reqseq/core");
     expect(INTERFACE.filter((name) => loaded.has(name))).toEqual([]);

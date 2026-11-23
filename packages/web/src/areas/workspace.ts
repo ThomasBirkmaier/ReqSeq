@@ -5,6 +5,7 @@
 import "../css/workspace.css";
 import type { OutputOf } from "../api.js";
 import { ReqSeqError, call, openWorkspace } from "../api.js";
+import { fullOnHover, shortCommits } from "../commits.js";
 import type { Child } from "../dom.js";
 import { announce, h } from "../dom.js";
 import { addRailSection, errorBox, frame, prepareRail, showNotMarked } from "../layout.js";
@@ -1010,10 +1011,10 @@ function themeCard(): HTMLElement {
 }
 
 function versionCard(info: OutputOf<"tool.info">): HTMLElement {
-  const build =
-    info.build.development === true || info.build.commit === undefined
-      ? "Built from a checkout"
-      : `Commit ${info.build.commit}${info.build.date === undefined ? "" : `, ${new Date(info.build.date).toLocaleDateString()}`}`;
+  const delivered = info.build.development !== true && info.build.commit !== undefined;
+  const build = !delivered
+    ? "Built from a checkout"
+    : `Commit ${shortCommits(info.build.commit)}${info.build.date === undefined ? "" : `, ${new Date(info.build.date).toLocaleDateString()}`}`;
   return card(
     "Version",
     h(
@@ -1024,7 +1025,7 @@ function versionCard(info: OutputOf<"tool.info">): HTMLElement {
       h("dt", null, "MCP server"),
       h("dd", null, info.versions.mcp),
       h("dt", null, "Build"),
-      h("dd", null, build),
+      h("dd", delivered ? fullOnHover(info.build.commit ?? "") : null, build),
       h("dt", null, "System"),
       h("dd", null, `${info.build.platform} ${info.build.arch}, Node ${info.runtime.node}`),
       h("dt", null, "Documentation"),

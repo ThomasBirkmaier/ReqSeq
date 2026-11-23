@@ -42,7 +42,7 @@ Adapters share one runtime per process: `getCommandRuntime()` returns it (create
 
 ## Writing a command (SR work)
 
-1. The catalog entry exists in `schemas/commands/<name>.json` (name, `title` for people, summary, effect, for a write command `whileReadOnly` with its reason, stage, implements, `arguments`, input and output schema), and its name is in `order` of `schemas/commands/catalog.header.json`, by convention at the end of its group. `title` is the name the app's command prompt offers and the MCP tool title; `arguments` lists every top-level input field once, the required ones first, with the source a prompt completes it from (`{ field, complete, of? }`, ADR-0002 rule 1, checked by `scripts/contracts/catalog-checks.mjs`). Changing it is a contract change (ADR-0002 rule 1). The history of an entry before the split into one file per command (#528) is in `git log -- schemas/commands/catalog.json`.
+1. The catalog entry exists in `schemas/commands/<name>.json` (name, `title` for people, summary, effect, for a write command `whileReadOnly` with its reason, stage, implements, `arguments`, input and output schema), and its name is in `order` of `schemas/commands/catalog.header.json`, by convention at the end of its group. `title` is the MCP tool title and the heading of the command's reference page; `arguments` lists every top-level input field once, the required ones first, with the source a prompt completes it from (`{ field, complete, of? }`, ADR-0002 rule 1, checked by `scripts/contracts/catalog-checks.mjs`). Changing it is a contract change (ADR-0002 rule 1). The history of an entry before the split into one file per command (#528) is in `git log -- schemas/commands/catalog.json`.
 2. Write `src/commands/<group>/<action>.ts`:
 
    ```ts
@@ -112,7 +112,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - Evidence block (`src/evidence/`): [records, folders, state, index](docs/evidence-records.md), [status and degree](docs/evidence-status.md), [views and export](docs/evidence-views.md)
 - [Baselines block (`src/baselines/`): reading, creating, showing and comparing baseline files](docs/baselines.md)
 - ReqIF block (`src/reqif/`): [model and parser](docs/reqif.md), [mapping files](docs/reqif-mapping.md)
-- [Displays block (`src/displays/`, `@reqseq/core/displays`): the display models the app and the HTML export share](docs/displays.md)
+- [Displays block (`src/displays/`, `@reqseq/core/displays`): the display models the web UI and the HTML export share](docs/displays.md)
 - HTML export block (`src/html-export/`): [pages, safe content and the export folder](docs/html-export.md)
 - [Git reader (`src/git/reader.ts`)](docs/git.md)
 - [Docs-site block (`src/docs-site/`): the offline documentation site, request to file, CSP](docs/docs-site.md)
