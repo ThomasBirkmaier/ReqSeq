@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FolderDirent } from "./list-folder.js";
 import { LIST_TIMEOUT_MS, listFolder, listTypedFolder, splitTypedPath } from "./list-folder.js";
-import { createBoundedRunner, createWorkspaceChecks, typedPathRun } from "./recent.js";
+import { createBoundedRunner } from "./recent.js";
 
 let top = "";
 
@@ -159,31 +159,6 @@ describe("the folder of a typed path", () => {
       ],
       truncated: true,
     });
-  });
-
-  it("can run in the slot for typed paths of a process, which the folders of a typed path share", async () => {
-    const checks = createWorkspaceChecks({ timeoutMs: 50 });
-    let release: () => void = () => undefined;
-    const hung = vi.fn(
-      () =>
-        new Promise<AsyncIterable<FolderDirent>>((resolve) => {
-          release = () => {
-            resolve(Readable.from([]));
-          };
-        }),
-    );
-    const listing = listFolder("/nfs", {
-      files: false,
-      dots: false,
-      run: checks.typedRun,
-      opendir: hung,
-      timeoutMs: 50,
-    });
-    // While the listing holds the one slot, a typed path gets no answer in time.
-    expect(await checks.typed([top])).toEqual(["timeout"]);
-    release();
-    expect(await listing).toEqual({ entries: [], problem: "unreadable" });
-    expect(typedPathRun).toBeTypeOf("function");
   });
 
   it("a folder without an answer is unreadable after the timeout and holds only the listing slot", async () => {

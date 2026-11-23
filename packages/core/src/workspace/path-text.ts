@@ -1,8 +1,7 @@
-// A typed local path checked by its text alone, before any file-system call (SR-131 AK5, SR-143, the
-// offline rule SR-078): a path whose check would make Windows open a connection or a device is refused
-// unopened. "Open workspace" (`typedWorkspaceFolder`), the folder listing (`workspace.listFolder`) and the
-// SR-142 rule (`local-paths.ts`) share these rules. Main loads this module through `recent.ts` and
-// `list-folder.ts`, so it imports only `node:*`.
+// A typed local path checked by its text alone, before any file-system call (SR-143, the offline rule
+// SR-078): a path whose check would make Windows open a connection or a device is refused unopened. The
+// image source of `element.addAttachment` (`localFolder`), the folder listing (`workspace.listFolder`)
+// and the SR-142 rule (`local-paths.ts`) share these rules.
 import path from "node:path";
 
 /** The longest path text taken, in characters. */

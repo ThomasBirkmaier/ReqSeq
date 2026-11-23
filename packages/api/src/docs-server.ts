@@ -1,6 +1,6 @@
 // `reqseq serve docs` (SR-141, ADR-0017): the documentation site of a delivery over `node:http`, on
 // 127.0.0.1 only. It needs no workspace and no token and writes nothing; which file a request gets, its
-// headers and the CSP are the rule of `@reqseq/core/docs-site`, so the app serves the same bytes.
+// headers and the CSP are the rule of `@reqseq/core/docs-site`.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { CommandError } from "@reqseq/core/command-error";
 import type { DocsResponse } from "@reqseq/core/docs-site";

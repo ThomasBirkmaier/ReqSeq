@@ -183,14 +183,6 @@
             "additionalProperties": false,
             "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319)."
           },
-          "showsOutput": {
-            "const": true,
-            "description": "A `write-files` command whose output carries content of its own, such as a plan (SR-071), an import or an export result (SR-224 AK7): the app shows its output after it ran. Exactly the commands of `SHOWS_OUTPUT` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions (#1880)."
-          },
-          "staysOutputPage": {
-            "const": true,
-            "description": "A `read` command whose answer is the state of each entry, such as the change since the baseline or the verification status per view (SR-224 AK8, D-078): the app shows its output as an output page with each entry's values below its row, never as a list of its elements, also without entries. Exactly the commands of `STAYS_OUTPUT_PAGE` in `output-checks.mjs` carry it, and `pnpm schemas:check` checks both directions."
-          },
           "outputFields": {
             "type": "array",
             "description": "Written by `generate.mjs` into the generated catalog only, never in a command file: every field of `output`, also those inside shared definitions, with its title and marks resolved from the definitions, so a reader needs no `$ref` (SR-224 AK3). A definition already on the way to a field is not entered again.",
@@ -219,10 +211,6 @@
                     { "type": "array", "items": { "type": "string" } }
                   ]
                 },
-                "elementValue": {
-                  "const": true,
-                  "description": "A value of the element itself in an entry of the answer, not of the entry: the type, version, repository, file, properties and relations of an `evidence.status` entry (SR-224 AK9), from `x-element-values` on the answer field. The output page shows it below the entry's row only with Show details, after the entry's other values."
-                },
                 "keys": {
                   "type": "array",
                   "description": "Only for a number of elements: for each list it is in (each `[]` of `path`, outermost first), the fields of an entry that identify it (`x-key`); `selection.output.count.key` gives one object of these fields per list (SR-224 AK4). A field an entry does not have is left out of the object.",
@@ -248,18 +236,10 @@
         "then": { "required": ["whileReadOnly", "whileReadOnlyReason"] },
         "else": {
           "not": {
-            "anyOf": [
-              { "required": ["whileReadOnly"] },
-              { "required": ["whileReadOnlyReason"] },
-              { "required": ["showsOutput"] }
-            ]
+            "anyOf": [{ "required": ["whileReadOnly"] }, { "required": ["whileReadOnlyReason"] }]
           }
         },
         "allOf": [
-          {
-            "if": { "required": ["staysOutputPage"] },
-            "then": { "properties": { "effect": { "const": "read" } } }
-          },
           {
             "if": { "required": ["deletes"] },
             "then": {

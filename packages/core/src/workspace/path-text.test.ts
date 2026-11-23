@@ -1,4 +1,6 @@
 // A typed local path checked by its text alone (`path-text.ts`, SR-143, SR-078): no file-system call.
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { MAX_PATH_LENGTH, isPathText, localFolder, unsafeOnWindows } from "./path-text.js";
 
@@ -21,6 +23,9 @@ describe("a typed folder by its text", () => {
     expect(localFolder("x".repeat(MAX_PATH_LENGTH - 1), { ...linux, base: "/ws" })).toBeUndefined();
     // `\` is a name character on POSIX, and device names mean nothing there.
     expect(localFolder("a\\b/CON/", { ...linux, base: "/ws" })).toBe("/ws/a\\b/CON");
+    // The platform of this process by default.
+    const here = path.join(os.tmpdir(), "a");
+    expect(localFolder(here)).toBe(here);
   });
 
   it("on Windows refuses UNC, device, NT and current-drive paths, device names and streams", () => {

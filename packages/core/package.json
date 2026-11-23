@@ -17,21 +17,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./installation": {
-      "types": "./dist/installation.d.ts",
-      "default": "./dist/installation.js"
-    },
     "./os-cache": {
       "types": "./dist/workspace/os-cache.d.ts",
       "default": "./dist/workspace/os-cache.js"
-    },
-    "./list-folder": {
-      "types": "./dist/workspace/list-folder.d.ts",
-      "default": "./dist/workspace/list-folder.js"
-    },
-    "./recent-workspaces": {
-      "types": "./dist/workspace/recent.d.ts",
-      "default": "./dist/workspace/recent.js"
     },
     "./verification-degree": {
       "types": "./dist/evidence/degree-text.d.ts",
@@ -52,10 +40,6 @@
     "./criterion-items": {
       "types": "./dist/model/criterion-items.d.ts",
       "default": "./dist/model/criterion-items.js"
-    },
-    "./criterion-lines": {
-      "types": "./dist/model/criterion-lines.d.ts",
-      "default": "./dist/model/criterion-lines.js"
     },
     "./pasted-markdown": {
       "types": "./dist/reqif/pasted-markdown.d.ts",

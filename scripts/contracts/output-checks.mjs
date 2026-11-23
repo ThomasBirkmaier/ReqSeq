@@ -1,4 +1,4 @@
-// Checks of the titles and marks of output fields (SR-224 AK3, AK4, AK7, D-078; ADR-0002 rule 1), on the fields
+// Checks of the titles and marks of output fields (SR-224 AK3, AK4, D-078; ADR-0002 rule 1), on the fields
 // `output-fields.mjs` finds. Each place of a shared definition is checked once, whatever output reaches it.
 import {
   MARKS,
@@ -24,35 +24,6 @@ const WITH_ELEMENT = new Set([
 
 const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-
-/**
- * The write commands whose output carries content of its own, so the app shows it after they ran (SR-224 AK7):
- * a plan, an import or an export result. Every other write command reports in the command line (SR-223 AK8). The
- * set follows the proposed wording of #1880; it is the one place that changes when the wording does.
- */
-export const SHOWS_OUTPUT = new Set([
-  "element.bulkUpdate",
-  "evidence.enrichJunit",
-  "reqif.import",
-  "reqif.export",
-  "tool.guide",
-]);
-
-/**
- * The read commands whose answer is the state of each entry, which a list would show only on request, so the app
- * keeps their output an output page (SR-224 AK8, D-078): the change since the baseline, the verification status per
- * view. `evidence.withoutPassedTest` is not one: its answer is the selection of the requirements (SR-120 AK2).
- */
-export const STAYS_OUTPUT_PAGE = new Set(["baseline.get", "evidence.status"]);
-
-/**
- * The values of the element itself in an entry of the answer, by command (SR-224 AK9): the output page shows them
- * below the entry's row only with Show details (SR-223 AK6). An `evidence.status` entry is an element as
- * `element.list` gives it with its status; a `baseline.get` entry and every other output have none.
- */
-export const ELEMENT_VALUES = new Map([
-  ["evidence.status", ["type", "version", "repository", "file", "properties", "relations"]],
-]);
 
 const POSITION = "a position or size, not a number of elements";
 const CRITERIA = "counts acceptance criteria, not elements";
@@ -466,10 +437,7 @@ function staleNotCounts(catalog, schemas, notCounts) {
   return errors;
 }
 
-/**
- * `showsOutput` (SR-224 AK7), `staysOutputPage` (SR-224 AK8) and `x-element-values` (SR-224 AK9) in both directions,
- * and the marks a command file may not have.
- */
+/** At most one answer field, and the marks a command file may not have. */
 function checkEntry(cmd, fields) {
   const errors = [];
   const answers = fields.filter((field) => field.schema["x-elements"] === "answer");
@@ -478,86 +446,11 @@ function checkEntry(cmd, fields) {
       `x-elements "answer" on ${answers.map((f) => f.path).join(", ")}: at most one field is the answer`,
     );
   }
-  if (SHOWS_OUTPUT.has(cmd.name) && (cmd.effect !== "write-files" || cmd.showsOutput !== true)) {
-    errors.push("showsOutput: true, since its output carries content of its own (SR-224 AK7)");
-  }
-  if (!SHOWS_OUTPUT.has(cmd.name) && cmd.showsOutput !== undefined) {
-    errors.push(
-      "showsOutput: only the write commands of SHOWS_OUTPUT in output-checks.mjs show their output (SR-224 AK7)",
-    );
-  }
-  errors.push(...outputPageErrors(cmd, fields, answers), ...elementValueErrors(cmd, fields, answers));
   for (const mark of marksIn(cmd.input)) {
     errors.push(`input${mark}: marks are for outputs`);
   }
   if (cmd.outputFields !== undefined) {
     errors.push("outputFields: written by generate.mjs into the generated catalog only");
-  }
-  return errors;
-}
-
-/**
- * `staysOutputPage` (SR-224 AK8) in both directions, and the entries of an answer the app lists as element rows,
- * with a short ID and a title (SR-223 AK6): a record of another shape keeps its values only on an output page. A list
- * of UUIDs is listed by `element.list`.
- */
-function outputPageErrors(cmd, fields, answers) {
-  const errors = [];
-  if (
-    STAYS_OUTPUT_PAGE.has(cmd.name) &&
-    (cmd.effect !== "read" || cmd.staysOutputPage !== true || answers.length !== 1)
-  ) {
-    errors.push(
-      "staysOutputPage: true, since its answer is the state of each entry (SR-224 AK8); a read command with an answer field",
-    );
-  }
-  if (!STAYS_OUTPUT_PAGE.has(cmd.name) && cmd.staysOutputPage !== undefined) {
-    errors.push(
-      "staysOutputPage: only the read commands of STAYS_OUTPUT_PAGE in output-checks.mjs stay an output page (SR-224 AK8)",
-    );
-  }
-  const [answer] = answers;
-  if (answer === undefined || cmd.staysOutputPage === true) {
-    return errors;
-  }
-  const entryFields = fields.filter((field) => field.path.startsWith(`${answer.path}[].`));
-  const has = (name) => entryFields.some((field) => field.path === `${answer.path}[].${name}`);
-  if (entryFields.length > 0 && !(has("shortId") && has("title"))) {
-    errors.push(
-      `output ${answer.path}: the app lists the answer as rows, so its entries need shortId and title, or the command is staysOutputPage (SR-223 AK6)`,
-    );
-  }
-  return errors;
-}
-
-/**
- * `x-element-values` (SR-224 AK9): exactly the names of `ELEMENT_VALUES`, on the answer field of its command, each a
- * field of its items; on no other field of any output.
- */
-function elementValueErrors(cmd, fields, answers) {
-  const errors = [];
-  const wanted = ELEMENT_VALUES.get(cmd.name);
-  const marked = fields.filter((field) => field.schema["x-element-values"] !== undefined);
-  const answer = answers.length === 1 ? answers[0] : undefined;
-  for (const field of marked) {
-    if (wanted === undefined || field !== answer) {
-      errors.push(
-        `output ${field.path}: x-element-values only on the answer field of the commands of ELEMENT_VALUES in output-checks.mjs (SR-224 AK9)`,
-      );
-    }
-  }
-  if (wanted === undefined) {
-    return errors;
-  }
-  const names = answer?.schema["x-element-values"];
-  if (!Array.isArray(names) || !equal([...names].sort(), [...wanted].sort())) {
-    errors.push(`x-element-values on its answer field: exactly ${wanted.join(", ")} (SR-224 AK9)`);
-    return errors;
-  }
-  for (const name of names) {
-    if (!fields.some((field) => field.path === `${answer.path}[].${name}`)) {
-      errors.push(`x-element-values names ${name}, which is no field of the entries of ${answer.path}`);
-    }
   }
   return errors;
 }

@@ -1,6 +1,5 @@
 // Listening on loopback for the local API and the docs server (ADR-0009, ADR-0017): one server per address on one
-// port, with the bounds for a slow sender. Imports only `node:*` and core's `CommandError` module, so the app's main
-// process can start the docs server (`@reqseq/api/docs-server`) without loading the catalog runtime.
+// port, with the bounds for a slow sender.
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";

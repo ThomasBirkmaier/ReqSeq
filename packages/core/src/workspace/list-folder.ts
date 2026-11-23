@@ -12,16 +12,10 @@
 // `lstat` per entry on the event loop, outside the slot and its timeout. It never follows a link. On
 // Windows libuv reports every reparse point (links, junctions, OneDrive and Cloud Files placeholders,
 // deduplicated files, app execution aliases) as a link.
-//
-// Main loads this module on its own (`@reqseq/core/list-folder`), so it imports only `node:*`,
-// `path-text.ts` and `recent.ts`.
 import fs from "node:fs/promises";
 import type { BoundedRun } from "./recent.js";
 import { createBoundedRunner } from "./recent.js";
 import { localFolder } from "./path-text.js";
-
-// The slot of main for typed paths, which main's listing of "Open workspace" shares (`WorkspaceChecks`).
-export { typedPathRun } from "./recent.js";
 
 /** A listing without an answer this long after it was asked counts as unreadable. */
 export const LIST_TIMEOUT_MS = 1_000;

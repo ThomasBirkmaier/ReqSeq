@@ -6,7 +6,6 @@
   "effect": "write-files",
   "whileReadOnly": "allow",
   "whileReadOnlyReason": "Writes only the skill file, which holds no name of the metamodel, so a missing or faulty metamodel does not stop it.",
-  "showsOutput": true,
   "loadUpfront": true,
   "textOutput": "guide",
   "stage": 3,

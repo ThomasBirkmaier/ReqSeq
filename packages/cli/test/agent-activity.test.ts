@@ -1,7 +1,6 @@
-// SR-117 on the command line, the local API and the MCP server: the mode „Agent folgen“ is display
-// state of the app, so none of them can switch it (AK4), and the last API or MCP access they record
-// is the same object on every access (SR-080 AK2, `workspace.activity`). The app's side follows with
-// its own tests. A dry run (SR-246 AK8) is a read of its element, or no access at all.
+// SR-117 on the command line, the local API and the MCP server: the last API or MCP access they
+// record is the same object on every access (SR-080 AK2, `workspace.activity`). A dry run
+// (SR-246 AK8) is a read of its element, or no access at all.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -15,10 +14,9 @@ import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { EXIT, runCli } from "../src/index.js";
+import { runCli } from "../src/index.js";
 
 const runtime = createCommandRuntime();
-const FOLLOW = /follow/i;
 const ELEMENT_ID = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 
 // The OS cache folder (the cache folder of every copy, ADR-0008) lies in a temporary folder on every OS.
@@ -132,12 +130,6 @@ const post = (
     req.end(JSON.stringify(body));
   });
 
-/** Every key of a JSON value, at any depth. */
-const keysOf = (value: unknown): string[] =>
-  typeof value === "object" && value !== null
-    ? Object.entries(value).flatMap(([key, inner]) => [key, ...keysOf(inner)])
-    : [];
-
 /** An API server on a workspace of the fixture, with the cache folder of the copy. */
 const withApi = async <T>(use: (port: number, token: string) => Promise<T>): Promise<T> => {
   const folder = cacheFolder(fixture.root);
@@ -151,41 +143,6 @@ const withApi = async <T>(use: (port: number, token: string) => Promise<T>): Pro
     await workspace.close();
   }
 };
-
-describe("no access but the app switches the mode „Agent folgen“ (SR-117 AK4)", () => {
-  it("[SR-117/AK-k2mf] no catalog command, API path or MCP tool switches the follow mode", async () => {
-    const { commands } = runtime.contracts;
-    expect(commands.filter((c) => FOLLOW.test(c.name) || FOLLOW.test(c.title))).toEqual([]);
-    // The one command of SR-117 only reads, and takes nothing that could switch a mode.
-    const activity = commands.find((c) => c.name === "workspace.activity");
-    expect([activity?.effect, activity?.input]).toEqual([
-      "read",
-      { type: "object", properties: {}, additionalProperties: false },
-    ]);
-    const schema = runtime.contracts.schemas.find(
-      (s) => s["$id"] === "https://reqseq.dev/schemas/activity.schema.json",
-    );
-    expect(schema).toBeDefined();
-    expect(keysOf(schema).filter((key) => /follow|mode/i.test(key))).toEqual([]);
-
-    const help = await cli(["workspace", "--help"]);
-    expect([help.code, FOLLOW.test(help.stdout)]).toEqual([EXIT.ok, false]);
-
-    const session = await mcpSession();
-    try {
-      const { tools } = await session.client.listTools();
-      expect(tools.filter((t) => FOLLOW.test(t.name) || FOLLOW.test(t.title ?? ""))).toEqual([]);
-    } finally {
-      await session.close();
-    }
-
-    await withApi(async (port, token) => {
-      const list = await request(port, token, "GET", "/v1/commands");
-      const listed = (list.body as { commands: { name: string; title: string }[] }).commands;
-      expect(listed.filter((c) => FOLLOW.test(c.name) || FOLLOW.test(c.title))).toEqual([]);
-    });
-  });
-});
 
 describe("the last agent access on every access (SR-117, SR-080 AK2)", () => {
   it("gives the element an MCP session read as the same object through the CLI, the API and MCP", async () => {

@@ -1,25 +1,19 @@
 // The workspaces opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
 // (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
-// one per folder. Two writers: the app's core process records the root it opened (`rememberWorkspace`
-// through `model/recent-record.ts`), and `workspace.markOpened` marks the root it runs on
-// (`markWorkspace`, SR-250); the app's main process reads the list and checks which roots still hold a
-// workspace.
+// one per folder. `workspace.markOpened` marks the root it runs on (`markWorkspace`, SR-250);
+// `rememberWorkspace` is the form that skips instead of refusing, which tests and the command examples
+// use to fill the list. `workspace.recent` reads the list and checks which roots still hold a
+// workspace (`recentWorkspaceStates`).
 //
-// "Open workspace" also takes a typed folder path (AK5): `typedWorkspaceFolder` checks it by its text
-// alone, before any file-system call, and `findTypedWorkspace` finds the workspace from it upwards.
-//
-// Main loads this module on its own (`@reqseq/core/recent-workspaces`), so it imports only `node:*`,
-// `cache.ts` (with the private-file part of the files block) and `workspace-file.ts`: no schema
-// validator, no command. Main makes no synchronous file-system call through it: reading the list never
-// resolves a root again (the canonical `key` is stored), and the existence check is asynchronous and
-// bounded (`createExistenceChecker`).
+// Reading the list never resolves a root again (the canonical `key` is stored), and the existence check
+// is asynchronous and bounded (`createExistenceChecker`).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { RecentWorkspacesFile } from "../generated/types.js";
 import type { CacheEnvironment, PrivateLock } from "./cache.js";
 import { canonicalRoot, lockCacheFile, osCacheFolder, readCacheFile, writeCacheFile } from "./cache.js";
-import { MAX_PATH_LENGTH, isPathText, localFolder, pathsOf } from "./path-text.js";
+import { MAX_PATH_LENGTH, isPathText, pathsOf } from "./path-text.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
 
 /** The file in `<OS cache>/reqseq/`. */
@@ -420,118 +414,14 @@ export function createExistenceChecker(options: ExistenceOptions = {}): Existenc
   return (roots) => Promise.all(roots.map((root) => run(() => holdsWorkspace(stat, root), timeoutMs)));
 }
 
-/**
- * The existence checks of a process: one for the list, one for the root a person chose, one for the
- * folders of a typed path. Each has slots of its own, so a `stat` that hangs in one never blocks another.
- */
-export interface WorkspaceChecks {
-  /** The roots of the list when it is shown: EXISTS_SLOTS `stat`s at once. */
-  readonly list: ExistenceChecker;
-  /**
-   * The root of the list chosen to open (it is checked again): one slot of its own, so roots of the list
-   * that hang on a dead share cannot keep a local workspace from opening. A root that hangs in the list
-   * counts as missing there and is never chosen to open.
-   */
-  readonly chosen: ExistenceChecker;
-  /**
-   * The folders of a typed path (`findTypedWorkspace`): one slot of its own, so a typed path on a dead
-   * mount blocks only further typed paths, never the choice of a root of the list.
-   */
-  readonly typed: ExistenceChecker;
-  /**
-   * The one slot behind `typed`: other file-system calls on a typed path (the folder listing of
-   * `list-folder.ts` in the app's main process) share it, so main takes no further thread.
-   */
-  readonly typedRun: BoundedRun;
-}
-
-/** The three checkers of a process; `stat` and the timeout for tests. */
-export function createWorkspaceChecks(
-  options: Pick<ExistenceOptions, "stat" | "timeoutMs"> = {},
-): WorkspaceChecks {
-  const typedRun = createBoundedRunner(1);
-  return {
-    list: createExistenceChecker(options),
-    chosen: createExistenceChecker({ ...options, slots: 1 }),
-    typed: createExistenceChecker({ ...options, run: typedRun }),
-    typedRun,
-  };
-}
-
-/** The checkers of this process (the app's main process uses them): at most 4 `stat`s at once. */
-const checks: WorkspaceChecks = createWorkspaceChecks();
-
-/** The slot of this process for typed paths (`WorkspaceChecks.typedRun`), for main's folder listing. */
-export const typedPathRun: BoundedRun = checks.typedRun;
-
-/**
- * Whether `<root>/reqseq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default
- * with the checker for a chosen root (`WorkspaceChecks.chosen`).
- */
-export async function workspaceExists(
-  root: string,
-  check: ExistenceChecker = checks.chosen,
-): Promise<boolean> {
-  const [exists] = await check([root]);
-  return exists === true;
-}
+/** The existence check of this process for the roots of the list: EXISTS_SLOTS `stat`s at once. */
+const listCheck: ExistenceChecker = createExistenceChecker();
 
 /** The list with whether each root still holds a workspace (`createExistenceChecker`); never rejects. */
 export async function recentWorkspaceStates(
   options: { readonly environment?: CacheEnvironment; readonly check?: ExistenceChecker } = {},
 ): Promise<readonly RecentWorkspaceState[]> {
   const list = await readRecentWorkspaces(options.environment);
-  const exists = await (options.check ?? checks.list)(list.map((entry) => entry.root));
+  const exists = await (options.check ?? listCheck)(list.map((entry) => entry.root));
   return list.map((entry, index) => ({ ...entry, exists: exists[index] === true }));
-}
-
-export interface TypedPathOptions {
-  /** Default the platform of this process. */
-  readonly platform?: NodeJS.Platform;
-  /** The home folder, which `~` stands for (`os.homedir()`). */
-  readonly home: string;
-}
-
-/**
- * The folder a typed path names (SR-131 AK5), by its text alone, before any file-system call; undefined
- * when it is refused. `~` and `~/…` stand for the home folder. Refused: a relative path, NUL and more than
- * MAX_ROOT_LENGTH characters. On Windows only a path on a drive (`C:\…`) is taken, after `~` is expanded
- * and the path normalised: a UNC or device path (`\\host\share`, `\\?\…`, `\\.\…`, `//host`, and the NT
- * prefix `\??\…`, also as `/??/…`), whose check would make Windows open a connection to that host
- * (SR-078), is refused, and so is `\foo` (relative to the current drive). A mapped network drive (`Z:\…`)
- * is a path on a drive: its check reaches the share, the user's choice, as for an automounted path
- * (ADR-0010). A Windows device or stream name (`CON`, `a:b`) is refused too. The path is normalised (`.`
- * and `..` by their text) and has no separator at its end (`localFolder` without a base).
- */
-export function typedWorkspaceFolder(text: string, options: TypedPathOptions): string | undefined {
-  return localFolder(text, options);
-}
-
-/**
- * The nearest folder, from `folder` (absolute, from `typedWorkspaceFolder`) upwards, whose
- * `reqseq-workspace.yaml` is a file, as `--workspace` of the CLI finds it; undefined when none up to the
- * root of the file system has one. Each folder is checked with the bounded checker for typed paths
- * (`WorkspaceChecks.typed`). A folder whose check timed out ends the walk with undefined: a slow level
- * never opens a workspace above the folder that was meant. Never rejects.
- */
-export async function findTypedWorkspace(
-  folder: string,
-  options: { readonly platform?: NodeJS.Platform; readonly check?: ExistenceChecker } = {},
-): Promise<string | undefined> {
-  const paths = pathsOf(options.platform ?? process.platform);
-  const check = options.check ?? checks.typed;
-  for (let dir = folder; ;) {
-    const [exists] = await check([dir]);
-    if (exists === true) {
-      return dir;
-    }
-    if (exists === "timeout") {
-      return undefined;
-    }
-    const parent = paths.dirname(dir);
-    if (parent === dir) {
-      return undefined;
-    }
-    dir = parent;
-  }
 }

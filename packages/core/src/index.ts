@@ -26,13 +26,9 @@ export {
   recentWorkspaceStates,
   recentWorkspacesFolder,
   rememberWorkspace,
-  workspaceExists,
   workspaceKey,
-  findTypedWorkspace,
-  typedWorkspaceFolder,
 } from "./workspace/recent.js";
 export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
-export { recordOpenedWorkspace } from "./model/recent-record.js";
 export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks, jsonLines } from "./files/index.js";
 export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
 export {

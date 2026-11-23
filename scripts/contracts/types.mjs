@@ -90,7 +90,6 @@ const IGNORED_KEYWORDS = new Set([
   "x-normal",
   "x-elements",
   "x-key",
-  "x-element-values",
   "deprecated",
   "readOnly",
   "writeOnly",
