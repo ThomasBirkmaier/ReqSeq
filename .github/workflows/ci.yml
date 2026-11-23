@@ -467,9 +467,30 @@ jobs:
           Set-NetFirewallProfile -All -Enabled True
           Get-NetFirewallProfile | Format-Table Name, Enabled, DefaultOutboundAction -AutoSize
           Add-Content -Path $env:GITHUB_ENV -Value 'REQSEQ_SHELL_E2E_RECORD=windows'
+      # What the e2e suite's recorder on macOS needs (packages/shell/e2e/record-macos.ts, ADR-0021 A8): the test group
+      # whose connections the suite's pf rules refuse, and a sudoers rule that lets the runner user run a command as
+      # itself in that group, so that the suite starts the shell there (the runner's own rule covers root for eslogger,
+      # tcpdump and pfctl). The suite loads and removes its own pf anchor and recorders. Without the variable this step
+      # sets, the recorded tests fail in CI instead of skipping. The IPv6 addresses are printed because AK7 cannot show
+      # a refusal of IPv6 on a runner with link-local IPv6 only.
+      - name: Shell - recorders (macOS)
+        if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'macOS' }}
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          sudo dscl . -create /Groups/reqseq-e2e
+          sudo dscl . -create /Groups/reqseq-e2e PrimaryGroupID 4265
+          sudo dscl . -append /Groups/reqseq-e2e GroupMembership "$USER"
+          echo "$USER ALL=($USER:reqseq-e2e) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/zz-reqseq-shell-e2e > /dev/null
+          sudo chmod 440 /etc/sudoers.d/zz-reqseq-shell-e2e
+          sudo visudo -c -q
+          sudo dscacheutil -flushcache
+          test "$(sudo -n -u "$USER" -g reqseq-e2e id -gn)" = reqseq-e2e
+          echo "IPv6 addresses: $(ifconfig | awk '/inet6 / { print $2 }' | tr '\n' ' ')"
+          echo 'REQSEQ_SHELL_E2E_RECORD=macos' >> "$GITHUB_ENV"
       # The e2e suite (packages/shell/e2e/) starts the shell with the CLI of the checkout. On Linux it runs without
       # network, on a virtual display and with a session bus of its own, and records the shell with strace (A8); on
-      # Windows it records with the event log, ETW and firewall rules.
+      # Windows it records with the event log, ETW and firewall rules, on macOS with eslogger, pktap and pf.
       - name: Shell - e2e
         if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os != 'Linux' }}
         timeout-minutes: 10
@@ -486,6 +507,18 @@ jobs:
           "firewall rules left: $(@(Get-NetFirewallRule -Group reqseq-shell-e2e -ErrorAction SilentlyContinue).Count)"
           # `logman stop` fails when the suite already stopped the trace; that is the normal case.
           $global:LASTEXITCODE = 0
+      # The same for macOS: eslogger and tcpdump of record-macos.ts, its pf anchor, the sudoers rule and the group.
+      - name: Shell - remove the recorders (macOS)
+        if: ${{ always() && runner.os == 'macOS' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          sudo -n pkill -KILL -x eslogger || true
+          sudo -n pkill -TERM -x tcpdump || true
+          sudo -n pfctl -q -a com.apple/reqseq-shell-e2e -F all || true
+          echo "pf rules left: $(sudo -n pfctl -a com.apple/reqseq-shell-e2e -s rules 2> /dev/null | grep -c block)"
+          sudo -n rm -f /etc/sudoers.d/zz-reqseq-shell-e2e
+          sudo -n dscl . -delete /Groups/reqseq-e2e 2> /dev/null || true
       - name: Shell - e2e without network (unshare -rn, Linux)
         if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'Linux' }}
         timeout-minutes: 10
