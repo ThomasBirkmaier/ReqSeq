@@ -218,6 +218,16 @@ jobs:
       # 100 % cannot be reached on that system.
       # Its own bound, about 20 % over the slowest green Windows run (26.1 minutes, #2039): a hang ends here, names
       # this step and leaves the job time for the steps after it. Ubuntu and macOS end within their job bounds first.
+      # The hosted Windows runner scans every new file and process in real time, and most unit tests build Git
+      # fixtures and spawn processes (#2439, #701). Runs that are not nightly turn the scan off; the nightly keeps it,
+      # so problems users with the scanner would see (file locks on rename) still show there.
+      - name: Virus scanner's real-time scan off (Windows, not nightly)
+        if: ${{ !cancelled() && runner.os == 'Windows' && github.event_name != 'schedule' }}
+        shell: pwsh
+        run: |
+          "Real-time scan before: $((Get-MpComputerStatus).RealTimeProtectionEnabled)"
+          Set-MpPreference -DisableRealtimeMonitoring $true
+          "Real-time scan after: $((Get-MpComputerStatus).RealTimeProtectionEnabled)"
       - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 32
