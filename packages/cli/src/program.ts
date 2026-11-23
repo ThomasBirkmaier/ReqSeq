@@ -265,7 +265,6 @@ const PAGING_FLAGS: Readonly<Record<string, string>> = {
 const COMMAND_FLAGS: Readonly<Record<string, string>> = {
   json: "--json",
   yaml: "--yaml",
-  jsonl: "--jsonl",
   input: "--input <json|@file|->",
   workspace: "--workspace <path>",
 };
