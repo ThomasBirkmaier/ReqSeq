@@ -26,6 +26,7 @@ __pycache__/
 /build/package/
 /build/docs-site/
 /build/node-archives/
+/build/shell/
 /delivery/
 
 # User documentation site (ADR-0017): the content folder the generator fills, and Astro's cache

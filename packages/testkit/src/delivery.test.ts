@@ -6,6 +6,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DeliveryNames, DeliverySystem } from "./delivery.js";
 import {
+  SHELL_E2E_MARK,
+  SHELL_RELEASE_MARK,
   WINDOWS_TAR,
   cliTarballName,
   connectProbe,
@@ -17,6 +19,7 @@ import {
   isBuildLeftover,
   isElectronPart,
   offlineProblems,
+  plistString,
   unpackCommand,
 } from "./delivery.js";
 
@@ -24,6 +27,7 @@ const NAMES: DeliveryNames = {
   productName: "Tool",
   appId: "org.example.tool",
   launcher: "tool",
+  shellProgram: "tool-shell",
   packageScope: "@t/",
   cliTarball: "tool-cli-${version}.tgz",
   artifact: "${productName}-${version}-${os}-${arch}.${ext}",
@@ -63,8 +67,16 @@ const writeDelivery = async (root: string, system: DeliverySystem): Promise<void
   await write(path.join(layout.web, "index.html"), "");
   await write(path.join(layout.docs, "index.html"), "");
   await write(path.join(layout.docs, "search-index.json"), "{}");
-  await write(path.join("examples", "junit", "README.md"), "");
+  await write(path.join(layout.examples, "README.md"), "");
   await write(layout.notices, "katex 0.19.0\n\nNode.js 22.23.5\n");
+  await write(layout.shellStart, `ELF ${SHELL_RELEASE_MARK}`, 0o755);
+  await write(layout.shellBinary, `ELF ${SHELL_RELEASE_MARK}`, 0o755);
+  if (layout.infoPlist !== undefined) {
+    await write(
+      layout.infoPlist,
+      "<dict>\n\t<key>CFBundleExecutable</key>\n\t<string>Tool</string>\n\t<key>CFBundleIdentifier</key>\n\t<string>org.example.tool</string>\n</dict>\n",
+    );
+  }
 };
 
 describe("names", () => {
@@ -80,25 +92,43 @@ describe("names", () => {
     expect(deliveryFolderName(NAMES, "win", "0.3.0")).toBe("Tool-0.3.0-win-x64");
   });
 
-  it("lays out the launcher, the runtime, the program, the pages, the documentation and the notices per system", () => {
-    const common = {
-      lib: "lib",
-      web: path.join("lib", "web"),
-      docs: path.join("lib", "docs"),
-      notices: "THIRD_PARTY_NOTICES.txt",
-    };
-    for (const system of ["mac", "linux"] as const) {
-      expect(deliveryLayout(NAMES, system)).toEqual({
-        launcher: path.join("bin", "tool"),
-        runtime: path.join("runtime", "node"),
-        ...common,
-        executables: [path.join("bin", "tool"), path.join("runtime", "node")],
-      });
-    }
+  it("lays out the shell, the launcher, the runtime, the program, the pages, the documentation and the notices per system", () => {
+    const parts = (root: string): Record<string, string> => ({
+      root,
+      lib: path.join(root, "lib"),
+      web: path.join(root, "lib", "web"),
+      docs: path.join(root, "lib", "docs"),
+      examples: path.join(root, "examples", "junit"),
+      notices: path.join(root, "THIRD_PARTY_NOTICES.txt"),
+    });
+    const resources = path.join("Tool.app", "Contents", "Resources");
+    const bundled = path.join("Tool.app", "Contents", "MacOS", "Tool");
+    expect(deliveryLayout(NAMES, "mac")).toEqual({
+      shell: "Tool.app",
+      shellStart: bundled,
+      shellBinary: bundled,
+      infoPlist: path.join("Tool.app", "Contents", "Info.plist"),
+      launcher: path.join(resources, "bin", "tool"),
+      runtime: path.join(resources, "runtime", "node"),
+      ...parts(resources),
+      executables: [path.join(resources, "bin", "tool"), path.join(resources, "runtime", "node"), bundled],
+    });
+    expect(deliveryLayout(NAMES, "linux")).toEqual({
+      shell: "Tool",
+      shellStart: "Tool",
+      shellBinary: "tool-shell",
+      launcher: path.join("bin", "tool"),
+      runtime: path.join("runtime", "node"),
+      ...parts(""),
+      executables: [path.join("bin", "tool"), path.join("runtime", "node"), "Tool", "tool-shell"],
+    });
     expect(deliveryLayout(NAMES, "win")).toEqual({
+      shell: "Tool.exe",
+      shellStart: "Tool.exe",
+      shellBinary: "Tool.exe",
       launcher: path.join("bin", "tool.cmd"),
       runtime: path.join("runtime", "node.exe"),
-      ...common,
+      ...parts(""),
       executables: [],
     });
   });
@@ -144,6 +174,39 @@ describe("inspectDelivery", () => {
       `missing: ${path.join("lib", "docs", "search-index.json")}`,
       `missing: ${path.join("examples", "junit", "README.md")}`,
       "missing: THIRD_PARTY_NOTICES.txt",
+      "missing: Tool",
+      "missing: tool-shell",
+    ]);
+  });
+
+  it("finds a shell that is no release build or holds the e2e driver, and an Info.plist with other names", async () => {
+    const root = await tempFolder();
+    await writeDelivery(root, "mac");
+    const layout = deliveryLayout(NAMES, "mac");
+    await fs.writeFile(path.join(root, layout.shellBinary), `reqseq-shell build: e2e ${SHELL_E2E_MARK}`);
+    await fs.writeFile(
+      path.join(root, String(layout.infoPlist)),
+      "<key>CFBundleExecutable</key><string>Other</string>",
+    );
+    expect(await inspectDelivery(root, NAMES, "mac", NOTICES)).toEqual([
+      `not a release build of the shell: ${layout.shellBinary}`,
+      `the shell holds the e2e driver: ${layout.shellBinary}`,
+      `${String(layout.infoPlist)} does not give CFBundleExecutable Tool`,
+      `${String(layout.infoPlist)} does not give CFBundleIdentifier org.example.tool`,
+    ]);
+    expect(plistString("<key>A</key>\n  <string>b</string>", "A")).toBe("b");
+    expect(plistString("<key>A</key>", "A")).toBeUndefined();
+  });
+
+  it("names no shell findings when the shell's files are missing", async () => {
+    const root = await tempFolder();
+    await writeDelivery(root, "mac");
+    const layout = deliveryLayout(NAMES, "mac");
+    await fs.rm(path.join(root, layout.shellBinary));
+    await fs.rm(path.join(root, String(layout.infoPlist)));
+    expect(await inspectDelivery(root, NAMES, "mac", NOTICES)).toEqual([
+      `missing: ${layout.shellBinary}`,
+      `missing: ${String(layout.infoPlist)}`,
     ]);
   });
 

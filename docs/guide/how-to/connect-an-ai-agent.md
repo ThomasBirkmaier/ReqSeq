@@ -18,7 +18,7 @@ Run Claude Code's command in the folder where you start Claude Code. For every c
 
 The setup holds as long as ReqSeq stays where it is: after a move, print it again. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
-From a downloaded release, the setup starts the launcher `bin/reqseq` on macOS and Linux. On Windows, where a client cannot start `reqseq.cmd` without a shell, it names Node.
+From a downloaded release, the setup starts the launcher `bin/reqseq` on Linux and `ReqSeq.app/Contents/Resources/bin/reqseq` on macOS, where it holds as long as `ReqSeq.app` stays where it is. On Windows, where a client cannot start `reqseq.cmd` without a shell, it names Node.
 
 From the CLI tarball (`npm install -g`), it starts Node with the command line's `bin.js` on every system.
 

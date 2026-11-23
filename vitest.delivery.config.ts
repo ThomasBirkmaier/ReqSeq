@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // ADR-0014, ADR-0011 (ThomasBirkmaier/ReqSeq-archive#324): the delivery tests install the built artifacts (REQSEQ_DELIVERY_DIR) and inspect
-// and start them. Only the release workflow runs them: `pnpm test:delivery`, on Linux inside a network
+// and start them, the desktop shell included (packages/shell/test/delivery/). Only the release workflow runs them: `pnpm test:delivery`, on Linux inside a network
 // namespace with loopback only, as a non-root user (the app starts only with its sandbox on).
 // No coverage: the packaged processes are not measured; the unit tests carry the coverage thresholds (ADR-0016).
 export default defineConfig({
@@ -18,7 +18,14 @@ export default defineConfig({
     hookTimeout: 120_000,
     reporters: [
       "agent",
-      ["junit", { outputFile: "test-results/junit-delivery.xml", addFileAttribute: true }],
+      // A second run names its own file (scripts/package/delivery-tests.sh), which joins this one.
+      [
+        "junit",
+        {
+          outputFile: process.env.REQSEQ_DELIVERY_JUNIT ?? "test-results/junit-delivery.xml",
+          addFileAttribute: true,
+        },
+      ],
     ],
   },
 });

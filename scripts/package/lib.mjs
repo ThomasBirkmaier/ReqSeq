@@ -383,6 +383,65 @@ export const DELIVERY_SYSTEMS = {
   win: { arch: "x64", ext: "zip", launcher: (name) => `${name}.cmd`, node: "node.exe" },
 };
 
+/**
+ * Where the desktop shell and the rest go in the folder of the archive of `system` (ADR-0021, SR-249 AK3), as
+ * relative paths: `root`, the folder of `bin/`, `runtime/`, `lib/`, `examples/` and the notices
+ * (`<product>.app/Contents/Resources` on macOS, else the folder itself); `shell`, each file of the shell's build
+ * (`from`, the name Cargo gives it) and where it goes (`to`); on macOS the bundle's `Info.plist` and icon.
+ */
+export function shellLayout(names, system) {
+  const product = names.productName;
+  if (system === "mac") {
+    const contents = path.join(`${product}.app`, "Contents");
+    return {
+      root: path.join(contents, "Resources"),
+      shell: [{ from: names.shellProgram, to: path.join(contents, "MacOS", product) }],
+      infoPlist: path.join(contents, "Info.plist"),
+      icon: path.join(contents, "Resources", "icon.icns"),
+    };
+  }
+  if (system === "win") {
+    return { root: "", shell: [{ from: `${names.shellProgram}.exe`, to: `${product}.exe` }] };
+  }
+  // The launcher crate's program is named after the product (packages/shell/launcher/Cargo.toml).
+  return {
+    root: "",
+    shell: [
+      { from: product, to: product },
+      { from: names.shellProgram, to: names.shellProgram },
+    ],
+  };
+}
+
+/** The `Info.plist` of the macOS bundle: its executable, the app id, the icon and the version. */
+export function infoPlist(names, version) {
+  const entries = [
+    ["CFBundleDevelopmentRegion", "en"],
+    ["CFBundleDisplayName", names.productName],
+    ["CFBundleExecutable", names.productName],
+    ["CFBundleIconFile", "icon.icns"],
+    ["CFBundleIdentifier", names.appId],
+    ["CFBundleInfoDictionaryVersion", "6.0"],
+    ["CFBundleName", names.productName],
+    ["CFBundlePackageType", "APPL"],
+    ["CFBundleShortVersionString", version],
+    ["CFBundleVersion", version],
+    ["LSMinimumSystemVersion", "26.0"],
+  ];
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    "<dict>",
+    ...entries.flatMap(([key, value]) => [`\t<key>${key}</key>`, `\t<string>${value}</string>`]),
+    "\t<key>NSHighResolutionCapable</key>",
+    "\t<true/>",
+    "</dict>",
+    "</plist>",
+    "",
+  ].join("\n");
+}
+
 /** A name pattern of names.json filled in for `system` and `version`. */
 const deliveryName = (pattern, names, system, version) => {
   const { arch, ext } = DELIVERY_SYSTEMS[system];

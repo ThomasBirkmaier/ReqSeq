@@ -467,17 +467,25 @@ mod tests {
         let program = dir.join("opener");
         std::fs::write(
             &program,
-            format!("#!/bin/sh\nprintf '%s|' \"$#\" \"$@\" > '{}'\n", record.display()),
+            format!(
+                "#!/bin/sh\nprintf '%s|' \"$$\" \"$#\" \"$@\" > '{}'\n",
+                record.display()
+            ),
         )
         .unwrap();
         std::fs::set_permissions(&program, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        // A FIFO: the read below ends when the opener has written and closed it, with no timing in the test (#2414).
+        assert!(Command::new("mkfifo").arg(&record).status().unwrap().success());
         open_with(&program, "https://example.org/a b").unwrap();
-        wait_until(Instant::now() + Duration::from_secs(5), || record.exists());
-        thread::sleep(Duration::from_millis(50));
-        assert_eq!(
-            std::fs::read_to_string(&record).unwrap(),
-            "1|https://example.org/a b|"
-        );
+        let written = std::fs::read_to_string(&record).unwrap();
+        let (pid, args) = written.split_once('|').unwrap();
+        assert_eq!(args, "1|https://example.org/a b|");
+        // The opener is reaped by the thread of `open_with`: until then it is a zombie that signal 0 still reaches.
+        let pid: libc::pid_t = pid.parse().unwrap();
+        // SAFETY: probing with signal 0 sends nothing.
+        assert!(wait_until(Instant::now() + Duration::from_secs(5), || unsafe {
+            libc::kill(pid, 0)
+        } != 0));
         let error = open_with(&dir.join("missing"), "https://example.org/").unwrap_err();
         assert!(error.contains("missing"), "{error}");
         let file = File::options().write(true).open("/dev/null").unwrap();
