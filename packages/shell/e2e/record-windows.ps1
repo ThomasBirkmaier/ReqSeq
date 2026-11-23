@@ -64,7 +64,7 @@ function Export-Log([string]$log, [int]$id, [datetime]$start) {
 
 switch ($Action) {
   # What the recording needs and whether it is there: elevation, the audit of process creation with command
-  # lines and of refused connections, the DNS client log and the firewall profiles.
+  # lines and of permitted and refused connections, the DNS client log and the firewall profiles.
   'check' {
     $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
     $cmdLine = Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -ErrorAction SilentlyContinue
@@ -73,7 +73,7 @@ switch ($Action) {
       elevated          = $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
       processCreation   = Audit-Setting '{0CCE922B-69AE-11D9-BED3-505054503030}'
       commandLine       = ($null -ne $cmdLine -and $cmdLine.ProcessCreationIncludeCmdLine_Enabled -eq 1)
-      refusedConnection = Audit-Setting '{0CCE9226-69AE-11D9-BED3-505054503030}'
+      connectionAudit   = Audit-Setting '{0CCE9226-69AE-11D9-BED3-505054503030}'
       dnsLog            = ($null -ne $dns -and $dns.IsEnabled)
       profiles          = @(Get-NetFirewallProfile | ForEach-Object { [ordered]@{ name = [string]$_.Name; enabled = [string]$_.Enabled } })
       engines           = @(Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application\*\msedgewebview2.exe', 'C:\Program Files\Microsoft\EdgeWebView\Application\*\msedgewebview2.exe' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
@@ -115,12 +115,13 @@ switch ($Action) {
     $processed = if ($sum -match 'Events\s+Processed\s+(\d+)') { [int]$Matches[1] } else { -1 }
     Write-Out (ConvertTo-Json -InputObject ([ordered]@{ buffersLost = $buffers; eventsLost = $events; eventsProcessed = $processed }))
   }
-  # Process creation (4688), refused connections (5157) and name lookups (3006) since -Since.
+  # Process creation (4688), permitted (5156) and refused connections (5157), and name lookups (3006) since -Since.
   'events' {
     $start = [datetime]::Parse($Since, $null, [System.Globalization.DateTimeStyles]::RoundtripKind).ToLocalTime()
     $result = [ordered]@{
       processes   = Export-Log 'Security' 4688 $start
       refused     = Export-Log 'Security' 5157 $start
+      permitted   = Export-Log 'Security' 5156 $start
       lookups     = Export-Log 'Microsoft-Windows-DNS-Client/Operational' 3006 $start
     }
     Write-Out (ConvertTo-Json -InputObject $result -Depth 4)

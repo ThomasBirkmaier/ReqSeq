@@ -1,12 +1,18 @@
 // How the Windows recorder names a write (record-windows.ts); no Windows needed.
 import { describe, expect, it } from "vitest";
-import { descendants, fileEvents, parseFileLines } from "./record-windows.js";
+import { descendants, fileEvents, heldByTree, parseFileLines } from "./record-windows.js";
 
 const named = (raw: string): string => raw.toLowerCase();
 
 describe("the Windows recorder's process tree", () => {
   it("takes a parent as the process that held its ID when the child started, as Windows reuses IDs", () => {
-    const at = (pid: number, parent: number, program: string) => ({ pid, parent, program, commandLine: "" });
+    const at = (pid: number, parent: number, program: string) => ({
+      time: "",
+      pid,
+      parent,
+      program,
+      commandLine: "",
+    });
     const created = [
       at(7, 1, "control.exe"), // before the shell, under the ID the shell gets later
       at(9, 7, "child-of-control.exe"),
@@ -22,6 +28,18 @@ describe("the Windows recorder's process tree", () => {
       "git.exe",
       "conhost.exe",
     ]);
+  });
+});
+
+describe("the Windows recorder's connections and lookups", () => {
+  it("counts an event for the process that held its ID at its time, not for one that held the ID before", () => {
+    const at = (time: string, pid: number) => ({ time, pid, parent: 1, program: "x.exe", commandLine: "" });
+    const created = [at("2026-01-01T00:00:01", 7), at("2026-01-01T00:00:05", 7)];
+    const tree = new Set([1]);
+    expect(heldByTree(created, tree, 7, "2026-01-01T00:00:00")).toBe(false);
+    expect(heldByTree(created, tree, 7, "2026-01-01T00:00:03")).toBe(false);
+    expect(heldByTree(created, tree, 7, "2026-01-01T00:00:05")).toBe(true);
+    expect(heldByTree(created, tree, 8, "2026-01-01T00:00:09")).toBe(false);
   });
 });
 
@@ -61,6 +79,19 @@ describe("the Windows recorder's file events", () => {
       ["\\device\\harddiskvolume3\\x\\a.txt", false],
       [undefined, true],
     ]);
+  });
+
+  it("names a write through its file key when the Create of its file object has no name", () => {
+    const lines = parseFileLines(
+      [
+        "12\t100\t0xA\t\t0x01000000\tC:\\x\\old.txt",
+        "10\t4\t\t0xK1\t\t\\Device\\HarddiskVolume3\\x\\a.txt",
+        "12\t100\t0xA\t\t0x01000000\t",
+        "16\t100\t0xA\t0xK1\t\t",
+      ].join("\n"),
+    );
+    const { writes } = fileEvents(lines, new Set([100]), named);
+    expect(writes.map((w) => [w.path, w.unnamed])).toEqual([["\\device\\harddiskvolume3\\x\\a.txt", false]]);
   });
 
   it("names a write on an inherited handle from the Create of the process that made it, and reports no open for it", () => {
