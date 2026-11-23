@@ -363,17 +363,27 @@ export function activeTags(text, file = "") {
 /**
  * The paths below root that Git ignores, relative to root with `/`, a folder with a trailing `/`
  * (`build/package/`): copies there, such as a staged delivery, are no tests of the checkout (#2410).
- * Empty when root is not in a Git checkout.
+ * Empty when root is not in a Git checkout; any other failure of Git is named on stderr, since the copies then
+ * count again.
  */
 function gitIgnored(root) {
   try {
     const out = execFileSync(
       "git",
       ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"],
-      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, LC_ALL: "C" },
+        stdio: ["ignore", "pipe", "pipe"],
+        maxBuffer: 64 * 1024 * 1024,
+      },
     );
     return new Set(out.split("\0").filter(Boolean));
-  } catch {
+  } catch (error) {
+    if (!/not a git repository/i.test(String(error.stderr ?? ""))) {
+      console.warn(`trace-check: git-ignored files are counted, git ls-files failed: ${error.message}`);
+    }
     return new Set();
   }
 }
