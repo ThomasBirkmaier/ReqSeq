@@ -8,7 +8,7 @@ builds it; pull requests never do.
 | `names.json` | Every product, artifact and launcher name: product name, app id, launcher, the desktop shell's own program (`shellProgram`), package scope, CLI tarball, artifact name pattern and the pattern of the one folder each archive holds. A rename changes this file only, and the launcher crate's program name (`packages/shell/launcher/Cargo.toml`). |
 | `node.json` | The Node runtime the archives ship: its exact version (of the major version in `.nvmrc`), the download address and, per system, the file name and SHA-256 of Node's archive, taken from the `SHASUMS256.txt` of that version on nodejs.org. Only `bin/node` (`node.exe`) and `LICENSE` are taken from it: no npm, npx or corepack. |
 | `launchers/` | The command line launcher `bin/<launcher>` (POSIX shell) and `bin\<launcher>.cmd` (Windows): they run `lib/dist/bin.js` on `runtime/node` and unset `NODE_OPTIONS`. |
-| `icon/` | The icon (#410): the master `icon.svg` and what `scripts/icon/generate.mjs` renders from it (`icon.icns`, `icon.ico`, `icons/<size>x<size>.png`; also the icon of `ReqSeq.app` and `ReqSeq.exe` and the docs favicons). After changing the master, run `node scripts/icon/generate.mjs` and commit its output. |
+| `icon/` | The icon (#410): the master `icon.svg` and what `scripts/icon/generate.mjs` renders from it (`icon.icns`, `icon.ico`, `icons/<size>x<size>.png`; also the icon of `ReqSeq.app` and `ReqSeq.exe` and the docs favicons). After changing the master, run `node scripts/icon/generate.mjs` (Playwright's Chromium of `packages/web`, or `REQSEQ_CHROMIUM=<path>`) and commit its output. |
 
 ## An archive
 
