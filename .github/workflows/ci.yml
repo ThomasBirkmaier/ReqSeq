@@ -444,12 +444,48 @@ jobs:
         id: shell-e2e-build
         if: ${{ !cancelled() && steps.shell-fetch.outcome == 'success' }}
         run: pnpm --filter @reqseq/shell build:e2e
+      # The audit the e2e suite's recorder on Windows reads (packages/shell/e2e/record-windows.ts, ADR-0021 A8): process
+      # creation with command lines (4688), permitted and refused connections (5156, 5157), the DNS client log (3006),
+      # and every firewall profile on. The Security log gets 256 MB, so that it does not wrap during the recorded run.
+      # The suite adds and removes its own firewall rules and ETW trace. Without the variable this step sets, the
+      # recorded tests fail in CI instead of skipping.
+      - name: Shell - recorders (Windows)
+        if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'Windows' }}
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          auditpol /set /subcategory:"{0CCE922B-69AE-11D9-BED3-505054503030}" /success:enable
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          wevtutil sl Microsoft-Windows-DNS-Client/Operational /e:true
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          wevtutil sl Security /ms:268435456
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Set-NetFirewallProfile -All -Enabled True
+          Get-NetFirewallProfile | Format-Table Name, Enabled, DefaultOutboundAction -AutoSize
+          Add-Content -Path $env:GITHUB_ENV -Value 'REQSEQ_SHELL_E2E_RECORD=windows'
       # The e2e suite (packages/shell/e2e/) starts the shell with the CLI of the checkout. On Linux it runs without
-      # network, on a virtual display and with a session bus of its own, and records the shell with strace (A8).
+      # network, on a virtual display and with a session bus of its own, and records the shell with strace (A8); on
+      # Windows it records with the event log, ETW and firewall rules.
       - name: Shell - e2e
         if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os != 'Linux' }}
         timeout-minutes: 10
         run: pnpm --filter @reqseq/shell test:e2e
+      # When the suite is cancelled at its bound, its own cleanup does not run: the firewall rules and the system-wide
+      # Kernel-File trace of record-windows.ts would stay for the rest of the job.
+      - name: Shell - remove the recorders (Windows)
+        if: ${{ always() && runner.os == 'Windows' }}
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          logman stop reqseq-shell-e2e -ets 2>&1 | Out-Null
+          Get-NetFirewallRule -Group reqseq-shell-e2e -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+          "firewall rules left: $(@(Get-NetFirewallRule -Group reqseq-shell-e2e -ErrorAction SilentlyContinue).Count)"
+          # `logman stop` fails when the suite already stopped the trace; that is the normal case.
+          $global:LASTEXITCODE = 0
       - name: Shell - e2e without network (unshare -rn, Linux)
         if: ${{ !cancelled() && steps.shell-e2e-build.outcome == 'success' && runner.os == 'Linux' }}
         timeout-minutes: 10

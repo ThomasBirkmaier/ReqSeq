@@ -116,7 +116,7 @@
   border-radius: 2px;
   transition: width 300ms var(--ease);
 }
-/* On a phone the headline sits in the list header, as one line. */
+/* Where the panel is hidden, its headline and the changes since the baseline sit in the list header. */
 .ov-mini {
   display: none;
 }
@@ -129,13 +129,16 @@
   .app:not(.wide) .ov {
     display: none;
   }
-}
-@media (max-width: 720px) {
-  .ov-mini {
+  .app:not(.wide) .ov-mini {
     display: block;
     font-size: 15px;
     font-weight: 500;
     color: var(--ink) !important;
     margin-top: 8px;
+  }
+  .ov-mini a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 }
