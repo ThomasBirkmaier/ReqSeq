@@ -107,6 +107,28 @@ const COMMANDS = {
     "--stdin",
   ],
   /**
+   * What each commit on standard input (`--no-walk`: only these) changed against its first parent,
+   * in the format of `history`: no pathspec, so every commit is printed, also one that changed
+   * nothing. Fixed against the settings of the user: `--diff-merges=first-parent` (git 2.31 and
+   * newer; `log.diffMerges` would otherwise decide what `-m` lists), no rename detection (a rename
+   * names both paths), no `--follow`, and `-c diff.relative=false`, so the paths are named from the
+   * top level, as `history` names them.
+   */
+  firstParent: [
+    "-c",
+    "diff.relative=false",
+    "log",
+    "--no-show-signature",
+    "--no-follow",
+    "--no-renames",
+    "--no-walk",
+    "--diff-merges=first-parent",
+    "--name-only",
+    "-z",
+    "--format=%H %cI %P%x00",
+    "--stdin",
+  ],
+  /**
    * The IDs of the commits reachable from one commit and not from another (both on standard input,
    * the second as `^<ID>`), without diffs, at most `RANGE_LIMIT` + 1.
    */
@@ -744,6 +766,63 @@ export const historyRange = async (
   try {
     const commits = parseHistory(result.stdout.toString("utf8"), prefix.depth);
     return { known: true, commits: commits.slice(0, RANGE_LIMIT), more: commits.length > RANGE_LIMIT };
+  } catch (error) {
+    return { known: false, reason: "not-a-repository", detail: (error as Error).message };
+  }
+};
+
+/** The paths each commit changed against its first parent, by commit ID (`firstParentChanges`). */
+export type FirstParentChanges =
+  | {
+      readonly known: true;
+      /** By commit ID: its real parents and the paths it changed against the first of them. */
+      readonly changes: ReadonlyMap<
+        string,
+        { readonly parents: readonly string[]; readonly paths: readonly string[] }
+      >;
+    }
+  | GitUnknown;
+
+/**
+ * The paths each of `commits` changed against its first parent (a merge against the side it was
+ * made on), relative to `folder` as `fileHistory` gives them: the prefix of the folder is taken
+ * off every path, so a path outside the folder may be listed too, under a wrong name (more, never
+ * less). A commit git does not print has no entry. The version date compares a merge with its
+ * first parent with it (SR-082 AK4). Unknown when git fails, also where it refuses
+ * `--diff-merges` (before 2.31). A programming error when a commit is not an object ID.
+ */
+export const firstParentChanges = async (
+  folder: string,
+  commits: readonly string[],
+  options: ReadOptions = {},
+): Promise<FirstParentChanges> => {
+  const bad = commits.find((c) => !isObjectId(c));
+  if (bad !== undefined) {
+    throw new Error(`firstParentChanges needs commit IDs, not ${bad}`);
+  }
+  if (commits.length === 0) {
+    // `log --no-walk` without revisions would show HEAD.
+    return { known: true, changes: new Map() };
+  }
+  const [prefix, result] = await Promise.all([
+    prefixDepth(folder, options),
+    run(folder, "firstParent", { ...options, input: `${commits.join("\n")}\n` }),
+  ]);
+  if (!prefix.ok) {
+    return unknown(prefix);
+  }
+  if (!result.ok) {
+    return unknown(result);
+  }
+  try {
+    const listed = parseHistory(result.stdout.toString("utf8"), prefix.depth);
+    // A path with no more names than the prefix lies outside the folder and has none left.
+    return {
+      known: true,
+      changes: new Map(
+        listed.map((c) => [c.commit, { parents: c.parents, paths: c.paths.filter((p) => p !== "") }]),
+      ),
+    };
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }
