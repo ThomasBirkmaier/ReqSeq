@@ -497,7 +497,8 @@ describe.skipIf(windowsRecording === "skip")(
       ws = await newWorkspace();
       control = await recorder.runControl();
       const shell = await startShell({ node: recorder.node });
-      await shell.shown();
+      // Up to the shell's own 30 s wait for the server's address, plus its start under the trace.
+      await shell.event("shown", () => true, 60_000);
       token = await pageToken(shell);
       await shell.eval(
         "(() => { console.log(location.href, sessionStorage.getItem('reqseq.token')); return true; })()",
