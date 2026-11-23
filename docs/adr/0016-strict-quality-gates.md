@@ -1,6 +1,6 @@
 # ADR-0016: Strictest compiler settings, strict lint and coverage thresholds
 
-Status: Accepted · Based on: D-051 · In force from the start of coding · Amended 2026-10-27 (ThomasBirkmaier/ReqSeq-archive#537): React components (`.tsx`) are out of the coverage threshold · Amended 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#752): 80 % per adapter package, core stays 100 % · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): gates for the Rust code of the desktop shell
+Status: Accepted · Based on: D-051 · In force from the start of coding · Amended 2026-10-27 (ThomasBirkmaier/ReqSeq-archive#537): React components (`.tsx`) are out of the coverage threshold · Amended 2026-10-28 (ThomasBirkmaier/ReqSeq-archive#752): 80 % per adapter package, core stays 100 % · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): gates for the Rust code of the desktop shell · The Electron app (`packages/app`) named here was removed (#2310)
 
 ## Context
 

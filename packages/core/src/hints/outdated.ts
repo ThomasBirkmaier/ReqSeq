@@ -5,8 +5,8 @@
 //
 // - What is checked: every item of a relation kind and of a relation-valued property
 //   (`relationItems`; ADR-0004: validity and packages carry a version like any relation and become
-//   outdated too), and every inline reference of the text (`ElementRecord.references`, SR-066 AK3)
-//   and of the properties marked `markdown` (`referencesOf`, SR-127 AK3), of every element, whatever
+//   outdated too), and every inline reference of the text (`ElementRecord.references`, SR-066)
+//   and of the properties marked `markdown` (`referencesOf`, SR-127), of every element, whatever
 //   its type.
 // - Only a stored version of a normal form the tool computes (n1, n2) is compared, in its own form
 //   (`isOutdatedVersion`, ADR-0005 "Normal form 2"), and only

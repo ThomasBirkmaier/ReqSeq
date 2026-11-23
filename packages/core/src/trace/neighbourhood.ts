@@ -1,4 +1,4 @@
-// The neighbourhood of an element (SR-107, D-031, D-062): "Das Tool muss beim geöffneten Element
+// The neighbourhood of an element (SR-107, D-031): "Das Tool muss beim geöffneten Element
 // seine Parents dauerhaft und seine Children und eingehenden Beziehungen auf Abruf zeigen." The
 // `trace.neighbourhood` command is `traceNeighbourhood` and `neighbourhoodOutput`. It is the walk of
 // `trace.chain` (chain.ts) over every relation kind, every property of kind `relation` and every

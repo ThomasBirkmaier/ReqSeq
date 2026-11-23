@@ -1,4 +1,4 @@
-// The Evidence section of an element at a glance (SR-032 AK3 to AK5): `display` of `evidence.list`,
+// The Evidence section of an element at a glance (SR-032 AK3): `display` of `evidence.list`,
 // so the app only lays it out (ADR-0002) and every access gives the same (SR-080). From the records
 // the command lists and the positions that bear the status (`bearingRecords`):
 // - `shared` (AK5): each of date, item, version and baselines that every record of the rows has, equal

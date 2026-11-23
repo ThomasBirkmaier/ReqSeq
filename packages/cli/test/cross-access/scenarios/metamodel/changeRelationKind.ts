@@ -22,7 +22,7 @@ scenariosOf("metamodel.changeRelationKind", [
     },
   },
   {
-    name: "an unknown relation kind is refused through every access (SR-236 AK12)",
+    name: "an unknown relation kind is refused through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { kind: "nope", name: "Nope" },
     expect: "error",

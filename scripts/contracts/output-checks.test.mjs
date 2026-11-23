@@ -128,7 +128,7 @@ describe("checkOutputs", () => {
         }),
       ),
     ).toEqual([
-      'schemas/commands/x.read.json: output problems: "x-normal": [] (no problems is the normal value, SR-223 AK7)',
+      'schemas/commands/x.read.json: output problems: "x-normal": [] (no problems is the normal value)',
       "schemas/commands/x.read.json: output incomplete: refers to common.schema.json#/$defs/incomplete, whose normal value is false",
     ]);
   });

@@ -222,7 +222,7 @@ export const renderCriterionText = (text: string): string => `text: ${renderScal
  * One list item without the `- `: a scalar, or a relation target as one flow mapping. Keys are
  * written in `Object.entries` order, so callers build `{ id, version, title }` in that order. With
  * `column`, the column the item's content starts in, an acceptance criterion with its key is a block
- * mapping on two lines (`isCriterionItem`, SR-204 AK11), joined by `eol`.
+ * mapping on two lines (`isCriterionItem`, SR-204), joined by `eol`.
  */
 export const renderItem = (value: ItemValue, column?: number, eol: LineEnding = "\n"): string => {
   if (!isFlowMapping(value)) {

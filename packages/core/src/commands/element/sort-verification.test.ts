@@ -1,4 +1,4 @@
-// element.list sorted by the verification status (SR-075 AK5) on fixtures/SR-136/graph, with a variant
+// element.list sorted by the verification status (SR-075) on fixtures/SR-136/graph, with a variant
 // Coast (f001) and a requirement b099 valid only in it. The elements listed, in store order: the need
 // a001 and the package d001 (no verification status), b001 verified, b007 failed, b008 outdated,
 // b009 open, b099 (none in the core, open in Coast), b101 indirect. Coast has no records: every
@@ -51,7 +51,7 @@ const sorted = async (workspace: Workspace, input: Record<string, unknown>): Pro
     )) as ListOutput,
   );
 
-describe("element.list sorted by the verification status (SR-075 AK5)", () => {
+describe("element.list sorted by the verification status (SR-075)", () => {
   it("[SR-075/AK-c3cc] sorts failed, open, outdated, verified ascending and the reverse descending, indirect as verified, elements without a status last in both orders", async () => {
     const workspace = await open();
     expect(await sorted(workspace, { sort: [{ by: "verification" }] })).toEqual([

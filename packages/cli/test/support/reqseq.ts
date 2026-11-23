@@ -84,7 +84,7 @@ export const reqseq = (args: readonly string[], options: RunOptions): Promise<Ru
 
 /**
  * The `fileSha256` that `reqseq element get <ref>` gives: the write precondition a change of the text or
- * the title needs (`--expected-file-sha256`, SR-106, #269).
+ * the title needs (`--expected-file-sha256`, #269).
  */
 export const fileSha256 = async (ref: string, options: RunOptions): Promise<string> => {
   const got = await reqseq(["element", "get", ref, "--json"], options);

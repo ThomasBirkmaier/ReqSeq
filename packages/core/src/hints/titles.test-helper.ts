@@ -1,4 +1,4 @@
-// For tests only: hint.list gives its hints with the titles of their element and target (SR-026 AK6),
+// For tests only: hint.list gives its hints with the titles of their element and target (SR-026),
 // which workspace.check and element.get leave out (SR-020 AK1); without them the hints are equal.
 import type { Problem } from "../catalog.js";
 

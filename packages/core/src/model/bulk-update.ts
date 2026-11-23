@@ -109,7 +109,7 @@ export interface BulkSelection {
 
 /**
  * An element as the result names it: with its repository, so a list of the elements a number counts holds
- * only the counted copy of a UUID (SR-223 AK5, #2024).
+ * only the counted copy of a UUID (#2024).
  */
 export interface NamedElement {
   readonly id: string;

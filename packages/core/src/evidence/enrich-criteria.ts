@@ -79,7 +79,7 @@ const carriers = (items: readonly unknown[], key: string): number =>
 /**
  * Why the criterion `criterion` that `text` names for the element written `ref` (`criterionRefsOf`)
  * does not count against the current criteria `items` (AK13), with what to write instead; undefined
- * for a key exactly one criterion carries (SR-204 AK10: a double key counts for neither).
+ * for a key exactly one criterion carries (SR-204: a double key counts for neither).
  */
 const refusedCriterion = (
   ref: string,

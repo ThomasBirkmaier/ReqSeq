@@ -4,7 +4,7 @@ import { AFFECTED, IN_CRITERIA, MISSING_TARGETS, WITH_VAULT } from "../../fixtur
 
 scenariosOf("trace.affected", [
   {
-    name: "an element that an acceptance criterion references, with the criterion as the link (SR-127 AK3)",
+    name: "an element that an acceptance criterion references, with the criterion as the link (SR-127)",
     fixture: IN_CRITERIA,
     input: { ref: "N-0000a2" },
     expect: "output",

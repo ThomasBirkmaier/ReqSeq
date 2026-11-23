@@ -2,10 +2,10 @@
 // 300 ms in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 //
 // "Wenn ein Suchbegriff eingegeben wird" as measured here (ThomasBirkmaier/ReqSeq-archive#110): a
-// warm server (`warmWorkspace`, as `reqseq serve` and the app start, with the search index built in
+// warm server (`warmWorkspace`, as `reqseq serve` starts, with the search index built in
 // the background and ready), `element.search` through the catalog (`invoke`, as every access calls
-// it, SR-080) with the default page of 50 hits ("die ersten Treffer"). The app searches as the user
-// types, so every keystroke is a search of the term so far. The terms below cover that and the
+// it, SR-080) with the default page of 50 hits ("die ersten Treffer"). A search as the user types makes
+// every keystroke a search of the term so far. The terms below cover that and the
 // costliest terms of the generated workspace (measured on ThomasBirkmaier/ReqSeq-archive#110):
 // typing a word letter by letter, two-letter prefixes that begin words of every element, words of
 // (almost) every element, a phrase of them, a whole title, topic words, a typo, another case, a
@@ -24,7 +24,7 @@
 // inline references, a list), whose word `LONG_WORD` stands deep in it, in a list item after links;
 // the elements halfway between them get the same text hard-wrapped at about 60 characters, links and
 // emphasis split over lines (`wrappedText`, `WRAPPED_WORD`), which parses a few lines per hit.
-// Its rows search that word with a page of 50 and of 500 hits (the app's list asks for up to 500),
+// Its rows search that word with a page of 50 and of 500 hits (a list may ask for up to 500),
 // against the same 300 ms.
 //
 // Other designations (SR-220): the metamodel maps `synonyms` and `translation` (`withDesignations`),
@@ -387,7 +387,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
     }
   });
 
-  it("[SR-098/AK-pqx4] shows the first grouped hits of the costliest terms within 300 ms (SR-149 AK6, median of 7 runs)", async () => {
+  it("[SR-098/AK-pqx4] shows the first grouped hits of the costliest terms within 300 ms (SR-149, median of 7 runs)", async () => {
     // A grouped search sorts every hit and deals them into groups (element.search `group`): the
     // costliest terms find (almost) every element. By status, by package (the targets looked up) and
     // by a choice property, the first page of 50 rows and one page deep in the rows.
@@ -409,7 +409,7 @@ describe("search with 50,000 elements and 200,000 relations (SR-098, N-036)", ()
           (await invoke("element.search", { query: term, group, offset }, { workspace: open })) as Search,
         {
           basis:
-            "SR-098 AK1, SR-149 AK6 (element.search grouped, page of 50 rows, warm server; median of 7 runs)",
+            "SR-098 AK1, SR-149 (element.search grouped, page of 50 rows, warm server; median of 7 runs)",
           thresholdMs: SEARCH_MS,
           runs: RUNS,
         },

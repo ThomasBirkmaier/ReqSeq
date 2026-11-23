@@ -13,7 +13,7 @@
 //   selection baseline.create refuses (`refusedSelection`: a baseline, a command output, a saved filter with
 //   another view, assumption of #2045); nothing else of whether it can be created is checked (SR-242). Show
 //   changes since baseline when there is a baseline. `invoke` leaves out a step whose write command it
-//   refuses while the workspace is read-only (SR-226 AK6).
+//   refuses while the workspace is read-only (SR-226).
 // - `countedElements` gives the elements of each number by the command that counted it (SR-224 AK4).
 import type { CommandContext, CommandInput, CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";

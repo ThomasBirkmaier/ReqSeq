@@ -21,7 +21,7 @@
 //   reading it would open a network connection (#294). Errors name only its base name, never an
 //   absolute path, so every access gives the same error (D-029).
 // - Or the source is given as bytes (`content`, base64, with `name`), for an image that has no file,
-//   such as one pasted or dropped in the app (SR-190 AK3). Exactly one of `sourcePath` and `content`.
+//   such as one pasted or dropped in an editor (SR-097 AK3). Exactly one of `sourcePath` and `content`.
 //   At most `MAX_CONTENT_BYTES` decoded, so a request fits the body limit of the API and MCP (SR-080).
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";

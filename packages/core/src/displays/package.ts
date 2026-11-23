@@ -1,4 +1,4 @@
-// The display model of the elements of a package on its page (SR-233 AK4; the app's package page, SR-112), ADR-0019
+// The display model of the elements of a package on its page (SR-233 AK4; the app's package page), ADR-0019
 // points 1, 2, 7, 8 and 9(a): per element its identifier, title, status and verification status, by the same rule as
 // `element.list` with `where.package` (D-040), on top of the rows of the list display (`ListRowInput`, `rowId`,
 // `rowCell`).

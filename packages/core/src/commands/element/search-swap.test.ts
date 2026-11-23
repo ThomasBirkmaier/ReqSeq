@@ -65,7 +65,7 @@ describe("element.search over a store swapped while it runs", () => {
     expect((await search({ query: "gale" })).hits.map((hit) => hit.id)).toEqual([GALE, B2]);
   });
 
-  it("groups the hits by the content of the newer store (SR-149 AK6)", async () => {
+  it("groups the hits by the content of the newer store (SR-149)", async () => {
     const fixture = await createFixtureWorkspace({ fixture: "SR-069/filter" });
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);

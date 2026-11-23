@@ -9,7 +9,7 @@ const CRITERION_HINT = `${HINT_AT_B1}/@text:acceptance-criteria/26a0b000-0000-40
 
 scenariosOf("hint.confirm", [
   {
-    name: "an inline reference in an acceptance criterion, and the same ID spelled again (SR-127 AK3)",
+    name: "an inline reference in an acceptance criterion, and the same ID spelled again (SR-127)",
     fixture: IN_CRITERIA,
     input: { hintIds: [CRITERION_HINT, CRITERION_HINT] },
     expect: "output",

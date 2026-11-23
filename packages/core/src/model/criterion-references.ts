@@ -6,7 +6,7 @@
 // element: read as enrich-junit reads a test name (`bracketReference`, split at the first `/`) and
 // resolved as element.resolve resolves it (`resolveRef`). Otherwise, for an identifier with `/`, `[`
 // or `]`, a blank one, or one two elements share, it is the short ID. A criterion without key, and
-// both criteria that carry one key (SR-204 AK10: a record with that key counts for neither), have no
+// both criteria that carry one key (SR-204: a record with that key counts for neither), have no
 // reference; a key in another form than SR-204 AK5 allows is shown as none (assumption of spec question #1525).
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
@@ -136,7 +136,7 @@ export const criterionReferencesOf = (
     property,
     criteria: items.map((item, i) => {
       const key = keys[i];
-      // A key two criteria carry names neither of them (SR-204 AK10).
+      // A key two criteria carry names neither of them (SR-204).
       const usable = key !== undefined && keys.indexOf(key) === keys.lastIndexOf(key);
       return {
         criterion: i + 1,

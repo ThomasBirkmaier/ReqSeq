@@ -1,5 +1,5 @@
 // The JUnit reader (SR-093, ADR-0012 "JUnit XML"): the records of an enriched JUnit XML file. The
-// samples are the files pytest and Vitest wrote (fixtures/junit-samples/, D-054), enriched here the
+// samples are the files pytest and Vitest wrote (fixtures/junit-samples/), enriched here the
 // way `reqseq evidence enrich-junit` (SR-029) does: at the offsets the JUnit model gives.
 import fs from "node:fs";
 import { createFixtureWorkspace } from "@reqseq/testkit";

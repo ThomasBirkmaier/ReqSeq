@@ -1,4 +1,4 @@
-// The records of one element that bear its status, grouped for display (SR-032 AK3 to AK5): the
+// The records of one element that bear its status, grouped for display (SR-032 AK3): the
 // `bearing` and `display` of `evidence.list`, and the evidence records the HTML export shows at each
 // acceptance criterion (SR-232 AK3), from one rule so both give the same. `bearingRecords` picks the
 // records, `displayOf` groups them over the views the element applies in (the view rule of the

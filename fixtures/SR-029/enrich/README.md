@@ -9,7 +9,7 @@
 | SR-0c0037 | `93000000-0000-4000-8000-0000000c0037` | short ID |
 | SR-0d0038 | `29000000-0000-4000-8000-0000000d0038` | identifier `SR-036` (`spec-id`) |
 
-`results/pytest.xml` and `results/vitest.xml` are byte copies of `fixtures/junit-samples/` (written by pytest 9.1.1 and Vitest 5.0.5, D-054), except that the name `[SR-46fb54/AK1]` of `vitest.xml` names the criterion by its key, `[SR-46fb54/AK-gdrb]` (SR-029 AK13). Each requirement has one acceptance criterion with a criterion key (SR-0b0036 `jpy8`, SR-0c0037 `nx88`, SR-0d0038 `swmn`, SR-46fb54 `gdrb`). `two.xml`, `unknown.xml` and `nextest.xml` are hand-written; `nextest.xml` has test case names as Rust tests have them, which cannot hold brackets (SR-029 AK5, read with `--name-pattern '{prefix}_{id}_ak_{ak}'`).
+`results/pytest.xml` and `results/vitest.xml` are byte copies of `fixtures/junit-samples/` (written by pytest 9.1.1 and Vitest 5.0.5), except that the name `[SR-46fb54/AK1]` of `vitest.xml` names the criterion by its key, `[SR-46fb54/AK-gdrb]` (SR-029 AK13). Each requirement has one acceptance criterion with a criterion key (SR-0b0036 `jpy8`, SR-0c0037 `nx88`, SR-0d0038 `swmn`, SR-46fb54 `gdrb`). `two.xml`, `unknown.xml` and `nextest.xml` are hand-written; `nextest.xml` has test case names as Rust tests have them, which cannot hold brackets (SR-029 AK5, read with `--name-pattern '{prefix}_{id}_ak_{ak}'`).
 
 | File | Test case | Names | After enrich |
 |---|---|---|---|

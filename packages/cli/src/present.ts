@@ -34,8 +34,8 @@
 //   (`name`, `executions`) one line per test case with its last result and the number of executions
 //   (evidence.list, #275); `--json` and `--yaml` keep every execution.
 // - A matrix (`columns` with `name` and `direction`, `rows` of elements with one cell per column) lists
-//   its columns numbered with the head of each (the count, or with minima `met of expected · share`, as
-//   the app, SR-153), then per row the element line and one line of cells, `n: SHORT-ID, ...`, `–` for an
+//   its columns numbered with the head of each (the count, or with minima `met of expected · share`,
+//   SR-153), then per row the element line and one line of cells, `n: SHORT-ID, ...`, `–` for an
 //   empty cell, `[gap]` after a cell the row's `gaps` names (trace.matrix, #629).
 // - A grouped list (element.list `group`, SR-149): each group of the page under its heading, its name
 //   and value (a package by short ID and title, `(no value)` for the last group) and its count,

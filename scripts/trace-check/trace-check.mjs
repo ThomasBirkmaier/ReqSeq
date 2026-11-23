@@ -8,7 +8,7 @@
 // Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002]... [--stage 1] [--report <file>]
 // (--require may repeat, its lists are joined; --stage and --report at most once)
 //
-// The spec is the ReqSeq workspace in spec/ (D-064, ThomasBirkmaier/ReqSeq-archive#326). A system requirement is an element file of
+// The spec is the ReqSeq workspace in spec/ (ThomasBirkmaier/ReqSeq-archive#326). A system requirement is an element file of
 // type `system-requirement`, found anywhere below spec/ by its frontmatter (ADR-0004); its spec ID
 // (SR-036) is the property with the meaning `identifier` of the metamodel in spec/metamodel/. A
 // stage is the package whose identifier is `Stufe-<n>` (or the identifier given, e.g. `Querschnitt`);
@@ -392,7 +392,7 @@ export const keyOf = (item) =>
 
 /**
  * `testRefs` with each key tag of a known SR counted for the number of the one criterion of spec/ that
- * carries the key; an error for a key no criterion carries, or several do (SR-204 AK10), and for a
+ * carries the key; an error for a key no criterion carries, or several do (SR-204), and for a
  * tag by number, which names the key to write where one criterion carries it (SR-029 AK13).
  */
 export function resolveTags(spec, testRefs, errors) {

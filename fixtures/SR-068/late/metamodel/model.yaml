@@ -1,5 +1,5 @@
 # SR-068 AK5: hits found only through the name of their type (Package) or status (In review) come
-# after the others. The status obsolete is invalid, so a list folds it (SR-201).
+# after the others. The status obsolete is invalid, so a list folds it.
 reqseq-metamodel: 1
 types:
   - key: package

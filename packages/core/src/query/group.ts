@@ -6,7 +6,7 @@
 // - Keys: `type` (as written: a subtype is a group of its own, as in element.facets), `status` (as
 //   written), `package` (the property with the meaning `packages`, `metamodel.meaning-unassigned`
 //   without one), or the key of a property whose values element.facets offers (`offersValues`, the
-//   one rule of "Property mit auswählbaren Werten", SR-124, SR-132): choice and relation properties
+//   one rule of "Property mit auswählbaren Werten", SR-124): choice and relation properties
 //   always, text, number and date when they have few values shared over the workspace (a topic, not a
 //   title). Any other key, a relation kind among them, is `input.invalid` at `group`.
 // - The values of an element (AK2): every value of a list, each once. A choice written by its display
@@ -189,7 +189,7 @@ const readerOf = (selected: Selected, command: CommandName, by: string): Reader 
 };
 
 /**
- * Whether `by` is a text, number or date property of the metamodel that SR-124 AK2 no longer
+ * Whether `by` is a text, number or date property of the metamodel that SR-124 no longer
  * offers (`offersValues` over the whole workspace: more than 30 different values, or none that two
  * elements share), the one case in which a
  * perspective's stored grouping gives the list without groups (SR-213 AK7). Any other key that

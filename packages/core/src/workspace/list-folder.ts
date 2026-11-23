@@ -109,7 +109,7 @@ const problemOf = (error: unknown): ListProblem =>
  * first `maxEntries` of them read, then as many of the files read as fit.
  */
 export async function listFolder(folder: string, options: ListOptions): Promise<FolderListing> {
-  // A larger buffer than the default 32 entries: fewer round trips through the thread pool (SR-143 AK5).
+  // A larger buffer than the default 32 entries: fewer round trips through the thread pool (SR-143).
   const opendir = options.opendir ?? ((dir: string) => fs.opendir(dir, { bufferSize: 1024 }));
   const max = options.maxEntries ?? LIST_MAX_ENTRIES;
   const job = async (expired: () => boolean): Promise<FolderListing> => {

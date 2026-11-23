@@ -239,7 +239,7 @@ describe("metamodel.get", () => {
     ]);
   });
 
-  it("gives per type the relation kinds relation.options gives an element of it: subtypes, an abstract type, source types absent or empty (SR-215 AK8)", async () => {
+  it("gives per type the relation kinds relation.options gives an element of it: subtypes, an abstract type, source types absent or empty", async () => {
     const types = ["item", "requirement", "software-requirement", "decision", "package"];
     const id = (at: number): string => `21521500-0000-4000-8000-00000000000${String(at)}`;
     const element = (type: string, at: number): string =>

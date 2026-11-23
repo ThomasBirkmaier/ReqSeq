@@ -4,7 +4,7 @@ import { expect } from "vitest";
 import { scenariosOf } from "../../scenario.js";
 import { DEGREE, EVIDENCE } from "../../fixtures.js";
 
-/** A level of evidence.coverage, as far as the SR-112 scenario reads it. */
+/** A level of evidence.coverage, as far as the package scenario reads it. */
 interface CoverageLevel {
   readonly type: string;
   readonly total: number;

@@ -28,7 +28,7 @@ scenariosOf("trace.graph", [
     expect: "output",
   },
   {
-    name: "one relation kind in the repository the app names, two levels (SR-111 AK2, AK3)",
+    name: "one relation kind in a named repository, two levels (SR-111 AK2, AK3)",
     fixture: GRAPH,
     input: { ref: `${GR}0b0000000001`, repository: "system", kinds: ["based-on"], maxDepth: 2 },
     expect: "output",

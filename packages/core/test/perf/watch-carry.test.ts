@@ -1,6 +1,6 @@
 // The carry of one changed file in a long-running process (#215) in the performance suite (ADR-0011)
 // on the generated workspace of N-036 (50,000 elements, 200,000 relations): a server workspace warmed
-// as the app keeps it (model, incoming index, search index, findings of `workspace.check`, the
+// as a server keeps it (model, incoming index, search index, findings of `workspace.check`, the
 // verification status, the outdated hints and the current versions) and its watcher. For each kind of
 // change (an edit, an atomic save as editors make it, a new file, a deleted file, a moved file, an
 // edit of the file whose targets have the longest incoming lists) it records the time from the write
@@ -67,7 +67,7 @@ const EDIT_READ_MS = 180;
 const RUNS = 20;
 const WARM_UP = 2;
 
-/** The states with a `carry` hook over a change of the store that a server or the app keeps. */
+/** The states with a `carry` hook over a change of the store that a server keeps. */
 const CARRIED: readonly WorkspaceState<unknown>[] = [
   incomingState,
   shortIdState,
@@ -195,9 +195,9 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
   };
 
   /**
-   * Builds what the app keeps (search index, findings, verification status, outdated hints, current
+   * Builds what a server keeps (search index, findings, verification status, outdated hints, current
    * versions); again before each change, since a hook may reset its state (a new UUID resets the
-   * outdated hints) and the app builds it again on its next use.
+   * outdated hints) and the server builds it again on its next use.
    */
   const warm = async (): Promise<void> => {
     await searchIndex(workspace);
@@ -221,7 +221,7 @@ describe("the carry of one changed file in a server (N-036, #215)", () => {
     fixture = await writeLargeWorkspace(tree);
     workspace = new Workspace(fixture.workspaceRoot);
     layout = await workspace.get(workspaceLayoutState);
-    // Warmed as the app keeps it: model and incoming index, search index, findings, verification
+    // Warmed as a server keeps it: model and incoming index, search index, findings, verification
     // status, outdated hints, current versions; then the watcher.
     await warmWorkspace(workspace, 0);
     await warm();

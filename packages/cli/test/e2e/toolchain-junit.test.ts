@@ -1,5 +1,5 @@
 // SR-063 end to end: the guide (the how-to `docs/guide/how-to/record-test-results-in-ci.md` with its CI
-// snippets, #1255) and the examples of `toolchain/junit/` with their README (D-054). The tests read both
+// snippets, #1255) and the examples of `toolchain/junit/` with their README. The tests read both
 // and run their marked command blocks (`<!-- tested: <name> -->` before a fenced block): every line
 // that starts with `reqseq ` runs as written through the built binary, `export` lines set variables, and
 // every other line must be one of the few lines this file knows (`STEPS`), done here with Node's own

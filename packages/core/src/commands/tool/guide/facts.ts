@@ -1,6 +1,6 @@
 // What the agent guide takes from the workspace (SR-229 AK2, AK4), found by meaning, never by a type key:
 // the types that can be created with the meaning need or requirement (own or inherited), their statuses
-// with the initial one (SR-064 AK4) and the invalid ones, the relation kinds with the meaning derivation,
+// with the initial one (SR-064) and the invalid ones, the relation kinds with the meaning derivation,
 // the properties with the meanings acceptance criteria and verification method, and the evidence
 // locations of the workspace file. Without a workspace, or with a workspace file or metamodel that cannot
 // be read, there are no facts but the reason.

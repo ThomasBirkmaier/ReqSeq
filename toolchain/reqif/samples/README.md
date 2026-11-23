@@ -1,6 +1,6 @@
 # ReqIF samples
 
-Hand-written ReqIF 1.2 files for the tests of the ReqIF block (ADR-0013, D-054). They are ours, written for these tests; no file of another tool is checked in. A real file from another tool is imported once at stage acceptance.
+Hand-written ReqIF 1.2 files for the tests of the ReqIF block (ADR-0013). They are ours, written for these tests; no file of another tool is checked in. A real file from another tool is imported once at stage acceptance.
 
 | File | What it shows |
 |---|---|

@@ -1,4 +1,4 @@
-// element.search grouped (SR-149 AK6) on fixtures/SR-149/group (see group.test.ts for its elements):
+// element.search grouped (SR-149) on fixtures/SR-149/group (see group.test.ts for its elements):
 // the hits are grouped as element.list groups the same elements, and inside each group they keep the
 // order of the search. The grouping rules themselves are tested in group.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
@@ -58,7 +58,7 @@ const expected = async (
   });
 };
 
-describe("element.search grouped (SR-149 AK6)", () => {
+describe("element.search grouped (SR-149)", () => {
   it("[SR-149/AK-byyt] groups the hits as any list by package, and keeps their relevance order inside each group", async () => {
     const workspace = await open();
     const plain = await search(workspace, { query: "wind" });
@@ -121,7 +121,7 @@ describe("element.search grouped (SR-149 AK6)", () => {
   });
 });
 
-describe("element.search within a filter (SR-124 AK4)", () => {
+describe("element.search within a filter (SR-124)", () => {
   it("[SR-124/AK-mtm9] a filter narrows the hits, and those left keep their relevance order", async () => {
     const workspace = await open();
     const order = (await search(workspace, { query: "wind" })).hits.map((hit) => tail(hit.id));

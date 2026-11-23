@@ -29,14 +29,14 @@ const VALUES: FixtureOptions = {
     "requirements/SR-0000000000b7.md": `---\nid: 69069069-0000-4000-8000-0000000000b7\ntype: system-requirement\nstatus: approved\ntitle: Measure the hail\nrequirement-type: functional\nacceptance-criteria: [Given hail, then it holds.]\ntopic: [Wind, Timing]\n---\n`,
   },
 };
-/** The list of the app (ThomasBirkmaier/ReqSeq-archive#418): by type, then by ID. */
+/** By type, then by ID (ThomasBirkmaier/ReqSeq-archive#418). */
 const TYPE_AND_ID = [
   { by: "type", order: "asc" },
   { by: "identifier", order: "asc" },
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
-/** SORT where b2, then f1 changed in a commit each after the first (SR-075 AK6). */
+/** SORT where b2, then f1 changed in a commit each after the first (SR-075). */
 const SORT_HISTORY: FixtureOptions = { fixture: "SR-075/sort", git: true };
 templateSetup(SORT_HISTORY, async (ws) => {
   await fs.appendFile(ws.path("requirements/SR-0000000000b2.md"), "Changed second.\n");
@@ -569,7 +569,7 @@ scenariosOf("element.list", [
     expect: "output",
   },
   {
-    name: "sorted by the time of the version, newest first: uncommitted content, then by commit (SR-075 AK6)",
+    name: "sorted by the time of the version, newest first: uncommitted content, then by commit (SR-075)",
     tag: "[SR-075/AK-qr2j]",
     fixture: SORT_HISTORY,
     prepare: async (copy) => {

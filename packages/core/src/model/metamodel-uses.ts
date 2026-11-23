@@ -208,7 +208,7 @@ export const useOf = (
   uses: (element: ElementRecord) => boolean,
 ): Use => {
   const users = store.elements.filter(uses).map((element) => shortIds.of(element));
-  // Code-unit order, so every access names the same elements (SR-236 AK12).
+  // Code-unit order, so every access names the same elements (SR-236).
   users.sort();
   return { kind, key, count: users.length, elements: users.slice(0, USES_NAMED) };
 };

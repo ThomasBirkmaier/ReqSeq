@@ -226,7 +226,7 @@ export type CriterionRef = number | string;
 
 /**
  * Why a criterion a record names counts for no criterion of the current version (SR-028 AK5, SR-031
- * AK11, AK12, SR-204 AK10):
+ * AK11, AK12, SR-204):
  * - `unknown-number`: the version the record names has no criterion at that position;
  * - `unknown-key`: no criterion of the current version carries the key;
  * - `duplicate-key`: more than one criterion of the current version carries it;
@@ -252,7 +252,7 @@ const positionsOfKey = (items: readonly unknown[], key: string): number[] => {
   return found;
 };
 
-/** `key` resolved against the items of the current version (SR-028 AK4, SR-204 AK10). */
+/** `key` resolved against the items of the current version (SR-028 AK4, SR-204). */
 const byKey = (ref: CriterionRef, key: string, current: readonly unknown[]): ResolvedCriterion => {
   const [position, ...more] = positionsOfKey(current, key);
   if (position === undefined) {
@@ -263,7 +263,7 @@ const byKey = (ref: CriterionRef, key: string, current: readonly unknown[]): Res
 
 /**
  * Each criterion `refs` names, resolved against the items `current` of the element's current version
- * (D-072, SR-028 AK4, SR-031 AK11, AK12, SR-204 AK10). `named`: the items of the version the record
+ * (D-072, SR-028 AK4, SR-031 AK11, AK12, SR-204). `named`: the items of the version the record
  * names when it is an older one, those of the newest commit with that version (SR-028 AK5);
  * `undefined` when Git cannot tell them; `current` itself for a record of the current version.
  *

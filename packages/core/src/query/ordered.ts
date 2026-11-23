@@ -4,10 +4,10 @@
 // place that decides it, so `element.list` and `trace.matrix` give the same order for the same
 // selection and sort (SR-125 AK1); `orderedGroups` gives the same order inside each group (SR-149 AK3).
 // The keys that read more than the files (`SortValues`) are read first (`sortValuesFor`), then the sort
-// runs: `verification` (SR-075 AK5) in the view of the selection, `views[0]` as the rows take it
+// runs: `verification` (SR-075) in the view of the selection, `views[0]` as the rows take it
 // (`rowsVerification`, SR-137), the core without one, through the provider the filter on the
 // verification status uses (`evidenceStatusState`), so its state is built once and kept (SR-082 AK4);
-// `versionDate` (SR-075 AK6) for the whole selection (`versionTimesOf`, version-times.ts), from the
+// `versionDate` (SR-075) for the whole selection (`versionTimesOf`, version-times.ts), from the
 // walks of the version dates that the workspace keeps per HEAD (SR-082 AK4), with the warnings of the
 // order in `SortValues.problems`. `element.list` reads them itself and passes them on, to show the warnings.
 import type { CommandName, Problem } from "../catalog.js";

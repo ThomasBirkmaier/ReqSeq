@@ -1,7 +1,7 @@
 // Packages as elements (SR-048) and an element in several packages (SR-049) on
 // fixtures/SR-048/packages: packages P1 "Release 1" and P2 "Release 2"; R1 in P1 and P2, R2 in P1,
 // R3 in none; need N1, the parent of all three. One Git repository at the root, so `git status`
-// shows which files a command wrote. An opened package is `selection.package` (SR-112 AK1).
+// shows which files a command wrote. An opened package is `selection.package`.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";

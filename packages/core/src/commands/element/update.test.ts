@@ -35,7 +35,7 @@ const open = async (options: FixtureOptions = {}): Promise<Opened> => {
   return { fixture, workspace };
 };
 
-/** A hash no file has: the write precondition of a call that is refused before it is checked (SR-106). */
+/** A hash no file has: the write precondition of a call that is refused before it is checked. */
 const NO_FILE = "f".repeat(64);
 
 type Input = Record<string, unknown> & { readonly ref: string };
@@ -656,7 +656,7 @@ const sha256Of = async (opened: Opened, file: string): Promise<string> =>
     .update(await fs.readFile(opened.fixture.path(file)))
     .digest("hex");
 
-describe("element.update: the write precondition expectedFileSha256 (SR-106)", () => {
+describe("element.update: the write precondition expectedFileSha256", () => {
   const OLD = "0".repeat(64);
 
   it("refuses a change of the text or the title without the precondition and writes nothing (#269)", async () => {
@@ -682,7 +682,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
     expect(out.files).toEqual([WIND.file]);
   });
 
-  it("gives the SHA-256 of the file as written, or as read when nothing changed (SR-106)", async () => {
+  it("gives the SHA-256 of the file as written, or as read when nothing changed", async () => {
     const opened = await open();
     const unchanged = await update(opened, { ref: WIND.id });
     expect([unchanged.files, unchanged.fileSha256]).toEqual([[], await sha256Of(opened, WIND.file)]);
@@ -692,7 +692,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
     expect(written.fileSha256).not.toBe(unchanged.fileSha256);
   });
 
-  it("writes with the hash element.get gave, and chains saves on the hash each save gives (SR-106)", async () => {
+  it("writes with the hash element.get gave, and chains saves on the hash each save gives", async () => {
     const opened = await open();
     const shown = (await invoke(
       "element.get",
@@ -713,7 +713,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
     expect([same.files, same.fileSha256]).toEqual([[], second.fileSha256]);
   });
 
-  it("refuses with file.changed-on-disk and writes nothing when the store already read the change (SR-106)", async () => {
+  it("refuses with file.changed-on-disk and writes nothing when the store already read the change", async () => {
     const opened = await open();
     const before = await sha256Of(opened, WIND.file);
     await opened.workspace.get(elementStoreState);
@@ -743,7 +743,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
     expect(await opened.workspace.get(elementStoreState)).toBe(store);
   });
 
-  it("refuses an old hash also when the input would change nothing (SR-106)", async () => {
+  it("refuses an old hash also when the input would change nothing", async () => {
     const opened = await open();
     const before = await read(opened, WIND.file);
     const error = await updateError(opened, { ref: WIND.id, expectedFileSha256: OLD });
@@ -754,7 +754,7 @@ describe("element.update: the write precondition expectedFileSha256 (SR-106)", (
     expect(await read(opened, WIND.file)).toBe(before);
   });
 
-  it("refuses with file.changed-on-disk when the store has not read the change yet, and reads it again (SR-106)", async () => {
+  it("refuses with file.changed-on-disk when the store has not read the change yet, and reads it again", async () => {
     const opened = await open();
     const before = await sha256Of(opened, WIND.file);
     await opened.workspace.get(elementStoreState);

@@ -1,4 +1,4 @@
-// Required properties without a value (SR-015 AK3, D-012; the hint SR-064 AK2 asks for). A type's required
+// Required properties without a value (SR-015 AK3, D-012; the hint SR-064 asks for). A type's required
 // properties (Pflicht-Properties, own and inherited, SR-012) may be empty: the file is read and
 // kept unchanged, and every required property without a value is a hint (`warning`: it blocks
 // nothing and changes no status, glossary "Hinweis"). "Without a value" is a key that is absent,

@@ -113,7 +113,7 @@
       },
       "filesToWrite": {
         "title": "Files to write",
-        "description": "Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064 AK5).",
+        "description": "Only in a dry run (SR-246): the file a create would write, relative to the workspace root, in the folder a create without it uses (SR-064).",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/outputPath" }
       },

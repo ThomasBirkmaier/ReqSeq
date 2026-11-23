@@ -45,7 +45,7 @@
 //   pointed at the copies), the properties of its type and the relations from those two; the status
 //   and the origin stored there are not taken, and a relation the metamodel does not allow is a
 //   loss (`checkOwnRelations`). The acceptance criteria keep the criterion keys stored there
-//   (SR-204 AK12); a key there not in its form, or on two criteria, is `reqif.invalid` naming
+//   (SR-204); a key there not in its form, or on two criteria, is `reqif.invalid` naming
 //   the SPEC-OBJECT (AK5). Otherwise another tool changed it, or a mapping differs: the
 //   readable attributes and SPEC-RELATIONs are imported through the mapping, with a warning
 //   `reqif.edited-elsewhere` for a changed object. A target of a relation or relation-valued

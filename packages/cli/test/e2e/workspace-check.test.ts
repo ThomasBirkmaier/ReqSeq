@@ -135,7 +135,7 @@ describe("reqseq workspace check (SR-019)", () => {
       "\nderives-from:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7, version: n1:35c6eb1777c77824 }\n---\n",
     );
     await fs.writeFile(successor, derived);
-    // Its acceptance criteria get their criterion keys (SR-204 AK10).
+    // Its acceptance criteria get their criterion keys (SR-204).
     for (const file of ["SR-c3d4e5f6a7b8.md", "SR-d4e5f6a7b8c9.md", "SR-e5f6a7b8c9d0.md"]) {
       const path = ws.path(`requirements/${file}`);
       const text = await fs.readFile(path, "utf8");

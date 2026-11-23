@@ -20,7 +20,7 @@ scenariosOf("workspace.status", [
     expect: "output",
   },
   {
-    // SR-215: the folder of each location as evidence.record takes it, none for an unlisted repository.
+    // The folder of each location as evidence.record takes it, none for an unlisted repository.
     name: "evidence locations in the main repository, its root, another repository and an unlisted one",
     fixture: {
       fixture: "SR-004/three-repositories",

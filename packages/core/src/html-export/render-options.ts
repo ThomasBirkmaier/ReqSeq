@@ -1,4 +1,4 @@
-// How formulas and diagrams are set, the same in the app's editor preview (SR-096) and in the HTML export
+// How formulas and diagrams are set in the HTML export
 // (SR-231 AK5): KaTeX's options and Mermaid's settings, limits and colours.
 
 /**
@@ -56,7 +56,7 @@ export const MERMAID_SETTINGS = {
   theme: "base",
 } as const;
 
-/** The greys a diagram is drawn with, by their role (D-062). */
+/** The greys a diagram is drawn with, by their role. */
 export type DiagramToken = "text" | "muted" | "rule" | "edge" | "sheet" | "raised";
 
 /** Each colour variable of Mermaid's `base` theme and the role whose grey it takes. */

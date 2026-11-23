@@ -1,7 +1,7 @@
 // SR-082 AK3 and AK4 in the performance suite (ADR-0011): opening an element, applying a filter and
 // computing a chain in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 // Opening is `element.get` (look up, read the file, element view with its hints and successors),
-// without the version date, which the app asks for in a second call (recorded separately).
+// without the version date, which a client asks for in a second call (recorded separately).
 // The chain is `trace.chain` (SR-022) through the catalog, of the need with the largest chain, as
 // its first page (spec-frage ThomasBirkmaier/ReqSeq-archive#290): the first after the start (the start builds the incoming
 // relation index, `warmWorkspace`, ThomasBirkmaier/ReqSeq-archive#227), again, and right after a save (the index is carried
@@ -147,7 +147,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     fixture = await writeLargeWorkspace(tree);
     generatedDates = await writeHistory(fixture, tree);
     workspace = new Workspace(fixture.workspaceRoot);
-    // As a server or the app does it at start (SR-082 AK1, AK2): the adapters create the command
+    // As a server does it at start (SR-082 AK1, AK2): the adapters create the command
     // runtime (catalog and schemas) before the first call (`configureCommandRuntime`).
     getCommandRuntime();
     await warmWorkspace(workspace);
@@ -185,7 +185,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
 
   /**
    * Opening an element: `element.get`, as every access calls it (SR-080); with `versionDate`, the
-   * second call of the app that asks for the date (D-013, ADR-0005).
+   * second call that asks for the date (D-013, ADR-0005).
    */
   const openElement = async (
     opened: Workspace,
@@ -201,9 +201,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     ).element;
 
   /**
-   * Opens an element as the app shows it (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line, the input of
-   * `parentsInput` in packages/app/src/renderer/neighbourhood.ts, at the same time. The app shows the element
-   * when both have answered, so SR-082 AK3 is the time of both.
+   * Opens an element with its parents line (ThomasBirkmaier/ReqSeq-archive#542): `element.get` and the parents line at the
+   * same time. The element is shown when both have answered, so SR-082 AK3 is the time of both.
    */
   const openWithParents = async (
     opened: Workspace,
@@ -268,7 +267,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(view.id).toBe(id);
     expect(view.problems).toEqual([]);
     expect(view).not.toHaveProperty("versionDate");
-    // The date on request, as the app asks for it in a second call: recorded, no threshold.
+    // The date on request, as a client asks for it in a second call: recorded, no threshold.
     const { result: dated } = await measure(
       `open one element with its version date (versionDate: true, ${String(HISTORY + 2)} commits)`,
       () => openElement(opened(), id, true),
@@ -314,7 +313,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(thresholdLimit(RESULT_MS));
   });
 
-  it("[SR-082/AK-h27y] sorts every element by the time of its version within 500 ms once the sort was applied since the start (SR-075 AK6)", async () => {
+  it("[SR-082/AK-h27y] sorts every element by the time of its version within 500 ms once the sort was applied since the start (SR-075)", async () => {
     // Newest first: the elements the history changed got their generated text back in the last commit.
     const sortedList = async (): Promise<FullList> =>
       (await invoke(
@@ -326,7 +325,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       `sort: all elements by versionDate, first page: first sort after the start (${String(HISTORY + 2)} commits per repository)`,
       sortedList,
       {
-        basis: "SR-075 AK6, SR-082 AK4 (recorded: the limit holds once the sort was applied since the start)",
+        basis: "SR-075, SR-082 AK4 (recorded: the limit holds once the sort was applied since the start)",
       },
     );
     const { result: sorted, measurement } = await measure(

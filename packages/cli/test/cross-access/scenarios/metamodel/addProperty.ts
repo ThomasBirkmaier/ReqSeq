@@ -6,7 +6,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.addProperty", [
   {
-    name: "gives a type a new choice property and writes the same bytes and output through every access (SR-236 AK12)",
+    name: "gives a type a new choice property and writes the same bytes and output through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: {
       type: "decision",
@@ -23,7 +23,7 @@ scenariosOf("metamodel.addProperty", [
     },
   },
   {
-    name: "a property the type has already is refused the same way through every access (SR-236 AK12)",
+    name: "a property the type has already is refused the same way through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "system-requirement", property: "title", required: false },
     expect: "error",

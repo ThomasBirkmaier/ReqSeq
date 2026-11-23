@@ -70,7 +70,7 @@ scenariosOf("baseline.prepare", [
     },
   },
   {
-    name: "no Create baseline while the workspace is read-only (SR-226 AK6, SR-242 AK4)",
+    name: "no Create baseline while the workspace is read-only (SR-226, SR-242 AK4)",
     fixture: {
       ...EXPORT,
       files: {

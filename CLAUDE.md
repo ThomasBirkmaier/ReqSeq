@@ -1,6 +1,6 @@
 # ReqSeq
 
-ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `CONTRIBUTING.md` has the layout, and `docs/process.md` shows the way of working from need to release.
+ReqSeq is an offline requirements tool (core, CLI, API, MCP server, web UI), built against its own specification in `spec/` until every system requirement is shown by a test. `CONTRIBUTING.md` has the layout, and `docs/process.md` shows the way of working from need to release.
 
 This file is the starting point. It holds the rules that apply to every change, and says where the rest is.
 
@@ -15,7 +15,7 @@ This file is the starting point. It holds the rules that apply to every change, 
 | every push | skill `verify` |
 | opening, reviewing or merging a PR, or a release | skill `merge` |
 | architecture work | `docs/architecture/README.md` and the ADRs of your area |
-| work in `packages/core` or `packages/app` | its README and only the part under its `docs/` you work on (ADR-0008 and ADR-0010 are split the same way) |
+| work in `packages/core` | its README and only the part under its `docs/` you work on (ADR-0008 and ADR-0010 are split the same way) |
 
 Skills are in `.claude/skills/<name>/SKILL.md`. A session that starts outside this checkout may list them as `reqseq:<name>`, or not at all; then read the file. The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 
@@ -32,7 +32,7 @@ Skills are in `.claude/skills/<name>/SKILL.md`. A session that starts outside th
 - ReqSeq reads Git and never writes to it (D-036).
 - ReqSeq never deletes elements. It supersedes them (D-045).
 - The status of an element is set only by people; the tool never changes it (D-030). The verification status is computed (SR-031).
-- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/<name>.json`, listed in `catalog.header.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
+- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/<name>.json`, listed in `catalog.header.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api` or `mcp` (ADR-0002).
 - Performance: the thresholds an AK names hold for 50,000 requirements (N-036). Other rows of the nightly record are for comparison and start no work.
 - No backward compatibility for formats, files and outputs, except for stored user data since v0.7.2 (versions, evidence records, baselines). Ask the product owner before writing compatibility code.
 
@@ -54,7 +54,7 @@ The way of working (picture in `docs/process.md`):
 - **Open an issue only** for a bug shown by a reproduction or a failing test (also a red CI job the PR did not cause, before its re-run: `merge`), an AK of an SR that is not met, an issue of the reviewed cut of a spec change (`spec-change`, step 8), a question for the product owner, or a task the product owner asks for. Anything smaller is fixed in the same PR, or noted in its description. An idea becomes a draft SR in the package of its topic, not an issue (`spec-change` says when). One problem per issue. Nothing creates issues for SRs in bulk.
 - **Title:** what is different afterwards (feature, task) or what is wrong (bug), in the user's words, with a distinctive keyword first, about 70 characters, no prefix. A question about an AK: `SR-149 AK1: order of package groups?`
 - **Body:** it opens with 1–3 sentences without jargon on what a user notices and why it matters, understandable without other issues or threads. An issue that implements AKs, or a bug that breaks one, has the line `SR: SR-112 (AK1, AK2)` instead of a copy of the AK.
-- **Labels:** exactly one type (`bug`, `feature`, `task`, `question`), one area where the main change is (`core`, `cli`, `api`, `mcp`, `app`, `spec`, `dev`), and one priority (`P1` must, `P2` should, `P3` could). `needs-human` while the issue waits for the product owner, `epic` for a cut task, `agent:working` while an agent works on it. The origin (pilot, dogfooding, security review) goes into the text, not into a label. `scripts/labels.sh` is the list; `project-sync` fills the board from the labels, so change labels, never project fields.
+- **Labels:** exactly one type (`bug`, `feature`, `task`, `question`), one area where the main change is (`core`, `cli`, `api`, `mcp`, `spec`, `dev`), and one priority (`P1` must, `P2` should, `P3` could). `needs-human` while the issue waits for the product owner, `epic` for a cut task, `agent:working` while an agent works on it. The origin (pilot, dogfooding, security review) goes into the text, not into a label. `scripts/labels.sh` is the list; `project-sync` fills the board from the labels, so change labels, never project fields.
 - **Milestone:** one per version x.y, plus one per fix release x.y.z the product owner plans; its description states its goal and exit criterion. Every open issue has one. A step of an open epic becomes its sub-issue and has the epic's milestone. A P1 bug (a flake seen a second time included) gets the lowest open version, a fix release x.y.z included, which takes no other issue; any other bug or flake gets the lowest open version x.y, and v1.0 takes no bugs. Any other issue gets the open version whose goal it serves, else the lowest open one. The product owner moves issues between milestones, and opens the next milestone with its goal and exit criterion when a version x.y is released.
 - **Closing:** the merged PR closes its issue with `Closes #`. A close without a PR (duplicate, not planned) needs the product owner's explicit approval and a reason.
 - Issues labelled `needs-human` wait. **Before the first change for an issue, set `agent:working` on it** (`gh api -X POST repos/ThomasBirkmaier/ReqSeq/issues/<n>/labels -f 'labels[]=agent:working'`): the board shows an issue "In Progress" only through this label. The workflow `issue-working` also sets it on each open issue a PR closes (`Closes #`) and removes it when the PR is closed. Remove it yourself when you stop without a PR.
@@ -70,7 +70,7 @@ The way of working (picture in `docs/process.md`):
 
 ## Quality gates (ADR-0016)
 
-Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`, app `.ts`), React `.tsx` without threshold. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in `verify`.
+Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`), React `.tsx` without threshold. CLI e2e, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. Check while you work with `pnpm typecheck` and `pnpm vitest run <file> --reporter=dot`; the full list before a push is in `verify`.
 
 ## Traps
 

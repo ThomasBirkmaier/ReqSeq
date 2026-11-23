@@ -389,7 +389,7 @@ describe("element.list (SR-069)", () => {
     ]);
   });
 
-  it("selects a package as a selection: exactly its elements (SR-112 AK1)", async () => {
+  it("selects a package as a selection: exactly its elements", async () => {
     const ws = await open();
     expect(ids(await list(ws, { selection: { package: "PKG-0000d2" } }))).toEqual([B2, B4]);
     const notPackage = await failure(ws, { selection: { package: "VAR-0000c1" } });
@@ -695,7 +695,7 @@ describe("element.list refuses unknown names and wrong conditions", () => {
   });
 });
 
-describe("element.list, the elements of a package in several repositories (SR-112, D-058)", () => {
+describe("element.list, the elements of a package in several repositories (D-058)", () => {
   const PACKAGE = "7e3a5c9b-1d2f-4e6a-8b0c-2d4e6f8a0b1c";
   const NAMES = "2d4f6a8c-0e1b-4c3d-9a5b-7c9e1f3a5b7d";
   const SILENT = "3e5a7b9d-1f2c-4d4e-8b6c-8d0f2a4b6c8e";

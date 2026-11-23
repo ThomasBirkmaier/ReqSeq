@@ -9,7 +9,7 @@
 // throws and is never awaited by it (SR-080 AK2); nothing is read or built for it (ADR-0008). The
 // file is written only through `files` (`writeCacheFile`), only into a cache folder outside every
 // repository (`usableCacheFolder`), so it never lands in a working tree or in Git (D-036). No socket,
-// pipe or listener is involved (SR-117 AK6, SR-078, SR-079).
+// pipe or listener is involved (SR-117, SR-078, SR-079).
 import { randomBytes } from "node:crypto";
 import type { FSWatcher } from "node:fs";
 import { watch } from "node:fs";

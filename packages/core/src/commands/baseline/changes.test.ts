@@ -1,7 +1,7 @@
 // baseline.changes through `invoke` (SR-241) on fixtures/SR-061/export (Git repositories `system` and
 // `sensor`): its `release-1.yaml` stores no selection, `broken.yaml` is no valid baseline, and it has two
 // open hints, an unknown property and an outdated relation (confirmable, D-042). Each number is compared
-// with the command that gives it (D-082), and the next steps of a read-only workspace (SR-226 AK6).
+// with the command that gives it (D-082), and the next steps of a read-only workspace (SR-226).
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { rm } from "node:fs/promises";

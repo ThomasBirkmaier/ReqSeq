@@ -528,7 +528,7 @@ describe("the names of an answer (SR-224 AK1)", () => {
   });
 });
 
-describe("next steps while the workspace is read-only (SR-226 AK6)", () => {
+describe("next steps while the workspace is read-only (SR-226)", () => {
   const entry = (name: string, extra: object): object => ({
     name,
     title: "Test command",

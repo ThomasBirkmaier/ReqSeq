@@ -1,4 +1,4 @@
-// displayOf (SR-032 AK3 to AK5, #1320): the Evidence section at a glance as `evidence.list` gives it.
+// displayOf (SR-032 AK3, #1320): the Evidence section at a glance as `evidence.list` gives it.
 // The AK tags of AK4 and AK5 are on the app's tests (#1321), which show it "in der App".
 import { describe, expect, it } from "vitest";
 import type { VersionForms } from "../model/index.js";

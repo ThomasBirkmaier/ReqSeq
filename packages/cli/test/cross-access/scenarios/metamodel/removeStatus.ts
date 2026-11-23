@@ -7,7 +7,7 @@ import { scenariosOf } from "../../scenario.js";
 
 scenariosOf("metamodel.removeStatus", [
   {
-    name: "writes the list of the other statuses on a type without one, with the same bytes and output through every access (SR-240 AK3, SR-236 AK12)",
+    name: "writes the list of the other statuses on a type without one, with the same bytes and output through every access (SR-240 AK3, SR-236)",
     tag: "[SR-240/AK-pgn4]",
     input: { type: "need", status: "obsolete" },
     expect: "output",
@@ -18,13 +18,13 @@ scenariosOf("metamodel.removeStatus", [
     },
   },
   {
-    name: "a status an element of the type has is refused with the same use through every access (SR-236 AK12)",
+    name: "a status an element of the type has is refused with the same use through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "system-requirement", status: "draft" },
     expect: "error",
   },
   {
-    name: "keeps a status definition an element of another type still has and names their number through every access (SR-240 AK3, SR-236 AK12)",
+    name: "keeps a status definition an element of another type still has and names their number through every access (SR-240 AK3, SR-236)",
     tag: "[SR-240/AK-pgn4]",
     fixture: KEPT_DEFINITIONS,
     input: { type: "note", status: "noted" },

@@ -1,4 +1,4 @@
-// The display model of the type lines of the app's overview (SR-118 AK1) and the HTML export's start page (SR-233 AK3),
+// The display model of the type lines of the app's overview and the HTML export's start page (SR-233 AK3),
 // ADR-0019 points 1, 5 and 9(a): one line per type with at least one element and the number of its elements, in the
 // order of `element.facets` `types` (the metamodel's types in its order, then a type it does not know in the order its
 // first element appears, named by its key), each leading to the list of its type.

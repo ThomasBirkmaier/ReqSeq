@@ -276,7 +276,7 @@ scenariosOf("element.search", [
   },
   {
     tag: "[SR-216/AK-r9jg]",
-    name: "a key that holds relations, refused with a message naming it (SR-216 AK2, AK11)",
+    name: "a key that holds relations, refused with a message naming it (SR-216 AK2)",
     fixture: FIELDS,
     input: { query: "gust", fields: ["derives-from"] },
     expect: "error",
@@ -289,7 +289,7 @@ scenariosOf("element.search", [
     },
   },
   {
-    name: "a key it cannot group by (SR-149 AK6)",
+    name: "a key it cannot group by (SR-149)",
     fixture: { fixture: "SR-149/group" },
     input: { query: "wind", group: "title" },
     expect: "error",

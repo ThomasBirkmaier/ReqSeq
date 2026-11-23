@@ -1,6 +1,5 @@
-// The syntax of formulas in the HTML export (SR-231 AK5), as an extension of micromark and mdast: the rules of the
-// app's editor (`packages/app/src/renderer/editor/math-syntax.ts`), so that the editor and the export find the same
-// formulas (the cases of `@reqseq/testkit`'s `MATH_SYNTAX_CASES` run against both).
+// The syntax of formulas in the HTML export (SR-231 AK5), as an extension of micromark and mdast (the cases
+// of `@reqseq/testkit`'s `MATH_SYNTAX_CASES` run against it).
 //
 // - `inlineMath`: `$…$` within a line. The opening `$` is followed by a character that is no white space, the
 //   closing `$` follows one and is not followed by a digit (so "costs $5 and $10" holds no formula); `\$` is an

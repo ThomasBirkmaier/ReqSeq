@@ -18,7 +18,7 @@ const SCRATCH: FixtureOptions = {
 
 scenariosOf("metamodel.removeType", [
   {
-    name: "removes an unused type with its own property and writes the same bytes and output through every access (SR-236 AK12)",
+    name: "removes an unused type with its own property and writes the same bytes and output through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     fixture: SCRATCH,
     input: { type: "scratch" },
@@ -31,13 +31,13 @@ scenariosOf("metamodel.removeType", [
     },
   },
   {
-    name: "a type an element has is refused with the same use through every access (SR-236 AK12)",
+    name: "a type an element has is refused with the same use through every access (SR-236)",
     tag: "[SR-236/AK-rtcn]",
     input: { type: "system-requirement" },
     expect: "error",
   },
   {
-    name: "keeps each definition an element of another type still holds and names their numbers through every access (SR-237 AK5, SR-236 AK12)",
+    name: "keeps each definition an element of another type still holds and names their numbers through every access (SR-237 AK5, SR-236)",
     tag: "[SR-237/AK-b0j6]",
     fixture: KEPT_DEFINITIONS,
     input: { type: "note" },

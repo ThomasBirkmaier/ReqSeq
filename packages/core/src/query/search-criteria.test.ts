@@ -322,7 +322,7 @@ describe("the location of a hit in a criterion (SR-222 AK3)", () => {
   });
 });
 
-describe("criterion keys and references in filters (SR-222 AK5)", () => {
+describe("criterion keys and references in filters (SR-222)", () => {
   it("[SR-222/AK-b63b] the condition text finds keys and references as the search does, a property condition and its values read the texts only", async () => {
     const { workspace } = await open();
     const listed = async (where: unknown): Promise<string[]> => {

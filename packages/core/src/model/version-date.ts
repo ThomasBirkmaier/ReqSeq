@@ -1578,7 +1578,7 @@ type Answer = Exclude<Found, "newer" | typeof LATE>;
 
 /**
  * The answer for `version` once its start is certain (`decide`): where Git could not tell a version,
- * no commit having it says nothing (SR-075 AK6: no time), and neither does a start where HEAD's
+ * no commit having it says nothing (SR-075: no time), and neither does a start where HEAD's
  * version is not known. Fixed once set: HEAD's version is computed before any answer counts, and a
  * null start means every evaluated commit was computed.
  */
@@ -1593,7 +1593,7 @@ const answered = (walk: FileWalk, version: string, start: Started | null): Answe
 };
 
 /**
- * What HEAD alone tells a sort of `version` (SR-075 AK6: content that differs from the last commit
+ * What HEAD alone tells a sort of `version` (SR-075: content that differs from the last commit
  * counts as newer than every committed one): `newer` where HEAD's file has another version or no
  * commit has the file, whatever older commits Git could not tell; `undated` where Git could not tell
  * HEAD's version; undefined while it is not computed, where HEAD has the version, or where the
@@ -1864,7 +1864,7 @@ export const versionDates = async (
 ): Promise<(string | null)[]> => (await versionStarts(context, requests)).map((start) => start?.date ?? null);
 
 /**
- * The time of each requested version as a sort by the version date reads it (SR-075 AK6), in the
+ * The time of each requested version as a sort by the version date reads it (SR-075), in the
  * order of `requests`: `dated` with the date of its start (`versionStarts`) when the newest commit
  * that changed the file has that version; `uncommitted` when that commit's version is known and
  * another (the content differs from the last commit, also when an older commit had it, and whatever

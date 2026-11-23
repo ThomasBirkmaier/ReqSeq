@@ -12,18 +12,18 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0004](0004-element-file-format.md) | Element file format | D-015, D-017, D-040, D-043, D-056, D-058, D-059 |
 | [0005](0005-version-hash.md) | Version (Fassung) as content hash | D-013, D-027, D-057, D-060 |
 | [0006](0006-read-only-git.md) | Read Git through the git program, read-only | D-036, SR-083 |
-| [0007](0007-parsing-and-writing-files.md) | Parsing and writing YAML and Markdown | D-012, D-056, SR-008, SR-016, SR-065 |
+| [0007](0007-parsing-and-writing-files.md) | Parsing and writing YAML and Markdown | D-012, D-056, SR-008, SR-016 |
 | [0008](0008-in-memory-model-and-index.md) | In-memory model, search index, cache and file watching (details in [`0008/`](0008/)) | N-036, SR-007, SR-068, SR-081, SR-082 |
 | [0009](0009-access-adapters.md) | CLI, local API and MCP server | D-025, D-029, SR-079, SR-080 |
-| [0010](0010-electron-app.md) | Electron app: process model and security (superseded by 0020) | D-003, D-004, SR-073, SR-077, SR-078 |
+| [0010](0010-electron-app.md) | Electron app: process model and security (superseded by 0020) | D-003, D-004, SR-077, SR-078 |
 | [0011](0011-testing-and-verification.md) | Test tools, evidence and quality gates | D-051, SR-077..SR-082, SR-249 |
 | [0012](0012-evidence-records.md) | Evidence records and the JUnit convention | D-007, D-026, SR-028, SR-029 |
 | [0013](0013-reqif.md) | ReqIF import and export | D-022, D-032, SR-052..SR-059, SR-095 |
-| [0014](0014-packaging.md) | Packaging and delivery (superseded by 0020) | D-003, SR-076, SR-078 |
+| [0014](0014-packaging.md) | Packaging and delivery (superseded by 0020) | D-003, SR-078 |
 | [0015](0015-dependencies-and-licenses.md) | Dependency policy | N-047, D-051 |
 | [0016](0016-strict-quality-gates.md) | Strictest compiler settings, strict lint and coverage thresholds | D-051 |
 | [0017](0017-user-documentation-site.md) | User documentation site | D-067, SR-139..SR-141 |
 | [0018](0018-baseline-file.md) | Baseline file: name, layout, fast reader | D-039, D-045, D-058, N-036 |
-| [0019](0019-shared-display-model.md) | One display model per display, shared by the app and the HTML export | D-029, D-062, D-078, D-080, N-036 |
+| [0019](0019-shared-display-model.md) | One display model per display, shared by the app and the HTML export | D-029, D-078, D-080, N-036 |
 | [0020](0020-web-ui.md) | Web UI: server, token, packages and release without Electron | D-083, SR-247..SR-250 |
 | [0021](0021-desktop-shell.md) | Desktop shell: Tauri host, test seam and lean CI | D-084, SR-252, SR-253 |

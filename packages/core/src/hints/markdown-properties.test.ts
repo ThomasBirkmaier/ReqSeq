@@ -396,7 +396,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       ];
       expect(criteriaOf(text)).toEqual(stored);
       // Each criterion is one line of the file at its criterion key, the Markdown as typed (quoted
-      // where YAML needs it; SR-204 AK11).
+      // where YAML needs it; SR-204).
       expect(text).toMatch(
         new RegExp(
           [`"${String(stored[0])}"`, "Plain without marks", '"_Wenn_ ein Wert: \\*\\*fett\\*\\*"']

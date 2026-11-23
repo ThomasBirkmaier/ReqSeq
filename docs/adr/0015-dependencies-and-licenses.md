@@ -1,6 +1,6 @@
 # ADR-0015: Dependency policy
 
-Status: Accepted · Based on: N-046, N-047, D-051 · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): Rust crates: pins, licence check, audit
+Status: Accepted · Based on: N-046, N-047, D-051 · Changed by [ADR-0021](0021-desktop-shell.md) (#2376): Rust crates: pins, licence check, audit · The Electron app (`packages/app`) named here was removed (#2310)
 
 ## Decision
 

@@ -340,7 +340,7 @@ export const GUIDE_TAIL: GuideSection = {
   ],
 };
 
-/** The title of the guide and of the MCP server instructions (SR-229 AK17). */
+/** The title of the guide and of the MCP server instructions (SR-229). */
 const GUIDE_TITLE = "# Working with ReqSeq";
 
 const INTRODUCTION =
@@ -369,11 +369,11 @@ export const agentGuide = (
   return `${[GUIDE_TITLE, "", INTRODUCTION, ...body].join("\n")}\n`;
 };
 
-/** The longest MCP server instructions, in code points (SR-229 AK17). */
+/** The longest MCP server instructions, in code points (SR-229). */
 export const INSTRUCTIONS_MAX_LENGTH = 4000;
 
 /**
- * The MCP server instructions (SR-229 AK17) as Markdown, LF line endings and a final newline: the title of the
+ * The MCP server instructions (SR-229) as Markdown, LF line endings and a final newline: the title of the
  * guide, the paragraph that points to the guide, and the rules section with the MCP tool names. Nothing comes
  * from the workspace, so the text is the same for every folder and stays within `INSTRUCTIONS_MAX_LENGTH`.
  */

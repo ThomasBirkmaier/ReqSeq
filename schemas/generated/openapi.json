@@ -63,7 +63,7 @@
                             "minLength": 1,
                             "maxLength": 40,
                             "pattern": "^[A-Z][^.!?]*$",
-                            "description": "The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations and for entries with `deletes`."
+                            "description": "The name of the command for people, English, sentence case, unique in the catalog: the MCP tool `title`. Free of delete words except for relations and for entries with `deletes`."
                           },
                           "summary": {
                             "type": "string",
@@ -119,7 +119,7 @@
                           },
                           "arguments": {
                             "type": "array",
-                            "description": "How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to read commands of `@reqseq/core` and decides nothing about what is allowed; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`).",
+                            "description": "How a command prompt asks for the input: every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; `folder` and `file` map to `workspace.listFolder`, because only `@reqseq/core` reads the file system, and `searchField` to `element.searchFields`: the read commands made for completion). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source, never an `element` field with a `meaning`: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); an `element` field for criterion and elementFile; a `relationKind` field for relationTarget; a `property` field for value; a `type` field for properties and relations; a `folder` field for metamodelLocation. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; the others need one. `validate-schemas.mjs` checks the coverage, the order, `of` and the fields each source fits (`catalog-checks.mjs`).",
                             "items": {
                               "type": "object",
                               "required": [
@@ -241,7 +241,7 @@
                               }
                             },
                             "additionalProperties": false,
-                            "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson`. Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object."
+                            "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson`. Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP keeps the JSON object."
                           },
                           "outputFields": {
                             "type": "array",
@@ -307,7 +307,7 @@
                           "textOutput": {
                             "type": "string",
                             "minLength": 1,
-                            "description": "A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr. API, MCP and the app keep the JSON object."
+                            "description": "A required top-level `string` field of `output` (`catalog-checks.mjs`) that is the command's text: the CLI prints exactly this string to stdout without `--json` or `--yaml`, and the problems alone to stderr. API and MCP keep the JSON object."
                           },
                           "output": {
                             "type": "object",
@@ -1212,7 +1212,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy. null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded."
+                      "description": "The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy. null when there is none, the copy has no usable cache folder, or the record cannot be read. Only calls through the API and the MCP server are recorded."
                     }
                   },
                   "additionalProperties": false,
@@ -1600,7 +1600,7 @@
                           "exists"
                         ]
                       },
-                      "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them: the app's utility process that runs `@reqseq/core` records the workspace it opens, and `workspace.markOpened` marks the workspace it runs on. Empty when none is recorded or the list cannot be read. No other command changes the list."
+                      "description": "The workspaces opened last, the most recent first, as `<OS cache>/reqseq/recent-workspaces.json` holds them: `workspace.markOpened` marks the workspace it runs on. Empty when none is recorded or the list cannot be read. No other command changes the list."
                     }
                   },
                   "additionalProperties": false,
@@ -7209,12 +7209,12 @@
                   "versionDate": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Also give the date of the version (`versionDate`), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast; the app asks for the date in a second call."
+                    "description": "Also give the date of the version (`versionDate`), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast."
                   },
                   "hintDates": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints. `versionDate` dates these hints too."
+                    "description": "Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate`, `storedCommit`, `currentCommit` and both dates with their commits in the message), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation. `versionDate` dates these hints too."
                   },
                   "repository": {
                     "type": "string",
@@ -9667,7 +9667,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 27962028,
-                    "description": "The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in the app. Needs name; give it or sourcePath, not both."
+                    "description": "The bytes of the image, base64 (RFC 4648, with padding), at most 20 MiB decoded, so a request stays below the 32 MiB limit of the API and MCP: for an image without a file, such as one pasted or dropped in an editor. Needs name; give it or sourcePath, not both."
                   },
                   "name": {
                     "type": "string",
@@ -16326,7 +16326,7 @@
                               "views": {
                                 "title": "Views",
                                 "type": "array",
-                                "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (with `view`, that view alone, also such a variant's), the core first; the app names those whose status is the row's. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
+                                "description": "Verification only: the status of the criterion in each view the element applies in, without that of a variant whose status the metamodel marks invalid (with `view`, that view alone, also such a variant's), the core first. While the metamodel is not valid the status shows every requirement open, but these statuses still compare the records.",
                                 "items": {
                                   "type": "object",
                                   "properties": {
@@ -21457,7 +21457,7 @@
     "schemas": {
       "activity": {
         "title": "Activity file",
-        "description": "`activity.json` in the cache folder of the working copy: the last call through the local API or the MCP server that read or changed one element of the copy. Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.",
+        "description": "`activity.json` in the cache folder of the working copy: the last call through the local API or the MCP server that read or changed one element of the copy. Every API and MCP process of the copy rewrites it after such a call (the last writer wins). It is private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.",
         "type": "object",
         "required": [
           "version",
@@ -23161,7 +23161,7 @@
           },
           "nextStep": {
             "title": "Next step",
-            "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
+            "description": "A command to run next: the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets.",
             "type": "object",
             "properties": {
               "command": {
@@ -25354,7 +25354,7 @@
       },
       "perspective": {
         "title": "Perspective file",
-        "description": "A perspective saved as YAML in the repository: a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view: the app lists it in the view of its window, the other accesses in `selection.view`. Element references may take any form; `perspective.save` writes UUIDs.",
+        "description": "A perspective saved as YAML in the repository: a list of elements with a name, its selection, its grouping and its sort, as a `*.yaml` file directly in the `perspectives` folder of the workspace file. A perspective stores no view; the view comes from `selection.view`. Element references may take any form; `perspective.save` writes UUIDs.",
         "type": "object",
         "required": [
           "reqseq-perspective",
@@ -25405,7 +25405,7 @@
       },
       "recent-workspaces": {
         "title": "Recent workspaces file",
-        "description": "`recent-workspaces.json` in `<OS cache>/reqseq/`: the workspaces opened last, the most recent first, at most 20, one per folder. The app's utility process that runs `@reqseq/core` records the root of every workspace it opens, and `workspace.markOpened` the root of the workspace it runs on; the app's main process reads the list for \"Open workspace\". It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
+        "description": "`recent-workspaces.json` in `<OS cache>/reqseq/`: the workspaces opened last, the most recent first, at most 20, one per folder. `workspace.markOpened` records the root of the workspace it runs on, and `workspace.recent` reads the list. It is private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
         "type": "object",
         "required": [
           "format",

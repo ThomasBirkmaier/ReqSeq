@@ -11,7 +11,7 @@
 // `AGENT_LIVE_MS` from now; a crashed process stops counting `AGENT_LIVE_MS` after its last beat.
 // Files are written only through `files` (`writeCacheFile`), only into a cache folder outside every
 // repository (`usableCacheFolder`), so they never land in a working tree or in Git (D-036). Nothing
-// waits for the element store; no socket, pipe or listener is involved (SR-228 AK5, SR-079). All
+// waits for the element store; no socket, pipe or listener is involved (SR-228, SR-079). All
 // failures of recording are silent, as for the activity (model/activity.ts).
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
@@ -321,7 +321,7 @@ class Recording implements AgentRecording {
   ): Promise<Started | undefined> {
     const since = new Date().toISOString();
     try {
-      // The layout only (the workspace file), never the element store (SR-228 AK5).
+      // The layout only (the workspace file), never the element store (SR-228).
       const folder = usableCacheFolder(workspace, await workspace.get(workspaceLayoutState));
       if (folder === undefined) {
         return undefined;
@@ -395,7 +395,7 @@ const NOT_RECORDED: AgentRecording = { end: () => Promise.resolve() };
  * Records a connection of the MCP server whose client gave `client` as its name (SR-228), in the
  * background: the file at once, the beat until `end()` or `workspace.close()`. Only the MCP server
  * calls it, once the client is connected (`LineTransport`). Returns at once and never
- * throws; a closed workspace, or one without a usable cache folder, records nothing (SR-228 AK4).
+ * throws; a closed workspace, or one without a usable cache folder, records nothing (SR-228).
  */
 export const recordAgentConnection = (
   workspace: Workspace,

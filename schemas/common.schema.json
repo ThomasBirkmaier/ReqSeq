@@ -322,7 +322,7 @@
         "elementTitle": {
           "title": "Title of the element",
           "type": "string",
-          "description": "Title of the element `elementId` names, for display next to `elementShortId` (SR-026 AK6); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
+          "description": "Title of the element `elementId` names, for display next to `elementShortId` (SR-026); given by hint.list on the hints of its page, for the element `elementShortId` names; empty when the element has no title that is a text, or the metamodel gives no property the meaning `title`."
         },
         "targetId": {
           "title": "Target",
@@ -346,7 +346,7 @@
         "targetTitle": {
           "title": "Title of the target",
           "type": "string",
-          "description": "Title of the element `targetId` names, for display next to `targetShortId` (SR-026 AK6); given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
+          "description": "Title of the element `targetId` names, for display next to `targetShortId` (SR-026); given by hint.list where `targetRepository` names one element with that UUID, empty as `elementTitle`."
         },
         "storedVersion": {
           "title": "Stored version",
@@ -429,7 +429,7 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "data-export.schema.json#/$defs/criterionName" },
-          "description": "The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204 AK10), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text)."
+          "description": "The acceptance criteria of the element the problem is about, with number, criterion key and text (SR-205 AK2), each left out where it does not apply, as the message names them: the criteria whose status is outdated (`evidence.outdated`), the two that carry one key and the one with a key of another form (`element.criterion-key-duplicate`, `element.criterion-key-invalid`, SR-204), and those a record names that the version it names lacks (`evidence.unknown-criterion`, SR-028 AK5: key or number as named, without text)."
         },
         "limit": {
           "title": "Limit",
@@ -440,7 +440,7 @@
         "view": {
           "title": "View",
           "$ref": "#/$defs/viewId",
-          "description": "The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026 AK6): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173)."
+          "description": "The view whose verification or validation status an `evidence.outdated` hint is about (SR-025 AK4, SR-026): `core` or the UUID of the variant, also when the record it names holds in every variant (SR-173)."
         }
       },
       "additionalProperties": false
@@ -1141,7 +1141,7 @@
     },
     "nextStep": {
       "title": "Next step",
-      "description": "A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets, the app by the title of the command.",
+      "description": "A command to run next (SR-226): the command, the input fields known already and those still to give. Every access shows the same step in its own form: the command line as a call with the open fields in angle brackets.",
       "type": "object",
       "properties": {
         "command": {

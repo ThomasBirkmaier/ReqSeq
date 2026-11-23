@@ -1,6 +1,6 @@
 // The next steps (SR-226): which command to run next, with the inputs known already and those still to
 // give, as data (`common.schema.json#/$defs/nextStep`). Every access shows them in its own form from the
-// same data (AK4): the command line as calls, the app by the titles of the commands.
+// same data (AK4): the command line as calls.
 import type { NextStep } from "./generated/types.js";
 
 /** Creating a workspace in `folder`, the name still to give (AK1: the next step of `workspace.not-found`). */
@@ -28,14 +28,4 @@ export const GET_STARTED: readonly NextStep[] = [
   { command: "workspace.connectAgent", input: {}, open: ["client"] },
   { command: "element.create", input: {}, open: ["type", "title"] },
   { command: "tool.guide", input: {}, open: [] },
-];
-
-/**
- * The first steps of a workspace in which the tool counts no element (SR-118 AK9): create an element, import a
- * ReqIF file, connect an AI agent. The app's overview shows them as its lines, each by its command's name.
- */
-export const FIRST_STEPS: readonly NextStep[] = [
-  { command: "element.create", input: {}, open: ["type", "title"] },
-  { command: "reqif.import", input: {}, open: ["file", "delivery"] },
-  { command: "workspace.connectAgent", input: {}, open: ["client"] },
 ];

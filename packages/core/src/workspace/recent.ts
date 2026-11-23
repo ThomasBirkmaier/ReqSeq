@@ -25,7 +25,7 @@ export const RECENT_WORKSPACES_KEEP = 20;
 /** A larger file is not ReqSeq's: it reads as an empty list, and the next open overwrites it. */
 export const RECENT_WORKSPACES_MAX_BYTES = 64 * 1024;
 
-/** The longest root the list holds, in characters (as the app's main process accepts one). */
+/** The longest root the list holds, in characters. */
 export const MAX_ROOT_LENGTH = MAX_PATH_LENGTH;
 
 /** An existence check that has no answer this long after it was asked counts as missing (`"timeout"`). */
