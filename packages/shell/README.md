@@ -19,13 +19,13 @@ pnpm --filter @reqseq/shell build:e2e      # target/debug/reqseq-shell with the 
 pnpm --filter @reqseq/shell test:e2e
 ```
 
-Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace`. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
+Linux needs `libwebkit2gtk-4.1-dev`, and for the e2e suite a display, a session bus and `strace` with `CAP_SYS_PTRACE` over the shell, because the shell is not dumpable (ADR-0021, End): root, or `unshare -r` as in CI. CI runs the suite as `unshare -rn sh -c 'ip link set lo up && exec xvfb-run -a dbus-run-session -- ./node_modules/.bin/vitest run --config vitest.shell.config.ts'`, so it has no network. `rust-toolchain.toml` pins the Rust version, and Cargo builds with `tauri/custom-protocol`, without the Tauri CLI.
 
 ## The e2e build
 
 The feature `e2e` adds a driver (`shell/src/e2e.rs`) and is never in a release. The suite (`e2e/`) starts `reqseq-shell` with it and talks to it:
 
-- Standard input, one JSON object per line: `{"eval": "<script>", "id": n}` runs a script in the window and answers with its JSON result, `{"close": true}` closes the window, `{"crash": true}` aborts the shell without a core dump (#2406), `{"dialog": "<path>"}` or `{"dialog": null}` queues the answer of the next dialog (the stand-in of the system's dialog; with nothing queued it gives none).
+- Standard input, one JSON object per line: `{"eval": "<script>", "id": n}` runs a script in the window and answers with its JSON result, `{"close": true}` closes the window, `{"crash": true}` aborts the shell, `{"dialog": "<path>"}` or `{"dialog": null}` queues the answer of the next dialog (the stand-in of the system's dialog; with nothing queued it gives none).
 - Standard output: `e2e <kind> <JSON>` lines: `shown` (the origin), `page-load`, `navigation` (allowed or refused), `open_address` (each call of a page), `dialog` (what the dialog would show first), `queued`, `report` (a reason the shell names), `eval` and `error`.
 - Variables: `REQSEQ_SHELL_E2E_NODE` and `REQSEQ_SHELL_E2E_CLI` start another Node or CLI (the fake server `e2e/fixtures/server.mjs`), `REQSEQ_SHELL_E2E_ADDRESS_WAIT_MS` shortens the 30 s wait for the address, `REQSEQ_SHELL_E2E_ROOT` names the folder that stands in for the root of the file system (SR-252 AK10), and `REQSEQ_SHELL_E2E_OPENER` (with `REQSEQ_SHELL_E2E_OPENER_NODE`) replaces the system's opener on macOS and Windows; on Linux the suite puts a fake `xdg-open` first in `PATH`.
 

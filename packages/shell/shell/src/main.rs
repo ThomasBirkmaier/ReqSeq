@@ -51,6 +51,10 @@ fn main() {
     std::hint::black_box(BUILD);
     #[cfg(unix)]
     shell::unix::block_end_signals();
+    // A crash then writes no core dump, which would keep the server's standard input open while it is written
+    // (ADR-0021, End; #2413).
+    #[cfg(target_os = "linux")]
+    shell::unix::no_core_dump();
     let token: TokenSlot = Arc::default();
     let filter = host::install_filter(&token);
     // A panic writes a fixed line and no payload, so it cannot pass on a token (ADR-0021, Start step 6).

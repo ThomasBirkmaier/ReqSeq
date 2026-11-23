@@ -248,21 +248,16 @@ pub fn write_quietly(mut out: &File, text: &str) {
     let _ = out.write_all(text.as_bytes());
 }
 
-/// Makes this process write no core dump when it ends by a signal, as the e2e driver's crash does (#2406). While the
+/// Makes this process not dumpable, as `main` does at the start (#2413): a crash then writes no core dump. While the
 /// kernel writes a core, every descriptor of the process stays open, the write end of the server's standard input
-/// among them, so the server would outlive the dump. On Linux the process becomes not dumpable, which stops a core
-/// pattern that pipes to a helper too (apport, systemd-coredump), because such a pattern ignores `RLIMIT_CORE`
-/// (core(5)); elsewhere `RLIMIT_CORE` 0 is enough.
+/// among them, so the server would outlive the dump; a core pattern that pipes to a helper (apport, systemd-coredump)
+/// writes one even under `RLIMIT_CORE` 0 (core(5)). `RLIMIT_CORE` stays as it is, so the programs the shell starts,
+/// which `exec` makes dumpable again, keep their core dumps.
+#[cfg(target_os = "linux")]
 pub fn no_core_dump() {
-    let none = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    // SAFETY: `setrlimit` reads the `rlimit` above, which lives for the call; `prctl` with `PR_SET_DUMPABLE` takes
-    // plain integers. A failure leaves the core dump as it was, which only makes the crash slower.
+    // SAFETY: `prctl` with `PR_SET_DUMPABLE` takes plain integers. A failure leaves the core dump as it was, which only
+    // makes the crash slower.
     unsafe {
-        libc::setrlimit(libc::RLIMIT_CORE, &raw const none);
-        #[cfg(target_os = "linux")]
         libc::prctl(libc::PR_SET_DUMPABLE, libc::c_ulong::from(0u8));
     }
 }
@@ -286,19 +281,12 @@ mod tests {
 
     /// Runs in a test process of its own, which it starts again with `REQSEQ_SHELL_TEST_NO_CORE_DUMP`: the change
     /// cannot be undone in this one.
+    #[cfg(target_os = "linux")]
     #[test]
     fn after_no_core_dump_the_process_writes_no_core() {
         const NAME: &str = "unix::tests::after_no_core_dump_the_process_writes_no_core";
         if std::env::var_os("REQSEQ_SHELL_TEST_NO_CORE_DUMP").is_some() {
             no_core_dump();
-            let mut limit = libc::rlimit {
-                rlim_cur: 1,
-                rlim_max: 1,
-            };
-            // SAFETY: `getrlimit` writes the `rlimit` above, which lives for the call.
-            assert_eq!(unsafe { libc::getrlimit(libc::RLIMIT_CORE, &raw mut limit) }, 0);
-            assert_eq!((limit.rlim_cur, limit.rlim_max), (0, 0));
-            #[cfg(target_os = "linux")]
             // SAFETY: `PR_GET_DUMPABLE` takes no further argument and touches no memory.
             assert_eq!(unsafe { libc::prctl(libc::PR_GET_DUMPABLE) }, 0);
             return;
