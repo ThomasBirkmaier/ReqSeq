@@ -99,3 +99,25 @@ test("the overview counts the changes since the newest baseline and opens their 
   await fact.click();
   await expect(page.getByRole("heading", { level: 1, name: `Changes since ${baseline.name}` })).toBeVisible();
 });
+
+test("where the panel is hidden, the list header still counts the verified requirements and the changes", async ({
+  page,
+  open,
+  ui,
+}) => {
+  const { degree } = await ui.run("evidence.degree", {});
+  const { baseline } = await ui.run("baseline.changes", { limit: 1 });
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await open();
+  await expect(page.locator(".ov")).toBeHidden();
+  const mini = page.locator(".ov-mini");
+  await expect(mini).toContainText(
+    `${String(degree.counts.verified + degree.counts.indirect)} of ${String(degree.total)}`,
+  );
+  if (baseline === undefined) {
+    await expect(mini.getByRole("link")).toHaveCount(0);
+    return;
+  }
+  await mini.getByRole("link", { name: new RegExp(`since ${baseline.name}`) }).click();
+  await expect(page.getByRole("heading", { level: 1, name: `Changes since ${baseline.name}` })).toBeVisible();
+});

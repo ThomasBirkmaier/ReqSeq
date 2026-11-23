@@ -50,7 +50,7 @@ const listHead = (title: string, sub: string, extra?: Child): HTMLElement =>
 const empty = (text: string): HTMLElement => h("div", { class: "empty" }, h("strong", null, text));
 
 /** The list of the overview: the head of each queue with something in it. */
-function overviewList(degree: DataExportVerificationDegree): HTMLElement {
+function overviewList(degree: DataExportVerificationDegree, changes: Newest): HTMLElement {
   const from = OVERVIEW;
   const groups = allQueues()
     .map((queue) => ({ queue, rows: rowsOf(queue) }))
@@ -62,7 +62,21 @@ function overviewList(degree: DataExportVerificationDegree): HTMLElement {
     listHead(
       "Overview",
       "What needs a look or a decision, as ReqSeq reports it.",
-      h("p", { class: "ov-mini" }, verifiedSentence(degree)),
+      h(
+        "p",
+        { class: "ov-mini" },
+        verifiedSentence(degree),
+        changes.count === undefined || changes.name === undefined
+          ? null
+          : [
+              " ",
+              h(
+                "a",
+                { href: hashOf("c") },
+                `${String(changes.count)} ${changes.count === 1 ? "change" : "changes"} since ${changes.name}.`,
+              ),
+            ],
+      ),
     ),
     h(
       "div",
@@ -310,7 +324,10 @@ async function render(root: HTMLElement, route: Route): Promise<void> {
     if (!isCurrent(route)) {
       return;
     }
-    await swap(root, frame(OVERVIEW, [overviewList(degree), overviewPanel(degree, packages, changes)]));
+    await swap(
+      root,
+      frame(OVERVIEW, [overviewList(degree, changes), overviewPanel(degree, packages, changes)]),
+    );
     document.title = "Overview · ReqSeq";
   } else {
     if (!isCurrent(route)) {
