@@ -46,7 +46,10 @@ interface Made {
 const made = async (): Promise<Made> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-061/export", git: ["system", "sensor"] });
   onTestFinished(() => ws.cleanup());
-  const first = await ws.head("system");
+  // SR-0000b4 is in use at the baseline's commit and superseded after it (SR-051 AK2, #2514).
+  const b4 = "requirements/SR-0000000000b4.md";
+  await edit(ws, b4, "status: obsolete", "status: draft");
+  const first = await ws.commit("system", "b4 in use");
   const sensor = await ws.head("sensor");
   await ws.write(
     "system/baselines/Release-2.yaml",
@@ -112,6 +115,7 @@ const made = async (): Promise<Made> => {
     "system/requirements/SR-0000000000b5.md",
     `---\nid: ${ID}b5\ntype: system-requirement\nstatus: draft\ntitle: Show the pressure\nrequirement-type: functional\n---\n\nb5: new.\n`,
   );
+  await edit(ws, b4, "status: draft", "status: obsolete");
   await ws.commit("system", "change");
   const seconds = Number((await ws.git(["log", "-1", "--format=%ct", first], "system")).trim());
   return { ws, first, sensor, firstDate: new Date(seconds * 1000).toISOString().slice(0, 10) };

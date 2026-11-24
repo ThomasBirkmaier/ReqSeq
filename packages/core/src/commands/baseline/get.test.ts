@@ -5,7 +5,7 @@
 // The fixture's own `release-1.yaml` stores no selection. CLI end to end: baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { readFile, rm, symlink } from "node:fs/promises";
+import fs, { readFile, rm, symlink } from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput, InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -371,6 +371,204 @@ describe("baseline.get", () => {
     expect(out.counts).toMatchObject({ missing: 1, inaccessible: 1 });
     const elsewhere = await call(ws, "baseline.get", { baseline: "Elsewhere" });
     expect(elsewhere.elements[0]).toMatchObject({ repository: "elsewhere", state: "missing" });
+  });
+});
+
+describe("baseline.get: superseded since the baseline, by the status at its commit (SR-051 AK2, #2514)", () => {
+  // SR-0000b4 is obsolete in the fixture already at the first commit; SR-0000b2 is superseded (and changed) after it.
+  const B4 = "n1:1e68aa41d13d05b1";
+  const entries = [`  - { id: ${ID}b2, version: ${V.b2} }`, `  - { id: ${ID}b4, version: ${B4} }`];
+  const old =
+    (commits: (first: string) => string[]) =>
+    (first: string): string =>
+      baselineText("Old", [], commits(first), entries);
+  const atFirst = old((first) => [`  - { name: system, commit: ${first} }`]);
+  const problemsOf = (out: CommandOutput<"baseline.get">): readonly (readonly [string, string])[] =>
+    (out.problems ?? []).filter((p) => p.code.startsWith("git.")).map((p) => [p.code, p.message] as const);
+
+  it("[SR-051/AK-c0xb] an element already superseded at the baseline counts as unchanged, one superseded since as superseded", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    const out = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(out.elements.map((r) => [r.id.slice(-2), r.state])).toEqual([
+      ["b2", "superseded"],
+      ["b4", "unchanged"],
+    ]);
+    expect(out.counts).toMatchObject({ superseded: 1, unchanged: 1, changed: 0 });
+    expect(problemsOf(out)).toEqual([]);
+    // baseline.changes, whose counts the overview adds up (#2450), counts the same.
+    const changes = await call(ws, "baseline.changes", { baseline: "Old" });
+    expect(changes.baseline?.counts).toMatchObject({ superseded: 1, unchanged: 1 });
+  });
+
+  it("reads the commit once per workspace, and counts an element no file held then as superseded", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    // SR-0000b6 is written and superseded after the baseline's commit.
+    await ws.write(
+      "system/requirements/SR-0000000000b6.md",
+      `---\nid: ${ID}b6\ntype: system-requirement\nstatus: obsolete\ntitle: Gone\n---\n\nb6.\n`,
+    );
+    await ws.commit("system", "b6");
+    await ws.write(
+      "system/baselines/new.yaml",
+      baselineText(
+        "New",
+        [],
+        [`  - { name: system, commit: ${await ws.head("system")} }`],
+        [...entries, `  - { id: ${ID}b6, version: n1:6666666666666666 }`],
+      ),
+    );
+    await ws.write(
+      "system/baselines/old.yaml",
+      (await readFile(ws.path("system/baselines/old.yaml"), "utf8")).replace(
+        "elements:\n",
+        `elements:\n  - { id: ${ID}b6, version: n1:6666666666666666 }\n`,
+      ),
+    );
+    const workspace = new Workspace(ws.path("system"));
+    onTestFinished(() => workspace.close());
+    const read = vi.mocked(model.filesAtCommit);
+    read.mockClear();
+    const get = async (name: string): Promise<CommandOutput<"baseline.get">> =>
+      (await invoke("baseline.get", { baseline: name }, { workspace })) as CommandOutput<"baseline.get">;
+    const states = (out: CommandOutput<"baseline.get">): string[] =>
+      out.elements.map((r) => `${r.id.slice(-2)} ${r.state}`);
+    expect(states(await get("Old"))).toEqual(["b6 superseded", "b2 superseded", "b4 unchanged"]);
+    expect(states(await get("Old"))).toEqual(["b6 superseded", "b2 superseded", "b4 unchanged"]);
+    // One read, and only of the files that differ from the commit: SR-0000b4's bytes are the blob it holds.
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read.mock.calls[0]?.[2].map((a) => a.id.slice(-2))).toEqual(["b6", "b2"]);
+    // At the later commit all three files were as they are now, obsolete: the next state that holds (SR-0000b2
+    // changed since the version listed), and no file parsed.
+    expect(states(await get("New"))).toEqual(["b2 changed", "b4 unchanged", "b6 changed"]);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts an entry as superseded, with a warning, while its status then cannot be read", async () => {
+    const { ws } = await made({
+      "none.yaml": (f) =>
+        old(() => [`  - { name: sensor, commit: ${f} }`])(f).replace("name: Old", "name: None"),
+      "absent.yaml": old(() => [`  - { name: system, commit: ${"e".repeat(40)} }`]),
+    });
+    const superseded = ["superseded", "superseded"];
+    const none = await call(ws, "baseline.get", { baseline: "None" });
+    expect(none.elements.map((r) => r.state)).toEqual(superseded);
+    expect(problemsOf(none)).toEqual([
+      [
+        "git.revision-missing",
+        "baselines/none.yaml: it names no commit for repository system, so the status of 2 elements of system at the baseline cannot be read; they count as superseded since the baseline",
+      ],
+    ]);
+    const absent = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(absent.elements.map((r) => r.state)).toEqual(superseded);
+    expect(problemsOf(absent)).toEqual([
+      [
+        "git.revision-missing",
+        "baselines/absent.yaml: repository system has no commit eeeeeee, so the status of 2 elements of system at the baseline cannot be read; they count as superseded since the baseline",
+      ],
+    ]);
+  });
+
+  it("counts an entry as superseded, with a warning, when Git fails or does not have its file", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({
+      known: false,
+      reason: "refused",
+      detail: "dubious ownership",
+    });
+    // SR-0000b4 is as at the commit (unchanged); SR-0000b2 has to be read.
+    const failed = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(failed.elements.map((r) => r.state)).toEqual(["superseded", "unchanged"]);
+    expect(problemsOf(failed)).toEqual([
+      [
+        "git.unavailable",
+        expect.stringMatching(
+          /^baselines\/old\.yaml: Git cannot read commit [0-9a-f]{7} of system \(dubious ownership\), so the status of 1 element of system at the baseline cannot be read; it counts as superseded since the baseline$/,
+        ) as unknown as string,
+      ],
+    ]);
+    // A partial clone without the blob of SR-0000b2.
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({
+      known: true,
+      kind: "found",
+      files: [undefined],
+      unread: [0],
+    });
+    const partial = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(partial.elements.map((r) => r.state)).toEqual(["superseded", "unchanged"]);
+    expect(problemsOf(partial)).toEqual([
+      [
+        "git.unavailable",
+        expect.stringMatching(
+          /^baselines\/old\.yaml: Git does not have the files of commit [0-9a-f]{7} of system here \(a partial clone, or Git refuses to list the commit\), so the status of 1 element of system at the baseline cannot be read; it counts as superseded since the baseline$/,
+        ) as unknown as string,
+      ],
+    ]);
+  });
+});
+
+describe("baseline.get: when the files on disk cannot be compared with the commit (#2514)", () => {
+  const B4 = "n1:1e68aa41d13d05b1";
+  const atFirst = (first: string): string =>
+    baselineText(
+      "Old",
+      [],
+      [`  - { name: system, commit: ${first} }`],
+      [`  - { id: ${ID}b2, version: ${V.b2} }`, `  - { id: ${ID}b4, version: ${B4} }`],
+    );
+  const asked = (): string[] =>
+    (vi.mocked(model.filesAtCommit).mock.calls.at(-1)?.[2] ?? []).map((a) => a.id.slice(-2));
+
+  it("parses a file that cannot be read now, or whose bytes are not those of its record, at the commit", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    const original = fs.readFile.bind(fs);
+    const isB4 = (file: unknown): boolean => String(file).endsWith("SR-0000000000b4.md");
+    for (const answer of [
+      (): Promise<Buffer> => Promise.reject(new Error("gone")),
+      (): Promise<Buffer> => Promise.resolve(Buffer.from("other bytes")),
+    ]) {
+      // The store is read first; then only the comparison with the commit sees the answer.
+      const workspace = new Workspace(ws.path("system"));
+      onTestFinished(() => workspace.close());
+      await invoke("element.get", { ref: `${ID}b4` }, { workspace });
+      const read = vi
+        .spyOn(fs, "readFile")
+        .mockImplementation(((file: Parameters<typeof fs.readFile>[0], ...rest: unknown[]) =>
+          isB4(file)
+            ? answer()
+            : (original as (...a: unknown[]) => unknown)(file, ...rest)) as typeof fs.readFile);
+      try {
+        const out = (await invoke(
+          "baseline.get",
+          { baseline: "Old" },
+          { workspace },
+        )) as CommandOutput<"baseline.get">;
+        expect(out.elements.map((r) => r.state)).toEqual(["superseded", "unchanged"]);
+        expect(asked()).toEqual(["b2", "b4"]);
+      } finally {
+        read.mockRestore();
+      }
+    }
+  });
+
+  it("counts an element no file is found for as not readable while Git refuses to list the commit", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    vi.spyOn(model.DEFAULT_STATE_READER, "blobs").mockResolvedValueOnce({
+      known: false,
+      reason: "refused",
+      detail: "no trees",
+    });
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({
+      known: true,
+      kind: "found",
+      files: [undefined, undefined],
+    });
+    const out = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(out.elements.map((r) => r.state)).toEqual(["superseded", "superseded"]);
+    expect(out.problems?.filter((p) => p.code === "git.unavailable").map((p) => p.message)).toEqual([
+      expect.stringContaining(
+        "so the status of 2 elements of system at the baseline cannot be read",
+      ) as unknown as string,
+    ]);
   });
 });
 

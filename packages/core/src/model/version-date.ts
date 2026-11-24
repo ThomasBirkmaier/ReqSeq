@@ -25,6 +25,7 @@ import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
+import { LISTED_FROM } from "./files-at-commit.js";
 import {
   commitBlobs,
   commitsBetween,
@@ -599,13 +600,6 @@ interface Round {
   readonly signal: AbortSignal;
   readonly nested: Map<string, boolean>;
 }
-
-/**
- * From this many names at one commit, one tree listing of the commit (`commitBlobs`, #439) answers
- * them instead of the reader: a name costs `cat-file` about 0.08 ms, a listing of 50,000 files
- * about 30 ms (HEAD's commit after a merge or an amend, SR-082 AK4).
- */
-const LISTED_FROM = 500;
 
 /** Asks Git for the info of the names not known yet. */
 const ask = async (round: Round, names: Iterable<string>): Promise<void> => {

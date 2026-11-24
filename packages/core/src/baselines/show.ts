@@ -10,7 +10,9 @@
 //   `inaccessible` (D-058, #675); one without `repository` cannot be told apart from a deleted one
 //   and stays `missing`, as one naming no repository of the workspace does.
 // - State, first that holds (AK2, AK3):
-//   `missing` or `inaccessible`; `superseded` when its status is invalid now (D-044), also when it changed;
+//   `missing` or `inaccessible`; `superseded` when its status is invalid now (D-044) and was not at the commit the
+//   baseline names for its copy's repository (`supersededSince`: also when no file held it then, or the status then
+//   cannot be read, with a warning; #2514), also when it changed;
 //   `removed` when the file stores a selection that no longer selects it, also when it changed;
 //   `changed` when its current version differs, compared in the entry's own normal form
 //   (`sameVersion`, ADR-0005 "Normal form 2"), or cannot be computed (a `file.faulty` warning says
@@ -19,8 +21,8 @@
 //   (`selectionKnown: false`).
 // - `added`: the elements selected now that the file does not list, in store order, after the
 //   entries in file order; they have no `version`.
-// - Cost (N-036): the states of all entries from one current-versions lookup and one index of the
-//   store by UUID; version dates (ADR-0005, `versionDates`) for the page only. With `withEvidence`
+// - Cost (N-036): the states of all entries from one current-versions lookup, one index of the
+//   store by UUID and one read of the files at the baseline commit of the entries invalid now; version dates (ADR-0005, `versionDates`) for the page only. With `withEvidence`
 //   the same walk also gives the values of an entry's version at its start, for its acceptance
 //   criteria (SR-031, `versionDatesAndValues`, page only); otherwise the content of an old version
 //   is not read here; `baseline.compare` gives its difference (D-033).
@@ -45,6 +47,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Baseline } from "./read.js";
 import { copyOf } from "./read.js";
+import { supersededSince } from "./superseded-since.js";
 
 type Output = CommandOutput<"baseline.get">;
 type Row = Output["elements"][number];
@@ -190,6 +193,15 @@ const stateRows = async (
     return formsOfEntry(entry);
   };
   const invalid = invalidStatuses(metamodel);
+  const isInvalid = (record: ElementRecord): boolean => invalid.has(String(record.data["status"]));
+  const since = await supersededSince(
+    workspace,
+    layout,
+    baseline,
+    invalid,
+    copies.filter((c): c is ElementRecord => c !== undefined && isInvalid(c)),
+    problems,
+  );
   const rows: StateRow[] = entries.map((entry, index) => {
     const record = copies[index];
     if (record === undefined) {
@@ -201,7 +213,7 @@ const stateRows = async (
       };
     }
     const current = currentOf(record);
-    const state: State = invalid.has(String(record.data["status"]))
+    const state: State = since.has(record)
       ? "superseded"
       : now !== undefined && !now.has(record)
         ? "removed"
