@@ -105,7 +105,7 @@ const generate = async <T>(
 /**
  * A copy of the specification with a generated Git history of three commits: an earlier state, in
  * which the elements of `SPEC_COPY_CHANGED` end with the paragraph `EARLIER_DRAFT` and the newest
- * system requirement no other file names is missing; the baseline `SPEC_COPY_BASELINE` of that
+ * system requirement no other file outside `baselines/` names is missing; the baseline `SPEC_COPY_BASELINE` of that
  * state; and the specification as it is. So `baseline.compare` finds three changed elements and one
  * added one, and the version dates of these four differ from the others. The baselines the
  * specification brings name commits of this repository, which the copy does not have.
@@ -124,8 +124,9 @@ export async function createSpecCopyWorkspace(options: SpecCopyOptions): Promise
     return element.file;
   };
   const changed = SPEC_COPY_CHANGED.map(fileOf);
+  // A baseline names every element it holds, so only the other files decide which one no file names.
   const others = [...files]
-    .filter(([file]) => !file.startsWith("evidence/"))
+    .filter(([file]) => !file.startsWith("evidence/") && !file.startsWith("baselines/"))
     .map(([file, bytes]) => ({ file, content: bytes.toString("utf8") }));
   const number = (specId: string): number => Number(specId.slice(specId.indexOf("-") + 1));
   const added = elements
