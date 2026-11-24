@@ -325,11 +325,11 @@ problems:
     remedy: Run the call the message gives (`reqseq tool guide --skill --write`), which creates the file there. The message also says when the call would not write the file at the other place.
   git.unavailable:
     title: Git cannot read the repository
-    cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.
+    cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files; for a baseline also when a partial clone does not have the files of its commit, so the elements whose status is invalid now count as superseded since the baseline.
     remedy: Install Git and put it on the PATH, check the repository, or add it to `safe.directory` in the Git configuration. ReqSeq only reads Git.
   git.revision-missing:
     title: Missing commit
-    cause: The commit to compare with is not in a repository, so its changes were not looked at.
+    cause: The commit to compare with is not in a repository, so its changes were not looked at; or a baseline names a commit that is not in the repository, or none for it, so the status of its elements at the baseline was not read and those whose status is invalid now count as superseded since the baseline.
     remedy: Fetch the commit, or deepen a shallow clone.
   reqif.replaces-local:
     title: Import replaces local content

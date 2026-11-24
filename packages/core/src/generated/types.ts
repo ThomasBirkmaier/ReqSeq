@@ -5437,7 +5437,7 @@ export interface BaselineGetOutput {
     readonly id: Uuid;
     /** The repository of the copy, whenever it is known. */
     readonly repository?: string;
-    /** missing: not in the store, or without repository or with one the workspace does not name and not found. inaccessible: its repository is in the workspace file but not here (D-058, SR-006, incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
+    /** missing: not in the store, or without repository or with one the workspace does not name and not found. superseded: its status is invalid now (D-044) and was not at the commit the baseline names for its repository, also when no file held it then (SR-051 AK2); an entry whose status then cannot be read counts as superseded, and a warning says so. inaccessible: its repository is in the workspace file but not here (D-058, SR-006, incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
     readonly state:
       | "unchanged"
       | "changed"
