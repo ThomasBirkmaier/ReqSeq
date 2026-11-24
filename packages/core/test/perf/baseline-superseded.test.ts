@@ -10,14 +10,7 @@
 // call in that workspace, which keeps the answers read. No SR names a time for `baseline.get`: the rows record,
 // untagged, with SR-082 AK4's 500 ms as a threshold for comparison only (as the rows of baseline-evidence.test.ts).
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
-import {
-  generateLargeWorkspace,
-  measure,
-  perfSize,
-  recordValue,
-  scaledCount,
-  writeLargeWorkspace,
-} from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, perfSize, scaledCount, writeLargeWorkspace } from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -39,7 +32,11 @@ const OBSOLETE = "status: obsolete";
 
 type Output = CommandOutput<"baseline.get">;
 
-describe("baseline.get with 11,000 of 50,000 entries invalid now (SR-051 AK2, N-036, #2514)", () => {
+/** `n` with thousands separators, as the row names write it. */
+const n = (count: number): string => count.toLocaleString("en-US");
+const SIZE = `${n(ELEMENTS)} entries of which ${n(BEFORE + AFTER)} invalid now`;
+
+describe(`baseline.get with ${SIZE} (SR-051 AK2, N-036, #2514)`, () => {
   let fixture: LargeFixtureWorkspace | undefined;
 
   /** A new workspace with the model loaded and the current versions built. */
@@ -110,16 +107,13 @@ describe("baseline.get with 11,000 of 50,000 entries invalid now (SR-051 AK2, N-
       const get = async (): Promise<Output> =>
         (await invoke("baseline.get", { baseline: "All", limit: LIMIT }, { workspace })) as Output;
       const { result } = await measure(
-        "baseline.get, 50,000 entries of which 11,000 invalid now: first call after the start (current versions built)",
+        `baseline.get, ${SIZE}: first call after the start (current versions built)`,
         get,
         { basis: BASIS },
       );
-      await measure("baseline.get, 50,000 entries of which 11,000 invalid now: again (answers kept)", get, {
+      await measure(`baseline.get, ${SIZE}: again (answers kept)`, get, {
         basis: BASIS,
         thresholdMs: COMPARE_MS,
-      });
-      await recordValue(`baseline.get: ${String(BEFORE + AFTER)} entries read at the baseline commit`, 0, {
-        basis: "SR-051 AK2 (size of the read, no time)",
       });
       expect(result.counts).toMatchObject({ superseded: AFTER, unchanged: ELEMENTS - AFTER, changed: 0 });
       expect(result.problems?.filter((p) => p.code.startsWith("git.")) ?? []).toEqual([]);

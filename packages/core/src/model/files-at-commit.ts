@@ -31,6 +31,15 @@ import type { ElementContent } from "./field-difference.js";
  */
 export const LISTED_FROM = 500;
 
+/** How `filesAtCommit` reads. */
+export interface FilesAtCommitOptions {
+  /**
+   * From this many paths in a round, the commit is listed first (default `LISTED_FROM`); 1 lists always, so every
+   * blob git does not have is `unread` while the listing works (`baseline.get`, #2514).
+   */
+  readonly listFrom?: number;
+}
+
 /** The file of one element at the commit: its path then, relative to the repository folder, and its content. */
 export interface FileAtCommit extends ElementContent {
   readonly path: string;
@@ -73,8 +82,9 @@ const holders = async (
   folder: string,
   commit: string,
   paths: readonly string[],
+  listFrom: number,
 ): Promise<Held | GitUnknown> => {
-  const listing = paths.length < LISTED_FROM ? undefined : await commitBlobs(folder, commit, paths);
+  const listing = paths.length < listFrom ? undefined : await commitBlobs(folder, commit, paths);
   if (listing?.known === false && listing.reason === "timeout") {
     return listing;
   }
@@ -122,7 +132,9 @@ export const filesAtCommit = async (
   folder: string,
   commit: string,
   asked: readonly AskedFile[],
+  options: FilesAtCommitOptions = {},
 ): Promise<FilesAtCommit> => {
+  const listFrom = options.listFrom ?? LISTED_FROM;
   const resolved = await resolveCommit(folder, commit);
   if (!resolved.known) {
     return resolved;
@@ -140,6 +152,7 @@ export const filesAtCommit = async (
       folder,
       at,
       asked.flatMap((a) => (isGitPath(a.file) ? [a.file] : [])),
+      listFrom,
     );
     if (!("held" in own)) {
       return own;
@@ -170,6 +183,7 @@ export const filesAtCommit = async (
       folder,
       at,
       since.paths.filter((p) => p.endsWith(ELEMENT_FILE_EXTENSION) && isGitPath(p) && !read.has(p)),
+      listFrom,
     );
     if (!("held" in others)) {
       return others;

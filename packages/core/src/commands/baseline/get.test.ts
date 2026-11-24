@@ -5,7 +5,7 @@
 // The fixture's own `release-1.yaml` stores no selection. CLI end to end: baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { readFile, rm, symlink } from "node:fs/promises";
+import fs, { readFile, rm, symlink } from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput, InvokedOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -499,9 +499,75 @@ describe("baseline.get: superseded since the baseline, by the status at its comm
       [
         "git.unavailable",
         expect.stringMatching(
-          /^baselines\/old\.yaml: Git does not have the files of commit [0-9a-f]{7} of system here \(a partial clone\), so the status of 1 element of system at the baseline cannot be read; it counts as superseded since the baseline$/,
+          /^baselines\/old\.yaml: Git does not have the files of commit [0-9a-f]{7} of system here \(a partial clone, or Git refuses to list the commit\), so the status of 1 element of system at the baseline cannot be read; it counts as superseded since the baseline$/,
         ) as unknown as string,
       ],
+    ]);
+  });
+});
+
+describe("baseline.get: when the files on disk cannot be compared with the commit (#2514)", () => {
+  const B4 = "n1:1e68aa41d13d05b1";
+  const atFirst = (first: string): string =>
+    baselineText(
+      "Old",
+      [],
+      [`  - { name: system, commit: ${first} }`],
+      [`  - { id: ${ID}b2, version: ${V.b2} }`, `  - { id: ${ID}b4, version: ${B4} }`],
+    );
+  const asked = (): string[] =>
+    (vi.mocked(model.filesAtCommit).mock.calls.at(-1)?.[2] ?? []).map((a) => a.id.slice(-2));
+
+  it("parses a file that cannot be read now, or whose bytes are not those of its record, at the commit", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    const original = fs.readFile.bind(fs);
+    const isB4 = (file: unknown): boolean => String(file).endsWith("SR-0000000000b4.md");
+    for (const answer of [
+      (): Promise<Buffer> => Promise.reject(new Error("gone")),
+      (): Promise<Buffer> => Promise.resolve(Buffer.from("other bytes")),
+    ]) {
+      // The store is read first; then only the comparison with the commit sees the answer.
+      const workspace = new Workspace(ws.path("system"));
+      onTestFinished(() => workspace.close());
+      await invoke("element.get", { ref: `${ID}b4` }, { workspace });
+      const read = vi
+        .spyOn(fs, "readFile")
+        .mockImplementation(((file: Parameters<typeof fs.readFile>[0], ...rest: unknown[]) =>
+          isB4(file)
+            ? answer()
+            : (original as (...a: unknown[]) => unknown)(file, ...rest)) as typeof fs.readFile);
+      try {
+        const out = (await invoke(
+          "baseline.get",
+          { baseline: "Old" },
+          { workspace },
+        )) as CommandOutput<"baseline.get">;
+        expect(out.elements.map((r) => r.state)).toEqual(["superseded", "unchanged"]);
+        expect(asked()).toEqual(["b2", "b4"]);
+      } finally {
+        read.mockRestore();
+      }
+    }
+  });
+
+  it("counts an element no file is found for as not readable while Git refuses to list the commit", async () => {
+    const { ws } = await made({ "old.yaml": atFirst });
+    vi.spyOn(model.DEFAULT_STATE_READER, "blobs").mockResolvedValueOnce({
+      known: false,
+      reason: "refused",
+      detail: "no trees",
+    });
+    vi.mocked(model.filesAtCommit).mockResolvedValueOnce({
+      known: true,
+      kind: "found",
+      files: [undefined, undefined],
+    });
+    const out = await call(ws, "baseline.get", { baseline: "Old" });
+    expect(out.elements.map((r) => r.state)).toEqual(["superseded", "superseded"]);
+    expect(out.problems?.filter((p) => p.code === "git.unavailable").map((p) => p.message)).toEqual([
+      expect.stringContaining(
+        "so the status of 2 elements of system at the baseline cannot be read",
+      ) as unknown as string,
     ]);
   });
 });

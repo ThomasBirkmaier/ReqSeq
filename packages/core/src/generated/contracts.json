@@ -35433,7 +35433,7 @@
                       "missing",
                       "inaccessible"
                     ],
-                    "description": "missing: not in the store, or without repository or with one the workspace does not name and not found. superseded: its status is invalid now and was not at the commit the baseline names for its repository, also when no file held it then; an entry whose status then cannot be read counts as superseded, and a warning says so. inaccessible: its repository is in the workspace file but not here (incomplete). removed: not superseded and no longer in the stored selection. added: in the stored selection and not in the file."
+                    "description": "missing: not in the store, or without repository or with one the workspace does not name and not found. superseded: superseded since the baseline: its status is invalid now and was not at the commit the baseline names for its repository, or no file held it then; an entry whose status then cannot be read counts as superseded, and a warning says so. inaccessible: its repository is in the workspace file but not here (incomplete). removed: not superseded and no longer in the stored selection. added: in the stored selection and not in the file."
                   },
                   "version": {
                     "title": "Version in the baseline",
