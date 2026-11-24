@@ -88,6 +88,19 @@ export interface ElementStore {
   readonly versioning?: Versioning;
 }
 
+/** The stores of `readWithoutVersions`; outside the store, so that a store equals its full read. */
+const unversionedReads = new WeakSet<ElementStore>();
+
+/**
+ * Whether the full read (`loadElements`) that gave `store` read an element while its versions were
+ * asked for and the metamodel gave none (not valid), so that element has no version as read (#755,
+ * #2495). A store that took every file from the model cache has no `versioning` but its records carry
+ * the cache's versions, so it is not such a store. Only a full read counts, because only the store of
+ * a start has its versions saved into the model cache again (`saveVersionsAgain`); a patched store is
+ * never one.
+ */
+export const readWithoutVersions = (store: ElementStore): boolean => unversionedReads.has(store);
+
 /** A store as a full read gives it: with what each file of each repository contributed. */
 export type LoadedStore = ElementStore & { readonly repositories: readonly RepositoryContents[] };
 
@@ -445,7 +458,12 @@ export const loadElements = async (
     ? await versioningFrom(options.versioning)
     : undefined;
   const read = await readAll(walks, signal, options, versioning);
-  return assemble(
+  // Versions were asked for and the metamodel gave none: an element read now has none (#2495).
+  const unversioned =
+    options.versioning !== undefined &&
+    versioning === undefined &&
+    read.some(([, files]) => [...files.values()].some((c) => c.kind === "element"));
+  const store = assemble(
     read.map(([{ repository, listed, reused }, files]) => ({
       repository: repository.name,
       location: repository,
@@ -454,6 +472,10 @@ export const loadElements = async (
     })),
     versioning,
   );
+  if (unversioned) {
+    unversionedReads.add(store);
+  }
+  return store;
 };
 
 /** What changed in one repository, as the watcher saw it (SR-007). */

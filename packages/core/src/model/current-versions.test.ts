@@ -31,7 +31,13 @@ import { embeddedImages } from "./images.js";
 import { RACY_MS } from "./model-cache.js";
 import { loadedVersionsOf } from "./loaded-versions.test-helper.js";
 import { WRITTEN_VERSION } from "./version-forms.test-helper.js";
-import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
+import {
+  applyStoreChange,
+  elementStoreState,
+  ignoredBy,
+  readWithoutVersions,
+  updateElements,
+} from "./store.js";
 import { elementVersion } from "./view.js";
 import { createElement, updateElement } from "./write.js";
 import { readStored } from "../runtime/read-first.test-helper.js";
@@ -64,6 +70,40 @@ const open = async (
   const workspace = new Workspace(fixture.root);
   onTestFinished(() => workspace.close());
   return { fixture, workspace };
+};
+
+/** Sets every file a minute back and waits until their change times lie `RACY_MS` back (model-cache.test.ts). */
+const settle = async (root: string): Promise<void> => {
+  const when = new Date(Date.now() - 60_000);
+  let latest = 0;
+  for (const entry of await fs.readdir(root, { recursive: true, withFileTypes: true })) {
+    if (entry.isFile()) {
+      const file = path.join(entry.parentPath, entry.name);
+      await fs.utimes(file, when, when);
+      latest = Math.max(latest, (await fs.lstat(file)).ctimeMs);
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, Math.max(0, latest + RACY_MS + 200 - Date.now())));
+};
+
+/**
+ * A settled workspace of `SR-019/findings` without its files that do not parse (the cache holds no
+ * entry for them) and so without a file a start through the cache reads, and a model cache its first
+ * start wrote.
+ */
+const cachedWorkspace = async (): Promise<{ fixture: FixtureWorkspace; cacheFolder: string }> => {
+  const fixture = await createFixtureWorkspace({ fixture: "SR-019/findings" });
+  onTestFinished(() => fixture.cleanup());
+  for (const file of ["requirements/SR-b00000000006.md", "requirements/SR-b00000000007.md"]) {
+    await fs.rm(fixture.path(file));
+  }
+  const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cached-batch-"));
+  onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
+  await settle(fixture.root);
+  const first = new Workspace(fixture.root, { cacheFolder });
+  await first.get(elementStoreState);
+  await first.close();
+  return { fixture, cacheFolder };
 };
 
 /** The version of `record` as reading its file and images now gives it (as `currentTarget` reads one). */
@@ -476,6 +516,59 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
     expect(workspace.peek(currentVersionsState)).toBeDefined();
   });
 
+  it("with build false reads only the records of a store that took every file from the model cache, also with some records without a loaded version (#2495)", async () => {
+    const { fixture, cacheFolder } = await cachedWorkspace();
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => workspace.close());
+    const store = await workspace.get(elementStoreState);
+    // No file was read, so no metamodel was loaded for the read; the records keep the cache's versions.
+    expect(store.versioning).toBeUndefined();
+    expect(loadedVersionsOf(store).size).toBe(store.elements.length);
+    // Mixed: a record object the store was not read with has no loaded version, the others have one.
+    const record = await recordOf(workspace, "needs/N-a00000000001.md");
+    const other: ElementRecord = { ...record };
+    const own = await currentVersionsOf(workspace, [...store.elements, other], { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeUndefined();
+    // Each entry as the build of the whole store gives it; the other record's from its file.
+    const versions = await currentVersions(workspace);
+    expect(store.elements.map((r) => own.get(r))).toEqual(
+      store.elements.map((r) => versions.byRecord.get(r)),
+    );
+    expect(own.get(other)).toEqual(versions.byRecord.get(record));
+  });
+
+  it("with build false still builds the whole store when some files of a start through the cache were read without a valid metamodel (#755, #2495)", async () => {
+    const { fixture, cacheFolder } = await cachedWorkspace();
+    // One file changed and the metamodel broken before the next start: that file is read without versions.
+    const changed = "needs/N-a00000000001.md";
+    await fixture.write(changed, `${await fs.readFile(fixture.path(changed), "utf8")}\nChanged.\n`);
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write("metamodel/model.yaml", "types: [");
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => workspace.close());
+    const store = await workspace.get(elementStoreState);
+    expect(store.versioning).toBeUndefined();
+    expect(readWithoutVersions(store)).toBe(true);
+    expect(loadedVersionsOf(store).size).toBe(store.elements.length - 1);
+    // The metamodel fixed: the build of the whole store learns the missing version for the cache.
+    await fixture.write("metamodel/model.yaml", model);
+    await workspace.reset(metamodelState);
+    expect(await workspace.get(elementStoreState)).toBe(store);
+    await currentVersionsOf(workspace, store.elements, { build: false });
+    expect(workspace.peek(currentVersionsState)).toBeDefined();
+  });
+
+  it("marks no store whose start read only a file that holds no element without a valid metamodel (#2495)", async () => {
+    const { fixture, cacheFolder } = await cachedWorkspace();
+    await fixture.write("requirements/SR-b00000000006.md", "---\nid: [\n---\n");
+    await fixture.write("metamodel/model.yaml", "types: [");
+    const workspace = new Workspace(fixture.root, { cacheFolder });
+    onTestFinished(() => workspace.close());
+    const store = await workspace.get(elementStoreState);
+    expect(store.problems.some((p) => p.file === "requirements/SR-b00000000006.md")).toBe(true);
+    expect(readWithoutVersions(store)).toBe(false);
+  });
+
   it("with build false still builds the whole store when the store was read without a valid metamodel (#755)", async () => {
     const { fixture, workspace } = await open();
     const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
@@ -491,20 +584,6 @@ describe("currentVersionsOf of a large share of the store (ADR-0008, #1662)", ()
 });
 
 describe("the versions of the model cache after a metamodel change (#755)", () => {
-  /** Sets every file a minute back and waits until their change times lie `RACY_MS` back (model-cache.test.ts). */
-  const settle = async (root: string): Promise<void> => {
-    const when = new Date(Date.now() - 60_000);
-    let latest = 0;
-    for (const entry of await fs.readdir(root, { recursive: true, withFileTypes: true })) {
-      if (entry.isFile()) {
-        const file = path.join(entry.parentPath, entry.name);
-        await fs.utimes(file, when, when);
-        latest = Math.max(latest, (await fs.lstat(file)).ctimeMs);
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, Math.max(0, latest + RACY_MS + 200 - Date.now())));
-  };
-
   /** Opens the workspace with `cacheFolder`, builds its current versions and closes it (waiting for the saves). */
   const start = async (
     root: string,
