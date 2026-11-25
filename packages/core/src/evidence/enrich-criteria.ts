@@ -76,6 +76,47 @@ const assignKeys = (ref: string): string =>
 const carriers = (items: readonly unknown[], key: string): number =>
   items.filter((item) => criterionKey(item) === key).length;
 
+/** Whether none of the criteria `items` carries a criterion key (before SR-204 AK3). */
+const allKeyless = (items: readonly unknown[]): boolean =>
+  items.every((item) => criterionKey(item) === undefined);
+
+/**
+ * Why `named` names no criterion of the element written `ref` whatever its form: the metamodel holds
+ * no acceptance criteria (`items` undefined), or the current version has none (#2524).
+ */
+const noCriteria = (named: string, ref: string, items: readonly unknown[] | undefined): string =>
+  items === undefined
+    ? `${named} names an acceptance criterion, but no property of the metamodel with the meaning acceptance-criteria holds a list of texts, so no requirement has acceptance criteria or criterion keys; name ${ref} without a criterion, or give the property of its acceptance criteria that meaning, kind text and many, and then criterion keys with ${commandTitle("element.assignCriterionKeys")}`
+    : `${named} names an acceptance criterion, but ${ref} has none in its current version; name it without a criterion`;
+
+/**
+ * Why the criterion number `n` that `named` names for the element written `ref` does not count
+ * against its current criteria `items`, not empty (AK13), with what to write instead.
+ */
+const refusedNumber = (
+  named: string,
+  ref: string,
+  n: number,
+  items: readonly unknown[],
+  byPattern: boolean,
+): string => {
+  const key = criterionKey(items[n - 1]);
+  if (key === undefined && n <= items.length) {
+    return `${named} names an acceptance criterion by its number, which has no criterion key yet; ${assignKeys(ref)} and name it by its key`;
+  }
+  if (allKeyless(items)) {
+    // Beyond the list: no key to name it by, whatever keys the others get.
+    return `${named} names acceptance criterion ${String(n)}, which ${ref} does not have, and none of its acceptance criteria has a criterion key yet; ${assignKeys(ref)} and name one of them by its key`;
+  }
+  const instead =
+    key === undefined || carriers(items, key) !== 1
+      ? "its criterion key from the element file"
+      : byPattern
+        ? `its criterion key, ${key}`
+        : `its criterion key, [${ref}/AK-${key}]`;
+  return `${named} names an acceptance criterion by its number; name it by ${instead}`;
+};
+
 /**
  * Why the criterion `criterion` that `text` names for the element written `ref` (`criterionRefsOf`)
  * does not count against the current criteria `items` (AK13), with what to write instead; undefined
@@ -85,33 +126,37 @@ const refusedCriterion = (
   ref: string,
   text: string,
   criterion: CriterionValue,
-  items: readonly unknown[],
+  items: readonly unknown[] | undefined,
 ): string | undefined => {
   const byPattern = !text.startsWith("[");
   const named = `"${shown(text)}"${byPattern ? " (read by the name pattern)" : ""}`;
+  if (items === undefined || items.length === 0) {
+    return noCriteria(named, ref, items);
+  }
   if (typeof criterion === "number") {
-    const key = criterionKey(items[criterion - 1]);
-    if (criterion <= items.length && key === undefined) {
-      return `${named} names an acceptance criterion by its number, which has no criterion key yet; ${assignKeys(ref)} and name it by its key`;
-    }
-    const instead =
-      key === undefined || carriers(items, key) !== 1
-        ? "its criterion key from the element file"
-        : byPattern
-          ? `its criterion key, ${key}`
-          : `its criterion key, [${ref}/AK-${key}]`;
-    return `${named} names an acceptance criterion by its number; name it by ${instead}`;
+    return refusedNumber(named, ref, criterion, items, byPattern);
   }
   const count = carriers(items, criterion);
   if (count === 1) {
     return undefined;
   }
   const which = count === 0 ? "no acceptance criterion" : `${String(count)} acceptance criteria`;
-  const instead =
-    count === 0 && items.length > 0 && items.every((item) => criterionKey(item) === undefined)
-      ? assignKeys(ref)
-      : "name the key from the element file";
+  const instead = count === 0 && allKeyless(items) ? assignKeys(ref) : "name the key from the element file";
   return `${named} names the criterion key ${criterion}, which ${which} of ${ref} in its current version ${count === 0 ? "carries" : "carry"}; ${instead}`;
+};
+
+/**
+ * Why the malformed criterion `malformed` of a name (`criterionRefsOf`) for the element written `ref`
+ * names none (AK13), with what to write instead.
+ */
+const refusedMalformed = (ref: string, malformed: string, items: readonly unknown[] | undefined): string => {
+  const named = `"${shown(malformed)}"`;
+  if (items === undefined || items.length === 0) {
+    return noCriteria(named, ref, items);
+  }
+  return allKeyless(items)
+    ? `${named} names no acceptance criterion: write AK- and its criterion key; ${assignKeys(ref)} first`
+    : `${named} names no acceptance criterion: write AK- and its criterion key from the element file`;
 };
 
 /**
@@ -133,9 +178,7 @@ export const nameCriteria = (
       continue;
     }
     if (malformed !== undefined) {
-      return {
-        refused: `"${shown(malformed)}" names no acceptance criterion: write AK- and its criterion key from the element file`,
-      };
+      return { refused: refusedMalformed(ref, malformed, options.criteriaOf(resolution.id)) };
     }
     if (criterion === undefined) {
       whole.add(resolution.id);

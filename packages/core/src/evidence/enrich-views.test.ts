@@ -302,7 +302,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("[SR-029/AK-djjh] with skipNotInView leaves out an element that applies in none of the given views, counts it, and enriches the rest", async () => {
+  it("[SR-029/AK-djjh] with skipNotInView leaves out an element that applies in none of the given views, counts it, and enriches the rest; without it names the option", async () => {
     const xml = suite(
       `<testcase name="[SR-46fb54] [SR-036] login and spec"/>` +
         `<testcase name="[SR-036/AK-kspc] spec only"/>` +
@@ -341,9 +341,9 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     // Without the option AK9 holds: the test cases stay unchanged and are reported.
     const strict = await enrichViews(xml, { views });
     expect(strict.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-46fb54] [SR-036] login and spec" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
-      'Test case "[SR-036/AK-kspc] spec only" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa',
-      'Test case "[SR-0b0036] [SR-0c0037] one view each" (line 1) is not enriched: SR-0c0037 does not apply in core; SR-0b0036 is excluded in VAR-0aaaaa',
+      'Test case "[SR-46fb54] [SR-036] login and spec" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa; give skipNotInView to count it only where its requirements apply',
+      'Test case "[SR-036/AK-kspc] spec only" (line 1) is not enriched: SR-036 does not apply in core; SR-036 does not apply in VAR-0aaaaa; give skipNotInView to count it only where its requirements apply',
+      'Test case "[SR-0b0036] [SR-0c0037] one view each" (line 1) is not enriched: SR-0c0037 does not apply in core; SR-0b0036 is excluded in VAR-0aaaaa; give skipNotInView to count it only where its requirements apply',
     ]);
     expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
   });

@@ -557,6 +557,30 @@ describe("evidence.enrichJunit (SR-029)", () => {
     expect(after[0]).toEqual(["[SR-0b0036] [SR-0c0037] reports a failure", []]);
   });
 
+  it("[SR-029/AK-zvy0] says that the metamodel holds no acceptance criteria when no property has that meaning, and leaves the test cases unchanged (#2524)", async () => {
+    const model = readFileSync(
+      new URL("../../../../../fixtures/SR-029/enrich/metamodel/standard-model.yaml", import.meta.url),
+      "utf8",
+    );
+    const xml =
+      '<testsuites><testsuite name="s"><testcase name="[SR-46fb54/AK1] a"/><testcase name="[SR-46fb54/AK-gdrb] b"/></testsuite></testsuites>';
+    const { fixture, workspace } = await open({
+      "metamodel/standard-model.yaml": model.replace("    meaning: acceptance-criteria\n", ""),
+      "results/criteria.xml": xml,
+    });
+    const output = await enrich(workspace, { file: "results/criteria.xml" });
+    expect(output.problems.map((p) => [p.code, p.message])).toEqual(
+      ["[SR-46fb54/AK1]", "[SR-46fb54/AK-gdrb]"].map((named) => [
+        "evidence.invalid-criterion-name",
+        expect.stringContaining(
+          `"${named}" names an acceptance criterion, but no property of the metamodel with the meaning acceptance-criteria holds a list of texts`,
+        ) as unknown,
+      ]),
+    );
+    expect(output.testCases).toBe(0);
+    expect((await bytesOf(fixture, "results/criteria.xml")).toString("utf8")).toBe(xml);
+  });
+
   it("reports a reference that names several copies of one UUID with the candidates, and notes a repository that is not on this machine", async () => {
     const workspaceFile = [
       "reqseq-workspace: 1",
@@ -757,12 +781,12 @@ describe("evidence.enrichJunit with variants (SR-029)", () => {
     });
     expect(coast).toMatchObject({ testCases: 3, notInView: 0, problems: [] });
     await fixture.write("results/run.xml", before);
-    // Without the option AK9 holds.
+    // Without the option AK9 holds, and the message names the option.
     const strict = await enrich(workspace, { file: "results/run.xml", variant: ["core", "VAR-0000c2"] });
     expect(strict).toMatchObject({ testCases: 1, notInView: 0 });
     expect(strict.problems.map((p) => p.message)).toEqual([
-      'Test case "[SR-0000a3] [SR-0000b2] rain and storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere',
-      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere',
+      'Test case "[SR-0000a3] [SR-0000b2] rain and storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere; give skipNotInView to count it only where its requirements apply',
+      'Test case "[SR-0000b2] storm" (line 1) is not enriched: SR-0000b2 does not apply in core, so a record for it there would count nowhere; SR-0000b2 does not apply in VAR-0000c2, so a record for it there would count nowhere; give skipNotInView to count it only where its requirements apply',
     ]);
   });
 

@@ -59,6 +59,9 @@ const keptPlanOf = (testCase: JunitTestCase, options: EnrichOptions): Plan => {
     : { kind: "kept", testCase, pairs: enrichment.pairs, views: enrichment.views };
 };
 
+/** How a refusal of AK9 with several given views names the option of AK11 (input `skipNotInView`, D-029). */
+const SKIP_HINT = "give skipNotInView to count it only where its requirements apply";
+
 /**
  * What a test case to enrich gives once its references are resolved: the `reqseq:element` properties
  * `named` and the elements only its name names (`added`); see the file comment.
@@ -83,7 +86,11 @@ const enrichPlanOf = (
   const fit = fitOf(ids, variant.views, options);
   const skip = skipping(options);
   if (!skip && fit.why.length > 0) {
-    return { kind: "invalid", testCase, reason: fit.why.map((w) => w.text).join("; ") };
+    // Several views given for the whole file (a run for the core and a variant): the option of AK11
+    // would enrich it where its requirements apply. One given view keeps the reason alone, whose own
+    // remedy (the replacing requirement) fits better.
+    const hint = (options.views?.length ?? 0) > 1 ? `; ${SKIP_HINT}` : "";
+    return { kind: "invalid", testCase, reason: fit.why.map((w) => w.text).join("; ") + hint };
   }
   // AK11: an element no given view holds is left out; with none left the test case is marked (AK12).
   const left = skip ? fit.nowhere : new Set<string>();
