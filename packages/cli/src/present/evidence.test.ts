@@ -57,6 +57,27 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
       ].join("\n"),
     );
   });
+
+  it("names the variant of a record as names names it, and keeps a UUID names leaves out (#2527)", () => {
+    const names = [
+      { id: "u-v1", repository: "system", shortId: "VAR-v1", identifier: "VAR-001", title: "Coast" },
+    ];
+    expect(
+      renderHuman({
+        records: [
+          { ...record, variant: "u-v1" },
+          { ...record, variant: "u-v9" },
+        ],
+        names,
+      }),
+    ).toBe(
+      lines(
+        "records:",
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4  [variant VAR-v1 (VAR-001)  Coast]",
+        "  2026-10-22T09:00:00Z  test  failed  build-513  system/evidence/ci/run-2.xml:4  [variant u-v9]",
+      ),
+    );
+  });
 });
 
 describe("renderHuman: a graph with evidence (SR-111 AK3)", () => {

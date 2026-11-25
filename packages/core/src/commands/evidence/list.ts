@@ -10,7 +10,8 @@
 // `evidenceSource` (#821) and, where it names criteria (also in `testCases`), their numbers, keys and texts
 // (`criterionNames`, SR-205 AK2). `bearing` names the records that bear the status (AK3, `bearingRecords`), and `display` groups them for the
 // app (AK3 to AK5, `elementDisplay`, the rule the HTML export shows too, SR-232 AK3, over the views the element applies in, without that of a variant
-// whose status is invalid unless `view` names it, SR-047 AK6). Nothing is written.
+// whose status is invalid unless `view` names it, SR-047 AK6). `names` names the variants the output gives
+// by UUID only (`variantIdsOf`, #2527), from the store. Nothing is written.
 import { workspaceBaselines, baselinesContaining } from "../../baselines/index.js";
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -32,6 +33,8 @@ import {
   currentVersionsOf,
   elementStoreState,
   formsOfEntry,
+  namesField,
+  namesOf,
   resolveRef,
   shortIdState,
   storedForms,
@@ -39,6 +42,27 @@ import {
 import { resolveView } from "../../variants/index.js";
 import { variantIndependentOf, workspaceLayoutState } from "../../workspace/index.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
+
+type Listed = CommandOutput<"evidence.list">;
+
+/**
+ * The variants `records`, the executions of `testCases` and the views of `display` name by UUID, in the
+ * order first named (each once: `namesOf` names a UUID once).
+ */
+const variantIdsOf = (
+  records: Listed["records"],
+  testCases: Listed["testCases"],
+  display: Listed["display"],
+): string[] =>
+  [
+    ...[...records, ...testCases.flatMap((test) => test.executions)].flatMap((r) =>
+      r.variant === undefined ? [] : [r.variant],
+    ),
+    ...display.rows.flatMap((row) => [
+      ...(row.views ?? []).map((v) => v.view),
+      ...row.cases.flatMap((c) => c.views),
+    ]),
+  ].filter((view) => view !== "core");
 
 /** The display of an element without records. */
 const NO_DISPLAY: ElementDisplay = { bearing: [], display: { shared: {}, rows: [], older: [] } };
@@ -93,13 +117,18 @@ export default defineCommand({
     const named = listed.map((record) => name(element, record));
     const { bearing, display } =
       status === undefined ? NO_DISPLAY : elementDisplay(status, element, current, named, view);
+    const namedTests = testCases.map((test) => withNamedExecutions(name, element, test));
+    const variants = variantIdsOf(named, namedTests, display);
     return {
       records: named,
       bearing,
       display,
-      testCases: testCases.map((test) => withNamedExecutions(name, element, test)),
+      testCases: namedTests,
       problems: [...baselines.problems],
       incomplete: read.incomplete || baselines.incomplete,
+      ...namesField(
+        namesOf({ metamodel: await ctx.workspace.get(metamodelState), store, shortIds }, variants),
+      ),
     };
   },
 });

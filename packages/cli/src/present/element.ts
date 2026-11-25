@@ -306,9 +306,10 @@ export const listedElementDetails = (element: Rec): string[] => {
  * A hint of a list: who, in the form of a problem line (`element → target`, #252; the element by
  * short ID with identifier, and title where core gives one (the hints of hint.list), else its file,
  * the target the same way when core names it, #172), the kind, the message, the view of outdated
- * evidence and the hint ID.
+ * evidence and the hint ID. The view's variant by its short ID with identifier when `names` has it
+ * (#2527), as the verification status of an element line names it.
  */
-export const findingLine = (finding: Rec, style?: Style): string => {
+export const findingLine = (finding: Rec, style?: Style, names: Names = new Map()): string => {
   // By short ID with identifier, as the other list lines of the CLI name elements: an identifier is
   // unique per type only, so alone it could name the wrong element (`--ref`).
   // Each with its title when it has one (SR-026), as `names` prints an element: `SHORT-ID  title`,
@@ -330,9 +331,9 @@ export const findingLine = (finding: Rec, style?: Style): string => {
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
   const hint = hintId === "" ? "" : `hint: ${hintId}`;
-  // The view of outdated evidence (SR-026), `core` or the variant's UUID, as core gives it.
+  // The view of outdated evidence (SR-026), `core` or the variant, named as `names` names it.
   const viewOf = text(finding["view"]);
-  const view = viewOf === "" ? "" : `view: ${viewOf}`;
+  const view = viewOf === "" ? "" : `view: ${viewNamerOf([], names)(viewOf)}`;
   if (style === undefined) {
     return join(who, text(finding["code"]), text(finding["message"]), view, hint);
   }
