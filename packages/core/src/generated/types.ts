@@ -5566,7 +5566,7 @@ export interface BaselineChangesOutput {
   /** Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
   readonly next: readonly NextStep[];
   readonly incomplete?: Incomplete;
-  /** The variant of the baseline's view, as baseline.get names it. Left out in the core. */
+  /** The variant of the baseline's view, as baseline.get names it, then the variants the `view` of an outdated evidence hint names, as hint.list names them (#2527); each once. Left out when it names none. */
   readonly names?: readonly ElementName[];
 }
 

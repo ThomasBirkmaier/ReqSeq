@@ -657,7 +657,7 @@ describe("renderHuman: values", () => {
     );
   });
 
-  it("names the variant of the view of outdated evidence as names names it (#2527)", () => {
+  it("names the variant of an outdated evidence view from `names`, else by UUID (#2527)", () => {
     const hint = {
       code: "evidence.outdated",
       severity: "warning",

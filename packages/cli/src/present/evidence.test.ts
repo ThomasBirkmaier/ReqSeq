@@ -58,7 +58,7 @@ describe("renderHuman: evidence records and test cases (#275)", () => {
     );
   });
 
-  it("names the variant of a record as names names it, and keeps a UUID names leaves out (#2527)", () => {
+  it("names the variant of a record from `names`, else by UUID (#2527)", () => {
     const names = [
       { id: "u-v1", repository: "system", shortId: "VAR-v1", identifier: "VAR-001", title: "Coast" },
     ];

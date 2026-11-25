@@ -28,9 +28,9 @@
 //   `repository` and `file` are the record's, and a UUID may have several copies, SR-088), the
 //   record's version as `storedVersion` and the current one as `currentVersion`, and the view whose
 //   status is outdated as `view` (`core` or the variant's UUID, a technical field; SR-026). The message
-//   names the variant as it names the element, by its short ID, with its identifier where it has one
-//   (`VAR-3c90b0 (VAR-001)`, SR-224 AK3: UUIDs only in the technical fields, #2527); by its UUID only
-//   when the store does not hold it.
+//   names the variant by its short ID, with its identifier where it has one (`VAR-3c90b0 (VAR-001)`,
+//   SR-224 AK3: UUIDs only in the technical fields, #2527), and by its UUID only when the store does
+//   not hold it.
 //   No hint ID: such a hint is not confirmed, a new record settles it (ADR-0012).
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).

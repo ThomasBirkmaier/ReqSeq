@@ -331,7 +331,8 @@ export const findingLine = (finding: Rec, style?: Style, names: Names = new Map(
   const who = target === "" ? element : element === "" ? `→ ${target}` : `${element} → ${target}`;
   const hintId = text(finding["hintId"]);
   const hint = hintId === "" ? "" : `hint: ${hintId}`;
-  // The view of outdated evidence (SR-026), `core` or the variant, named as `names` names it.
+  // The view of outdated evidence (SR-026), `core` or the variant, without its title: the line names
+  // the view as an element line's verification status does, and a title would read as the next part.
   const viewOf = text(finding["view"]);
   const view = viewOf === "" ? "" : `view: ${viewNamerOf([], names)(viewOf)}`;
   if (style === undefined) {
