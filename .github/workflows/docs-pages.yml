@@ -3,9 +3,12 @@ name: Docs pages
 # ADR-0017: builds the user documentation of a release tag, adds the HTML export of ReqSeq's own spec under /spec/
 # (D-080), and deploys both to GitHub Pages. Only the latest release is online (D-067), so a tag that is not the
 # latest release is built but not deployed. Called by release.yml after it published a release (a release published
-# with `github.token` starts no workflow of its own), or by hand for a tag.
-# Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` allowed in the environment
-# `github-pages`.
+# with `github.token` starts no workflow of its own), or by hand for a tag. By hand with `main` instead of a tag, it
+# deploys main for a change of the look only (#2522): only when main still has the version of the latest release and
+# no change of the docs' content since it (docs/guide/, docs/releases/, schemas/, spec/ without spec/evidence/), so no
+# text of an unreleased version goes online.
+# Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` and the branch `main` allowed in
+# the environment `github-pages`.
 on:
   workflow_call:
     inputs:
@@ -16,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag whose documentation is built
+        description: Release tag whose documentation is built, or main for a change of the look only
         required: true
         type: string
 
@@ -39,11 +42,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/tags/${{ inputs.tag }}
+          ref: ${{ inputs.tag == 'main' && 'refs/heads/main' || format('refs/tags/{0}', inputs.tag) }}
           persist-credentials: false
           # The release tags for the page "What's new" (#1259), and the history the HTML export is to read for the
           # change of an element since a baseline (#1968).
           fetch-depth: 0
+      - name: Only the look changed since the latest release
+        if: ${{ inputs.tag == 'main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest="$(curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/latest" |
+            jq -r .tag_name)"
+          version="v$(jq -r .version package.json)"
+          if [ "$version" != "$latest" ]; then
+            echo "::error::main has version $version, the latest release is $latest: deploy the release tag instead"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$latest" HEAD -- docs/guide docs/releases schemas spec ':(exclude)spec/evidence')"
+          if [ -n "$changed" ]; then
+            echo "::error::the docs' content changed since $latest, so main is deployed only with the next release:"
+            echo "$changed"
+            exit 1
+          fi
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -84,7 +106,8 @@ jobs:
           latest="$(curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/latest" |
             jq -r .tag_name)"
-          if [ "$latest" = "$TAG" ]; then
+          # main passed the step "Only the look changed since the latest release".
+          if [ "$TAG" = main ] || [ "$latest" = "$TAG" ]; then
             echo "latest=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::$TAG is not the latest release ($latest): the documentation is not deployed"
