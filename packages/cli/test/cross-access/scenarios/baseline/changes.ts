@@ -66,6 +66,32 @@ scenariosOf("baseline.changes", [
         "hint.confirm",
         "baseline.compare",
         "baseline.prepare",
+        "element.list",
+      ]);
+    },
+  },
+  {
+    name: "List elements for each number of changed, superseded, added and removed greater than 0 (SR-241 AK8)",
+    fixture: TWO,
+    root: "system",
+    input: { baseline: "Release 1" },
+    tag: "[SR-241/AK-zyqj]",
+    expect: "output",
+    check: (results) => {
+      expect(coreOutput(results).next.filter((s) => s.command === "element.list")).toEqual([
+        {
+          command: "element.list",
+          input: {
+            selection: {
+              output: {
+                command: "baseline.changes",
+                input: { baseline: "Release 1" },
+                count: { field: "baseline.counts.changed" },
+              },
+            },
+          },
+          open: [],
+        },
       ]);
     },
   },

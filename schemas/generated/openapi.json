@@ -19951,7 +19951,7 @@
                     },
                     "next": {
                       "title": "Next steps",
-                      "description": "Confirm hints, Compare baseline and Prepare baseline, as the details say.",
+                      "description": "Confirm hints, Compare baseline, Prepare baseline and List elements, as the details say.",
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/common/$defs/nextStep"

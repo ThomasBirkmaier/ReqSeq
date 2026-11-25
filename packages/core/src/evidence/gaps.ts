@@ -87,13 +87,17 @@ export interface VerificationGaps {
 
 const NONE: VerificationGaps = { problems: [] };
 
+/**
+ * The `limit` of an `element.list` step for `count` elements: none while the default page holds them all,
+ * else a page of `count` up to the largest page, the first full page beyond it (SR-230 AK2, SR-241 AK8).
+ */
+export const pageFor = (count: number): { readonly limit?: number } =>
+  count > DEFAULT_PAGE ? { limit: Math.min(count, LARGEST_PAGE) } : {};
+
 /** Rule 3: the step that lists the `open` counted requirements, one page that holds them all up to the largest. */
 export const openRequirementsStep = (methodKey: string | undefined, open: number): NextStep => ({
   command: "element.list",
-  input: {
-    selection: { where: openRequirementsWhere(methodKey) },
-    ...(open > DEFAULT_PAGE ? { limit: Math.min(open, LARGEST_PAGE) } : {}),
-  },
+  input: { selection: { where: openRequirementsWhere(methodKey) }, ...pageFor(open) },
   open: [],
 });
 
