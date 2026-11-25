@@ -4,9 +4,9 @@ name: Docs pages
 # (D-080), and deploys both to GitHub Pages. Only the latest release is online (D-067), so a tag that is not the
 # latest release is built but not deployed. Called by release.yml after it published a release (a release published
 # with `github.token` starts no workflow of its own), or by hand for a tag. By hand with `main` instead of a tag, it
-# deploys main for a change of the look only (#2522): only when main still has the version of the latest release and
-# no change of the docs' content since it (docs/guide/, docs/releases/, schemas/, spec/ without spec/evidence/), so no
-# text of an unreleased version goes online.
+# deploys main for a change of the look only (#2522): only when main still has the version of the latest release and,
+# since it, changed nothing but the look of the docs and the export, tests, CI, scripts, ADRs and the evidence of
+# spec/evidence/ (LOOK_ONLY below), so no text or command output of an unreleased version goes online.
 # Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` and the branch `main` allowed in
 # the environment `github-pages`.
 on:
@@ -51,7 +51,23 @@ jobs:
         if: ${{ inputs.tag == 'main' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          # What may differ from the latest release: the look of the docs (site styles, fonts, config) and of the
+          # export (its theme, page frame and notices), tests, CI, scripts, ADRs, rules and the CI evidence.
+          LOOK_ONLY: >-
+            :(exclude)spec/evidence :(exclude).github :(exclude).claude :(exclude)CLAUDE.md :(exclude)CONTRIBUTING.md
+            :(exclude)docs/adr :(exclude)scripts :(exclude)verification :(exclude)packages/web :(exclude)packages/shell
+            :(exclude)packages/core/docs :(exclude)packages/docs/site :(exclude)packages/docs/src/export-theme.ts
+            :(exclude)packages/docs/src/export-theme-bin.ts
+            :(exclude)packages/core/src/html-export/docs-theme.generated.ts
+            :(exclude)packages/core/src/html-export/page.ts :(exclude)packages/core/src/html-export/notices.ts
+            :(exclude)*.test.ts :(exclude)*.test.mjs
         run: |
+          # GitHub compares `inputs.tag == 'main'` without case; the deploy below needs exactly `main`.
+          if [ "$TAG" != main ]; then
+            echo "::error::write the branch as main, not $TAG"
+            exit 1
+          fi
           latest="$(curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/latest" |
             jq -r .tag_name)"
@@ -60,9 +76,9 @@ jobs:
             echo "::error::main has version $version, the latest release is $latest: deploy the release tag instead"
             exit 1
           fi
-          changed="$(git diff --name-only "$latest" HEAD -- docs/guide docs/releases schemas spec ':(exclude)spec/evidence')"
+          changed="$(git diff --name-only "$latest" HEAD -- . $LOOK_ONLY)"
           if [ -n "$changed" ]; then
-            echo "::error::the docs' content changed since $latest, so main is deployed only with the next release:"
+            echo "::error::more than the look changed since $latest, so main is deployed only with the next release:"
             echo "$changed"
             exit 1
           fi

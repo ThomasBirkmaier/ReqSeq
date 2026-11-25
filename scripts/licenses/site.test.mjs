@@ -142,11 +142,13 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     write("_astro/ec.c3.js");
     write("_astro/common.d4.css");
     write("_astro/app.e5.png");
+    write("_astro/ibm-plex-sans-latin-400-normal.h8.woff2");
     write("search-index.json", "{}");
     expect(builtSiteProblems(site, ["astro"])).toEqual([]);
 
     write("sitemap-index.xml");
     write("pagefind/pagefind.js");
+    write("_astro/font.i9.woff");
     write("_astro/extra.f6.js", "var a=1;");
     write("_astro/ui.g7.js");
     write(
@@ -154,6 +156,7 @@ describe("site licenses (SR-141, ADR-0015)", () => {
       map("../node_modules/.pnpm/x@1/node_modules/@other/pkg/i.js", "../../../elsewhere/x.js"),
     );
     expect(builtSiteProblems(site, ["astro"])).toEqual([
+      "file outside the shipped files of the site: _astro/font.i9.woff",
       "file outside the shipped files of the site: pagefind/pagefind.js",
       "file outside the shipped files of the site: sitemap-index.xml",
       "script without its source map (build with REQSEQ_DOCS_OFFLINE=1): _astro/extra.f6.js",
