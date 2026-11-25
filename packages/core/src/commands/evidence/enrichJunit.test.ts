@@ -573,7 +573,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       ["[SR-46fb54/AK1]", "[SR-46fb54/AK-gdrb]"].map((named) => [
         "evidence.invalid-criterion-name",
         expect.stringContaining(
-          `"${named}" names an acceptance criterion, but no property of the metamodel has the meaning acceptance-criteria`,
+          `"${named}" names an acceptance criterion, but no property of the metamodel with the meaning acceptance-criteria holds a list of texts`,
         ) as unknown,
       ]),
     );

@@ -86,7 +86,7 @@ const allKeyless = (items: readonly unknown[]): boolean =>
  */
 const noCriteria = (named: string, ref: string, items: readonly unknown[] | undefined): string =>
   items === undefined
-    ? `${named} names an acceptance criterion, but no property of the metamodel has the meaning acceptance-criteria (a list of texts), so no requirement has acceptance criteria or criterion keys; name ${ref} without a criterion, or give the property of its acceptance criteria that meaning and then criterion keys with ${commandTitle("element.assignCriterionKeys")}`
+    ? `${named} names an acceptance criterion, but no property of the metamodel with the meaning acceptance-criteria holds a list of texts, so no requirement has acceptance criteria or criterion keys; name ${ref} without a criterion, or give the property of its acceptance criteria that meaning, kind text and many, and then criterion keys with ${commandTitle("element.assignCriterionKeys")}`
     : `${named} names an acceptance criterion, but ${ref} has none in its current version; name it without a criterion`;
 
 /**
@@ -101,10 +101,12 @@ const refusedNumber = (
   byPattern: boolean,
 ): string => {
   const key = criterionKey(items[n - 1]);
-  if (key === undefined && (n <= items.length || allKeyless(items))) {
-    const which =
-      n <= items.length ? "which has no criterion key yet" : `and ${ref} has no criterion keys yet`;
-    return `${named} names an acceptance criterion by its number, ${which}; ${assignKeys(ref)} and name it by its key`;
+  if (key === undefined && n <= items.length) {
+    return `${named} names an acceptance criterion by its number, which has no criterion key yet; ${assignKeys(ref)} and name it by its key`;
+  }
+  if (allKeyless(items)) {
+    // Beyond the list: no key to name it by, whatever keys the others get.
+    return `${named} names acceptance criterion ${String(n)}, which ${ref} does not have, and none of its acceptance criteria has a criterion key yet; ${assignKeys(ref)} and name one of them by its key`;
   }
   const instead =
     key === undefined || carriers(items, key) !== 1

@@ -213,7 +213,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         namePattern: pattern("{prefix}_{id}_ak_{ak}"),
       });
       const noProperty =
-        'names an acceptance criterion, but no property of the metamodel has the meaning acceptance-criteria (a list of texts), so no requirement has acceptance criteria or criterion keys; name SR-46fb54 without a criterion, or give the property of its acceptance criteria that meaning and then criterion keys with "Assign criterion keys"';
+        'names an acceptance criterion, but no property of the metamodel with the meaning acceptance-criteria holds a list of texts, so no requirement has acceptance criteria or criterion keys; name SR-46fb54 without a criterion, or give the property of its acceptance criteria that meaning, kind text and many, and then criterion keys with "Assign criterion keys"';
       const assign = 'give the acceptance criteria of SR-0b0036 criterion keys with "Assign criterion keys"';
       expect(result.problems.map((p) => [p.code, p.message])).toEqual(
         [
@@ -221,7 +221,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
           `"[SR-46fb54/AK-zzzz]" ${noProperty}`,
           `"sr_46fb54_ak_0" ${noProperty}`,
           '"[SR-036/AK1]" names an acceptance criterion, but SR-036 has none in its current version; name it without a criterion',
-          `"[SR-0b0036/AK3]" names an acceptance criterion by its number, and SR-0b0036 has no criterion keys yet; ${assign} and name it by its key`,
+          `"[SR-0b0036/AK3]" names acceptance criterion 3, which SR-0b0036 does not have, and none of its acceptance criteria has a criterion key yet; ${assign} and name one of them by its key`,
           `"sr_0b0036_ak_0" names no acceptance criterion: write AK- and its criterion key; ${assign} first`,
         ].map((why, i) => [
           "evidence.invalid-criterion-name",
