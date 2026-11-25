@@ -197,6 +197,40 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       expect(criteriaOfRecords(result)).toEqual([[LOGIN, ["kaaa"]]]);
     });
 
+    it("[SR-029/AK-zvy0] names why criteria without keys cannot be named: no criteria property in the metamodel, no criteria, or none with a key (#2524)", async () => {
+      const names = [
+        "[SR-46fb54/AK1] a",
+        "[SR-46fb54/AK-zzzz] b",
+        "tests::sr_46fb54_ak_0",
+        "[SR-036/AK1] c",
+        "[SR-0b0036/AK3] d",
+        "tests::sr_0b0036_ak_0",
+      ];
+      const xml = suite(names.map((name) => `<testcase name="${name}"/>`).join(""));
+      const result = await enrich(xml, {
+        // LOGIN: a metamodel without criteria property; SPEC: no criteria; REPORT: two without key.
+        criteriaOf: (id) => (id === LOGIN ? undefined : id === SPEC ? [] : ["x", "y"]),
+        namePattern: pattern("{prefix}_{id}_ak_{ak}"),
+      });
+      const noProperty =
+        'names an acceptance criterion, but no property of the metamodel has the meaning acceptance-criteria (a list of texts), so no requirement has acceptance criteria or criterion keys; name SR-46fb54 without a criterion, or give the property of its acceptance criteria that meaning and then criterion keys with "Assign criterion keys"';
+      const assign = 'give the acceptance criteria of SR-0b0036 criterion keys with "Assign criterion keys"';
+      expect(result.problems.map((p) => [p.code, p.message])).toEqual(
+        [
+          `"[SR-46fb54/AK1]" ${noProperty}`,
+          `"[SR-46fb54/AK-zzzz]" ${noProperty}`,
+          `"sr_46fb54_ak_0" ${noProperty}`,
+          '"[SR-036/AK1]" names an acceptance criterion, but SR-036 has none in its current version; name it without a criterion',
+          `"[SR-0b0036/AK3]" names an acceptance criterion by its number, and SR-0b0036 has no criterion keys yet; ${assign} and name it by its key`,
+          `"sr_0b0036_ak_0" names no acceptance criterion: write AK- and its criterion key; ${assign} first`,
+        ].map((why, i) => [
+          "evidence.invalid-criterion-name",
+          `Test case "${String(names[i])}" (line 1) is not enriched: ${why}`,
+        ]),
+      );
+      expect(result.changed).toBe(false);
+    });
+
     it("[SR-029/AK-zvy0] reports a criterion named by number also for an element it would leave out (AK11)", async () => {
       const result = await enrichViews(suite('<testcase name="[SR-036/AK2] spec"/>'), {
         views: [GIVEN_CORE, GIVEN_COAST],

@@ -101,9 +101,10 @@ export interface EnrichOptions {
   readonly namePattern?: ((name: string) => readonly NameMatch[]) | undefined;
   /**
    * The acceptance criteria items of the current version of the element `id` (a found one), against
-   * which the criterion keys of a name are checked (AK13).
+   * which the criterion keys of a name are checked (AK13); undefined when no property of the metamodel
+   * holds acceptance criteria (`acceptanceCriteriaKeyOf`), so no element has any (#2524).
    */
-  readonly criteriaOf: (id: string) => readonly unknown[];
+  readonly criteriaOf: (id: string) => readonly unknown[] | undefined;
 }
 
 /** An element a verification record cannot name (`notRequirement`). */

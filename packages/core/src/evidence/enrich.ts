@@ -586,7 +586,10 @@ export const enrichJunitFile = async (
     },
     namePattern: pattern === undefined ? undefined : nameMatcher(pattern, typePrefixes),
     // Asked only for an element `resolve` found, which `resolverOf` put into `found`.
-    criteriaOf: (id) => criteriaItemsOf(found.get(id)?.data, acceptanceCriteriaKeyOf(metamodel)),
+    criteriaOf: (id) => {
+      const key = acceptanceCriteriaKeyOf(metamodel);
+      return key === undefined ? undefined : criteriaItemsOf(found.get(id)?.data, key);
+    },
   });
   const shownTarget = shownPath(layout, main, targetFolder, target);
   // SR-230 AK3: asked once the file is there, so a new output is looked for after it is written.
