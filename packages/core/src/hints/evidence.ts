@@ -53,7 +53,6 @@ import {
   recordStatusOf,
   verificationStatusOf,
 } from "../evidence/index.js";
-import { shownId } from "../graph/words.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type {
@@ -123,14 +122,19 @@ const CORE: View = { kind: "core" };
 
 /**
  * How the message names a variant by its UUID: by the short ID of its first element in store order,
- * with its identifier where it has one (`shownId`), as `namesOf` names it; the UUID when the store
+ * with its identifier where it has one, as `namesOf` names it; the UUID when the store
  * does not hold it.
  */
 export const variantLabelOf =
   (store: Pick<ElementStore, "byId">, shortIds: ShortIds): ((id: string) => string) =>
   (id) => {
     const variant = store.byId.get(id)?.[0];
-    return variant === undefined ? id : shownId(shortIds.of(variant), shortIds.identifierOf(variant));
+    if (variant === undefined) {
+      return id;
+    }
+    // As `shownId` of graph/words.ts, a higher layer (docs/architecture/README.md section 5).
+    const identifier = shortIds.identifierOf(variant)?.trim() ?? "";
+    return identifier === "" ? shortIds.of(variant) : `${shortIds.of(variant)} (${identifier})`;
   };
 
 /**
