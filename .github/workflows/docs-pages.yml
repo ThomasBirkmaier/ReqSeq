@@ -52,8 +52,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
-          # What may differ from the latest release: the look of the docs (site styles, fonts, config) and of the
-          # export (its theme, page frame and notices), tests, CI, scripts, ADRs, rules and the CI evidence.
+          # What may differ from the latest release: the look of the docs (site styles, fonts, config, the icons of
+          # toolchain/packaging/icon) and of the export (its theme, page frame and notices), tests, CI, scripts, ADRs,
+          # rules and the CI evidence.
           LOOK_ONLY: >-
             :(exclude)spec/evidence :(exclude).github :(exclude).claude :(exclude)CLAUDE.md :(exclude)CONTRIBUTING.md
             :(exclude)docs/adr :(exclude)scripts :(exclude)verification :(exclude)packages/web :(exclude)packages/shell
@@ -61,7 +62,7 @@ jobs:
             :(exclude)packages/docs/src/export-theme-bin.ts
             :(exclude)packages/core/src/html-export/docs-theme.generated.ts
             :(exclude)packages/core/src/html-export/page.ts :(exclude)packages/core/src/html-export/notices.ts
-            :(exclude)*.test.ts :(exclude)*.test.mjs
+            :(exclude)toolchain/packaging/icon :(exclude)*.test.ts :(exclude)*.test.mjs
         run: |
           # GitHub compares `inputs.tag == 'main'` without case; the deploy below needs exactly `main`.
           if [ "$TAG" != main ]; then
