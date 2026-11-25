@@ -208,11 +208,11 @@ describe("html.export formats texts (SR-231 AK5)", () => {
     expect(katex).not.toMatch(/\.woff\)|\.ttf\)/u);
     expect(page).toContain("font-src 'self' data:");
     expect(page).toContain("style-src 'self' 'unsafe-inline'");
-    // A page without formulas or diagrams loads neither, and its policy stays as strict as before.
+    // A page without formulas or diagrams loads neither, and allows no inline styles; fonts may be `data:` URLs on
+    // every page, since the docs' stylesheet holds IBM Plex that way.
     const plain = await read(site, `elements/${GUSTS}.html`);
-    expect(plain).not.toMatch(
-      /katex\.css|mermaid\.js|style-src 'self' 'unsafe-inline'|font-src 'self' data:/u,
-    );
+    expect(plain).not.toMatch(/katex\.css|mermaid\.js|style-src 'self' 'unsafe-inline'/u);
+    expect(plain).toContain("font-src 'self' data:");
     expect(plain).toContain("style-src 'self'; style-src-attr 'unsafe-inline'");
   });
 

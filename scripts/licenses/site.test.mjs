@@ -76,6 +76,18 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     expect(entries).toEqual([{ name: "one", version: "1.0.0", license: "MIT", texts: ["MIT text"] }]);
   });
 
+  it("allows OFL-1.1 only for a package of fonts only", () => {
+    const { entries, problems } = siteLicenses({
+      lockText: lockOf("font@1.0.0", "code@1.0.0"),
+      readPackage: (name) => ({ license: "OFL-1.1", texts: ["OFL"], fontOnly: name === "font" }),
+      packages: [{ name: "font" }, { name: "code" }],
+    });
+    expect(problems).toEqual([
+      "license not allowed (ADR-0015): code@1.0.0: OFL-1.1 (shipped in the documentation site)",
+    ]);
+    expect(entries).toEqual([{ name: "font", version: "1.0.0", license: "OFL-1.1", texts: ["OFL"] }]);
+  });
+
   it("reads a package of a pnpm install with its licence files", () => {
     const nm = tempFolder();
     const dir = path.join(nm, ".pnpm", "@p+a@1.0.0_peer", "node_modules", "@p", "a");
@@ -88,7 +100,11 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     fs.writeFileSync(path.join(dir, "LICENSE", "LICENSE-other"), "other");
     fs.writeFileSync(path.join(dir, "NOTICE"), "notice");
     const read = pnpmPackageReader(nm);
-    expect(read("@p/a", "1.0.0")).toEqual({ license: "MIT", texts: ["own", "other", "notice"] });
+    expect(read("@p/a", "1.0.0")).toEqual({
+      license: "MIT",
+      texts: ["own", "other", "notice"],
+      fontOnly: false,
+    });
     expect(read("@p/a", "2.0.0")).toBeUndefined();
     fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "@p/a", version: "1.0.1" }));
     expect(read("@p/a", "1.0.0")).toBeUndefined();
@@ -126,11 +142,13 @@ describe("site licenses (SR-141, ADR-0015)", () => {
     write("_astro/ec.c3.js");
     write("_astro/common.d4.css");
     write("_astro/app.e5.png");
+    write("_astro/ibm-plex-sans-latin-400-normal.h8.woff2");
     write("search-index.json", "{}");
     expect(builtSiteProblems(site, ["astro"])).toEqual([]);
 
     write("sitemap-index.xml");
     write("pagefind/pagefind.js");
+    write("_astro/font.i9.woff");
     write("_astro/extra.f6.js", "var a=1;");
     write("_astro/ui.g7.js");
     write(
@@ -138,6 +156,7 @@ describe("site licenses (SR-141, ADR-0015)", () => {
       map("../node_modules/.pnpm/x@1/node_modules/@other/pkg/i.js", "../../../elsewhere/x.js"),
     );
     expect(builtSiteProblems(site, ["astro"])).toEqual([
+      "file outside the shipped files of the site: _astro/font.i9.woff",
       "file outside the shipped files of the site: pagefind/pagefind.js",
       "file outside the shipped files of the site: sitemap-index.xml",
       "script without its source map (build with REQSEQ_DOCS_OFFLINE=1): _astro/extra.f6.js",

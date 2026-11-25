@@ -7,7 +7,11 @@ const at = (relative: string): string => fileURLToPath(new URL(relative, import.
 const result = await exportTheme(
   {
     site: at("../site/dist"),
-    starlight: at("../site/node_modules/@astrojs/starlight"),
+    packages: [
+      at("../site/node_modules/@astrojs/starlight"),
+      at("../site/node_modules/@fontsource/ibm-plex-mono"),
+      at("../site/node_modules/@fontsource/ibm-plex-sans"),
+    ],
     module: at("../../core/src/html-export/docs-theme.generated.ts"),
   },
   process.argv.includes("--check"),

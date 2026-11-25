@@ -18,7 +18,11 @@ describe("export-theme-bin", () => {
     expect(exportTheme).toHaveBeenCalledWith(
       {
         site: fileURLToPath(new URL("../site/dist", import.meta.url)),
-        starlight: fileURLToPath(new URL("../site/node_modules/@astrojs/starlight", import.meta.url)),
+        packages: [
+          fileURLToPath(new URL("../site/node_modules/@astrojs/starlight", import.meta.url)),
+          fileURLToPath(new URL("../site/node_modules/@fontsource/ibm-plex-mono", import.meta.url)),
+          fileURLToPath(new URL("../site/node_modules/@fontsource/ibm-plex-sans", import.meta.url)),
+        ],
         module: fileURLToPath(new URL("../../core/src/html-export/docs-theme.generated.ts", import.meta.url)),
       },
       false,

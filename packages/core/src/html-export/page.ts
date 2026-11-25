@@ -1,8 +1,8 @@
 // The frame of every page of the HTML export (SR-231 AK2, AK4, AK9; SR-235 AK4): the docs' page frame and
 // stylesheet (`docs-theme.generated.ts`, from the offline docs build) with the export's content in its slots, and a
 // Content-Security-Policy that lets a page load only the export's own styles, scripts, fonts and images and never
-// connect, frame, post or change its base; so even content the writer let through runs nothing. A page with a
-// formula also takes the fonts of `assets/katex.css`, which are `data:` URLs; a page with a diagram also takes
+// connect, frame, post or change its base; so even content the writer let through runs nothing. Fonts may be `data:`
+// URLs: the docs' stylesheet holds IBM Plex that way, and `assets/katex.css` KaTeX's fonts; a page with a diagram also takes
 // inline styles, since Mermaid measures text in a temporary SVG with a `<style>` element (the app has the same
 // rule). Content never yields a `<style>`. `noindex` asks search engines not to take the page. Every address is
 // relative and names a file of the folder. Every page has the docs' right column "On this page", with "Overview" and a
@@ -58,14 +58,14 @@ export const OWN_CSS = [
 ].join("\n");
 
 /** The policy of a page, as the meta tag gives it (`frame-ancestors` only works as a header). */
-export const pagePolicy = ({ formulas, diagrams }: { formulas: boolean; diagrams: boolean }): string =>
+export const pagePolicy = ({ diagrams }: { diagrams: boolean }): string =>
   [
     "default-src 'none'",
     "script-src 'self'",
     diagrams ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
-    formulas ? "font-src 'self' data:" : "font-src 'self'",
+    "font-src 'self' data:",
     "object-src 'none'",
     "frame-src 'none'",
     "form-action 'none'",

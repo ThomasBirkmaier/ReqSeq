@@ -125,6 +125,7 @@ describe("stylesheetOf (SR-231 AK4)", () => {
       i: "@import 'x.css';",
     };
     const read = (href: string) => Promise.resolve(String(sheets[href]));
+    const readFont = (href: string) => Promise.resolve(Buffer.from(href));
     await expect(
       stylesheetOf(
         [
@@ -132,14 +133,31 @@ describe("stylesheetOf (SR-231 AK4)", () => {
           { href: "p", print: true },
         ],
         read,
+        readFont,
       ),
     ).resolves.toBe("a{b:url(data:x)}\n@media print{p{c:d}}\n");
-    await expect(stylesheetOf([{ href: "u", print: false }], read)).rejects.toThrow(
+    await expect(stylesheetOf([{ href: "u", print: false }], read, readFont)).rejects.toThrow(
       "outside the page: /f.woff2",
     );
-    await expect(stylesheetOf([{ href: "i", print: false }], read)).rejects.toThrow(
+    await expect(stylesheetOf([{ href: "i", print: false }], read, readFont)).rejects.toThrow(
       "outside the page: @import",
     );
+  });
+
+  it("inlines each font of the site's build as a data: URL, once per font", async () => {
+    const sheets: Record<string, string> = {
+      f: "@font-face{src:url(/_astro/p.woff2) format(\"woff2\")}a{src:url('/_astro/p.woff2')}",
+    };
+    const fonts: string[] = [];
+    const readFont = (href: string) => {
+      fonts.push(href);
+      return Promise.resolve(Buffer.from("woff"));
+    };
+    const data = "url(data:font/woff2;base64,d29mZg==)";
+    await expect(
+      stylesheetOf([{ href: "f", print: false }], (href) => Promise.resolve(String(sheets[href])), readFont),
+    ).resolves.toBe(`@font-face{src:${data} format("woff2")}a{src:${data}}\n`);
+    expect(fonts).toEqual(["/_astro/p.woff2"]);
   });
 });
 
@@ -154,18 +172,26 @@ describe("exportTheme (SR-231 AK4)", () => {
   const site = async (html = page()) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-theme-"));
     onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
+    const starlight = path.join(root, "starlight");
     const paths = {
       site: path.join(root, "dist"),
-      starlight: path.join(root, "starlight"),
+      packages: [starlight],
       module: path.join(root, "theme.ts"),
     };
     await fs.mkdir(path.join(paths.site, "_astro"), { recursive: true });
-    await fs.mkdir(paths.starlight);
+    await fs.mkdir(starlight);
     await fs.writeFile(path.join(paths.site, "index.html"), html);
-    await fs.writeFile(path.join(paths.site, "_astro", "a.css"), ".sl-badge:where(.astro-b1){}");
+    await fs.writeFile(
+      path.join(paths.site, "_astro", "a.css"),
+      ".sl-badge:where(.astro-b1){}@font-face{src:url(/_astro/f.woff2)}",
+    );
+    await fs.writeFile(path.join(paths.site, "_astro", "f.woff2"), "woff");
     await fs.writeFile(path.join(paths.site, "_astro", "p.css"), "p{}");
-    await fs.writeFile(path.join(paths.starlight, "package.json"), '{"version":"0.42.6","license":"MIT"}');
-    await fs.writeFile(path.join(paths.starlight, "LICENSE"), "MIT License\n");
+    await fs.writeFile(
+      path.join(starlight, "package.json"),
+      '{"name":"@astrojs/starlight","version":"0.42.6","license":"MIT"}',
+    );
+    await fs.writeFile(path.join(starlight, "LICENSE"), "MIT License\n");
     return paths;
   };
 
@@ -182,7 +208,7 @@ describe("exportTheme (SR-231 AK4)", () => {
     const written = await fs.readFile(paths.module, "utf8");
     expect(written).toBe(await buildThemeModule(paths));
     expect(written).toContain(
-      'export const DOCS_STYLESHEET = ".sl-badge:where(.astro-b1){}\\n@media print{p{}}\\n";',
+      'export const DOCS_STYLESHEET = ".sl-badge:where(.astro-b1){}@font-face{src:url(data:font/woff2;base64,d29mZg==)}\\n@media print{p{}}\\n";',
     );
     expect(written).toContain('export const DOCS_BADGE_SCOPE = "astro-b1";');
     expect(written).toContain(
@@ -215,7 +241,7 @@ describe("exportTheme (SR-231 AK4)", () => {
         tocScope: "astro-2",
         badgeScope: "astro-3",
       },
-      { name: "n", version: "1", license: "MIT", text: "t" },
+      [{ name: "n", version: "1", license: "MIT", text: "t" }],
     );
     expect(module).toContain('export const DOCS_FRAME: readonly string[] = ["a","home","z"];');
     expect(module).toContain('export const DOCS_SIDEBAR_SCOPE = "astro-1";');
@@ -224,5 +250,8 @@ describe("exportTheme (SR-231 AK4)", () => {
     );
     expect(module).toContain('export const DOCS_TOC_SCOPE = "astro-2";');
     expect(module).toContain('export const DOCS_BADGE_SCOPE = "astro-3";');
+    expect(module).toContain(
+      'export const DOCS_NOTICES = [{"name":"n","version":"1","license":"MIT","text":"t"}] as const;',
+    );
   });
 });

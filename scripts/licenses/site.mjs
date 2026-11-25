@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import YAML from "yaml";
-import { licenseAllowed, licenseTexts } from "./policy.mjs";
+import { FONT_LICENSES, fontOnly, licenseAllowed, licenseTexts } from "./policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
@@ -30,6 +30,9 @@ export const SITE_PACKAGES = [
   { name: "@expressive-code/plugin-text-markers" },
   // The search of the site (src/components/Search.astro).
   { name: "minisearch" },
+  // IBM Plex, the typeface of the web UI (src/styles/fonts.css): fonts only, under OFL-1.1 (FONT_LICENSES).
+  { name: "@fontsource/ibm-plex-mono" },
+  { name: "@fontsource/ibm-plex-sans" },
 ];
 
 /** The site's own sources in a source map (its components under src/), which need no licence of another. */
@@ -50,9 +53,9 @@ export function lockVersions(lockText) {
 
 /**
  * The shipped packages with their licence and licence texts, and the problems: a package missing from the lockfile
- * or there in more than one version, not installed in that version, with a licence outside the allowlist, or
- * without a licence text. `readPackage(name, version)` gives `{ license, texts }` of the installed package (texts:
- * its licence files), or undefined. `packages` is SITE_PACKAGES (tests give their own).
+ * or there in more than one version, not installed in that version, with a licence outside the allowlist (or outside
+ * FONT_LICENSES for a package of fonts only), or without a licence text. `readPackage(name, version)` gives
+ * `{ license, texts, fontOnly }` of the installed package (texts: its licence files), or undefined. `packages` is SITE_PACKAGES (tests give their own).
  */
 export function siteLicenses({ lockText, readPackage, packages = SITE_PACKAGES }) {
   const versions = lockVersions(lockText);
@@ -65,7 +68,13 @@ export function siteLicenses({ lockText, readPackage, packages = SITE_PACKAGES }
       problems.push(`shipped package ${name} has ${String(found.length)} versions in the site lockfile`);
     } else if (manifest === undefined) {
       problems.push(`shipped package ${name}@${found[0]} is not installed: run pnpm docs:install`);
-    } else if (typeof manifest.license !== "string" || !licenseAllowed(manifest.license)) {
+    } else if (
+      typeof manifest.license !== "string" ||
+      !(
+        licenseAllowed(manifest.license) ||
+        (manifest.fontOnly === true && licenseAllowed(manifest.license, FONT_LICENSES))
+      )
+    ) {
       problems.push(
         `license not allowed (ADR-0015): ${name}@${found[0]}: ${String(manifest.license)} (shipped in the documentation site)`,
       );
@@ -80,14 +89,14 @@ export function siteLicenses({ lockText, readPackage, packages = SITE_PACKAGES }
 
 /**
  * The files the built site may hold, by path relative to it with `/`: its pages, the chunks and images of
- * `_astro/` (with the hidden source maps of the offline build), the search index, the plain-text documentation for
+ * `_astro/` (with the hidden source maps of the offline build and the fonts of fonts.css), the search index, the plain-text documentation for
  * AI assistants (`llms.txt`, `llms-full.txt`) and the icons of public/. A file
  * outside them could be code no check has read.
  */
 export const SITE_FILES = [
   /^(?:[a-z0-9-]+\/)*index\.html$/,
   /^404\.html$/,
-  /^_astro\/[\w.-]+\.(?:js|js\.map|css|png|svg|jpg|jpeg|gif|webp|avif)$/,
+  /^_astro\/[\w.-]+\.(?:js|js\.map|css|png|svg|jpg|jpeg|gif|webp|avif|woff2)$/,
   /^search-index\.json$/,
   /^llms(?:-full)?\.txt$/,
   /^(?:favicon\.ico|favicon\.svg|apple-touch-icon\.png)$/,
@@ -155,7 +164,7 @@ export function builtSiteProblems(folder, packages = [...SITE_PACKAGES.map((p) =
   return problems;
 }
 
-/** `{ license, texts }` of package `name` at `version` in a pnpm install (`node_modules/.pnpm`), or undefined. */
+/** `{ license, texts, fontOnly }` of package `name` at `version` in a pnpm install (`node_modules/.pnpm`), or undefined. */
 export function pnpmPackageReader(nodeModules) {
   const store = path.join(nodeModules, ".pnpm");
   const folders = fs.existsSync(store) ? fs.readdirSync(store) : [];
@@ -173,7 +182,7 @@ export function pnpmPackageReader(nodeModules) {
       return undefined;
     }
     const texts = licenseTexts(dir);
-    return { license: manifest.license, texts };
+    return { license: manifest.license, texts, fontOnly: fontOnly(dir) };
   };
 }
 

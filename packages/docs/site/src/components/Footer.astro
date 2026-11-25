@@ -1,0 +1,30 @@
+---
+// Starlight's footer, and online below it the links to the legal notice and the privacy statement of the product page
+// (thomasbirkmaier.github.io), as its own footer has them. The offline build of a delivery (REQSEQ_DOCS_OFFLINE=1)
+// has no network, so it leaves them out, as it leaves out the repository link; the HTML export takes its frame from
+// that build and so never shows them.
+import Default from "@astrojs/starlight/components/Footer.astro";
+
+const online = process.env.REQSEQ_DOCS_OFFLINE !== "1";
+---
+
+<Default><slot /></Default>
+{
+  online && (
+    <p class="legal">
+      <a href="https://thomasbirkmaier.github.io/impressum.html">Legal notice</a> ·{" "}
+      <a href="https://thomasbirkmaier.github.io/datenschutz.html">Privacy</a>
+    </p>
+  )
+}
+
+<style>
+  .legal {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+  .legal a {
+    color: inherit;
+  }
+</style>

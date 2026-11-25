@@ -1,43 +1,52 @@
-/* Calm and readable: warm off-white, one accent (rust), serif headings, system fonts only (ADR-0017). */
+/* The look of the web UI (packages/web/src/css/base.css): its greys, one accent (petrol) and IBM Plex (fonts.css), so
+   the docs, the HTML export that takes this theme and the app read as one product (ADR-0017). */
 :root {
-  --sl-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --reqseq-font-heading: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sl-font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sl-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Dark mode: warm greys. */
-  --sl-color-accent-low: hsl(16, 35%, 20%);
-  --sl-color-accent: hsl(16, 60%, 58%);
-  --sl-color-accent-high: hsl(20, 70%, 84%);
-  --sl-color-white: hsl(36, 30%, 96%);
-  --sl-color-gray-1: hsl(36, 18%, 90%);
-  --sl-color-gray-2: hsl(36, 10%, 76%);
-  --sl-color-gray-3: hsl(36, 6%, 56%);
-  --sl-color-gray-4: hsl(30, 6%, 36%);
-  --sl-color-gray-5: hsl(30, 8%, 23%);
-  --sl-color-gray-6: hsl(30, 10%, 15%);
-  --sl-color-black: hsl(30, 10%, 10%);
+  /* Dark mode: the web UI's dark greys. */
+  --sl-color-accent-low: #263f3a;
+  --sl-color-accent: #6bb8aa;
+  --sl-color-accent-high: #8ccabf;
+  --sl-color-white: #eceef0;
+  --sl-color-gray-1: #cdd1d5;
+  --sl-color-gray-2: #b3b9bf;
+  --sl-color-gray-3: #979ea5;
+  --sl-color-gray-4: #6c747c;
+  --sl-color-gray-5: #3d434a;
+  --sl-color-gray-6: #212429;
+  --sl-color-black: #1a1d21;
+  --sl-color-bg-inline-code: #2a2e33;
+  --sl-color-hairline: #31363c;
 }
 
 :root[data-theme="light"] {
-  /* Light mode: warm off-white background, dark brown-grey text. */
-  --sl-color-accent-low: hsl(20, 60%, 90%);
-  --sl-color-accent: hsl(14, 58%, 42%);
-  --sl-color-accent-high: hsl(14, 60%, 28%);
-  --sl-color-white: hsl(30, 15%, 12%);
-  --sl-color-gray-1: hsl(30, 12%, 18%);
-  --sl-color-gray-2: hsl(30, 9%, 26%);
-  --sl-color-gray-3: hsl(30, 6%, 38%);
-  --sl-color-gray-4: hsl(32, 6%, 56%);
-  --sl-color-gray-5: hsl(36, 12%, 78%);
-  --sl-color-gray-6: hsl(38, 25%, 91%);
-  --sl-color-gray-7: hsl(40, 30%, 95%);
-  --sl-color-black: hsl(40, 33%, 97%);
+  /* Light mode: white pages on the web UI's light greys, near-black text. */
+  --sl-color-accent-low: #d9ebe7;
+  --sl-color-accent: #0b6b61;
+  --sl-color-accent-high: #08544c;
+  --sl-color-white: #14181d;
+  --sl-color-gray-1: #20262c;
+  --sl-color-gray-2: #343b42;
+  --sl-color-gray-3: #4f5962;
+  --sl-color-gray-4: #8b939a;
+  --sl-color-gray-5: #cdd2d7;
+  --sl-color-gray-6: #e0e3e6;
+  --sl-color-gray-7: #f6f7f8;
+  --sl-color-black: #ffffff;
+  --sl-color-bg-inline-code: #eef0f1;
+  --sl-color-hairline: #e0e3e6;
 }
 
 .sl-markdown-content :is(h1, h2, h3, h4),
 h1#_top {
-  font-family: var(--reqseq-font-heading);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content :is(h3, h4) {
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -0.005em;
 }
 
 .sl-markdown-content {
@@ -72,6 +81,5 @@ h1#_top {
   .access-tab-label {
     display: block;
     font-weight: 600;
-    font-family: var(--reqseq-font-heading);
   }
 }
