@@ -1,4 +1,5 @@
-// The user documentation site (ADR-0017). Nothing here loads from the network: no web fonts, no CDN, no analytics.
+// The user documentation site (ADR-0017). Nothing here loads from the network: no CDN, no analytics, and no fonts but
+// the site's own (IBM Plex, src/styles/fonts.css).
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { URL, fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
@@ -75,7 +76,7 @@ export default defineConfig({
       social: offline
         ? []
         : [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
-      customCss: ["./src/styles/theme.css"],
+      customCss: ["./src/styles/fonts.css", "./src/styles/theme.css"],
       // A tab stop on each code block, so that a keyboard user can scroll a wide one (#2190).
       expressiveCode: { plugins: [focusableCodeBlocks()] },
       // The search (SR-141 AK1): MiniSearch over search-index.json instead of Pagefind, online and offline.

@@ -19,12 +19,12 @@
 | `assets/copy.js` | The script of the copy buttons of element pages (`copy-script.ts`) |
 | `assets/list.js` | The script of the lists (`list-script.ts`): search, filters, sorting, grouping |
 | `assets/katex.css`, `assets/mermaid.js` | Only when a page needs them: KaTeX's stylesheet with its woff2 fonts as `data:` URLs, and the Mermaid bundle (`vendor.ts`) |
-| `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle and Starlight (`notices.ts`) |
+| `licenses/THIRD-PARTY-NOTICES.txt` | The licences of KaTeX, the packages of the Mermaid bundle, Starlight and IBM Plex (`notices.ts`) |
 | `reqseq-html-export.yaml` | The marker file (`schemas/html-export-marker.schema.json`) |
 
 Data and the search index come as `.js` files loaded with a `script` element, never with `fetch`, which `file://` blocks (ADR-0017). Scripts are classic scripts, since `file://` blocks module scripts and the policy blocks inline ones.
 
-Every link names a file. Every page carries a Content-Security-Policy (`page.ts`, `pagePolicy`): only the export's own styles, scripts, fonts and images, no connections, frames, forms or base change, and `noindex`. A page with a formula adds `font-src 'self' data:` (Firefox treats every `file://` file as an origin of its own and refuses a font from another file); a page with a diagram adds `style-src 'self' 'unsafe-inline'`, because Mermaid measures text in a temporary SVG with a `<style>` element. Content never yields a `<style>`.
+Every link names a file. Every page carries a Content-Security-Policy (`page.ts`, `pagePolicy`): only the export's own styles, scripts, fonts and images, no connections, frames, forms or base change, and `noindex`. Fonts are `data:` URLs (`font-src 'self' data:`): the docs' stylesheet holds IBM Plex and `assets/katex.css` KaTeX's fonts that way, because Firefox treats every `file://` file as an origin of its own and refuses a font from another file. A page with a diagram adds `style-src 'self' 'unsafe-inline'`, because Mermaid measures text in a temporary SVG with a `<style>` element. Content never yields a `<style>`.
 
 ## Look of the docs (`page.ts`, `docs-theme.generated.ts`, `page-script.ts`)
 

@@ -16,7 +16,8 @@
 //   the panel the docs show on wide screens, since the one for narrow screens opens only with Starlight's script;
 //   a page without sections leaves out the whole column, as the docs do;
 // - the scoped class of Starlight's badge (`.sl-badge:where(.astro-…)` in the stylesheet), for the export's badges;
-// - Starlight's licence, which the export's notices name.
+// - the stylesheet's fonts (IBM Plex, `fonts.css`) inlined as `data:` URLs, so the export keeps one stylesheet;
+// - the licences of Starlight and the two font packages, which the export's notices name.
 //
 // It fails when a landmark is missing, or when the frame or the stylesheet keeps an address outside the page, so a
 // Starlight update cannot break the frame silently. `--check` compares instead of writing (the CI docs step).
@@ -235,10 +236,18 @@ export const themeOfPage = (
   };
 };
 
-/** The stylesheet of `styles` read by `read(href)`; fails on a `url()` that is no `data:` URL. */
+/** A font of the site's own build (`/_astro/<name>.woff2`) in a `url()`. */
+const SITE_FONT = /url\(\s*(["']?)(\/_astro\/[\w.-]+\.woff2)\1\s*\)/gu;
+
+/**
+ * The stylesheet of `styles` read by `read(href)`, with each font of the site's build (IBM Plex, fonts.css) read by
+ * `readFont(href)` and inlined as a `data:` URL, so the export keeps one stylesheet; fails on any other `url()` that
+ * is no `data:` URL.
+ */
 export const stylesheetOf = async (
   styles: readonly { href: string; print: boolean }[],
   read: (href: string) => Promise<string>,
+  readFont: (href: string) => Promise<Buffer>,
 ): Promise<string> => {
   const parts = await Promise.all(
     styles.map(async ({ href, print }) => {
@@ -246,7 +255,19 @@ export const stylesheetOf = async (
       return print ? `@media print{${css}}` : css;
     }),
   );
-  const css = `${parts.join("\n")}\n`;
+  const hrefs = [...new Set([...parts.join("\n").matchAll(SITE_FONT)].map((m) => String(m[2])))];
+  const fonts = new Map(
+    await Promise.all(
+      hrefs.map(
+        async (href) =>
+          [href, `data:font/woff2;base64,${(await readFont(href)).toString("base64")}`] as const,
+      ),
+    ),
+  );
+  const css = `${parts.join("\n")}\n`.replace(
+    SITE_FONT,
+    (_, __, href: string) => `url(${String(fonts.get(href))})`,
+  );
   const outside = [...css.matchAll(/url\(\s*(?!["']?data:)["']?([^"')]*)/gu)].map((m) => String(m[1]));
   if (outside.length > 0 || /@import\b/u.test(css)) {
     throw new Error(
@@ -265,8 +286,8 @@ export const badgeScopeOf = (stylesheet: string): string => {
   return scope;
 };
 
-/** The TypeScript module of `theme` and `notice`. */
-export const themeModule = (theme: DocsTheme, notice: Notice): string =>
+/** The TypeScript module of `theme` and `notices`. */
+export const themeModule = (theme: DocsTheme, notices: readonly Notice[]): string =>
   [
     "// Written by `pnpm docs:export-theme` (packages/docs/src/export-theme.ts) from the offline build of the docs;",
     "// do not edit. The CI docs step fails when it differs from what the generator writes (SR-231 AK4, ADR-0017).",
@@ -278,18 +299,32 @@ export const themeModule = (theme: DocsTheme, notice: Notice): string =>
     `export const DOCS_TOC: readonly [string, string] = ${JSON.stringify(theme.toc)};`,
     `export const DOCS_TOC_SCOPE = ${JSON.stringify(theme.tocScope)};`,
     `export const DOCS_BADGE_SCOPE = ${JSON.stringify(theme.badgeScope)};`,
-    `export const STARLIGHT_NOTICE = ${JSON.stringify(notice)} as const;`,
+    `export const DOCS_NOTICES = ${JSON.stringify(notices)} as const;`,
     "",
   ].join("\n");
 
 export interface ThemePaths {
   /** The built offline site (`packages/docs/site/dist`). */
   readonly site: string;
-  /** Starlight's folder in the site's install. */
-  readonly starlight: string;
+  /**
+   * The folders in the site's install of the packages whose files the export's stylesheet holds: Starlight's styles
+   * and the fonts of `fonts.css` (`@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono`), for the export's notices.
+   */
+  readonly packages: readonly string[];
   /** The module to write. */
   readonly module: string;
 }
+
+/** The notice of the package in `folder`: its name, version and licence from its manifest, and its `LICENSE`. */
+const noticeOf = async (folder: string): Promise<Notice> => {
+  const manifest = JSON.parse(await fs.readFile(path.join(folder, "package.json"), "utf8")) as {
+    name: string;
+    version: string;
+    license: string;
+  };
+  const text = await fs.readFile(path.join(folder, "LICENSE"), "utf8");
+  return { name: manifest.name, version: manifest.version, license: manifest.license, text: text.trim() };
+};
 
 /** The theme module from the files of `paths`. */
 export const buildThemeModule = async (paths: ThemePaths): Promise<string> => {
@@ -298,23 +333,14 @@ export const buildThemeModule = async (paths: ThemePaths): Promise<string> => {
     throw new Error("export-theme: the site is not the offline build; build it with REQSEQ_DOCS_OFFLINE=1");
   }
   const { theme, styles } = themeOfPage(html);
-  const stylesheet = await stylesheetOf(styles, (href) =>
-    fs.readFile(path.join(paths.site, ...href.split("/")), "utf8"),
+  const inSite = (href: string): string => path.join(paths.site, ...href.split("/"));
+  const stylesheet = await stylesheetOf(
+    styles,
+    (href) => fs.readFile(inSite(href), "utf8"),
+    (href) => fs.readFile(inSite(href)),
   );
-  const manifest = JSON.parse(await fs.readFile(path.join(paths.starlight, "package.json"), "utf8")) as {
-    version: string;
-    license: string;
-  };
-  const licence = await fs.readFile(path.join(paths.starlight, "LICENSE"), "utf8");
-  return themeModule(
-    { ...theme, stylesheet, badgeScope: badgeScopeOf(stylesheet) },
-    {
-      name: "@astrojs/starlight",
-      version: manifest.version,
-      license: manifest.license,
-      text: licence.trim(),
-    },
-  );
+  const notices = await Promise.all(paths.packages.map(noticeOf));
+  return themeModule({ ...theme, stylesheet, badgeScope: badgeScopeOf(stylesheet) }, notices);
 };
 
 /** Writes the module, or with `check` tells whether it is up to date; the message for the log. */
