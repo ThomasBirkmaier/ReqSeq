@@ -81,7 +81,8 @@ export default defineConfig({
       expressiveCode: { plugins: [focusableCodeBlocks()] },
       // The search (SR-141 AK1): MiniSearch over search-index.json instead of Pagefind, online and offline.
       pagefind: false,
-      components: { Search: "./src/components/Search.astro" },
+      // The footer (src/components/Footer.astro) adds online the links to the legal pages of the product page.
+      components: { Search: "./src/components/Search.astro", Footer: "./src/components/Footer.astro" },
       // The icons of the app (#410), from toolchain/packaging/icon/icon.svg (scripts/icon/generate.mjs).
       favicon: "/favicon.svg",
       head: [
