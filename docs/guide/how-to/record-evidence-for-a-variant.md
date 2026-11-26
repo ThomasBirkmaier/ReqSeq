@@ -77,11 +77,13 @@ reqseq evidence status --view VAR-f23826
 ```
 
 ```text title="Output"
-Listed the verification status of 2 elements.
+Listed the verification status of 1 element.
 elements:
   SR-c67baa  draft  Show the wind speed  [verification: core open, VAR-f23826 verified]
 ...
 ```
+
+With only `--view`, it lists the requirements and needs in the variant's view.
 
 A run that counts for the core and the variant at once, and leaves out requirements of other variants:
 

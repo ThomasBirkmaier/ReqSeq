@@ -114,7 +114,8 @@ describe("validation status in element.get, element.resolve, evidence.status and
   });
 
   it("[SR-038/AK-wb3p] evidence.status gives open, validated, failed and outdated by the newest record of the current version", async () => {
-    const out = await status(await open());
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    const out = await status(await open(), { selection: { where: { all: [] } } });
     expect(statuses(out.elements)).toEqual(FROM_FILES);
     expect(out.total).toBe(9);
   });
@@ -216,7 +217,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
 
   it("shows every element's own status as written (D-030) and a validation record gives no evidence (D-007)", async () => {
     const ws = await open();
-    const out = await status(ws);
+    const out = await status(ws, { selection: { where: { all: [] } } });
     expect(Object.fromEntries(out.elements.map((e) => [e.id, e.status]))).toEqual({
       [N1]: "approved",
       [N2]: "approved",

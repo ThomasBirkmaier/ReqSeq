@@ -30,15 +30,13 @@ describe("reqseq evidence status (SR-031)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
-        "Listed the verification status of 6 elements.",
+        "Listed the verification status of 4 elements.",
         "elements:",
         "  N-a0000000001  approved  See the wind  [validation: open]",
         "  SR-b0000000001  draft  Show wind speed  [verification: core open, VAR-c0000000001 open, VAR-c0000000002 open]",
         "  SR-b0000000002  draft  Show gusts  [verification: VAR-c0000000001 open]",
         "  SR-000003  approved  Show wind direction  [verification: core open, VAR-c0000000001 open, VAR-c0000000002 open]",
-        "  VAR-c0000000001  draft  Pro",
-        "  VAR-c0000000002  draft  Basic",
-        "total: 6",
+        "total: 4",
         "",
       ].join("\n"),
     );
@@ -54,6 +52,6 @@ describe("reqseq evidence status (SR-031)", () => {
     expect(out.elements.map((e) => [e.shortId, e.verification])).toEqual([
       ["SR-b0000000002", [{ view: "5e031a7d-2b4f-4c61-9d08-0c0000000001", status: "open" }]],
     ]);
-    expect(out.total).toBe(6);
+    expect(out.total).toBe(4);
   });
 });

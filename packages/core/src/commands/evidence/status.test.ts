@@ -100,7 +100,7 @@ const ALL_OPEN = {
 describe("evidence.status (SR-031)", () => {
   it("[SR-031/AK-kbs6] evidence.status gives open for every requirement of a selection without records", async () => {
     const ws = await open();
-    const out = await status(ws);
+    const out = await status(ws, { selection: { where: { all: [] } } });
     expect(out.elements.map((e) => e.id)).toEqual([N1, B1, B2, B3, V1, V2]);
     expect(byId(out)).toEqual(ALL_OPEN);
     expect(out.total).toBe(6);
@@ -311,10 +311,10 @@ describe("evidence.status (SR-031)", () => {
     const ws = await open();
     const page = await status(ws, { limit: 2, offset: 1 });
     expect(page.elements.map((e) => e.id)).toEqual([B1, B2]);
-    expect(page.total).toBe(6);
+    expect(page.total).toBe(4);
     const filtered = await status(ws, { selection: { where: { type: ["system-requirement"] }, view: V1 } });
     expect(filtered.elements.map((e) => e.id)).toEqual([B1, B2, B3]);
-    expect((await status(ws, { offset: 6 })).elements).toEqual([]);
+    expect((await status(ws, { offset: 4 })).elements).toEqual([]);
   });
 
   it("is incomplete when a repository of the workspace is not available", async () => {
@@ -512,5 +512,93 @@ describe("evidence.status per acceptance criterion (SR-031, D-072)", () => {
         },
       },
     ]);
+  });
+});
+
+// fixtures/SR-069/filter: a decision, two needs, two packages, five system requirements (SR-0000b2
+// valid for VAR-0000c1 only, SR-0000b3 for VAR-0000c2 only, one obsolete), two software
+// requirements whose type inherits the meaning `requirement` (SR-012) and two variants.
+describe("evidence.status without a selection (SR-031 AK13)", () => {
+  const FILTER: FixtureOptions = { fixture: "SR-069/filter" };
+  const NEEDS = ["N-0000a1", "N-0000a2"];
+  const SYSTEM = ["SR-0000b1", "SR-0000b2", "SR-0000b3", "SR-0000b4", "SR-0000b5"];
+  const SOFTWARE = ["SWR-0000f1", "SWR-0000f2"];
+  const MISSING_METAMODEL =
+    "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+    '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+    "metamodel: { repository: system, path: missing }\n";
+  const shortIds = (output: Output): readonly string[] => output.elements.map((e) => e.shortId);
+  const every = async (workspace: Workspace): Promise<readonly string[]> =>
+    ((await invoke("element.list", { limit: 5000 }, { workspace })) as FullList).elements.map(
+      (e) => e.shortId,
+    );
+
+  it("[SR-031/AK-spcy] lists the requirements and needs of the workspace, every status and variant-only requirements included", async () => {
+    const workspace = await open(FILTER);
+    for (const input of [{}, { selection: {} }]) {
+      const out = await status(workspace, input);
+      expect(shortIds(out)).toEqual([...NEEDS, ...SYSTEM, ...SOFTWARE]);
+      expect(out.total).toBe(9);
+    }
+    expect((await status(workspace)).elements.map((e) => e.status)).toContain("obsolete");
+    // The same elements as the selection by the output of evidence.status (SR-224 AK5).
+    const listed = (await invoke(
+      "element.list",
+      { selection: { output: { command: "evidence.status", input: {} } } },
+      { workspace },
+    )) as FullList;
+    expect(listed.elements.map((e) => e.shortId)).toEqual([...NEEDS, ...SYSTEM, ...SOFTWARE]);
+  });
+
+  it("[SR-031/AK-spcy] with only a variant lists the requirements and needs without those its view leaves out", async () => {
+    const workspace = await open(FILTER);
+    const inView = async (view: string): Promise<readonly string[]> =>
+      shortIds(await status(workspace, { selection: { view } }));
+    const rest = ["SR-0000b4", "SR-0000b5", ...SOFTWARE];
+    expect(await inView("VAR-0000c1")).toEqual([...NEEDS, "SR-0000b1", "SR-0000b2", ...rest]);
+    expect(await inView("VAR-0000c2")).toEqual([...NEEDS, "SR-0000b1", "SR-0000b3", ...rest]);
+    expect((await status(workspace, { selection: { view: "VAR-0000c1" } })).total).toBe(8);
+    // A part left undefined by an in-process caller names nothing.
+    expect((await status(workspace, { selection: { view: "VAR-0000c1", ids: undefined } })).total).toBe(8);
+  });
+
+  it("[SR-031/AK-spcy] lists every element while the metamodel cannot be read, breaks its rules or is missing (SR-011 AK3, AK4)", async () => {
+    const broken: readonly FixtureOptions[] = [
+      { ...FILTER, files: { "metamodel/broken.yaml": "properties: [\n" } },
+      {
+        ...FILTER,
+        files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x, extends: nowhere } ]\n" },
+      },
+      { ...FILTER, files: { "reqseq-workspace.yaml": MISSING_METAMODEL } },
+    ];
+    for (const options of broken) {
+      const workspace = await open(options);
+      const state = (await invoke(
+        "workspace.status",
+        {},
+        { workspace },
+      )) as CommandOutput<"workspace.status">;
+      expect(state.metamodel.valid).toBe(false);
+      const out = await status(workspace, { limit: 5000 });
+      expect(shortIds(out)).toEqual(await every(workspace));
+      expect(out.total).toBe(14);
+    }
+  });
+
+  it("[SR-031/AK-spcy] lists every element of a selection that names anything but a variant, an empty one included", async () => {
+    const workspace = await open(FILTER);
+    const all = await every(workspace);
+    expect(all).toHaveLength(14);
+    expect(shortIds(await status(workspace, { selection: { where: { all: [] } }, limit: 5000 }))).toEqual(
+      all,
+    );
+    expect((await status(workspace, { selection: { ids: [] } })).total).toBe(0);
+    expect(shortIds(await status(workspace, { selection: { ids: ["D-0000e1", "VAR-0000c1"] } }))).toEqual([
+      "D-0000e1",
+      "VAR-0000c1",
+    ]);
+    expect(
+      shortIds(await status(workspace, { selection: { where: { type: ["variant"] }, view: "VAR-0000c1" } })),
+    ).toEqual(["VAR-0000c1", "VAR-0000c2"]);
   });
 });

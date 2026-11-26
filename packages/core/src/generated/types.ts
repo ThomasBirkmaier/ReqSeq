@@ -5112,7 +5112,7 @@ export interface EvidenceEnrichJunitOutput {
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
-  /** The elements whose verification status is given; without it every element. */
+  /** The elements whose verification status is given; without it, or with only a view, the requirements and needs (of that view), every element while the metamodel is not valid (SR-031 AK13). */
   readonly selection?: ElementSelection;
   /** The most elements on one page. */
   readonly limit: number;

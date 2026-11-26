@@ -13779,7 +13779,7 @@
         "type": "object",
         "properties": {
           "selection": {
-            "description": "The elements whose verification status is given; without it every element.",
+            "description": "The elements whose verification status is given; without it, or with only a view, the requirements and needs (of that view), every element while the metamodel is not valid.",
             "$ref": "#/$defs/common/$defs/selection"
           },
           "limit": {

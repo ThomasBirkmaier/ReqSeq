@@ -163,7 +163,8 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     const out = await exportOf(workspace);
     const status = (await invoke(
       "evidence.status",
-      { limit: 5000 },
+      // Every element: without a selection only requirements and needs (SR-031 AK13).
+      { selection: { where: { all: [] } }, limit: 5000 },
       { workspace },
     )) as CommandOutput<"evidence.status">;
     expect(out.elements.map((e) => [e.id, e.verification, e.validation])).toEqual(

@@ -46,7 +46,8 @@ describe("reqseq and the validation status (SR-038)", () => {
   });
 
   it("[SR-038/AK-wb3p] reqseq evidence status prints the validation status of every element", async () => {
-    const result = await reqseq(["evidence", "status"]);
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    const result = await reqseq(["evidence", "status", "--where", '{"all":[]}']);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
