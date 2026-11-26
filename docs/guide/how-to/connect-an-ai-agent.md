@@ -3,7 +3,7 @@ title: Connect an AI agent
 description: Print the ready-made setup that lets an AI agent's client start the MCP server of ReqSeq for a workspace.
 ---
 
-An agent works with ReqSeq through its client, which starts the MCP server (`reqseq mcp`) for a workspace. **Connect AI agent** prints what to enter in the client, with the absolute paths of the ReqSeq that runs it and of the workspace. It creates and changes no file, the client's included, and opens no connection.
+An agent works with ReqSeq through its client, which starts the MCP server (`reqseq mcp`) for a workspace. **Connect AI agent** prints what to enter in the client, with the absolute paths of the ReqSeq that runs it and of the workspace. It creates and changes no file and opens no connection.
 
 | Client | Value | Setup |
 |---|---|---|
@@ -14,23 +14,27 @@ An agent works with ReqSeq through its client, which starts the MCP server (`req
 | Cursor | `cursor` | a JSON block and the file on this system it belongs in |
 | Other | `other` | a JSON block in the common `mcpServers` form |
 
-Run Claude Code's command in the folder where you start Claude Code. For every client but Claude Desktop, the output also names a terminal command with the same absolute paths, `tool guide --skill --write` for the workspace, which writes the skill file `managing-requirements`. On Windows each command is for PowerShell. In a workspace without the skill file, the call writes it; a file there that ReqSeq did not write, or that was changed since, is overwritten only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
+Run Claude Code's command in the folder where you start Claude Code. For every client but Claude Desktop, the output also names a terminal command with the same absolute paths, `tool guide --skill --write` for the workspace, which writes the skill file `managing-requirements`. On Windows each command is for PowerShell. A file there that ReqSeq did not write, or that was changed since, is overwritten only with `--replace`. Add a JSON block under `mcpServers` of the file, keeping the other entries, and restart the client.
 
 The setup holds as long as ReqSeq stays where it is: after a move, print it again. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
-A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on Windows; choose `other` and add its block to VS Code by hand.
+From a downloaded release, the setup starts the launcher `bin/reqseq` on Linux and `ReqSeq.app/Contents/Resources/bin/reqseq` on macOS. On Windows, where a client cannot start `reqseq.cmd` without a shell, it names Node.
+
+From the CLI tarball (`npm install -g`), it starts Node with the command line's `bin.js` on every system.
+
+A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on Windows; choose `other` and add its block by hand.
 
 ## An entry for .mcp.json
 
-For Claude Code, the output also gives an entry for `.mcp.json`, for a Git repository checked out on machines where `reqseq` is on the PATH, such as a cloud container that installs ReqSeq after the checkout. The file belongs in the root of the Git repository the workspace folder lies in (without Git, the workspace folder), which the output names. The entry starts `reqseq` with `mcp --workspace` and the workspace path relative to that folder, once for macOS and Linux and once for Windows (`cmd /c reqseq`). The Windows form is left out when that path holds a space or one of `&^%<>|!"(),;=\`.
+For Claude Code, the output also gives an entry for `.mcp.json`, for a Git repository checked out where `reqseq` is on the PATH, such as a cloud container that installs ReqSeq after the checkout. The file belongs in the Git root of the workspace folder (without Git, the workspace folder), which the output names. The entry starts `reqseq mcp --workspace` with the workspace path relative to that folder, for macOS and Linux and for Windows (`cmd /c reqseq`). The Windows form is left out when that path holds a space or one of `&^%<>|!"(),;=\`.
 
-The entry assumes Claude Code starts in that folder. Where `reqseq` is not on the PATH, its server does not start; use the command there. It replaces a server named `reqseq` in the file and keeps the others.
+It assumes Claude Code starts in that folder. Without `reqseq` on the PATH its server does not start; use the command there. It replaces a server named `reqseq` in the file and keeps the others; a second workspace in the same Git repository needs another name.
 
 ## Web UI
 
-Open **Settings** in the rail. Under **AI agents**, choose the program and click **Show setup**: the page shows what to do, the configuration file where there is one, the command or JSON block, and how to go on. **Copy** puts the block on the clipboard. For Claude Code it also shows the `.mcp.json` entries.
+Open **Settings** in the rail. Under **AI agents**, choose the program and click **Show setup**: the page shows what to do, the configuration file if any, the command or JSON block, and how to go on. **Copy** puts the block on the clipboard. For Claude Code it also shows the `.mcp.json` entries.
 
-The same card says whether an agent is connected to this workspace through the MCP server now, and since when, or that none was connected yet.
+The card also says whether an agent is connected through the MCP server now, and since when.
 
 Without an open workspace, open or create one first ([Open or create a workspace](/how-to/open-a-workspace/)). **Create a workspace** writes the skill file `managing-requirements` too, unless you clear **Write the skill file for AI agents**.
 

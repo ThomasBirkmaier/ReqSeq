@@ -69,9 +69,10 @@ const tempFolder = async (): Promise<string> => {
 };
 
 afterEach(async () => {
+  // `stop` ends the whole tree, as a server started through `cmd /c` or a `.cmd` launcher runs below a shell.
   for (const child of children.splice(0)) {
-    if (child.exitCode === null) {
-      child.kill();
+    if (child.exitCode === null && child.signalCode === null) {
+      await stop(child);
     }
   }
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));

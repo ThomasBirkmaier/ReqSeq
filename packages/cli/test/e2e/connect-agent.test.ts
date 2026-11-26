@@ -114,7 +114,7 @@ const run = (
     });
   });
 
-const connectAgent = async (client: ClientName): Promise<Output> => {
+const connectAgent = async (client: ClientName, root = ws.root): Promise<Output> => {
   const result = await run(
     process.execPath,
     [
@@ -127,7 +127,7 @@ const connectAgent = async (client: ClientName): Promise<Output> => {
       client,
       "--json",
       "--workspace",
-      ws.root,
+      root,
       // The compile cache of the command line's start (#178) is no file of the command.
     ],
     { NODE_DISABLE_COMPILE_CACHE: "1" },
@@ -299,14 +299,27 @@ describe("reqseq workspace connect-agent", () => {
     },
   );
 
-  it("[SR-227/AK-qxzf] the .mcp.json entry of Claude Code for this system, started in its folder with reqseq on the PATH, starts the MCP server of this workspace", async () => {
-    const { mcpJson } = await connectAgent("claude-code");
-    const systems = process.platform === "win32" ? "windows" : "macos-linux";
-    const entry = mcpJson?.entries.find((candidate) => candidate.systems === systems);
-    expect(entry, systems).toBeDefined();
-    const json = JSON.parse(entry?.text ?? "") as { mcpServers: { reqseq: Omit<Server, "env"> } };
-    const server = { ...json.mcpServers.reqseq, env: {} };
-    expect(await workspaceOf(server, mcpJson?.folder)).toBe(ws.root);
+  it("[SR-227/AK-qxzf] the .mcp.json entry of Claude Code for this system, started in its folder with reqseq on the PATH, starts the MCP server of a workspace nested in the Git repository", async () => {
+    // A Git repository with the workspace two folders below its root, so the entry names `specs/station`.
+    const repository = await createFixtureWorkspace({ git: true, tempDir: top });
+    const source = await createFixtureWorkspace({ fixture: "SR-004/one-repository", tempDir: top });
+    const nested = repository.path("specs/station");
+    try {
+      await fs.cp(source.root, nested, { recursive: true });
+      const { mcpJson } = await connectAgent("claude-code", nested);
+      expect(mcpJson?.folder).toBe(repository.root);
+      const systems = process.platform === "win32" ? "windows" : "macos-linux";
+      const entry = mcpJson?.entries.find((candidate) => candidate.systems === systems);
+      expect(entry, systems).toBeDefined();
+      const json = JSON.parse(entry?.text ?? "") as { mcpServers: { reqseq: Omit<Server, "env"> } };
+      expect(json.mcpServers.reqseq.args.at(-1)).toBe("specs/station");
+      const server = { ...json.mcpServers.reqseq, env: {} };
+      expect(await workspaceOf(server, mcpJson?.folder)).toBe(nested);
+    } finally {
+      endChildren();
+      await source.cleanup();
+      await repository.cleanup();
+    }
   });
 
   it("[SR-227/AK-nq91] creates and changes no file, in the workspace or the home and configuration folders", async () => {

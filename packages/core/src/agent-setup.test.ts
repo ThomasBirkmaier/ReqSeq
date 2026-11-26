@@ -364,7 +364,7 @@ describe("setupOf", () => {
           { mcpServers: { reqseq: { command: "reqseq", args: ["mcp", "--workspace", workspace] } } },
         ],
       ]);
-      const named = bad === " " ? "a space" : `"${bad}"`;
+      const named = bad === " " ? "a space" : bad === '"' ? "a double quote" : `"${bad}"`;
       expect(mcpJson.windowsMissing).toBe(
         `There is no entry for Windows: the path of the workspace, ${workspace}, holds ${named}, which cmd would read.`,
       );

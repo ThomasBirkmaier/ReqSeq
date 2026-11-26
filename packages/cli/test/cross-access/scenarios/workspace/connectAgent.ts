@@ -1,7 +1,7 @@
 // Cross-access scenarios of workspace.connectAgent (SR-227): without a client and for each client, every access
 // gives the same setup, as all of them stand for the installation of this process (D-029). Each client gets its
-// form (AK2), every client but Claude Desktop also the call that writes the skill file (AK2), and the setup names absolute paths
-// (AK3). Running the setup is the CLI e2e test (AK5). AK4 needs injected macOS facts (core's tests) and AK6 is
+// form (AK2), every client but Claude Desktop also the call that writes the skill file (AK2), the server names
+// absolute paths (AK3), and Claude Code also gets the `.mcp.json` entry with `reqseq` and a relative path (AK7). Running the setup is the CLI e2e test (AK5). AK4 needs injected macOS facts (core's tests) and AK6 is
 // about files, which a comparison of outputs does not see (CLI e2e).
 import path from "node:path";
 import { expect } from "vitest";

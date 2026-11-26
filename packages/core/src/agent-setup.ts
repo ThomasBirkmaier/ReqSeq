@@ -315,6 +315,9 @@ export const refusalOf = (client: Client, facts: SetupFacts, server: Server): Se
 /** The characters of a relative workspace path that leave out the Windows form of the entry (AK7): `cmd /c` reads them. */
 const CMD_UNSAFE = /[ &^%<>|!"(),;=\\]/;
 
+/** The characters of `CMD_UNSAFE` a message names in words, as quotes would not show them. */
+const SPOKEN: Readonly<Record<string, string>> = { " ": "a space", '"': "a double quote" };
+
 /**
  * The entry for `.mcp.json` in the folder of D-079 (AK7): `reqseq` from the search path with the workspace
  * relative to that folder, once for macOS and Linux and once for Windows through `cmd /c`, which starts
@@ -343,7 +346,7 @@ export const mcpJsonOf = (facts: SetupFacts): McpJson => {
     ...(bad === undefined
       ? {}
       : {
-          windowsMissing: `There is no entry for Windows: the path of the workspace, ${workspace}, holds ${bad === " " ? "a space" : `"${bad}"`}, which cmd would read.`,
+          windowsMissing: `There is no entry for Windows: the path of the workspace, ${workspace}, holds ${SPOKEN[bad] ?? `"${bad}"`}, which cmd would read.`,
         }),
     note,
   };
