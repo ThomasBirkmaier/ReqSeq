@@ -4538,6 +4538,8 @@ export interface HintListOutput {
   readonly total: number;
   /** True while a repository of the workspace file is not on this machine: the hints of its elements are not listed (SR-006 AK2). */
   readonly incomplete: Incomplete;
+  /** The variants that the `view` of an outdated evidence hint (`evidence.outdated`) on the page names by UUID only, each once in the order first named, so a reader names them by short ID, identifier and title (#2527, as `evidence.status` names its variants). Left out when it names none. */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -5005,6 +5007,8 @@ export interface EvidenceListOutput {
   readonly problems: readonly Problem[];
   /** True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen (SR-006 AK2). */
   readonly incomplete: Incomplete;
+  /** The variants that the output names by UUID only (the `variant` of a record or of an execution of a test case, the `views` of `display`), each once in the order first named, so a reader names them by short ID, identifier and title (#2527, as `evidence.status` names its variants). Left out when it names none. */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -5562,7 +5566,7 @@ export interface BaselineChangesOutput {
   /** Confirm hints, Compare baseline and Prepare baseline, as the details say (SR-241 AK3, AK4). */
   readonly next: readonly NextStep[];
   readonly incomplete?: Incomplete;
-  /** The variant of the baseline's view, as baseline.get names it. Left out in the core. */
+  /** The variant of the baseline's view, as baseline.get names it, then the variants the `view` of an outdated evidence hint names, as hint.list names them (#2527); each once. Left out when it names none. */
   readonly names?: readonly ElementName[];
 }
 

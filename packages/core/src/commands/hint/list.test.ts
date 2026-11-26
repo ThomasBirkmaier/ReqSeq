@@ -350,6 +350,31 @@ describe("hint.list (SR-026)", () => {
     });
   });
 
+  it("names the variant of the view of outdated evidence in names, and gives no names without one (#2527)", async () => {
+    const record = (variant?: string): string =>
+      `---\nreqseq-record: 1\nkind: verification\nelement: ${R1}\nversion: n1:0000000000000000\nmethod: test\nitem: build-41\n` +
+      `${variant === undefined ? "" : `variant: ${variant}\n`}result: passed\ndate: 2026-11-02T12:00:00Z\n---\n`;
+    const workspace = await opened({
+      ...HINTS,
+      files: {
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          "metamodel: { repository: system, path: metamodel }\n" +
+          "evidence:\n  - { repository: system, path: evidence }\n",
+        "evidence/r1-alpine.md": record(VA),
+      },
+    });
+    const outdated = await list(workspace, { kind: ["evidence.outdated"] });
+    expect(outdated.hints.map((h) => h.view)).toEqual([VA]);
+    expect(outdated.names).toEqual([{ id: VA, repository: "system", shortId: "VAR-0000c1", title: "Pro" }]);
+    // The message names the variant by the same short ID, never by its UUID.
+    expect(outdated.hints[0]?.message).toContain("for variant VAR-0000c1,");
+    expect(outdated.hints[0]?.message).not.toContain(VA);
+    // A page without a variant's view names none.
+    expect((await list(workspace, { kind: ["trace.no-parent"] })).names).toBeUndefined();
+  });
+
   it("puts the kinds the kind filter names without a hint after the others, in the order it names them", async () => {
     const workspace = await opened();
     const output = await list(workspace, {

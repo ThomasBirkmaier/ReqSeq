@@ -46,13 +46,14 @@ export const isTestCase = (value: unknown): value is Rec =>
 
 /**
  * A record of a list of records (evidence.list, trace.affected, #275): `recordLine`, its kind when it
- * is no verification, the version it was recorded against and the baselines that hold that version.
+ * is no verification, the version it was recorded against and the baselines that hold that version;
+ * its variant as `names` names it (#2527).
  */
-export const listedRecordLine = (record: Rec): string => {
+export const listedRecordLine = (record: Rec, names: Names = new Map()): string => {
   const baselines = listOf(record["baselines"]).map(text);
   return join(
     record["kind"] === "verification" ? "" : text(record["kind"]),
-    recordLine(record, true, new Map()),
+    recordLine(record, true, names),
     text(record["version"]) === "" ? "" : `[version ${text(record["version"])}]`,
     baselines.length === 0 ? "" : `[baselines: ${baselines.join(", ")}]`,
   );
