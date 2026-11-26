@@ -253,8 +253,17 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
     expect(result.stdout).toMatch(/--level <value>\s+one of: low, high; default: "low"/);
     expect(result.stdout).toMatch(/--note <value>\s+null only via --input/);
-    expect(result.stdout).toMatch(/--set <key=value>\s+repeatable; the value as JSON when it parses/);
-    expect(result.stdout).toMatch(/--body <text\|@file\|->\s+Body text\. @file or - reads it from a file/);
+    // How a value is read is said once under the options, not in each option (#2529).
+    expect(result.stdout).toMatch(/--set <key=value>\s+repeatable\n/);
+    expect(result.stdout).toMatch(/--body <text\|@file\|->\s+Body text\.\n/);
+    expect(result.stdout).toMatch(
+      /\n {2}-h, --help\s+show help\n\nOption values:\n {2}<key=value> {5}Read as JSON when it parses/,
+    );
+    expect(result.stdout).toMatch(
+      /'version="1\.10"'\s+for\s+text\.\s+A\s+key\s+given\s+again\s+keeps\s+its\s+last\s+value\./,
+    );
+    expect(result.stdout).toMatch(/<text\|@file\|-> {2}@file or - reads the text from a file/);
+    expect(result.stdout.match(/when it parses/g)).toHaveLength(1);
     expect(result.stdout).toMatch(/--input <json\|@file\|->/);
     expect(result.stdout).toMatch(/--workspace <path>/);
     expect(result.stdout).toMatch(/--json\s/);
@@ -265,6 +274,40 @@ describe("reqseq help and version", () => {
     expect(result.stdout).toContain("Only via --input: meta");
     const plain = await run(["test", "root", "--help"]);
     expect(plain.stdout).not.toContain("Only via --input");
+    expect(plain.stdout).not.toContain("Option values:");
+  });
+
+  it("says once what a key given again does, with relations by kind adding their targets (#2529)", () => {
+    const helpOf = (properties: Record<string, unknown>): string => {
+      let out = "";
+      const program = buildProgram({
+        runtime: createCommandRuntime({
+          contracts: loadContracts({
+            catalog: { "reqseq-catalog": 1, commands: [entry("test.keys", { properties })] },
+          }),
+          commands: [],
+        }),
+        version: "0",
+        writeOut: (text) => {
+          out += text;
+        },
+        writeErr: () => undefined,
+        jsonErrors: false,
+        run: () => Promise.resolve(),
+        serve: () => Promise.resolve(),
+      });
+      expect(() => program.parse(["test", "keys", "--help"], { from: "user" })).toThrow();
+      return out.replace(/\s+/g, " ");
+    };
+    const props = { type: "object", additionalProperties: {} };
+    const relations = { $ref: "../common.schema.json#/$defs/relationRefs" };
+    const both = helpOf({ props, relations });
+    expect(both).toContain("--relations <key=value> repeatable; a kind given again adds its targets");
+    expect(both).toContain("A key given again keeps its last value, unless its option says otherwise.");
+    const lists = helpOf({ relations });
+    expect(lists).toContain("Option values: <key=value> Read as JSON when it parses");
+    expect(lists).not.toContain("A key given again");
+    expect(lists).not.toContain("<text|@file|->");
   });
 
   it("refuses a catalog in which two fields derive the same flag (#149)", () => {
