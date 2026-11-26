@@ -86,7 +86,13 @@ describe("element.get", () => {
     expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n\n")[1]);
     // The date only on request (D-013, ADR-0005 "Version date"); not in a Git repository: none.
     expect(byId).not.toHaveProperty("versionDate");
-    expect(await get(opened, { ref: WIND.id, versionDate: true })).toEqual({ ...byId, versionDate: null });
+    // The warning that says why comes with it (SR-254 AK2).
+    const dated = await get(opened, { ref: WIND.id, versionDate: true });
+    expect(dated).toEqual({
+      ...byId,
+      versionDate: null,
+      problems: [...hints(byId), expect.objectContaining({ code: "version.date-unavailable" })],
+    });
     expect(await get(opened, { ref: "SR-e88fb3" })).toEqual(byId);
     expect(await get(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });

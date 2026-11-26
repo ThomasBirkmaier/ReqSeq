@@ -54,6 +54,8 @@ const COMMANDS = {
    * the repository is a shallow clone, and its HEAD commit.
    */
   head: ["rev-parse", "--show-toplevel", "--is-shallow-repository", "--verify", "HEAD"],
+  /** The branch HEAD names, also one without commits; fails where HEAD names a commit. */
+  symbolicHead: ["symbolic-ref", "-q", "HEAD"],
   /** The path of the folder git runs in from the top level of its work tree, with `/` after each name. */
   prefix: ["rev-parse", "--show-prefix"],
   /**
@@ -681,6 +683,19 @@ const prefixDepth = async (
 ): Promise<{ readonly ok: true; readonly depth: number } | Exclude<RunResult, { ok: true }>> => {
   const result = await run(folder, "prefix", options);
   return result.ok ? { ok: true, depth: result.stdout.toString("utf8").split("/").length - 1 } : result;
+};
+
+/**
+ * Whether git reads the repository whose work tree holds `folder` and HEAD names a branch (`symbolic-ref -q HEAD`,
+ * under the short time limit), as before its first commit; unknown when git is missing, refuses the repository,
+ * times out, finds no work tree there, or HEAD names a commit.
+ */
+export const symbolicHead = async (
+  folder: string,
+  options: ReadOptions = {},
+): Promise<{ readonly known: true } | GitUnknown> => {
+  const result = await run(folder, "symbolicHead", { ...options, quick: true });
+  return result.ok ? { known: true } : unknown(result);
 };
 
 /**
@@ -1382,21 +1397,38 @@ export const changedPaths = async (
   if (!isObjectId(commit)) {
     throw new Error(`changedPaths needs a commit ID, not ${commit}`);
   }
-  const [overrides, untracked] = await Promise.all([
-    filterOverrides(folder, options),
+  const [changes, untracked] = await Promise.all([
+    trackedChanges(folder, commit, options),
     run(folder, "untracked", options),
   ]);
-  if (!overrides.ok) {
-    return unknown(overrides);
-  }
-  const changes = await run(folder, "changes", { ...options, revision: commit, config: overrides.config });
-  if (!changes.ok) {
-    return unknown(changes);
+  if (!changes.known) {
+    return changes;
   }
   if (!untracked.ok) {
     return unknown(untracked);
   }
-  return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
+  return { known: true, paths: [...changes.paths, ...zList(untracked.stdout)] };
+};
+
+/**
+ * The paths of `changedPaths` without the files Git does not track: the tracked files of the working copy that
+ * differ from `commit`, deleted ones included (a stat-dirty file too). One `diff`, no walk of the work tree for
+ * untracked files; for a caller that tells a file missing at `commit` otherwise (`commitBlobs`).
+ */
+export const trackedChanges = async (
+  folder: string,
+  commit: string,
+  options: ReadOptions = {},
+): Promise<ChangedPaths> => {
+  if (!isObjectId(commit)) {
+    throw new Error(`trackedChanges needs a commit ID, not ${commit}`);
+  }
+  const overrides = await filterOverrides(folder, options);
+  if (!overrides.ok) {
+    return unknown(overrides);
+  }
+  const changes = await run(folder, "changes", { ...options, revision: commit, config: overrides.config });
+  return changes.ok ? { known: true, paths: zList(changes.stdout) } : unknown(changes);
 };
 
 /** Whether Git tracks a file (`trackedFile`), or why Git cannot tell. */

@@ -337,14 +337,21 @@ describe("baseline.changes", () => {
     expect([unchanged > 0, Object.values(others)]).toEqual([true, [0, 0, 0, 0, 0, 0]]);
   });
 
-  it("[SR-241/AK-h6wy] marks the output incomplete without a repository, and passes on the problems of baseline.get", async () => {
+  it("[SR-241/AK-h6wy] marks the output incomplete without a repository, and passes on the problems of baseline.get except the warnings of SR-254", async () => {
     const ws = await fixture();
     await rm(ws.path("sensor"), { recursive: true });
     const out = await call(ws, "baseline.changes", {});
     const got = await call(ws, "baseline.get", { baseline: "Release 1" });
     expect(out.incomplete).toBe(true);
-    expect(out.problems?.slice(0, got.problems?.length)).toEqual(got.problems);
-    expect(got.problems?.map((p) => p.code)).toEqual(["baseline.repository-commit-differs"]);
+    // baseline.get says why the versions of its page have no date; baseline.changes does not.
+    expect(got.problems?.map((p) => [p.code, p.repository])).toEqual([
+      ["baseline.repository-commit-differs", "system"],
+      ["version.date-unknown", "system"],
+    ]);
+    const kept = got.problems?.filter((p) => !p.code.startsWith("version."));
+    expect(out.problems?.slice(0, kept?.length)).toEqual(kept);
+    expect(out.problems?.map((p) => p.code)).not.toContain("version.date-unknown");
+    expect(out.problems?.map((p) => p.code)).not.toContain("version.date-unavailable");
   });
 
   it("[SR-241/AK-h6wy] says that a baseline without stored selection counts nothing added or removed, and has no such numbers", async () => {

@@ -54,15 +54,17 @@ import {
 import type { CountedElement, MetamodelProperty, ReqifMappingFile } from "../../generated/types.js";
 import { meaningUnassigned, propertyWithMeaning } from "../../metamodel/index.js";
 import type { ElementRecord, ShortIds, TargetItem } from "../../model/index.js";
-import { foldersAbove, ignoredBy, imageLink, imageLinks, resolveTarget } from "../../model/index.js";
+import {
+  UNDATED_CODES,
+  foldersAbove,
+  ignoredBy,
+  imageLink,
+  imageLinks,
+  resolveTarget,
+} from "../../model/index.js";
 import { PRODUCT_VERSION } from "../../product.js";
 import type { SelectionContext } from "../../query/index.js";
-import {
-  orderedSelection,
-  resolveSelection,
-  sortProblems as sortProblemsOf,
-  sortValuesFor,
-} from "../../query/index.js";
+import { orderedSelection, resolveSelection, sortProblems, sortValuesFor } from "../../query/index.js";
 import type { ExportedElement } from "../../reqif/export.js";
 import { planExport } from "../../reqif/export.js";
 import {
@@ -80,6 +82,13 @@ import { planSourceExport } from "../../reqif/source-export.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../../workspace/index.js";
 import { refuseGitAt, workspaceLayoutState } from "../../workspace/index.js";
 import { counted, problemsNote, sentence } from "../answer.js";
+
+/**
+ * The warnings of the order of a stored sort (`sort.incomplete`), without those on missing version dates, which only
+ * `element.list` gives of a sort (SR-254 AK1, SR-075 AK5).
+ */
+const sortProblemsOf = (values: Parameters<typeof sortProblems>[0]): Problem[] =>
+  sortProblems(values).filter((problem) => !UNDATED_CODES.has(problem.code));
 
 /** An image copy: its source file and SHA-256 when it was read, and its path relative to the output folder. */
 interface ImageCopy {

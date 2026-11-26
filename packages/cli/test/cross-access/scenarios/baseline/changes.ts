@@ -137,6 +137,9 @@ scenariosOf("baseline.changes", [
         false,
         undefined,
       ]);
+      // baseline.get names why versions of its page have no date (SR-254); baseline.changes does not.
+      expect(out.problems?.map((p) => p.code)).toContain("baseline.repository-commit-differs");
+      expect(out.problems?.filter((p) => p.code.startsWith("version."))).toEqual([]);
     },
   },
   {

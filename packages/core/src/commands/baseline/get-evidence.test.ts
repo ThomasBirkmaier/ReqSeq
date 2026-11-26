@@ -429,7 +429,8 @@ describe("baseline.get withEvidence", () => {
     ]);
     const filter = await get(workspace, "Gone filter");
     expect(rowsOf(filter)["b1"]).toEqual(["alpine verified +1"]);
-    expect(filter.problems).toHaveLength(1);
+    // Without Git, each output also says why the versions have no date (SR-254).
+    expect(filter.problems?.map((p) => p.code)).toEqual(["baseline.invalid", "version.date-unavailable"]);
     expect(rowsOf(await get(workspace, "Gone core"))["b1"]).toHaveLength(3);
     const view = await get(workspace, "Gone view");
     expect(rowsOf(view)).toEqual({ a1: undefined, b1: undefined });
@@ -438,6 +439,7 @@ describe("baseline.get withEvidence", () => {
     expect(view.problems?.map((p) => p.message)).toEqual([
       expect.stringContaining("stored selection"),
       expect.stringContaining("the evidence is left out"),
+      expect.stringContaining("Git cannot read repository"),
     ]);
     vi.mocked(variants.resolveView).mockImplementationOnce(() => {
       throw new Error("bug");

@@ -200,7 +200,7 @@
         "title": "Problems",
         "type": "array",
         "items": { "$ref": "../common.schema.json#/$defs/problem" },
-        "description": "With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075).",
+        "description": "With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075). `version.date-unavailable` (warning, per repository, on each page) when elements of the selection are listed last because their repository is not on this machine, Git cannot read it or it is a shallow clone (SR-075 AK5).",
         "x-normal": []
       }
     },

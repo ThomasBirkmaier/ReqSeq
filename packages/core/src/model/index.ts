@@ -290,6 +290,14 @@ export {
   uncommittedStateFiles,
 } from "./uncommitted.js";
 export type { RepositoryState, StateReader, StateRules, UncommittedFiles } from "./uncommitted.js";
+export {
+  UNDATED_CODES,
+  classifyUndated,
+  sortReasonProblems,
+  undatedProblems,
+  undatedWarnings,
+} from "./undated.js";
+export type { UndatedReason, UndatedRepository, UndatedVersion } from "./undated.js";
 export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";

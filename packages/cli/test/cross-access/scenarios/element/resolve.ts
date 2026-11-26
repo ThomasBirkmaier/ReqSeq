@@ -14,6 +14,19 @@ scenariosOf("element.resolve", [
     input: { ref: "SR-e88fb3", versionDate: true },
     expect: "output",
   },
+  {
+    tag: "[SR-254/AK-v8kj]",
+    name: "short ID with its version date without Git, and why it has none",
+    fixture: { fixture: "SR-004/one-repository" },
+    input: { ref: "SR-e88fb3", versionDate: true },
+    expect: "output",
+    check: (results) => {
+      const { element } = (
+        results["core"]?.outcome as { output: { element: { problems?: { code: string }[] } } }
+      ).output;
+      expect(element.problems?.map((p) => p.code)).toContain("version.date-unavailable");
+    },
+  },
   { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
   {
     tag: "[SR-205/AK-ndnj]",

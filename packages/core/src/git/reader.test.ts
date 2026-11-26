@@ -19,6 +19,8 @@ import {
   fileMoves,
   headCommit,
   headFiles,
+  symbolicHead,
+  trackedChanges,
   firstParentChanges,
   historyRange,
   openObjectReader,
@@ -216,6 +218,8 @@ describe("git reader", () => {
       "isRevision",
       "openObjectReader",
       "resolveCommit",
+      "symbolicHead",
+      "trackedChanges",
       "trackedFile",
       "workTreeOf",
     ]);
@@ -260,6 +264,16 @@ describe("git reader", () => {
     const ws = await fixture();
     await ws.git(["init", "--quiet"], "plain");
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
+  });
+
+  it("tells a HEAD that names a branch, also without commits, from one that names a commit or none", async () => {
+    const ws = await fixture(["repo"]);
+    expect(await symbolicHead(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
+    await ws.git(["init", "--quiet"], "plain");
+    expect(await symbolicHead(ws.path("plain"))).toEqual({ known: true });
+    expect(await symbolicHead(ws.path("repo"))).toEqual({ known: true });
+    await ws.git(["checkout", "--quiet", "--detach"], "repo");
+    expect(await symbolicHead(ws.path("repo"))).toMatchObject({ known: false });
   });
 
   it("knows no commit when git prints something else", async () => {
@@ -1182,6 +1196,10 @@ describe("commits and changes since a commit (SR-092)", () => {
     expect(since.known ? [...since.paths].sort() : since).toEqual(
       [".gitignore", "a.md", "b.md", first, "sub/d.md"].sort(),
     );
+    // Without the untracked files: the tracked ones only.
+    const tracked = await trackedChanges(folder, first);
+    expect(tracked.known ? [...tracked.paths].sort() : tracked).toEqual(["a.md", "b.md"]);
+    await expect(trackedChanges(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
     // Below a subfolder only, relative to it.
     expect(await changedPaths(ws.path("repo/sub"), first)).toEqual({ known: true, paths: ["d.md"] });
     // A rename is a deletion and an addition.

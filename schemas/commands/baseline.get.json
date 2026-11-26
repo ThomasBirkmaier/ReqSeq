@@ -127,7 +127,7 @@
               "title": "Version date",
               "type": ["string", "null"],
               "format": "date-time",
-              "description": "Date of that version from the Git history (ADR-0005), read for the page only; null when unknown."
+              "description": "Date of that version from the Git history (ADR-0005), read for the page only; null when unknown, and `problems` then says why, once per repository (`version.uncommitted`, `version.date-unavailable`, `version.date-unknown`, SR-254)."
             },
             "current": {
               "title": "Current version",

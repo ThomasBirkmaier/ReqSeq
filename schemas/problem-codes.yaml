@@ -279,6 +279,18 @@ problems:
     title: Order not completely determined
     cause: A list is sorted by the version date, and Git did not give the dates of some elements in time. These elements are listed last, so the order is not completely determined.
     remedy: List again; ReqSeq asks Git again. If it happens each time, check what keeps Git busy in the repository the message names.
+  version.date-unavailable:
+    title: Version dates unknown in a repository
+    cause: An output names versions without a date, and their repository is not on this machine, Git cannot read it (no Git repository in its folder or above, no git program, or Git refuses it), or it is a shallow clone, which holds too little of the Git history. One warning per repository names the first of these reasons; versions that are not committed get `version.uncommitted` instead. A sort by the version date gives it too, on each page, for the elements it lists last for this reason.
+    remedy: Get the repository onto this machine, install Git or make Git read the repository, or clone it with the full Git history (for a shallow clone, fetch the rest of its history). ReqSeq only reads Git.
+  version.uncommitted:
+    title: Versions not committed
+    cause: An output names versions without a date because they are not committed yet - the current version of an element whose content differs from the last commit, or whose file is in no commit. The warning names the repository and the number of these elements.
+    remedy: Nothing is wrong. Commit the changes; then Git gives the date of the version.
+  version.date-unknown:
+    title: Version dates Git cannot give
+    cause: An output names versions without a date in a repository for which no reason of `version.date-unavailable` holds, for example because no commit holds the version or a Git call failed or did not answer in time. The warning names the repository and the number of these elements.
+    remedy: Where Git did not answer in time, ask again. Otherwise check with Git whether a commit of the repository the message names holds the version.
   metamodel.invalid:
     title: Invalid metamodel
     cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.

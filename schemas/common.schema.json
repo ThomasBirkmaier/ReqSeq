@@ -517,6 +517,9 @@
         "perspective.duplicate-name",
         "perspective.group-unavailable",
         "sort.incomplete",
+        "version.date-unavailable",
+        "version.uncommitted",
+        "version.date-unknown",
         "metamodel.invalid",
         "metamodel.optional-status",
         "metamodel.meaning-unassigned",
@@ -1130,7 +1133,7 @@
         "problems": {
           "title": "Problems",
           "type": "array",
-          "description": "In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check.",
+          "description": "In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check, without its warnings on version dates (`version.date-unavailable`, `version.uncommitted`, `version.date-unknown`, SR-242 AK3).",
           "items": {
             "$ref": "#/$defs/problem"
           },

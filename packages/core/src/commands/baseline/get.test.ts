@@ -321,9 +321,17 @@ describe("baseline.get", () => {
       repository: "system",
       message: `Repository system is at ${second.slice(0, 7)}, the baseline names ${first.slice(0, 7)}; the result reads the files on disk`,
     };
-    expect((await call(ws, "baseline.get", { baseline: "Release 2" })).problems).toEqual([differs]);
+    // The entry of sensor names a version no commit holds (SR-254 AK3).
+    const undated = {
+      code: "version.date-unknown",
+      severity: "warning",
+      repository: "sensor",
+      message:
+        "Git cannot give the version date of 1 element of repository sensor: no commit holds the version, or a Git call failed or did not answer in time",
+    };
+    expect((await call(ws, "baseline.get", { baseline: "Release 2" })).problems).toEqual([differs, undated]);
     const evidence = await call(ws, "baseline.get", { baseline: "Release 2", withEvidence: true });
-    expect(evidence.problems).toEqual([differs]);
+    expect(evidence.problems).toEqual([differs, undated]);
     // At the baseline's commits, and a repository the workspace does not list: nothing.
     expect((await call(ws, "baseline.get", { baseline: "Head" })).problems).toBeUndefined();
     // sensor at another commit; then without Git, then not here: nothing for it.
@@ -655,6 +663,8 @@ describe("copies of one UUID in several repositories (SR-088)", () => {
     ).toEqual([
       ["baseline.invalid", "warning", "e1"],
       ["baseline.invalid", "warning", "f1"],
+      // The missing entry names no repository: its version counts in the baseline file's (SR-254 AK3).
+      ["version.date-unknown", "warning", "f1"],
     ]);
   });
 

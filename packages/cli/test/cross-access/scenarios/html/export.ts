@@ -673,6 +673,22 @@ scenariosOf("html.export", [
   },
   {
     ...BASELINE_EXPORT,
+    tag: "[SR-254/AK-v8kj]",
+    name: "a version a page names without its date gives one warning for all pages, and the pages stay as they are",
+    masks: DATE,
+    check: (results) => {
+      for (const { outcome, files } of Object.values(results)) {
+        const { problems } = (outcome as { output: { problems: { code: string; repository?: string }[] } })
+          .output;
+        expect(
+          problems.filter((p) => p.code.startsWith("version.")).map((p) => [p.code, p.repository]),
+        ).toEqual([["version.date-unknown", "system"]]);
+        expect(String(files[`system/site/elements/${ID}b3.html`])).not.toContain("Git cannot give");
+      }
+    },
+  },
+  {
+    ...BASELINE_EXPORT,
     tag: "[SR-232/AK-dywy]",
     name: "an element page names the change since each baseline, with the field difference where Git has the commit",
     masks: DATE,

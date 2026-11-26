@@ -22,7 +22,10 @@
 // - `added`: the elements selected now that the file does not list, in store order, after the
 //   entries in file order; they have no `version`.
 // - Cost (N-036): the states of all entries from one current-versions lookup, one index of the
-//   store by UUID and one read of the files at the baseline commit of the entries invalid now; version dates (ADR-0005, `versionDates`) for the page only. With `withEvidence`
+//   store by UUID and one read of the files at the baseline commit of the entries invalid now; version dates (ADR-0005, `versionDates`) for the page only,
+//   with the warnings that say why one is missing (SR-254, `undatedWarnings`: also for an entry without an element in the
+//   workspace, in the repository it names, else in the baseline file's); a caller that gives them once for several
+//   baselines (`html.export`) takes the versions without date with their rows' states instead (`undated`). With `withEvidence`
 //   the same walk also gives the values of an entry's version at its start, for its acceptance
 //   criteria (SR-031, `versionDatesAndValues`, page only); otherwise the content of an old version
 //   is not read here; `baseline.compare` gives its difference (D-033).
@@ -31,7 +34,7 @@
 //   view and its validation status (with the reason of an inconclusive one, SR-172), asked for the page only. `names` names the variants of the rows.
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
-import type { ElementRecord, ElementStore, VersionForms } from "../model/index.js";
+import type { ElementRecord, ElementStore, UndatedVersion, VersionForms } from "../model/index.js";
 import {
   currentVersionsOf,
   formsOfEntry,
@@ -41,6 +44,7 @@ import {
   isUnavailableRepository,
   namesOfRecords,
   shortIdState,
+  undatedWarnings,
 } from "../model/index.js";
 import { versionDates, versionDatesAndValues } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -78,6 +82,8 @@ export interface ShowRequest {
     current: VersionForms | undefined,
     values: Readonly<Record<string, unknown>> | undefined,
   ) => Pick<Row, "verification" | "validation" | "validationReason" | "validationLater">;
+  /** Given, the versions of the page without date go here with the state of their row, and not into `problems`. */
+  readonly undated?: { readonly state: State; readonly version: UndatedVersion }[];
 }
 
 /** A `baseline.invalid` warning of the file of `baseline`. */
@@ -307,6 +313,33 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
       ...(record === undefined ? {} : evidenceOf?.(record, row.version, current, values)),
     };
   });
+  // Why a version of the page has no date (SR-254): an entry without an element in the workspace too, in the
+  // repository it names, else in the baseline file's (the copy rule, ADR-0018 "elements").
+  const undated = page.flatMap(({ row, record }) =>
+    row.version === undefined || (startOf.get(`${row.id}\n${String(row.repository)}`) ?? null) !== null
+      ? []
+      : [
+          {
+            state: row.state,
+            version: {
+              repository: record?.repository ?? row.repository ?? baseline.repository,
+              id: row.id,
+              version: row.version,
+              ...(record === undefined ? {} : { element: record }),
+            },
+          },
+        ],
+  );
+  if (request.undated === undefined) {
+    problems.push(
+      ...(await undatedWarnings(
+        workspace,
+        undated.map(({ version }) => version),
+      )),
+    );
+  } else {
+    request.undated.push(...undated);
+  }
   const named = page.flatMap(({ record }) => (record === undefined ? [] : [record]));
   // The variants the verification rows name by UUID (ThomasBirkmaier/ReqSeq-archive#588), resolved in this store.
   const variants = new Set<string>();

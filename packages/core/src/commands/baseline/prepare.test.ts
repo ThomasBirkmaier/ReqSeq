@@ -95,11 +95,13 @@ describe("baseline.prepare", () => {
     );
   });
 
-  it("[SR-242/AK-hss7] names the newest baseline with the numbers of baseline.get, its problems apart from the check's", async () => {
+  it("[SR-242/AK-hss7] names the newest baseline with the numbers of baseline.get, its problems apart from the check's, without the warnings of SR-254", async () => {
     const ws = await fixture();
     const out = await call(ws, "baseline.prepare", {});
     const got = await call(ws, "baseline.get", { baseline: "Release 1" });
     const { added: _added, removed: _removed, ...counts } = got.counts;
+    // baseline.get says why versions of its page have no date; baseline.prepare does not.
+    expect(got.problems?.map((p) => p.code)).toContain("version.date-unknown");
     expect(out.baseline).toEqual({
       name: "Release 1",
       file: "baselines/release-1.yaml",
@@ -107,8 +109,9 @@ describe("baseline.prepare", () => {
       date: "2026-10-23T09:00:00Z",
       selectionKnown: false,
       counts,
-      problems: got.problems,
+      problems: got.problems?.filter((p) => !p.code.startsWith("version.")),
     });
+    expect(out.problems.map((p) => p.code)).not.toContain("version.date-unknown");
     expect(out.problems.map((p) => p.code)).not.toContain("baseline.repository-commit-differs");
     // The faulty file as baseline.list names it, apart too.
     expect(out.baselineFiles?.problems).toEqual((await call(ws, "baseline.list", {})).problems);
