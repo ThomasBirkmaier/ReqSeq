@@ -216,7 +216,7 @@ describe("git reader", () => {
       "isGitPath",
       "isRevision",
       "openObjectReader",
-            "resolveCommit",
+      "resolveCommit",
       "symbolicHead",
       "trackedFile",
       "workTreeOf",
