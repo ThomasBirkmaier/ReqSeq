@@ -18,15 +18,17 @@ Run Claude Code's command in the folder where you start Claude Code. For every c
 
 The setup holds as long as ReqSeq stays where it is: after a move, print it again. The server is named `reqseq`, so a second workspace in the same client needs another name.
 
-From a downloaded release, the setup starts the launcher `bin/reqseq` on Linux and `ReqSeq.app/Contents/Resources/bin/reqseq` on macOS, where it holds as long as `ReqSeq.app` stays where it is. On Windows, where a client cannot start `reqseq.cmd` without a shell, it names Node.
-
-From the CLI tarball (`npm install -g`), it starts Node with the command line's `bin.js` on every system.
-
 A path with `&`, `^`, `%`, `<`, `>`, `|` or `!` cannot pass VS Code's command on Windows; choose `other` and add its block to VS Code by hand.
+
+## An entry for .mcp.json
+
+For Claude Code, the output also gives an entry for `.mcp.json`, for a Git repository checked out on machines where `reqseq` is on the PATH, such as a cloud container that installs ReqSeq after the checkout. The file belongs in the root of the Git repository the workspace folder lies in (without Git, the workspace folder), which the output names. The entry starts `reqseq` with `mcp --workspace` and the workspace path relative to that folder, once for macOS and Linux and once for Windows (`cmd /c reqseq`). The Windows form is left out when that path holds a space or one of `&^%<>|!"(),;=\`.
+
+The entry assumes Claude Code starts in that folder. Where `reqseq` is not on the PATH, its server does not start; use the command there. It replaces a server named `reqseq` in the file and keeps the others.
 
 ## Web UI
 
-Open **Settings** in the rail. Under **AI agents**, choose the program and click **Show setup**: the page shows what to do, the configuration file where there is one, the command or JSON block, and how to go on. **Copy** puts the block on the clipboard.
+Open **Settings** in the rail. Under **AI agents**, choose the program and click **Show setup**: the page shows what to do, the configuration file where there is one, the command or JSON block, and how to go on. **Copy** puts the block on the clipboard. For Claude Code it also shows the `.mcp.json` entries.
 
 The same card says whether an agent is connected to this workspace through the MCP server now, and since when, or that none was connected yet.
 

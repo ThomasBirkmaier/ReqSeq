@@ -908,6 +908,22 @@ function metamodelCard(mermaid: OutputOf<"metamodel.mermaid"> | undefined): HTML
   );
 }
 
+/** A button that puts `text` on the clipboard and says whether it could. */
+function copyButton(label: string, text: string): HTMLButtonElement {
+  const copy = button(label, false);
+  copy.addEventListener("click", () => {
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        announce("Copied.");
+      },
+      () => {
+        announce("The browser did not allow copying. Select the text and copy it.");
+      },
+    );
+  });
+  return copy;
+}
+
 function agentsCard(
   agents: OutputOf<"workspace.agents"> | undefined,
   clients: OutputOf<"workspace.connectAgent"> | undefined,
@@ -926,26 +942,35 @@ function agentsCard(
       client: select.value as NonNullable<OutputOf<"workspace.connectAgent">["client"]>,
     });
     const text = setup.setup?.text ?? "";
-    const copy = button("Copy", false);
-    copy.addEventListener("click", () => {
-      void navigator.clipboard.writeText(text).then(
-        () => {
-          announce("Copied.");
-        },
-        () => {
-          announce("The browser did not allow copying. Select the text and copy it.");
-        },
-      );
-    });
+    const mcpJson = setup.mcpJson;
     return h(
       "div",
       { class: "notice wok", role: "status" },
       h("p", null, setup.answer),
       setup.setup?.file === undefined ? null : h("p", null, "Configuration file: ", path(setup.setup.file)),
       h("pre", { class: "wpre", "data-setup": true }, text),
-      copy,
+      copyButton("Copy", text),
       setup.valid === undefined ? null : h("p", { class: "note" }, setup.valid),
       setup.next === undefined ? null : h("p", { class: "note" }, setup.next),
+      mcpJson === undefined
+        ? null
+        : h(
+            "div",
+            { "data-mcp-json": true },
+            h("h3", null, "Entry for .mcp.json"),
+            h("p", null, "Folder of .mcp.json: ", path(mcpJson.folder)),
+            mcpJson.entries.map((entry) =>
+              h(
+                "div",
+                { "data-systems": entry.systems },
+                h("p", null, `For ${entry.title}:`),
+                h("pre", { class: "wpre" }, entry.text),
+                copyButton(`Copy for ${entry.title}`, entry.text),
+              ),
+            ),
+            mcpJson.windowsMissing === undefined ? null : h("p", { class: "note" }, mcpJson.windowsMissing),
+            h("p", { class: "note" }, mcpJson.note),
+          ),
     );
   });
   const connected = agents?.connected ?? [];

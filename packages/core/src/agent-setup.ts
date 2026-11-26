@@ -36,6 +36,11 @@ export interface SetupFacts {
   /** The absolute path and the name of the workspace. */
   readonly workspace: string;
   readonly workspaceName: string;
+  /**
+   * The folder of `.mcp.json` (AK7): the root of the Git repository the workspace folder lies in, else the
+   * workspace folder (D-079, `gitRootOf`), absolute; and the workspace relative to it, with `/`, `.` for itself.
+   */
+  readonly repository: { readonly folder: string; readonly workspace: string };
 }
 
 export interface Server {
@@ -56,6 +61,24 @@ export interface Setup {
   };
   readonly valid: string;
   readonly next: string;
+  /** The entry for `.mcp.json`, for Claude Code only (AK7). */
+  readonly mcpJson?: McpJson;
+}
+
+/** One form of the `.mcp.json` entry and the systems it is for (AK7). */
+export interface McpJsonEntry {
+  readonly systems: "macos-linux" | "windows";
+  readonly title: "macOS and Linux" | "Windows";
+  readonly text: string;
+}
+
+/** The entry for `.mcp.json` in `folder`, without absolute paths (AK7). */
+export interface McpJson {
+  readonly folder: string;
+  readonly entries: readonly McpJsonEntry[];
+  /** Why the form for Windows is left out; only then. */
+  readonly windowsMissing?: string;
+  readonly note: string;
 }
 
 /** Why no setup can be given: the error code and its message. */
@@ -289,7 +312,44 @@ export const refusalOf = (client: Client, facts: SetupFacts, server: Server): Se
   return undefined;
 };
 
-/** The setup for a client (AK2, AK3), or why there is none. */
+/** The characters of a relative workspace path that leave out the Windows form of the entry (AK7): `cmd /c` reads them. */
+const CMD_UNSAFE = /[ &^%<>|!"(),;=\\]/;
+
+/**
+ * The entry for `.mcp.json` in the folder of D-079 (AK7): `reqseq` from the search path with the workspace
+ * relative to that folder, once for macOS and Linux and once for Windows through `cmd /c`, which starts
+ * `reqseq.cmd`; the Windows form is left out for a path `cmd` would read.
+ */
+export const mcpJsonOf = (facts: SetupFacts): McpJson => {
+  const { folder, workspace } = facts.repository;
+  const args = ["mcp", "--workspace", workspace];
+  const json = (command: string, words: readonly string[]): string =>
+    JSON.stringify({ mcpServers: { [SERVER_NAME]: { command, args: words } } }, null, 2);
+  const bad = CMD_UNSAFE.exec(workspace)?.[0];
+  const entries: McpJsonEntry[] = [
+    { systems: "macos-linux", title: "macOS and Linux", text: json(LAUNCHER, args) },
+  ];
+  if (bad === undefined) {
+    entries.push({ systems: "windows", title: "Windows", text: json("cmd", ["/c", LAUNCHER, ...args]) });
+  }
+  const note = [
+    `The command is for this installation on this machine. The entry is for the file .mcp.json in ${folder}, for a Git repository that is checked out on machines where reqseq is on the PATH and Claude Code starts in that folder.`,
+    "On a machine without reqseq on the PATH the server of the entry does not start; there the command holds.",
+    "The entry replaces a server named reqseq in the file and keeps the others; a second workspace in the same Git repository needs another name.",
+  ].join(" ");
+  return {
+    folder,
+    entries,
+    ...(bad === undefined
+      ? {}
+      : {
+          windowsMissing: `There is no entry for Windows: the path of the workspace, ${workspace}, holds ${bad === " " ? "a space" : `"${bad}"`}, which cmd would read.`,
+        }),
+    note,
+  };
+};
+
+/** The setup for a client (AK2, AK3, AK7), or why there is none. */
 export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal => {
   const server = serverOf(facts);
   const refusal = refusalOf(client, facts, server);
@@ -327,6 +387,7 @@ export const setupOf = (client: Client, facts: SetupFacts): Setup | SetupRefusal
       shell: windows ? "powershell" : "sh",
       text: commandText(client, server, windows),
     },
+    ...(client === "claude-code" ? { mcpJson: mcpJsonOf(facts) } : {}),
   };
 };
 

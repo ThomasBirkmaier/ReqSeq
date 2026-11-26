@@ -454,6 +454,14 @@ test("the settings show the workspace, its metamodel, the agent setup and the ve
   await agents.getByLabel("Program").selectOption("claude-code");
   await agents.getByRole("button", { name: "Show setup" }).click();
   await expect(agents.locator("[data-setup]")).toHaveText(setup.setup?.text ?? "");
+  // Claude Code also gets the .mcp.json entry, per system, with its folder (SR-227 AK7).
+  const mcpJson = agents.locator("[data-mcp-json]");
+  await expect(mcpJson).toContainText(setup.mcpJson?.folder ?? "");
+  for (const entry of setup.mcpJson?.entries ?? []) {
+    await expect(mcpJson.locator(`[data-systems="${entry.systems}"] pre`)).toHaveText(entry.text);
+    await expect(mcpJson.getByRole("button", { name: `Copy for ${entry.title}` })).toBeVisible();
+  }
+  await expect(mcpJson).toContainText(setup.mcpJson?.note ?? "");
 
   await page.getByLabel("Dark").check();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

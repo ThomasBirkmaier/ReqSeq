@@ -157,6 +157,36 @@ describe("workspace.connectAgent", () => {
     );
   });
 
+  it("[SR-227/AK-bq8m] puts .mcp.json in the Git root of the workspace folder, and without Git in the workspace folder", async () => {
+    await installation();
+    // The fixture lies in a Git repository of its own, one folder below its root.
+    const repository = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
+    onTestFinished(() => fs.rm(repository, { recursive: true, force: true }));
+    const created = await createFixtureWorkspace({ fixture: "SR-004/one-repository", tempDir: repository });
+    onTestFinished(() => created.cleanup());
+    const nested = path.join(repository, "specs", "station");
+    await fs.mkdir(path.dirname(nested));
+    await fs.rename(created.root, nested);
+    const withoutGit = await run(nested, { client: "claude-code" });
+    expect(withoutGit.mcpJson?.folder).toBe(nested);
+    expect(withoutGit.mcpJson?.entries[0]?.text).toContain('"--workspace",\n        "."');
+    await fs.mkdir(path.join(repository, ".git"));
+    await fs.writeFile(path.join(repository, ".git", "HEAD"), "ref: refs/heads/main\n");
+    await fs.mkdir(path.join(repository, ".git", "objects"));
+    await fs.mkdir(path.join(repository, ".git", "refs"));
+    const output = await run(nested, { client: "claude-code" });
+    expect(output.mcpJson?.folder).toBe(repository);
+    expect(output.mcpJson?.entries.map((entry) => JSON.parse(entry.text) as unknown)).toEqual([
+      { mcpServers: { reqseq: { command: "reqseq", args: ["mcp", "--workspace", "specs/station"] } } },
+      {
+        mcpServers: {
+          reqseq: { command: "cmd", args: ["/c", "reqseq", "mcp", "--workspace", "specs/station"] },
+        },
+      },
+    ]);
+    expect(Object.keys(output)).toEqual(["answer", "client", "server", "setup", "valid", "next", "mcpJson"]);
+  });
+
   it("refuses for the app macOS runs from a translocated place", async () => {
     const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-connect-agent-")));
     onTestFinished(() => fs.rm(top, { recursive: true, force: true }));

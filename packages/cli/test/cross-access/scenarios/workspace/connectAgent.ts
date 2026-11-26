@@ -67,6 +67,30 @@ scenariosOf("workspace.connectAgent", [
     },
   })),
   {
+    name: "Claude Code also gets the .mcp.json entry with reqseq from the PATH and a relative workspace path",
+    tag: "[SR-227/AK-bq8m]",
+    input: { client: "claude-code" },
+    expect: "output",
+    check: (results) => {
+      const { mcpJson } = (
+        results["core"]?.outcome as {
+          output: { mcpJson?: { folder: string; entries: { systems: string; text: string }[] } };
+        }
+      ).output;
+      expect(mcpJson?.folder.startsWith("<copy>")).toBe(true);
+      expect(mcpJson?.entries.map((entry) => entry.systems)).toEqual(["macos-linux", "windows"]);
+      const [unix, windows] = (mcpJson?.entries ?? []).map(
+        (entry) =>
+          (JSON.parse(entry.text) as { mcpServers: { reqseq: { command: string; args: string[] } } })
+            .mcpServers.reqseq,
+      );
+      expect(unix?.command).toBe("reqseq");
+      expect(unix?.args.slice(0, 2)).toEqual(["mcp", "--workspace"]);
+      expect(path.isAbsolute(unix?.args[2] ?? "")).toBe(false);
+      expect(windows).toEqual({ command: "cmd", args: ["/c", "reqseq", ...(unix?.args ?? [])] });
+    },
+  },
+  {
     name: "the setup names the absolute paths of the program and of the workspace",
     tag: "[SR-227/AK-cw0k]",
     input: { client: "other" },

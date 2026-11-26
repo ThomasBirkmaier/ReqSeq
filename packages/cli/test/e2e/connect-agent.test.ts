@@ -3,8 +3,10 @@
 // user would paste it, in sh on Linux and macOS and in Windows PowerShell 5.1 and PowerShell 7 on Windows, with
 // stub programs `claude`, `code` and `codex` that only write down their arguments (shaped like npm installs on
 // Windows: a `.ps1` and a `.cmd`, and `code.cmd`). What the client would start from those arguments, or from
-// the JSON block, is started, and its MCP server answers `initialize` for this workspace. The call under the
-// setup of every client but Claude Desktop is run the same way and writes the skill file.
+// the JSON block, is started, and its MCP server answers `initialize` for this workspace. The `.mcp.json` entry of
+// Claude Code is started as Claude Code starts it, in its folder with `reqseq` on the PATH (AK7; the hand check
+// of #2537 found that Claude Code starts it in the folder where it starts). The call under the setup of every
+// client but Claude Desktop is run the same way and writes the skill file.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -37,6 +39,10 @@ interface Output {
   readonly server: Server;
   readonly setup: { readonly form: "command" | "json"; readonly shell?: string; readonly text: string };
   readonly next: string;
+  readonly mcpJson?: {
+    readonly folder: string;
+    readonly entries: readonly { readonly systems: string; readonly text: string }[];
+  };
 }
 
 let top = "";
@@ -194,10 +200,11 @@ const serverFromArguments = (client: ClientName, argv: readonly string[]): Serve
   return { command, args, env };
 };
 
-/** Starts the server and answers with the workspace path its tool.info gives, after `initialize`. */
-const workspaceOf = async (server: Server): Promise<string> => {
+/** Starts the server, in `cwd` when given, and answers with the workspace path its tool.info gives, after `initialize`. */
+const workspaceOf = async (server: Server, cwd?: string): Promise<string> => {
   const child = spawn(server.command, [...server.args], {
     stdio: "pipe",
+    ...(cwd === undefined ? {} : { cwd }),
     env: environment({ ...server.env, NODE_OPTIONS: `--import=${blockNetwork}` }),
   });
   children.push(child);
@@ -239,6 +246,13 @@ beforeAll(async () => {
   );
   for (const name of ["claude", "code", "codex"]) {
     await writeStub(name);
+  }
+  // `reqseq` on the PATH, as npm installs the command line: a shell script, and `reqseq.cmd` on Windows.
+  if (process.platform === "win32") {
+    await fs.writeFile(path.join(stubs, "reqseq.cmd"), `@"${process.execPath}" "${bin}" %*\r\n`);
+  } else {
+    await fs.writeFile(path.join(stubs, "reqseq"), `#!/bin/sh\nexec '${process.execPath}' '${bin}' "$@"\n`);
+    await fs.chmod(path.join(stubs, "reqseq"), 0o755);
   }
 });
 
@@ -284,6 +298,16 @@ describe("reqseq workspace connect-agent", () => {
       }
     },
   );
+
+  it("[SR-227/AK-qxzf] the .mcp.json entry of Claude Code for this system, started in its folder with reqseq on the PATH, starts the MCP server of this workspace", async () => {
+    const { mcpJson } = await connectAgent("claude-code");
+    const systems = process.platform === "win32" ? "windows" : "macos-linux";
+    const entry = mcpJson?.entries.find((candidate) => candidate.systems === systems);
+    expect(entry, systems).toBeDefined();
+    const json = JSON.parse(entry?.text ?? "") as { mcpServers: { reqseq: Omit<Server, "env"> } };
+    const server = { ...json.mcpServers.reqseq, env: {} };
+    expect(await workspaceOf(server, mcpJson?.folder)).toBe(ws.root);
+  });
 
   it("[SR-227/AK-nq91] creates and changes no file, in the workspace or the home and configuration folders", async () => {
     // A HOME of its own: a server of an earlier test that still runs writes only into the HOME it was started with.

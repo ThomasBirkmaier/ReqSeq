@@ -1,7 +1,7 @@
 // The setup per client and system (SR-227 AK2–AK4) from given facts, so macOS, Linux and Windows are all
 // tested on every system; the pasted text is run for real in the CLI e2e test (AK5).
 import { describe, expect, it } from "vitest";
-import type { Client, Server, Setup, SetupFacts, SetupRefusal } from "./agent-setup.js";
+import type { Client, McpJson, Server, Setup, SetupFacts, SetupRefusal } from "./agent-setup.js";
 import {
   CLIENTS,
   deliveryLauncher,
@@ -28,6 +28,7 @@ const mac: SetupFacts = {
   env: {},
   workspace: "/Users/ann/Projects/station",
   workspaceName: "Weather station",
+  repository: { folder: "/Users/ann/Projects/station", workspace: "." },
 };
 const linux: SetupFacts = {
   installation: {
@@ -40,6 +41,7 @@ const linux: SetupFacts = {
   env: {},
   workspace: "/home/ann/station",
   workspaceName: "Weather station",
+  repository: { folder: "/home/ann", workspace: "station" },
 };
 const windows: SetupFacts = {
   installation: {
@@ -52,6 +54,7 @@ const windows: SetupFacts = {
   env: { APPDATA: "C:\\Users\\ann\\AppData\\Roaming" },
   workspace: "C:\\Work\\station",
   workspaceName: "Weather station",
+  repository: { folder: "C:\\Work", workspace: "station" },
 };
 /** The npm package on another Node on Windows: the runtime and the entry, no launcher. */
 const windowsNode: SetupFacts = {
@@ -74,6 +77,15 @@ const setup = (client: Client, facts: SetupFacts): Setup => {
     throw new Error(result.message);
   }
   return result;
+};
+
+/** The .mcp.json entry of Claude Code for `facts` (AK7). */
+const mcpJsonFor = (facts: SetupFacts): McpJson => {
+  const mcpJson = setup("claude-code", facts).mcpJson;
+  if (mcpJson === undefined) {
+    throw new Error("expected an entry for .mcp.json");
+  }
+  return mcpJson;
 };
 
 const refusal = (client: Client, facts: SetupFacts): SetupRefusal => {
@@ -296,6 +308,70 @@ describe("setupOf", () => {
     }
     // The same folder name elsewhere is no translocation.
     expect(setupOf("other", { ...translocated, platform: "linux" })).not.toHaveProperty("code");
+  });
+
+  it("[SR-227/AK-bq8m] gives Claude Code, beside its command, the .mcp.json entry for the folder of D-079, for macOS and Linux and for Windows, without absolute paths", () => {
+    for (const facts of [mac, linux, windows]) {
+      // The command of AK2 stays.
+      expect(setup("claude-code", facts).setup.text.startsWith("claude mcp add ")).toBe(true);
+      const mcpJson = mcpJsonFor(facts);
+      expect(mcpJson.folder).toBe(facts.repository.folder);
+      const relative = facts.repository.workspace;
+      // The same two forms on every system: the entry goes into a repository checked out on any of them.
+      expect(mcpJson.entries.map(({ systems, title }) => [systems, title])).toEqual([
+        ["macos-linux", "macOS and Linux"],
+        ["windows", "Windows"],
+      ]);
+      expect(mcpJson.entries.map((entry) => JSON.parse(entry.text) as unknown)).toEqual([
+        { mcpServers: { reqseq: { command: "reqseq", args: ["mcp", "--workspace", relative] } } },
+        {
+          mcpServers: { reqseq: { command: "cmd", args: ["/c", "reqseq", "mcp", "--workspace", relative] } },
+        },
+      ]);
+      // No absolute path and no environment variable inside the entry; the folder only outside it.
+      for (const entry of mcpJson.entries) {
+        expect(entry.text).not.toContain(facts.repository.folder);
+        expect(entry.text).not.toContain("env");
+      }
+      expect(mcpJson.windowsMissing).toBeUndefined();
+      expect(mcpJson.note).toBe(
+        `The command is for this installation on this machine. The entry is for the file .mcp.json in ${facts.repository.folder}, for a Git repository that is checked out on machines where reqseq is on the PATH and Claude Code starts in that folder. On a machine without reqseq on the PATH the server of the entry does not start; there the command holds. The entry replaces a server named reqseq in the file and keeps the others; a second workspace in the same Git repository needs another name.`,
+      );
+    }
+    // Only Claude Code gets the entry.
+    for (const client of CLIENTS.filter((c) => c.value !== "claude-code")) {
+      expect(setup(client.value, linux)).not.toHaveProperty("mcpJson");
+    }
+    // In the situation of AK4 there is no entry either: the whole setup is refused.
+    const bundle = "/private/var/folders/x1/T/AppTranslocation/0F2E/d/ReqSeq.app/Contents/Resources";
+    const translocated: SetupFacts = {
+      ...mac,
+      installation: { runtime: `${bundle}/runtime/node`, entry: `${bundle}/lib/dist/bin.js` },
+    };
+    expect(refusal("claude-code", translocated)).not.toHaveProperty("mcpJson");
+  });
+
+  it("[SR-227/AK-bq8m] leaves out the Windows form of the .mcp.json entry for a path cmd would read, and says why", () => {
+    for (const bad of [" ", "&", "^", "%", "<", ">", "|", "!", '"', "(", ")", ",", ";", "=", "\\"]) {
+      const workspace = `specs/a${bad}b`;
+      const mcpJson = mcpJsonFor({ ...linux, repository: { folder: "/home/ann", workspace } });
+      expect(
+        mcpJson.entries.map((entry) => [entry.systems, JSON.parse(entry.text) as unknown]),
+        bad,
+      ).toEqual([
+        [
+          "macos-linux",
+          { mcpServers: { reqseq: { command: "reqseq", args: ["mcp", "--workspace", workspace] } } },
+        ],
+      ]);
+      const named = bad === " " ? "a space" : `"${bad}"`;
+      expect(mcpJson.windowsMissing).toBe(
+        `There is no entry for Windows: the path of the workspace, ${workspace}, holds ${named}, which cmd would read.`,
+      );
+    }
+    // Other characters keep it.
+    const plain = { ...linux, repository: { folder: "/home/ann", workspace: "spec-1/über_v2.0+x'" } };
+    expect(mcpJsonFor(plain).entries).toHaveLength(2);
   });
 });
 

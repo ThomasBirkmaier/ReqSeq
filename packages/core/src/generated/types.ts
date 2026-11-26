@@ -2470,7 +2470,7 @@ export interface WorkspaceListFolderOutput {
 }
 
 /**
- * Input of `workspace.connectAgent` as `run` gets it: validated, properties with a `default` filled in. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Input of `workspace.connectAgent` as `run` gets it: validated, properties with a `default` filled in. The setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation; for Claude Code also an entry for `.mcp.json`. Creates and changes no file and opens no connection.
  * Schema: `schemas/commands/workspace.connectAgent.json input`.
  */
 export interface WorkspaceConnectAgentInput {
@@ -2479,7 +2479,7 @@ export interface WorkspaceConnectAgentInput {
 }
 
 /**
- * Output of `workspace.connectAgent`. The ready-made setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation. Creates and changes no file, also none of the client, and opens no connection.
+ * Output of `workspace.connectAgent`. The setup that connects an AI agent's client to the MCP server of this workspace: a command for the terminal or a JSON block, with the absolute paths of this installation; for Claude Code also an entry for `.mcp.json`. Creates and changes no file and opens no connection.
  * Schema: `schemas/commands/workspace.connectAgent.json output`.
  */
 export interface WorkspaceConnectAgentOutput {
@@ -2518,6 +2518,24 @@ export interface WorkspaceConnectAgentOutput {
   readonly valid?: string;
   /** How to go on after pasting the setup; for every client but Claude Desktop also the command-line call, with the program of the setup, that writes the skill file, as a command for the terminal (PowerShell on Windows). Only with a client. */
   readonly next?: string;
+  /** The entry for the file `.mcp.json` of the Git repository, without absolute paths. Only for Claude Code. */
+  readonly mcpJson?: {
+    /** The absolute path of the folder the file `.mcp.json` belongs in: the root of the Git repository the workspace folder lies in, else the workspace folder. ReqSeq neither reads nor writes the file. */
+    readonly folder: string;
+    /** The entry for macOS and Linux, then the one for Windows unless it is left out. */
+    readonly entries: readonly {
+      /** The systems the entry is for. */
+      readonly systems: "macos-linux" | "windows";
+      /** The systems by name. */
+      readonly title: "macOS and Linux" | "Windows";
+      /** The whole JSON object with `mcpServers` and in it `reqseq`: it starts `reqseq` without a path with `mcp`, `--workspace` and the workspace path relative to the folder, with `/` and `.` for the folder itself; on Windows `cmd` with `/c` and `reqseq` first. No environment variable. */
+      readonly text: string;
+    }[];
+    /** Why there is no entry for Windows: the relative path holds a character `cmd` would read. Only then. */
+    readonly windowsMissing?: string;
+    /** What the command and the entry are each for, that the server of the entry does not start without `reqseq` on the PATH, where the command holds, and that the entry replaces a server named `reqseq` in the file and keeps the others. */
+    readonly note: string;
+  };
 }
 
 /**
