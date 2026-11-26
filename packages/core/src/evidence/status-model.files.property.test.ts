@@ -61,6 +61,8 @@ import { Workspace } from "../runtime/workspace.js";
 const parameters = fileParameters(process.env);
 // Own timeouts that grow with the runs: about 0.1 s a workspace on Linux, several times that on a Windows runner.
 const TIMEOUT = 60_000 + parameters.numRuns * 3_000;
+/** The input of `evidence.status` for every element: without a selection only requirements and needs (SR-031 AK13). */
+const EVERY_ELEMENT = { selection: { where: { all: [] } } };
 let root = "";
 
 beforeAll(async () => {
@@ -230,7 +232,9 @@ function callsOf(files: ModelFileWorkspace): Call[] {
     {
       name: "evidence.status",
       run: async (workspace) => {
-        const output = (await invoke("evidence.status", {}, { workspace })) as { elements: ShownElement[] };
+        const output = (await invoke("evidence.status", EVERY_ELEMENT, { workspace })) as {
+          elements: ShownElement[];
+        };
         // Every element and variant once, no other file: an element the model does not know would show.
         const variantOf = (repository: string, file: string) =>
           ws.variants.find((variant) => {
@@ -377,7 +381,9 @@ async function statusOf(files: ModelFileWorkspace): Promise<Map<string, Shown>> 
   await writeWorkspace(files);
   const workspace = new Workspace(root);
   try {
-    const output = (await invoke("evidence.status", {}, { workspace })) as { elements: ShownElement[] };
+    const output = (await invoke("evidence.status", EVERY_ELEMENT, { workspace })) as {
+      elements: ShownElement[];
+    };
     const shownByKey = new Map<string, Shown>();
     for (const element of output.elements) {
       const key = keyIn(files.base, element.repository, element.file);
@@ -449,7 +455,7 @@ describe("status model level 2: invariants and metamorphic properties", () => {
         const first = new Workspace(root);
         const second = new Workspace(root);
         try {
-          const status = (await invoke("evidence.status", {}, { workspace: first })) as {
+          const status = (await invoke("evidence.status", EVERY_ELEMENT, { workspace: first })) as {
             elements: ShownElement[];
           };
           // Order independence: a second workspace asked element by element, in reverse, then as a whole.
@@ -461,7 +467,7 @@ describe("status model level 2: invariants and metamorphic properties", () => {
               { workspace: second },
             );
           }
-          expect(await invoke("evidence.status", {}, { workspace: second })).toEqual(status);
+          expect(await invoke("evidence.status", EVERY_ELEMENT, { workspace: second })).toEqual(status);
           expectOneEntryPerView(ws, status.elements);
           await expectDegreesAddUp(ws, first);
         } finally {

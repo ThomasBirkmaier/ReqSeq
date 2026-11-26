@@ -196,7 +196,8 @@ describe("indirect verification in evidence.status, element.get and the filter (
 
   it("gives every element of the fixture its status from the record files, the own status as written (D-030)", async () => {
     const ws = await open();
-    const out = await status(ws);
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    const out = await status(ws, { selection: { where: { all: [] } } });
     expect(byId(out)).toEqual(FROM_FILES);
     expect(out.total).toBe(19);
     expect(out.incomplete).toBe(false);

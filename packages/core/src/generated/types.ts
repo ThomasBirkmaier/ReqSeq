@@ -5116,7 +5116,7 @@ export interface EvidenceEnrichJunitOutput {
  * Schema: `schemas/commands/evidence.status.json input`.
  */
 export interface EvidenceStatusInput {
-  /** The elements whose verification status is given; without it every element. */
+  /** The elements whose verification status is given; without it, or with only a view, the requirements and needs (of that view), every element while the metamodel is not valid (SR-031 AK13). */
   readonly selection?: ElementSelection;
   /** The most elements on one page. */
   readonly limit: number;
@@ -5132,7 +5132,7 @@ export interface EvidenceStatusOutput {
   readonly answer: Answer;
   /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3) or whose status the metamodel marks invalid (SR-047 AK6), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, a requirement with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
-  /** Every element of the selection, not only the page. */
+  /** Every element the output lists, not only the page. */
   readonly total: number;
   /** A repository of the workspace is not available here (SR-006 AK2): its elements, and the records of its evidence locations, are missing. */
   readonly incomplete?: Incomplete;

@@ -26,7 +26,8 @@ const reqseq = async (args: readonly string[]): Promise<Run> => {
 
 describe("reqseq evidence status and element get with indirect verification (SR-034)", () => {
   it("[SR-034/AK-kkxv] reqseq evidence status prints indirect for a parent whose children are verified by record files", async () => {
-    const result = await reqseq(["evidence", "status"]);
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    const result = await reqseq(["evidence", "status", "--where", '{"all":[]}']);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [

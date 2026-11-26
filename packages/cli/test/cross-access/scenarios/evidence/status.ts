@@ -28,7 +28,53 @@ const verificationOf = (results: Parameters<NonNullable<Scenario["check"]>>[0]):
     results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
   ).output.elements.map((e) => e["verification"]);
 
+/** The short IDs of the core access's output. */
+const shortIdsOf = (results: Parameters<NonNullable<Scenario["check"]>>[0]): unknown[] =>
+  (
+    results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
+  ).output.elements.map((e) => e["shortId"]);
+
+/** The needs and the system and software requirements of FILTER without SR-0000b2 and SR-0000b3 (SR-031 AK13). */
+const FILTER_NEEDS = ["N-0000a1", "N-0000a2"];
+const FILTER_REST = ["SR-0000b4", "SR-0000b5", "SWR-0000f1", "SWR-0000f2"];
+
 scenariosOf("evidence.status", [
+  {
+    name: "without a selection only the requirements and needs, variant-only and obsolete ones included (SR-031 AK13)",
+    fixture: FILTER,
+    input: {},
+    tag: "[SR-031/AK-spcy]",
+    expect: "output",
+    check: (results) => {
+      expect(shortIdsOf(results)).toEqual([
+        ...FILTER_NEEDS,
+        "SR-0000b1",
+        "SR-0000b2",
+        "SR-0000b3",
+        ...FILTER_REST,
+      ]);
+    },
+  },
+  {
+    name: "with only a variant the requirements and needs of its view (SR-031 AK13)",
+    fixture: FILTER,
+    input: { selection: { view: "VAR-0000c1" } },
+    tag: "[SR-031/AK-spcy]",
+    expect: "output",
+    check: (results) => {
+      expect(shortIdsOf(results)).toEqual([...FILTER_NEEDS, "SR-0000b1", "SR-0000b2", ...FILTER_REST]);
+    },
+  },
+  {
+    name: "a selection that names a part lists every element of it (SR-031 AK13)",
+    fixture: FILTER,
+    input: { selection: { ids: ["D-0000e1", "VAR-0000c1"] } },
+    tag: "[SR-031/AK-spcy]",
+    expect: "output",
+    check: (results) => {
+      expect(shortIdsOf(results)).toEqual(["D-0000e1", "VAR-0000c1"]);
+    },
+  },
   {
     name: "no row for a variant that excludes or replaces the requirement (SR-047 AK3)",
     fixture: VARIANT_EVIDENCE,
@@ -198,14 +244,17 @@ scenariosOf("evidence.status", [
   {
     name: "validation status apart from the verification status, none for a use case with a validation record (SR-038)",
     fixture: VALIDATION,
-    input: {},
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    input: { selection: { where: { all: [] } } },
     tag: "[SR-038/AK-f98s]",
     expect: "output",
     check: (results) => {
       const { elements } = (
         results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
       ).output;
-      expect(elements.find((e) => e["shortId"] === "UC-00e001")?.["validation"]).toBeUndefined();
+      const useCase = elements.find((e) => e["shortId"] === "UC-00e001");
+      expect(useCase).toBeDefined();
+      expect(useCase?.["validation"]).toBeUndefined();
     },
   },
   {

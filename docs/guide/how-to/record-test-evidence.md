@@ -87,7 +87,7 @@ files:
 No problems.
 ```
 
-`withoutReference` counts the test cases that name no requirement; it does not change the exit code. The command exits with 1 when a test names an ID the workspace does not have, usually a typo, and lists those test cases; the others are still enriched. A test that names a need or another element that is no requirement is enriched too, with an `evidence.kind-mismatch` warning: its result counts for no status, so name the requirement instead, or record the validation of the need with `evidence record`. Commit the enriched file: ReqSeq never commits.
+`withoutReference` counts the test cases that name no requirement; it does not change the exit code. The command exits with 1 when a test names an ID the workspace does not have, and lists those test cases; the others are still enriched. A test that names a need or another element that is no requirement is enriched too, with an `evidence.kind-mismatch` warning: its result counts for no status, so name the requirement, or record the need's validation with `evidence record`. Commit the enriched file: ReqSeq never commits.
 
 ```sh
 reqseq evidence status
@@ -100,7 +100,7 @@ elements:
 total: 1
 ```
 
-The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without verification.
+Without a selection it lists the requirements and needs. The status is `verified` when the newest result for the current version passed, `failed` when it failed, `outdated` with results for an older version only, and `open` without results. `reqseq evidence coverage` counts the requirements with and without verification.
 
 For a check that is no automated test, such as an inspection, write a verification record by hand. `--criteria` limits it to some acceptance criteria, by key or number (the file holds their keys); without it the record holds for all:
 

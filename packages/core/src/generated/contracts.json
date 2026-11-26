@@ -31724,7 +31724,7 @@
         "name": "evidence.status",
         "title": "Show verification status",
         "summary": "Verification status of a selection per view, from the evidence records and, without own record, from the children; validation status from the validation records.",
-        "details": "The verification status comes from the evidence records and, without own record, from the children, with the children that are missing; the validation status from the validation records. Without a selection every element of the workspace is listed, and only requirements, needs and elements with a validation record carry a status, so select them, for example by type.",
+        "details": "The verification status comes from the evidence records and, without own record, from the children, with the children that are missing; the validation status from the validation records. Without a selection, or with one that names only a view, the requirements and needs are listed, whatever their status: in a variant without the requirements its view leaves out; while the metamodel is not valid, every element. A selection that names anything else, also an empty list of IDs or a condition `all: []`, lists every element of it.",
         "effect": "read",
         "stage": 4,
         "implements": [
@@ -31754,7 +31754,7 @@
           "type": "object",
           "properties": {
             "selection": {
-              "description": "The elements whose verification status is given; without it every element.",
+              "description": "The elements whose verification status is given; without it, or with only a view, the requirements and needs (of that view), every element while the metamodel is not valid.",
               "$ref": "../common.schema.json#/$defs/selection"
             },
             "limit": {
@@ -31793,7 +31793,7 @@
               "title": "Total",
               "type": "integer",
               "minimum": 0,
-              "description": "Every element of the selection, not only the page."
+              "description": "Every element the output lists, not only the page."
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete",
