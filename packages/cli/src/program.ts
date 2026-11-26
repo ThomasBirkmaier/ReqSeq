@@ -196,7 +196,7 @@ const VALUE_RULES: readonly {
     applies: (field) => field.entries,
     rule: (fields) =>
       [
-        `Read as JSON when it parses (a list, number, true, null), else as text: version=1.10 is the number 1.1, give 'version="1.10"' for text.`,
+        `Read as JSON when it parses (an array, number, true, null), else as text: version=1.10 is the number 1.1, give 'version="1.10"' for text.`,
         lastValueRule(fields.filter((field) => field.entries)),
         "The keys add to those of --input.",
       ]
@@ -219,7 +219,8 @@ interface ValueRule {
 
 /** The section "Option values" of a command whose options use a placeholder of `VALUE_RULES`; `[]` without one. */
 const valueRules = (fields: readonly InputField[]): readonly ValueRule[] => {
-  const shown = fields.filter((field) => field.use === "flag" || field.use === "positional");
+  // Only flags read `@file` and `-`; a positional value is taken as it is (`buildInput`).
+  const shown = fields.filter((field) => field.use === "flag");
   return VALUE_RULES.filter((rule) => shown.some(rule.applies)).map((rule) => ({
     term: rule.term,
     rule: rule.rule(shown),
