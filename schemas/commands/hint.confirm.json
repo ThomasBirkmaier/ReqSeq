@@ -18,7 +18,7 @@
   ],
   "input": {
     "type": "object",
-    "description": "Give `hintIds`, `ref`, `target`, `all` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `all` selects those of the whole workspace and goes with neither. `kind` narrows only that selection and needs `ref`, `target` or `all`; `all` needs `kind` and `expected`, so a call names the codes and the number of hints a person reviewed and never confirms all by accident. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): each once, `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning, left out when the call already gives `hint.not-confirmable` for the since-baseline hints (SR-103 AK5).",
+    "description": "Give `hintIds`, `ref`, `target`, `all` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `all` selects those of the whole workspace and goes with neither. `kind` narrows only that selection and needs `ref`, `target` or `all`; `all` needs `kind` and `expected`, so a call names the codes and the number of hints a person reviewed and never confirms all by accident. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning, left out when the call already gives `hint.not-confirmable` for the since-baseline hints (SR-103 AK5).",
     "properties": {
       "hintIds": {
         "type": "array",
@@ -42,7 +42,7 @@
       },
       "kind": {
         "type": "array",
-        "description": "Only selected hints with one of these codes (with `ref`, `target` or `all`); the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`).",
+        "description": "Only selected hints with one of these codes; the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`).",
         "items": {
           "$ref": "../common.schema.json#/$defs/problemCode"
         }

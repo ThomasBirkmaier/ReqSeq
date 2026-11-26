@@ -498,11 +498,15 @@ describe("connecting a test tool by the guide record-test-results-in-ci and tool
     TIMEOUT,
   );
 
-  it("the example workspace has no findings", async () => {
+  it("the example workspace has no findings but the gaps of verification", async () => {
     const ws = await exampleWorkspace();
     const { run, output } = await check(ws.root);
     expect(run.code, run.stdout).toBe(0);
-    // Its requirements are open until a test run is recorded: one info (SR-230 AK2), nothing else.
-    expect(output.problems.map((p) => p.code)).toEqual(["evidence.open-requirements"]);
+    // Its requirements are open until a test run is recorded: one info (SR-230 AK2). Its metamodel, an older
+    // standard model, gives no property the meaning acceptance-criteria: one warning (SR-230 AK5).
+    expect(output.problems.map((p) => p.code)).toEqual([
+      "evidence.open-requirements",
+      "evidence.no-criteria-property",
+    ]);
   });
 });

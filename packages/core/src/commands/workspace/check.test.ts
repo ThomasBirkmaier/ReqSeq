@@ -186,10 +186,10 @@ describe("workspace.check", () => {
     const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
     const errors = await check(workspace, { severity: "error" });
-    // Five errors shown; the six warnings of FINDINGS and the missing evidence location (SR-230 AK1)
-    // left out and counted.
+    // Five errors shown; the six warnings of FINDINGS, the missing evidence location and the type without
+    // acceptance criteria (SR-230 AK1, AK5) left out and counted.
     expect(errors.problems.every((p) => p.severity === "error")).toBe(true);
-    expect(errors.hidden).toEqual({ below: "error", warning: 7, info: 0 });
+    expect(errors.hidden).toEqual({ below: "error", warning: 8, info: 0 });
     // Nothing left out: no hidden.
     expect((await check(workspace)).hidden).toBeUndefined();
     expect((await check(workspace, { severity: "warning" })).hidden).toBeUndefined();
@@ -235,12 +235,13 @@ describe("workspace.check", () => {
     expect(kinds(await check(workspace, { severity: "warning" }))).toEqual(FINDINGS);
     const values = await fixture({ fixture: "SR-085/value-kinds" });
     // Only warnings, none shown: with failOn warning still not ok, since the workspace has findings
-    // (exit code 1); they are counted as hidden, with the missing evidence location (SR-230 AK1).
+    // (exit code 1); they are counted as hidden, with the missing evidence location and the type without
+    // acceptance criteria (SR-230 AK1, AK5).
     expect(await check(open(values.path("system")), { severity: "error", failOn: "warning" })).toEqual({
-      answer: "Checked 4 elements and found 6 warnings.",
+      answer: "Checked 4 elements and found 7 warnings.",
       ok: false,
       problems: [],
-      hidden: { below: "error", warning: 6, info: 0 },
+      hidden: { below: "error", warning: 7, info: 0 },
       checkedElements: 4,
     });
     const missing = await fixture({ fixture: "SR-089/missing-targets" });
@@ -249,15 +250,21 @@ describe("workspace.check", () => {
 
   it("[SR-019/AK-x4q3] reports a hint about a relation no more once it is confirmed, and is ok when nothing else is left", async () => {
     // fixtures/SR-025/outdated: requirement A derives from need N; B refines A. N gets a new text. An
-    // evidence location, so the only warnings are the hints (SR-230 AK1); the open requirements are info.
+    // evidence location, and a property with the meaning acceptance-criteria that no element holds, so the
+    // only warnings are the hints (SR-230 AK1, AK5); the open requirements are info.
+    const fixtureFile = (file: string): string =>
+      fs.readFileSync(new URL(`../../../../../fixtures/SR-025/outdated/${file}`, import.meta.url), "utf8");
     const ws = await fixture({
       fixture: "SR-025/outdated",
       files: {
-        "reqseq-workspace.yaml": `${fs.readFileSync(
-          new URL("../../../../../fixtures/SR-025/outdated/reqseq-workspace.yaml", import.meta.url),
-          "utf8",
-        )}evidence:\n  - { repository: system, path: evidence }\n`,
+        "reqseq-workspace.yaml": `${fixtureFile("reqseq-workspace.yaml")}evidence:\n  - { repository: system, path: evidence }\n`,
         "evidence/.keep": "",
+        "metamodel/standard-model.yaml": fixtureFile("metamodel/standard-model.yaml")
+          .replace("        acceptance-criteria,\n", "        acceptance-criteria,\n        criteria,\n")
+          .replace(
+            "\nproperties:\n",
+            "\nproperties:\n  - { key: criteria, name: Criteria, kind: text, many: true, meaning: acceptance-criteria }\n",
+          ),
       },
     });
     const need = "needs/N-0a0000000001.md";

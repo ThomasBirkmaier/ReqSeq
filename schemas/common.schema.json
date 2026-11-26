@@ -508,6 +508,7 @@
         "evidence.outside-location",
         "evidence.no-location",
         "evidence.open-requirements",
+        "evidence.no-criteria-property",
         "baseline.invalid",
         "baseline.repository-commit-differs",
         "filter.invalid",

@@ -172,7 +172,8 @@ describe("spec migration (Logseq export -> ReqSeq workspace, ThomasBirkmaier/Req
 
     // Every relation got its version from ReqSeq and nothing is outdated. The warning is the relation
     // to the superseded D-001: SR-001 is based on it; D-002's own supersedes relation gets none
-    // (SR-072 AK2, #170). The converted workspace names no evidence location yet (SR-230 AK1).
+    // (SR-072 AK2, #170). The converted workspace names no evidence location yet (SR-230 AK1), and its
+    // metamodel gives no property the meaning acceptance-criteria (SR-230 AK5).
     expect(result.confirmed).toBe(0);
     expect(result.versionsAdded).toBe(plan.relations.length);
     expect(result.check.ok).toBe(true);
@@ -180,6 +181,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, ThomasBirkmaier/Req
       "metamodel.optional-status",
       "relation.target-superseded",
       "evidence.no-location",
+      "evidence.no-criteria-property",
     ]);
     expect(result.check.problems[1]?.message).toMatch(/^Relation Based on \(based-on\) from /);
   });

@@ -1,6 +1,6 @@
 // baseline.prepare through `invoke` (SR-242) on fixtures/SR-061/export (Git repositories `system` and
-// `sensor`): two warnings and no error in the check, the baseline „Release 1“ without stored selection,
-// `broken.yaml` that is no valid baseline, and the variants Coast (c1) and Inland (c2). Each number is
+// `sensor`): three warnings and no error in the check (one about a type without acceptance criteria,
+// SR-230 AK5), the baseline „Release 1“ without stored selection, `broken.yaml` that is no valid baseline, and the variants Coast (c1) and Inland (c2). Each number is
 // compared with the command that gives it (D-082). Also the next steps of a read-only workspace (SR-226).
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -55,7 +55,7 @@ describe("baseline.prepare", () => {
     const ws = await fixture();
     const out = await call(ws, "baseline.prepare", {});
     expect(out.answer).toBe(
-      "The check found 0 errors and 2 warnings; 0 of 2 requirements in view core verified or indirectly verified (0 %).",
+      "The check found 0 errors and 3 warnings; 0 of 2 requirements in view core verified or indirectly verified (0 %).",
     );
     expect(out.problems).toEqual((await call(ws, "workspace.check", {})).problems);
     expect(out.wholeWorkspace).toBeUndefined();
@@ -67,7 +67,7 @@ describe("baseline.prepare", () => {
     expect(out.wholeWorkspace).toBe(true);
     expect(out.problems).toEqual((await call(ws, "workspace.check", {})).problems);
     expect(out.answer).toBe(
-      "The check found 0 errors and 2 warnings; the selection has no valid requirement in view core.",
+      "The check found 0 errors and 3 warnings; the selection has no valid requirement in view core.",
     );
   });
 

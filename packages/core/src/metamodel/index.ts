@@ -17,7 +17,7 @@ export {
   isKeyForm,
   loadMetamodel,
 } from "./load.js";
-export type { Metamodel } from "./load.js";
+export type { Metamodel, TypePlace } from "./load.js";
 export {
   allowsType,
   findType,

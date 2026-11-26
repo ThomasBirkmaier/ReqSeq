@@ -4,7 +4,7 @@
 // (SR-025 AK4), which names the requirement, the JUnit file and the line of the test case.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, withoutVerificationGaps } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
@@ -46,8 +46,9 @@ const check = async (
   return { code: run.code, output: JSON.parse(run.stdout) as Output };
 };
 
+/** The findings of the records, without the gaps of verification (SR-230: the fixture's metamodel has no criteria). */
 const evidence = (output: Output): (string | number | undefined)[][] =>
-  output.problems
+  withoutVerificationGaps(output.problems)
     .filter((p) => p.code.startsWith("evidence."))
     .map((p) => [p.code, p.elementId, p.file, p.line, p.storedVersion]);
 
@@ -76,8 +77,9 @@ describe("reqseq reads JUnit XML as records (SR-093)", () => {
       '<testcase classname="test_sample" name="test_skipped" time="0.000"><skipped/></testcase>' +
       "</testsuite></testsuites>";
     const { code, output } = await check({ "evidence/ci/pytest.xml": pytest });
-    // Besides the hints of the fixture's requirements, which have no parent (SR-022 AK6).
-    const problems = output.problems.filter((p) => p.code !== "trace.no-parent");
+    // Besides the hints of the fixture's requirements, which have no parent (SR-022 AK6), and the gaps of
+    // verification (SR-230).
+    const problems = withoutVerificationGaps(output.problems).filter((p) => p.code !== "trace.no-parent");
     expect(problems.map((p) => p.code)).toEqual(["evidence.outdated", "evidence.outdated"]);
     expect(problems.every((p) => p.file === RESULTS)).toBe(true);
     expect(code).toBe(0);

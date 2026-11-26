@@ -62,6 +62,12 @@ export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
  */
 export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
 
+/** The file of a type definition, relative to the metamodel repository, and the line of the definition. */
+export interface TypePlace {
+  readonly file: string;
+  readonly line: number | undefined;
+}
+
 /** The metamodel of the checked-out state: the definitions as written, and the types resolved. */
 export interface Metamodel {
   /** Repository and folder from the workspace file. */
@@ -76,6 +82,11 @@ export interface Metamodel {
   readonly statuses: readonly MetamodelStatus[];
   /** The types with inheritance resolved (SR-012), in the order of `types`; see `findType`. */
   readonly effectiveTypes: readonly EffectiveType[];
+  /**
+   * Where each type of `types` is defined: its file, relative to the repository, and the line of its
+   * definition, for findings about a type outside this block (SR-230 AK5).
+   */
+  readonly typePlaces: ReadonlyMap<MetamodelKey, TypePlace>;
   /**
    * For every built-in meaning, the keys whose own definition declares it (SR-013); see
    * `requireMeaning` and the lookups in meanings.ts.
@@ -470,6 +481,7 @@ const empty = (layout: WorkspaceLayout, problems: readonly Problem[]): Metamodel
   relations: [],
   statuses: [],
   effectiveTypes: [],
+  typePlaces: new Map(),
   meanings: assignMeanings({ types: [], effectiveTypes: [], properties: [], relations: [] }).meanings,
   valid: false,
   problems,
@@ -585,6 +597,12 @@ const readMetamodel = async (layout: WorkspaceLayout, reader: MetamodelReader): 
     relations: definitions(relations),
     statuses: definitions(statuses),
     effectiveTypes: resolved.types,
+    typePlaces: new Map(
+      types.map(({ definition, file, lineOf }): [MetamodelKey, TypePlace] => [
+        definition.key,
+        { file, line: lineOf([]) },
+      ]),
+    ),
     meanings: assigned.meanings,
     valid: !problems.some((p) => p.severity === "error"),
     problems,

@@ -76,7 +76,10 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-/** `workspace.check` without the gaps of verification (SR-230 AK1, AK2), which most fixtures here have. */
+/**
+ * `workspace.check` without the gaps of verification (SR-230 AK1, AK2, AK5), which most fixtures here have;
+ * the answer still counts them: the missing evidence location and the type without acceptance criteria.
+ */
 const check = async (
   workspace: Workspace,
   input: Readonly<Record<string, unknown>> = {},
@@ -212,7 +215,7 @@ describe("outdated relations and references (SR-025)", () => {
     expect(await readFile(path.join(ws.root, A_FILE), "utf8")).toContain(`version: ${N_VERSION}`);
     expect(NORMAL_FORM).toBe("n2");
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found 1 warning.",
+      answer: "Checked 4 elements and found 2 warnings.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -231,7 +234,7 @@ describe("outdated relations and references (SR-025)", () => {
     const b = await readFile(path.join(FIXTURE_FOLDER, B_FILE), "utf8");
     await ws.write(B_FILE, b.replace(A_VERSION, a.n2));
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found 1 warning.",
+      answer: "Checked 4 elements and found 2 warnings.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -253,7 +256,7 @@ describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK-rvw7] reports nothing without Git either", async () => {
     const ws = await fixture();
     expect(await check(open(ws.root))).toEqual({
-      answer: "Checked 4 elements and found 1 warning.",
+      answer: "Checked 4 elements and found 2 warnings.",
       ok: true,
       problems: [],
       checkedElements: 4,
@@ -694,8 +697,9 @@ describe("outdated relations and references (SR-025)", () => {
     // Not ok for the warnings with failOn warning, though the filter leaves them out; counted as hidden.
     expect(out.ok).toBe(false);
     expect(out.problems).toEqual([]);
-    // The three outdated relations and the missing evidence location (SR-230 AK1).
-    expect(out.hidden).toEqual({ below: "error", warning: 4, info: 0 });
+    // The three outdated relations, the missing evidence location and the type without acceptance
+    // criteria (SR-230 AK1, AK5).
+    expect(out.hidden).toEqual({ below: "error", warning: 5, info: 0 });
   });
 
   it("does not report a target whose current version is unknown (its file no longer holds it)", async () => {

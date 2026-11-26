@@ -26,6 +26,21 @@ templateSetup(SECOND_COMMIT, async (ws) => {
   await ws.commit();
 });
 
+/** Two system requirements whose standard model gives no property the meaning acceptance-criteria (SR-230 AK5). */
+const NO_CRITERIA_PROPERTY: FixtureOptions = {
+  fixture: "SR-001/two-elements",
+  files: {
+    "metamodel/standard-model.yaml": replaceOnce(
+      readFileSync(
+        path.join(defaultFixturesDir, "SR-001/two-elements/metamodel/standard-model.yaml"),
+        "utf8",
+      ),
+      "    meaning: acceptance-criteria\n",
+      "",
+    ),
+  },
+};
+
 /** Statuses per type (#306): a status outside the type, one on a type without statuses, a missing one. */
 const STATUSES: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git: true };
 /** STATUSES with a glossary term type whose only status is invalid, and a term without status (SR-017 AK3). */
@@ -207,6 +222,30 @@ scenariosOf("workspace.check", [
       const output = (results["core"]?.outcome as { output: Record<string, unknown> }).output;
       expect(output["next"]).toBeUndefined();
       expect(output["hidden"]).toMatchObject({ below: "warning", info: 1 });
+    },
+  },
+  {
+    name: "a requirement type without a property with the meaning acceptance-criteria gets one warning at its metamodel file (#2536)",
+    fixture: NO_CRITERIA_PROPERTY,
+    input: {},
+    tag: "[SR-230/AK-rhtg]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems: Record<string, unknown>[] } })
+        .output;
+      expect(
+        problems
+          .filter((p) => p["code"] === "evidence.no-criteria-property")
+          .map((p) => [p["severity"], p["repository"], p["file"], p["line"], p["message"]]),
+      ).toEqual([
+        [
+          "warning",
+          "system",
+          "metamodel/standard-model.yaml",
+          34,
+          "Type system-requirement has no property with the meaning acceptance-criteria, so the evidence records of its requirements count for the whole requirement and not per acceptance criterion; the type needs a property with that meaning: give the property of its acceptance criteria that meaning, kind text and many, and add it to the type",
+        ],
+      ]);
     },
   },
   {
