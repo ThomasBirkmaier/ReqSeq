@@ -382,7 +382,8 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
       "lists/need.html",
       "lists/system-requirement.html",
     ]);
-    expect(output.problems).toEqual([]);
+    // Without Git, only why the versions of the baseline have no date (SR-254).
+    expect(output.problems.map((p) => p.code)).toEqual(["version.date-unavailable"]);
   });
 
   it("[SR-233/AK-hqc9] passes on the warnings of baseline.get on the newest baseline", async () => {
@@ -393,7 +394,7 @@ describe("html.export lists, start page and package pages (SR-233)", () => {
     const { workspace } = await open({ "baselines/Release-1.yaml": release });
     const output = await call(workspace, "html.export", { output: "site" });
     const { problems } = await call(workspace, "baseline.get", { baseline: "Release 1" });
-    expect(problems?.map((p) => p.code)).toEqual(["baseline.invalid"]);
+    expect(problems?.map((p) => p.code)).toEqual(["baseline.invalid", "version.date-unavailable"]);
     expect(output.problems).toEqual(problems);
   });
 

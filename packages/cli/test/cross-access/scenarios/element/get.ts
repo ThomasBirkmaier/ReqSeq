@@ -1,9 +1,47 @@
 // Cross-access scenarios of element.get, in addition to the default one (cross-access.test.ts).
+import fs from "node:fs/promises";
+import path from "node:path";
 import { expect } from "vitest";
+import type { Result } from "../../scenario.js";
 import { scenariosOf } from "../../scenario.js";
 import { CRITERIA, HINTS, IDENTIFIERS, IN_CRITERIA, MISSING_TARGETS, VARIANT_VIEWS } from "../../fixtures.js";
 
+/** SR-254: the codes of the warnings on the version date in the element of the core output. */
+const dateWarnings = (results: Readonly<Record<string, Result>>): string[] =>
+  (
+    (results["core"]?.outcome as { output: { element: { problems?: { code: string }[] } } }).output.element
+      .problems ?? []
+  )
+    .map((p) => p.code)
+    .filter((code) => code.startsWith("version."));
+
 scenariosOf("element.get", [
+  {
+    tag: "[SR-254/AK-j540]",
+    name: "the version date without Git, with the warning that Git cannot read the repository",
+    fixture: { fixture: "SR-004/one-repository" },
+    input: { ref: "SR-e88fb3", versionDate: true },
+    expect: "output",
+    check: (results) => {
+      expect(dateWarnings(results)).toEqual(["version.date-unavailable"]);
+    },
+  },
+  {
+    tag: "[SR-254/AK-j82g]",
+    name: "the version date of a changed element, with the warning that it is not committed",
+    input: { ref: "SR-e88fb3", versionDate: true },
+    prepare: async (copy) => {
+      const file = path.join(copy.root, "requirements/SR-6328cee88fb3.md");
+      const text = await fs.readFile(file, "utf8");
+      if (!text.includes("Not committed.")) {
+        await fs.writeFile(file, `${text}Not committed.\n`);
+      }
+    },
+    expect: "output",
+    check: (results) => {
+      expect(dateWarnings(results)).toEqual(["version.uncommitted"]);
+    },
+  },
   {
     tag: "[SR-205/AK-npsp]",
     name: "element.get gives each criterion its number, key, text and the reference for a test name",

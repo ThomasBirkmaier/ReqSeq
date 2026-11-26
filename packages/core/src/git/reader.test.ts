@@ -19,6 +19,7 @@ import {
   fileMoves,
   headCommit,
   headFiles,
+  readsWorkTree,
   firstParentChanges,
   historyRange,
   openObjectReader,
@@ -215,6 +216,7 @@ describe("git reader", () => {
       "isGitPath",
       "isRevision",
       "openObjectReader",
+      "readsWorkTree",
       "resolveCommit",
       "trackedFile",
       "workTreeOf",
@@ -260,6 +262,13 @@ describe("git reader", () => {
     const ws = await fixture();
     await ws.git(["init", "--quiet"], "plain");
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
+  });
+
+  it("reads a work tree also without commits, and none outside one", async () => {
+    const ws = await fixture();
+    expect(await readsWorkTree(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
+    await ws.git(["init", "--quiet"], "plain");
+    expect(await readsWorkTree(ws.path("plain"))).toEqual({ known: true });
   });
 
   it("knows no commit when git prints something else", async () => {

@@ -17,7 +17,8 @@
 // - a hint `metamodel.meaning-unassigned` when no property has the meaning `title` (SR-013 AK3);
 // - `versionDate` when the caller asks for it (`withDate`): the date of the version shown (D-013,
 //   ADR-0005 "Version date", `versionDates`), `null` for content no commit has and when Git cannot
-//   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast);
+//   tell, with the warning that says why (SR-254, `undatedWarnings`); without it no git runs and the
+//   field is left out (SR-082 AK3: opening stays fast);
 // - one copy of an element whose UUID several files share (SR-088), picked by the inputs `repository`
 //   and `file` among the candidates of `ref.ambiguous` (ThomasBirkmaier/ReqSeq-archive#255, `ElementCopy`).
 // `verification` (SR-031, SR-034) and `validation` (SR-038) are added by `element.get` from the
@@ -46,6 +47,7 @@ import { elementStoreState, ignoredBy } from "./store.js";
 import { successionsFor } from "./successors.js";
 import type { VersionDateContext, VersionDateWalk } from "./version-date.js";
 import { prepareVersionDates, versionDates } from "./version-date.js";
+import { undatedWarnings } from "./undated.js";
 import { elementVersions, elementView, titleKeyOf } from "./view.js";
 
 /**
@@ -70,6 +72,20 @@ const dateWhenAsked = async (
       ? {}
       : { versionDate: (await versionDates(context, [{ ...walk, version }]))[0] as string | null };
 };
+
+/**
+ * Why the version shown has no date (SR-254 AK1, `undatedWarnings`): nothing where it has one or was not asked for, and
+ * nothing for an element without a version, whose `file.faulty` says why.
+ */
+const whyUndated = async (
+  workspace: Workspace,
+  record: ElementRecord,
+  version: string | undefined,
+  date: { readonly versionDate?: string | null },
+): Promise<readonly Problem[]> =>
+  date.versionDate === null && version !== undefined
+    ? undatedWarnings(workspace, [{ repository: record.repository, id: record.id, element: record, version }])
+    : [];
 
 /** What `showElement` reads: the workspace states it works on, as `getElement` takes them. */
 export interface ShowContext {
@@ -203,6 +219,7 @@ export const showElement = async (
     });
   }
   const [writable, date] = await Promise.all([isWritableFolder(repository.folder), dateOf(element.version)]);
+  problems.push(...(await whyUndated(workspace, record, element.version, date)));
   return {
     element: {
       ...element,

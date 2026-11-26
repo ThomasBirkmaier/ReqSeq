@@ -53,6 +53,8 @@ scenariosOf("baseline.prepare", [
         "Release 1",
         "baseline.repository-commit-differs",
       ]);
+      // Without the warnings of SR-254 that baseline.get gives for its page.
+      expect(out.baseline?.problems?.filter((p) => p.code.startsWith("version."))).toEqual([]);
     },
   },
   {

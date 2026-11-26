@@ -595,6 +595,17 @@ scenariosOf("element.list", [
     },
   },
   {
+    name: "sorted by the time of the version without Git: every page names why the dates are missing (SR-075 AK5)",
+    tag: "[SR-075/AK-qr2j]",
+    fixture: { fixture: "SR-075/sort" },
+    input: { sort: [{ by: "versionDate" }], limit: 3, offset: 3 },
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: { problems?: { code: string }[] } }).output;
+      expect(problems?.map((p) => p.code)).toEqual(["version.date-unavailable"]);
+    },
+  },
+  {
     name: "hierarchy after another sort key (SR-075)",
     fixture: SORT,
     input: { sort: [{ by: "title" }, { by: "hierarchy" }] },

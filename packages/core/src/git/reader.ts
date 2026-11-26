@@ -684,6 +684,19 @@ const prefixDepth = async (
 };
 
 /**
+ * Whether git reads the work tree `folder` lies in, also one without a commit (`rev-parse
+ * --show-prefix`, under the short time limit); unknown when git is missing, refuses the repository,
+ * times out or finds no work tree there.
+ */
+export const readsWorkTree = async (
+  folder: string,
+  options: ReadOptions = {},
+): Promise<{ readonly known: true } | GitUnknown> => {
+  const result = await run(folder, "prefix", options);
+  return result.ok ? { known: true } : unknown(result);
+};
+
+/**
  * The commits reachable from `head` that changed one of `files` (paths relative to `folder`, which
  * may lie below the top level of its work tree, as `isGitPath` allows; literal, no globs; a folder
  * ending in `/` takes every file below it), and every merge reachable from `head`, newest first,

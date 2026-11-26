@@ -31,6 +31,43 @@ scenariosOf("baseline.get", [
     expect: "output",
   },
   {
+    name: "the versions without date of the page, counted with the reason, once for the repository (SR-254 AK3)",
+    fixture: EXPORT,
+    root: "system",
+    input: { baseline: "release-1" },
+    tag: "[SR-254/AK-j82g]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: BaselineGetOutput }).output;
+      expect(problems?.filter((p) => p.code.startsWith("version.")).map((p) => p.message)).toEqual([
+        "Git cannot give the version date of 2 elements of repository system: no commit holds the version, or a Git call failed or did not answer in time",
+      ]);
+    },
+  },
+  {
+    name: "no warning on the dates of a repository whose versions all have one, beside one that has none (SR-254 AK4)",
+    fixture: {
+      ...EXPORT,
+      files: {
+        "system/baselines/sensor.yaml":
+          "reqseq-baseline: 1\nname: Sensor\ndate: 2026-11-02T13:00:00Z\nrepositories:\n" +
+          "  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\nelements:\n" +
+          "  - { id: 61061061-0000-4000-8000-0000000000a1, version: n1:9d97d0ccf9b75591 }\n" +
+          "  - { id: 61061061-0000-4000-8000-0000000000e1, version: n1:3333333333333333, repository: sensor }\n",
+      },
+    },
+    root: "system",
+    input: { baseline: "Sensor" },
+    tag: "[SR-254/AK-mnrr]",
+    expect: "output",
+    check: (results) => {
+      const { problems } = (results["core"]?.outcome as { output: BaselineGetOutput }).output;
+      expect(
+        problems?.filter((p) => p.code.startsWith("version.")).map((p) => [p.code, p.repository]),
+      ).toEqual([["version.date-unknown", "sensor"]]);
+    },
+  },
+  {
     name: "a warning for a repository at another commit than the baseline names (#668)",
     fixture: EXPORT,
     root: "system",

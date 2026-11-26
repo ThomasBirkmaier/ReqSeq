@@ -4,6 +4,7 @@
 // first text in the working copy. b3 holds a counted value without a normal form, so it has no
 // version and no time.
 import fs from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -126,11 +127,48 @@ describe("element.list by the time of the version (SR-075)", () => {
     expect(grouped).not.toHaveProperty("problems");
   });
 
-  it("[SR-075/AK-qr2j] puts every element last without Git, ordered as AK1 orders equal values", async () => {
+  it("[SR-075/AK-qr2j] puts every element last without Git, ordered as AK1 orders equal values, and says why on each page", async () => {
     const { workspace } = await open({ fixture: "SR-075/sort" });
     const byTitle = await order(workspace, [{ by: "title" }]);
     expect(await order(workspace, [{ by: "versionDate" }, { by: "title" }])).toEqual(byTitle);
     expect(await order(workspace, [{ by: "versionDate", order: "desc" }, { by: "title" }])).toEqual(byTitle);
+    const why = [
+      {
+        code: "version.date-unavailable",
+        severity: "warning",
+        repository: "system",
+        message:
+          "Git cannot read repository system (no Git repository there, no git program, or Git refuses it), so the dates of its versions are unknown",
+      },
+    ];
+    for (const offset of [0, 4]) {
+      expect((await list(workspace, { sort: [{ by: "versionDate" }], limit: 4, offset })).problems).toEqual(
+        why,
+      );
+    }
+    // No sort by the version date: no warning.
+    expect(await list(workspace, { sort: [{ by: "title" }] })).not.toHaveProperty("problems");
+  });
+
+  it("[SR-075/AK-qr2j] in a shallow clone lists changed elements newest and the committed ones last, naming the shallow clone on each page", async () => {
+    const { fixture: origin } = await open({ fixture: "SR-075/sort", git: true, files: ENDLESS });
+    const { fixture, workspace } = await open({});
+    await fixture.git(["clone", "--quiet", "--depth", "1", pathToFileURL(origin.root).href, "."]);
+    await append(fixture, B4, "Not committed.\n");
+    const shallow = {
+      code: "version.date-unavailable",
+      severity: "warning",
+      repository: "system",
+      message:
+        "Repository system is a shallow clone, so Git cannot give the dates of its versions; a clone with the full Git history gives the dates of committed versions",
+    };
+    const first = await list(workspace, { sort: [{ by: "versionDate", order: "desc" }], limit: 3 });
+    expect([first.elements.map((e) => name(e.id)), first.problems]).toEqual([["b4", "a1", "a2"], [shallow]]);
+    const next = await list(workspace, { sort: [{ by: "versionDate", order: "desc" }], limit: 3, offset: 3 });
+    expect(next.problems).toEqual([shallow]);
+    // Only the changed element: no element is last for a reason of SR-254 AK2, so no warning.
+    const changed = await list(workspace, { selection: { ids: [`${P}b4`] }, sort: [{ by: "versionDate" }] });
+    expect(changed).not.toHaveProperty("problems");
   });
 
   it("[SR-075/AK-qr2j] lists the elements Git did not date in time last and says the order is not completely determined", async () => {
@@ -184,6 +222,25 @@ describe("element.list by the time of the version (SR-075)", () => {
       { workspace },
     )) as { problems: { code: string; repository?: string }[] };
     expect(exported.problems.map((p) => [p.code, p.repository])).toEqual([["sort.incomplete", "system"]]);
+  });
+
+  it("[SR-254/AK-v8kj] gives no warning on missing version dates in reqif.export, which names no version date", async () => {
+    const { workspace } = await open({ fixture: "SR-075/sort" });
+    await invoke(
+      "filter.save",
+      { name: "Newest", where: { all: [] }, sort: [{ by: "versionDate", order: "desc" }] },
+      { workspace },
+    );
+    const exported = (await invoke(
+      "reqif.export",
+      { output: "newest.reqif", selection: { filter: "Newest" } },
+      { workspace },
+    )) as { problems: { code: string }[] };
+    expect(exported.problems.map((p) => p.code)).toEqual([]);
+    // element.list of the same filter names why (SR-075 AK5).
+    expect((await list(workspace, { selection: { filter: "Newest" } })).problems?.map((p) => p.code)).toEqual(
+      ["version.date-unavailable"],
+    );
   });
 
   it("needs the times to sort elements by them, not to check the keys", async () => {

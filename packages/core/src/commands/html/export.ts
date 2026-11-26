@@ -5,7 +5,9 @@
 // passed as `baseline.get` gives it with all its rows (`baselineShown`), newest first: by date, at the same instant
 // the later file first, a date that does not parse as the earliest. The pages of the baselines, the change since each
 // on the element pages and in the lists (SR-232 AK7, SR-233 AK2, SR-234 AK1, AK2) and the counts of the newest one
-// on the start page (SR-233 AK3) come from them, with the warnings of `baseline.get` on each. `incomplete`
+// on the start page (SR-233 AK3) come from them, with the warnings of `baseline.get` on each, given once. The warnings
+// on missing version dates (SR-254) are given once for all pages instead (`undatedOf`): for the rows whose version a
+// page shows with its date (changed, removed, unchanged), and the pages do not change. `incomplete`
 // (SR-006 AK2): a repository of the workspace file is not on this machine, as the start page says.
 import path from "node:path";
 import type { CommandOutput } from "../../catalog.js";
@@ -16,6 +18,8 @@ import { workspaceBaselines } from "../../baselines/index.js";
 import type { Problem } from "../../generated/types.js";
 import type { ExportBaseline, NewestBaseline } from "../../html-export/index.js";
 import { baselinePage, writeHtmlExport } from "../../html-export/index.js";
+import type { UndatedVersion } from "../../model/index.js";
+import { UNDATED_CODES, elementStoreState, undatedWarnings } from "../../model/index.js";
 import { baselineShown } from "../baseline/get.js";
 import { counted, incompleteNote, problemsNote, sentence } from "../answer.js";
 
@@ -49,10 +53,35 @@ const exportBaselines = async (
     const output = await baselineShown(ctx, baseline);
     shown.push(output);
     for (const problem of output.problems ?? []) {
-      problems.set(JSON.stringify(problem), problem);
+      if (!UNDATED_CODES.has(problem.code)) {
+        problems.set(JSON.stringify(problem), problem);
+      }
     }
   }
-  return { baselines: shown, problems: [...problems.values()] };
+  return { baselines: shown, problems: [...problems.values(), ...(await undatedOf(ctx, shown))] };
+};
+
+/** The states of the rows whose version with its date the pages show (SR-232 AK7, SR-234 AK1). */
+const DATED_STATES: ReadonlySet<string> = new Set(["changed", "removed", "unchanged"]);
+
+/**
+ * The warnings of SR-254 for the versions without date that a page names (see the file comment), each once for all
+ * pages: of every baseline, the rows of an element of the workspace whose version the pages show with its date.
+ */
+const undatedOf = async (ctx: CommandContext, baselines: readonly ExportBaseline[]): Promise<Problem[]> => {
+  const store = await ctx.workspace.get(elementStoreState);
+  const undated = baselines.flatMap((baseline) =>
+    baseline.elements.flatMap((row): UndatedVersion[] => {
+      const element = store.byId.get(row.id)?.find((r) => r.repository === row.repository);
+      return row.version === undefined ||
+        row.versionDate !== null ||
+        !DATED_STATES.has(row.state) ||
+        element === undefined
+        ? []
+        : [{ repository: element.repository, id: element.id, element, version: row.version }];
+    }),
+  );
+  return undatedWarnings(ctx.workspace, undated);
 };
 
 /** The newest baseline as the start page names it; undefined without one. */

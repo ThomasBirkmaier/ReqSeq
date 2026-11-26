@@ -8,7 +8,8 @@
 // - `degree`, `view`, `names`: evidence.degree for the selection; `withoutPassedTest`: `total` of
 //   evidence.withoutPassedTest for that view (AK2).
 // - `baseline`: the newest baseline as baseline.changes takes it (SR-241 AK1, AK7), with the problems of
-//   baseline.get apart from the check's (AK3); `baselineFiles`: those of baseline.list (faulty files).
+//   baseline.get apart from the check's, without the warnings of SR-254 (AK3, `gotProblems`); `baselineFiles`:
+//   those of baseline.list (faulty files).
 // - The next steps (AK4): Create baseline with the selection given and only `name` open, left out for a
 //   selection baseline.create refuses (`refusedSelection`: a baseline, a command output, a saved filter with
 //   another view, assumption of #2045); nothing else of whether it can be created is checked (SR-242). Show
@@ -26,7 +27,7 @@ import { counted, incompleteNote, sentence, viewNamed } from "../answer.js";
 import evidenceDegree, { countedOfDegree } from "../evidence/degree.js";
 import withoutPassedTest, { listedWithoutPassedTest } from "../evidence/withoutPassedTest.js";
 import workspaceCheck from "../workspace/check.js";
-import { baselineRef, baselineSince, getInput, ranAs, viewNames } from "./changes.js";
+import { baselineRef, baselineSince, getInput, gotProblems, ranAs, viewNames } from "./changes.js";
 import { refusedSelection } from "./create.js";
 import { countedOfBaseline } from "./get.js";
 import baselineGet from "./get.js";
@@ -66,10 +67,10 @@ const incompleteOf = async (
   outputs.some((output) => output?.incomplete === true);
 
 /** The newest baseline with the problems baseline.get gives for it, kept apart from the check's (AK3). */
-const baselineOf = (got: CommandOutput<"baseline.get">): BaselineSince => ({
-  ...baselineSince(got),
-  ...(got.problems === undefined ? {} : { problems: got.problems }),
-});
+const baselineOf = (got: CommandOutput<"baseline.get">): BaselineSince => {
+  const problems = gotProblems(got);
+  return { ...baselineSince(got), ...(problems === undefined ? {} : { problems }) };
+};
 
 /** The output of baseline.prepare (see the file comment). */
 const prepared = async (

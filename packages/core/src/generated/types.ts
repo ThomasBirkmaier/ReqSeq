@@ -474,6 +474,9 @@ export type ProblemCode =
   | "perspective.duplicate-name"
   | "perspective.group-unavailable"
   | "sort.incomplete"
+  | "version.date-unavailable"
+  | "version.uncommitted"
+  | "version.date-unknown"
   | "metamodel.invalid"
   | "metamodel.optional-status"
   | "metamodel.meaning-unassigned"
@@ -807,7 +810,7 @@ export interface BaselineSince {
     /** Elements of the baseline in a repository that is not on this machine. */
     readonly inaccessible: number;
   };
-  /** In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check. */
+  /** In baseline.prepare: the problems baseline.get gives for the baseline, apart from those of the check, without its warnings on version dates (`version.date-unavailable`, `version.uncommitted`, `version.date-unknown`, SR-242 AK3). */
   readonly problems?: readonly Problem[];
 }
 
@@ -3380,7 +3383,7 @@ export interface ElementGetInput {
  */
 export interface ElementGetOutput {
   readonly answer: Answer;
-  /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046). */
+  /** Text, properties, version (in normal form n2, the form ReqSeq writes; a stored version of n1 is compared in its own form, ADR-0005) and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out, with a warning among the hints that says why: `version.uncommitted` for a version not committed, else `version.date-unavailable` for a repository that is not on this machine, that Git cannot read or that is a shallow clone, else `version.date-unknown` (SR-254); left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, `variant.target-not-core` for a replacement or exclusion of the element that names no core requirement, SR-041 AK8, the outdated relations and inline references of the element, `relation.outdated`, and the changed core requirements of its replacements, `variant.core-changed` (SR-045), at a variant the core requirements changed or new since its newest baseline, `variant.core-changed-since-baseline` and `variant.core-new-since-baseline` (SR-103), SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (ThomasBirkmaier/ReqSeq-archive#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for a requirement with a validation record (a validation record of any other element counts for no status, SR-038 AK5), separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-166). */
   readonly fileSha256: FileSha256;
@@ -3499,7 +3502,7 @@ export type ElementListOutput = {
   /** Elements in the selection, each once. */
   readonly total: number;
   readonly incomplete?: Incomplete;
-  /** With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075). */
+  /** With `perspective` (else left out unless the sort warns): `perspective.group-unavailable` (warning, with the perspective file) when its stored grouping can no longer be chosen and the list is given without groups (SR-213 AK7). With a sort by `versionDate`: `sort.incomplete` (warning, per repository) when Git did not give the dates of some elements in time; they are listed last (SR-075). `version.date-unavailable` (warning, per repository, on each page) when elements of the selection are listed last because their repository is not on this machine, Git cannot read it or it is a shallow clone (SR-075 AK5). */
   readonly problems?: readonly Problem[];
 } & (
   | {
@@ -4572,11 +4575,11 @@ export interface HintConfirmInput {
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element. */
   readonly target?: ElementRef;
-  /** Select the open confirmable hints of the whole workspace with one of the codes of `kind`: those hint.list gives with a hintId for that `kind` and no other filter. Needs `kind` with confirmable codes only (see `kind`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
+  /** Select the open confirmable hints of the whole workspace with a code of `kind`, as hint.list gives them with a hintId for that `kind` alone. Needs `kind` with confirmable codes only (see `kind`; a since-baseline code is refused with its reason, other codes are `input.invalid`) and `expected`; not with `ref` or `target`. */
   readonly all: boolean;
   /** Only selected hints with one of these codes; the confirmable codes are `relation.outdated` and `variant.core-changed`; a since-baseline code gives `hint.not-confirmable` (SR-103 AK5, see `ref`). */
   readonly kind?: readonly ProblemCode[];
-  /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`), for example after a pull brought new hints. Required with `all`. */
+  /** The number of hints the call confirms as the person reviewed them: the hints the selection holds, counted as hint.list counts them (a relation written twice is two hints with one ID), plus one per given hint ID that the selection does not hold (with `all`: `total` of hint.list with the same `kind` and no other filter). When the call would confirm another number, it is refused and nothing is written (`input.invalid`, details `count`). Required with `all`. */
   readonly expected?: number;
 }
 
@@ -5471,7 +5474,7 @@ export interface BaselineGetOutput {
       | "inaccessible";
     /** The version in the baseline; left out for added. */
     readonly version?: Version;
-    /** Date of that version from the Git history (ADR-0005), read for the page only; null when unknown. */
+    /** Date of that version from the Git history (ADR-0005), read for the page only; null when unknown, and `problems` then says why, once per repository (`version.uncommitted`, `version.date-unavailable`, `version.date-unknown`, SR-254). */
     readonly versionDate?: string | null;
     /** The current version when it differs, also for removed and added. */
     readonly current?: Version;
@@ -5580,7 +5583,7 @@ export interface BaselineChangesOutput {
   }[];
   /** All open hints, as `total` of hint.list without a filter. */
   readonly hintTotal: number;
-  /** The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline. */
+  /** The problems baseline.get gives for the baseline, without its warnings on version dates (`version.date-unavailable`, `version.uncommitted`, `version.date-unknown`, SR-241 AK6), and those baseline.list gives for the files that are no valid baseline. */
   readonly problems?: readonly Problem[];
   /** Confirm hints, Compare baseline, Prepare baseline and List elements, as the details say (SR-241 AK3, AK4, AK8). */
   readonly next: readonly NextStep[];

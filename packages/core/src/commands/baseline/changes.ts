@@ -6,7 +6,8 @@
 //   for every file), which skips a file that is no valid baseline (AK7). baseline.get is called with its
 //   name, or its file name when another valid baseline has the same name (as the app's offers name it).
 // - Its numbers are `counts` of baseline.get (AK1, AK5), without `added` and `removed` when the file stores
-//   no selection (AK6); its problems and those of baseline.list (faulty files, AK7) are `problems`.
+//   no selection (AK6); its problems, without the warnings of SR-254 on the dates of its page (AK6,
+//   `gotProblems`), and those of baseline.list (faulty files, AK7) are `problems`.
 // - The hints are hint.list without a filter (AK2), the page of `limit` from `offset`.
 // - The next steps (AK3, AK4): Confirm hints with the hints open, when a confirmable kind (D-042) has a
 //   hint over all pages; Compare baseline with the baseline and the element open, when an element is
@@ -24,7 +25,7 @@ import { foldName, newestBaselines } from "../../baselines/index.js";
 import type { BaselineSince, NextStep } from "../../generated/types.js";
 import { pageFor } from "../../evidence/index.js";
 import { CONFIRMABLE_CODES } from "../../hints/index.js";
-import { namesField } from "../../model/index.js";
+import { UNDATED_CODES, namesField } from "../../model/index.js";
 import { counted, incompleteNote, listed, problemsNote, sentence } from "../answer.js";
 import hintList from "../hint/list.js";
 import baselineGet, { countedOfBaseline } from "./get.js";
@@ -179,6 +180,17 @@ const nextSteps = (
   ];
 };
 
+/**
+ * The problems of a baseline.get output without the warnings of SR-254 on the version dates of its page, which
+ * baseline.changes and baseline.prepare do not give (SR-241 AK6, SR-242 AK3); undefined where none is left.
+ */
+export const gotProblems = (
+  got: CommandOutput<"baseline.get">,
+): CommandOutput<"baseline.get">["problems"] => {
+  const kept = got.problems?.filter((problem) => !UNDATED_CODES.has(problem.code));
+  return kept === undefined || kept.length === 0 ? undefined : kept;
+};
+
 /** The output of baseline.changes (see the file comment). */
 const changesOf = async (
   ctx: CommandContext,
@@ -188,7 +200,7 @@ const changesOf = async (
   const got = ref === undefined ? undefined : await baselineGet.run(ctx, getInput(ref));
   const hints = await hintList.run(ctx, { limit: input.limit, offset: input.offset });
   const baseline = got === undefined ? undefined : baselineSince(got);
-  const problems = [...(got?.problems ?? []), ...(list.problems ?? [])];
+  const problems = [...(got === undefined ? [] : (gotProblems(got) ?? [])), ...(list.problems ?? [])];
   const incomplete = got?.incomplete === true || list.incomplete === true || hints.incomplete;
   return {
     ...(baseline === undefined ? {} : { baseline }),

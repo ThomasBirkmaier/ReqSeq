@@ -82,7 +82,7 @@
       "problems": {
         "title": "Problems",
         "type": "array",
-        "description": "The problems baseline.get gives for the baseline, and those baseline.list gives for the files that are no valid baseline.",
+        "description": "The problems baseline.get gives for the baseline, without its warnings on version dates (`version.date-unavailable`, `version.uncommitted`, `version.date-unknown`, SR-241 AK6), and those baseline.list gives for the files that are no valid baseline.",
         "items": {
           "$ref": "../common.schema.json#/$defs/problem"
         },
