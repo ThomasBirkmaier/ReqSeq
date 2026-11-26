@@ -52,7 +52,7 @@
         "title": "Total",
         "type": "integer",
         "minimum": 0,
-        "description": "Every element of the selection, not only the page."
+        "description": "Every element the output lists, not only the page."
       },
       "incomplete": {
         "$ref": "../common.schema.json#/$defs/incomplete",

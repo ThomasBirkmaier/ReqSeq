@@ -26,11 +26,12 @@ const reqseq = async (args: readonly string[]): Promise<Run> => {
 
 describe("reqseq evidence status and element get with indirect verification (SR-034)", () => {
   it("[SR-034/AK-kkxv] reqseq evidence status prints indirect for a parent whose children are verified by record files", async () => {
-    const result = await reqseq(["evidence", "status"]);
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    const result = await reqseq(["evidence", "status", "--where", '{"all":[]}']);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
-        "Listed the verification status of 18 elements.",
+        "Listed the verification status of 19 elements.",
         "elements:",
         "  N-00a001  approved  Know the weather  [validation: open]",
         "  SR-00b100  approved  Show the weather  [verification: core indirect]",
@@ -50,7 +51,8 @@ describe("reqseq evidence status and element get with indirect verification (SR-
         "  SR-00b151  draft  Show pressure in hPa  [verification: core verified]",
         "  SR-00b160  approved  Show the humidity  [verification: core open]",
         "  SR-00b161  obsolete  Show dew point  [verification: core open]",
-        "total: 18",
+        "  UC-00e161  approved  Check the humidity",
+        "total: 19",
         "",
       ].join("\n"),
     );

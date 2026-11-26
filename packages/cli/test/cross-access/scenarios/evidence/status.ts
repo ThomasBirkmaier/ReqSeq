@@ -244,14 +244,17 @@ scenariosOf("evidence.status", [
   {
     name: "validation status apart from the verification status, none for a use case with a validation record (SR-038)",
     fixture: VALIDATION,
-    input: {},
+    // Every element: without a selection only requirements and needs (SR-031 AK13).
+    input: { selection: { where: { all: [] } } },
     tag: "[SR-038/AK-f98s]",
     expect: "output",
     check: (results) => {
       const { elements } = (
         results["core"]?.outcome as { output: { elements: readonly Record<string, unknown>[] } }
       ).output;
-      expect(elements.find((e) => e["shortId"] === "UC-00e001")?.["validation"]).toBeUndefined();
+      const useCase = elements.find((e) => e["shortId"] === "UC-00e001");
+      expect(useCase).toBeDefined();
+      expect(useCase?.["validation"]).toBeUndefined();
     },
   },
   {
